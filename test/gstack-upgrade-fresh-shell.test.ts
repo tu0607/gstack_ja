@@ -13,7 +13,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { execFile, spawnSync } from 'child_process';
 import { promisify } from 'util';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { createHash } from 'crypto';
@@ -98,7 +98,7 @@ const hostRenders: HostRender[] = [];
 
 beforeAll(async () => {
   if (IS_WINDOWS) return;
-  root = mkdtempSync(join(tmpdir(), 'gstack-c9-'));
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'gstack-c9-')));
   mkdirSync(join(root, 'home'), { recursive: true });
   writeFileSync(join(root, 'home', '.gitconfig'), '[init]\n\tdefaultBranch = main\n[commit]\n\tgpgsign = false\n');
   renders = join(root, 'render');

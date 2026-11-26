@@ -1,243 +1,246 @@
-# Skill Deep Dives
+# スキル詳細ガイド
 
-Detailed guides for every gstack skill — philosophy, workflow, and examples.
+gstack の全スキルについての詳細ガイドです。思想、ワークフロー、使用例をまとめています。
 
-| Skill | Your specialist | What they do |
+| スキル | 担当スペシャリスト | 概要 |
 |-------|----------------|--------------|
-| [`/office-hours`](#office-hours) | **YC Office Hours** | Start here. Six forcing questions that reframe your product before you write code. Pushes back on your framing, challenges premises, generates implementation alternatives. Design doc feeds into every downstream skill. |
-| [`/spec`](#spec) | **Spec Author** | Turn vague intent into a precise, executable spec in five phases. Backlog-ready output that downstream skills can pick up. Optional agent spawn at the end. |
-| [`/plan-ceo-review`](#plan-ceo-review) | **CEO / Founder** | Rethink the problem. Find the 10-star product hiding inside the request. Four modes: Expansion, Selective Expansion, Hold Scope, Reduction. |
-| [`/plan-eng-review`](#plan-eng-review) | **Eng Manager** | Lock in architecture, data flow, diagrams, edge cases, and tests. Forces hidden assumptions into the open. |
-| [`/plan-design-review`](#plan-design-review) | **Senior Designer** | Interactive plan-mode design review. Rates each dimension 0-10, explains what a 10 looks like, fixes the plan. Works in plan mode. |
-| [`/design-consultation`](#design-consultation) | **Design Partner** | Build a complete design system from scratch. Knows the landscape, proposes creative risks, generates realistic product mockups. Design at the heart of all other phases. |
-| [`/review`](#review) | **Staff Engineer** | Find the bugs that pass CI but blow up in production. Auto-fixes the obvious ones. Flags completeness gaps. Advisory simplification lens flags over-built code — never blocks, never auto-applies. |
-| [`/investigate`](#investigate) | **Debugger** | Systematic root-cause debugging. Iron Law: no fixes without investigation. Traces data flow, tests hypotheses, stops after 3 failed fixes. |
-| [`/design-review`](#design-review) | **Designer Who Codes** | Live-site visual audit + fix loop. 80-item audit, then fixes what it finds. Atomic commits, before/after screenshots. |
-| [`/design-shotgun`](#design-shotgun) | **Design Explorer** | Generate multiple AI design variants, open a comparison board in your browser, and iterate until you approve a direction. Taste memory biases toward your preferences. |
-| [`/design-html`](#design-html) | **Design Engineer** | Generates production-quality Pretext-native HTML. Works with approved mockups, CEO plans, design reviews, or from scratch. Text reflows on resize, heights adjust to content. Smart API routing per design type. Framework detection for React/Svelte/Vue. Previews render through your Aside browser. |
-| [`/qa`](#qa) | **QA Lead** | Explore browser and functional behavior (APIs, CLIs, jobs, workers, webhooks), reproduce defects, prove regressions fail before repair, then fix and re-verify. |
-| [`/qa-only`](#qa) | **QA Reporter** | Explore the same surfaces and propose regression cases with evidence, without changing product code or tests. |
-| [`/scrape`](#browse) | **Browser Data Extractor** | Pull structured data off a web page — tables, lists, prices — in your Aside browser with the page's real logged-in state. Same driver contract as `/browse`. On the fallback browser, a codified browser-skill answers a repeat intent in ~200ms. |
-| [`/skillify`](#browse) | **Skill Codifier** | Fallback-browser skill: walks back through your conversation, finds the last `/scrape` prototype, synthesizes script + test + fixture, runs the test, asks before committing. On Aside, durable per-site automation belongs to Aside's own skills. |
-| [`/ship`](#ship) | **Release Engineer** | Sync main, run tests, explore changed behavior within a bound, audit coverage and docs before final verification, then push and open or update a PR. Bootstraps test frameworks when appropriate. |
-| [`/land-and-deploy`](#land-and-deploy) | **Release Engineer** | Merge the PR, wait for CI and deploy, verify production health. One command from "approved" to "verified in production." |
-| [`/canary`](#canary) | **SRE** | Post-deploy monitoring loop. Watches for console errors, performance regressions, and page failures in your Aside browser. |
-| [`/benchmark`](#benchmark) | **Performance Engineer** | Baseline page load times, Core Web Vitals, and resource sizes. Compare before/after on every PR. Track trends over time. |
-| [`/cso`](#cso) | **Chief Security Officer** | Supported security findings with explicit coverage. Static assessment remains available without catalog profiles; contained runtime/scanner execution requires matching qualified profiles. Runtime-tested bundles authenticate separate external assertions. Project-test completion remains `self_reported` because target code controls the test process; `tested` is reserved for a future target-independent completion witness. |
-| [`/document-release`](#document-release) | **Technical Writer** | Audit relevant docs on every ship before final verification; standalone runs can also update docs after a PR exists. Catches stale READMEs and reports unresolved gaps. |
-| [`/document-generate`](#document-generate) | **Technical Writer** | Generate Diataxis docs (tutorial / how-to / reference / explanation) for a feature from code. |
-| [`/retro`](#retro) | **Eng Manager** | Team-aware weekly retro. Per-person breakdowns, shipping streaks, test health trends, growth opportunities. |
-| [`/browse`](#browse) | **QA Engineer** | Give the agent eyes. Drives your Aside browser first — real sessions, real clicks, real screenshots — through deterministic `aside repl` scripts, and falls back to gstack's own Chromium (~100ms per command) when Aside isn't there. |
-| [`/setup-browser-cookies`](#setup-browser-cookies) | **Session Manager** | Copy selected cookies from Chrome, Chromium, Brave, Edge, Windows-only Opera and Opera GX, or macOS-only Comet, Arc, and Dia into the fallback browser. Choose your profile and domains; check sign-in separately. Unnecessary on Aside, which already has your sessions. |
-| [`/autoplan`](#autoplan) | **Review Pipeline** | One command, fully reviewed plan. Runs CEO → design → DX → eng review automatically (eng always last, so the shipping gate reviews the final amended plan) with encoded decision principles. Surfaces only taste decisions for your approval. |
-| [`/plan-devex-review`](#plan-devex-review) | **DX Reviewer** | Plan-stage DX review. TTHW (time-to-hello-world), magical moments, friction points, persona traces, and error messages scored for the agents that read them ([agent-ready errors](agent-ready-errors.md)). Three modes: Expansion, Polish, Triage. |
-| [`/devex-review`](#devex-review) | **DX Reviewer (live)** | Live developer experience audit. Walks the actual onboarding flow, measures TTHW, catches the docs lies, and triggers CLI errors the way an agent meets them (no terminal, contained, redacted) through `gstack-error-capture`. |
-| [`/plan-tune`](#plan-tune) | **Question Tuner** | Self-tune AskUserQuestion sensitivity per question. Mark questions as never-ask, always-ask, or only-for-one-way. |
-| [`/spec`](#spec) | **Spec Author** | Turn vague intent into a precise, executable spec in five phases. Files a GitHub issue, optionally spawns a Claude Code agent in a fresh worktree, and lets `/ship` close the source issue on merge. |
-| [`/learn`](#learn) | **Memory** | Manage what gstack learned across sessions. Review, search, prune, and export project-specific patterns and preferences. |
-| [`/context-save`](#context-save) | **Save State** | Save working context (git state, decisions, remaining work) so any future session can resume. |
-| [`/context-restore`](#context-restore) | **Restore State** | Resume from a saved context, even across Conductor workspace handoffs. |
-| [`/health`](#health) | **Code Quality Dashboard** | Wraps type checker, linter, tests, dead code detection. Computes a weighted 0-10 score; tracks trends over time. |
-| [`/deslop-shared-libs`](#deslop-shared-libs) | **Shared Code Reviewer** | Find worthwhile shared-code extractions in recent work. Recommendations only. |
-| [`/test-audit`](#test-audit) | **Test Auditor** | Sweep existing tests for low-value, implementation-coupled or duplicate tests. Report-only unless you approve a batch. |
-| [`/landing-report`](#landing-report) | **Ship Queue Dashboard** | Read-only snapshot of the workspace-aware ship queue. Which version slots are claimed, which sibling workspaces have WIP. |
-| [`/benchmark-models`](#benchmark-models) | **Model Benchmark** | Side-by-side cross-model benchmark for skills (Claude vs GPT vs Gemini). Latency, tokens, cost, optional LLM-judged quality. |
-| [`/eval-plan`](#eval-plan) | **Eval Planner** | Preregister a paid eval (bars, arms, decoys, stop rules), dry-run it for $0 with the stub model, pilot three priced items, then approve the spend from the extrapolation table. |
+| [`/office-hours`](#office-hours) | **YC Office Hours** | まずはここから始めます。6つの強制質問で、コードを書く前にプロダクトの捉え方を組み直します。あなたの前提に異を唱え、前提そのものに疑問を投げかけ、実装案を生成します。ここで作られる設計ドキュメントが、後続のすべてのスキルの入力になります。 |
+| [`/spec`](#spec) | **Spec Author** | 曖昧な意図を、5つのフェーズで正確で実行可能な仕様に落とし込みます。バックログにそのまま載せられる成果物を出し、後続のスキルが拾える形にします。最後に任意でエージェントを起動できます。 |
+| [`/plan-ceo-review`](#plan-ceo-review) | **CEO / Founder** | 問題そのものを考え直します。依頼の中に隠れた「10 つ星のプロダクト」を探します。モードは4つ:Expansion、Selective Expansion、Hold Scope、Reduction です。 |
+| [`/plan-eng-review`](#plan-eng-review) | **Eng Manager** | アーキテクチャ、データフロー、図、エッジケース、テストを固めます。隠れた前提を表に引き出します。 |
+| [`/plan-design-review`](#plan-design-review) | **Senior Designer** | プランモードで対話しながら行う設計レビューです。各観点を 0〜10 で評価し、10 点とは何かを説明して、プランを修正します。プランモードで動作します。 |
+| [`/design-consultation`](#design-consultation) | **Design Partner** | デザインシステムをゼロから構築します。市場の状況を把握したうえで創造的なリスクを提案し、現実的なプロダクトのモックアップを生成します。デザインは他のすべてのフェーズの中心に置かれます。 |
+| [`/review`](#review) | **Staff Engineer** | CI は通るのに本番で壊れるバグを見つけます。明らかな問題は自動で修正します。網羅性の抜けを指摘します。簡素化の観点では、過剰に作り込まれたコードを指摘します。ブロックもせず、自動適用もしません。 |
+| [`/investigate`](#investigate) | **Debugger** | 体系的に根本原因を突き止めるデバッグです。鉄則は「調査なしに修正しない」です。データフローをたどり、仮説を検証し、修正が3回失敗したところで止まります。 |
+| [`/design-review`](#design-review) | **Designer Who Codes** | 公開中のサイトのビジュアル監査と修正ループです。80項目の監査を行ったうえで、見つかった問題を修正します。アトミックなコミットと、修正前後のスクリーンショットを残します。 |
+| [`/design-shotgun`](#design-shotgun) | **Design Explorer** | AI によるデザインのバリエーションを複数生成し、比較ボードをブラウザで開きます。方向性が決まるまで反復できます。テイスト・メモリがあなたの好みに合わせて提案を寄せていきます。 |
+| [`/design-html`](#design-html) | **Design Engineer** | Pretext ネイティブの本番品質の HTML を生成します。承認済みモックアップ、CEO プラン、デザインレビュー、あるいはゼロからの作成に対応します。リサイズでテキストが折り返し直され、高さはコンテンツに合わせて変わります。デザインの種類に応じて API を賢く使い分けます。React、Svelte、Vue のフレームワークも検出します。プレビューは Aside ブラウザで表示されます。 |
+| [`/qa`](#qa) | **QA Lead** | ブラウザや機能の挙動(API、CLI、ジョブ、ワーカー、Webhook)を探索し、不具合を再現します。修正の前に回帰が失敗することを証明し、修正して再検証します。 |
+| [`/qa-only`](#qa) | **QA Reporter** | 同じ対象を探索し、証拠付きで回帰テストケースを提案します。プロダクトのコードやテストは変更しません。 |
+| [`/scrape`](#browse) | **Browser Data Extractor** | 表、リスト、価格などの構造化データを Web ページから取り出します。Aside ブラウザで、ページ上の実際のログイン状態のまま動作します。`/browse` と同じドライバー契約に従います。フォールバックのブラウザでは、スキル化された処理が同じ用途の繰り返しに約 200ms で応答します。 |
+| [`/skillify`](#browse) | **Skill Codifier** | フォールバックブラウザ用のスキルです。会話をさかのぼって最後の `/scrape` の試作を見つけ、スクリプト、テスト、フィクスチャを組み立てて、テストを実行し、コミットする前に確認します。Aside では、サイトごとの持続的な自動化は Aside 独自のスキルの領分です。 |
+| [`/ship`](#ship) | **Release Engineer** | main を同期し、テストを実行し、変更された振る舞いを範囲を決めて探索し、最終検証の前にカバレッジとドキュメントを監査してから、プッシュして PR を作成または更新します。必要に応じてテストフレームワークも導入します。 |
+| [`/land-and-deploy`](#land-and-deploy) | **Release Engineer** | PR をマージし、CI とデプロイを待ち、本番環境の健全性を確認します。「承認」から「本番で検証済み」までを一つのコマンドで実行します。 |
+| [`/canary`](#canary) | **SRE** | デプロイ後の監視ループです。Aside ブラウザで、コンソールエラー、パフォーマンスの劣化、ページの障害を監視します。 |
+| [`/benchmark`](#benchmark) | **Performance Engineer** | ページの読み込み時間、Core Web Vitals、リソースサイズのベースラインを測定します。PR ごとに変更前後を比較し、傾向を時系列で追跡します。 |
+| [`/cso`](#cso) | **Chief Security Officer** | 明示的なカバレッジ付きで、対応済みのセキュリティ検出結果を提供します。カタログのプロファイルがなくても静的評価は利用できます。ランタイムやスキャナーの実行を伴う検証には、対応するプロファイルの認定が必要です。ランタイムテスト済みのバンドルは、外部のアサーションを個別に認証します。対象コードがテストプロセスを制御するため、プロジェクトテストの完了は `self_reported` のままです。`tested` は将来、対象コードに依存しない完了証明が導入されたときのために予約されています。 |
+| [`/document-release`](#document-release) | **Technical Writer** | 出荷のたびに、関連するドキュメントを最終検証の前に監査します。PR が存在した後に単独で実行することもできます。古くなった README を見つけ、未解決のギャップを報告します。 |
+| [`/document-generate`](#document-generate) | **Technical Writer** | 機能のコードから Diátaxis 形式(チュートリアル / ハウツー / リファレンス / 解説)のドキュメントを生成します。 |
+| [`/retro`](#retro) | **Eng Manager** | チームを考慮した週次のふりかえりです。メンバーごとの内訳、出荷の連続記録、テストの健全性の推移、成長の機会を示します。 |
+| [`/browse`](#browse) | **QA Engineer** | エージェントに「目」を与えます。Aside ブラウザを最優先で操作します。実際のセッション、実際のクリック、実際のスクリーンショットを、決定論的な `aside repl` スクリプトで実行します。Aside がない場合は、gstack 独自の Chromium にフォールバックします(コマンドあたり約 100ms)。 |
+| [`/setup-browser-cookies`](#setup-browser-cookies) | **Session Manager** | Chrome、Chromium、Brave、Edge、Windows 限定の Opera と Opera GX、macOS 限定の Comet、Arc、Dia から、選んだ Cookie をフォールバックブラウザにコピーします。プロファイルとドメインを選び、サインインは別途確認します。Aside では、すでにセッションを持っているため不要です。 |
+| [`/autoplan`](#autoplan) | **Review Pipeline** | 1つのコマンドで、十分にレビューされたプランを出力します。CEO → デザイン → DX → エンジニアリングの順にレビューを自動実行します。エンジニアリングは必ず最後に実行され、出荷前のゲートが最終的に修正されたプランをレビューするようにします。判断原則を組み込み、承認が必要な「テイスト」の判断だけを提示します。 |
+| [`/plan-devex-review`](#plan-devex-review) | **DX Reviewer** | プランの段階での DX レビューです。TTHW(Hello World までの所要時間)、感動ポイント、摩擦点、ペルソナごとの流れ、エラーメッセージを、それを読むエージェント向けに評価します([エージェント対応のエラー](agent-ready-errors.md))。モードは3つ:Expansion、Polish、Triage です。 |
+| [`/devex-review`](#devex-review) | **DX Reviewer (live)** | 稼働中の開発者体験の監査です。実際のオンボーディングの流れをたどり、TTHW を測定し、ドキュメントの誤りを見つけます。エージェントが遭遇する形で CLI のエラーを発生させ(ターミナルなし、隔離、秘匿化)、`gstack-error-capture` を通して記録します。 |
+| [`/plan-tune`](#plan-tune) | **Question Tuner** | AskUserQuestion の頻度を質問ごとに自己調整します。質問を「聞かない」「常に聞く」「一方向の場合のみ聞く」のいずれかに指定できます。 |
+| [`/spec`](#spec) | **Spec Author** | 曖昧な意図を、5つのフェーズで正確で実行可能な仕様に落とし込みます。GitHub の Issue を作成し、必要に応じて新しいワークツリー(worktree)で Claude Code のエージェントを起動します。マージ時には `/ship` が元の Issue をクローズします。 |
+| [`/learn`](#learn) | **Memory** | gstack がセッションをまたいで学んだ内容を管理します。プロジェクト固有のパターンや好みを確認、検索、整理、エクスポートできます。 |
+| [`/context-save`](#context-save) | **Save State** | 作業コンテキスト(Git の状態、決定事項、残りの作業)を保存し、後のどのセッションからでも再開できるようにします。 |
+| [`/context-restore`](#context-restore) | **Restore State** | 保存したコンテキストから再開します。Conductor のワークスペース間の引き継ぎをまたいでも動作します。 |
+| [`/health`](#health) | **Code Quality Dashboard** | 型チェッカー、リンター、テスト、デッドコード検出をまとめて実行します。重み付けした 0〜10 のスコアを算出し、推移を追跡します。 |
+| [`/deslop-shared-libs`](#deslop-shared-libs) | **Shared Code Reviewer** | 最近の作業の中から、共有コードとして切り出す価値のあるものを探します。提案のみを行います。 |
+| [`/test-audit`](#test-audit) | **Test Auditor** | 既存のテストを調べ、価値の低いもの、実装に強く依存しているもの、重複したものを見つけます。承認したバッチ以外は、報告のみを行います。 |
+| [`/landing-report`](#landing-report) | **Ship Queue Dashboard** | ワークスペースを考慮した出荷キューを、読み取り専用で表示します。どのバージョン枠が確保されているか、どの兄弟ワークスペースに作業中のものがあるかを示します。 |
+| [`/benchmark-models`](#benchmark-models) | **Model Benchmark** | スキルのクロスモデル比較ベンチマークです(Claude と GPT と Gemini)。レイテンシ、トークン、コスト、任意で LLM による品質評価を並べて示します。 |
+| [`/eval-plan`](#eval-plan) | **Eval Planner** | 有料の評価を事前登録します(合格基準、比較アーム、デコイ、停止ルール)。スタブモデルで費用ゼロのドライランを行い、3件の有料パイロットを実行してから、推定表をもとに支出を承認します。 |
 | | | |
 | **Multi-AI** | | |
-| [`/codex`](#codex) | **Second Opinion** | OpenAI Codex review, challenge, and consultation. Available outside the Codex harness. |
-| [`/claude-code`](#claude-code) | **Second Opinion** | Claude Code review, challenge, and consultation. Available outside the Claude Code harness; used for automatic outside reviews in Codex. |
-| [`/pair-agent`](#browse) | **Remote Agent Bridge** | Pair a remote AI agent (OpenClaw, Codex, Cursor, Hermes) with gstack's own browser. Scoped tunnel, locked allowlist, session token. Fallback-browser skill; agents driving Aside open their own tabs. |
-| [`/setup-gbrain`](#setup-gbrain) | **Memory Sync** | Set up gbrain for cross-machine session memory sync. One command from zero to live. |
-| [`/sync-gbrain`](#sync-gbrain) | **Keep Brain Current** | Refresh gbrain against this repo's code; teach the agent when to use `gbrain search`/`code-def` over Grep. Idempotent; safe to re-run. |
+| [`/codex`](#codex) | **Second Opinion** | OpenAI Codex によるレビュー、チャレンジ、相談です。Codex のハーネス以外でも利用できます。 |
+| [`/claude-code`](#claude-code) | **Second Opinion** | Claude Code によるレビュー、チャレンジ、相談です。Claude Code のハーネス以外でも利用できます。Codex での自動の外部レビューにも使われます。 |
+| [`/pair-agent`](#browse) | **Remote Agent Bridge** | リモートの AI エージェント(OpenClaw、Codex、Cursor、Hermes)を、gstack 独自のブラウザにペアリングします。スコープ付きのトンネル、許可リストの固定、セッショントークンを使います。フォールバックブラウザ用のスキルです。Aside を操作するエージェントは、自分のタブを開きます。 |
+| [`/setup-gbrain`](#setup-gbrain) | **Memory Sync** | gbrain を設定し、マシンをまたいだセッションメモリの同期を行います。ゼロから稼働まで、一つのコマンドで完了します。 |
+| [`/sync-gbrain`](#sync-gbrain) | **Keep Brain Current** | このリポジトリのコードに合わせて gbrain を更新します。エージェントに、Grep ではなく `gbrain search` や `code-def` を使うべきタイミングを教えます。冪等なので、何度実行しても安全です。 |
 | | | |
 | **Safety & Utility** | | |
-| [`/careful`](#safety--guardrails) | **Safety Guardrails** | Warns before destructive commands (rm -rf, DROP TABLE, force-push, git reset --hard). Override any MEDIUM warning; root/home recursive deletes and default-branch force-pushes are hard-denied. Common build cleanups whitelisted. |
-| [`/freeze`](#safety--guardrails) | **Edit Lock** | Restrict all file edits to a single directory. Blocks Edit, Write and NotebookEdit outside the boundary. Accident prevention for debugging. |
-| [`/guard`](#safety--guardrails) | **Full Safety** | Combines /careful + /freeze in one command. Maximum safety for prod work. |
-| [`/unfreeze`](#safety--guardrails) | **Unlock** | Remove the /freeze boundary, allowing edits everywhere again. |
-| [`/open-gstack-browser`](#open-gstack-browser) | **GStack Browser** | Launch gstack's own browser headed, with sidebar, anti-bot stealth, auto model routing, cookie import, and Claude Code integration. The visible face of the fallback engine; with Aside open you watch the agent's tabs there. |
-| [`/setup-deploy`](#setup-deploy) | **Deploy Configurator** | One-time setup for `/land-and-deploy`. Detects your platform, production URL, and deploy commands. |
-| [`/gstack-upgrade`](#gstack-upgrade) | **Self-Updater** | Upgrade gstack to the latest version. Detects global vs vendored install, syncs both, shows what changed. |
-| [`/make-pdf`](#make-pdf) | **PDF Generator** | Turn any markdown file into a publication-quality PDF. Proper margins, page numbers, cover pages, clickable TOC. Mermaid/excalidraw fences render as vector diagrams; `--to html\|docx` for other formats. Prints through your Aside browser (macOS 15+), or gstack's bundled browser when Aside is absent. |
-| [`/diagram`](#diagram) | **Diagram Maker** | English in, diagram out: mermaid source + editable `.excalidraw` (open it on excalidraw.com, hand-drawn style) + rendered SVG/PNG. Fully offline, rendered through your Aside browser (macOS 15+) or gstack's bundled browser when Aside is absent. |
-| [`/ios-qa`](#ios-qa) | **iOS QA Lead** | Live-device iOS QA via USB CoreDevice tunnel + embedded StateServer. Reads Swift source, codegens accessors, drives the real iPhone or iPad. Optionally exposes the device over Tailscale for remote agents. |
-| [`/ios-fix`](#ios-fix) | **iOS Autonomous Fixer** | Closes the find→fix→verify loop on a real iPhone. Captures a reproducing snapshot, fixes the source, rebuilds, redeploys, verifies. |
-| [`/ios-design-review`](#ios-design-review) | **iOS Designer's Eye** | 10-dimension Apple HIG audit on a real iPhone. Rates each screen, says what would make it a 10. |
-| [`/ios-clean`](#ios-clean) | **iOS Bridge Cleanup** | Convenience wrapper to strip DebugBridge SPM + `#if DEBUG` wiring. The structural Release-build guard is in Package.swift + CI; this skill is for guided manual removals. |
-| [`/ios-sync`](#ios-sync) | **iOS Bridge Resync** | Regenerate accessors and Swift templates against the latest upstream gstack. Run when you add new `@Observable` classes or upgrade gstack. |
+| [`/careful`](#safety--guardrails) | **Safety Guardrails** | 破壊的なコマンド(rm -rf、DROP TABLE、強制プッシュ、git reset --hard)の前に警告します。中程度の警告は上書きできます。ルートやホームの再帰削除、デフォルトブランチへの強制プッシュは、ハードに拒否されます。一般的なビルドの後片付けは許可リストに入っています。 |
+| [`/freeze`](#safety--guardrails) | **Edit Lock** | ファイルの編集を1つのディレクトリに限定します。その外側での Edit、Write、NotebookEdit をブロックします。デバッグ中の事故防止に役立ちます。 |
+| [`/guard`](#safety--guardrails) | **Full Safety** | `/careful` と `/freeze` を一つのコマンドにまとめたものです。本番作業のための最大限の安全策です。 |
+| [`/unfreeze`](#safety--guardrails) | **Unlock** | `/freeze` の境界を解除し、どこでも再び編集できるようにします。 |
+| [`/open-gstack-browser`](#open-gstack-browser) | **GStack Browser** | gstack 独自のブラウザを、ヘッドありで起動します。サイドバー、アンチボット対策のステルス機能、自動のモデルルーティング、Cookie のインポート、Claude Code との連携を備えています。フォールバックエンジンの見える顔です。Aside を開いていれば、エージェントのタブをそこで確認できます。 |
+| [`/setup-deploy`](#setup-deploy) | **Deploy Configurator** | `/land-and-deploy` のための一度きりのセットアップです。プラットフォーム、本番環境の URL、デプロイコマンドを検出します。 |
+| [`/gstack-upgrade`](#gstack-upgrade) | **Self-Updater** | gstack を最新バージョンに上げます。グローバルとベンダリングのどちらでインストールされているかを検出し、両方を同期して、何が変わったかを表示します。 |
+| [`/make-pdf`](#make-pdf) | **PDF Generator** | 任意の Markdown ファイルを、出版品質の PDF に変換します。余白、ページ番号、表紙、クリック可能な目次を備えます。Mermaid や excalidraw のフェンスはベクターの図として描画されます。他の形式には `--to html\|docx` を使います。印刷は Aside ブラウザ(macOS 15 以降)で行い、Aside がない場合は gstack 同梱のブラウザを使います。 |
+| [`/diagram`](#diagram) | **Diagram Maker** | 英語で依頼すると図が出てきます。Mermaid のソース、編集可能な `.excalidraw` ファイル(excalidraw.com で手描き風に開けます)、レンダリング済みの SVG と PNG を出力します。完全にオフラインで動作します。 |
+| [`/ios-qa`](#ios-qa) | **iOS QA Lead** | USB の CoreDevice トンネルと組み込みの StateServer を使って、実機の iOS を QA します。Swift のソースを読み、アクセサを生成し、実際の iPhone や iPad を操作します。必要に応じて、Tailscale を通じてリモートエージェントにデバイスを公開できます。 |
+| [`/ios-fix`](#ios-fix) | **iOS Autonomous Fixer** | 実機の iPhone で「発見→修正→検証」のループを閉じます。再現するスナップショットを取得し、ソースを修正し、再ビルドして再デプロイし、検証します。 |
+| [`/ios-design-review`](#ios-design-review) | **iOS Designer's Eye** | 実機の iPhone で、Apple HIG に基づく 10 観点の監査を行います。各画面を評価し、10 点にするには何が必要かを示します。 |
+| [`/ios-clean`](#ios-clean) | **iOS Bridge Cleanup** | DebugBridge の SPM と `#if DEBUG` の配線を取り除くための便利なラッパーです。Release ビルドを守る構造的なガードは Package.swift と CI にあります。このスキルは手動での案内付き削除のためのものです。 |
+| [`/ios-sync`](#ios-sync) | **iOS Bridge Resync** | 最新の上流の gstack に合わせて、アクセサと Swift テンプレートを再生成します。新しい `@Observable` クラスを追加したときや、gstack をアップグレードしたときに実行します。 |
 
 ---
 
 ## `/office-hours`
 
-This is where every project should start.
+ここからすべてのプロジェクトを始めるべきです。
 
-Before you plan, before you review, before you write code — sit down with a YC-style partner and think about what you're actually building. Not what you think you're building. What you're *actually* building.
+プランを立てる前、レビューする前、コードを書く前に、YC スタイルのパートナーと腰を据えて、実際に何を作ろうとしているのかを考えてください。作っていると思っているものではなく、*本当に*作ろうとしているものです。
 
-### The reframe
+### 捉え直し
 
-Here's what happened on a real project. The user said: "I want to build a daily briefing app for my calendar." Reasonable request. Then it asked about the pain — specific examples, not hypotheticals. They described an assistant missing things, calendar items across multiple Google accounts with stale info, prep docs that were AI slop, events with wrong locations that took forever to track down.
+実際のプロジェクトでの話です。ユーザーは「カレンダー用の毎日のブリーフィングアプリを作りたい」と言いました。もっともな依頼です。そこでスキルは、痛みについて尋ねました。仮定の話ではなく、具体的な例です。ユーザーは、アシスタントが物事を取りこぼすこと、複数の Google アカウントにまたがる予定の情報が古いこと、AI が作った質の低い準備資料、場所が間違っていて、特定に何時間もかかった予定について話しました。
 
-It came back with: *"I'm going to push back on the framing, because I think you've outgrown it. You said 'daily briefing app for multi-Google-Calendar management.' But what you actually described is a personal chief of staff AI."*
+返ってきた答えはこうでした。*「枠組みに異を唱えさせてください。あなたはもうその枠を超えていると思います。あなたは『複数の Google カレンダーを管理する毎日のブリーフィングアプリ』と言いました。しかし、あなたが実際に説明しているのは、個人向けの AI チーフ・オブ・スタッフです。」*
 
-Then it extracted five capabilities the user didn't realize they were describing:
+続いてスキルは、ユーザーが自覚していなかった5つの機能を抽出しました。
 
-1. **Watches your calendar** across all accounts and detects stale info, missing locations, permission gaps
-2. **Generates real prep work** — not logistics summaries, but *the intellectual work* of preparing for a board meeting, a podcast, a fundraiser
-3. **Manages your CRM** — who are you meeting, what's the relationship, what do they want, what's the history
-4. **Prioritizes your time** — flags when prep needs to start early, blocks time proactively, ranks events by importance
-5. **Trades money for leverage** — actively looks for ways to delegate or automate
+1. **カレンダーを監視する**:すべてのアカウントを対象に、古い情報、欠けた場所、権限の不足を検出します
+2. **実際の準備作業を生成する**:ロジスティクスの要約ではなく、役員会、ポッドキャスト、資金調達イベントに向けた*知的な準備作業*です
+3. **CRM を管理する**:誰に会うのか、どんな関係か、相手が何を求めているのか、これまでの経緯は何か
+4. **時間を優先順位づけする**:準備を早めに始める必要があるタイミングを知らせ、先回りして時間を確保し、予定の重要度を順位づけします
+5. **お金でレバレッジを買う**:仕事を委任したり自動化したりできる方法を積極的に探します
 
-That reframe changed the entire project. They were about to build a calendar app. Now they're building something ten times more valuable — because the skill listened to their pain instead of their feature request.
+この捉え直しで、プロジェクト全体が変わりました。ユーザーはカレンダーアプリを作ろうとしていました。いまでは、その10倍は価値のあるものを作っています。スキルが機能要望ではなく、ユーザーの痛みに耳を傾けたからです。
 
-### Premise challenge
+### 前提の検証
 
-After the reframe, it presents premises for you to validate. Not "does this sound good?" — actual falsifiable claims about the product:
+捉え直しのあと、スキルは検証してもらうための前提を提示します。「これで良さそうですか?」ではなく、プロダクトについての反証可能な主張です。
 
-1. The calendar is the anchor data source, but the value is in the intelligence layer on top
-2. The assistant doesn't get replaced — they get superpowered
-3. The narrowest wedge is a daily briefing that actually works
-4. CRM integration is a must-have, not a nice-to-have
+1. カレンダーは中心となるデータソースだが、価値は上に載る知性のレイヤーにある
+2. アシスタントは置き換えられるのではなく、強化される
+3. 最も狭い切り口は、本当に機能する毎日のブリーフィングである
+4. CRM 連携は「あれば良い」ではなく、必須である
 
-You agree, disagree, or adjust. Every premise you accept becomes load-bearing in the design doc.
+同意する、反対する、調整する、のいずれかを選んでください。同意した前提はすべて、設計ドキュメントの中で重い意味を持ちます。
 
-### Implementation alternatives
+### 実装の代替案
 
-Then it generates 2-3 concrete implementation approaches with honest effort estimates:
+次に、2〜3 の具体的な実装アプローチを、誠実な工数の見積もりとともに生成します。
 
-- **Approach A: Daily Briefing First** — narrowest wedge, ships tomorrow, M effort (human: ~3 weeks / CC: ~2 days)
-- **Approach B: CRM-First** — build the relationship graph first, L effort (human: ~6 weeks / CC: ~4 days)
-- **Approach C: Full Vision** — everything at once, XL effort (human: ~3 months / CC: ~1.5 weeks)
+- **アプローチ A:毎日のブリーフィングを先に**:最も狭い切り口で、明日にでも出せます。工数 M(人間:約 3 週間 / CC:約 2 日)
+- **アプローチ B:CRM を先に**:先に関係性のグラフを作ります。工数 L(人間:約 6 週間 / CC:約 4 日)
+- **アプローチ C:フルビジョン**:すべてを一度に作ります。工数 XL(人間:約 3 か月 / CC:約 1.5 週間)
 
-Recommends A because you learn from real usage. CRM data comes naturally in week two.
+実際に使うことで学べるため、A を推奨します。CRM のデータは 2 週目には自然に集まります。
 
-### Two modes
+### 2 つのモード
 
-**Startup mode** — for founders and intrapreneurs building a business. You get six forcing questions distilled from how YC partners evaluate products: demand reality, status quo, desperate specificity, narrowest wedge, observation & surprise, and future-fit. These questions are uncomfortable on purpose. If you can't name a specific human who needs your product, that's the most important thing to learn before writing any code.
+**スタートアップモード**:事業を立ち上げる創業者や社内起業家向けです。YC のパートナーがプロダクトを評価する方法から抽出した6つの強制質問が得られます。需要の現実、現状維持、切実な具体性、最も狭い切り口、観察と驚き、将来への適合です。これらの質問はあえて居心地の悪いものにしています。製品を必要としている具体的な人間を一人も挙げられないなら、コードを書く前に最も重要なことを学んだことになります。
 
-**Builder mode** — for hackathons, side projects, open source, learning, and having fun. You get an enthusiastic collaborator who helps you find the coolest version of your idea. What would make someone say "whoa"? What's the fastest path to something you can share? The questions are generative, not interrogative.
+**ビルダーモード**:ハッカソン、個人のサイドプロジェクト、オープンソース、学習、楽しむことが目的の場合向けです。アイデアの最もクールな形を一緒に探してくれる、熱のこもった協力者が得られます。何があれば「おお」と言わせられるか? 共有できるものにたどり着く最短の道は何か? 質問は詰問ではなく、発想を広げるためのものです。
 
-### The design doc
+### 設計ドキュメント
 
-Both modes end with a design doc written to `~/.gstack/projects/` — and that doc feeds directly into `/plan-ceo-review` and `/plan-eng-review`. The full lifecycle is now: `office-hours → plan → implement → review → QA → ship → retro`.
+どちらのモードも、`~/.gstack/projects/` に書かれる設計ドキュメントで終わります。そのドキュメントは `/plan-ceo-review` と `/plan-eng-review` に直接渡されます。全体の流れは今や次のとおりです:`office-hours → plan → implement → review → QA → ship → retro`。
 
-After the design doc is approved, `/office-hours` reflects on what it noticed about how you think — not generic praise, but specific callbacks to things you said during the session. The observations appear in the design doc too, so you re-encounter them when you re-read later.
+設計ドキュメントが承認されたあと、`/office-hours` は、あなたの考え方について気づいたことを振り返ります。一般的な褒め言葉ではなく、セッション中に言ったことへの具体的な言及です。その観察は設計ドキュメントにも載るので、後で読み返したときにもう一度目にすることになります。
 
 ---
 
 ## `/plan-ceo-review`
 
-This is my **founder mode**.
+これは私の**創業者モード**です。
 
-This is where I want the model to think with taste, ambition, user empathy, and a long time horizon. I do not want it taking the request literally. I want it asking a more important question first:
+ここでは、モデルに趣味の良さ、野心、ユーザーへの共感、長い時間軸をもって考えてほしいのです。依頼を文字どおりに受け取ってほしくありません。もっと重要な問いを先に立ててほしいのです。
 
-**What is this product actually for?**
+**このプロダクトは、そもそも何のためにあるのか?**
 
-I think of this as **Brian Chesky mode**.
+私はこれを**ブライアン・チェスキーモード**と呼んでいます。
 
-The point is not to implement the obvious ticket. The point is to rethink the problem from the user's point of view and find the version that feels inevitable, delightful, and maybe even a little magical.
+目的は、わかりきったチケットを実装することではありません。ユーザーの視点から問題を捉え直し、自然で、心地よく、少し魔法のように感じられる、そのような形を見つけることです。
 
-### Example
+### 例
 
-Say I am building a Craigslist-style listing app and I say:
+Craigslist 風の出品アプリを作っていて、次のように言ったとします。
 
-> "Let sellers upload a photo for their item."
+> 「売り手が商品の写真をアップロードできるようにして。」
 
-A weak assistant will add a file picker and save an image.
+弱いアシスタントは、ファイル選択と画像の保存を追加するでしょう。
 
-That is not the real product.
+それは本当のプロダクトではありません。
 
-In `/plan-ceo-review`, I want the model to ask whether "photo upload" is even the feature. Maybe the real feature is helping someone create a listing that actually sells.
+`/plan-ceo-review` では、「写真のアップロード」が本当に機能なのかを問いたいのです。本当の機能は、*実際に売れる*出品をつくるのを助けることなのかもしれません。
 
-If that is the real job, the whole plan changes.
+その仕事が本当にそれなら、プラン全体が変わります。
 
-Now the model should ask:
+このときモデルは次のように問うべきです。
 
-* Can we identify the product from the photo?
-* Can we infer the SKU or model number?
-* Can we search the web and draft the title and description automatically?
-* Can we pull specs, category, and pricing comps?
-* Can we suggest which photo will convert best as the hero image?
-* Can we detect when the uploaded photo is ugly, dark, cluttered, or low-trust?
-* Can we make the experience feel premium instead of like a dead form from 2007?
+* 写真から商品を特定できるか?
+* 型番や SKU を推定できるか?
+* Web を検索して、タイトルと説明文を自動で下書きできるか?
+* 仕様、カテゴリ、価格の比較対象を取得できるか?
+* どの写真が最も売れやすいか、メイン画像として提案できるか?
+* アップロードされた写真が、暗い、雑然としている、信頼感が低いといった問題を検出できるか?
+* 2007 年の死んだフォームのようではなく、上質に感じられる体験にできるか?
 
-That is what `/plan-ceo-review` does for me.
+`/plan-ceo-review` がしてくれるのはこういうことです。
 
-It does not just ask, "how do I add this feature?"
-It asks, **"what is the 10-star product hiding inside this request?"**
+「この機能をどう追加するか?」だけを問うのではありません。
 
-### Four modes
+問うのは **「この依頼の中に隠れている 10 つ星のプロダクトは何か?」** です。
 
-- **SCOPE EXPANSION** — dream big. The agent proposes the ambitious version. Every expansion is presented as an individual decision you opt into. Recommends enthusiastically.
-- **SELECTIVE EXPANSION** — hold your current scope as the baseline, but see what else is possible. The agent surfaces opportunities one by one with neutral recommendations — you cherry-pick the ones worth doing.
-- **HOLD SCOPE** — maximum rigor on the existing plan. No expansions surfaced.
-- **SCOPE REDUCTION** — find the minimum viable version. Cut everything else.
+### 4 つのモード
 
-Visions and decisions are persisted to `~/.gstack/projects/` so they survive beyond the conversation. Exceptional visions can be promoted to `docs/designs/` in your repo for the team.
+- **SCOPE EXPANSION**:大きく夢を見ます。エージェントは野心的なバージョンを提案します。拡張のひとつひとつを、あなたが選ぶ個別の判断として提示します。積極的に推奨します。
+- **SELECTIVE EXPANSION**:現在のスコープを基準として保ちつつ、ほかに何が可能かを見ます。エージェントは機会を一つずつ、中立的な推奨とともに提示します。やる価値のあるものを、あなたが選びます。
+- **HOLD SCOPE**:既存のプランに対して最大限の厳密さを求めます。拡張は提示しません。
+- **SCOPE REDUCTION**:最小限の実行可能なバージョンを見つけます。それ以外はすべて削ります。
+
+ビジョンと判断は `~/.gstack/projects/` に保存され、会話が終わっても残ります。優れたビジョンは、チームのために、リポジトリの `docs/designs/` に昇格させることができます。
 
 ---
 
 ## `/plan-eng-review`
 
-This is my **eng manager mode**.
+これは私の**エンジニアリングマネージャーモード**です。
 
-Once the product direction is right, I want a different kind of intelligence entirely. I do not want more sprawling ideation. I do not want more "wouldn't it be cool if." I want the model to become my best technical lead.
+プロダクトの方向性が正しくなったら、まったく別の種類の知性が必要です。これ以上広がりすぎるアイデア出しは要りません。「こんなのできたら面白くない?」ももう要りません。モデルに、最高の技術リードになってほしいのです。
 
-This mode should nail:
+このモードでしっかり押さえてほしいのは次のとおりです。
 
-* architecture
-* system boundaries
-* data flow
-* state transitions
-* failure modes
-* edge cases
-* trust boundaries
-* test coverage
+* アーキテクチャ
+* システムの境界
+* データフロー
+* 状態遷移
+* 障害モード
+* エッジケース
+* 信頼の境界
+* テストのカバレッジ
 
-And one surprisingly big unlock for me: **diagrams**.
+そして、思いがけず大きな転機になったのが **図**です。
 
-LLMs get way more complete when you force them to draw the system. Sequence diagrams, state diagrams, component diagrams, data-flow diagrams, even test matrices. Diagrams force hidden assumptions into the open. They make hand-wavy planning much harder.
+LLM は、システムを図に描くよう強制されると、はるかに完全になります。シーケンス図、状態図、コンポーネント図、データフロー図、さらにはテストのマトリクスまで。図は隠れた前提を表に出します。曖昧な計画を立てることを格段に難しくします。
 
-So `/plan-eng-review` is where I want the model to build the technical spine that can carry the product vision.
 
-### Example
+だから `/plan-eng-review` は、プロダクトのビジョンを支えられる技術的な背骨を組み立てる場所だと考えています。
 
-Take the same listing app example.
+### 例
 
-Let's say `/plan-ceo-review` already did its job. We decided the real feature is not just photo upload. It is a smart listing flow that:
+同じ出品アプリの例で考えてみます。
 
-* uploads photos
-* identifies the product
-* enriches the listing from the web
-* drafts a strong title and description
-* suggests the best hero image
+`/plan-ceo-review` がすでに役割を果たしたとします。本当の機能は写真のアップロードだけではないと決めました。次のことをする、スマートな出品フローです。
 
-Now `/plan-eng-review` takes over.
+* 写真をアップロードする
+* 商品を特定する
+* Web から出品情報を補う
+* 強いタイトルと説明文を下書きする
+* 最適なメイン画像を提案する
 
-Now I want the model to answer questions like:
+ここで `/plan-eng-review` の出番です。
 
-* What is the architecture for upload, classification, enrichment, and draft generation?
-* Which steps happen synchronously, and which go to background jobs?
-* Where are the boundaries between app server, object storage, vision model, search/enrichment APIs, and the listing database?
-* What happens if upload succeeds but enrichment fails?
-* What happens if product identification is low-confidence?
-* How do retries work?
-* How do we prevent duplicate jobs?
-* What gets persisted when, and what can be safely recomputed?
+このときモデルには、次のような問いに答えてほしいのです。
 
-And this is where I want diagrams — architecture diagrams, state models, data-flow diagrams, test matrices. Diagrams force hidden assumptions into the open. They make hand-wavy planning much harder.
+* アップロード、分類、情報の補完、下書き生成のアーキテクチャはどうなっているか?
+* どの処理が同期で、どの処理がバックグラウンドジョブになるか?
+* アプリサーバー、オブジェクトストレージ、画像認識モデル、検索・補完 API、出品データベースの境界はどこか?
+* アップロードは成功したが補完が失敗したら、何が起きるか?
+* 商品の特定の確信度が低かったら、どうなるか?
+* リトライはどう動くか?
+* ジョブの重複をどう防ぐか?
+* いつ何が永続化され、何を安全に再計算できるか?
 
-That is `/plan-eng-review`.
+そして、ここで図の出番です。アーキテクチャ図、状態モデル、データフロー図、テストのマトリクス。図は隠れた前提を表に出します。曖昧な計画を立てることを格段に難しくします。
 
-Not "make the idea smaller."
-**Make the idea buildable.**
+これが `/plan-eng-review` です。
 
-One note on invocation: in plan mode, the skill skips the "what should I review?" scope question and reviews your active plan automatically, announcing its pick in one line ("Scope gate: plan mode — auto-selected B") so you can redirect it. Name a target explicitly ("review PLAN.md") and your choice wins in any mode. Outside plan mode with nothing named, it asks first — that gate is a hard stop.
+「アイデアを小さくする」ではありません。
+**アイデアを作れる形にする**のです。
 
-### Review Readiness Dashboard
+呼び出し方について一点。プランモードでは、このスキルは「何をレビューしますか?」というスコープの質問を省き、有効なプランを自動でレビューします。選んだ対象は「Scope gate: plan mode — auto-selected B」のように一行で知らせるので、別のものに変えたければ指示できます。対象を明示的に名指しすれば(例: PLAN.md)、どのモードでもその指定が優先されます。プランモード以外で、何も指定していない場合は、先に質問します。このゲートは確実に止まります。
 
-Every review (CEO, Eng, Design) logs its result. At the end of each review, you see a dashboard:
+<a id="review-readiness-dashboard"></a>
+### レビュー準備ダッシュボード
+
+すべてのレビュー(CEO、エンジニアリング、デザイン)は結果を記録します。各レビューの終わりに、ダッシュボードが表示されます。
 
 ```
 +====================================================================+
@@ -253,33 +256,33 @@ Every review (CEO, Eng, Design) logs its result. At the end of each review, you 
 +====================================================================+
 ```
 
-Eng Review is the only required gate (disable with `gstack-config set skip_eng_review true`). CEO and Design are informational — recommended for product and UI changes respectively.
+Eng Review は唯一の必須ゲートです(`gstack-config set skip_eng_review true` で無効にできます)。CEO と Design は参考情報で、それぞれプロダクトと UI の変更に推奨されます。
 
-Diff reviews use the `review_freshness` grade computed by `gstack-review-read`, shared by `/ship` and `/land-and-deploy`. CURRENT requires a clean, reviewer-reported completed and converged pass whose captured start and finish fingerprints match the current working-tree content. Tracked edits and non-ignored untracked source both count; an identical commit hash or zero commits since review is not a fallback.
+差分のレビューは、`gstack-review-read` が算出する `review_freshness` の等級を使います。これは `/ship` と `/land-and-deploy` で共有されます。CURRENT となるには、クリーンで、レビュアーが完了と報告し、収束した実行であり、かつ取得した開始時と終了時のフィンガープリントが現在の作業ツリーの内容と一致している必要があります。追跡されている編集と、無視されていない未追跡のソースの両方が対象です。同じコミットハッシュや、レビュー以降のコミットがゼロであることは代替になりません。
 
-A captured pass with different start/end content grades STALE, as does a previously verified pass whose fingerprint no longer matches. Missing or reused start receipts, legacy log-only records, incomplete or nonconverged passes, and unresolved findings cannot grade CURRENT; missing evidence grades UNVERIFIED. Ship telemetry is not a review pass. After fixes, run a genuine full re-review with a new start receipt rather than capturing one only to log the result. Completion remains reviewer-reported, not independent proof that a model read the source.
+取得された実行で開始時と終了時の内容が異なれば STALE になります。以前に検証された実行のフィンガープリントが一致しなくなった場合も STALE です。開始レシートの欠落や再利用、ログのみの古い記録、未完了や未収束の実行、未解決の指摘は、CURRENT にはなれません。根拠が欠けていれば UNVERIFIED です。出荷のテレメトリはレビューの実行ではありません。修正のあとは、新しい開始レシートを伴う本物の全体の再レビューを行ってください。結果をログに残すためだけにレシートを取得するのは駄目です。完了はあくまでレビュアーの申告であり、モデルがソースを実際に読んだことの独立した証明ではありません。
 
-Plan-file reviews retain their existing seven-day freshness handling and optional plan-hash comparison; repository-content rules do not apply to them. A diff review must grade CURRENT before it can clear Eng Review, in addition to the dashboard's existing age and clean-status requirements.
+プランファイルのレビューは、既存の7日間の鮮度の扱いと、任意のプランハッシュの比較を保ちます。リポジトリの内容に関するルールは適用されません。差分のレビューは、ダッシュボードの既存の経過時間とクリーン状態の要件に加えて、Eng Review を通すために CURRENT と判定される必要があります。
 
-### Plan-to-QA flow
+### プランから QA への流れ
 
-When `/plan-eng-review` finishes the test review section, it writes a test plan artifact to `~/.gstack/projects/`. When you later run `/qa`, it picks up that test plan automatically — your engineering review feeds directly into QA testing with no manual copy-paste.
+`/plan-eng-review` がテストのレビューの節を終えると、テストプランの成果物を `~/.gstack/projects/` に書き出します。あとで `/qa` を実行すると、そのテストプランを自動的に拾います。エンジニアリングのレビューが、手作業のコピー＆ペーストなしで QA のテストに直接つながります。
 
 ---
 
 ## `/plan-design-review`
 
-This is my **senior designer reviewing your plan** — before you write a single line of code.
+これは私の**プランをレビューするシニアデザイナー**です。コードを一行も書く前に行います。
 
-Most plans describe what the backend does but never specify what the user actually sees. Empty states? Error states? Loading states? Mobile layout? AI slop risk? These decisions get deferred to "figure it out during implementation" — and then an engineer ships "No items found." as the empty state because nobody specified anything better.
+多くのプランは、バックエンドが何をするかは書いてあっても、ユーザーが実際に何を見るかは決めていません。空の状態は? エラーの状態は? 読み込み中の状態は? モバイルのレイアウトは? AI っぽさのリスクは? こうした決定は「実装中に考えよう」と先送りされ、結局エンジニアは、誰も指定しなかったために「アイテムが見つかりません。」を空の状態として出荷してしまいます。
 
-`/plan-design-review` catches all of this during planning, when it's cheap to fix.
+`/plan-design-review` は、計画の段階でこれらすべてを捉えます。修正のコストが低いうちにです。
 
-It works like `/plan-ceo-review` and `/plan-eng-review` — interactive, one issue at a time, with the **STOP + AskUserQuestion** pattern. It rates each design dimension 0-10, explains what a 10 looks like, then edits the plan to get there. The rating drives the work: rate low = lots of fixes, rate high = quick pass. Like `/plan-eng-review`, it skips the "what should I review?" scope question in plan mode and targets your active plan automatically (announced in one line so you can redirect); an explicitly named target wins in any mode.
+`/plan-ceo-review` や `/plan-eng-review` と同じように動きます。対話型で、一度に一つの課題を扱い、**STOP + AskUserQuestion** のパターンを使います。各デザインの観点を 0〜10 で評価し、10 点とは何かを説明し、そこに到達するようにプランを編集します。評価が作業量を決めます。評価が低ければ修正は多く、高ければ軽い確認で済みます。`/plan-eng-review` と同様に、プランモードでは「何をレビューしますか?」の質問を省き、有効なプランを自動的に対象にします(一行で知らせるので、変更できます)。名指しされた対象は、どのモードでも優先されます。
 
-Seven passes over the plan: information architecture, interaction state coverage, user journey, AI slop risk, design system alignment, responsive/accessibility, and unresolved design decisions. For each pass, it finds gaps and either fixes them directly (obvious ones) or asks you to make a design choice (genuine tradeoffs).
+プランを7つのパスで確認します。情報設計、インタラクション状態のカバレッジ、ユーザーの流れ、AI っぽさのリスク、デザインシステムとの整合、レスポンシブとアクセシビリティ、未解決のデザイン判断です。各パスでギャップを見つけ、明白なものは直接修正し、本当のトレードオフがあるものは、デザインの選択をあなたに求めます。
 
-### Example
+### 例
 
 ```
 You:   /plan-design-review
@@ -312,31 +315,31 @@ Claude: Initial Design Rating: 4/10
          implementation for visual QA."
 ```
 
-When you re-run it, sections already at 8+ get a quick pass. Sections below 8 get full treatment. For live-site visual audits post-implementation, use `/design-review`.
+もう一度実行すると、8 点以上のセクションは軽く確認され、8 点未満のセクションは本格的に扱われます。実装後にライブサイトのビジュアル監査を行うなら、`/design-review` を使ってください。
 
 ---
 
 ## `/design-consultation`
 
-This is my **design partner mode**.
+これは私の**デザインパートナーモード**です。
 
-`/plan-design-review` audits a site that already exists. `/design-consultation` is for when you have nothing yet — no design system, no font choices, no color palette. You are starting from zero and you want a senior designer to sit down with you and build the whole visual identity together.
+`/plan-design-review` は既にあるサイトを監査します。`/design-consultation` は、まだ何もないときのためのものです。デザインシステムも、フォントの選択も、カラーパレットもありません。ゼロからの出発であり、シニアデザイナーと一緒に座って、ビジュアルのアイデンティティ全体を組み立てたいときのためのものです。
 
-It is a conversation, not a form. The agent asks about your product, your users, and your audience. It thinks about what your product needs to communicate — trust, speed, craft, warmth, whatever fits — and works backward from that to concrete choices. Then it proposes a complete, coherent design system: aesthetic direction, typography (3+ fonts with specific roles), color palette with hex values, spacing scale, layout approach, and motion strategy. Every recommendation comes with a rationale. Every choice reinforces every other choice.
+これはフォームではなく、対話です。エージェントはプロダクト、ユーザー、オーディエンスについて尋ねます。プロダクトが何を伝える必要があるか(信頼、スピード、丁寧な作り、温かさなど、何が合うか)を考え、そこから具体的な選択に逆算します。そうして、一貫したデザインシステムを提案します。美的な方向性、タイポグラフィ(役割の決まった3つ以上のフォント)、HEX 値を伴うカラーパレット、スペーシングのスケール、レイアウトのアプローチ、モーションの方針です。どの提案にも根拠が付きます。どの選択も、ほかのすべての選択を強化します。
 
-But coherence is table stakes. Every dev tool dashboard looks the same — clean sans-serif, muted grays, a blue accent. They are all coherent. They are all forgettable. The difference between a product that looks "nice" and one that people actually recognize is the **deliberate creative risks**: the unexpected serif for headings, the bold accent nobody else in your category uses, the tighter spacing that makes your data feel authoritative instead of airy.
+しかし、一貫性は最低条件にすぎません。どのダッシュボードツールも似て見えます。すっきりしたサンセリフ、抑えたグレー、青のアクセント。どれも一貫していて、どれも忘れられます。プロダクトが「いい感じ」に見えるのと、人々に実際に認識されるのとの違いは、**意図的な創造的リスク**にあります。見出しに使う意外なセリフ体、そのカテゴリで誰も使っていない大胆なアクセント、データを空っぽではなく信頼できるものに見せる、詰まったスペーシングです。
 
-That is what `/design-consultation` is really about. It does not just propose a safe system. It proposes safe choices AND risks — and tells you which is which. "Here are the choices that keep you literate in your category. And here is where I think you should break from convention, and why." You pick which risks to take. The agent checks that the whole system still coheres either way.
+`/design-consultation` が本当に扱うのは、そこです。安全なシステムを提案するだけではありません。安全な選択と、リスクの両方を提案し、どちらがどちらかを示します。「ここが、そのカテゴリで体裁を保つための選択です。そして、ここで慣習から外れるべきだと私が考える理由です。」あなたが、どのリスクを取るかを選びます。エージェントは、どちらを選んでもシステム全体が一貫していることを確認します。
 
-If you want, the agent will research what's already out there in your space — take screenshots of real sites, analyze their fonts and colors and spacing — so you can see the landscape before you make choices. This is not about copying. It is about getting in the ballpark so you know what the conventions are, and then deciding which ones are worth breaking.
+希望すれば、エージェントは、あなたの分野にすでに何があるかを調べます。実在するサイトのスクリーンショットを撮り、フォント、色、スペーシングを分析します。これは真似をするためではありません。どこに相場があり、慣習が何かを知り、そのうえでどの慣習を破る価値があるかを決めるためです。
 
-After you agree on the system, it generates an interactive HTML preview page — not just swatches and font samples, but realistic product pages. If you are building a dashboard, you see a dashboard with a sidebar, data tables, and stat cards. If you are building a marketing site, you see a hero section with real copy and a CTA. Everything rendered in your design system, with your product name, in light and dark mode. You see what your product could feel like before a single line of production code is written.
+システムに合意すると、エージェントは対話型の HTML プレビューページを生成します。色見本やフォントのサンプルだけではなく、現実的なプロダクトのページを見せます。ダッシュボードを作るなら、サイドバー、データテーブル、統計カードのあるダッシュボードが表示されます。マーケティングサイトなら、実際のコピーと CTA を持つヒーローセクションが表示されます。すべてがデザインシステムで描画され、あなたのプロダクト名が入り、ライトモードとダークモードの両方で見られます。本番のコードが一行も書かれる前に、プロダクトがどう感じられるかが分かります。
 
-Then it writes `DESIGN.md` to your repo root — your project's design source of truth — and updates `CLAUDE.md` so every future Claude Code session respects the system. From that point on, `/design-review` can audit against it, and any agent working on your frontend knows the rules.
+そのあと、エージェントはリポジトリのルートに `DESIGN.md` を書き出します。これがプロジェクトのデザインに関する信頼できる情報源です。そして `CLAUDE.md` を更新するので、今後のすべての Claude Code のセッションがそのシステムを尊重します。それ以降、`/design-review` はそれに対して監査でき、フロントエンドに関わるどのエージェントも、ルールを知っています。
 
-The file is written in the open DESIGN.md format ([google-labs-code/design.md](https://github.com/google-labs-code/design.md)): every token in YAML front matter (`colors`, `typography`, `rounded`, `spacing`, `components`), the rationale in the spec's canonical sections, so impeccable, Google Stitch, and anything else that reads the format share one file. If you already have a legacy gstack `DESIGN.md`, the skill offers a conversion once (a backup is kept) and records your answer in the file so it never asks again. A `PRODUCT.md` in the repo root prefills the product questions instead of re-asking them.
+このファイルは、オープンな DESIGN.md 形式([google-labs-code/design.md](https://github.com/google-labs-code/design.md))で書かれます。すべてのトークンは YAML のフロントマター(`colors`、`typography`、`rounded`、`spacing`、`components`)に置かれ、根拠は仕様の正規のセクションに書かれます。そのため、impeccable、Google Stitch など、この形式を読むものはすべて同じファイルを共有できます。すでに従来の gstack の `DESIGN.md` がある場合、スキルは一度だけ変換を提案します(バックアップは残ります)。そして、あなたの回答をファイルに記録するので、二度と尋ねません。リポジトリのルートに `PRODUCT.md` があれば、プロダクトに関する質問を聞き直す代わりに、その内容で事前に埋めます。
 
-### Example
+### 例
 
 ```
 You:   /design-consultation
@@ -405,17 +408,17 @@ Claude: Wrote DESIGN.md (typography, color, spacing, layout, motion).
 
 ## `/design-review`
 
-This is my **designer who codes mode**.
+これは私の**コードを書くデザイナーモード**です。
 
-`/plan-design-review` reviews your plan before implementation. `/design-review` audits and fixes the live site after.
+`/plan-design-review` は実装の前にプランをレビューします。`/design-review` は、そのあとに稼働中のサイトを監査して修正します。
 
-It runs an 80-item visual audit on your live site — in your Aside browser, so it sees exactly what a logged-in you sees — then enters a fix loop: for each design finding, it locates the source file, makes the minimal CSS/styling change, commits with `style(design): FINDING-NNN`, re-navigates to verify, and takes before/after screenshots. One commit per fix, fully bisectable.
+Aside ブラウザで、ライブサイトに対して80項目のビジュアル監査を実行します。ログイン中のあなたが見るのとまったく同じものを見ます。そのあと修正ループに入ります。デザイン上の検出結果ごとに、ソースファイルを特定し、CSS やスタイルの最小限の変更を行い、`style(design): FINDING-NNN` としてコミットし、再度ナビゲートして検証し、修正前後のスクリーンショットを撮ります。修正ごとに1つのコミットで、完全にバイセクト可能です。
 
-The self-regulation heuristic is tuned for design work — CSS-only changes get a free pass (they are inherently safe and reversible), but changes to component JSX/TSX files count against the risk budget. Hard cap at 30 fixes. If the risk score exceeds 20%, it stops and asks.
+自己調整のヒューリスティックはデザインの作業向けに調整されています。CSS だけの変更は、本質的に安全で元に戻せるため、リスクの予算を消費しません。ただし、コンポーネントの JSX や TSX ファイルへの変更は、リスクの予算に数えられます。修正数は 30 件で打ち止めです。リスクスコアが 20% を超えたら、止まって確認します。
 
-**Design detector.** When you have [impeccable](https://impeccable.style) installed, its engine runs first: on a URL the page's rendered DOM is dumped (linked styles inlined) and scanned; on a feature branch with no URL the changed frontend files are scanned (`.dart` files excepted: they count as frontend scope, but the engine reads web sources). Every mechanical finding arrives as a `FINDING-NNN` tagged with its rule id (`[nested-cards]`, `[low-contrast]`), and the report closes with `Detector: N → M`. gstack never runs impeccable's installer; when no engine is present it offers, once, to download the engine binary (checksum-pinned, logged in the egress ledger) and remembers the answer; without it the audit is unchanged. `gstack-config set design_detector off` disables the pre-pass.
+**デザイン検出器。** [impeccable](https://impeccable.style) がインストールされていれば、そのエンジンが最初に走ります。URL に対しては、ページのレンダリング済み DOM をダンプし(リンクされたスタイルはインライン化されます)、スキャンします。URL のないフィーチャーブランチでは、変更されたフロントエンドのファイルをスキャンします(`.dart` ファイルは除きます。フロントエンドの範囲には含まれますが、エンジンは Web のソースを読みます)。機械的に検出されたものはすべて、ルール ID(`[nested-cards]`、`[low-contrast]`)付きの `FINDING-NNN` として届き、レポートの最後に `Detector: N → M` が表示されます。gstack が impeccable のインストーラーを実行することはありません。エンジンがない場合は、一度だけ、エンジンのバイナリをダウンロードするかを尋ねます(チェックサムで固定され、egress の台帳に記録されます)。答えは覚えておきます。エンジンがなければ、監査は変わりません。`gstack-config set design_detector off` で、この事前スキャンを無効にできます。
 
-### Example
+### 例
 
 ```
 You:   /design-review https://myapp.com
@@ -443,34 +446,34 @@ Claude: [Runs full 80-item visual audit on the live site]
         [Report with before/after screenshots saved to .gstack/design-reports/]
 ```
 
-Nine commits, each touching one concern. The AI Slop score went from D to A because the three most recognizable patterns (gradient hero, 3-column grid, uniform radius) are gone.
+コミットは9件で、それぞれが1つの関心事だけに触れています。AI Slop のスコアが D から A になったのは、最も見覚えのあるパターン三つ(グラデーションのヒーロー、3 列のグリッド、一様な角丸)がなくなったからです。
 
 ---
 
 ## `/design-shotgun`
 
-This is my **design exploration mode**.
+これは私の**デザイン探索モード**です。
 
-You know the feeling. You have a feature, a page, a landing screen... and you're not sure what it should look like. You could describe it to Claude and get one answer. But one answer means one perspective, and design is a taste game. You need to see options.
+あなたも覚えがあるはずです。機能、ページ、ランディング画面があって、どう見せるべきか確信がない。Claude に説明すれば、答えは一つ返ってくるでしょう。しかし答えが一つでは、視点も一つです。デザインは趣味の勝負です。選択肢を見る必要があります。
 
-`/design-shotgun` generates 3 visual design variants using the GPT Image API, opens a comparison board in your browser, and waits for your feedback. You pick a direction, request changes, or ask for entirely new variants. The board supports remix, regenerate, and approval actions.
+`/design-shotgun` は、GPT Image API を使ってビジュアルデザインの案を 3 つ生成し、比較ボードをブラウザで開き、フィードバックを待ちます。方向性を選んでもいいし、変更を依頼してもいいし、まったく新しい案を求めてもいいです。ボードは、リミックス、再生成、承認のアクションに対応しています。
 
-### The loop
+### ループ
 
-1. You describe what you want (or point at an existing page)
-2. The skill reads your `DESIGN.md` for brand constraints (if it exists)
-3. It generates 3 distinct design variants as PNGs
-4. A comparison board opens in your browser with all 3 side-by-side
-5. You click "Approve" on the one you like, or give feedback for another round
-6. The approved variant saves to `~/.gstack/projects/$SLUG/designs/` with an `approved.json`
+1. 作りたいものを説明する(または既存のページを指定する)
+2. スキルは、ブランドの制約について `DESIGN.md` を読む(存在する場合)
+3. 3 つの異なるデザイン案を PNG として生成する
+4. 3 つを並べた比較ボードがブラウザで開く
+5. 気に入ったものの「Approve」をクリックするか、次のラウンドのためのフィードバックを出す
+6. 承認された案は、`approved.json` とともに `~/.gstack/projects/$SLUG/designs/` に保存される
 
-That `approved.json` is one way to feed `/design-html`. The design pipeline chains: shotgun picks the direction, design-html renders it as working code. But `/design-html` also works with CEO plans, design reviews, or just a description.
+その `approved.json` は、`/design-html` に渡す方法の一つです。デザインのパイプラインは連鎖します。shotgun が方向性を選び、design-html がそれを動くコードとして描画します。ただし `/design-html` は、CEO のプラン、デザインレビュー、あるいは単なる説明からでも動きます。
 
-### Taste memory
+### テイスト・メモリ
 
-The skill remembers your preferences across sessions. If you consistently prefer minimal designs over busy ones, it biases future generations. This isn't a setting you configure... it emerges from your approvals.
+このスキルは、セッションをまたいであなたの好みを覚えます。いつもミニマルなデザインを選ぶなら、以降の生成をその方向に寄せます。これは設定項目ではありません。承認の積み重ねから自然に生まれるものです。
 
-### Example
+### 例
 
 ```
 You:   /design-shotgun — hero section for a developer tools landing page
@@ -492,42 +495,42 @@ Claude: Approved Variant A. Saved to ~/.gstack/projects/myapp/designs/
 
 ## `/design-html`
 
-This is my **design-to-code mode**.
+これは私の**デザインからコードへのモード**です。
 
-Every AI code generation tool produces static CSS. Hardcoded heights. Text that overflows on resize. Breakpoints that snap instead of flowing. The output looks right at exactly one viewport size and breaks at every other.
+AI によるコード生成ツールは、どれも静的な CSS を出力します。高さはハードコードされ、リサイズでテキストがはみ出し、ブレークポイントは滑らかに変わらずにガクッと切り替わります。出力は一つのビューポートサイズでだけ正しく見え、それ以外のあらゆるサイズで壊れます。
 
-`/design-html` fixes this. It generates HTML using [Pretext](https://github.com/chenglou/pretext) by Cheng Lou (ex-React core, Midjourney frontend). Pretext is a 15KB library that computes text layout without DOM measurement. Text reflows. Heights adjust to content. Cards size themselves. Chat bubbles shrinkwrap. All sub-millisecond, all dynamic.
+`/design-html` はこれを解決します。[Pretext](https://github.com/chenglou/pretext)(Cheng Lou 作。元 React コア、Midjourney のフロントエンド)を使って HTML を生成します。Pretext は 15KB のライブラリで、DOM の計測なしにテキストレイアウトを計算します。テキストは折り返し直され、高さはコンテンツに合わせて変わります。カードは自分でサイズを決め、チャットの吹き出しはぴったり縮みます。どれもミリ秒以下で、すべて動的です。
 
-It works with multiple input sources: an approved mockup from `/design-shotgun`, a CEO plan from `/plan-ceo-review`, design review context from `/plan-design-review`, a PNG you provide, or just a description of what you want. It detects what context exists and asks how you want to proceed.
+複数の入力元に対応しています。`/design-shotgun` の承認済みモックアップ、`/plan-ceo-review` の CEO プラン、`/plan-design-review` のデザインレビューの文脈、あなたが用意した PNG、あるいは欲しいものの説明だけでも構いません。どんな文脈が存在するかを検出し、どう進めるかを尋ねます。
 
-### Smart API routing
+### スマートな API ルーティング
 
-Not every page needs the full Pretext engine. The skill reads the design and picks the right tools:
+どんなページにも、Pretext エンジンのフル機能が必要なわけではありません。スキルはデザインを読み取り、適切なツールを選びます。
 
-- **Simple layouts** (landing, marketing): `prepare()` + `layout()` for resize-aware heights
-- **Card grids** (dashboard, listing): `prepare()` + `layout()` for self-sizing cards
-- **Chat UIs**: `walkLineRanges()` for tight-fit bubbles with zero wasted pixels
-- **Editorial layouts**: `layoutNextLine()` for text flowing around obstacles
-- **Complex editorial**: Full engine with `layoutWithLines()` for manual line rendering
+- **シンプルなレイアウト**(ランディング、マーケティング):リサイズに対応した高さのために `prepare()` + `layout()`
+- **カードのグリッド**(ダッシュボード、一覧):自分でサイズを決めるカードのために `prepare()` + `layout()`
+- **チャット UI**:無駄なピクセルを残さない、ぴったり収まる吹き出しのために `walkLineRanges()`
+- **エディトリアルのレイアウト**:障害物の周りを回り込むテキストのために `layoutNextLine()`
+- **複雑なエディトリアル**:手動での行描画のために `layoutWithLines()` を使う、フル機能のエンジン
 
-### The refinement loop
+### 改良ループ
 
-1. Reads the approved mockup from `approved.json`
-2. Uses GPT-4o vision to extract implementation spec (colors, typography, layout)
-3. Generates self-contained HTML with Pretext inlined (15KB, zero network dependency)
-4. Spins up a live-reload server so you see changes instantly
-5. Screenshots at 3 viewports (mobile, tablet, desktop) to verify layout
-6. AskUserQuestion: what needs to change?
-7. Surgical edits via the Edit tool (not full regeneration)
-8. Repeat until you say "done"
+1. `approved.json` から承認済みモックアップを読む
+2. GPT-4o のビジョンを使って、実装仕様(色、タイポグラフィ、レイアウト)を抽出する
+3. Pretext をインラインで組み込んだ、自己完結型の HTML を生成する(15KB、ネットワーク依存なし)
+4. ライブリロードのサーバーを立ち上げ、変更がすぐに見えるようにする
+5. 3 つのビューポート(モバイル、タブレット、デスクトップ)でスクリーンショットを撮り、レイアウトを確認する
+6. AskUserQuestion:何を変更するか?
+7. Edit ツールによる外科的な編集を行う(全体の再生成はしない)
+8. 「done」と言うまで繰り返す
 
-**Slop gate.** If you have [impeccable](https://impeccable.style) installed, the finalized page gets one scan through its engine before the verification screenshots: findings trigger a single surgical fix pass over the non-advisory rules, then one more scan. Whatever remains is presented as accepted-with-reason (the approved mockup contains it, `DESIGN.md` blesses it, or you agreed to an inline `impeccable-disable` comment). One pass, never a loop; without impeccable the step is skipped silently. The skill's never-include list carries the same rule ids the detector reports, from `lib/design-catalog.ts`.
+**スロップのゲート。** [impeccable](https://impeccable.style) がインストールされていれば、完成したページは、検証用のスクリーンショットの前に、そのエンジンで一度スキャンされます。検出結果があれば、アドバイザリ以外のルールに対して一度だけ外科的な修正を行い、もう一度スキャンします。残ったものは「理由付きで受け入れた」ものとして提示されます(承認済みのモックアップに含まれている、`DESIGN.md` で許容されている、またはインラインの `impeccable-disable` コメントに同意した、のいずれか)。パスは一度きりで、ループにはなりません。impeccable がなければ、この手順は黙ってスキップされます。スキルの禁止リストには、検出器が報告するのと同じルール ID が、`lib/design-catalog.ts` から載っています。
 
-### Framework detection
+### フレームワークの検出
 
-If your project uses React, Svelte, or Vue (detected from `package.json`), the skill offers to generate a framework component instead of vanilla HTML. Framework output uses `npm install @chenglou/pretext` instead of inline vendoring.
+プロジェクトが React、Svelte、Vue を使っている場合(`package.json` から検出)、スキルはバニラの HTML ではなく、フレームワークのコンポーネントを生成するか提案します。フレームワーク向けの出力は、インラインで同梱する代わりに `npm install @chenglou/pretext` を使います。
 
-### Example
+### 例
 
 ```
 You:   /design-html
@@ -555,100 +558,92 @@ Claude: Saved to ~/.gstack/projects/myapp/designs/hero-20260330/finalized.html
 
 ## `/review`
 
-This is my **paranoid staff engineer mode**.
+これは私の**偏執的なスタッフエンジニアモード**です。
 
-Passing tests do not mean the branch is safe.
+テストが通っても、ブランチが安全だとは限りません。
 
-`/review` exists because there is a whole class of bugs that can survive CI and still punch you in the face in production. This mode is not about dreaming bigger. It is not about making the plan prettier. It is about asking:
+`/review` が存在するのは、CI を通り抜けても、本番で容赦なく殴りつけてくるバグの一群があるからです。このモードは、より大きな夢を見ることや、プランをきれいに見せることが目的ではありません。問うのはこれです。
 
-**What can still break?**
+**まだ何が壊れうるか?**
 
-This is a structural audit, not a style nitpick pass. I want the model to look for things like:
+これは文体の揚げ足取りではなく、構造の監査です。モデルには次のようなものを探してほしいのです。
 
-* N+1 queries
-* stale reads
-* race conditions
-* bad trust boundaries
-* missing indexes
-* escaping bugs
-* broken invariants
-* bad retry logic
-* tests that pass while missing the real failure mode
-* forgotten enum handlers — add a new status or type constant, and `/review` traces it through every switch statement and allowlist in your codebase, not just the files you changed
+* N+1 クエリ
+* 古い読み取り
+* 競合状態
+* 悪い信頼の境界
+* インデックスの欠落
+* エスケープのバグ
+* 壊れた不変条件
+* 悪いリトライ・ロジック
+* 本当の障害モードを見逃したまま通るテスト
+* 忘れられた列挙型のハンドラー:新しいステータスや型の定数を追加すると、`/review` はコードベース中のすべての switch 文と許可リストをたどります。変更したファイルだけではありません
 
-### Fix-First
+### Fix-First(先に修正)
 
-Findings get action, not just listed. Obvious mechanical fixes (dead code, stale comments, N+1 queries) are applied automatically — you see `[AUTO-FIXED] file:line Problem → what was done` for each one. Genuinely ambiguous issues (security, race conditions, design decisions) get surfaced for your call.
+指摘には、リストアップされるだけでなく、対処が付きます。明白な機械的修正(デッドコード、古くなったコメント、N+1 クエリ)は自動で適用されます。各修正について `[AUTO-FIXED] file:line Problem → what was done` が表示されます。判断が本当に曖昧な問題(セキュリティ、競合状態、デザイン上の判断)は、あなたの判断に回されます。
 
-### Completeness gaps
+### 完了性のギャップ
 
-`/review` now flags shortcut implementations where the complete version costs less than 30 minutes of CC time. If you chose the 80% solution and the 100% solution is a lake, not an ocean, the review will call it out.
+`/review` は、完全な実装のコストが CC の作業時間で 30 分未満で済むのに、手抜きの実装になっている箇所を指摘するようになりました。80% の解を選んだのに、100% の解が海ではなく湖程度の大きさなら、レビューがそれを指摘します。
 
-One exception: a shortcut you took deliberately and logged. A `gstack-shortcut(dec-<id>)` marker whose decision id resolves in the decision ledger downgrades the finding to acknowledged debt. An orphan marker — one with no ledger entry behind it — doesn't suppress anything; the gap is reported normally and the marker itself gets flagged.
+例外が一つあります。意図的に手抜きをして、それを記録した場合です。決定 ID が決定台帳で解決される `gstack-shortcut(dec-<id>)` のマーカーがあれば、その指摘は認識済みの負債に格下げされます。台帳に対応するエントリがない孤立したマーカーは、何も抑制しません。ギャップは通常どおり報告され、マーカー自体にも印が付きます。
 
-**Design pass.** When the diff touches frontend files, the Design specialist reads `review/design-checklist.md`, which is generated from `lib/design-catalog.ts`, so `/review`, `/ship`, and `/design-review` flag the same patterns under the same rule ids. If you have [impeccable](https://impeccable.style) installed, its engine scans the changed frontend files first (`.dart` files get the checklist pass only): its rows bucket by tier (auto-fix, ask, possible), a detector hit and a checklist hit at the same file:line collapse into one row, and your repo's `.impeccable/config*.json` ignores are read as settled decisions. Without it, the checklist pass runs alone.
+**デザインのパス。** 差分がフロントエンドのファイルに触れると、デザインの専門担当が `review/design-checklist.md` を読みます。これは `lib/design-catalog.ts` から生成されるので、`/review`、`/ship`、`/design-review` は同じパターンに同じルール ID を付けて指摘します。impeccable がインストールされていれば、そのエンジンが変更されたフロントエンドのファイルを最初にスキャンします(`.dart` ファイルはチェックリストのパスだけになります)。その行は階層(自動修正、確認、可能性)ごとに分けられ、検出器のヒットとチェックリストのヒットが同じファイル:行で重なった場合は1行にまとめられます。リポジトリの `.impeccable/config*.json` の無視設定は、決着済みの判断として読まれます。なければ、チェックリストのパスだけが単独で動きます。
 
-### Example
+### 例
 
-Suppose the smart listing flow is implemented and the tests are green.
+スマートな出品フローが実装され、テストはすべて緑だとします。
 
-`/review` should still ask:
+`/review` はそれでも次のことを問うべきです。
 
-* Did I introduce an N+1 query when rendering listing photos or draft suggestions?
-* Am I trusting client-provided file metadata instead of validating the actual file?
-* Can two tabs race and overwrite cover-photo selection or item details?
-* Do failed uploads leave orphaned files in storage forever?
-* Can the "exactly one hero image" rule break under concurrency?
-* If enrichment APIs partially fail, do I degrade gracefully or save garbage?
-* Did I accidentally create a prompt injection or trust-boundary problem by pulling web data into draft generation?
+* 出品の写真や下書きの提案を描画するときに、N+1 クエリを発生させていないか?
+* ファイルの実体を検証せず、クライアントが送ったファイルのメタデータを信頼していないか?
+* 2 つのタブが競合して、表紙写真の選択や商品の詳細を上書きしないか?
+* アップロードに失敗したファイルが、ストレージに永久に孤立して残らないか?
+* 「メイン画像はちょうど1枚」というルールは、並行処理のもとで壊れないか?
+* 補完 API が一部だけ失敗したとき、穏やかに縮退するか、それともゴミを保存するか?
+* Web のデータを下書き生成に取り込んだことで、プロンプトインジェクションや信頼の境界の問題を生んでいないか?
 
-That is the point of `/review`.
+それが `/review` の目的です。
 
-I do not want flattery here.
-I want the model imagining the production incident before it happens.
+ここではお世辞は要りません。
+モデルに、インシデントが起きる前に本番の障害を想像させるのです。
 
 ---
 
 ## `/investigate`
 
-When something is broken and you don't know why, `/investigate` is your systematic debugger. It follows the Iron Law: **no fixes without root cause investigation first.**
+何かが壊れていて、理由が分からないとき、`/investigate` が体系的なデバッガーです。鉄則に従います。**根本原因の調査なしに修正はしない**です。
 
-Instead of guessing and patching, it traces data flow, matches against known bug patterns, and tests hypotheses one at a time. If three fix attempts fail, it stops and questions the architecture instead of thrashing. This prevents the "let me try one more thing" spiral that wastes hours.
+推測してパッチを当てる代わりに、データフローをたどり、既知のバグのパターンと照合し、仮説を一度に一つずつ検証します。修正の試行が3回失敗したら、止まってアーキテクチャを疑います。これで、「もう一つだけ試してみよう」という、何時間も無駄にする悪循環を防げます。
 
 ---
 
 ## `/qa`
 
-This is my **QA lead mode**.
+これは私の**QA リードモード**です。
 
-`/browse` gives the agent eyes. `/qa` gives it a testing methodology.
+`/browse` はエージェントに目を与えます。`/qa` は、テストの方法論を与えます。
 
-The most common use case: you're on a feature branch, you just finished coding, and you want to verify everything works. Just say `/qa` — it uses your request, repository contracts, test plan and diff to select browser, functional (API, CLI, job, worker or webhook), or mixed surfaces. No URL or manual test plan is required. Browser targets still open affected pages in Aside tabs (or gstack's fallback browser); functional-only targets use documented native commands and isolated local fixtures without starting a browser.
+最もよくあるユースケースはこうです。機能ブランチにいて、コーディングを終えたばかりで、すべてが動くことを確かめたい。`/qa` と言えばいいだけです。リクエスト、リポジトリの契約、テストプラン、差分を使って、ブラウザ、機能(API、CLI、ジョブ、ワーカー、Webhook)、あるいは両方の対象を選びます。URL も手作業のテストプランも要りません。ブラウザの対象では、該当するページを Aside のタブ(またはフォールバックのブラウザ)で開きます。機能だけの対象では、文書化されたネイティブコマンドと隔離されたローカルのフィクスチャを使い、ブラウザは起動しません。
 
-Choose Full, Quick or Regression depth; diff-aware selects what to test:
+深さは Full、Quick、Regression から選びます。差分ベースの選択が、テスト対象を決めます。
 
-- **Diff-aware** (automatic on feature branches) — selects changed and adjacent behavior. Standalone `/qa` first resolves a dirty working tree through its commit/stash/abort question; it tests the resulting checkout. For browser targets it identifies affected pages and tests them specifically.
-- **Full** — browser QA systematically explores the entire app (typically 5-15 minutes, documenting 5-10 well-evidenced issues); functional QA covers applicable documented contracts and reports blocked or untested ones separately.
-- **Quick** (`--quick`) — browser QA keeps its 30-second homepage + top-five-navigation smoke; functional QA checks a successful operation and the highest-risk changed edge, marking other contracts not run.
-- **Regression** (`--regression <previous-report-or-baseline>`) — browser QA runs full mode and diffs against a previous `baseline.json`; functional QA requires a readable prior functional report and replay evidence, repeats its failed probes against the intended contract, then checks changed adjacent behavior. A browser-only baseline is not a functional baseline.
+- **差分ベース**(機能ブランチでは自動):変更された挙動と隣接する挙動を選びます。単独で実行する `/qa` は、まず作業ツリーの汚れをコミット、スタッシュ、中止のいずれで扱うかを尋ね、結果のチェックアウトをテストします。ブラウザの対象では、影響を受けたページを特定し、それを個別にテストします。
+- **Full**:ブラウザの QA はアプリ全体を体系的に探索します(通常 5〜15 分で、十分な証拠のある問題を 5〜10 件記録します)。機能の QA は、適用される文書化された契約を網羅し、ブロックされたものや未テストのものを別に報告します。
+- **Quick**(`--quick`):ブラウザの QA は、30 秒のホームページと上位 5 件のナビゲーションのスモークテストを保ちます。機能の QA は、成功する操作と、最もリスクの高い変更された境界を確認し、それ以外の契約は「未実行」と表示します。
+- **Regression**(`--regression <前回のレポートまたはベースライン>`):ブラウザの QA は Full モードで実行し、前回の `baseline.json` と差分を取ります。機能の QA は、読み取り可能な前回の機能レポートと再生のエビデンスを必要とし、失敗したプローブを意図された契約に対して繰り返し、そのあと変更された隣接する挙動を確認します。ブラウザだけのベースラインは、機能のベースラインではありません。
 
-Exploration retains a written trail: before each next discovery probe, QA saves an
-`exploration-NNN.json` checkpoint in its owned report directory with the previous
-command and result, the hypothesis and the next exact command. The final report
-links those files. `/qa-only` and the bounded review/ship pass use the same evidence
-contract without gaining permission to edit product code or tests.
+探索は書面の痕跡を残します。次の発見のプローブを行う前に、QA は所有するレポートディレクトリに `exploration-NNN.json` のチェックポイントを保存します。そこには、直前のコマンドと結果、仮説、次の正確なコマンドが記録されます。最終レポートは、それらのファイルにリンクします。`/qa-only` と、範囲を絞ったレビュー/出荷のパスは、同じエビデンスの契約を使います。ただし、プロダクトのコードやテストを編集する権限は得られません。
 
-Time limits include checkpoint and evidence work; unfinished probes remain untested.
-New runs preserve prior reports and baselines, using a fresh owned run directory when
-the selected output directory already contains artifacts. Mixed runs put browser and
-functional results in separate sections of one report; browser scores never apply to
-functional coverage. Conflicting Quick/Regression requests are resolved before probing.
+時間の上限には、チェックポイントとエビデンスの作業も含まれます。終わらなかったプローブは、未テストのまま残ります。新しい実行は、以前のレポートとベースラインを保存します。選択された出力ディレクトリにすでに成果物がある場合は、所有する新しい実行ディレクトリを使います。混在した実行では、ブラウザとは別に、機能の結果を同じレポートの別のセクションに置きます。ブラウザのスコアが機能のカバレッジに適用されることはありません。Quick と Regression の要求が矛盾する場合は、プローブを始める前に解決します。
 
-### Automatic regression tests
+### 自動の回帰テスト
 
-For a reproduced defect, `/qa` writes a native regression test when infrastructure is available and proves it fails for that defect before the repair; CSS-only defects may use browser evidence instead. After the root-cause repair, it requires the original probe, adjacent happy path and native regression when available to pass before calling the fix verified. Tests trace back to the QA report. `/qa-only` can propose the case and retain replayable evidence but never changes product code or tests; missing native test infrastructure remains an explicit coverage limit, not permission to install a new framework for functional QA.
+再現された不具合については、`/qa` はインフラが利用できる場合にネイティブの回帰テストを書き、根本原因の修正の前に、そのテストがその不具合で失敗することを証明します。CSS だけの不具合では、ブラウザのエビデンスを使ってもかまいません。根本原因の修正のあとは、元のプローブ、隣接する正常系、そしてネイティブの回帰テスト(利用可能な場合)がすべて通ることを求めてから、修正が検証済みと呼びます。テストは QA レポートまでたどれます。`/qa-only` はそのケースを提案し、再生可能なエビデンスを保持できますが、プロダクトのコードやテストを変更することは決してありません。ネイティブのテストインフラがないことは、明示的なカバレッジの限界として扱われます。機能の QA のために新しいフレームワークを入れる許可にはなりません。
 
-### Example
+### 例
 
 ```
 You:   /qa https://staging.myapp.com
@@ -665,75 +660,75 @@ Claude: [Explores 12 pages, fills 3 forms, tests 2 flows]
         [Full report with screenshots saved to .gstack/qa-reports/]
 ```
 
-**Testing authenticated pages:** with Aside, nothing to set up. Aside is your browser, so `/qa` already has your sessions; if it hits a sign-in wall, sign in inside Aside and tell it you're done — it re-runs the step. It never types a password for you. On the fallback browser, run `/setup-browser-cookies` first to import your real sessions, or log in once in headed mode.
+**認証が必要なページのテスト:** Aside を使えば、設定は不要です。Aside はあなたのブラウザなので、`/qa` はすでにあなたのセッションを持っています。サインインの壁にぶつかったら、Aside の中でサインインして、完了したと伝えてください。そうすれば、そのステップを再実行します。パスワードを代わりに入力することは決してありません。フォールバックのブラウザでは、まず `/setup-browser-cookies` を実行して実際のセッションをインポートするか、ヘッドありのモードで一度ログインしてください。
 
 ---
 
 ## `/ship`
 
-This is my **release machine mode**.
+これは私の**リリースマシンモード**です。
 
-Once I have decided what to build, nailed the technical plan, and run a serious review, I do not want more talking. I want execution.
+何を作るかを決め、技術的なプランを固め、真剣なレビューを行ったら、もう議論は要りません。実行が欲しいのです。
 
-`/ship` is for the final mile. It is for a ready branch, not for deciding what to build.
+`/ship` は最後の一区間のためのものです。準備の整ったブランチのためのものであり、何を作るかを決めるためのものではありません。
 
-This is where the model should stop behaving like a brainstorm partner and start behaving like a disciplined release engineer: sync with main, run the right tests, make sure the branch state is sane, update changelog or versioning if the repo expects it, push, and create or update the PR.
+ここでモデルは、ブレインストームの相手であることをやめ、規律あるリリースエンジニアとして振る舞うべきです。main と同期し、適切なテストを実行し、ブランチの状態が健全であることを確かめ、リポジトリが求めるなら CHANGELOG やバージョンを更新し、プッシュして、PR を作成または更新します。
 
-### Test bootstrap
+### テストのブートストラップ
 
-If your project doesn't have a test framework, `/ship` sets one up — detects your runtime, researches the best framework, installs it, writes 3-5 real tests for your actual code, sets up CI/CD (GitHub Actions), and creates TESTING.md. 100% test coverage is the goal — tests make vibe coding safe instead of yolo coding.
+プロジェクトにテストフレームワークがなければ、`/ship` が設定します。ランタイムを検出し、最適なフレームワークを調べ、インストールし、実際のコードに対する 3〜5 件の本物のテストを書き、CI/CD(GitHub Actions)を設定し、TESTING.md を作成します。目標は 100% のテストカバレッジです。テストがあれば、バイブコーディングが無謀なコーディングではなく、安全なものになります。
 
-### Coverage audit
+### カバレッジの監査
 
-Every `/ship` run builds a code path map from your diff, searches for corresponding tests, and produces an ASCII coverage diagram with quality stars. Gaps get tests auto-generated. Your PR body shows the coverage: `Tests: 42 → 47 (+5 new)`.
+`/ship` を実行するたびに、差分からコードパスの地図を作り、対応するテストを探し、品質の星付きの ASCII のカバレッジ図を出力します。ギャップには、テストが自動生成されます。PR の本文にはカバレッジが表示されます。例えば `Tests: 42 → 47 (+5 new)` のように。
 
-`/review` and `/ship` also run a bounded exploratory pass on changed behavior and nearby risks, even for a small diff without a plan or web server. Their existing approval and test rules govern any fixes or permanent tests; a blocked probe remains a coverage gap, not a passing QA result.
+`/review` と `/ship` は、変更された挙動と近くのリスクに対して、範囲の限られた探索的パスも実行します。プランや Web サーバーがなく、差分が小さくてもです。既存の承認とテストのルールが、修正や恒久的なテストを規定します。ブロックされたプローブは、合格した QA の結果ではなく、カバレッジのギャップとして扱われます。
 
-### Review gate
+### レビューのゲート
 
-`/ship` displays historical review readiness in the [Review Readiness Dashboard](#review-readiness-dashboard) during preflight. A missing Eng Review is reported without an extra question; it does not replace or waive the current pre-landing review. Step 9 still runs the checklist, applicable specialists and bounded exploratory QA, with its existing approval and completion gates.
+`/ship` は、事前チェックの間に、過去のレビュー準備状況を [レビュー準備ダッシュボード](#review-readiness-dashboard) で表示します。Eng Review がない場合は、余計な質問なしに報告されます。それは、現在の出荷前レビューを置き換えたり免除したりするものではありません。ステップ 9 は、引き続きチェックリスト、該当する専門担当、範囲を限定した探索的 QA を実行し、既存の承認と完了のゲートに従います。
 
-A lot of branches die when the interesting work is done and only the boring release work is left. Humans procrastinate that part. AI should not.
+出荷で作業が終わった後に、退屈なリリース作業だけが残るブランチは多いものです。人間は、その部分を先延ばしにしがちです。AI がそうしてはいけません。
 
-### Versions: where `/ship` looks, and when it ships without one
+### バージョンの場所と、バージョンなしで出荷する場合
 
-`/ship` bumps a version only when the project says where the version lives. It checks, in order:
+`/ship` は、プロジェクトがバージョンの場所を指定しているときだけバージョンを上げます。順番に次を確認します。
 
-1. `--version-path <path>` passed to `gstack-version-bump` / `gstack-next-version`.
-2. `.gstack/version-path`: a committed one-line file holding the version file's repo-relative path, for example `package.json` or `apps/web/package.json`. A `.json` path is read and written as its `"version"` field; 3-digit semver stays 3-digit.
-3. A root `VERSION` file (gstack's own 4-digit `MAJOR.MINOR.PATCH.MICRO` format).
+1. `gstack-version-bump` / `gstack-next-version` に渡された `--version-path <path>`
+2. `.gstack/version-path`:バージョンファイルのリポジトリからの相対パスを一行で書いた、コミット済みのファイル(例:`package.json` や `apps/web/package.json`)。`.json` のパスは `"version"` フィールドとして読み書きされます。3 桁のセマンティックバージョンは 3 桁のままです。
+3. ルートの `VERSION` ファイル(gstack 自身の 4 桁 `MAJOR.MINOR.PATCH.MICRO` 形式)
 
-A root `package.json` on its own does not count, because many apps carry a placeholder there. To have `/ship` version it, run `echo package.json > .gstack/version-path` and commit the file.
+ルートの `package.json` だけでは数えられません。多くのアプリはそこにプレースホルダーを置いているからです。`/ship` にバージョンを管理させたいなら、`echo package.json > .gstack/version-path` を実行し、そのファイルをコミットしてください。
 
-When none of these exist, `/ship` ships without a version change: no bump, no CHANGELOG version header, no `v1.2.3` title prefix, no tag. It prints:
+これらのどれも存在しない場合、`/ship` はバージョンを変えずに出荷します。バージョンのバンプはなく、CHANGELOG にバージョンの見出しもなく、`v1.2.3` のタイトルの接頭辞もなく、タグも付けません。次のように表示されます。
 
-> Shipped without a version change: no version source is configured (no VERSION file, no .gstack/version-path). To version releases, create VERSION or write the version file's path (for example package.json) to .gstack/version-path.
+> バージョンを変えずに出荷しました: バージョンの取得元が設定されていません(VERSION ファイルも .gstack/version-path もありません)。リリースにバージョンを付けるには、VERSION ファイルを作成するか、バージョンファイルのパス(例: package.json)を .gstack/version-path に書いてください。
 
-It does the same, with the reason, when release-please, Changesets or semantic-release is configured, when the repo is a workspace monorepo, or when `package.json` holds a placeholder such as `0.0.0-development`; those tools own the version. `/land-and-deploy` and `/document-release` read the same signal. A configured version file that is missing, empty, unreadable or malformed stops `/ship` with the file's path and the problem; gstack never substitutes `0.0.0.0`.
+release-please、Changesets、semantic-release が設定されている場合、リポジトリがワークスペースのモノレポである場合、`package.json` に `0.0.0-development` のようなプレースホルダーが入っている場合も、同じように理由付きで出荷されます。それらのツールがバージョンを管理しているからです。`/land-and-deploy` と `/document-release` も同じ信号を読みます。設定されたバージョンファイルが存在しない、空、読めない、または形式が不正な場合は、`/ship` がそのファイルのパスと問題を示して止まります。gstack が `0.0.0.0` で代用することは決してありません。
 
-### Third-party web actions (v1.72.0.0+)
+### サードパーティの Web アクション(v1.72.0.0 以降)
 
-Sometimes the release work leaves the terminal: registering an API key, creating a vendor account, wiring a webhook or OAuth app. Instead of handing you a manual step list, `/ship` (and `/spec`, `/office-hours`, `/land-and-deploy`, `/setup-deploy`) offers to drive the browser for you. Aside first — it acts across your real logged-in sessions, which is exactly what vendor dashboards need. No Aside? gstack's own visible browser (headed `$B` with handoff for sign-in) is the fallback on every platform, with one pointer to aside.com (macOS 15+) per task.
+リリース作業がターミナルの外に出ることがあります。API キーの登録、ベンダーアカウントの作成、Webhook や OAuth アプリの設定などです。`/ship`(および `/spec`、`/office-hours`、`/land-and-deploy`、`/setup-deploy`)は、手順の一覧を渡す代わりに、ブラウザの操作を代行するかを提案します。まず Aside を使います。Aside はあなたの実際のログイン済みセッションで動くため、ベンダーのダッシュボードにまさに必要なものです。Aside がない場合は、gstack 独自の見えるブラウザ(ヘッドありの `$B`、サインインのための引き継ぎ付き)がすべてのプラットフォームでのフォールバックになります。タスクごとに、aside.com(macOS 15 以降)への案内が一度だけ出ます。
 
-The consent rules are strict and pin-tested: one explicit question per task naming the exact site and actions, no standing permission, no auto-install ever (on a Mac without Aside you get one download pointer — aside.com, macOS 15+ — once per task). Passwords, payment, CAPTCHAs, and identity verification stay yours; Apple credential creation is never a drive target in any skill. A captured secret never appears in chat — it lands in an owner-only file and gets verified with one read-only API call before gstack claims success.
+同意のルールは厳格で、テストで固定されています。タスクごとに、対象のサイトと操作を正確に名指しした明示的な質問を一つだけ行います。常設の許可はありません。自動インストールは決して行いません(Aside のない Mac では、タスクごとに一度だけ、ダウンロードの案内が表示されるだけです)。パスワード、支払い、CAPTCHA、本人確認はあなたの担当のままです。Apple の認証情報の作成は、どのスキルでも操作の対象にはなりません。取得した機密情報がチャットに現れることは決してありません。所有者だけが読めるファイルに保存され、gstack が成功を宣言する前に、読み取り専用の API 呼び出しを 1 回行って検証されます。
 
 ---
 
 ## `/land-and-deploy`
 
-This is my **deploy pipeline mode**.
+これは私の**デプロイパイプラインモード**です。
 
-`/ship` creates the PR. `/land-and-deploy` finishes the job: merge, deploy, verify.
+`/ship` が PR を作成します。`/land-and-deploy` が仕事を完成させます。マージし、デプロイし、検証するのです。
 
-It confirms PR readiness and your merge approval, merges, then monitors CI and deployment before checking production. If deployment breaks, it reports what failed and whether rollback is available. If the new revision's deployment cannot be confirmed, it reports that uncertainty rather than treating a healthy old page as proof.
+PR の準備状況とマージの承認を確認してから、マージし、CI とデプロイを監視し、そのあと本番を確認します。デプロイが壊れた場合は、何が失敗したか、ロールバックが可能かを報告します。新しいリビジョンのデプロイが確認できない場合は、古いページが正常に表示されていることを証拠とみなすのではなく、その不確かさを報告します。
 
-The first run, or a changed deployment configuration, triggers a dry-run walk-through so you can verify the pipeline before anything irreversible happens. An unchanged, previously confirmed configuration skips that walkthrough, not readiness checks or merge approval. Approval is bound to the exact PR head and destination branch; changing either requires fresh readiness and approval.
+初回の実行時、またはデプロイの設定が変わったときは、ドライランのウォークスルーが走ります。取り返しのつかないことが起きる前に、パイプラインを確認できます。変更がなく、以前に確認された設定なら、そのウォークスルーはスキップされます。ただし、準備状況の確認とマージの承認は省略されません。承認は、正確な PR の HEAD と、マージ先のブランチに結び付けられます。どちらかが変わったら、準備状況と承認をやり直す必要があります。
 
-### Setup
+### セットアップ
 
-Run `/setup-deploy` first. It detects your platform (Fly.io, Render, Vercel, Netlify, Heroku, GitHub Actions, or custom), discovers your production URL and health check endpoints, and writes the config to CLAUDE.md. One-time, 60 seconds.
+まず `/setup-deploy` を実行してください。プラットフォーム(Fly.io、Render、Vercel、Netlify、Heroku、GitHub Actions、またはカスタム)を検出し、本番の URL とヘルスチェックのエンドポイントを見つけ、設定を CLAUDE.md に書き出します。一度だけ、60 秒で終わります。
 
-### Example
+### 例
 
 ```
 You:   /land-and-deploy
@@ -751,11 +746,11 @@ Claude: Merging PR #42...
 
 ## `/canary`
 
-This is my **post-deploy monitoring mode**.
+これは私の**デプロイ後の監視モード**です。
 
-After deploy, `/canary` watches the live site for trouble. It loops through your key pages in your Aside browser (one `aside repl` script per page, so every cycle is a fresh load), checking for console errors, performance regressions, page failures, and visual anomalies. Takes periodic screenshots and compares against pre-deploy baselines.
+デプロイのあと、`/canary` はライブサイトで問題が起きていないかを見張ります。Aside ブラウザで主要なページを順に巡回します(ページごとに 1 つの `aside repl` スクリプトを使うので、どのサイクルも新しく読み込まれます)。コンソールエラー、パフォーマンスの劣化、ページの障害、見た目の異常を確認します。定期的にスクリーンショットを撮り、デプロイ前のベースラインと比較します。
 
-Use it right after `/land-and-deploy`, or schedule it to run periodically after a risky deploy.
+`/land-and-deploy` の直後に使うか、リスクの高いデプロイのあとに定期的に実行するようスケジュールしてください。
 
 ```
 You:   /canary https://myapp.com
@@ -775,36 +770,20 @@ Claude: Monitoring 8 pages every 2 minutes...
 
 ## `/deslop-shared-libs`
 
-Find shared code worth extracting from recent work. By default, the skill reviews
-the preceding 14 UTC days of commits and PRs, plus relevant current-branch work.
-It checks existing helpers, verifies compatible authored callers, and compares
-up to five new opportunities before recommending up to three. Estimates include
-tests and integration, so moving code into a new file does not count as savings.
-Fewer recommendations, including none, are valid.
+最近の作業の中から、共有コードとして切り出す価値のあるものを探します。標準では、直近 14 日(UTC)のコミットと PR、そして関連する現在のブランチの作業を見ます。既存のヘルパーを確認し、互換性のある作成者の呼び出し元を検証し、新しい候補を最大 5 件比べて、最大 3 件まで推奨します。見積もりにはテストと統合作業も含めます。そのため、コードを新しいファイルに移しただけでは、節約にはなりません。推奨が少なくても、まったくなくても、それは正しい結果です。
 
 ```text
 You: /deslop-shared-libs
 You: /deslop-shared-libs — focus on the API and workers over the past 30 days
 ```
 
-The report links the reviewed source, names the smallest useful helper and its
-callers, explains reliability gains and shared-failure risks, and separates work
-already covered by PRs. It checks older open PRs for candidate overlap within a
-bounded scan and discloses inaccessible history or incomplete coverage. It reads
-raw uncommitted source without running project hooks or filters. It never edits
-code, runs project tests, saves a report, or creates issues or PRs.
+レポートは、確認したソースにリンクし、最も小さく役に立つヘルパーとその呼び出し元の名前を挙げ、信頼性の向上と共有された障害のリスクを説明します。すでに PR でカバーされている作業は区別して示します。古いオープンな PR も、範囲の決まったスキャンの中で候補の重なりを確認し、アクセスできない履歴や不完全なカバレッジを開示します。プロジェクトのフックやフィルタを実行せずに、コミットされていない生のソースも読みます。コードを編集することも、プロジェクトのテストを実行することも、レポートを保存することも、Issue や PR を作成することもありません。
 
-`/plan-eng-review` applies the same criteria to the plan and proposed callers.
-`/review` checks the diff and related callers even on tiny changes. These scoped
-checks do not run the history audit. Optional extractions are advisory and require
-approval; they do not block a clean review or reduce its score. Actual defects
-keep their normal fix handling.
+`/plan-eng-review` は、プランと提案された呼び出し元に同じ基準を当てます。`/review` は、どんなに小さな変更でも、差分と関連する呼び出し元を確認します。これらの範囲を限定したチェックでは、履歴の監査は実行しません。任意の抽出はアドバイザリであり、承認が必要です。クリーンなレビューをブロックしたり、スコアを下げたりはしません。実際の欠陥は、通常どおりの修正の扱いになります。
 
 ## `/test-audit`
 
-Find existing tests that cost more than they protect. `/review`, `/ship`, `/qa` and
-`/plan-eng-review` apply the same [test value bar](test-value-bar.md) to tests in a
-diff; `/test-audit` sweeps the tests that already exist.
+コストが保護する価値を上回っているテストを見つけます。`/review`、`/ship`、`/qa`、`/plan-eng-review` は、差分にあるテストに対して同じ [テストの価値の基準](test-value-bar.md) を適用します。`/test-audit` は、すでに存在するテストを一通り調べます。
 
 ```text
 You: /test-audit
@@ -812,45 +791,26 @@ You: /test-audit test/ --max-candidates 5
 You: /test-audit --since origin/main
 ```
 
-A mechanical pre-filter shortlists assertion-free probes, source greps, export-list
-copies and near-duplicate files before any model reading. Each candidate gets a
-retirement card (what it detects, non-test callers with the search command, the
-stronger remaining proof, history, what retiring it unlocks, and the validation
-command). Contract tests such as SKILL.md goldens and prompt-byte checks
-(machine-read tokens, not English sentences; see [the value bar](test-value-bar.md))
-are retained. The report and a JSON sidecar land in `~/.gstack/projects/<slug>/`.
-Nothing is edited unless you approve a batch; spawned sessions stay report-only.
-Tests marked `gstack:test-value keep reason="..."` are skipped and listed in the
-report's appendix.
+機械的な事前フィルタが、モデルが読む前に、アサーションのないプローブ、ソースの grep、エクスポートリストのコピー、ほぼ重複したファイルを候補として絞り込みます。各候補には、引退カードが付きます。何を検出しているか、テスト以外の呼び出し元(検索コマンド付き)、残っている強い証明、履歴、引退によって何が解放されるか、検証コマンドです。SKILL.md のゴールデンや、プロンプトのバイトの検証(英語の文ではなく、機械が読むトークン。[価値の基準](test-value-bar.md) を参照)のような契約テストは残します。レポートと JSON のサイドカーは `~/.gstack/projects/<slug>/` に保存されます。承認したバッチ以外は何も編集されません。生成されたセッションは、報告のみです。`gstack:test-value keep reason="..."` と印されたテストはスキップされ、レポートの付録に一覧されます。
 
 ## `/eval-plan`
 
-Preregister a paid eval before the first priced call.
+最初の有料の呼び出しの前に、有料の評価を事前登録します。
 
 ```text
 You: /eval-plan
 You: /eval-plan how much will the retrieval eval cost before I run it?
 ```
 
-`bin/gstack-eval-plan prereg --init` writes the preregistration (question, bars,
-arms, decoys, stop rules, cap) and `--check` refuses to continue while a field is
-blank (`PREREG_INCOMPLETE`). `arms` resolves the `eval-arms` model role against
-`lib/pricing.ts` and stops on an unpriced model (`EVAL_PRICE_MISSING`); `dry-run`
-runs every row through the stub model for $0 and flags malformed rows
-(`EVAL_DRY_RUN_FAILED`); `pilot start|settle|release|report` runs three priced
-items, records actual spend, extrapolates to the full set against the cap
-(`EVAL_BUDGET_EXHAUSTED`) and prints the spend table the approval question shows.
-The skill's closing section lists the tier-3 items (instrument audit, steady
-state, sealed paths, off-machine persistence, memory preflight, power tables, QA
-soak) as `tier 3, after P7`; none of them run yet.
+`bin/gstack-eval-plan prereg --init` は事前登録(問い、合格基準、アーム、デコイ、停止ルール、上限)を書き出し、`--check` は項目が空の間は続行を拒否します(`PREREG_INCOMPLETE`)。`arms` は `eval-arms` のモデルの役割を `lib/pricing.ts` と照合し、価格のないモデルで停止します(`EVAL_PRICE_MISSING`)。`dry-run` は、すべての行をスタブモデルで費用ゼロで実行し、不正な行を検出します(`EVAL_DRY_RUN_FAILED`)。`pilot start|settle|release|report` は、有料の 3 件を実行し、実際の支出を記録し、全体に外挿して上限と比べ(`EVAL_BUDGET_EXHAUSTED`)、承認の質問で示される支出表を出力します。このスキルの締めくくりの節には、ティア 3 の項目(計測の監査、定常状態、封印されたパス、オフマシンでの永続化、メモリの事前確認、検出力の表、QA のソーク)が `tier 3, after P7` として並んでいます。それらはまだ一つも実行されていません。
 
 ## `/benchmark`
 
-This is my **performance engineer mode**.
+これは私の**パフォーマンスエンジニアモード**です。
 
-`/benchmark` establishes performance baselines for your pages: load time, Core Web Vitals (LCP, CLS, INP), resource counts, and total transfer size. Run it before and after a PR to catch regressions.
+`/benchmark` は、ページのベースラインのパフォーマンスを確立します。読み込み時間、Core Web Vitals(LCP、CLS、INP)、リソース数、転送サイズの合計です。PR の前後に実行して、性能の劣化を捉えてください。
 
-It measures in your Aside browser — the page's own `performance` navigation and resource entries from a real load, not synthetic estimates. Multiple runs averaged. Results persist so you can track trends across PRs.
+Aside ブラウザで測定します。推定値ではなく、実際の読み込みでページ自身の `performance` のナビゲーションとリソースのエントリを使います。複数回の実行の平均です。結果は保存されるので、PR をまたいで傾向を追えます。
 
 ```
 You:   /benchmark https://myapp.com
@@ -868,9 +828,9 @@ Claude: Benchmarking 5 pages (3 runs each)...
 
 ## `/cso`
 
-This is my **Chief Security Officer**.
+これは私の**最高セキュリティ責任者**です。
 
-Run `/cso` for a bounded static investigation with an application model, challenged findings, and explicit coverage; static assessment remains available when no runtime or scanner catalog profile is qualified. With matching qualified profiles, `/cso --comprehensive` can prepare Node/Bun, Python, and Rails applications in contained local runtimes, reproduce a defect, and retain a reviewable repair candidate without changing the working branch. An out-of-process witness can authenticate the external boot, legitimate-control, and security assertions and issue a `runtime_tested` bundle. Project-test completion remains `self_reported` because target code shares that process and can forge reporter output or terminate the runner; recorded command, count, exit, and output hashes are diagnostic evidence, not a target-independent completion witness. Every report shows assertion, test-completion, and review assurance separately. The `tested` state is reserved for a future target-independent witness and is not emitted today. `/cso --doctor`, `--resume`, `--replay`, and `--recheck` diagnose prerequisites, recover interrupted work, repeat recorded verification, and establish current-source closure from fresh evidence.
+`/cso` を実行すると、アプリケーションのモデル、検証済みの指摘、明示的なカバレッジを伴う、範囲の限られた静的な調査が行われます。ランタイムやスキャナーのカタログプロファイルが認定されていない場合も、静的評価は利用できます。対応するプロファイルが認定されていれば、`/cso --comprehensive` は Node/Bun、Python、Rails のアプリケーションを隔離されたローカルのランタイムで準備し、欠陥を再現し、作業ブランチを変えずに、レビュー可能な修正の候補を残せます。外部のプロセスにある監視役が、外部のブート、正当な制御、セキュリティのアサーションを認証し、`runtime_tested` のバンドルを発行できます。対象コードがそのプロセスを共有し、レポーターの出力を偽装したり、ランナーを終了させたりできるため、プロジェクトのテストの完了は `self_reported` のままです。記録されたコマンド、件数、終了コード、出力のハッシュは診断用の証拠であり、対象に依存しない完了の証明ではありません。すべてのレポートは、アサーション、テストの完了、レビューの保証をそれぞれ別々に示します。`tested` の状態は、将来の対象に依存しない証明のために予約されており、現時点では出力されません。`/cso --doctor`、`--resume`、`--replay`、`--recheck` は、前提条件の診断、中断された作業の回復、記録された検証の再実行、新しい証拠に基づく現在のソースの完了の確立を行います。
 
 ```
 You:   /cso
@@ -889,9 +849,9 @@ Claude: complete — assessed application routes, tenant authorization, secrets,
 
 ## `/document-release`
 
-This is my **technical writer mode**.
+これは私の**テクニカルライターモード**です。
 
-On every `/ship` run, including reruns and existing-PR updates, a ship-owned `/document-release` audit checks relevant authored docs against committed and selected uncommitted changes before the final commit, verification and publication. Clear factual corrections join the checked change; the ship parent owns versioning, Git and PR publication. A blocked or incomplete audit requires recovery or explicit acceptance of the named documentation risk before shipping, and never silently becomes current. You can still invoke `/document-release` standalone after a PR exists; that workflow retains its own approval, commit and PR-body steps.
+`/ship` を実行するたびに(再実行や既存の PR の更新を含みます)、出荷が所有する `/document-release` の監査が、最終コミット、検証、公開の前に、関連する執筆済みのドキュメントを、コミット済みの変更と選択された未コミットの変更の両方に照らして確認します。明確な事実の訂正は、チェック済みの変更に加わります。versioning、Git、PR の公開は、出荷の親が担当します。ブロックされた、または不完全な監査は、回復するか、指摘された文書化のリスクを明示的に受け入れてから出荷する必要があります。黙って「最新」になることはありません。PR が存在したあとに、`/document-release` を単独で実行することもできます。そのワークフローは、独自の承認、コミット、PR 本文の手順を保持します。
 
 ```
 You:   /document-release
@@ -906,21 +866,21 @@ Claude: Analyzing 21 files changed across 3 commits. Found 8 documentation files
         All docs updated and committed. PR body updated with doc diff.
 ```
 
-It also polishes CHANGELOG voice (without ever overwriting entries), cleans up completed TODOS, checks cross-doc consistency, and asks about VERSION bumps only when appropriate.
+また、CHANGELOG の文体を磨きます(既存のエントリを決して上書きしません)。完了した TODOS を整理し、ドキュメント間の一貫性を確認し、VERSION を上げるかどうかは、必要なときだけ尋ねます。
 
 ---
 
 ## `/retro`
 
-This is my **engineering manager mode**.
+これは私の**エンジニアリングマネージャーモード**です。
 
-At the end of the week I want to know what actually happened. Not vibes — data. `/retro` analyzes commit history, work patterns, and shipping velocity and writes a candid retrospective.
+週の終わりには、実際に何が起きたかを知りたいものです。雰囲気ではなく、データで。`/retro` はコミット履歴、作業のパターン、出荷の速度を分析し、率直なふりかえりを書きます。
 
-It is team-aware. It identifies who is running the command, gives you the deepest treatment on your own work, then breaks down every contributor with specific praise and growth opportunities. It computes metrics like commits, LOC, test ratio, PR sizes, and fix ratio. It detects coding sessions from commit timestamps, finds hotspot files, tracks shipping streaks, and identifies the biggest ship of the week.
+チームを考慮します。コマンドを実行している人を特定し、あなた自身の作業には最も深い分析を行い、そのあと全員の内訳を、具体的な賞賛と成長の機会とともに示します。コミット数、LOC、テストの比率、PR のサイズ、修正の比率といった指標を算出します。コミットのタイムスタンプからコーディングのセッションを検出し、ホットスポットのファイルを見つけ、出荷の連続記録を追跡し、今週いちばん大きな出荷を特定します。
 
-It also tracks test health: total test files, tests added this period, regression test commits, and trend deltas. If test ratio drops below 20%, it flags it as a growth area.
+テストの健全性も追跡します。テストファイルの総数、この期間に追加されたテスト、回帰テストのコミット、傾向の差分です。テストの比率が 20% を下回ったら、成長の領域として指摘します。
 
-### Example
+### 例
 
 ```
 You:   /retro
@@ -946,19 +906,19 @@ Claude: Week of Mar 1: 47 commits (3 contributors), 3.2k LOC, 38% tests, 12 PRs,
         [Top 3 team wins, 3 things to improve, 3 habits for next week]
 ```
 
-It saves a JSON snapshot to `.context/retros/` so the next run can show trends.
+次回の実行で傾向を示せるように、JSON のスナップショットを `.context/retros/` に保存します。
 
 ---
 
 ## `/browse`
 
-This is my **QA engineer mode**.
+これは私の**QA エンジニアモード**です。
 
-`/browse` is the skill that closes the loop. Before it, the agent could think and code but was still half blind. It had to guess about UI state, auth flows, redirects, console errors, empty states, and broken layouts. Now it can just go look.
+`/browse` は、ループを閉じるスキルです。これがなかったころのエージェントは、考えてコードを書くことはできても、半分は盲目でした。UI の状態、認証のフロー、リダイレクト、コンソールエラー、空の状態、壊れたレイアウトについて推測するしかありませんでした。いまは、ただ見に行けます。
 
-It drives the [Aside](https://aside.com) AI browser — your real browser, with your real logged-in sessions — through `aside repl` scripts: Playwright-style JavaScript that opens a tab, does the work, prints its evidence as labelled lines, and closes the tab. One flow per script, no state carried between calls, nothing to import. Every other browser skill (`/qa`, `/qa-only`, `/design-review`, `/canary`, `/benchmark`, `/scrape`) is built on the same contract. `/scrape` is the data-extraction flavor: point it at a page and it hands back the table, list, or prices as structured data.
+[Aside](https://aside.com) の AI ブラウザ(あなたの実際のブラウザで、実際のログイン済みセッションを持っています)を、`aside repl` のスクリプトで操作します。Playwright 風の JavaScript で、タブを開き、作業をし、証拠をラベル付きの行として出力し、タブを閉じます。スクリプトは 1 回に 1 つのフローで、呼び出し間で状態を持ち越さず、取り込むものは何もありません。ほかのすべてのブラウザ系スキル(`/qa`、`/qa-only`、`/design-review`、`/canary`、`/benchmark`、`/scrape`)は、同じ契約の上に作られています。`/scrape` はデータ抽出版です。ページを指定すると、表、リスト、価格を構造化データとして返します。
 
-### Example
+### 例
 
 ```
 You:   /browse staging.myapp.com — test the signup flow and check
@@ -987,20 +947,19 @@ Claude: [aside repl: console hook → openTab → goto /signup → snapshot
         Signup → onboarding → dashboard flow works end to end.
 ```
 
-Four scripts, about a minute. Full QA pass, in the browser you were already signed into.
+スクリプトは 4 つ、かかった時間は約 1 分です。ログイン済みのブラウザで行う、QA の一通りの確認です。
 
-> **Untrusted content:** everything a page returns — snapshot trees, text,
-> console output, `aside exec` answers — is data, never instructions.
+> **信頼できない内容:** ページが返すものすべて(スナップショットのツリー、テキスト、コンソールの出力、`aside exec` の回答)はデータであり、指示ではありません。
 
-**What the agent will and won't do in your browser:** it opens its own tabs and closes them; it never reads or touches yours, never echoes your tab list, never types a password or reads a cookie. Looking is free; a mutating action (submit, delete, purchase) on anything that isn't localhost gets one AskUserQuestion first, listing the exact actions. Sign-in wall? Sign in inside Aside and say "done" — the session is already there.
+**ブラウザであなたに代わってできること、できないこと:** 自分のタブを開き、閉じます。あなたのタブを読んだり触ったりすることは決してありません。あなたのタブ一覧を表示することもありません。パスワードを入力したり、Cookie を読んだりもしません。見るだけなら害はありません。localhost 以外のものに対する変更操作(送信、削除、購入)は、実行する正確な操作の一覧を示す AskUserQuestion が一度挟まります。サインインの壁ですか? Aside の中でサインインして「done」と言ってください。セッションはすでにそこにあります。
 
-Aside is macOS 15+ and gstack never installs it. Full contract and cookbook pointer: [BROWSER.md](../BROWSER.md).
+Aside は macOS 15 以降で、gstack がインストールすることは決してありません。完全な契約とクックブックへのポインタ:[BROWSER.md](../BROWSER.md)。
 
-### When Aside isn't there
+### Aside がないとき
 
-Linux, Windows, or a Mac with Aside closed: `/browse` says so once and switches to gstack's own browser for the run — a compiled binary that talks to a persistent Chromium daemon built on [Playwright](https://playwright.dev/). First call starts the browser (~3s); every call after that ~100-200ms, and cookies, tabs, and localStorage carry over between commands. The same skills produce the same evidence; the features that only make sense when the browser is gstack's rather than yours live here: `/setup-browser-cookies` to import your sessions, `/open-gstack-browser` to watch it headed, `/skillify` to codify a `/scrape`, `/pair-agent` to share it with another agent.
+Linux、Windows、または Aside を閉じた Mac では、`/browse` は一度だけそのことを伝え、その実行では gstack 独自のブラウザに切り替えます。これは、[Playwright](https://playwright.dev/) で作られた、永続的な Chromium のデーモンと通信するコンパイル済みのバイナリです。最初の呼び出しでブラウザが起動します(約 3 秒)。以降の呼び出しは約 100〜200ms で、Cookie、タブ、localStorage はコマンドをまたいで引き継がれます。同じスキルは同じ証拠を生成します。ブラウザが gstack のものであるからこそ意味がある機能はここにあります。`/setup-browser-cookies` でセッションをインポートする、`/open-gstack-browser` でヘッドありで見守る、`/skillify` で `/scrape` をスキル化する、`/pair-agent` でほかのエージェントと共有する、などです。
 
-When the headless browser gets stuck — CAPTCHA, MFA, complex auth — it hands off to you:
+ヘッドレスのブラウザが詰まったとき(CAPTCHA、MFA、複雑な認証)は、あなたに引き継ぎます。
 
 ```
 Claude: I'm stuck on a CAPTCHA at the login page. Opening a visible
@@ -1015,19 +974,19 @@ Claude: > browse resume
         Got a fresh snapshot. Logged in successfully. Continuing QA.
 ```
 
-The browser preserves all state across the handoff, and after `resume` the agent gets a fresh snapshot of wherever you left off. If a browse command fails 3 times in a row, it suggests `handoff` automatically.
+ブラウザは引き継ぎの間もすべての状態を保持します。`resume` のあと、エージェントはあなたが離れた場所の新しいスナップショットを受け取ります。`browse` のコマンドが 3 回連続で失敗すると、`handoff` を自動的に提案します。
 
-**Security note:** the fallback is a persistent Chromium session — cookies, localStorage, and session state carry over between commands. Do not use it against sensitive production environments unless you intend to. The session auto-shuts down after 30 minutes of idle time. Full `$B` command reference: [BROWSER.md](../BROWSER.md#the-fallback-engine--complete-reference).
+**セキュリティの注意:** フォールバックは永続的な Chromium のセッションです。Cookie、localStorage、セッションの状態が、コマンドをまたいで引き継がれます。意図しない限り、機密性の高い本番環境に対して使わないでください。セッションは、30 分間アイドルになると自動的に終了します。`$B` の完全なコマンドリファレンス:[BROWSER.md](../BROWSER.md#the-fallback-engine--complete-reference)。
 
 ---
 
 ## `/setup-browser-cookies`
 
-This is my **session manager mode** — for the fallback browser. With Aside open, `/qa` and `/browse` already run in your real sessions and this skill has nothing to do.
+これは私の**セッションマネージャーモード**です。フォールバックのブラウザのためのものです。Aside を開いていれば、`/qa` と `/browse` は実際のセッションのなかで動くので、このスキルの出番はありません。
 
-For authenticated testing on gstack's own browser, `/setup-browser-cookies` copies selected cookies from your daily browser. Sites may also need storage or a fresh login, so copying cookies is not proof that the session works.
+gstack 独自のブラウザで認証を伴うテストをするには、`/setup-browser-cookies` が、普段使っているブラウザから選んだ Cookie をコピーします。サイトによっては、ストレージのコピーや新しいログインが必要な場合もあります。そのため、Cookie をコピーしたことは、セッションが機能するという証明にはなりません。
 
-The picker detects Chrome, Chromium, Brave, Edge, Windows-only Opera and Opera GX, and macOS-only Comet, Arc, and Dia. Choose the browser, account/profile, and domains. Profile labels use the current `Local State` name with a directory discriminator, so renamed profiles and duplicate names are distinguishable. No cookie values are displayed; source/profile labels are still sensitive.
+ピッカーは、Chrome、Chromium、Brave、Edge、Windows 限定の Opera と Opera GX、macOS 限定の Comet、Arc、Dia を検出します。ブラウザ、アカウントやプロファイル、ドメインを選びます。プロファイルのラベルは、現在の `Local State` の名前と、ディレクトリを区別する識別子を使います。そのため、名前を変えたプロファイルや同名のプロファイルを区別できます。Cookie の値は表示されません。ただし、ソースとプロファイルのラベルは依然として機密です。
 
 ```
 You:   /setup-browser-cookies
@@ -1042,7 +1001,7 @@ You:    done
 Claude: Imported 2 domains (47 cookies). Sign-in has not been checked.
 ```
 
-For direct import, select the browser and profile first and navigate to a matching target. Do not infer an account from the CLI's legacy Comet default:
+直接インポートする場合は、先にブラウザとプロファイルを選び、対応する対象に移動します。CLI の従来の Comet の既定値から、アカウントを推測しないでください。
 
 ```
 You:   /setup-browser-cookies github.com from Chrome, Profile 2
@@ -1050,33 +1009,33 @@ You:   /setup-browser-cookies github.com from Chrome, Profile 2
 Claude: Imported 12 cookies; sign-in has not been checked.
 ```
 
-`--verify-auth` is explicit and requires a selector and expected identity configured privately in the daemon environment before startup. It checks one exact visible identity on the captured target, not just HTTP 200 or a cookie count. Missing configuration fails before mutation. `--clear-storage` is separate, opt-in recovery for Chromium targets: it clears only the captured origin's localStorage (shared across that origin's tabs) and the target tab's sessionStorage in an isolated world with a native deadline. Other target engines retain import/auth checks but reject reset. It is never automatic and cannot be combined with `--all`. Partial imports and unsuccessful checks remain visible rather than becoming a false "ready."
+`--verify-auth` は明示的に指定するもので、デーモンの環境で、セレクタと期待されるアイデンティティを、デーモンの起動前に非公開で設定しておく必要があります。HTTP 200 や Cookie の件数ではなく、取得した対象の上で、ひとつの正確に表示されたアイデンティティを確認します。設定がなければ、変更の前に失敗します。`--clear-storage` は別の、オプトインの Chromium 対象向けの回復手段です。取得したオリジンの localStorage(そのオリジンのタブ全体で共有されます)と、対象タブの sessionStorage だけを、隔離されたワールドでネイティブの期限付きでクリアします。ほかのブラウザエンジンでは、インポートと認証の確認は残りますが、リセットは拒否されます。自動では決して行われず、`--all` と組み合わせることもできません。一部だけのインポートや、成功しなかった確認は、「準備完了」に化けることなく、見えたままになります。
 
-macOS may prompt for Keychain approval; Linux uses its supported keyring/fallback paths; Windows can import DPAPI-compatible cookies, but native App-Bound Encryption extraction remains disabled pending qualification. Closing Chrome does not bypass Chrome 136+ default-directory protection. Use manual sign-in in the headed fallback browser when needed and a display is available, never a TCP downgrade or real-profile copy. Full flags, configuration, and privacy guidance: [cookie import reference](../BROWSER.md#choosing-a-source-and-checking-sign-in).
+macOS では、キーチェーンの承認を求められることがあります。Linux は、サポートされているキーリングやフォールバックのパスを使います。Windows は、DPAPI と互換性のある Cookie をインポートできますが、ネイティブの App-Bound Encryption の抽出は、認定されるまで無効のままです。Chrome を閉じても、Chrome 136 以降のデフォルトのディレクトリの保護は回避できません。サインインは、ヘッドありのフォールバックブラウザで手動で行うのが、表示が使えるときの方法です。TCP のダウングレードや、実際のプロファイルのコピーは決して行いません。フラグ、設定、プライバシーの手引きの全体:[cookie インポートのリファレンス](../BROWSER.md#choosing-a-source-and-checking-sign-in)。
 
 ---
 
 ## `/make-pdf`
 
-Turn any markdown file into a publication-quality PDF: proper margins, page numbers, cover page, clickable TOC, mermaid and excalidraw fences rendered as vector diagrams, `--to html|docx` when you need another format. The compiled `pdf` binary does the typesetting; the printing happens in a browser — your Aside browser first. make-pdf serves the finished HTML from your machine on loopback, opens it in a tab Aside closes when it is done, prints through the browser's own PDF engine (tagged PDF, document outline, header and footer templates all intact), and copies the file out. Nothing leaves the box. When Aside is absent (Linux, Windows, or the app closed) the same pipeline prints through gstack's bundled browser instead, so a PDF comes out on every platform. Full guide to fences and formats: [howto-diagrams-and-formats.md](howto-diagrams-and-formats.md).
+任意の Markdown ファイルを、出版品質の PDF に変換します。適切な余白、ページ番号、表紙、クリック可能な目次、Mermaid と excalidraw のフェンスをベクターの図として描画し、ほかの形式が必要なときは `--to html|docx` を使えます。コンパイル済みの `pdf` バイナリが組版を行い、印刷はブラウザで行われます。まず Aside ブラウザです。make-pdf は、完成した HTML をあなたのマシンからループバックで配信し、Aside が終わったら閉じるタブで開き、ブラウザ自身の PDF エンジンで印刷し(タグ付き PDF、文書のアウトライン、ヘッダーとフッターのテンプレートがすべて保たれます)、ファイルを取り出します。何も箱の外には出ません。Aside がない場合(Linux、Windows、またはアプリを閉じている場合)、同じパイプラインが gstack 同梱のブラウザで印刷するので、どのプラットフォームでも PDF が得られます。フェンスと形式の完全なガイド:[howto-diagrams-and-formats.md](howto-diagrams-and-formats.md)。
 
 ---
 
 ## `/diagram`
 
-English in, diagram out. Describe the diagram (or paste mermaid source) and you get a triplet: the mermaid source, an editable `.excalidraw` file you can open on excalidraw.com in hand-drawn style, and rendered SVG + PNG. The mermaid and excalidraw runtimes are vendored in `lib/diagram-render/` and rendered by `bin/gstack-render.ts`, the same one-script render make-pdf uses — through your Aside browser when it is open, through gstack's bundled browser otherwise — so it is fully offline on every platform.
+英語で入力すると、図が出てきます。図を説明する(または mermaid のソースを貼る)と、3 つのセットが得られます。mermaid のソース、編集可能な `.excalidraw` ファイル(excalidraw.com で手描き風に開けます)、レンダリング済みの SVG と PNG です。mermaid と excalidraw のランタイムは `lib/diagram-render/` に同梱されており、`bin/gstack-render.ts` で描画されます。これは make-pdf と同じ一つのレンダリングスクリプトです。Aside ブラウザが開いていればそれで、そうでなければ gstack 同梱のブラウザで描画されます。そのため、どのプラットフォームでも完全にオフラインで動きます。
 
 ---
 
 ## `/autoplan`
 
-This is my **review autopilot mode**.
+これは私の**レビューの自動操縦モード**です。
 
-Running `/plan-ceo-review`, then `/plan-design-review`, then `/plan-eng-review` individually means answering 15-30 intermediate questions. Each question is valuable, but sometimes you want the gauntlet to run without stopping for every decision.
+`/plan-ceo-review`、次に `/plan-design-review`、次に `/plan-eng-review` を個別に実行すると、15〜30 個の中間の質問に答えることになります。どの質問も価値はありますが、すべての判断で止まらずに、一通りの流れを走らせたいこともあります。
 
-`/autoplan` reads the review skills from disk and runs them sequentially: CEO → Design (if UI scope) → DX (if developer-facing scope) → Eng, always last — the required shipping gate reviews the final amended plan, not a stale one. It makes decisions automatically: each question resolves to its recommended option by default, with six encoded principles (prefer completeness, match existing patterns, choose reversible options, prefer the option the user chose for similar past decisions, defer ambiguous items, and escalate security) breaking ties and deciding questions that carry no recommendation. Taste decisions (close approaches, borderline scope expansions, cross-model disagreements) get saved and presented at a final approval gate.
+`/autoplan` は、レビューのスキルをディスクから読み込み、順番に実行します。CEO → デザイン(UI の範囲がある場合)→ DX(開発者向けの範囲がある場合)→ エンジニアリングです。エンジニアリングは必ず最後に実行されます。必須の出荷ゲートが、古いものではなく、最終的に修正されたプランをレビューするためです。判断は自動で行われます。各質問は、既定では推奨される選択肢に解決されます。6 つの判断原則が、タイブレークを担い、推奨のない質問を決めます。完全性を優先する、既存のパターンに合わせる、元に戻せる選択肢を選ぶ、似た過去の判断であなたが選んだ選択肢を優先する、曖昧な項目は保留する、セキュリティはエスカレーションする、です。テイストの判断(僅差のアプローチ、境界線上の範囲の拡大、モデル間の意見の相違)は、保存されて、最終の承認ゲートで提示されます。
 
-One command, fully reviewed plan out.
+コマンドは一つ。レビュー済みのプランが一つ出てきます。
 
 ```
 You:   /autoplan
@@ -1100,11 +1059,11 @@ Claude: Plan complete. 9 decisions auto-resolved, 2 taste decisions approved.
 
 ## `/learn`
 
-This is my **institutional memory mode**.
+これは私の**組織の記憶モード**です。
 
-gstack learns from every session. Patterns, pitfalls, preferences, architectural decisions... they accumulate in `~/.gstack/projects/$SLUG/learnings.jsonl`. Each learning has a confidence score, source attribution, and the files it references.
+gstack は、すべてのセッションから学びます。パターン、落とし穴、好み、アーキテクチャの判断。それらは `~/.gstack/projects/$SLUG/learnings.jsonl` に蓄積されます。それぞれの学びには、確信度、出典の帰属、参照するファイルが付きます。
 
-`/learn` lets you see what gstack has absorbed, search for specific patterns, prune stale entries (when referenced files no longer exist), and export learnings for team sharing. The real magic is in other skills... they automatically search learnings before making recommendations, and display "Prior learning applied" when a past insight is relevant.
+`/learn` を使うと、gstack が吸収した内容を確認し、特定のパターンを検索し、古くなったエントリを整理(参照するファイルが削除されていたら)でき、チームで共有するために学びをエクスポートできます。本当の魔法は、ほかのスキルにあります。推奨を出す前に、それらは自動的に過去の学びを検索し、過去の知見が関係するときには「過去の学びを適用」と表示します。
 
 ```
 You:   /learn
@@ -1125,13 +1084,13 @@ Claude: 23 learnings for this project (14 high confidence, 6 medium, 3 low)
 
 ## `/open-gstack-browser`
 
-This is my **co-presence mode** — for the fallback browser. With Aside open, you already watch the agent's tabs in Aside; this skill is how you watch it when the browser is gstack's own.
+これは私の**同席モード**です。フォールバックのブラウザのためのものです。Aside を開いていれば、エージェントのタブは Aside の中で見えています。このスキルは、ブラウザが gstack 独自のものであるときに、それを見守る方法です。
 
-Without Aside, `/browse` runs headless by default. You don't see what the agent sees. `/open-gstack-browser` changes that. It launches GStack Browser (rebranded Chromium with anti-bot stealth) controlled by Playwright, with the sidebar extension auto-loaded. You watch every action in real time.
+Aside がなければ、`/browse` は既定でヘッドレスで動きます。エージェントが見ているものは見えません。`/open-gstack-browser` がそれを変えます。Playwright で操作される GStack Browser(アンチボット対策のステルス機能を持つ Chromium を改名したもの)を、サイドバーの拡張機能を自動で読み込んで起動します。エージェントの操作をリアルタイムで見られます。
 
-The sidebar chat is a Claude instance that controls the browser. It auto-routes to the right model: Sonnet for navigation and actions (click, goto, fill, screenshot), Opus for reading and analysis (summarize, find bugs, describe). One-click cookie import from the sidebar footer. The browser stays alive as long as the window is open... no idle timeout in headed mode. The menu bar says "GStack Browser" instead of "Chrome for Testing."
+サイドバーのチャットは、ブラウザを操作する Claude のインスタンスです。適切なモデルに自動でルーティングします。ナビゲーションや操作(click、goto、fill、screenshot)には Sonnet、読解や分析(summarize、find bugs、describe)には Opus を使います。サイドバーのフッターから、ワンクリックで Cookie をインポートできます。ブラウザは、ウィンドウが開いているあいだ動き続けます。ヘッドありのモードでは、アイドルのタイムアウトはありません。メニューバーには「Chrome for Testing」ではなく「GStack Browser」と表示されます。
 
-The sidebar agent ships a layered prompt injection defense: a local 22MB ML classifier scans every page and tool output, a Haiku transcript check votes on the full conversation, a canary token catches session-exfil attempts, and a verdict combiner requires two classifiers to agree before blocking. A shield icon in the header shows status (green/amber/red). Details in [ARCHITECTURE.md](../ARCHITECTURE.md#prompt-injection-defense-sidebar-agent).
+サイドバーのエージェントには、多層のプロンプトインジェクション対策が組み込まれています。ローカルの 22MB の ML 分類器が、すべてのページとツールの出力をスキャンします。Haiku によるトランスクリプトの確認が、会話全体について投票します。カナリアトークンが、セッションの流出の試みを捕捉します。判定の統合器は、ブロックする前に 2 つの分類器の一致を求めます。ヘッダーの盾のアイコンが状態(緑、黄、赤)を示します。詳細は [ARCHITECTURE.md](../ARCHITECTURE.md#prompt-injection-defense-sidebar-agent) にあります。
 
 ```
 You:   /open-gstack-browser
@@ -1146,9 +1105,9 @@ Claude: Launched GStack Browser with sidebar extension.
 
 ## `/setup-deploy`
 
-One-time deploy configuration. Run this before your first `/land-and-deploy`.
+一度だけのデプロイ設定です。最初の `/land-and-deploy` の前に実行してください。
 
-It auto-detects your deploy platform (Fly.io, Render, Vercel, Netlify, Heroku, GitHub Actions, or custom), discovers your production URL, health check endpoints, and deploy status commands. Writes everything to CLAUDE.md so all future deploys are automatic.
+プラットフォーム(Fly.io、Render、Vercel、Netlify、Heroku、GitHub Actions、またはカスタム)を自動で検出し、本番の URL、ヘルスチェックのエンドポイント、デプロイの状態を確認するコマンドを見つけます。すべてを CLAUDE.md に書き出すので、以後のデプロイはすべて自動になります。
 
 ```
 You:   /setup-deploy
@@ -1162,48 +1121,37 @@ Claude: Detected: Fly.io (fly.toml found)
         Written to CLAUDE.md. Run /land-and-deploy when ready.
 ```
 
-If you answer "Nothing is deployed yet", `/setup-deploy` stops and writes nothing, because there is no production deploy to record. [How to bring up your first production deploy](./howto-bring-up-a-first-deploy.md) covers that first step; run `/setup-deploy` again once the app is live.
+「まだ何もデプロイしていない」と答えた場合、`/setup-deploy` は何も書かずに止まります。記録すべき本番のデプロイがないからです。[最初の本番デプロイの立ち上げ方](./howto-bring-up-a-first-deploy.md) が最初のステップを説明しています。アプリが公開されたら、もう一度 `/setup-deploy` を実行してください。
 
 ---
 
 ## `/codex`
 
-This is my **second opinion mode**.
+これは私の**セカンドオピニオンモード**です。
 
-`/codex` brings OpenAI Codex CLI to review the same diff independently. It is available on every harness except Codex itself. External harnesses install it as `/gstack-codex`. Compare its findings with the native review to distinguish corroborated findings from issues only one reviewer caught.
+`/codex` は、OpenAI Codex CLI を使って、同じ差分を独立してレビューします。Codex 自身のハーネス以外のすべてのハーネスで利用できます。外部のハーネスでは `/gstack-codex` としてインストールされます。Codex の指摘と、ネイティブのレビューの指摘を比べると、両方が指摘した確かなものと、片方だけが見つけたものを区別できます。
 
-Without a role, gstack-owned Codex calls select a request-specific model, then
-`GSTACK_CODEX_MODEL`, then Codex native settings, falling back to `gpt-6-astra`.
-This also applies to resumed consultations. Generated commands pass the selection
-through `-c model=...`, overriding the CLI's configured model for that call.
-Native review also sets `-c review_model=...` to that selection, overriding any
-separate review-model pin.
+役割を指定しない場合、gstack 管理の Codex の呼び出しは、リクエストごとに選ばれたモデルを使い、次に `GSTACK_CODEX_MODEL`、次に Codex のネイティブ設定を使い、最後に `gpt-6-astra` にフォールバックします。これは、再開された相談にも適用されます。生成されるコマンドは、選択を `-c model=...` で渡し、その呼び出しに限って CLI に設定されたモデルを上書きします。ネイティブのレビューでは、`-c review_model=...` にも同じ選択を設定し、別のレビュー用のモデルの固定を上書きします。
 
-On Codex hosts, the Claude outside-voice skill is `gstack-claude-code`. Its
-review, challenge, and consult calls preserve Claude's configured model.
-`GSTACK_CLAUDE_MODEL=<model>` supplies an explicit override, including resumed
-sessions; a model named in your request takes precedence. Harness routing is
-independent of model selection.
+Codex のホストでは、Claude の外部視点のスキルは `gstack-claude-code` です。そのレビュー、チャレンジ、相談の呼び出しは、Claude に設定されたモデルをそのまま保ちます。`GSTACK_CLAUDE_MODEL=<model>` は明示的な上書きを提供します。再開されたセッションにも効きます。リクエストで名指しされたモデルは、それより優先されます。ハーネスのルーティングは、モデルの選択とは独立しています。
 
-An explicit `--role plan-review` uses the configured plan-review tier instead;
-request and environment overrides still win, and `host` mode restores native
-selection. See [model policy](model-policy.md) for pins, precedence and recovery.
+明示的な `--role plan-review` は、代わりに設定されたプラン・レビューの階層を使います。リクエストと環境の上書きは依然として優先されます。`host` モードでは、ネイティブの選択に戻ります。固定、優先順位、復旧については [モデルのポリシー](model-policy.md) を参照してください。
 
-### Three modes
+### 3 つのモード
 
-**Review** — run `codex review` against the current diff. Codex reads every changed file, classifies findings by severity (P1 critical, P2 high, P3 medium), and returns a PASS/FAIL verdict. Any P1 finding = FAIL. The review is fully independent — Codex doesn't see Claude's review.
+**Review**:現在の差分に対して `codex review` を実行します。Codex は変更されたすべてのファイルを読み、深刻度(P1 重大、P2 高、P3 中)で指摘を分類し、PASS/FAIL の判定を返します。P1 の指摘が 1 件でもあれば FAIL です。レビューは完全に独立しており、Codex は Claude のレビューを見ません。
 
-A severity-gate PASS is separate from [review freshness](#review-readiness-dashboard): unresolved recorded findings (`findings > findings_fixed`, with missing `findings_fixed` treated as zero) prevent CURRENT even when the gate passes. This does not change the severity gate. Fixes still require a new completed, unchanged review pass before the fixed tree can grade CURRENT.
+深刻度ゲートの PASS は、[レビューの鮮度](#review-readiness-dashboard) とは別物です。未解決の記録された指摘(`findings > findings_fixed`。`findings_fixed` が欠けている場合はゼロとして扱います)があれば、ゲートが通っても CURRENT にはなりません。これは深刻度ゲートを変えるものではありません。修正後の作業ツリーが CURRENT と判定されるには、依然として、完了し、変更のない新しいレビューの実行が必要です。
 
-**Challenge** — adversarial mode. Codex actively tries to break your code. It looks for edge cases, race conditions, security holes, and assumptions that would fail under load. Think of it as a penetration test for your logic.
+**Challenge**:敵対的なモードです。Codex は積極的にあなたのコードを壊しにかかります。エッジケース、競合状態、セキュリティの穴、負荷のもとで失敗しそうな前提を探します。あなたのロジックに対する侵入テストのようなものだと考えてください。
 
-**Reasoning effort** — Review and Challenge run at `high`, Consult at `medium`. `gstack-config set codex_effort <level>` changes that for every run; `--effort <level>` right after `/codex` or its mode word, among the leading flags (`-m`, `--model`, `--role`), changes it for one (`/codex review --effort medium` for a faster, cheaper review). `--xhigh` is shorthand for `--effort xhigh`. An unknown level stops before Codex runs. See [model policy](model-policy.md#reasoning-effort) for levels and precedence.
+**推論の努力**:Review と Challenge は `high`、Consult は `medium` で実行されます。`gstack-config set codex_effort <level>` は、すべての実行に対してこれを変更します。`--effort <level>` は、`/codex` のすぐ後、またはそのモードの語の後に、先頭のフラグ(`-m`、`--model`、`--role`)と並べて指定すると、一回の実行だけ変更します(例:`/codex review --effort medium` は、より速く、より安いレビューになります)。`--xhigh` は `--effort xhigh` の短縮形です。知らないレベルを指定すると、Codex を実行する前に止まります。レベルと優先順位については [モデルのポリシー](model-policy.md#reasoning-effort) を参照してください。
 
-**Consult** — open conversation with session continuity. Ask Codex anything about the codebase. Follow-up questions reuse the same session, so context carries over. Great for "am I thinking about this correctly?" moments.
+**Consult**:セッションの継続性を持つ、オープンな会話です。コードベースについて、何でも Codex に尋ねられます。フォローアップの質問は同じセッションを再利用するので、文脈が引き継がれます。「この考え方で合っているだろうか?」という瞬間に最適です。
 
-### Cross-model analysis
+### モデル横断の分析
 
-When both `/review` (Claude) and `/codex` (OpenAI) have reviewed the same branch, you get a cross-model comparison: which findings overlap (high confidence), which are unique to Codex (different perspective), and which are unique to Claude. This is the "two doctors, same patient" approach to code review.
+`/review`(Claude)と `/codex`(OpenAI)の両方が同じブランチをレビューすると、モデル横断の比較が得られます。どの指摘が重なるか(確度が高い)、どれが Codex だけのものか(別の視点)、どれが Claude だけのものかが分かります。これは「二人の医者、同じ患者」というコードレビューのやり方です。
 
 ```
 You:   /codex review
@@ -1226,43 +1174,43 @@ Claude: Running independent Codex review...
 
 ## `/claude-code`
 
-Claude Code provides the outside reviewer when gstack runs in Codex. Other non-Claude harnesses also expose this skill for explicit requests; Claude Code itself omits it. External harnesses install it as `/gstack-claude-code`.
+gstack を Codex の中で実行するとき、外部のレビュー担当は Claude Code が務めます。ほかの非 Claude のハーネスも、明示的な要求のためにこのスキルを公開しています。Claude Code 自身のハーネスでは、このスキルは含まれません。外部のハーネスでは `/gstack-claude-code` としてインストールされます。
 
-**Review** supplies the branch diff for a read-only pass/fail review. **Challenge** asks Claude Code to find concrete failure cases in the same diff. **Consult** supports read-only repository exploration and resumes the session saved in `.context/claude-session-id`. Review and challenge receive context from the parent workflow and run without tools; consultation can read and search files.
+**Review** は、読み取り専用で合否を判定するために、ブランチの差分を提供します。**Challenge** は、同じ差分の中で具体的な失敗ケースを見つけるよう Claude Code に依頼します。**Consult** は、読み取り専用のリポジトリの探索をサポートし、`.context/claude-session-id` に保存されたセッションを再開します。Review と Challenge は、親のワークフローから文脈を受け取り、ツールなしで実行されます。相談は、ファイルを読んだり検索したりできます。
 
-The Claude Code CLI must be installed and authenticated. Without a role, its existing model configuration is honored; explicit `--role plan-review` follows the [model policy](model-policy.md). `GSTACK_CLAUDE_BIN` / `GSTACK_CLAUDE_BIN_ARGS` executable overrides remain in force. Errors, timeouts, and invalid responses report missing outside coverage instead of a clean review. Automatic reviews start fresh; consult session continuity is explicit.
+Claude Code の CLI がインストールされ、認証されている必要があります。役割を指定しない場合、既存のモデル設定が尊重されます。明示的な `--role plan-review` は [モデルのポリシー](model-policy.md) に従います。`GSTACK_CLAUDE_BIN` / `GSTACK_CLAUDE_BIN_ARGS` の実行ファイルの上書きは引き続き有効です。エラー、タイムアウト、無効な応答は、クリーンなレビューとしてではなく、外部のカバレッジが欠けていたと報告されます。自動レビューは毎回新しく始まります。相談のセッションの継続性は明示的です。
 
-Outside-review routing follows the harness, independently of the configured model. Generic second-opinion requests choose `/claude-code` on Codex and `/codex` elsewhere; explicit provider requests keep that provider. The existing `codex_reviews` setting controls the selected automatic reviewer in workflows that already use that setting. Existing opt-in and skip controls still apply in office hours, design, and spec workflows.
+外部レビューのルーティングは、設定されたモデルとは独立に、ハーネスに従います。一般的なセカンドオピニオンの要求は、Codex 上では `/claude-code`、それ以外では `/codex` を選びます。プロバイダーを明示した要求は、そのプロバイダーのままです。既存の `codex_reviews` の設定は、そのワークフローがすでに使っている場合に、選ばれた自動レビュー担当を制御します。既存のオプトインとスキップの制御は、オフィスアワー、デザイン、仕様のワークフローでも引き続き適用されます。
 
-`/claude` was renamed to `/claude-code` without an alias. Run `./setup --host <name>` to migrate managed installations, including installations sharing that checkout. Setup retains a working old installation when replacement generation or installation fails.
+`/claude` は、エイリアスなしで `/claude-code` に改名されました。管理されているインストールを移行するには、`./setup --host <name>` を実行してください。同じチェックアウトを共有しているインストールも含まれます。セットアップは、置き換えの生成やインストールに失敗した場合、動作している古いインストールを残します。
 
-## Safety & Guardrails
+## 安全ガードレール
 
-Four skills that add safety rails to any Claude Code session. They work via Claude Code's PreToolUse hooks — transparent, session-scoped, no configuration required.
+どの Claude Code のセッションにも安全のための柵を加える、4 つのスキルです。Claude Code の PreToolUse フックを通じて動作します。透過的で、セッション単位で、設定は不要です。
 
 ### `/careful`
 
-Say "be careful" or run `/careful` when you're working near production, running destructive commands, or just want a safety net. Every Bash and PowerShell command gets checked against known-dangerous patterns:
+本番環境の近くで作業しているとき、破壊的なコマンドを実行するとき、あるいは安全網が欲しいときには、「be careful」と言うか `/careful` を実行してください。すべての Bash と PowerShell のコマンドが、既知の危険なパターンと照合されます。
 
-- `rm -rf` / `rm -r` — recursive delete
-- `DROP TABLE` / `DROP DATABASE` / `TRUNCATE` — data loss
-- `git push --force` / `git push -f` — history rewrite
-- `git reset --hard` — discard commits
-- `git checkout .` / `git restore .` — discard uncommitted work
-- `kubectl delete` — production resource deletion
-- `docker rm -f` / `docker system prune` — container/image loss
+- `rm -rf` / `rm -r`:再帰的な削除
+- `DROP TABLE` / `DROP DATABASE` / `TRUNCATE`:データの消失
+- `git push --force` / `git push -f`:履歴の書き換え
+- `git reset --hard`:コミットの破棄
+- `git checkout .` / `git restore .`:コミットされていない作業の破棄
+- `kubectl delete`:本番リソースの削除
+- `docker rm -f` / `docker system prune`:コンテナやイメージの消失
 
-On Windows the same hook checks Claude Code's PowerShell tool and any `pwsh`/`powershell`/`cmd` launched from Bash: `Remove-Item` and its aliases with `-Recurse`/`-Force` (any parameter prefix), cmd `rd /s` and `del /s`, `Format-Volume`, `Clear-Disk`, `Clear-Content` and .NET deletes ask, and encoded or dynamic PowerShell (`-EncodedCommand`, `iex`, `Start-Process` of a shell, `& $cmd`) asks because it can't be inspected. PowerShell coverage is best-effort; Claude Code permission deny rules such as `"PowerShell(Remove-Item *)"` are the hard stop.
+Windows では、同じフックが Claude Code の PowerShell ツールと、Bash から起動された `pwsh`、`powershell`、`cmd` を確認します。`-Recurse` と `-Force`(任意のパラメータの接頭辞)を伴う `Remove-Item` とその別名、cmd の `rd /s` と `del /s`、`Format-Volume`、`Clear-Disk`、`Clear-Content`、.NET の削除は確認を求めます。エンコードされた動的な PowerShell(`-EncodedCommand`、`iex`、シェルの `Start-Process`、`& $cmd`)は、検査できないため確認を求めます。PowerShell のカバレッジはベストエフォートです。確実に止めるには、`"PowerShell(Remove-Item *)"` のような Claude Code のパーミッションの拒否ルールを使ってください。
 
-Common build artifact cleanups (`rm -rf node_modules`, `dist`, `.next`, `__pycache__`, `build`, `coverage`) are whitelisted — no false alarms on routine operations.
+一般的なビルド成果物の後片付け(`rm -rf node_modules`、`dist`、`.next`、`__pycache__`、`build`、`coverage`)は許可リストに入っています。日常的な操作で誤警告が出ることはありません。
 
-You can override any MEDIUM warning. Two catastrophic shapes are hard-denied instead of asked: recursive deletes of the filesystem root or your home directory (including the `/*`, `~/`, and `$HOME/` forms), and force-pushes to the repo's default branch (`--force-with-lease` never triggers the deny; the escape hatch is ending the session-scoped `/careful` session). You can also add your own warn rules — one POSIX ERE per line — in `~/.gstack/careful-patterns.txt` (global) or `~/.gstack/projects/<slug>/careful-patterns.txt` (per-project); custom patterns only ever add warnings, never suppress the built-ins. The guardrails are accident prevention, not access control.
+中程度の警告は、いずれも上書きできます。2 つの壊滅的な形は、確認ではなく、ハードに拒否されます。ファイルシステムのルートやホームディレクトリの再帰削除(`/*`、`~/`、`$HOME/` の形も含みます)と、リポジトリの既定のブランチへの強制プッシュです(`--force-with-lease` は拒否を引き起こしません。抜け道は、セッション単位の `/careful` を終了することです)。`~/.gstack/careful-patterns.txt`(グローバル)または `~/.gstack/projects/<slug>/careful-patterns.txt`(プロジェクト単位)に、独自の警告ルールを 1 行に 1 つの POSIX ERE で追加できます。カスタムのパターンが追加するのは警告だけで、組み込みのものを抑制することはありません。これらのガードレールは事故の防止であり、アクセス制御ではありません。
 
 ### `/freeze`
 
-Restrict all file edits to a single directory. When you're debugging a billing bug, you don't want Claude accidentally "fixing" unrelated code in `src/auth/`. `/freeze src/billing` blocks all Edit, Write and NotebookEdit (Jupyter notebook) operations outside that path.
+すべてのファイル編集を 1 つのディレクトリに制限します。請求のバグをデバッグしているとき、Claude が `src/auth/` の無関係なコードを誤って「修正」するのは避けたいものです。`/freeze src/billing` は、そのパスの外側への Edit、Write、NotebookEdit(Jupyter ノートブックの操作)をすべてブロックします。
 
-`/investigate` activates this automatically — it detects the module being debugged and freezes edits to that directory.
+`/investigate` は、これを自動的に有効にします。デバッグしているモジュールを検出し、そのディレクトリへの編集を凍結します。
 
 ```
 You:   /freeze src/billing
@@ -1275,21 +1223,21 @@ Claude: BLOCKED — Edit outside freeze boundary (src/billing/).
         Skipping this change.
 ```
 
-Note: this blocks Edit and Write tools only. Bash commands like `sed` can still modify files outside the boundary — it's accident prevention, not a security sandbox.
+注意:これは Edit と Write のツールだけをブロックします。`sed` のような Bash のコマンドは、境界の外のファイルを依然として変更できます。事故を防ぐための仕組みであり、セキュリティのサンドボックスではありません。
 
 ### `/guard`
 
-Full safety mode — combines `/careful` + `/freeze` in one command. Destructive command warnings plus directory-scoped edits. Use when touching prod or debugging live systems.
+フルセーフティモードです。`/careful` と `/freeze` を 1 つのコマンドにまとめたものです。破壊的なコマンドの警告と、ディレクトリに限定した編集の両方が得られます。本番に触れるとき、あるいは稼働中のシステムをデバッグするときに使ってください。
 
 ### `/unfreeze`
 
-Remove the `/freeze` boundary, allowing edits everywhere again. The hooks stay registered for the session — they just allow everything. Run `/freeze` again to set a new boundary.
+`/freeze` の境界を取り除き、どこでも再び編集できるようにします。フックはセッションの間も登録されたままですが、すべてを許可するだけになります。新しい境界を設定するには、もう一度 `/freeze` を実行してください。
 
 ---
 
 ## `/gstack-upgrade`
 
-Keep gstack current with one command. It detects your install type (global at `~/.claude/skills/gstack` vs vendored in your project at `.claude/skills/gstack`), runs the upgrade, syncs both copies if you have dual installs, and shows you what changed.
+gstack を最新の状態に、ワンコマンドで保ちます。インストールの種類を検出します(`~/.claude/skills/gstack` のグローバルか、`.claude/skills/gstack` のプロジェクト内へのベンダリングか)。アップグレードを実行し、二重にインストールしている場合は両方のコピーを同期し、何が変わったかを表示します。
 
 ```
 You:   /gstack-upgrade
@@ -1307,35 +1255,35 @@ Claude: Current version: 0.7.4
         Upgraded to 0.8.2. Both global and project installs synced.
 ```
 
-Set `auto_upgrade: true` in `~/.gstack/config.yaml` to skip the prompt entirely — gstack upgrades silently at the start of each session when a new version is available.
+`~/.gstack/config.yaml` に `auto_upgrade: true` を設定すると、確認なしで済みます。新しいバージョンがあるときは、セッションの開始時に gstack が静かにアップグレードします。
 
 ---
 
-## Greptile integration
+## Greptile 連携
 
-[Greptile](https://greptile.com) is a YC company that reviews your PRs automatically. It catches real bugs — race conditions, security issues, things that pass CI and blow up in production. It has genuinely saved my ass more than once. I love these guys.
+[Greptile](https://greptile.com) は YC 発の企業で、PR を自動でレビューしてくれます。レースコンディション、セキュリティの問題、CI は通るのに本番で壊れるもの、といった本物のバグを捕まえます。何度も本当に助けられました。大好きなサービスです。
 
-### Setup
+### セットアップ
 
-Install Greptile on your GitHub repo at [greptile.com](https://greptile.com) — it takes about 30 seconds. Once it's reviewing your PRs, gstack picks up its comments automatically. No additional configuration.
+[greptile.com](https://greptile.com) で、GitHub リポジトリに Greptile をインストールしてください。30 秒ほどで終わります。PR をレビューし始めたら、gstack が自動でそのコメントを拾います。追加の設定は不要です。
 
-### How it works
+### 仕組み
 
-The problem with any automated reviewer is triage. Greptile is good, but not every comment is a real issue. Some are false positives. Some flag things you already fixed three commits ago. Without a triage layer, the comments pile up and you start ignoring them — which defeats the purpose.
+自動のレビュー担当に共通する問題は、トリアージです。Greptile は優秀ですが、すべてのコメントが本物の問題とは限りません。誤検知もあります。3 コミット前にすでに直したものを指摘してくることもあります。トリアージの層がなければ、コメントは溜まっていき、やがて無視するようになります。それでは目的が台無しです。
 
-gstack solves this. `/review` and `/ship` are now Greptile-aware. They read Greptile's comments, classify each one, and take action:
+gstack はそれを解決します。`/review` と `/ship` は、Greptile を認識します。Greptile のコメントを読み、それぞれを分類し、行動します。
 
-- **Valid issues** get added to the critical findings and fixed before shipping
-- **Already-fixed issues** get an auto-reply acknowledging the catch
-- **False positives** get pushed back — you confirm, and a reply goes out explaining why it's wrong
+- **有効な指摘**は、重大な指摘に加えられ、出荷の前に修正されます
+- **すでに修正済みの指摘**には、捕捉に感謝する自動返信がつきます
+- **誤検知**は押し返されます。あなたが確認すると、なぜ間違いなのかを説明する返信が送られます
 
-The result is a two-layer review: Greptile catches things asynchronously on the PR, then `/review` and `/ship` triage those findings as part of the normal workflow. Nothing falls through the cracks.
+結果は二層のレビューになります。Greptile が非同期で PR 上の問題を捕まえ、そのあと `/review` と `/ship` が、通常のワークフローの一部として、それらの指摘をトリアージします。取りこぼしはありません。
 
-### Learning from history
+### 履歴から学ぶ
 
-Every false positive you confirm gets saved to `~/.gstack/greptile-history.md`. Future runs auto-skip known FP patterns for your codebase. And `/retro` tracks Greptile's batting average over time — so you can see whether the signal-to-noise ratio is improving.
+あなたが確認した誤検知はすべて、`~/.gstack/greptile-history.md` に保存されます。以降の実行では、そのリポジトリで既知の誤検知のパターンを自動でスキップします。さらに `/retro` は、Greptile の打率を時系列で追跡するので、シグナルとノイズの比率が改善しているかどうかを確認できます。
 
-### Example
+### 例
 
 ```
 You:   /ship
@@ -1367,17 +1315,17 @@ Claude: Replied to Greptile. All tests pass.
         PR: github.com/you/app/pull/42
 ```
 
-Three Greptile comments. One real fix. One auto-acknowledged. One false positive pushed back with a reply. Total extra time: about 30 seconds.
+3 件の Greptile のコメント。実際の修正が 1 件。自動で認識されたものが 1 件。誤検知が 1 件で、理由を説明する返信で押し返しました。追加にかかった時間は、約 30 秒です。
 
 ---
 
 ## `/ios-qa`
 
-Live-device iOS QA. The fork's load-bearing insight was: don't simulate, don't run XCTest, don't bring up WebDriverAgent. Embed an HTTP server in the app under test, drive it from a Mac-side daemon over the USB CoreDevice IPv6 tunnel.
+実機の iOS の QA です。このフォークの中核となる洞察はこうです。シミュレーターは使わない、XCTest は走らせない、WebDriverAgent も立ち上げない。テスト対象のアプリに HTTP サーバーを組み込み、USB の CoreDevice IPv6 トンネル越しに、Mac 側のデーモンから操作します。
 
-The agent reads your Swift source, finds `@Observable` classes with `@Snapshotable`-marked fields, codegens typed accessors, deploys a debug bridge, then runs a closed find→fix→verify loop.
+エージェントは Swift のソースを読み、`@Snapshotable` とマークされたフィールドを持つ `@Observable` クラスを見つけ、型付きのアクセサを生成し、デバッグ用のブリッジをデプロイし、閉じた「発見→修正→検証」のループを実行します。
 
-### Architecture in one diagram
+### 1 枚の図でわかるアーキテクチャ
 
 ```
        ┌──────────────────────┐   USB CoreDevice (IPv6)   ┌──────────────────┐
@@ -1397,49 +1345,49 @@ The agent reads your Swift source, finds `@Observable` classes with `@Snapshotab
        └──────────────────────┘
 ```
 
-The iOS app's `StateServer` binds loopback only (`::1` + `127.0.0.1`). The Mac daemon owns tailnet identity validation, capability tiers, and the audit trail. Remote agents NEVER see the boot token — only short-lived session tokens (1h default, 24h hard cap) minted via Tailscale identity gating.
+iOS アプリの `StateServer` は、ループバックのみにバインドされます(`::1` と `127.0.0.1`)。Mac 側のデーモンが、Tailnet のアイデンティティの検証、権限の階層、監査の記録を担います。リモートのエージェントがブートトークンを見ることは決してありません。見えるのは、短命のセッショントークン(既定 1 時間、ハードな上限 24 時間)だけです。これは Tailscale のアイデンティティによるゲートを通じて発行されます。
 
-### The unlock: USB-tethered + Tailscale = remote iOS QA from any agent
+### 切り札:USB 接続 + Tailscale = どのエージェントからでもリモートの iOS QA
 
-A Mac plus an iPhone you already own plus the Tailscale free tier replaces what most teams pay BrowserStack/Sauce Labs for. Any HTTP-capable agent on your tailnet can drive the iOS app once you've minted them a session token. Tailscale ACLs scope which identities can reach the Mac at which capability tier.
+Mac と、すでに持っている iPhone と、Tailscale の無料プランがあれば、多くのチームが BrowserStack や Sauce Labs に払っているものを置き換えられます。Tailnet 上のどの HTTP 対応のエージェントでも、セッショントークンを発行すれば、iOS アプリを操作できます。Tailscale の ACL で、どのアイデンティティがどの権限の階層で Mac に到達できるかを定めます。
 
-See `ios-qa/docs/tailscale-acl-example.md` for the runnable setup.
+実行可能なセットアップは `ios-qa/docs/tailscale-acl-example.md` を参照してください。
 
-### Capability tiers
+### 権限の階層
 
-| Tier | Endpoints |
+| 階層 | エンドポイント |
 |------|-----------|
-| observe | `/screenshot`, `/elements`, `GET /state/*`, `/state/snapshot`, `/healthz` |
-| interact | observe + `/tap`, `/swipe`, `/type`, `/session/*` |
+| observe | `/screenshot`、`/elements`、`GET /state/*`、`/state/snapshot`、`/healthz` |
+| interact | observe + `/tap`、`/swipe`、`/type`、`/session/*` |
 | mutate | interact + `POST /state/<key>` |
 | restore | mutate + `POST /state/restore` |
 
-Default minted tokens get `interact`. Higher tiers require explicit owner mint.
+既定で発行されるトークンには `interact` が付きます。より高い階層は、所有者による明示的な発行が必要です。
 
 ---
 
 ## `/ios-fix`
 
-Iron Law: no fix without a reproducing snapshot. The agent captures pre-bug state via `GET /state/snapshot`, writes the fix, rebuilds, redeploys, restores the snapshot, and verifies the bug is gone. The snapshot becomes a regression test fixture so the bug can't recur silently.
+鉄則:再現するスナップショットなしに修正しない。エージェントは `GET /state/snapshot` で、バグが起きる前の状態を取得し、修正を書き、再ビルドして再デプロイし、スナップショットを復元して、バグが消えたことを検証します。スナップショットはリグレッションテストのフィクスチャになるので、バグが静かに再発することはありません。
 
-Mirrors `/qa`'s find-bug → fix → re-verify loop for iOS.
+iOS 向けに、`/qa` の「バグの発見→修正→再検証」のループを踏襲しています。
 
 ---
 
 ## `/ios-design-review`
 
-Designer's-eye QA on a real iPhone. Connects to the same `/ios-qa` daemon in observe-tier mode and screenshots every screen. Scores 10 dimensions 0-10: typography hierarchy, spacing rhythm, color hierarchy, touch targets, loading/empty/error states, accessibility, animation discipline, iOS idiom alignment, information density, AI-slop check.
+実機の iPhone での、デザイナーの目によるQAです。同じ `/ios-qa` のデーモンに、observe の階層のモードで接続し、すべての画面のスクリーンショットを撮ります。10 の観点をそれぞれ 0〜10 で採点します。タイポグラフィの階層、スペーシングのリズム、色の階層、タッチターゲット、読み込み中・空・エラーの状態、アクセシビリティ、アニメーションの規律、iOS のイディオムとの整合、情報の密度、AI っぽさのチェックです。
 
-For each score < 7, uses AskUserQuestion to present the issue with recommended fix.
+7 点未満の観点ごとに、AskUserQuestion で、推奨する修正とともに問題を提示します。
 
 ---
 
 ## `/ios-clean`
 
-Convenience wrapper. The structural Release-build guard against shipping DebugBridge is in `Package.swift` (`.when(configuration: .debug)`) plus a CI invariant test. `/ios-clean` is for developers who want a guided removal flow or who manually added the SPM dependency without going through `/ios-qa`.
+便利なラッパーです。DebugBridge を Release ビルドに出荷しないための構造的なガードは、`Package.swift`(`.when(configuration: .debug)`)と、CI の不変条件のテストにあります。`/ios-clean` は、案内付きの削除の流れがほしい開発者や、`/ios-qa` を経由せずに SPM の依存関係を手動で追加した開発者のためのものです。
 
 ---
 
 ## `/ios-sync`
 
-Run after upgrading gstack or adding new `@Observable` classes. Detects what's installed, runs gen-accessors against the latest upstream templates, refreshes any changed Swift files, verifies the app rebuilds. Cache-key invalidation handles Swift version changes, generator git rev changes, and source changes.
+gstack をアップグレードしたあとや、新しい `@Observable` クラスを追加したあとに実行します。インストールされているものを検出し、最新の上流のテンプレートに対して gen-accessors を実行し、変更された Swift ファイルを更新し、アプリが再ビルドできることを確認します。キャッシュのキーの無効化で、Swift のバージョンの変更、生成器の git のリビジョンの変更、ソースの変更に対応します。

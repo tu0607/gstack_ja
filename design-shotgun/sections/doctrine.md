@@ -1,86 +1,86 @@
 <!-- AUTO-GENERATED from doctrine.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## UX Principles: How Users Actually Behave
+## UX Principles: ユーザーは実際にどう振る舞うか
 
-These principles govern how real humans interact with interfaces. They are observed
-behavior, not preferences. Apply them before, during, and after every design decision.
+これらの原則は、実在の人間がインターフェースとどう関わるかを支配します。好みではなく、観察された
+振る舞いです。すべてのデザイン判断の前、最中、後に適用します。
 
-### The Three Laws of Usability
+### The Three Laws of Usability(ユーザビリティの三法則)
 
-1. **Don't make me think.** Every page should be self-evident. If a user stops
-   to think "What do I click?" or "What does this mean?", the design has failed.
-   Self-evident > self-explanatory > requires explanation.
+1. **考えさせない(Don't make me think)。** すべてのページが自明であるべきです。ユーザーが
+   「何をクリックすればいい?」「これはどういう意味?」と立ち止まって考えたなら、そのデザインは失敗しています。
+   自明 > 説明不要 > 説明が必要。
 
-2. **Clicks don't matter, thinking does.** Three mindless, unambiguous clicks
-   beat one click that requires thought. Each step should feel like an obvious
-   choice (animal, vegetable, or mineral), not a puzzle.
+2. **重要なのはクリック数ではなく、考えることです。** 考えずにすむ、曖昧さのない 3 回のクリックは、
+   考えを要する 1 回のクリックに勝ります。各ステップは、パズルではなく、明白な
+   選択(動物、植物、鉱物)に感じられるべきです。
 
-3. **Omit, then omit again.** Get rid of half the words on each page, then get
-   rid of half of what's left. Happy talk (self-congratulatory text) must die.
-   Instructions must die. If they need reading, the design has failed.
+3. **削り、さらに削る。** 各ページの言葉の半分を取り除き、残りの半分をさらに取り除きます。
+   Happy talk(自画自賛の文章)は排除しなければなりません。
+   説明文も排除しなければなりません。読む必要があるなら、そのデザインは失敗しています。
 
-### How Users Actually Behave
+### ユーザーは実際にどう振る舞うか
 
-- **Users scan, they don't read.** Design for scanning: visual hierarchy
-  (prominence = importance), clearly defined areas, headings and bullet lists,
-  highlighted key terms. We're designing billboards going by at 60 mph, not
-  product brochures people will study.
-- **Users satisfice.** They pick the first reasonable option, not the best.
-  Make the right choice the most visible choice.
-- **Users muddle through.** They don't figure out how things work. They wing
-  it. If they accomplish their goal by accident, they won't seek the "right" way.
-  Once they find something that works, no matter how badly, they stick to it.
-- **Users don't read instructions.** They dive in. Guidance must be brief,
-  timely, and unavoidable, or it won't be seen.
+- **ユーザーは読まず、スキャンします。** スキャンのために設計します: 視覚的階層
+  (目立つ = 重要)、はっきり区切られた領域、見出しと箇条書き、
+  強調されたキーワード。私たちが設計しているのは、人が熟読するプロダクトのパンフレットではなく、
+  時速 60 マイルで通り過ぎていく看板です。
+- **ユーザーは満足化(satisfice)します。** 最善ではなく、最初にもっともらしい選択肢を選びます。
+  正しい選択を、最も目につく選択にします。
+- **ユーザーはなんとか切り抜けます(muddle through)。** 仕組みを理解しようとはしません。
+  その場しのぎで進みます。偶然に目的を達成したなら、「正しい」やり方を探そうとはしません。
+  どれほど不格好でも、うまくいくものを見つけたら、それに固執します。
+- **ユーザーは説明文を読みません。** いきなり飛び込みます。ガイダンスは、短く、
+  タイミングよく、避けられないものでなければ、見てもらえません。
 
-### Billboard Design for Interfaces
+### インターフェースのビルボード設計
 
-- **Use conventions.** Logo top-left, nav top/left, search = magnifying glass.
-  Don't innovate on navigation to be clever. Innovate when you KNOW you have a
-  better idea, otherwise use conventions. Even across languages and cultures,
-  web conventions let people identify the logo, nav, search, and main content.
-- **Visual hierarchy is everything.** Related things are visually grouped. Nested
-  things are visually contained. More important = more prominent. If everything
-  shouts, nothing is heard. Start with the assumption everything is visual noise,
-  guilty until proven innocent.
-- **Make clickable things obviously clickable.** No relying on hover states for
-  discoverability, especially on mobile where hover doesn't exist. Shape, location,
-  and formatting (color, underlining) must signal clickability without interaction.
-- **Eliminate noise.** Three sources: too many things shouting for attention
-  (shouting), things not organized logically (disorganization), and too much stuff
-  (clutter). Fix noise by removal, not addition.
-- **Clarity trumps consistency.** If making something significantly clearer
-  requires making it slightly inconsistent, choose clarity every time.
+- **慣習を使う。** ロゴは左上、ナビは上/左、検索 = 虫眼鏡。
+  気取ってナビゲーションで革新しようとしてはいけません。より良い案があると分かっているときに
+  革新し、そうでなければ慣習を使います。言語や文化が違っても、Web の慣習のおかげで、
+  人はロゴ、ナビ、検索、メインコンテンツを見分けられます。
+- **視覚的階層がすべて。** 関連するものは視覚的にグループ化されます。入れ子の
+  ものは視覚的に包含されます。重要なほど目立ちます。すべてが叫んでいれば、
+  何も聞こえません。すべてがビジュアルノイズであるという前提から始め、
+  無実が証明されるまで有罪とします。
+- **クリックできるものは、明らかにクリックできるようにする。** 見つけてもらうために hover 状態に頼らない。
+  特に hover が存在しないモバイルではなおさらです。形、位置、
+  書式(色、下線)が、操作しなくてもクリックできることを示さなければなりません。
+- **ノイズを取り除く。** 3 つの原因があります。注意を引こうと叫ぶものが多すぎる
+  (shouting)、ものが論理的に整理されていない(disorganization)、ものが多すぎる
+  (clutter)。ノイズは、追加ではなく除去で直します。
+- **明快さは一貫性に勝る。** 何かを大幅に明快にするために、少し一貫性を欠く
+  必要があるなら、常に明快さを選びます。
 
-### Navigation as Wayfinding
+### 道案内としてのナビゲーション
 
-Users on the web have no sense of scale, direction, or location. Navigation
-must always answer: What site is this? What page am I on? What are the major
-sections? What are my options at this level? Where am I? How can I search?
+Web のユーザーには、規模、方向、場所の感覚がありません。ナビゲーションは、
+常に次に答えなければなりません: これは何のサイトか? 自分はどのページにいるか? 主要な
+セクションは何か? この階層での選択肢は何か? 自分はどこにいるか? どうやって検索するか?
 
-Persistent navigation on every page. Breadcrumbs for deep hierarchies.
-Current section visually indicated. The "trunk test": cover everything except
-the navigation. You should still know what site this is, what page you're on,
-and what the major sections are. If not, the navigation has failed.
+すべてのページに常設のナビゲーション。深い階層にはパンくずリスト。
+現在のセクションを視覚的に示す。「trunk test」: ナビゲーション以外をすべて隠します。
+それでも、これが何のサイトで、今どのページにいて、
+主要なセクションが何かが分かるはずです。分からなければ、そのナビゲーションは失敗しています。
 
-### The Goodwill Reservoir
+### The Goodwill Reservoir(好意のリザーバー)
 
-Users start with a reservoir of goodwill. Every friction point depletes it.
+ユーザーは、好意のリザーバー(貯水池)を持って始めます。摩擦のあるポイントごとに、それが減っていきます。
 
-**Deplete faster:** Hiding info users want (pricing, contact, shipping). Punishing
-users for not doing things your way (formatting requirements on phone numbers).
-Asking for unnecessary information. Putting sizzle in their way (splash screens,
-forced tours, interstitials). Unprofessional or sloppy appearance.
+**より速く減らすもの:** ユーザーが知りたい情報(料金、連絡先、配送)を隠す。
+こちらのやり方に従わないユーザーを罰する(電話番号の書式の要件)。
+不要な情報を求める。目的の邪魔になる見せ場を置く(スプラッシュ画面、
+強制ツアー、インタースティシャル)。非プロフェッショナルな、または雑な見た目。
 
-**Replenish:** Know what users want to do and make it obvious. Tell them what they
-want to know upfront. Save them steps wherever possible. Make it easy to recover
-from errors. When in doubt, apologize.
+**補充するもの:** ユーザーが何をしたいかを知り、それを明白にする。知りたいことを
+最初に伝える。可能な限り手順を省く。エラーから回復しやすくする。
+迷ったら、謝る。
 
-### Mobile: Same Rules, Higher Stakes
+### モバイル: 同じルール、より高いリスク
 
-All the above applies on mobile, just more so. Real estate is scarce, but never
-sacrifice usability for space savings. Affordances must be VISIBLE: no cursor
-means no hover-to-discover. Touch targets must be big enough (44px minimum).
-Flat design can strip away useful visual information that signals interactivity.
-Prioritize ruthlessly: things needed in a hurry go close at hand, everything
-else a few taps away with an obvious path to get there.
+上記のすべてはモバイルにも当てはまり、むしろより強く当てはまります。画面の領域は限られていますが、
+スペースの節約のためにユーザビリティを犠牲にしてはいけません。アフォーダンスは見えていなければなりません。
+カーソルがなければ、hover による発見はありません。タッチターゲットは十分な大きさが必要です(最小 44px)。
+フラットデザインは、操作できることを示す有用な視覚情報を取り除いてしまうことがあります。
+容赦なく優先順位をつけます。急いで必要なものは手の届くところに、
+それ以外は数タップ先に、そこへ至る明白な道筋とともに置きます。

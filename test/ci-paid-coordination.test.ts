@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { buildRunManifest, collectPaidTestFiles, shardCaseId, shardTrial, type PaidRunManifest, type SliceResult } from '../scripts/test-paid-shards';
 import { STRICT_RETRY_CASE_BUDGETS } from './helpers/eval-budgets';
-import { approvedCookieWorkflowSource, manualReviewFixture } from './helpers/manual-judge-review-fixture';
+import { manualReviewFixture } from './helpers/manual-judge-review-fixture';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 type Step = { uses?: string; run?: string; if?: string; with?: Record<string, unknown> };
@@ -315,9 +315,9 @@ describe('dependency-free CI planner and report execution', () => {
   test('report verifies every manual claim against current source, preserves attempts, and never masks a failed shard', () => {
     const skillPath = path.join(fixture, 'setup-browser-cookies/SKILL.md');
     const currentSkill = fs.readFileSync(skillPath, 'utf8');
-    fs.writeFileSync(skillPath, approvedCookieWorkflowSource(currentSkill));
-    const approvedBrowserPath = path.join(fixture, 'BROWSER.md');
-    fs.writeFileSync(approvedBrowserPath, approvedCookieWorkflowSource(fs.readFileSync(approvedBrowserPath, 'utf8')));
+    // The translated sources cannot reproduce the historical English approval, so the approval is
+    // re-bound to the current prompt (synthetic receipt below); the contract under test, that an
+    // approval is tied to the exact source bytes, is exercised by the drift edits further down.
     const reportDir = path.join(fixture, 'manual-report');
     const manifestPath = path.join(reportDir, 'manifest.json');
     const planned = run(['--emit-plan', manifestPath, '--slices', '1'], 'gate');
@@ -334,7 +334,9 @@ describe('dependency-free CI planner and report execution', () => {
     const slicePath = path.join(reportDir, 'slice-1.json');
     const collectorPath = path.join(reportDir, 'judge-results.json');
     const summaryPath = path.join(reportDir, 'collector-outcomes.json');
-    const receipt = manualReviewFixture(fixture);
+    const receipt = manualReviewFixture(fixture, { synthetic: true });
+    fs.writeFileSync(path.join(fixture, '.github/cookie-workflow-manual-review.json'),
+      JSON.stringify(receipt.manual_review!.approval, null, 2));
     const write = (tests: unknown[]) => fs.writeFileSync(collectorPath, JSON.stringify({
       total_tests: tests.length, tier: 'llm-judge', shard: 1, total_cost_usd: 0,
       tests, flaky_retries: [{ name: receipt.name, attempts: tests.length }],
@@ -383,16 +385,16 @@ describe('dependency-free CI planner and report execution', () => {
     expect(summary.files[0]).toMatchObject({ file: 'judge-results.json', total: 2, manual_accepted: 1, passed: 1 });
     expect(JSON.parse(fs.readFileSync(collectorPath, 'utf8')).tests[0]).toEqual(receipt);
 
-    fs.writeFileSync(skillPath, currentSkill);
+    fs.writeFileSync(skillPath, `${currentSkill}\nchanged approved source\n`);
     const obsoleteApproval = run(['--report', reportDir], 'gate');
     expect(obsoleteApproval.status).toBe(1);
     expect(obsoleteApproval.stderr).toContain('does not match current source and approval');
-    fs.writeFileSync(skillPath, approvedCookieWorkflowSource(currentSkill));
+    fs.writeFileSync(skillPath, currentSkill);
 
     const browserPath = path.join(fixture, 'BROWSER.md');
     const browserSource = fs.readFileSync(browserPath, 'utf8');
-    fs.writeFileSync(browserPath, browserSource.replace('#### Choosing a source and checking sign-in',
-      '#### Choosing a source and checking sign-in\nchanged approved source'));
+    fs.writeFileSync(browserPath, browserSource.replace(/^(#### (?:Choosing a source and checking sign-in|取り込み元の選択とサインインの確認))$/m,
+      '$1\nchanged approved source'));
     const sourceDrift = run(['--report', reportDir], 'gate');
     expect(sourceDrift.status).toBe(1);
     expect(sourceDrift.stderr).toContain('does not match current source and approval');

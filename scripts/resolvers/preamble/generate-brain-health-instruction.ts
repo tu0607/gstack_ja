@@ -2,8 +2,6 @@ import type { TemplateContext } from '../types';
 
 export function generateBrainHealthInstruction(ctx: TemplateContext): string {
   if (ctx.host !== 'gbrain' && ctx.host !== 'hermes') return '';
-  return `If \`BRAIN_HEALTH\` is shown and the score is below 50, tell the user which checks
-failed (shown in the output) and suggest: "Run \\\`gbrain doctor\\\` for full diagnostics."
-If the output is not valid JSON or health_score is missing, treat GBrain as unavailable
-and proceed without brain features this session.`;
+  return `\`BRAIN_HEALTH\` が表示され、スコアが 50 未満の場合は、失敗したチェック(出力に表示されます)をユーザーに伝え、次のように提案します。「詳細な診断には \\\`gbrain doctor\\\` を実行してください。」
+出力が有効な JSON でない場合、または health_score がない場合は、GBrain を利用不可として扱い、このセッションでは brain 機能なしで進めます。`;
 }

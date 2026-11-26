@@ -3,10 +3,10 @@ name: land-and-deploy
 preamble-tier: 4
 version: 1.0.0
 description: |
-  Land and deploy workflow. Merges the PR, waits for CI and deploy,
-  verifies production health via canary checks. Takes over after /ship
-  creates the PR. Use when: "merge", "land", "deploy", "merge and verify",
-  "land it", "ship it to production". (gstack)
+  マージとデプロイのワークフローです。PR をマージし、CI とデプロイの完了を待ち、
+  カナリアチェックで本番の健全性を検証します。/ship が PR を作成した後に引き継ぎます。
+  次のような依頼で使います: 「merge」「land」「deploy」「merge and verify」「land it」「ship it to production」
+  (gstack)
 allowed-tools:
   - Bash
   - Read
@@ -30,35 +30,29 @@ triggers:
 
 {{BASE_BRANCH_DETECT}}
 
-**If the platform detected above is GitLab or unknown:** STOP with: "GitLab support for /land-and-deploy is not yet implemented. Run `/ship` to create the MR, then merge manually via the GitLab web UI." Do not proceed.
+**上で検出されたプラットフォームが GitLab または不明な場合:** 次のメッセージで停止します: "GitLab support for /land-and-deploy is not yet implemented. Run `/ship` to create the MR, then merge manually via the GitLab web UI." 処理を続けないでください。
 
-# /land-and-deploy — Merge, Deploy, Verify
+# /land-and-deploy — マージ、デプロイ、検証
 
-As **Release Engineer**, pick up the PR created by `/ship`: check readiness, merge
-with approval, monitor deployment, verify production, and report evidence.
+**リリースエンジニア**として、`/ship` が作成した PR を引き継ぎます。準備状況を確認し、承認を得てマージし、デプロイを監視し、本番環境を検証して、証拠を報告します。
 
-## User-invocable
-When the user types `/land-and-deploy`, run this skill.
+## ユーザーによる呼び出し
+ユーザーが `/land-and-deploy` と入力したら、このスキルを実行します。
 
-## Arguments
-- `/land-and-deploy` — auto-detect PR from current branch, no post-deploy URL
-- `/land-and-deploy <url>` — auto-detect PR, verify deploy at this URL
-- `/land-and-deploy #123` — specific PR number
-- `/land-and-deploy #123 <url>` — specific PR + verification URL
+## 引数
+- `/land-and-deploy` — 現在のブランチから PR を自動検出します。デプロイ後の URL はなし
+- `/land-and-deploy <url>` — PR を自動検出し、この URL でデプロイを検証します
+- `/land-and-deploy #123` — PR 番号を指定します
+- `/land-and-deploy #123 <url>` — PR 番号と検証用の URL を指定します
 
-## Automation and approval
+## 自動化と承認
 
-Automate read-only detection and polling. First-run setup confirmation (Step 1.5)
-and pre-merge approval (Step 3.5) are mandatory when applicable. Stop on missing
-access, unknown target/state, unapproved red, pending or missing CI, conflicts, or failing tests.
-After any merge error, read server state before deciding whether to stop.
-Failures, timeouts, staging choices, rollback, and optional cleanup use the explicit
-decisions below; no approval overrides a blocker or authorizes a different revision.
+読み取り専用の検出とポーリングは自動で行います。初回セットアップの確認(Step 1.5)と、マージ前の承認(Step 3.5)は、該当する場合は必須です。アクセス権がない、対象や状態が不明、承認されていない赤いチェック、保留中または欠けている CI、コンフリクト、失敗したテストのいずれかがあれば停止します。マージでエラーが出た場合は、続行するかどうかを決める前にサーバーの状態を読み取ってください。
+失敗、タイムアウト、ステージングの選択、ロールバック、任意のクリーンアップは、以下の明示的な判断に従います。どの承認も、障害を覆したり、別のリビジョンを認めたりするものではありません。
 
-## Voice & Tone
+## 話し方とトーン
 
-Narrate progress, name the actual app/PR and explain the stakes before asking.
-First run: teach what each check does. Confirmed runs: brief status updates.
+進捗を伝え、実際のアプリと PR の名前を挙げ、確認を求める前にその重要性を説明してください。初回実行時は、各チェックが何をするかを教えてください。確認済みの実行では、簡潔な状況の更新にとどめてください。
 
 ---
 
@@ -66,18 +60,17 @@ First run: teach what each check does. Confirmed runs: brief status updates.
 
 ---
 
-## Step 1: Pre-flight
+## Step 1: 事前確認
 
-Tell the user: "Checking access and finding your PR."
+ユーザーに伝えます: "Checking access and finding your PR."
 
-1. Check GitHub CLI authentication:
+1. GitHub CLI の認証を確認します:
 ```bash
 gh auth status
 ```
-If unauthenticated, **STOP**; ask the user to run `gh auth login`, then retry.
+未認証の場合は、**停止**します。ユーザーに `gh auth login` を実行してもらい、再試行します。
 
-2. Save any URL as `VERIFY_URL` (an explicit verification request). Set `PR_NUMBER`
-to the numeric `#NNN` argument, or detect it once from the current branch:
+2. URL があれば `VERIFY_URL`(明示的な検証の要求)として保存します。`PR_NUMBER` は、数値の `#NNN` 引数に設定するか、現在のブランチから一度だけ検出します:
 ```bash
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner) || exit 1
 if [ -z "$PR_NUMBER" ]; then
@@ -88,13 +81,10 @@ PR_HEAD=$(printf '%s' "$PR_JSON" | jq -er .headRefOid) || exit 1
 HEAD_BRANCH=$(printf '%s' "$PR_JSON" | jq -er .headRefName) || exit 1
 BASE_BRANCH=$(printf '%s' "$PR_JSON" | jq -er .baseRefName) || exit 1
 ```
-Carry these values across fresh shells. Every later command targets this repository
-and PR, never implicit current-branch detection. A failed query is unknown, not an
-empty PR. Tell the user the selected number, title, head → base and head SHA.
+これらの値は、新しいシェルをまたいで引き継いでください。以降のすべてのコマンドは、暗黙の現在ブランチ検出ではなく、このリポジトリと PR を対象にします。クエリの失敗は「空の PR」ではなく「不明」として扱います。選択した番号、タイトル、head → base、head の SHA をユーザーに伝えてください。
 
-3. No PR: **STOP**, suggest `/ship`. CLOSED: **STOP**, ask to reopen it. MERGED:
-**STOP**, suggest `/canary <url>`; do not merge again or claim a deploy happened.
-Only OPEN continues. Before any HEAD-based evidence, require the matching clean checkout:
+3. PR がない場合: **停止**し、`/ship` を提案します。CLOSED の場合: **停止**し、再オープンするかどうかを尋ねます。MERGED の場合: **停止**し、`/canary <url>` を提案します。再度マージしたり、デプロイが行われたと主張したりしてはいけません。
+OPEN の場合のみ続行します。HEAD を基にした証拠を扱う前に、対応するクリーンなチェックアウトであることを確認します:
 ```bash
 LOCAL_HEAD=$(git rev-parse HEAD) || exit 1
 LOCAL_BRANCH=$(git branch --show-current) || exit 1
@@ -108,16 +98,14 @@ BASE_SHA=$(git rev-parse FETCH_HEAD) || exit 1
 SCOPE_RESULT=$(~/.claude/skills/gstack/bin/gstack-diff-scope "$BASE_SHA") || exit 1
 eval "$SCOPE_RESULT"
 ```
-On mismatch, **STOP** and ask the user to save their work, check out/update the PR
-branch, and rerun. Do not switch, reset, or stash for them. Preserve `BASE_SHA`, the
-PR's commit list and all scope flags before merging; cleanup may change HEAD afterward.
-Unknown scope is not docs-only. `DOCS_ONLY=true` requires SCOPE_DOCS and no other scope.
+不一致の場合は**停止**し、ユーザーに作業を保存し、PR のブランチをチェックアウトまたは更新してから再実行するよう求めます。代わりにブランチを切り替えたり、リセットしたり、stash したりしないでください。マージの前に `BASE_SHA`、PR のコミット一覧、すべてのスコープのフラグを保持してください。クリーンアップの後で HEAD が変わる可能性があるためです。
+スコープが不明な場合は、ドキュメントのみの変更とはみなしません。`DOCS_ONLY=true` は、SCOPE_DOCS であり、ほかのスコープがないことを必要とします。
 
 ---
 
-## Step 1.5: First-run dry-run validation
+## Step 1.5: 初回のドライラン検証
 
-Check for prior setup confirmation and changed configuration (not proof of a successful deploy):
+以前のセットアップの確認と、設定の変更を確認します(成功したデプロイの証拠ではありません):
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -139,59 +127,52 @@ else
 fi
 ```
 
-**If CONFIRMED:** Say "Setup was previously confirmed." Go to Step 2; do NOT read the dry-run section.
+**CONFIRMED の場合:** "Setup was previously confirmed." と伝えます。Step 2 に進み、ドライランのセクションは読まないでください。
 
-**If FIRST_RUN or CONFIG_CHANGED:** Read and execute the dry-run section:
+**FIRST_RUN または CONFIG_CHANGED の場合:** ドライランのセクションを読んで実行します:
 
 {{SECTION:first-run-validation}}
 
-Choice A saves the fingerprint and continues to Step 2; B/C stop.
+選択肢 A は指紋を保存して Step 2 に進みます。B/C は停止します。
 
 ---
 
-## Step 2: Pre-merge checks
+## Step 2: マージ前のチェック
 
-Tell the user: "Checking CI status and merge readiness..."
+ユーザーに伝えます: "Checking CI status and merge readiness..."
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-ci-gate --repo "$REPO" --pr "$PR_NUMBER" --expect-head "$PR_HEAD" --registration-wait 60
 ```
 
-It gates on all checks on this head, required or not. Act on line 1,
-`VERDICT <verdict> <sha>` (`<sha>` must be `PR_HEAD`), never on the exit code.
-Auth/network/schema errors are ERROR, never "no required checks".
-1. ERROR, or FAIL on a `required=y|?` check: **STOP**, show the output.
-2. Only `required=n` failures, or NO_CHECKS ("no CI ran on `<sha>`" after a 60 s
-   re-poll): Step 3.5 must approve it.
-3. PENDING: Step 3. PASS: skip Step 3's wait;
-   continue to Step 3.4, then Step 3.5 before merging.
+これは、必須かどうかに関わらず、この head のすべてのチェックでゲートします。判定は終了コードではなく、1 行目の `VERDICT <verdict> <sha>`(`<sha>` は `PR_HEAD` と一致する必要があります)に基づいて行ってください。認証、ネットワーク、スキーマのエラーは ERROR であり、「必須チェックなし」ではありません。
+1. ERROR、または `required=y|?` のチェックの FAIL: **停止**し、出力を表示します。
+2. `required=n` のチェックの失敗のみ、または NO_CHECKS(`<sha>` で CI が実行されなかった。60 秒の再ポーリング後)の場合: Step 3.5 でこれを承認する必要があります。
+3. PENDING: Step 3 へ。PASS: Step 3 の待機はスキップし、Step 3.4 に進みます。マージの前に Step 3.5 を行います。
 
-Also check for merge conflicts:
+マージのコンフリクトも確認します:
 ```bash
 gh pr view "$PR_NUMBER" --repo "$REPO" --json mergeable -q .mergeable
 ```
-If `CONFLICTING`: **STOP**, resolve conflicts first. Failed/UNKNOWN readback: **STOP**,
-readiness is not established.
+`CONFLICTING` の場合: **停止**し、まずコンフリクトを解消してください。Failed/UNKNOWN の読み取り結果: **停止**します。準備ができているとは確認できないためです。
 
 ---
 
-## Step 3: Wait for CI (if pending)
+## Step 3: CI の完了を待つ(保留中の場合)
 
-Poll in 4-minute rounds (300 s shell timeout), 15 minutes max; record the wait:
+4 分単位のラウンド(シェルのタイムアウト 300 秒)でポーリングし、最大 15 分とします。待機時間を記録します:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-ci-gate --repo "$REPO" --pr "$PR_NUMBER" --expect-head "$PR_HEAD" --wait 240
 ```
 
-Other verdicts follow Step 2. PENDING at 15 minutes: list the still-pending checks;
-ask A) wait 15 more minutes, B) exclude named `required=n` checks (Step 3.5
-approves each), or C) stop.
+ほかの判定は Step 2 に従います。15 分経っても PENDING の場合: まだ保留中のチェックを一覧にし、次のいずれかを尋ねます: A) さらに 15 分待つ、B) 名指しされた `required=n` のチェックを除外する(Step 3.5 で各チェックを承認)、C) 停止する。
 
 ---
 
-## Step 3.4: VERSION drift detection (workspace-aware ship)
+## Step 3.4: VERSION のずれの検出(ワークスペースを考慮した ship)
 
-Check that another workspace has not claimed this PR's VERSION since `/ship`.
+`/ship` 以降に、別のワークスペースがこの PR の VERSION を取得していないかを確認します。
 
 ```bash
 BRANCH_VERSION=$(git show "$PR_HEAD:VERSION" 2>/dev/null | tr -d '\r\n[:space:]')
@@ -206,20 +187,12 @@ OFFLINE=$(echo "$QUEUE_JSON" | jq -r '.offline // false')
 NO_VERSION=$(echo "$QUEUE_JSON" | jq -r '.no_version // false')
 ```
 
-Use the existing conservative patch-level allocation; compare numeric version
-components, not lexical strings. A missing/unparseable version on only one side is
-unavailable, not green.
+既存の保守的なパッチレベルの割り当てを使います。文字列として比較するのではなく、数値のバージョン構成要素を比較してください。片側だけでバージョンがない、または解析できない場合は、「利用不可」であり「グリーン」ではありません。
 
-0. `NO_VERSION=true` (no configured version source, the same signal `/ship` reads):
-   print `VERSION check: not applicable (<version_source.reason>)` and continue to
-   Step 3.5. Never expect a version-prefixed title, CHANGELOG version header or tag.
-1. `OFFLINE=true`, helper failure or invalid result: report VERSION check unavailable
-   with the reason; continue to Step 3.5. CI's version gate is the backstop.
-2. `BRANCH_VERSION >= NEXT_SLOT`: no drift; continue.
-3. `BRANCH_VERSION < NEXT_SLOT`: **STOP** with "VERSION drift detected", both versions
-   and instructions to rerun `/ship` from the feature branch. Its ALREADY_BUMPED path
-   reconciles VERSION, package.json, CHANGELOG header and PR title together. Do NOT
-   auto-bump or merge here: duplicate versions can overwrite another branch's release notes.
+0. `NO_VERSION=true`(バージョンのソースが設定されていない。`/ship` が読むのと同じシグナル)の場合: `VERSION check: not applicable (<version_source.reason>)` と表示し、Step 3.5 に進みます。バージョン付きのタイトル、CHANGELOG のバージョン見出し、タグを期待しないでください。
+1. `OFFLINE=true`、ヘルパーの失敗、または無効な結果の場合: 理由とともに VERSION チェックが利用できないと報告し、Step 3.5 に進みます。CI のバージョンゲートが最後の砦です。
+2. `BRANCH_VERSION >= NEXT_SLOT`: ずれなし。続行します。
+3. `BRANCH_VERSION < NEXT_SLOT`: "VERSION drift detected"、両方のバージョン、そして機能ブランチから `/ship` を再実行する手順とともに**停止**します。`/ship` の ALREADY_BUMPED のパスは、VERSION、package.json、CHANGELOG の見出し、PR のタイトルを一緒に調整します。ここで自動的にバージョンを上げたりマージしたりしないでください。バージョンが重複すると、別のブランチのリリースノートを上書きしてしまう可能性があります。
 
 ---
 
@@ -231,111 +204,91 @@ unavailable, not green.
 
 ---
 
-## Step 6: Wait for deploy (if applicable)
+## Step 6: デプロイの完了を待つ(該当する場合)
 
-Unless returning for rollback, set `TARGET=production` and `DEPLOY_SHA=MERGE_SHA`. Use the deployment facts from
-Steps 3.5/5; preserve status separately from canary health. A reachable URL alone
-does not prove this revision deployed. No configured trigger: do not invent one.
+ロールバックのために戻ってきた場合を除き、`TARGET=production` と `DEPLOY_SHA=MERGE_SHA` を設定します。Step 3.5 と Step 5 のデプロイに関する事実を使い、ステータスはカナリアの健全性とは別に保持してください。到達可能な URL だけでは、このリビジョンがデプロイされたことは証明されません。設定されたトリガーがない場合は、勝手に作らないでください。
 
-### Strategy A: GitHub Actions workflow
+### 戦略 A: GitHub Actions のワークフロー
 
-If a deploy workflow was detected, find the run triggered by the merge commit:
+デプロイのワークフローが検出されている場合、マージコミットによってトリガーされた実行を探します:
 
 ```bash
 gh run list --repo "$REPO" --branch "$BASE_BRANCH" --limit 10 --json databaseId,headSha,status,conclusion,name,workflowName
 ```
 
-Match `DEPLOY_SHA`, workflow and target environment. If no run appears yet, repeat
-the lookup within the same 20-minute deadline. A name match on another SHA is not evidence.
+`DEPLOY_SHA`、ワークフロー、対象の環境を照合します。まだ実行が現れない場合は、同じ 20 分の期限内で検索を繰り返します。別の SHA での名前の一致は証拠になりません。
 
-Poll every 30 seconds:
+30 秒ごとにポーリングします:
 ```bash
 gh run view <run-id> --repo "$REPO" --json status,conclusion
 ```
 
-### Strategy B: Platform CLI (Fly.io, Render, Heroku)
+### 戦略 B: プラットフォームの CLI(Fly.io、Render、Heroku)
 
-If a deploy status command was configured in CLAUDE.md (e.g., `fly status --app myapp`), use it instead of or in addition to GitHub Actions polling.
+CLAUDE.md にデプロイのステータスコマンドが設定されている場合(例: `fly status --app myapp`)は、GitHub Actions のポーリングの代わりに、またはそれに加えて使います。
 
-**Fly.io:** Check the configured app (do not issue `fly deploy`):
+**Fly.io:** 設定されたアプリを確認します(`fly deploy` は実行しないでください):
 ```bash
 fly status --app {app} 2>/dev/null
 ```
-Look for started Machines and a release tied to `DEPLOY_SHA`; time alone is not proof.
+起動している Machine と、`DEPLOY_SHA` に紐づくリリースを探します。時間の経過だけでは証明になりません。
 
-**Render:** Check its release record for the connected branch/revision, then reachability:
+**Render:** 接続されたブランチまたはリビジョンのリリース記録を確認し、そのあとで到達可能性を確認します:
 ```bash
 curl -sf {production-url} -o /dev/null -w "%{http_code}" 2>/dev/null
 ```
-Poll every 30 seconds. HTTP 200 proves reachability, not which release is live.
+30 秒ごとにポーリングします。HTTP 200 は到達可能であることを示すだけで、どのリリースが稼働しているかは示しません。
 
-**Heroku:** Check latest release:
+**Heroku:** 最新のリリースを確認します:
 ```bash
 heroku releases --app {app} -n 1 2>/dev/null
 ```
 
-### Strategy C: Auto-deploy platforms (Vercel, Netlify)
+### 戦略 C: 自動デプロイのプラットフォーム(Vercel、Netlify)
 
-When configured to auto-deploy on this merge, wait 60 seconds, inspect the deployment
-record for `DEPLOY_SHA`, then Step 7. No record means deployment UNVERIFIED, not success.
+このマージで自動デプロイするように設定されている場合は、60 秒待ち、`DEPLOY_SHA` のデプロイ記録を確認してから Step 7 に進みます。記録がない場合は、成功ではなく「デプロイ未検証」です。
 
-### Strategy D: Custom deploy hooks
+### 戦略 D: カスタムのデプロイフック
 
-Run only the configured read-only status command. Check its exit code and revision
-output; a generic health check cannot certify a new deployment.
+設定された読み取り専用のステータスコマンドのみを実行します。その終了コードとリビジョンの出力を確認します。一般的なヘルスチェックでは、新しいデプロイを証明できません。
 
-A recorded command trigger follows Step 5 route 2: it runs from a checkout of the default
-branch, by the user or by you only with their explicit approval. A zero exit or a reachable
-URL is not revision proof on its own.
+記録済みのコマンドのトリガーは、Step 5 のルート 2 に従います。デフォルトブランチのチェックアウトから実行され、ユーザー自身が、または明示的な承認を得た上でエージェントが実行します。終了コードがゼロであること、または URL に到達できることだけでは、リビジョンの証明にはなりません。
 
-### Common: Timing and failure handling
+### 共通: タイミングと失敗の処理
 
-Record deploy start time. Show progress every 2 minutes: "Deploy is still running... ({X}m so far). This is normal for most platforms."
+デプロイの開始時刻を記録します。2 分ごとに進捗を表示します: "Deploy is still running... ({X}m so far). This is normal for most platforms."
 
-Matching revision successfully deployed: record `DEPLOY_STATUS=PASSED`, duration,
-and evidence. Continue to Step 7, or Step 5's URL question if none is available.
+対象のリビジョンのデプロイが成功した場合: `DEPLOY_STATUS=PASSED`、所要時間、証拠を記録します。Step 7 に進みます。URL がない場合は Step 5 の URL の質問に進みます。
 
-If deploy fails/cancels: record `DEPLOY_STATUS=FAILED`, then use AskUserQuestion:
-- **Re-ground:** "The deploy workflow failed after the merge. The code is merged but may not be live yet. Here's what I can do:"
-- **RECOMMENDATION:** Choose A to investigate before reverting.
-- A) Let me look at the deploy logs to figure out what went wrong
-- B) Revert the merge immediately — roll back to the previous version
-- C) Continue to health checks anyway — the deploy failure might be a flaky step, and the site might actually be fine
+デプロイが失敗またはキャンセルされた場合: `DEPLOY_STATUS=FAILED` を記録し、AskUserQuestion を使います:
+- **状況の再確認:** "The deploy workflow failed after the merge. The code is merged but may not be live yet. Here's what I can do:"
+- **推奨:** ロールバックする前に調査するなら A を選んでください。
+- A) デプロイのログを見て、何が問題だったのかを調べる
+- B) マージを直ちに取り消す — 以前のバージョンにロールバックする
+- C) それでもヘルスチェックに進む — デプロイの失敗は不安定なステップのせいかもしれず、サイトは実際には問題ない可能性がある
 
-**A:** Read `gh run view <run-id> --repo "$REPO" --log-failed` (or configured platform
-logs), summarize the cause and evidence limits, then ask: revert (Step 8), inspect
-health (Step 7), or finish unverified (Step 9). No automatic code edits or redeploy.
-**B:** Step 8. **C:** Step 7 if a URL exists, otherwise Step 5's URL question. A passing
-canary never erases FAILED deployment evidence.
+**A:** `gh run view <run-id> --repo "$REPO" --log-failed`(または設定されたプラットフォームのログ)を読み、原因と証拠の限界を要約してから、次を尋ねます: ロールバック(Step 8)、ヘルスの確認(Step 7)、または未検証のまま終了(Step 9)。自動でのコードの編集や再デプロイは行いません。
+**B:** Step 8 へ。**C:** URL があれば Step 7 へ、なければ Step 5 の URL の質問へ。カナリアが通っても、FAILED のデプロイの証拠が消えることはありません。
 
-At 20 minutes (including waiting for a run to appear), ask: **A)** wait another bounded
-20 minutes, **B)** finish without verification. A resets only the wait deadline and
-resumes the same lookup/poll; B records pending/unknown deployment and goes to Step 9.
-Status-query failure is unknown: show the error and offer the same bounded wait or
-finish choices, not a fabricated success. During rollback monitoring, failure offers
-logs or a pending report, never a second automatic revert.
+20 分経過した時点(実行が現れるのを待つ時間を含む)で、次を尋ねます: **A)** 制限付きでさらに 20 分待つ、**B)** 検証せずに終了する。A は待機の期限だけをリセットし、同じ検索/ポーリングを再開します。B はデプロイを保留/不明として記録し、Step 9 に進みます。ステータスの照会の失敗は「不明」です。エラーを表示し、同じ制限付きの待機か終了の選択肢を提示します。捏造された成功は提示しないでください。ロールバックの監視中に失敗した場合は、ログか保留のレポートを提示し、2 回目の自動ロールバックは行いません。
 
 ---
 
-## Step 7: Canary verification (conditional depth)
+## Step 7: カナリア検証(深さは条件による)
 
-Tell the user which target/revision is confirmed or unverified, then check its URL.
-If browser access is unavailable, record SKIPPED with the reason for this target.
-Staging choice A returns to its production route; C goes to Step 9 without claiming
-STAGING VERIFIED. Production goes to Step 9 with incomplete health evidence.
+どの対象/リビジョンが確認済みか、または未検証かをユーザーに伝えてから、その URL を確認します。ブラウザへのアクセスができない場合は、この対象について理由とともに SKIPPED と記録します。ステージングの選択 A は本番のルートに戻ります。C は "STAGING VERIFIED" を主張せずに Step 9 に進みます。本番の場合は、健全性の証拠が不完全なまま Step 9 に進みます。
 
-Use the saved pre-merge scope and Step 5's precedence rule; URL/triggered-deploy paths
-still verify docs-only. Set `TARGET=production` unless entering from staging choice A/C.
+マージ前に保存したスコープと Step 5 の優先ルールを使ってください。URL/トリガーによるデプロイのパスでも、ドキュメントのみの変更は検証します。ステージングの選択 A/C から入る場合を除き、`TARGET=production` を設定します。
 
-| Diff Scope | Canary Depth |
+| 差分のスコープ | カナリアの深さ |
 |------------|-------------|
-| SCOPE_DOCS only | Smoke when Step 5 routes here; otherwise skipped there |
-| SCOPE_CONFIG only | Smoke: the Aside script below; `responseStatus` in `NAV=` must be 200 |
-| SCOPE_BACKEND only | Console errors + perf check |
-| SCOPE_FRONTEND (any) | Full: console + perf + screenshot |
-| Mixed scopes | Full canary |
+| SCOPE_DOCS のみ | Step 5 がここにルーティングする場合はスモーク。それ以外はそこでスキップ |
+| SCOPE_CONFIG のみ | スモーク: 下の Aside スクリプト。`NAV=` の `responseStatus` が 200 であること |
+| SCOPE_BACKEND のみ | コンソールエラー + パフォーマンスチェック |
+| SCOPE_FRONTEND(いずれか) | 完全: コンソール + パフォーマンス + スクリーンショット |
+| 複数のスコープ | 完全なカナリア |
 
-**Full canary sequence** — one `aside repl` script does the whole check (console hook first, then load, then evidence):
+**完全なカナリアのシーケンス** — 1 つの `aside repl` スクリプトで全体のチェックを行います(最初にコンソールのフック、次に読み込み、最後に証拠):
 
 ```bash
 aside repl '
@@ -356,109 +309,78 @@ console.log("GSTACK_STEP_OK");
 '
 ```
 
-Then copy the evidence out of the printed session directory:
+その後、表示されたセッションのディレクトリから証拠をコピーします:
 
 ```bash
 mkdir -p .gstack/deploy-reports && cp "<ASIDE_DIR>/post-deploy.jpg" "<ASIDE_DIR>/post-deploy-annotated.png" .gstack/deploy-reports/
 ```
 
-Read the output line by line:
+出力を 1 行ずつ読みます:
 
-- `URL=` — the page loaded and stayed on the site (not a redirect to an error page). A line starting with `[error` or a missing `GSTACK_STEP_OK` means the load failed.
-- `CONSOLE_ERRORS=` — check for critical errors: entries containing `Error`, `Uncaught`, `Failed to load`, `TypeError`, `ReferenceError`. Ignore warnings.
-- `NAV=` — `responseStatus` is the HTTP status of the document (Chromium PerformanceNavigationTiming) — must be 200. `loadEventEnd` is the page load time. Check that it is under 10 seconds.
-- `TEXT_START` / `TEXT_END` — verify the page has real content (not blank, not a generic error page).
-- `post-deploy.jpg` and the annotated `post-deploy-annotated.png` are the evidence. Read the copied screenshot so the user sees it.
+- `URL=` — ページが読み込まれ、サイト上に留まっていること(エラーページへのリダイレクトではないこと)。`[error` で始まる行、または `GSTACK_STEP_OK` がない場合は、読み込みが失敗したことを意味します。
+- `CONSOLE_ERRORS=` — 重大なエラーを確認します: `Error`、`Uncaught`、`Failed to load`、`TypeError`、`ReferenceError` を含むエントリ。警告は無視します。
+- `NAV=` — `responseStatus` はドキュメントの HTTP ステータスです(Chromium の PerformanceNavigationTiming)。200 でなければなりません。`loadEventEnd` はページの読み込み時間です。10 秒未満であることを確認します。
+- `TEXT_START` / `TEXT_END` — ページに実際のコンテンツがあること(空白でも、汎用的なエラーページでもないこと)を確認します。
+- `post-deploy.jpg` と注釈付きの `post-deploy-annotated.png` が証拠です。ユーザーが見られるように、コピーしたスクリーンショットを読んでください。
 
-**Health assessment:**
-- Page loads successfully with 200 status (`responseStatus` in `NAV=`) → PASS
-- No critical console errors → PASS
-- Page has real content (not blank or error screen) → PASS
-- Loads in under 10 seconds → PASS
+**健全性の評価:**
+- ステータス 200 でページが正常に読み込まれる(`NAV=` の `responseStatus`) → PASS
+- 重大なコンソールエラーがない → PASS
+- ページに実際のコンテンツがある(空白やエラー画面ではない) → PASS
+- 10 秒未満で読み込まれる → PASS
 
-Assess only checks required by the selected depth; mark unperformed checks N/A.
-All required checks pass: record HEALTHY for this target. Staging returns through
-Step 5a's chosen A/C route; production goes to Step 9. Preserve deployment uncertainty.
+選択された深さで必要なチェックのみを評価します。実行しなかったチェックは N/A とします。
+必要なチェックがすべて PASS の場合: この対象を HEALTHY と記録します。ステージングは Step 5a で選んだ A/C のルートに戻ります。本番は Step 9 に進みます。デプロイの不確実性は保持してください。
 
-If any fail: show the evidence (screenshot path, console errors, perf numbers). Use AskUserQuestion:
-- **Re-ground:** "I found some issues on the live site after the deploy. Here's what I see: {specific issues}. This might be temporary (caches clearing, CDN propagating) or it might be a real problem."
-- **RECOMMENDATION:** Choose based on severity — B for critical (site down), A for minor (console errors).
-- A) Accept these observed issues for now — report DEGRADED, not healthy
-- B) That's broken — revert the merge and roll back to the previous version
-- C) Let me investigate more — open the site and look at logs before deciding
+いずれかが FAIL の場合: 証拠(スクリーンショットのパス、コンソールエラー、パフォーマンスの数値)を表示します。AskUserQuestion を使います:
+- **状況の再確認:** "I found some issues on the live site after the deploy. Here's what I see: {specific issues}. This might be temporary (caches clearing, CDN propagating) or it might be a real problem."
+- **推奨:** 重大度に基づいて選んでください。重大(サイトのダウン)なら B、軽微(コンソールエラー)なら A。
+- A) 今のところ観察された問題を受け入れる — DEGRADED と報告し、HEALTHY とはしない
+- B) 壊れている — マージを取り消し、以前のバージョンにロールバックする
+- C) さらに調べさせて — 判断する前にサイトを開き、ログを確認する
 
-**A:** Record DEGRADED and the user's acknowledgment, then Step 9 (do not silently
-continue from failed staging to production verification). **B:** Step 8, only with
-explicit rollback approval. **C:** Inspect the page/evidence and read-only logs;
-summarize findings, then ask for one recheck (repeat Step 7), rollback (Step 8), or
-finish DEGRADED (Step 9). These investigations never modify or redeploy code.
-When `ROLLBACK=true`, failures remain ROLLBACK PENDING; offer investigation or report,
-not another revert. Keep staging/production screenshots distinct when checking both.
+**A:** DEGRADED とユーザーの承認を記録してから、Step 9 に進みます(失敗したステージングから、黙って本番の検証に進まないでください)。**B:** 明示的なロールバックの承認がある場合にのみ、Step 8 へ。**C:** ページと証拠、読み取り専用のログを調べます。結果を要約してから、再確認(Step 7 を繰り返す)、ロールバック(Step 8)、または DEGRADED のまま終了(Step 9)のいずれか 1 つを尋ねます。これらの調査はコードを変更したり再デプロイしたりしません。
+`ROLLBACK=true` の場合、失敗は ROLLBACK PENDING のままです。調査または報告を提示し、もう一度の取り消しは提示しないでください。両方を確認する場合は、ステージングと本番のスクリーンショットを区別して保持してください。
 
 ---
 
-## Step 8: Revert (if needed)
+## Step 8: 取り消し(必要な場合)
 
-Enter only after the user's explicit rollback choice. Explain that this adds inverse
-commits; production is not restored until rollback deploys and health is checked.
-Require a clean worktree, fetch `BASE_BRANCH` from `REPO`, switch to the local base
-and fast-forward only to that fetched tip. Dirty, diverged, or occupied base: **STOP**
-with ROLLBACK PENDING, never reset/force or discard work.
+ユーザーが明示的にロールバックを選んだ後にのみ入ります。これは逆方向のコミットを追加することを説明してください。ロールバックのデプロイとヘルスチェックが完了するまで、本番は復元されません。
+クリーンな worktree を必要とします。`REPO` から `BASE_BRANCH` を fetch し、ローカルのベースに切り替えて、fetch したその先端にのみ fast-forward します。ベースが汚れている、分岐している、または使用中の場合は、ROLLBACK PENDING とともに**停止**します。リセットや強制、作業の破棄は決して行いません。
 
-Inspect the actual landed commit, not just the requested merge method:
+要求したマージ方式だけでなく、実際に取り込まれたコミットを確認します:
 ```bash
 git show --no-patch --format='%H %P' "$MERGE_SHA"
 ```
-- Two parents: verify parent 1 is the base-side history, then
-  `git revert -m 1 "$MERGE_SHA" --no-edit`.
-- One-parent **confirmed squash**: `git revert "$MERGE_SHA" --no-edit`.
-- **Rebase merge:** establish the exact landed commit range for this PR and revert
-  it newest-first. `mergeCommit.oid` alone is only the last commit, not the range.
-  Unknown range/method (including an external merge) or other parent shapes: **STOP**
-  with ROLLBACK PENDING and request manual rollback; do not guess.
+- 親が 2 つ: 親 1 がベース側の履歴であることを確認してから、`git revert -m 1 "$MERGE_SHA" --no-edit`。
+- 親が 1 つで**スカッシュが確認できた場合**: `git revert "$MERGE_SHA" --no-edit`。
+- **リベースマージ:** この PR で実際に取り込まれたコミットの範囲を確定し、新しい順に revert します。`mergeCommit.oid` だけでは最後のコミットにすぎず、範囲ではありません。
+  範囲や方式が不明な場合(外部でのマージを含む)、またはそのほかの親の形の場合: ROLLBACK PENDING とともに**停止**し、手動でのロールバックを依頼します。推測しないでください。
 
-Conflicts: stop, show `git status` and the attempted command, leave resolution to the
-user. After a clean revert, record `REVERT_SHA` and push to the selected base:
-`git push "https://github.com/$REPO.git" "HEAD:refs/heads/$BASE_BRANCH"`. If branch
-protection rejects it, keep the commit, create `revert/pr-<number>-<timestamp>` there,
-push that branch and open a revert PR against `BASE_BRANCH`. Report its URL and
-ROLLBACK PENDING; never merge it without separate approval. Other push errors stop
-with the error and pending status, not a protection bypass.
+コンフリクトが起きた場合: 停止し、`git status` と試したコマンドを表示して、解決はユーザーに任せます。クリーンに revert できたら、`REVERT_SHA` を記録し、選択したベースに push します: `git push "https://github.com/$REPO.git" "HEAD:refs/heads/$BASE_BRANCH"`。ブランチの保護によって拒否された場合は、コミットを残し、そこに `revert/pr-<number>-<timestamp>` を作成し、そのブランチを push して、`BASE_BRANCH` 宛ての revert PR を開きます。その URL と ROLLBACK PENDING を報告してください。別途の承認なしにマージしないでください。そのほかの push のエラーは、保護を回避せず、エラーと保留の状態とともに停止します。
 
-After a successful base push, set `ROLLBACK=true`, `TARGET=production`,
-`DEPLOY_SHA=REVERT_SHA`, and reset production deployment/health to UNKNOWN/SKIPPED
-for that revision. Keep original/staging evidence separately. Monitor via Steps 6-7
-without resetting those values. Only a confirmed rollback deployment
-and healthy production canary yields REVERTED (or a confirmed base revert where no
-deploy is required). All incomplete, failed, skipped or PR-based rollback paths go
-to Step 9 as ROLLBACK PENDING. Preserve the original merge SHA in the report.
+ベースへの push が成功したら、`ROLLBACK=true`、`TARGET=production`、`DEPLOY_SHA=REVERT_SHA` を設定し、そのリビジョンについて本番のデプロイと健全性を UNKNOWN/SKIPPED にリセットします。元のマージと、ステージングの証拠は別に保持してください。これらの値をリセットせずに、Step 6-7 を通じて監視します。確認済みのロールバックのデプロイと、健全な本番のカナリアがそろって初めて REVERTED となります(またはデプロイが不要な場合は、確認済みのベースの revert)。未完了、失敗、スキップ、またはPR ベースのロールバックのパスはすべて、ROLLBACK PENDING として Step 9 に進みます。元のマージの SHA は報告に残してください。
 
 ---
 
-## Step 9: Deploy report
+## Step 9: デプロイレポート
 
-Choose the first matching verdict; never infer deployment success from merge or HTTP 200:
+最初に一致する判定を選んでください。マージや HTTP 200 から、デプロイの成功を推測してはいけません:
 
-| Evidence | Verdict |
+| 証拠 | 判定 |
 |----------|---------|
-| Rollback requested, not yet confirmed on base and live/healthy (when deploy applies) | ROLLBACK PENDING |
-| Rollback confirmed as described in Step 8 | REVERTED |
-| Any accepted target-health failure | DEGRADED |
-| User chose staging-only and staging passed | STAGING VERIFIED — PRODUCTION UNVERIFIED |
-| Explicit no-deploy confirmation or Step 5's docs-only skip | MERGED — NO DEPLOY NEEDED |
-| Matching production deployment PASSED and production HEALTHY | DEPLOYED AND VERIFIED |
-| Matching production deployment PASSED but canary skipped/unavailable | DEPLOYED (UNVERIFIED) |
-| Everything else, including failed/pending/unknown deploy even with a healthy old site | MERGED (UNVERIFIED) |
+| ロールバックが要求されたが、ベースとライブ/健全性でまだ確認されていない(デプロイが該当する場合) | ROLLBACK PENDING |
+| Step 8 で説明したとおりにロールバックが確認された | REVERTED |
+| 受け入れた対象の健全性の失敗がある | DEGRADED |
+| ユーザーがステージングのみを選び、ステージングが通った | STAGING VERIFIED — PRODUCTION UNVERIFIED |
+| デプロイ不要の明示的な確認、または Step 5 のドキュメントのみのスキップ | MERGED — NO DEPLOY NEEDED |
+| 一致する本番デプロイが PASSED で、本番が HEALTHY | DEPLOYED AND VERIFIED |
+| 一致する本番デプロイは PASSED だが、カナリアがスキップまたは利用不可 | DEPLOYED (UNVERIFIED) |
+| それ以外すべて。古いサイトが健全でも、デプロイが失敗/保留/不明の場合を含む | MERGED (UNVERIFIED) |
 
-Display **LAND & DEPLOY REPORT** and save `.gstack/deploy-reports/{date}-pr{number}-deploy.md`
-(`date` = UTC YYYY-MM-DD). Include PR/title/repository, head → base, approved head,
-merge timestamp/SHA/method/path, first-run status, CI/review status and warnings,
-scope, separate deploy/staging/canary outcomes with evidence links/errors, console
-count, load time, screenshot paths (N/A when not checked), verdict and next action.
-Record dry-run, CI wait, queue, deploy, staging, canary and total durations in seconds;
-skipped stages have duration 0 with a reason, never a fabricated pass. Inline review
-is passed/skipped/not-needed; inline fixes stopped before merge and cannot appear here.
-For rollback include revert SHA or PR URL and unresolved work.
+**LAND & DEPLOY REPORT** を表示し、`.gstack/deploy-reports/{date}-pr{number}-deploy.md` に保存します(`date` は UTC の YYYY-MM-DD)。PR、タイトル、リポジトリ、head → base、承認された head、マージのタイムスタンプ/SHA/方式/経路、初回実行の状態、CI/レビューの状態と警告、スコープ、デプロイ/ステージング/カナリアの結果を個別に(証拠のリンクまたはエラーとともに)、コンソールのエラー数、読み込み時間、スクリーンショットのパス(未確認の場合は N/A)、判定と次の操作を含めてください。
+ドライラン、CI の待機、キュー、デプロイ、ステージング、カナリア、合計の所要時間を秒単位で記録します。スキップしたステージングは、理由とともに所要時間 0 とします。捏造された合格は記録しないでください。インラインのレビューは、合格/スキップ/不要のいずれかです。マージ前に停止したインラインの修正はここに現れません。ロールバックの場合は、revert の SHA または PR の URL と、未解決の作業を含めてください。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -467,43 +389,33 @@ mkdir -p .gstack/deploy-reports
 mkdir -p "$GSTACK_STATE_ROOT"/projects/$SLUG
 ```
 
-Pass one JSON entry to `~/.claude/skills/gstack/bin/gstack-review-log '<JSON>'` for
-the dashboard's branch-scoped JSONL log. `status` is SUCCESS
-only for DEPLOYED AND VERIFIED or MERGED — NO DEPLOY NEEDED, REVERTED for confirmed
-rollback, otherwise INCOMPLETE. Keep the full `verdict` and independent evidence states:
+ダッシュボードのブランチ単位の JSONL ログのために、1 件の JSON エントリを `~/.claude/skills/gstack/bin/gstack-review-log '<JSON>'` に渡します。`status` が SUCCESS になるのは、DEPLOYED AND VERIFIED または MERGED — NO DEPLOY NEEDED の場合、また確認済みのロールバックの場合の REVERTED のみです。それ以外は INCOMPLETE です。完全な `verdict` と、独立した証拠の状態をそのまま保持してください:
 ```json
 {"skill":"land-and-deploy","timestamp":"<ISO>","status":"<SUCCESS/REVERTED/INCOMPLETE>","verdict":"<verdict>","pr":<number>,"merge_sha":"<sha>","merge_path":"<auto/direct/queue/external>","first_run":<true/false>,"deploy_status":"<PASSED/FAILED/PENDING/UNKNOWN/NOT_NEEDED>","verification":"<HEALTHY/DEGRADED/SKIPPED>","staging_status":"<VERIFIED/DEGRADED/SKIPPED/N/A>","review_status":"<observed status>","dry_run_s":<N>,"ci_wait_s":<N>,"queue_s":<N>,"deploy_s":<N>,"staging_s":<N>,"canary_s":<N>,"total_s":<N>}
 ```
 
 ---
 
-## Step 10: Suggest follow-ups
+## Step 10: フォローアップの提案
 
-State the verdict in plain English. Verified: changes are live. Unverified/degraded:
-name the missing evidence/issues and the exact workflow/status command or `/canary <url>`
-to check next. No deploy needed: merged, verification skipped for the stated reason.
-Staging-only: production remains unverified, not necessarily undeployed. Rollback
-pending: identify who must resolve conflicts, merge the revert PR, or verify its deploy.
-REVERTED: cite rollback evidence; do not claim the original branch survived cleanup.
-Offer `/canary <url>` for extended monitoring, `/benchmark <url>` when performance
-matters, and `/document-release` when docs need updating.
+判定をわかりやすい言葉で伝えます。検証済み: 変更は公開されています。未検証/劣化: 欠けている証拠または問題を挙げ、次に確認すべき正確なワークフローやステータスのコマンド、または `/canary <url>` を示します。デプロイ不要: マージ済みで、理由を示して検証をスキップしたことを伝えます。
+ステージングのみ: 本番は未検証のままです。未デプロイとは限りません。ロールバック保留: 誰がコンフリクトを解消するか、revert PR をマージするか、そのデプロイを検証するかを特定します。
+REVERTED: ロールバックの証拠を引用してください。元のブランチがクリーンアップの後も残ったと主張してはいけません。
+長期的な監視には `/canary <url>` を、パフォーマンスが重要な場合は `/benchmark <url>` を、ドキュメントの更新が必要な場合は `/document-release` を提案してください。
 
 ---
 
-## Section self-check (before you finish)
+## セクションの自己チェック(終える前に)
 
-You ran a carved skill. For your situation, list every section the Section index
-named as applying, and confirm you issued a Read for each one (a CONFIRMED Step 1.5
-correctly skips the dry-run section). Missing Read: STOP and read the source now.
-Recheck read-only evidence; never redo a merge/deploy because a section was missed.
+あなたは切り出されたスキルを実行しています。現在の状況に当てはまるとセクションの索引が挙げたセクションをすべて列挙し、それぞれについて Read を発行したことを確認してください(確認済みの Step 1.5 では、ドライランのセクションを正しくスキップします)。Read が欠けている場合: 停止し、今すぐ元のソースを読んでください。読み取り専用の証拠を再確認してください。セクションを見落としたからといって、マージやデプロイをやり直してはいけません。
 
 ---
 
-## Important Rules
+## 重要なルール
 
-- Never force-push, bypass CI, replay a confirmed merge, or hide missing evidence.
-- Auto-detect facts; ask when unknown or when an explicit approval gate applies.
-- Poll at each step's stated interval and deadline (4-minute CI rounds in Step 3; 30 seconds for merge readback and deploy status), with its progress messages.
-- After merge failures, offer approved rollback when appropriate; never revert a rollback automatically.
-- Verify once; `/canary` provides extended monitoring. Rechecks require the user's choice.
-- Use `--delete-branch`; reconcile failed cleanup non-destructively with confirmation.
+- 強制プッシュしない、CI を迂回しない、確認済みのマージを再実行しない、不足している証拠を隠さない。
+- 事実は自動で検出する。不明な場合、または明示的な承認ゲートが適用される場合は尋ねる。
+- 各ステップで定められた間隔と期限でポーリングする(Step 3 では CI の 4 分単位のラウンド、マージの読み戻しとデプロイのステータスでは 30 秒)。進捗メッセージも表示する。
+- マージが失敗した後は、適切な場合に承認されたロールバックを提示する。ロールバックを自動で取り消すことは決してしない。
+- 検証は 1 回だけ行う。長期的な監視は `/canary` が担当する。再確認にはユーザーの選択が必要。
+- `--delete-branch` を使う。クリーンアップが失敗した場合は、確認を取った上で、破壊的でない方法で整合させる。

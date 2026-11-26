@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { triageLabels } from './helpers/ship-triage-labels';
+import { generateTestFailureTriage } from '../scripts/resolvers/preamble/generate-test-failure-triage';
 
 const DIR = path.join(import.meta.dir, 'fixtures', 'ship-triage');
 const read = (name: string) => fs.readFileSync(path.join(DIR, name), 'utf8');
@@ -12,7 +13,7 @@ const correct = (output: string) => {
 
 describe('ship triage label grader', () => {
   test('grades the two labels the ship triage step itself uses', () => {
-    const triage = fs.readFileSync(path.join(import.meta.dir, '..', 'ship', 'sections', 'tests.md.tmpl'), 'utf8');
+    const triage = generateTestFailureTriage(); // the triage step is this resolver's expansion inside ship/sections/tests.md.tmpl
     expect(triage).toMatch(/\bin-branch\b/i);
     expect(triage).toMatch(/\bpre-existing\b/i);
     expect(triageLabels('- truncate (string.test.js): in-branch\n- divide (math.test.js): pre-existing'))

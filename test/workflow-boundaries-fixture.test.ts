@@ -83,7 +83,7 @@ function protocolControl(id: BoundaryCase, faults: { skipCleanup?: boolean; dupl
               : faults.undeclared === 'bash-edit' ? 'printf "arbitrary source" > src/value.js' : `printf FREEZE_RELEASED > '${receipt}'`,
           });
         }
-        expect(fs.readFileSync(path.join(directory, 'workflow.md'), 'utf8')).toContain('Terminal cleanup');
+        expect(fs.readFileSync(path.join(directory, 'workflow.md'), 'utf8')).toMatch(/Terminal cleanup|ターミナルのクリーンアップ/);
         expect(fs.existsSync(path.join(env.GSTACK_HOME!, 'freeze-dir.txt'))).toBe(false);
         if (faults.deniedBash) {
           await expect(executeTool('Bash', { command: faults.deniedBash })).rejects.toThrow('native fixture guard denied Bash');

@@ -9,6 +9,7 @@
 import { describe, test, expect } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { expectMentions } from './helpers/prompt-structure';
 import {
   generateAgentsDigest,
   DIGEST_RELPATH,
@@ -44,13 +45,13 @@ describe('agents-digest', () => {
   test('digest carries its version header and the load-bearing sections', () => {
     const version = fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf-8').trim();
     const content = fs.readFileSync(digestPath, 'utf-8');
-    expect(content.startsWith(`# gstack digest v${version}`)).toBe(true);
-    expect(content).toContain('re-copy after upgrading');
-    expect(content).toContain('## Ethos');
-    expect(content).toContain('## The reuse ladder');
-    expect(content).toContain('## Voice');
-    expect(content).toContain('## Full gstack');
-    // The ladder must keep the completeness reconciliation clause.
+    expect(content.startsWith(`# gstack ダイジェスト v${version}`)).toBe(true);
+    expect(content.match(/^## .+$/gm)).toEqual(['## 行動原則', '## 再利用のはしご', '## 文体', '## gstack の全体']);
+    // The four ethos principles keep their English names (they are the cross-host vocabulary).
+    for (const name of ['Boil the Ocean', 'Search Before Building', 'User Sovereignty', 'Build for Yourself']) {
+      expect(content).toContain(`**${name}**`);
+    }
+    expectMentions(content, [['アップグレード', '再生成'], ['./setup', 'フル'], ['scripts/gen-agents-digest.ts', '編集']], 'agents digest');
   });
 
   test('setup never copies the digest onto a user AGENTS.md (print-path only)', () => {
@@ -92,14 +93,23 @@ describe('agents-digest', () => {
       path.join(ROOT, 'scripts', 'resolvers', 'preamble', 'generate-search-before-building.ts'),
       'utf-8',
     );
-    for (const shared of [
-      'stop at the first rung that holds',
-      'Then build the complete version of what remains',
-      'one guard in the shared function beats a guard in every caller',
-    ]) {
-      expect(content).toContain(shared);
-      expect(resolver).toContain(shared);
-    }
+    // Both texts are Japanese, with different wording. Lockstep is the shape: a 4-rung
+    // numbered ladder, a "build the rest" line and a root-cause rule, checked by meaning.
+    expect(content).toMatch(/止まってください:\n1\. .*\n2\. .*\n3\. .*\n4\. /);
+    expect(resolver).toMatch(/\*\*[^\n]*\*\*\n1\. .*\n2\. .*\n3\. .*\n4\. /);
+    expectMentions(content, [
+      ['標準ライブラリ'],
+      ['インストール済み', '依存'],
+      ['完全版', '残った'],
+      ['根本原因', '症状'],
+      ['共有関数', 'ガード'],
+    ], 'agents digest');
+    expectMentions(resolver, [
+      ['標準ライブラリ'],
+      ['インストール済み', '依存'],
+      ['根本原因', '症状'],
+      ['共有関数', 'ガード'],
+    ], 'search-before-building resolver');
   });
 
   test('instruction-tier hosts declare the digest in host config — and the declaration tracks the real path', () => {

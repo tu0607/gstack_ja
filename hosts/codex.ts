@@ -43,7 +43,7 @@ const codex = defineHost({
   suppressedResolvers: ['REVIEW_ARMY', ...GBRAIN_RESOLVERS],
 
   coAuthorTrailer: 'Co-Authored-By: OpenAI Codex <noreply@openai.com>',
-  boundaryInstruction: 'IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. Do not invoke any installed skill (Codex home skills/, .agents/); answer directly. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.',
+  boundaryInstruction: '重要: ~/.claude/、~/.agents/、.claude/skills/、agents/ の下にあるファイルを読んだり実行したりしないでください。これらは別の AI システム向けの Claude Code のスキル定義です。インストール済みのスキル(Codex ホームの skills/、.agents/)を呼び出さず、直接答えてください。完全に無視してください。agents/openai.yaml を変更しないでください。リポジトリのコードだけに集中してください。',
 });
 
 export default codex;

@@ -420,9 +420,9 @@ describeIfSelected('Codex skill E2E', ['codex-review'], () => {
     // Section index and STOP pointers — their install paths don't exist in this
     // temp fixture dir and would burn agent turns on failed Reads.
     const full = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md'), 'utf-8');
-    const introStart = full.indexOf('# /codex — Multi-AI Second Opinion');
+    const introStart = full.indexOf('# /codex — マルチ AI によるセカンドオピニオン');
     const introEnd = full.indexOf('## Section index', introStart);
-    const stepsStart = full.indexOf('## Step 0.4', introStart);
+    const stepsStart = full.indexOf('## ステップ 0.4', introStart);
     const stepsEnd = full.indexOf('> **STOP.**', stepsStart);
     expect(introStart).toBeGreaterThan(-1);
     expect(introEnd).toBeGreaterThan(introStart);

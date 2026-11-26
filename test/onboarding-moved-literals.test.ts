@@ -86,8 +86,6 @@ describe('onboarding moved-literals tombstone (F5)', () => {
   test('emission layer is SESSION_ID-bound and the fence prose scopes it (F4/OV4)', () => {
     expect(SCRIPT).toContain('GSTACK_INSTRUCTION_BEGIN: $1 $_SESSION_ID');
     const render = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
-    expect(render).toContain('direct tool result');
-    expect(render).toMatch(/same .?SESSION_ID.? that run echoed/);
-    expectMentions(render, [['never', 'output', 'tool']], 'render');
+    expectMentions(render, [['直接のツール結果'], ['SESSION_ID', '同じ', '実行'], ['決して', 'ブロック', 'ツール出力']], 'render');
   });
 });

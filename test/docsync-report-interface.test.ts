@@ -67,7 +67,7 @@ mock.module(path.join(root, 'test/helpers/session-runner.ts'), () => ({
     const phase = fs.readFileSync(path.join(fixture.home, 'phase.md'), 'utf8');
     expect(phase).toContain('PHASE_BUILDER_USED');
     if (options.testName === 'ship-docsync-store') {
-      expect(phase).toContain('**Documentation preflight:**');
+      expect(phase).toMatch(/\*\*(?:Documentation preflight|ドキュメントの事前確認):\*\*/);
       expect(phase).not.toContain('## Documentation');
     } else {
       const prBody = fs.readFileSync(path.join(fixture.skills, 'ship/sections/pr-body.md'), 'utf8');

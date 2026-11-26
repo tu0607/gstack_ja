@@ -1,109 +1,101 @@
-# Pacing Updates v0 — Design Doc
+# Pacing Updates v0 — 設計ドキュメント
 
-**Status:** V1.1 plan (not yet implemented).
-**Extracted from:** [PLAN_TUNING_V1.md](./PLAN_TUNING_V1.md) during implementation, when review rigor revealed the pacing workstream had structural gaps unfixable via plan-text editing.
-**Authors:** Garry Tan (user), with AI-assisted reviews from Claude Opus 4.7 + OpenAI Codex gpt-5.4.
-**Review plan:** CEO + Codex + DX + Eng cycle, same rigor as V1.
+**ステータス:** V1.1 の計画(未実装)。
+**抽出元:** [PLAN_TUNING_V1.md](./PLAN_TUNING_V1.md)。実装中に抽出した。レビューの厳密さにより、ペーシングの作業には計画文の編集だけでは直せない構造的な欠陥があることが分かったため。
+**作成者:** Garry Tan(ユーザー)。AI によるレビューは Claude Opus 4.7 + OpenAI Codex gpt-5.4 による。
+**レビュー計画:** CEO + Codex + DX + Eng のサイクル。V1 と同じ厳密さで行う。
 
-## Credit
+## クレジット
 
-This plan exists because of **[Louise de Sadeleer](https://x.com/LouiseDSadeleer/status/2045139351227478199)**. Her "yes yes yes" during architecture review wasn't only about jargon (V1 addresses that) — it was pacing and agency. Too many interruptive decisions over too long a review. V1.1 addresses the pacing half.
+この計画は **[Louise de Sadeleer](https://x.com/LouiseDSadeleer/status/2045139351227478199)** のおかげで生まれた。アーキテクチャのレビュー中の彼女の「yes yes yes」は、専門用語の多さだけを指していたわけではない。ペーシングと主体性についてのものだった。割り込み型の決定が多すぎて、レビューが長く続きすぎた。V1.1 はペーシングの半分に対処する。
 
-## Problem
+## 問題
 
-Louise's fatigue reading gstack review output came from two sources:
+Louise が gstack のレビュー出力を読んで疲れた原因は、二つある。
 
-1. **Jargon density** — technical terms appeared without explanation. *Addressed in V1 (ELI10 writing).*
-2. **Interruption volume** — `/autoplan` ran 4 phases (CEO + Design + Eng + DX), each with 5–10 AskUserQuestion prompts. Total ≈ 30–50 prompts over ~45 minutes. Non-technical users check out at ~10–15 interruptions. **This is V1.1.**
+1. **専門用語の密度** — 説明のない技術用語が出てきた。*V1 で対処済み(ELI10 の書き方)。*
+2. **割り込みの量** — `/autoplan` は4つのフェーズ(CEO + Design + Eng + DX)を実行し、それぞれで 5〜10 件の AskUserQuestion が出る。合計は約 30〜50 件、約 45 分。技術者ではないユーザーは、割り込みが 10〜15 回を超えると離脱する。**これが V1.1 の対象。**
 
-Translation alone doesn't fix interruption volume. A translated interruption is still an interruption. The fix needs to change WHEN findings surface, not just HOW they're worded.
+用語を翻訳しただけでは、割り込みの量は解決しない。翻訳された割り込みも、やはり割り込みだからだ。解決するには、どう言うかだけでなく、いつ指摘が表面化するかを変える必要がある。
 
-## Why it's extracted (structural gaps from V1's third eng review + Codex pass 2)
+## V1.1 でスコープから外れた理由(V1 の第3回エンジニアリングレビューと Codex の第2パスから見つかった構造的な欠陥)
 
-During V1 planning, a pacing workstream was drafted: rank findings, auto-accept two-way doors, max 3 AskUserQuestion prompts per review phase, Silent Decisions block for auto-accepted items, "flip <id>" command to re-open auto-accepted decisions post-hoc. The third eng-review pass + second Codex pass surfaced 10 gaps that couldn't be closed with plan-text edits:
+V1 の計画中に、ペーシングの作業を下書きした。指摘を順位付けし、二択のドアは自動承認し、フェーズごとに AskUserQuestion は最大3件、自動承認された項目は「Silent Decisions」ブロックにまとめ、自動承認された決定を事後に開き直す「flip <id>」コマンドを用意する、という内容だった。第3回のエンジニアリングレビューと Codex の第2パスで、計画文の編集では解決できない10件の欠陥が見つかった。
 
-1. **Session-state model undefined.** Pacing needs per-phase state (which findings surfaced, which auto-accepted, which user can flip). V1 has per-skill-invocation state for glossing but no backing store for per-phase pacing memory.
-2. **Phase identifier missing from question-log.** Silent Eng #8 wanted to warn when > 3 prompts within one phase. V0's `question-log.jsonl` has no `phase` field. V1 claimed "no schema change" — contradicts the enforcement target.
-3. **Question registry ≠ finding registry.** V0's `scripts/question-registry.ts` covers *questions* (registered at skill definition time). Review findings are *dynamic* (discovered at runtime). `door_type: one-way` enforcement via registry doesn't cover ad-hoc findings. One-way-door safety isn't enforceable for findings the agent generates mid-review.
-4. **Pacing as prose can't invert existing control flow.** V1 planned to add a "rank findings, then ask" rule to preamble prose. But existing skill templates like `plan-eng-review/SKILL.md.tmpl` have per-section STOP/AskUserQuestion sequences. A prose rule in preamble can't reliably override a hardcoded per-section STOP. The behavioral change is sequencing, not prompt wording.
-5. **Flip mechanism has no implementation.** "Reply `flip <id>` to change" was prose. No command parser, no state store, no replay behavior. If the conversation compacts and the Silent Decisions block leaves context, the original decision is lost.
-6. **Migration prompt is itself an interrupt.** V1's post-upgrade migration prompt (offering to restore V0 prose) counts against the interruption budget V1.1 is trying to reduce. V1.1 must decide: exempt from budget, or include as interrupt-1-of-N?
-7. **First-run preamble prompts count too.** Lake intro, telemetry, proactive, routing injection — Louise saw all of them on first run. They're interruptions before the first real skill runs. V1.1 must audit which of these are load-bearing for new users vs. deferrable until session N.
-8. **Ranking formula not calibrated against real data.** V1 considered `product 0-8` (broken: `{0,1,2,4,8}` distribution), then `sum 0-6` with threshold ≥ 4. But neither was validated against actual finding distribution. V1.1 should instrument V0 question-log to measure what real findings look like, then calibrate.
-9. **"Every one-way door surfaces" vs "max 3 per phase" contradicts.** One-way cap = uncapped (safety); two-way cap = 3. But the plan had both rules without explicit precedence. V1.1 must state: one-way doors surface uncapped regardless of phase budget.
-10. **Undefined verification values.** V1 plan had "Silent Decisions block ≥ N entries" with N never defined, and `active: true` field in throughput JSON never defined. V1.1 gets concrete values.
+1. **セッション状態のモデルが未定義。** ペーシングには、フェーズごとの状態が必要だ(どの指摘が表面化し、どれが自動承認され、ユーザーがどれを flip できるか)。V1 には、用語の説明のための、スキル呼び出しごとの状態はあるが、フェーズごとのペーシングの記憶を保持するストアがない。
+2. **question-log にフェーズの識別子がない。** Silent Eng #8 は、1フェーズ内で 3 件を超えるプロンプトがあれば警告したかった。V0 の `question-log.jsonl` には `phase` フィールドがない。V1 は「スキーマ変更なし」と主張していたが、それは強制したい対象と矛盾している。
+3. **質問のレジストリ ≠ 指摘のレジストリ。** V0 の `scripts/question-registry.ts` がカバーするのは*質問*(スキル定義時に登録される)。レビューの指摘は*動的*(実行時に発見される)。レジストリによる `door_type: one-way` の強制は、エージェントが途中で生成した即席の指摘には及ばない。そのため、指摘に対する一方向ドアの安全性は強制できない。
+4. **ペーシングを散文として書いても、既存の制御フローは反転できない。** V1 は、プリアンブルの散文に「指摘を順位付けしてから尋ねる」というルールを追加する計画だった。しかし `plan-eng-review/SKILL.md.tmpl` のような既存のスキルテンプレートには、セクションごとに STOP と AskUserQuestion が決まった順序で並んでいる。プリアンブルの散文ルールでは、そのハードコードされた STOP を確実に上書きできない。変えるべきは文言ではなく、順序の制御だ。
+5. **flip の仕組みに実装がない。** 「`flip <id>` と返信すると変更できる」は散文だった。コマンドのパーサー、状態ストア、再生の振る舞いがない。会話が圧縮されて Silent Decisions ブロックがコンテキストから消えると、元の決定は失われる。
+6. **移行プロンプトそのものが割り込みになる。** V1 のアップグレード後の移行プロンプト(V0 の散文に戻すことを提案する)は、V1.1 が減らそうとしている割り込みの予算を消費する。V1.1 は、これを予算の対象外にするか、割り込み 1 件目 / N 件として数えるかを決めなければならない。
+7. **初回のプリアンブルのプロンプトも数に入る。** Lake の紹介、テレメトリ、proactive、ルーティングの注入。Louise は初回実行時にこのすべてを見た。これらは最初の実際のスキルが動く前の割り込みである。V1.1 は、新規ユーザーにとってどれが必須で、どれを後回しにできるかを監査しなければならない。
+8. **順位付けの計算式が実データで較正されていない。** V1 は `product 0-8`(壊れている。分布が `{0,1,2,4,8}`)を検討し、次に閾値 ≥ 4 の `sum 0-6` を検討した。しかしどちらも、実際の指摘の分布に対して検証されていなかった。V1.1 は V0 の question-log を計測して、実際の指摘がどのような形かを把握し、そのうえで較正すべきだ。
+9. **「すべての一方向ドアは表面化する」と「フェーズごとに最大3件」が矛盾する。** 一方向は上限なし(安全性のため)、二方向は上限 3。しかし計画には両方のルールがあり、優先順位が明記されていなかった。V1.1 は、一方向ドアはフェーズの予算に関係なく上限なしで表面化すると明記しなければならない。
+10. **検証の値が未定義。** V1 の計画には「Silent Decisions ブロックは N 件以上」とあったが、N は定義されていなかった。また、スループットの JSON にある `active: true` フィールドも定義されていなかった。V1.1 では具体的な値を定める。
 
-## Scope for V1.1
+## V1.1 のスコープ
 
-1. **Define session-state model.** Per-skill-invocation vs per-phase vs per-conversation. Backing store: likely a JSON file at `~/.gstack/sessions/<session_id>/pacing-state.json` that records which findings surfaced vs. auto-accepted per phase. Cleanup: same TTL as existing session tracking in preamble.
+1. **セッション状態のモデルを定義する。** スキル呼び出しごと、フェーズごと、会話ごとのどれにするか。バックストア: おそらく `~/.gstack/sessions/<session_id>/pacing-state.json` という JSON ファイル。ここにフェーズごとに、どの指摘が表面化し、どれが自動承認されたかを記録する。クリーンアップ: プリアンブルの既存のセッション追跡と同じ TTL。
 
-2. **Add `phase` field to question-log.jsonl schema.** Classify each AskUserQuestion by which review phase it came from (CEO / Design / Eng / DX / other). Migration: existing entries default to `"unknown"`. Non-breaking schema extension.
+2. **question-log.jsonl のスキーマに `phase` フィールドを追加する。** AskUserQuestion ごとに、どのレビューフェーズ(CEO / Design / Eng / DX / other)から来たかを分類する。移行: 既存のエントリは `"unknown"` とする。後方互換の拡張。
 
-3. **Extend registry coverage for dynamic findings.** Two options, pick during CEO review:
-   - (a) Widen `scripts/question-registry.ts` to allow runtime registration (ad-hoc IDs still get logged + classified).
-   - (b) Add a secondary runtime classifier `scripts/finding-classifier.ts` that maps finding text → risk tier using pattern matching.
+3. **動的な指摘のためにレジストリのカバレッジを広げる。** 2つの選択肢。CEO レビューの時点で選ぶ。
+   - (a) `scripts/question-registry.ts` を広げ、実行時の登録を許可する(即席の ID もログに残り、分類される)。
+   - (b) 二次的な実行時の分類器 `scripts/finding-classifier.ts` を追加する。指摘のテキストをパターンマッチでリスクのティアに対応づける。
 
-4. **Move pacing from preamble prose into skill-template control flow.** Update each review skill template to: (i) internally complete the phase, (ii) rank findings with the `gstack-pacing-rank` binary, (iii) emit up to 3 AskUserQuestion prompts, (iv) emit Silent Decisions block with the rest. Not a preamble rule — explicit sequence in each template.
+4. **ペーシングをプリアンブルの散文からスキルテンプレートの制御フローに移す。** 各レビュー系のスキルテンプレートを更新し、次を行う。(i) フェーズを内部で完了させる、(ii) `gstack-pacing-rank` バイナリで指摘を順位付けする、(iii) AskUserQuestion を最大 3 件出す、(iv) 残りを Silent Decisions ブロックとして出す。プリアンブルのルールではなく、各テンプレートに明示的な順序を書く。
 
-5. **Flip mechanism implementation.** New binary `bin/gstack-flip-decision`. Command parser accepts `flip <id>` from user message. Looks up the original decision in pacing-state.json. Re-opens as an explicit AskUserQuestion. New choice persists.
+5. **flip の仕組みを実装する。** 新しいバイナリ `bin/gstack-flip-decision`。ユーザーのメッセージから `flip <id>` を読み取るコマンドパーサー。pacing-state.json から元の決定を探す。それを明示的な AskUserQuestion として開き直す。新しい選択は保存される。
 
-6. **Migration-prompt budget decision.** Explicit rule: one-shot migration prompts are exempt from the per-phase interruption budget. Rationale: they fire before review phases start, not during.
+6. **移行プロンプトの予算に関する決定。** 明示的なルール: 一回限りの移行プロンプトは、フェーズごとの割り込み予算の対象外とする。理由: レビューのフェーズの*前*に発火し、*途中*では発火しないから。
 
-7. **First-run preamble audit.** Audit lake intro, telemetry, proactive, routing injection. For each: is this load-bearing for a first-time user, or deferrable? Likely outcome: suppress all but lake intro until session 2+. Offer remaining ones via a `/plan-tune first-run` command that users can invoke voluntarily.
+7. **初回のプリアンブルの監査。** Lake の紹介、テレメトリ、proactive、ルーティングの注入を監査する。それぞれについて、初めてのユーザーにとって必須か、後回しにできるか。もっとも可能性が高い結論: 2 回目以降のセッションまで、Lake の紹介以外はすべて抑制する。残りは、ユーザーが任意で実行できる `/plan-tune first-run` コマンドで提供する。
 
-8. **Ranking threshold calibration.** Instrument V0's question-log (already running, has history). Measure the actual distribution of `severity × irreversibility × user-decision-matters` across recent CEO + Eng + DX + Design reviews. Pick threshold based on real data. Target: ~20% of findings surface, ~80% auto-accept.
+8. **順位付けの閾値を較正する。** V0 の question-log を計測する(すでに稼働しており、履歴がある)。直近の CEO + Eng + DX + Design のレビューにおける `severity × irreversibility × user-decision-matters` の実際の分布を測る。実データをもとに閾値を選ぶ。目標: 指摘の約 20% が表面化し、約 80% が自動承認される。
 
-9. **Explicit rule: one-way doors uncapped.** Hard-coded in skill template prose: "one-way doors surface regardless of phase interruption budget." Two-way findings cap at 3 per phase.
+9. **明示的なルール: 一方向ドアは上限なし。** スキルテンプレートの散文にハードコードする: 「一方向ドアは、フェーズの割り込み予算に関係なく表面化する」。二方向の指摘は、フェーズあたり 3 件に上限を設ける。
 
-10. **Concrete verification values.** Define `N` for Silent Decisions (e.g., ≥ 5 entries expected for a non-trivial plan), define the throughput JSON schema with concrete field names.
+10. **検証の具体的な値。** Silent Decisions の `N` を定義する(例: 自明でない計画では 5 件以上を想定)。スループット JSON のスキーマを、具体的なフィールド名で定義する。
 
-## Acceptance criteria for V1.1
+## V1.1 の受け入れ基準
 
-- **Interruption count:** Louise (or similar non-technical collaborator) reruns `/autoplan` end-to-end on a plan comparable to V0-baseline. AskUserQuestion count ≤ 50% of V0 baseline. (V1 captures this baseline transcript for V1.1 calibration.)
-- **One-way-door coverage:** 100% of safety-critical decisions (`door_type: one-way` OR classifier-flagged dynamic findings) surface individually at full technical detail. Uncapped.
-- **Flip round-trip:** User types `flip test-coverage-bookclub-form`. The original auto-accepted decision re-opens as an AskUserQuestion. User's new choice persists to the Silent Decisions block (or is removed if user flips to explicit surfacing).
-- **Per-phase observability:** `/plan-tune` can display per-phase AskUserQuestion counts for any session, reading from question-log.jsonl's new `phase` field.
-- **First-run reduction:** New users see ≤ 1 meta-prompt (lake intro) before their first real skill runs, vs. V1's 4 (lake + telemetry + proactive + routing).
-- **Human rerun:** Louise + Garry independent qualitative reviews, same pattern as V1.
+- **割り込みの回数:** Louise(または同様の非技術者の協力者)が、V0 のベースラインに近い計画で `/autoplan` を最初から最後まで再実行する。AskUserQuestion の回数が V0 のベースラインの 50% 以下であること。(V1 が、V1.1 の較正のためにこのベースラインのトランスクリプトを取得する。)
+- **一方向ドアのカバレッジ:** 安全上重要な決定(`door_type: one-way` または分類器が指摘としてフラグを立てたもの)の 100% が、技術的な詳細を完全に示したうえで個別に表面化する。上限はない。
+- **flip の往復:** ユーザーが `flip test-coverage-bookclub-form` と入力する。自動承認された元の決定が AskUserQuestion として開き直される。ユーザーの新しい選択は Silent Decisions ブロックに保存される(ユーザーが明示的な表面化に切り替えた場合は、削除される)。
+- **フェーズごとの可観測性:** `/plan-tune` は、任意のセッションについて、フェーズごとの AskUserQuestion の回数を表示できる。その値は question-log.jsonl の新しい `phase` フィールドから読む。
+- **初回の削減:** 新規ユーザーは、最初の実際のスキルが動く前に見るメタプロンプトが 1 件以下(Lake の紹介のみ)になる。V1 では 4 件(lake + telemetry + proactive + routing)だった。
+- **人によるリラン:** Louise と Garry がそれぞれ独立に定性的なレビューを行う。V1 と同じパターン。
 
-## Dependencies on V1
+## V1 への依存
 
-V1.1 builds on V1's infrastructure:
-- `explain_level` config key + preamble echo pattern (A4).
-- Jargon list + Writing Style section (V1.1's interruption language should respect ELI10 rules).
-- V0 dormancy negative tests (V1.1 won't wake the 5D psychographic machinery either).
-- V1's captured Louise transcript (baseline for acceptance criterion calibration).
+V1.1 は V1 の基盤の上に作られる。
+- `explain_level` の設定キーとプリアンブルのエコーのパターン(A4)。
+- 用語リストと Writing Style のセクション(V1.1 の割り込みの言葉は ELI10 のルールに従うべきである)。
+- V0 の休眠状態の否定テスト(V1.1 は 5D の心理特性の仕組みも目覚めさせない)。
+- V1 で取得した Louise のトランスクリプト(受け入れ基準を較正するためのベースライン)。
 
-V1.1 does NOT depend on any V2 items (E1 substrate wiring, narrative/vibe, etc.).
+V1.1 は、V2 の項目(E1 のサブストレートの配線、ナラティブ/バイブなど)にはいっさい依存しない。
 
-## Review plan
+## レビュー計画
 
-- **Pre-work:** capture real question-log distribution from current V0 data. Use as calibration input for Scope #8.
-- **CEO review.** Premise challenge: is pacing the right fix, or should V1.1 consider removing phases entirely? (E.g., collapse CEO + Design + Eng + DX into a single unified review pass.) Scope mode: SELECTIVE EXPANSION likely (pacing is the core, related improvements are cherry-picks).
-- **Codex review.** Independent pass on the V1.1 plan. Expect particular scrutiny on the control-flow change (Scope #4) since that's the area V1 struggled with.
-- **DX review.** Focus on the flip mechanism's DX — is `flip <id>` discoverable, is the command syntax natural, is the error path clear?
-- **Eng review ×N.** Expect multiple passes, same as V1.
+- **事前作業:** 現在の V0 データから、実際の question-log の分布を取得する。スコープ #8 の較正の入力として使う。
+- **CEO レビュー。** 前提の挑戦: ペーシングが正しい修正か。それとも、フェーズを完全に廃止すべきか。(例: CEO + Design + Eng + DX を一つの統一されたレビューのパスにまとめる。) スコープのモード: おそらく SELECTIVE EXPANSION(ペーシングが中核で、関連する改善は選んで取り入れる)。
+- **Codex レビュー。** V1.1 の計画に対する独立したパス。制御フローの変更(スコープ #4)に特に注意して見る。V1 が苦労したのがその領域だから。
+- **DX レビュー。** flip の仕組みの DX に焦点を当てる。`flip <id>` は見つけやすいか。コマンドの構文は自然か。エラーの経路は分かりやすいか。
+- **Eng レビュー ×N。** V1 と同じく、複数回のパスを想定する。
 
-## NOT touched in V1.1
+## V1.1 では扱わないこと
 
-V2 items remain deferred:
-- Confusion-signal detection
-- 5D psychographic-driven skill adaptation (V0 E1)
-- /plan-tune narrative + /plan-tune vibe (V0 E3)
-- Per-skill or per-topic explain levels
-- Team profiles
-- AST-based "delivered features" metric
+V2 の項目は引き続き延期する。
+- 混乱のシグナルの検出
+- 5D の心理特性に基づくスキルの適応(V0 E1)
+- /plan-tune narrative + /plan-tune vibe(V0 E3)
+- スキルごと、またはトピックごとの説明レベル
+- チームのプロファイル
+- AST ベースの「配送された機能」の指標
 
-## Fold-in from fork port wave 2 (2026-08-14)
+## 2026-08-14 のフォークポート波 2 からの取り込み
 
-The time-attack/gstack fork attacked the same question fatigue from a
-complementary axis: build-scale classification (session/hobby/project/
-product/venture) sizing the machinery, plus CHAIN-WIDE question budgets.
-Approved decision (CEO review 2026-08-14): fold the fork's ACCOUNTING
-judgment into this design round — the budget is chain-scoped (a chained
-review deducts from what's left, never resets), handoffs carry
-questions-already-spent, approval/mutation gates never count against it, and
-the budget is spent on the hardest-to-reverse decisions first. Do NOT adopt
-the fork's 5/8/12 numeric constants — the fork itself later replaced them
-with a zero-default autonomy dial. Scale sizes the machinery and sets the
-budget; pacing (this doc) ranks what the budget is spent on.
+time-attack/gstack のフォークは、同じ疲労の問題に、補完する別の角度から取り組んだ。ビルドの規模の分類(session/hobby/project/product/venture)によって仕組みの大きさを決めること、そして連鎖全体にわたる質問の予算である。
+承認された決定(2026-08-14 の CEO レビュー): フォークの会計の判断をこの設計のラウンドに取り込む。予算は連鎖全体で数える(連鎖されたレビューは、残りから差し引き、リセットされない)。引き継ぎには、すでに使った質問を含める。承認やミューテーションのゲートは予算に数えない。予算は、最も元に戻しにくい決定から先に使う。
+フォークの数値の定数 5/8/12 は採用しない。フォーク自身が後に、デフォルトがゼロの自律性のダイヤルに置き換えたため。規模は仕組みの大きさを決め、予算を定める。ペーシング(この文書)は、予算を何に使うかを順位付けする。

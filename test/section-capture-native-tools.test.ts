@@ -507,15 +507,30 @@ test('section detection credits complete byte-range prints and still refuses a g
   const file = path.resolve(import.meta.dir, '..', 'plan-ceo-review/sections/review-sections.md');
   const content = fs.readFileSync(file, 'utf-8'), bytes = Buffer.from(content);
   const sections = new Map([['review-sections.md', content]]);
-  const chunk = (command: string, from: number, length?: number) => ({ tool: 'Bash', input: { command },
-    output: bytes.subarray(from, length === undefined ? undefined : from + length).toString('utf8') });
-  const calls = [
-    chunk('wc -c plan-ceo-review/sections/review-sections.md && head -c 16000 plan-ceo-review/sections/review-sections.md', 0, 16000),
-    ...[16000, 33000, 50000].map(start => chunk(`tail -c +${start} plan-ceo-review/sections/review-sections.md | head -c 17000`, start - 1, 17000)),
-    chunk('tail -c +67000 plan-ceo-review/sections/review-sections.md', 66999),
-  ];
+  // Byte-range prints with a one-character overlap. Edges sit on UTF-8 character boundaries
+  // (a mid-character cut yields U+FFFD, which no overlap logic could match) and the chunk
+  // starts are derived from the byte length because the generated section size varies by locale.
+  // The overlap character is a lone ASCII byte that differs from its successor, so the detector's
+  // longest-suffix overlap search cannot mistake a run of repeats for a longer overlap.
+  const alignUp = (i: number) => {
+    while (i < bytes.length && ((bytes[i]! & 0xc0) === 0x80 || bytes[i - 1]! >= 0x80 || bytes[i - 1] === bytes[i])) i++;
+    return i;
+  };
+  const alignDown = (i: number) => { while (i > 0 && (bytes[i]! & 0xc0) === 0x80) i--; return i; };
+  const bounds = [0];
+  for (let at = 16000; at < bytes.length; at += 17000) bounds.push(alignUp(at));
+  bounds.push(bytes.length);
+  const file1 = 'plan-ceo-review/sections/review-sections.md';
+  const calls = bounds.slice(0, -1).map((from, i) => {
+    const command = i === 0 ? `wc -c ${file1} && head -c 16000 ${file1}`
+      : i === bounds.length - 2 ? `tail -c +${from} ${file1}` : `tail -c +${from} ${file1} | head -c 17000`;
+    const start = i === 0 ? 0 : alignDown(from - 1);
+    return { tool: 'Bash', input: { command }, output: bytes.subarray(start, bounds[i + 1]).toString('utf8') };
+  });
+  const middle = calls.slice(1, -1);
   const read = (list: typeof calls) => [...detectSectionReads(list, sections)];
   expect(bytes.length).toBeGreaterThan(67000);
+  expect(middle.length).toBeGreaterThanOrEqual(3);
   expect(read(calls)).toEqual(['review-sections.md']);
   expect(read(calls.filter((_, i) => i !== 2))).toEqual([]);
   expect(read(calls.slice(0, -1))).toEqual([]);

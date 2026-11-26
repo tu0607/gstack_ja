@@ -8,19 +8,19 @@
       "id": "phase-2a-startup-diagnostic",
       "file": "phase-2a-startup-diagnostic.md",
       "title": "Phase 2A startup-mode diagnostic",
-      "trigger": "running the startup-mode diagnostic (Phase 2A: operating principles, pushback patterns, and the six forcing questions)"
+      "trigger": "スタートアップモードの診断(Phase 2A: 運用原則、反論のパターン、6 つの強制質問)の実行"
     },
     {
       "id": "phase-2b-builder-brainstorm",
       "file": "phase-2b-builder-brainstorm.md",
       "title": "Phase 2B builder-mode brainstorm",
-      "trigger": "giving any builder-mode response (Phase 2B: brainstorm questions and every suggestion, adjacent unlock or riff; holds the operating principles, the wild exemplar, the response posture and the generative questions)"
+      "trigger": "ビルダーモードの応答(Phase 2B: ブレインストーミングの質問とすべての提案、隣接する解放やリフ。運用原則、野心的な模範例、応答の姿勢、発想を促す質問を含む)"
     },
     {
       "id": "design-and-handoff",
       "file": "design-and-handoff.md",
       "title": "Phase 5 design doc + Phase 6 relationship handoff",
-      "trigger": "writing the design doc and running the tiered relationship handoff (Phases 5-6, after the conversation and alternatives are done)"
+      "trigger": "デザインドキュメントの作成と段階的なリレーションシップのハンドオフの実行(Phases 5-6。対話と代替案の検討が終わった後)"
     }
   ]
 }

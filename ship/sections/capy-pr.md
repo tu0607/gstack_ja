@@ -1,42 +1,21 @@
 <!-- AUTO-GENERATED from capy-pr.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Step 19-C: Capy PR body (What changed, Why, Approvals)
+## Step 19-C: Capy の PR 本文(何が変わったか、理由、承認)
 
-Read only when Step 19 printed `CAPY_PR: on`. Under Capy a person decides the merge from the PR and
-the READY report, through a Captain, so the body shows what changed in pictures, why, and who
-approved what. Guide: `captain.md` beside the Capy `gstack` skill's SKILL.md.
+Step 19 が `CAPY_PR: on` を出力した場合にのみ読みます。Capy では、人が Captain を通じて、PR と READY のレポートからマージを判断します。そのため本文は、何が変わったかを画像で示し、理由と、誰が何を承認したかを示します。ガイドは Capy の `gstack` スキルの SKILL.md と同じ場所にある `captain.md` です。
 
-**Order.** The `gstack-ship-receipt` block stays first when Step 19 writes one. Then `## What changed`,
-`## Why` and `## Approvals`, then the standard sections below. Keep `## Summary` to commit themes;
-do not repeat the captions.
+**順序。** Step 19 が `gstack-ship-receipt` のブロックを書く場合は、それを最初に置きます。その後に `## What changed`、`## Why`、`## Approvals` を続け、そのあとに下の標準のセクションを置きます。`## Summary` はコミットのテーマだけにとどめ、キャプションを繰り返さないでください。
 
-1. **Pick the evidence:** one to three before/after pairs, highest-signal first. The first is the
-   key image.
-   - UI change: screenshot the changed screen at the base and on this branch with the browse
-     flow, or your host's browser, at the same size.
-   - Skill or prompt change: `~/.claude/skills/gstack/bin/gstack-pr-shots --path <template or SKILL.md> --heading "<changed section>" --caption "<what changed and why>"`.
-   - CLI change: save the output of a command this ship already runs, at the base and on this
-     branch, to files inside the repository (`.gstack/tmp/before.txt`, `.gstack/tmp/after.txt`), then
-     `~/.claude/skills/gstack/bin/gstack-pr-shots --before <file> --after <file> --kind terminal --caption "<…>"`.
-     Never run a command with side effects just to make a picture.
-   - No visible surface: picture the source section or test output that best shows the change.
-   `gstack-pr-shots` refuses inputs that match the secret scanner (`PR_SHOTS_INPUT_REFUSED`). Remove
-   the secret from the capture; never work around the refusal.
-2. **Read `SHOT_PNG:`.** A path: use it. `unavailable (…)`: screenshot the printed `shot.html` with your
-   own browser at 880 px wide and use that PNG. `failed (…)`: use the text version only.
-3. **Upload.** Only for a public repository (`gh repo view --json visibility -q .visibility` prints
-   `PUBLIC`). A private repository gets the text version, unless the person approved images for it
-   (record that with `gstack-approvals add`). Upload each PNG with Capy's PR asset tool
-   (`tools.pr.uploadAsset`). Embed exactly the URL it returns, with the caption as alt text:
-   `![<caption>](<url>)` (a returned bare video URL stays on its own line). If an upload fails,
-   retry once, and only for a transient error. Otherwise use the text version and write
-   `image upload failed: <reason>` under the caption. Never block publication on an image.
-4. **Under every image:** a one-line caption saying what changed and why, then the contents of the
-   printed `text.md` (a collapsed text before/after, for readers who cannot see the image and for search).
-5. **`## Why`:** two or three sentences covering the cause (issue, failed run, or the person's request,
-   quoted) and the effect the user will see.
-6. **`## Approvals`:** the output of `~/.claude/skills/gstack/bin/gstack-approvals render`, verbatim. It
-   escapes its cells, and the receipt never reads it as an approval citation. On
-   `APPROVAL_RECORD_UNAVAILABLE` keep its text and say so in the READY report. Never type rows by hand.
-7. **READY report:** attach the key image's PNG to the report you send (Capy's message
-   attachments) and give its uploaded URL, so the Captain can show it inline.
+1. **証拠を選ぶ:** 変更前後のペアを 1〜3 組、シグナルの強いものから順に選びます。最初のものが主要な画像です。
+   - UI の変更: 変更された画面を、ベースとこのブランチの両方で、browse のフローまたはホストのブラウザを使い、同じサイズでスクリーンショットを撮ります。
+   - スキルまたはプロンプトの変更: `~/.claude/skills/gstack/bin/gstack-pr-shots --path <template or SKILL.md> --heading "<changed section>" --caption "<what changed and why>"`。
+   - CLI の変更: この Ship がすでに実行しているコマンドの出力を、ベースとこのブランチの両方で、リポジトリ内のファイル(`.gstack/tmp/before.txt`、`.gstack/tmp/after.txt`)に保存します。その後、`~/.claude/skills/gstack/bin/gstack-pr-shots --before <file> --after <file> --kind terminal --caption "<…>"` を実行します。
+     画像を作るためだけに、副作用のあるコマンドを実行しないでください。
+   - 目に見える表示面がない場合: 変更を最もよく示すソースのセクションまたはテスト出力を画像にします。
+   `gstack-pr-shots` は、シークレットスキャナに一致する入力を拒否します(`PR_SHOTS_INPUT_REFUSED`)。キャプチャからシークレットを取り除いてください。拒否を回避しようとしないでください。
+2. **`SHOT_PNG:` を読む。** パスの場合: それを使います。`unavailable (…)` の場合: 出力された `shot.html` を、自分のブラウザで幅 880 px としてスクリーンショットを撮り、その PNG を使います。`failed (…)` の場合: テキスト版だけを使います。
+3. **アップロード。** 公開リポジトリの場合に限ります(`gh repo view --json visibility -q .visibility` が `PUBLIC` を出力する場合)。非公開リポジトリは、本人が画像を承認している場合を除き、テキスト版にします(その記録は `gstack-approvals add` で行います)。各 PNG を Capy の PR アセットツール(`tools.pr.uploadAsset`)でアップロードします。返された URL をそのまま埋め込み、キャプションを代替テキストにします: `![<caption>](<url>)`(返されたビデオの裸の URL は、独立した行に置きます)。アップロードが失敗した場合は、一時的なエラーの場合に限り、一度だけ再試行します。それ以外の場合は、テキスト版を使い、キャプションの下に `image upload failed: <reason>` と書きます。画像を理由に公開をブロックしないでください。
+4. **画像の下すべて:** 何が変わったか、なぜかを 1 行のキャプションで書き、その後に出力された `text.md` の内容を置きます(画像を見られない読み手や検索のための、折りたたまれたテキストの前後比較です)。
+5. **`## Why`:** 原因(Issue、失敗した実行、または本人の依頼を引用したもの)と、ユーザーが見る効果を、2〜3 文で書きます。
+6. **`## Approvals`:** `~/.claude/skills/gstack/bin/gstack-approvals render` の出力を、そのまま書きます。このコマンドはセルをエスケープし、レシートがそれを承認の引用として読むことは決してありません。`APPROVAL_RECORD_UNAVAILABLE` の場合は、その文章を残し、READY のレポートでそのことを伝えます。行は決して手で入力しないでください。
+7. **READY のレポート:** 主要な画像の PNG を、送信するレポートに添付し(Capy のメッセージの添付)、そのアップロードした URL を示します。Captain がインラインで表示できるようにするためです。

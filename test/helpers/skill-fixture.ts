@@ -39,30 +39,30 @@ import * as path from 'path';
 /** /review E2E (sql-injection, enum-completeness, design-lite): the core
  *  review workflow without the shared preamble, Review Army, or Fix-First. */
 export const REVIEW_E2E_SECTIONS = [
-  'Step 0: Detect platform and base branch',
-  'Step 1: Check branch',
-  'Step 2: Read the checklist',
-  'Step 2.5: Check for Greptile review comments',
-  'Step 3: Get the diff',
-  'Step 4: Critical pass (core review)',
+  'Step 0: プラットフォームとベースブランチを検出する',
+  'Step 1: ブランチの確認',
+  'Step 2: チェックリストの読み込み',
+  'Step 2.5: Greptile のレビューコメントの確認',
+  'Step 3: 差分の取得',
+  'Step 4: 重大な問題のパス',
   'Confidence Calibration',
-  'Important Rules',
+  '重要なルール',
 ];
 
 /** Review Army E2E: core workflow + Scope Drift / Plan Completion Audit
  *  (delivery-audit test) + Step 4.5 specialist dispatch (quality score,
  *  JSON findings schema, MULTI-SPECIALIST consensus, Red Team). */
 export const REVIEW_ARMY_E2E_SECTIONS = [
-  'Step 0: Detect platform and base branch',
-  'Step 1: Check branch',
+  'Step 0: プラットフォームとベースブランチを検出する',
+  'Step 1: ブランチの確認',
   'Step 1.5: Scope Drift Detection',
-  'Step 2: Read the checklist',
-  'Step 2.5: Check for Greptile review comments',
-  'Step 3: Get the diff',
-  'Step 4: Critical pass (core review)',
+  'Step 2: チェックリストの読み込み',
+  'Step 2.5: Greptile のレビューコメントの確認',
+  'Step 3: 差分の取得',
+  'Step 4: 重大な問題のパス',
   'Confidence Calibration',
   'Step 4.5: Review Army — Specialist Dispatch',
-  'Important Rules',
+  '重要なルール',
 ];
 
 /** /retro E2E (retro, retro-base-branch): the repo-scoped retro flow
@@ -70,13 +70,13 @@ export const REVIEW_ARMY_E2E_SECTIONS = [
  *  + the narrative report template. Global mode and Compare mode are not
  *  exercised by the E2E tests and are dropped. */
 export const RETRO_E2E_SECTIONS = [
-  'Step 0: Detect platform and base branch',
-  'User-invocable',
-  'Arguments',
-  'Instructions',
+  'Step 0: プラットフォームとベースブランチを検出する',
+  'ユーザー呼び出し',
+  '引数',
+  '手順',
   'Prior Learnings',
   'Capture Learnings',
-  'Engineering Retro: [date range]',
+  'エンジニアリング振り返り: [日付範囲]',
   'Tone',
   'Important Rules',
 ];
@@ -85,21 +85,23 @@ export const RETRO_E2E_SECTIONS = [
  *  (.agents/skills/gstack-review/SKILL.md). Same core workflow as
  *  REVIEW_E2E_SECTIONS. */
 export const CODEX_REVIEW_E2E_SECTIONS = [
-  'Step 0: Detect platform and base branch',
-  'Step 1: Check branch',
-  'Step 2: Read the checklist',
-  'Step 3: Get the diff',
-  'Step 4: Critical pass (core review)',
+  'Step 0: プラットフォームとベースブランチを検出する',
+  'Step 1: ブランチの確認',
+  'Step 2: チェックリストの読み込み',
+  'Step 3: 差分の取得',
+  'Step 4: 重大な問題のパス',
   'Confidence Calibration',
-  'Important Rules',
+  '重要なルール',
 ];
 
 // ─── Parsing internals ──────────────────────────────────────────────────────
 
 /** First/last H2 headings of the shared preamble block that gen-skill-docs
  *  emits into every tier >= 2 skill. extractSkillBody drops this range. */
-const SHARED_PREAMBLE_FIRST = ['Preamble (run first)', 'Preamble (after scope gate)'];
+// 日本語版は英語トークンの直後に全角括弧の日本語を続ける(合成フィクスチャは英語のまま)。両方を受理する。
+const SHARED_PREAMBLE_FIRST = ['Preamble (run first)', 'Preamble (after scope gate)', 'Preamble (run first)(プリアンブル。最初に実行)', 'Preamble (after scope gate)(プリアンブル。スコープゲートの後)'];
 const SHARED_PREAMBLE_LAST = 'Plan Status Footer';
+const SHARED_PREAMBLE_LAST_NAMES = [SHARED_PREAMBLE_LAST, 'Plan Status Footer(プランの状態のフッター)'];
 
 interface H2Section {
   heading: string;
@@ -167,8 +169,8 @@ function scanH2Sections(bodyLines: string[], stopAtH1 = false): H2Section[] {
     if (!fence) {
       const heading = line.startsWith('## ');
       const title = stopAtH1 && /^ {0,3}#(?:[ \t]|$)/.test(line);
-      let carvedStep = /^> \*\*STOP\.\*\* Before .+, Read `[^`]+\/sections\/[^`]+\.md` and execute it$/.test(line)
-        && bodyLines[i + 1] === '> in full. Do not work from memory — that section is the source of truth for this step.';
+      let carvedStep = /^> \*\*STOP\.\*\* .+の前に、Read `[^`]+\/sections\/[^`]+\.md` を全文読んで実行してください。$/.test(line)
+        && bodyLines[i + 1] === '> 記憶から作業しないこと。このステップの正はそのセクションです。';
       if (carvedStep) {
         let preceding = i - 1;
         while (preceding >= 0 && !bodyLines[preceding].trim()) preceding--;
@@ -246,7 +248,7 @@ export function extractSkillBody(skillDir: string): string {
     return matches[0];
   };
   const first = boundary(SHARED_PREAMBLE_FIRST);
-  const last = boundary([SHARED_PREAMBLE_LAST]);
+  const last = boundary(SHARED_PREAMBLE_LAST_NAMES);
   if (first.start >= last.start) {
     throw new Error(`skill-fixture: "## ${SHARED_PREAMBLE_LAST}" precedes the preamble in ${file}.`);
   }
@@ -286,11 +288,13 @@ export function sliceBetween(text: string, start: string, end: string): string {
 }
 
 export function extractDesignResearchContract(skill: string): string {
-  const setup = sliceBetween(skill, '## BROWSER SETUP', '### Rules for driving a real browser');
+  // English headings first; the Japanese fork renders the same sections under translated headings.
+  const pick = (text: string, ...markers: string[]): string => markers.find(m => text.includes(m)) ?? markers[0]!;
+  const setup = sliceBetween(skill, '## BROWSER SETUP', pick(skill, '### Rules for driving a real browser', '### 実際のブラウザを操作するためのルール'));
   const probe = setup.match(/```bash\n[\s\S]*?\n```/)?.[0];
   if (!probe) throw new Error('skill fixture: design research readiness probe missing');
-  const routing = sliceBetween(skill, '## Web research runs in Aside', '## Phase 2: Research');
-  const search = sliceBetween(skill, '**Step 1: Identify', '**Step 2: Visual research');
+  const routing = sliceBetween(skill, '## Web research runs in Aside', pick(skill, '## Phase 2: Research', '## Phase 2: 調査'));
+  const search = sliceBetween(skill, pick(skill, '**Step 1: Identify', '**Step 1: Aside で'), pick(skill, '**Step 2: Visual research', '**Step 2: 視覚的な調査'));
   const prelude = search.match(/^_EG=.*_aside_exec\(\).*$/m)?.[0];
   if (!prelude) throw new Error('skill fixture: design research egress prelude missing');
   return ['Run this readiness probe once before research:', probe, routing,

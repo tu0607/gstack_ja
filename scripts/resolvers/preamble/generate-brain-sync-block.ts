@@ -18,17 +18,15 @@ import type { TemplateContext } from '../types';
 
 export function generateBrainSyncBlock(ctx: TemplateContext): string {
   const isBrainHost = ctx.host === 'gbrain' || ctx.host === 'hermes';
-  return `## Artifacts Sync (skill start)
+  return `## Artifacts Sync (skill start)(アーティファクトの同期。スキル開始時)
 
-Skill-start already ran artifacts sync. GBrain hint text (if any) says
-when to prefer \`gbrain\` over Grep. \`ARTIFACTS_SYNC:\` reports sync health
-(\`off\`, \`mode=... | queue=N\`, \`remote-mode\`, or a \`gstack-brain-restore\`
-hint). On an \`attention:\` line, tell the user in one sentence what
-it says and the command it names, then continue.
+スキル開始時に artifacts sync は実行済みです。GBrain のヒントテキスト(あれば)は、
+Grep より \`gbrain\` を優先すべき場面を示します。\`ARTIFACTS_SYNC:\` は同期の状態を報告します
+(\`off\`、\`mode=... | queue=N\`、\`remote-mode\`、または \`gstack-brain-restore\`
+のヒント)。\`attention:\` 行があれば、その内容と挙げられたコマンドを 1 文でユーザーに伝え、続行します。
 
-${isBrainHost ? `If output shows \`ARTIFACTS_SYNC: artifacts repo detected\`, offer \`gstack-brain-restore\` via AskUserQuestion; otherwise continue.
+${isBrainHost ? `出力に \`ARTIFACTS_SYNC: artifacts repo detected\` が含まれる場合は、AskUserQuestion で \`gstack-brain-restore\` を提案します。含まれない場合は続行します。
 
-` : ''}The one-time privacy stop-gate arrives as a \`GSTACK_INSTRUCTION\` block
-from skill-start when consent is pending; fire it via AskUserQuestion
-exactly as instructed.`;
+` : ''}一度きりのプライバシー確認ゲートは、同意が未取得のときにスキル開始時の\`GSTACK_INSTRUCTION\` ブロックとして届きます。
+指示のとおりに AskUserQuestion で発火させます。`;
 }

@@ -1,4 +1,3 @@
 {{INHERIT:gpt}}
 
-Prefer decisive execution once scope is clear. Keep frontier-model reasoning focused on
-the user's requested change and stop after the implementation is verified.
+スコープが明確になったら、迷わず実行することを優先してください。フロンティアモデルの推論は、ユーザーが求めた変更に集中させ、実装を検証したら停止してください。

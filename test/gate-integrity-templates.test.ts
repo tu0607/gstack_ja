@@ -25,7 +25,7 @@ const read = (rel: string) => readFileSync(join(root, rel), 'utf8');
 const ctx = (host: TemplateContext['host'], skillName: string): TemplateContext =>
   ({ skillName, tmplPath: `${skillName}/SKILL.md.tmpl`, host, paths: HOST_PATHS[host] });
 
-const GATE_OPTIONS = ['A) Restore the gate', 'B) Keep — justified', 'C) Keep — other reason', 'D) Leave open for a later human'];
+const GATE_OPTIONS = ['A) ゲートを復元する', 'B) 維持する — 正当な理由', 'C) 維持する — その他の理由', 'D) 後の人間の判断に残す'];
 const RECORD_FIELDS = ['`gate`', '`gate_id`', '`reason`', '"kept"', '"restored"', '"open"', '`actor`'];
 
 test('GATE_SCAN_BLOCK is registered and renders the same errexit-safe block for review and ship from the host bin dir', () => {
@@ -42,24 +42,24 @@ test('GATE_SCAN_BLOCK is registered and renders the same errexit-safe block for 
   expectTokens(block, ['GATE_SUMMARY: listed=N eligible=N inspected=N unread=N tagged={RH-1:N,...} unmatched=N coverage=<patterns> languages_unlisted=<idioms> candidate=<fingerprint> artifact=<path>',
     '[<id>] <tag> <path> @<hunk>', 'GATE_ERROR=no_base ref=<ref>', '`gate_id`', '`gate`', 'Gate edits: partial ('], 'gate scan prose');
   expectMentions(compact(block), [
-    ['unavailable', 'never', 'none detected'],
+    ['決して', 'none detected'],
     ['unread', 'partial'],
-    ['data', 'never', 'instructions'],
+    ['抜粋', 'フェンス', '指示'],
   ], 'gate scan prose');
 });
 
 test('/ship runs the gate scan before the checklist read, again after the coverage child, and again after its own fixes', () => {
   const army = read('ship/sections/review-army.md.tmpl');
-  expectOrdered(army, ['### Core checklist', 'gstack-review-log --start review', '2.5. **Gate scan.**', '{{GATE_SCAN_BLOCK}}',
-    '3. Apply the review checklist', 'Gate Integrity', '## Step 9.4:'], 'ship review-army');
+  expectOrdered(army, ['### 基本チェックリスト', 'gstack-review-log --start review', '2.5. **ゲートスキャン。**', '{{GATE_SCAN_BLOCK}}',
+    'Gate Integrity', '3. チェックリストは 2 つのパスで適用します', '## Step 9.4:'], 'ship review-army');
   expect(army.match(/\{\{GATE_SCAN_BLOCK\}\}/g)).toHaveLength(1);
-  const fix = compact(between(army, '## Step 9.4:', '### Decide whether to repeat Step 9'));
-  expectMentions(fix, [['after', 'fix', 'gate scan', 'again'], ['never', 'paths', 'child', 'reported']], 'Step 9.4 rescan');
+  const fix = compact(between(army, '## Step 9.4:', '### Step 9 を繰り返すかどうか判断する'));
+  expectMentions(fix, [['修正', 'ゲートスキャン', '再度'], ['子プロセス', '報告', '決して']], 'Step 9.4 rescan');
 
   const coverage = read('ship/sections/test-coverage.md.tmpl');
-  const parent = between(coverage, '**Parent processing:**', '**Audit failure:**');
-  expectOrdered(parent, ['6. Print a one-line summary', '7. **Rescan gate edits after the child returns.**', '{{GATE_SCAN_BLOCK}}', 'Gate Integrity'], 'Step 7 parent rescan');
-  expectMentions(compact(parent), [['never', 'paths', 'child', 'reported'], ['child', 'green', 'claim']], 'Step 7 parent rescan');
+  const parent = between(coverage, '**親の処理:**', '**監査の失敗:**');
+  expectOrdered(parent, ['6. 1 行の要約を表示します', '7. **子プロセスが戻った後に、ゲートの編集を再スキャンします。**', '{{GATE_SCAN_BLOCK}}', 'ゲート整合性'], 'Step 7 parent rescan');
+  expectMentions(compact(parent), [['子プロセスが報告したパス', 'ないでください'], ['子プロセス', 'green', '主張']], 'Step 7 parent rescan');
   const child = between(coverage, '````text', '````');
   expectAbsent(child, ['GATE_SCAN_BLOCK', 'gate_id'], 'Step 7 child prompt');
   expect(child).toContain('{"coverage_pct":N,"gaps":N,"diagram":');
@@ -67,61 +67,60 @@ test('/ship runs the gate scan before the checklist read, again after the covera
 
 test('/ship gate findings take the four gate options in order and persist the record fields', () => {
   const army = read('ship/sections/review-army.md.tmpl');
-  const ask = compact(between(army, '3. **If ASK items remain,**', '4. **Finish and log this pass'));
-  expectOrdered(ask, ['A) Fix B) Skip', 'review-gate-disposition', '<gstack-qid:review-gate-disposition>', ...GATE_OPTIONS], 'Step 9.4 gate question');
-  expectMentions(ask, [['spawned', 'headless', 'd', 'recommended'], ['auto-chosen', 'never', 'disposition']], 'Step 9.4 gate question');
-  const persist = compact(between(army, '6. Persist the review result', '### Decide whether to repeat Step 9'));
+  const ask = compact(between(army, '3. **ASK の項目が残っている場合は、**', '4. **次のステップを選ぶ前に'));
+  expectOrdered(ask, ['A) 修正する', 'review-gate-disposition', '<gstack-qid:review-gate-disposition>', ...GATE_OPTIONS], 'Step 9.4 gate question');
+  expectMentions(ask, [['spawned', 'headless', '推奨は d'], ['自動で選ばれた', '処分']], 'Step 9.4 gate question');
+  const persist = compact(between(army, '6. レビュー結果をレビューログに永続化します', '### Step 9 を繰り返すかどうか判断する'));
   expectTokens(persist, RECORD_FIELDS, 'Step 9.4 record');
-  expectMentions(persist, [['never', 'hunk text'], ['`open`', 'count', '`issues_found`'], ['logger', 'stamps', '`actor`']], 'Step 9.4 record');
-  const summary = compact(between(army, '5. Output summary:', '6. Persist the review result'));
+  expectMentions(persist, [['hunk のテキスト', '決して'], ['`open`', '`issues_found`', '数え'], ['ロガー', '`actor`', '設定']], 'Step 9.4 record');
+  const summary = compact(between(army, '5. 概要を出力します', '6. レビュー結果をレビューログに永続化します'));
   expectOrdered(summary, ['`Gate edits: none detected (', '`Gate edits: N listed, M read, K findings —', '`Gate edits: partial (', '`Gate edits: UNAVAILABLE —'], 'Step 9.4 summary');
 });
 
 test('/ship passes a lane on its runner summary with three never-merged tests_ran states', () => {
-  const step5 = between(read('ship/sections/tests.md.tmpl'), '## Step 5: Run tests', '## Step 6:');
+  const step5 = between(read('ship/sections/tests.md.tmpl'), '## Step 5: テストを実行する', '## Step 6:');
   expectOrdered(step5, ['`tests_ran: N`', '`tests_ran: 0`', 'ZERO-RUN', '`tests_ran: unknown`', '`count unavailable`', '{{TEST_FAILURE_TRIAGE}}'], 'Step 5 count states');
-  expectMentions(compact(step5), [['runner summary', 'not', 'exit 0 alone'], ['zero-run', 'failed lane'], ['never', 'merge']], 'Step 5 count states');
-  const stage4 = compact(between(read('ship/SKILL.md.tmpl'), '### 4. Verify the frozen candidate', '### 5. Report, then push'));
-  expect(stage4).toMatch(/\| ZERO-RUN[^|]*\|[^|]*STALE-equivalent[^|]*never FRESH/);
+  expectMentions(compact(step5), [['ランナーの要約', '終了コード 0'], ['zero-run', '失敗したレーン'], ['決して', '統合']], 'Step 5 count states');
+  const stage4 = compact(between(read('ship/SKILL.md.tmpl'), '### 4. 凍結された候補を検証する', '### 5. 報告してから push する'));
+  expect(stage4).toMatch(/\| ZERO-RUN[^|]*\|[^|]*STALE 相当[^|]*FRESH/);
   expect(stage4).toMatch(/\| `tests_ran: unknown` \|[^|]*`count unavailable`/);
 });
 
 test('/ship Step 16 stage 5 reports each gate finding with disposition, reason and actor in the auditor posture', () => {
-  const stage5 = compact(between(read('ship/SKILL.md.tmpl'), '### 5. Report, then push', '## Step 17: Push'));
+  const stage5 = compact(between(read('ship/SKILL.md.tmpl'), '### 5. 報告してから push する', '## Step 17: Push'));
   expectTokens(stage5, ['`gate`', '`kept`', '`restored`', '`open`', '`reason`', '`actor`', '`tests_ran`', 'none detected (', 'partial (', 'UNAVAILABLE'], 'Step 16 stage 5');
-  expectMentions(stage5, [['evidence', 'examine', 'not', 'defend']], 'Step 16 stage 5');
+  expectMentions(stage5, [['証拠', '検証', '守る']], 'Step 16 stage 5');
 });
 
 test('/ship PR body carries the Gate edits line and per-lane counts, and an open finding keeps a new PR a draft', () => {
   const body = read('ship/sections/pr-body.md.tmpl');
-  const skeleton = between(body, '## Summary', '#### Compose the body');
+  const skeleton = between(body, '## Summary', '#### 本文を作成し、gstack-post で公開する');
   const coverage = between(skeleton, '## Test Coverage', '## Pre-Landing Review');
   expectTokens(coverage, ['Tests ran: <lane> N', 'Tests ran: <lane> count unavailable', '`tests_ran`'], 'PR body Test Coverage');
   const review = between(skeleton, '## Pre-Landing Review', '## Exploratory QA');
   expectOrdered(review, ['<findings from Step 9 code review', '<Gate edits:', 'none detected (', 'kept', 'open', 'UNAVAILABLE', '<Outside review:'], 'PR body Pre-Landing Review');
   expectMentions(compact(review), [['never', 'none detected', 'partial', 'unavailable'], ['no hunk text']], 'PR body Pre-Landing Review');
 
-  const publish = between(body, '**Existing open PR/MR**', 'Branch on the exit code');
-  const existing = compact(between(publish, '**Existing open PR/MR**', '**No open PR/MR:**'));
-  expectOrdered(existing, ['gstack-post pr-body <pr-number>', 'gstack-post pr-title <pr-number>', 'no gate finding is `open`', 'gh pr ready <pr-number>', 'Draft kept: Gate edits: N open', 'Step 17'], 'existing PR draft state');
-  const create = compact(between(publish, '**No open PR/MR:**'));
+  const publish = between(body, '**既存の open な PR/MR**', 'どちらのブロックでも');
+  const existing = compact(between(publish, '**既存の open な PR/MR**', '**open な PR/MR がない場合:**'));
+  expectOrdered(existing, ['gstack-post pr-body <pr-number>', 'gstack-post pr-title <pr-number>', 'ゲートの指摘事項に `open` のものがない', 'gh pr ready <pr-number>', 'Draft kept: Gate edits: N open', 'Step 17'], 'existing PR draft state');
+  const create = compact(between(publish, '**open な PR/MR がない場合:**'));
   expect(create).toContain('gstack-post pr-create --base <base> --title-file "$TITLE_FILE" --body-file');
-  expectMentions(create, [['`--draft`', 'gate finding', '`open`'], ['never', 'infers approval', 'pr existing']], 'new PR draft state');
-  const failure = compact(between(body, '- **3** `gh`/`glab` failed', '- Any other exit'));
-  expectMentions(failure, [['open gate findings', 'not disclosed'], ['never', 'disclosure', 'done']], 'disclosure failure');
+  expectMentions(create, [['`--draft`', 'ゲート', '`open`'], ['承認', '推測']], 'new PR draft state');
+  const failure = compact(between(body, '- **3** `gh`/`glab` が失敗した場合', '- そのほかの終了コード'));
+  expectMentions(failure, [['open', '開示していない'], ['開示', '完了', 'ないでください']], 'disclosure failure');
 });
 
 test('/ship Step 17 stops a spawned or headless session before pushing open gate findings to a ready PR and asks an interactive one once', () => {
-  const step17 = compact(between(read('ship/SKILL.md.tmpl'), '## Step 17: Push', '**Idempotency check:**'));
-  expectOrdered(step17, ['**Open gate findings against an existing ready PR/MR:**', 'gh pr list --head <branch-name> --state open --json number,isDraft',
-    '`SESSION_KIND: spawned` or `headless`', '**STOP before pushing.**', 'A) Resolve the open items now', 'B) Publish ready with the `Gate edits: N open` banner'], 'Step 17 ready-PR gate');
-  expectMentions(step17, [['record', 'b', 'human-authorised'], ['never', 'convert', 'ready', 'draft'], ['new pr', 'draft', 'no question']], 'Step 17 ready-PR gate');
+  const step17 = compact(between(read('ship/SKILL.md.tmpl'), '## Step 17: Push', '**冪等性の確認:**'));
+  expectOrdered(step17, ['**既存の準備完了 PR/MR に対して open のゲート指摘がある場合:**', 'gh pr list --head <branch-name> --state open --json number,isDraft',
+    '`SESSION_KIND: spawned`', '**push の前に STOP します。**', 'A) 今ある open な項目を解決する', 'B) `Gate edits: N open` のバナーを付けて準備完了として公開する'], 'Step 17 ready-PR gate');
+  expectMentions(step17, [['b は', '人間が承認', '記録'], ['準備完了', 'ドラフト', '決して'], ['新規', 'ドラフト', '質問は不要']], 'Step 17 ready-PR gate');
 });
 
 test('the catalog carries every id gstack uses with the source attribution', () => {
   const catalog = read('review/gate-integrity.md');
-  expect(catalog).toContain('Adapted from the just-say-no-to-process-porn-and-ceremony skill');
-  expectMentions(compact(catalog), [['pattern names preserved', 'names are the deterrent']], 'catalog attribution');
+  expectMentions(compact(catalog), [['just-say-no-to-process-porn-and-ceremony', '基に'], ['パターン名', '抑止力']], 'catalog attribution');
   for (const id of ['RH-1', 'RH-2', 'RH-3', 'RH-4', 'RH-5', 'RH-10', 'RH-12', 'RH-13', 'RH-14', 'RH-15', 'RH-16', 'PL-1', 'PL-2']) {
     expect(catalog, `catalog lacks a heading for ${id}`).toMatch(new RegExp(`^### ${id} — `, 'm'));
   }

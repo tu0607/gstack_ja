@@ -3,12 +3,12 @@ name: diagram
 preamble-tier: 1
 version: 1.0.0
 description: |
-  Turn an English description (or mermaid source) into a diagram triplet:
-  the source, an editable .excalidraw file you can open on excalidraw.com,
-  and rendered SVG + PNG. The SVG/PNG use clean mermaid style; the
-  .excalidraw carries the hand-drawn aesthetic. Fully offline.
-  Use when asked to "make a diagram", "draw the architecture", "create a
-  flowchart", "diagram this", or "visualize this flow". (gstack)
+  英語の説明 (または mermaid のソース) を、図の 3 点セットに変換します。
+  ソース、excalidraw.com で開ける編集可能な .excalidraw ファイル、
+  レンダリングされた SVG + PNG です。SVG/PNG はすっきりした mermaid のスタイル、
+  .excalidraw は手描きの雰囲気を持ちます。完全にオフラインで動作します。
+  "make a diagram"、"draw the architecture"、"create a flowchart"、"diagram this"、
+  "visualize this flow" と言われたときに使います。(gstack)
 allowed-tools:
   - Bash
   - Read
@@ -25,51 +25,42 @@ triggers:
 
 {{PREAMBLE}}
 
-# /diagram — English in, editable diagram out
+# /diagram — 英語を入力し、編集可能な図を出力する
 
-Every run emits a **triplet**, never a dead pixel dump:
+毎回の実行では、ピクセルだけのダンプではなく、必ず**3 点セット**を出力します:
 
-| Artifact | What it's for |
+| アーティファクト | 用途 |
 |---|---|
-| `<slug>.mmd` | the mermaid source — the LLM-friendly interchange format |
-| `<slug>.excalidraw` | editable scene — open it at excalidraw.com, move a box, keep working |
-| `<slug>.svg` + `<slug>.png` | crisp vector for docs + raster for chat/issues/READMEs |
+| `<slug>.mmd` | mermaid のソース — LLM が扱いやすい交換フォーマット |
+| `<slug>.excalidraw` | 編集可能なシーン — excalidraw.com で開き、箱を動かして作業を続けられる |
+| `<slug>.svg` + `<slug>.png` | ドキュメント向けのくっきりしたベクター + チャットや Issue、README 向けのラスター |
 
-Rendering is fully offline: the diagram-render bundle
-(`lib/diagram-render/dist/diagram-render.html`) is one self-contained page, and
-`gstack-render` opens it from a loopback server on this machine — in the Aside
-browser when Aside is running, otherwise in gstack's own headless browser. Its
-first output line says which (`ENGINE=aside` or `ENGINE=browse`); the triplet
-is identical either way. No CDN, no network.
+レンダリングは完全にオフラインで行われます。diagram-render のバンドル
+(`lib/diagram-render/dist/diagram-render.html`) は、1 つで完結したページです。
+`gstack-render` は、このマシン上のループバックサーバーからそれを開きます。Aside が起動していれば Aside ブラウザで、
+そうでなければ gstack 独自のヘッドレスブラウザで開きます。最初の出力行にどちらかが示されます (`ENGINE=aside` または `ENGINE=browse`)。
+どちらの場合も 3 点セットは同じです。CDN もネットワークも使いません。
 
-## Step 1 — Author the diagram
+## Step 1 — 図を作成する
 
-Write mermaid for the user's request. Rules:
+ユーザーのリクエストに対して mermaid を書きます。ルール:
 
-- **Flowcharts (`graph LR`/`graph TD`) and sequence diagrams** convert to a
-  fully editable excalidraw scene (real boxes, arrows, and text). Prefer
-  `graph LR` for pipelines/flows, `graph TD` for hierarchies.
-- State, class, gantt, and the other mermaid types render to SVG/PNG fine and
-  still get an `.excalidraw`, but the converter exports them as ONE image
-  element: it opens at excalidraw.com and can be moved and annotated, not
-  edited box by box. Tell the user that when you deliver one.
-- Keep node labels short; put detail in edge labels. 5-15 nodes is the
-  readable range. If the user's ask needs more, split into multiple diagrams
-  and say why.
+- **フローチャート (`graph LR`/`graph TD`) とシーケンス図**は、完全に編集可能な excalidraw のシーン (本物の箱、矢印、テキスト) に変換されます。
+  パイプラインやフローには `graph LR`、階層には `graph TD` を優先してください。
+- 状態図、クラス図、ガントチャート、その他の mermaid の種類も SVG/PNG にはきちんとレンダリングされ、`.excalidraw` も生成されます。ただし、変換器はそれらを 1 つの画像要素として書き出します。
+  excalidraw.com で開けば移動や注釈はできますが、箱ごとの編集はできません。図を渡すときは、そのことをユーザーに伝えてください。
+- ノードのラベルは短くし、詳細はエッジのラベルに入れてください。読みやすい範囲は 5〜15 ノードです。ユーザーの要求がそれ以上を必要とする場合は、複数の図に分け、その理由を説明してください。
 
-Decide the output directory: `./diagrams/` when the cwd is a git repo
-(artifacts the user can commit), else `/tmp/gstack-diagrams/`. Derive
-`<slug>` from the diagram's subject (kebab-case, ≤40 chars).
+出力ディレクトリを決めます。カレントディレクトリが git リポジトリの場合は `./diagrams/` (ユーザーがコミットできる成果物)、
+そうでなければ `/tmp/gstack-diagrams/` です。`<slug>` は図の主題から導きます (ケバブケース、40 文字以内)。
 
-## Step 2 — Stage the render bundle (once per session)
+## Step 2 — レンダリング用のバンドルをステージングする (セッションごとに 1 回)
 
-`gstack-render` serves the bundle's directory on 127.0.0.1 for each render
-(Aside refuses `file://`, and both engines get the same origin). Stage the bundle under
-gstack's own render staging directory, `${TMPDIR:-/tmp}/gstack-render` (yours
-alone: if that name is a symlink or another user's directory, a private
-`mktemp -d` is used instead), content-addressed by bundle sha: the served
-directory holds nothing but gstack bundles, and concurrent sessions or mixed
-gstack versions never clobber each other.
+`gstack-render` は、レンダリングのたびにバンドルのディレクトリを 127.0.0.1 で配信します
+(Aside は `file://` を拒否し、両方のエンジンは同じオリジンを使います)。バンドルは gstack 独自のレンダリング用のステージングディレクトリ
+`${TMPDIR:-/tmp}/gstack-render` にステージングします (あなた専用です。その名前がシンボリックリンクか、別のユーザーのディレクトリの場合は、
+代わりに専用の `mktemp -d` を使います)。バンドルの sha でコンテンツアドレス化されるため、配信されるディレクトリには gstack のバンドルしか入らず、
+並行するセッションや異なる gstack のバージョンが互いを上書きすることはありません。
 
 ```bash
 BUNDLE=""
@@ -86,20 +77,16 @@ STAGED="$RD/gstack-diagram-render-$SHA.html"
 echo "STAGED: $STAGED"
 ```
 
-Remember the `STAGED:` path — every render below opens it (it stands in for
-`<staged>`). If `BUNDLE_MISSING`: stop and show the user the build command.
-Do not improvise a CDN fallback — offline is the contract.
+`STAGED:` のパスを覚えておいてください。以下のすべてのレンダリングはそれを開きます (`<staged>` の代わりになります)。
+`BUNDLE_MISSING` の場合: 停止し、ビルドコマンドをユーザーに示してください。
+CDN へのフォールバックを即興で作ってはいけません。オフラインであることが前提です。
 
-## Step 3 — Render the triplet
+## Step 3 — 3 点セットをレンダリングする
 
-Write the mermaid source to `<outdir>/<slug>.mmd` first (Write tool). ONE
-`gstack-render` call renders the whole triplet: it opens the staged bundle in
-the browser, waits for the page to finish loading (`#done`), runs the `--eval`
-expressions in order inside that page, and writes each result to the `--out`
-path that follows it. The page cannot read files itself, so ship the source in
-via **base64** — never splice file contents into a JS template literal
-(backticks, `${`, and backslashes in the source would be interpreted and
-corrupt it):
+まず mermaid のソースを `<outdir>/<slug>.mmd` に書き出します (Write ツール)。1 回の `gstack-render` の呼び出しで、3 点セット全体をレンダリングします。
+ステージングされたバンドルをブラウザで開き、ページの読み込みが終わるまで (`#done`) 待ち、そのページの中で `--eval` の式を順番に実行し、
+それぞれの結果を後に続く `--out` のパスに書き出します。ページ自身はファイルを読めないため、ソースは **base64** で渡してください。
+ファイルの内容を JS のテンプレートリテラルに直接埋め込んではいけません (バッククォート、`${`、ソース中のバックスラッシュが解釈されて壊れます):
 
 ```bash
 SRC=$(base64 < <outdir>/<slug>.mmd | tr -d '\n')
@@ -109,43 +96,33 @@ bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-rend
   --eval "window.__mermaidToExcalidraw(atob('$SRC')).then(j => (window.__scene = j))" --out <outdir>/<slug>.excalidraw
 ```
 
-Always run all three `--eval`/`--out` pairs, whatever the diagram type. The PNG
-is 1950px wide (300dpi of a 6.5in placement). Success prints one `OK <path>`
-line per artifact. Read the output for two other lines:
+図の種類に関係なく、3 組の `--eval`/`--out` のペアはすべて実行してください。PNG は幅 1950px です
+(6.5 インチの配置の 300dpi)。成功すると、アーティファクトごとに 1 行の `OK <path>` が出力されます。出力では、さらに次の 2 種類の行を確認してください:
 
-- A hard `ERROR:` line (e.g. `ERROR: render script did not finish: Error: Parse
-  error on line 4: ...`) is a mermaid parse error. Nothing was copied out. Show
-  the error to the user, fix the `.mmd`, and retry — do not hand the user a
-  broken source file.
-- A `PAGE_ERRORS=[...]` entry containing `Error processing Mermaid diagram`
-  means the excalidraw converter fell back to a single image element (Step 1's
-  state/class/gantt case). The triplet is complete and correct; deliver the
-  `.excalidraw` anyway with the note that it is not element-editable. Any OTHER
-  `PAGE_ERRORS` text: read it before trusting the output.
+- 明確な `ERROR:` の行 (例: `ERROR: render script did not finish: Error: Parse
+  error on line 4: ...`) は mermaid の構文エラーです。何もコピーされていません。エラーをユーザーに示し、`.mmd` を修正して再試行してください。壊れたソースファイルをユーザーに渡してはいけません。
+- `Error processing Mermaid diagram` を含む `PAGE_ERRORS=[...]` のエントリは、excalidraw の変換器が 1 つの画像要素にフォールバックしたことを意味します (Step 1 の状態図/クラス図/ガントチャートの場合)。
+  3 点セットは完全で正しいものです。`.excalidraw` は、要素単位では編集できないという注記を添えて、そのまま渡してください。
+  それ以外の `PAGE_ERRORS` のテキストは、出力を信頼する前に必ず読んでください。
 
-Note: `atob()` yields Latin-1; for sources with non-ASCII labels use
-`decodeURIComponent(escape(atob('…')))` to recover UTF-8 exactly.
+注: `atob()` は Latin-1 を返します。非 ASCII のラベルを含むソースの場合は、
+`decodeURIComponent(escape(atob('…')))` を使って UTF-8 を正確に復元してください。
 
-`gstack-render` picks the browser itself: Aside when it is running, otherwise
-gstack's own headless browser. Only when it prints `NEEDS_ASIDE` or
-`ASIDE_NOT_RUNNING` followed by `ERROR: no browser available` is there nothing
-to render with — Aside (macOS 15+, aside.com) is not open and gstack's browser
-is not built. Tell the user to open Aside, or to run `./setup` in the gstack
-repo to build the fallback, and stop. Never install Aside for them, and never
-substitute a CDN or another renderer.
+`gstack-render` はブラウザを自分で選びます。Aside が起動していればそれを使い、そうでなければ gstack 独自のヘッドレスブラウザを使います。
+`NEEDS_ASIDE` または `ASIDE_NOT_RUNNING` の後に `ERROR: no browser available` が続く場合に限り、レンダリングする手段がありません。
+Aside (macOS 15+、aside.com) が開いておらず、gstack のブラウザもビルドされていないことを意味します。
+ユーザーに Aside を開くか、フォールバックをビルドするために gstack のリポジトリで `./setup` を実行するよう伝えて、停止してください。
+ユーザーの代わりに Aside をインストールしてはいけません。CDN や別のレンダラーで代用してもいけません。
 
-## Step 4 — Show and deliver
+## Step 4 — 表示と納品
 
-1. Read the PNG with the Read tool so the user sees the diagram inline.
-2. List the triplet paths.
-3. One-line editability note: "The `.excalidraw` file opens at excalidraw.com
-   (File → Open) — edit it there and I can re-render from the edited scene."
-4. If the user wants changes, edit the `.mmd` source and re-run Step 3 — the
-   source is the single source of truth.
+1. Read ツールで PNG を読み、ユーザーがインラインで図を見られるようにします。
+2. 3 点セットのパスを一覧にします。
+3. 編集可能性について 1 行で注記します: 「`.excalidraw` ファイルは excalidraw.com で開けます (File → Open)。そこで編集してもらえれば、編集されたシーンから再レンダリングできます。」
+4. ユーザーが変更を希望する場合は、`.mmd` のソースを編集し、Step 3 を再実行してください。ソースが唯一の正しい情報源です。
 
-Re-rendering an EDITED `.excalidraw` (user round-trip): load the scene file
-and export without touching the mermaid — base64 transport again, since scene
-JSON is full of quotes and backslashes:
+**編集された `.excalidraw` の再レンダリング** (ユーザーとの往復): シーンのファイルを読み込み、mermaid には触れずにエクスポートします。
+シーンの JSON には引用符やバックスラッシュが多く含まれるため、ここでも base64 で受け渡します:
 
 ```bash
 SCENE=$(base64 < <outdir>/<slug>.excalidraw | tr -d '\n')
@@ -154,22 +131,16 @@ bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-rend
   --eval "window.__rasterize(window.__svg, 1950)" --out <outdir>/<slug>.png
 ```
 
-This path prints one benign `PAGE_ERRORS` entry — excalidraw's font subsetter
-falls back from a worker to the main thread inside the single-file bundle
-(`WorkerInTheMainChunkError`). The SVG/PNG are correct; ignore that one.
+このパスでは、無害な `PAGE_ERRORS` のエントリが 1 つ出力されます。excalidraw のフォントのサブセット化が、
+単一ファイルのバンドル内でワーカーからメインスレッドにフォールバックするためです (`WorkerInTheMainChunkError`)。
+SVG/PNG は正しいので、そのエントリは無視してください。
 
-## Rules
+## ルール
 
-- **Never ship the triplet without rendering it.** A `.mmd` file alone is not
-  a diagram. If rendering is impossible (bundle missing, no browser available),
-  say so and stop.
-- For diagrams destined for a PDF: remind the user that `make-pdf` renders
-  ` ```mermaid ` fences natively — embedding the `.mmd` in their markdown is
-  better than embedding the PNG.
+- **レンダリングせずに 3 点セットを渡さないこと。** `.mmd` ファイルだけでは図になりません。レンダリングが不可能な場合 (バンドルがない、利用できるブラウザがない) は、その旨を伝えて停止してください。
+- PDF に載せる図の場合: `make-pdf` は ` ```mermaid ` のフェンスをネイティブにレンダリングすることをユーザーに伝えてください。PNG を埋め込むより、`.mmd` を Markdown に埋め込む方が良いです。
 
-## Completion status
+## 完了ステータス
 
-- DONE — triplet delivered and shown (with the image-only note for
-  non-flowchart, non-sequence types).
-- BLOCKED — bundle missing or no browser available; the build command, "open
-  Aside", or "run ./setup" surfaced.
+- DONE — 3 点セットを納品し、表示した (フローチャートでもシーケンス図でもない種類については、画像のみであるという注記を添えて)。
+- BLOCKED — バンドルがない、または利用できるブラウザがない。ビルドコマンド、「Aside を開く」、「./setup を実行する」を提示した。

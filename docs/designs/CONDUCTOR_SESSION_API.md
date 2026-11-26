@@ -1,32 +1,28 @@
-# Conductor Session Streaming API Proposal
+# Conductor セッションストリーミング API の提案
 
-## Problem
+## 課題
 
-When Claude controls your real browser via CDP (gstack `$B connect`), you look at two
-windows: **Conductor** (to see Claude's thinking) and **Chrome** (to see Claude's actions).
+Claude が CDP(gstack の `$B connect`)経由で実際のブラウザを操作しているとき、あなたは 2 つのウィンドウを見ることになります。**Conductor**(Claude の思考を見る)と **Chrome**(Claude の操作を見る)です。
 
-gstack's Chrome extension Side Panel shows browse activity — every command, result,
-and error. But for *full* session mirroring (Claude's thinking, tool calls, code edits),
-the Side Panel needs Conductor to expose the conversation stream.
+gstack の Chrome 拡張機能のサイドパネルには、ブラウズの活動(すべてのコマンド、結果、エラー)が表示されます。しかし、セッションを*完全に*ミラーリングする(Claude の思考、ツール呼び出し、コードの編集)には、Conductor が会話のストリームを公開する必要があります。
 
-## What this enables
+## これで実現できること
 
-A "Session" tab in the gstack Chrome extension Side Panel that shows:
-- Claude's thinking/content (truncated for performance)
-- Tool call names + icons (Edit, Bash, Read, etc.)
-- Turn boundaries with cost estimates
-- Real-time updates as the conversation progresses
+gstack の Chrome 拡張機能のサイドパネルに「Session」タブを置き、次を表示します。
+- Claude の思考・内容(性能のために切り詰めた表示)
+- ツール呼び出しの名前とアイコン(Edit、Bash、Read など)
+- コストの見積もりを添えたターンの区切り
+- 会話の進行に合わせたリアルタイムの更新
 
-The user sees everything in one place — Claude's actions in their browser + Claude's
-thinking in the Side Panel — without switching windows.
+ユーザーは、ブラウザでの Claude の操作と、サイドパネルでの Claude の思考を、ウィンドウを切り替えずに 1 か所で見られます。
 
-## Proposed API
+## 提案する API
 
 ### `GET http://127.0.0.1:{PORT}/workspace/{ID}/session/stream`
 
-Server-Sent Events endpoint that re-emits Claude Code's conversation as NDJSON events.
+Claude Code の会話を NDJSON イベントとして再送出する、Server-Sent Events のエンドポイントです。
 
-**Event types** (reuse Claude Code's `--output-format stream-json` format):
+**イベントの種類**(Claude Code の `--output-format stream-json` の形式を再利用):
 
 ```
 event: assistant
@@ -42,12 +38,11 @@ event: turn_complete
 data: {"type":"turn_complete","input_tokens":1234,"output_tokens":567,"cost_usd":0.02}
 ```
 
-**Content truncation:** Tool inputs/outputs capped at 500 chars in the stream. Full
-data stays in Conductor's UI. The Side Panel is a summary view, not a replacement.
+**コンテンツの切り詰め:** ストリームでは、ツールの入力と出力を 500 文字で打ち切ります。完全なデータは Conductor の UI に残ります。サイドパネルは要約の表示であり、置き換えではありません。
 
 ### `GET http://127.0.0.1:{PORT}/api/workspaces`
 
-Discovery endpoint listing active workspaces.
+アクティブなワークスペースを一覧する探索用のエンドポイントです。
 
 ```json
 {
@@ -64,45 +59,41 @@ Discovery endpoint listing active workspaces.
 }
 ```
 
-The Chrome extension auto-selects a workspace by matching the browse server's git repo
-(from `/health` response) to a workspace's directory or name.
+Chrome 拡張機能は、ブラウズサーバーの git リポジトリ(`/health` のレスポンス由来)を、ワークスペースのディレクトリまたは名前と照合して、自動的にワークスペースを選びます。
 
-## Security
+## セキュリティ
 
-- **Localhost-only.** Same trust model as Claude Code's own debug output.
-- **No auth required.** If Conductor wants auth, include a Bearer token in the
-  workspace listing that the extension passes on SSE requests.
-- **Content truncation** is a privacy feature — long code outputs, file contents, and
-  sensitive tool results never leave Conductor's full UI.
+- **ローカルホスト限定。** Claude Code 自身のデバッグ出力と同じ信頼モデルです。
+- **認証は不要。** Conductor が認証を求める場合は、ワークスペースの一覧に Bearer トークンを含めてください。拡張機能はそれを SSE のリクエストに付けて送ります。
+- **コンテンツの切り詰め**はプライバシーの機能でもあります。長いコードの出力、ファイルの内容、機密性の高いツールの結果は、Conductor の完全な UI の外に出ません。
 
-## What gstack builds (extension side)
+## gstack 側(拡張機能側)で作るもの
 
-Already scaffolded in the Side Panel "Session" tab (currently shows placeholder).
+サイドパネルの「Session」タブにはすでに骨組みがあります(現在はプレースホルダを表示)。
 
-When Conductor's API is available:
-1. Side Panel discovers Conductor via port probe or manual entry
-2. Fetches `/api/workspaces`, matches to browse server's repo
-3. Opens `EventSource` to `/workspace/{id}/session/stream`
-4. Renders: assistant messages, tool names + icons, turn boundaries, cost
-5. Falls back gracefully: "Connect Conductor for full session view"
+Conductor の API が利用可能になったら、次のとおりにします。
+1. サイドパネルがポートのプローブまたは手動入力で Conductor を見つける
+2. `/api/workspaces` を取得し、ブラウズサーバーのリポジトリと照合する
+3. `/workspace/{id}/session/stream` に対して `EventSource` を開く
+4. アシスタントのメッセージ、ツール名とアイコン、ターンの区切り、コストを描画する
+5. 穏やかにフォールバックする: 「フルのセッション表示には Conductor を接続してください」
 
-Estimated effort: ~200 LOC in `sidepanel.js`.
+見積もりの工数: `sidepanel.js` で約 200 行。
 
-## What Conductor builds (server side)
+## Conductor 側(サーバー側)で作るもの
 
-1. SSE endpoint that re-emits Claude Code's stream-json per workspace
-2. `/api/workspaces` discovery endpoint with active workspace list
-3. Content truncation (500 char cap on tool inputs/outputs)
+1. ワークスペースごとに Claude Code の stream-json を再送出する SSE エンドポイント
+2. アクティブなワークスペースの一覧を返す `/api/workspaces` の探索用エンドポイント
+3. コンテンツの切り詰め(ツールの入力と出力に 500 文字の上限)
 
-Estimated effort: ~100-200 LOC if Conductor already captures the Claude Code stream
-internally (which it does for its own UI rendering).
+見積もりの工数: Conductor が、自社の UI の描画のために Claude Code のストリームをすでに内部で取得しているなら、約 100〜200 行。
 
-## Design decisions
+## 設計上の判断
 
-| Decision | Choice | Rationale |
+| 判断 | 選択 | 理由 |
 |----------|--------|-----------|
-| Transport | SSE (not WebSocket) | Unidirectional, auto-reconnect, simpler |
-| Format | Claude's stream-json | Conductor already parses this; no new schema |
-| Discovery | HTTP endpoint (not file) | Chrome extensions can't read filesystem |
-| Auth | None (localhost) | Same as browse server, CDP port, Claude Code |
-| Truncation | 500 chars | Side Panel is ~300px wide; long content useless |
+| 転送方式 | SSE(WebSocket ではない) | 一方向、自動再接続、よりシンプル |
+| 形式 | Claude の stream-json | Conductor がすでに解析している。新しいスキーマは不要 |
+| 探索 | ファイルではなく HTTP エンドポイント | Chrome 拡張機能はファイルシステムを読めない |
+| 認証 | なし(ローカルホスト) | ブラウズサーバー、CDP ポート、Claude Code と同じ |
+| 切り詰め | 500 文字 | サイドパネルは約 300px 幅。長いコンテンツは役に立たない |

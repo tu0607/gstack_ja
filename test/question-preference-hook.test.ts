@@ -713,9 +713,11 @@ describe('Conductor spawned deny (#2733)', () => {
       path.join(ROOT, 'bin', 'gstack-skill-start'),
       path.join(ROOT, 'ship', 'sections', 'documentation.md.tmpl'),
     ];
+    // Translated surfaces carry the Japanese core of the same policy; code/hook surfaces keep the English phrase.
+    const canonical = ['conservative non-destructive', '破壊的でない保守的な選択肢', '控えめで非破壊的に'];
     for (const f of surfaces) {
       const src = fs.readFileSync(f, 'utf-8');
-      expect(src, `${path.basename(f)} lost the canonical destructive-policy phrase`).toContain('conservative non-destructive');
+      expect(canonical.some(phrase => src.includes(phrase)), `${path.basename(f)} lost the canonical destructive-policy phrase`).toBe(true);
     }
   });
 

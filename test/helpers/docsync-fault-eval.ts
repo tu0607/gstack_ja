@@ -130,8 +130,8 @@ export async function runShipDocsFault(testName: string, scenario: DocsFault, co
   const report = path.join(fixture.home, 'ship-report.md');
   const phase = path.join(fixture.home, 'phase.md');
   const skeleton = fs.readFileSync(path.join(fixture.skills, 'ship/SKILL.md'), 'utf8');
-  const start = skeleton.indexOf('## Step 14.5: Documentation audit (every ship)');
-  const end = skeleton.indexOf('## Step 15: Commit');
+  const start = skeleton.indexOf('## Step 14.5:');
+  const end = skeleton.indexOf('## Step 15:');
   if (start < 0 || end <= start) throw Error('native parent documentation phase markers moved');
   fs.writeFileSync(phase, scenario === 'legacy-completion'
     ? docsShipPhase(skeleton, fs.readFileSync(path.join(fixture.skills, 'ship/sections/pr-body.md'), 'utf8'), 'legacy', '')

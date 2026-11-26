@@ -28,7 +28,8 @@ lib/cso/images/gstack-cso-preparation
 !.gstack/ship-policy.example.json
 !.gstack/generated.json
 !.gstack/pregate.json
-.claude/skills/
+.claude/skills/*
+!.claude/skills/translate-upstream/
 .claude/gstack-rendered/
 .claude/scheduled_tasks.lock
 .claude/*.lock
@@ -47,6 +48,7 @@ lib/cso/images/gstack-cso-preparation
 # Hosts installed from this checkout (bin/gstack-host-renders.sh, #1694)
 .gstack-installed-hosts
 .context/
+.idea/
 extension/.auth.json
 # xterm assets are vendored from npm at build time; not source-of-truth.
 extension/lib/xterm.js
@@ -73,3 +75,6 @@ docs/throughput-*.json
 ios-qa/scripts/gen-accessors-tool/.build/
 ios-qa/scripts/gen-accessors-tool/Package.resolved
 .gstack/
+
+# 翻訳台帳の作業用差分(bin/gstack-translation-ledger status --diff)
+translation/pending/

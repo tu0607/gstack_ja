@@ -1,5486 +1,3352 @@
 # TODOS
 
-## NEXT PRIORITY
+## 次の優先事項
 
-### P3: `/codex --effort` follow-ups (filed 2026-10-11, from the #3146 autoplan review)
+### P3: `/codex --effort` の追加作業(2026-10-11 起票、#3146 の autoplan レビューより)
 
-- **Show the effort that ran.** Step 0.5 prints `CODEX_EFFORT: <level> (source: /codex --effort)` once, but the result footers do not repeat the effort, so it scrolls away. Add an `Effort:` line to the review, challenge and consult result footers. Blocked on skeleton bytes in `codex/SKILL.md` (cap 60,200). **Effort:** S. **Priority:** P3.
-- **Timeouts at high effort.** `xhigh`, `max` and `ultra` can exceed the fixed 330 s / 540 s wrappers, and the timeout copy blames prompt size or API speed. Name the effort in the timeout message and suggest a lower `--effort`; consider effort-scaled budgets. **Effort:** S. **Priority:** P3.
-- **Per-run effort for gate voices (#2934).** `/review`, `/ship` and plan-review outside voices take `GSTACK_CODEX_EFFORT` and `codex_effort` but have no per-request flag; the Claude Code runner takes no effort at all. Needs its own precedence and consent review. **Effort:** M. **Priority:** P3.
-- **`minimal` with web search.** Every `/codex` dispatch passes `web_search="cached"`, and Codex reportedly rejects that with `reasoning.effort: minimal` (openai/codex#3559, #5002). Unverified here (no Codex CLI on the release machine); the same path already ships through `codex_effort minimal`. Verify on the pinned CLI and drop web search for `minimal` if it fails. **Effort:** S. **Priority:** P3.
+- **実際に使われた effort を表示する。** Step 0.5 は `CODEX_EFFORT: <level> (source: /codex --effort)` を一度だけ表示しますが、結果のフッターは effort を繰り返さないので、スクロールで流れてしまいます。review、challenge、consult の結果フッターに `Effort:` の行を追加してください。`codex/SKILL.md` のスケルトンのバイト数(上限 60,200)に阻まれています。**Effort:** S。**Priority:** P3。
+- **高い effort でのタイムアウト。** `xhigh`、`max`、`ultra` は、固定の 330 秒 / 540 秒のラッパーを超えることがあります。タイムアウトのメッセージは、プロンプトのサイズや API の速度のせいにしています。タイムアウトのメッセージで effort を明示し、より低い `--effort` を提案してください。effort に応じた予算の導入も検討してください。**Effort:** S。**Priority:** P3。
+- **ゲートの投票者ごとの実行時 effort(#2934)。** `/review`、`/ship`、プランレビューの外部の投票者は、`GSTACK_CODEX_EFFORT` と `codex_effort` を受け取りますが、リクエストごとのフラグがありません。Claude Code のランナーは effort をまったく受け取りません。独自の優先順位と、同意の見直しが必要です。**Effort:** M。**Priority:** P3。
+- **`minimal` と Web 検索の組み合わせ。** すべての `/codex` の起動は `web_search="cached"` を渡しますが、Codex は `reasoning.effort: minimal` とこれを一緒にすると拒否すると報告されています(openai/codex#3559、#5002)。ここでは未検証です(リリースマシンに Codex CLI がないため)。同じ経路は `codex_effort minimal` としてすでに出荷されています。固定されたバージョンの CLI で検証し、失敗するなら `minimal` の場合は Web 検索を外してください。**Effort:** S。**Priority:** P3。
 
-### P2/P3: open bugs by area after the Wave 9 triage (filed 2026-10-11)
+### P2/P3: Wave 9 の トリアージ後の、領域別の未解決バグ(2026-10-11 起票)
 
-The 158 older open issues were re-checked against main 5cb5e1c (v1.91.83.0). Of the 30 still-valid bugs, Wave 9 lanes take #915, #1080, #1081, #1150, #1315 and #1675 and park #2118 and #2623 (next section). The rest stay open here: issue, root-cause file, size. Bugs already tracked elsewhere in this file point there instead of repeating it.
+Wave 9 の時点で開いていた古い 158 件の Issue を、main 5cb5e1c(v1.91.83.0)と照合して再確認しました。まだ有効な 30 件のバグのうち、Wave 9 のレーンは #915、#1080、#1081、#1150、#1315、#1675 を担当し、#2118 と #2623 は保留にしました(次のセクション)。残りはここに開いたままにします。各項目は、Issue、根本原因のファイル、規模を示します。このファイルの別の場所で追跡しているバグは、重複して書かず、そちらを指します。
 
-- **Plan reviews and planning artifacts**
-  - #280: plan-eng-review never reads the CEO plan. Its Step 0 discovery has no `ceo-plans/` lookup (only `design-html/SKILL.md.tmpl` and `bin/gstack-context-recovery` read it). Add a `gstack-ceo-plan-find` sibling of `bin/gstack-design-doc-find`; leave the per-branch review log alone. **Effort:** S. **Priority:** P3.
-  - #542: an office-hours design doc written in host plan mode lands in `~/.claude/plans/`, which `bin/gstack-design-doc-find` never reads, so the two copies drift. Pick one authority and warn on a stale copy. **Effort:** M. **Priority:** P2.
-  - #1048: "smallest clear diff" in `plan-eng-review/SKILL.md.tmpl` and `plan-ceo-review/SKILL.md.tmpl` has no schema-design carve-out, so it biases reviews toward JSON blobs. Add one tradeoff bullet, with a paid before/after case. **Effort:** S. **Priority:** P3.
-  - #1791: every plan-eng-review run writes a fresh `tasks-eng-review-<ts>.jsonl` with no branch in the name and no reconciliation (`scripts/resolvers/tasks-section.ts`). Put the branch in the name and supersede earlier sets. **Effort:** M. **Priority:** P3.
-  - #1957: /autoplan Phase 0 prints no matched-terms line for UI scope and keeps UI and DX terms in two places (`bin/gstack-autoplan-snapshot.ts`, `lib/autoplan-prompts.ts`). One shared terms module, and a `borderline` flag in the printed line. **Effort:** M. **Priority:** P3.
-- **Review**
-  - #356: `/review` has no repo-convention check, so a `.bat` added to a bash-and-Make repo passes. Add it to `review/specialists/maintainability.md`. **Effort:** S. **Priority:** P3.
-- **Office hours and design**
-  - #340: the approved sketch stays in a purgeable `mktemp` dir and no downstream design skill reads it (`scripts/resolvers/design.ts`). Copy it next to the design doc and have plan-design-review and design-review read it. **Effort:** S. **Priority:** P3.
-- **Questions**
-  - #1319: the AskUserQuestion format (`scripts/resolvers/preamble/generate-ask-user-format.ts`) has no layout or length rule, so long briefs render as a wall of text. Add block separation and per-block caps, with a free test that includes a CJK case. **Effort:** M. **Priority:** P2.
-- **Setup and upgrade**
-  - #954: vendored installs get absolute symlinks from `_link_or_copy` in `setup`. Use relative links when the source sits in the same skills dir. **Effort:** S. **Priority:** P3.
-  - #1022: a parent repo that tracks the install dir silently reverts VERSION after each upgrade. Detect it with `git ls-files --error-unmatch` in `setup` and `gstack-doctor`, and print the `git rm --cached` commands. **Effort:** S. **Priority:** P3.
-  - #2120: `bin/gstack-patch-names` and setup's per-skill link loops fork about four times per skill, which deadlocks x64-emulated Git Bash on Windows ARM64. Make the read path fork-free. Unverified without an ARM64 Windows host. **Effort:** M. **Priority:** P2.
-  - #2378: update-check compares VERSION while `/gstack-upgrade` installs HEAD. Tracked under the v1.67 fix-wave deferrals ("#2378 release-tag upgrade semantics"). **Priority:** P3.
-- **Build**
-  - #407: `bun build --compile` in `scripts/build.sh` writes straight to `dist/`, and Bun's rename fails on virtiofs devcontainer mounts. Compile to a local temp dir and move. Repro unconfirmed on current Bun. **Effort:** S. **Priority:** P2.
-- **Windows binaries**
-  - #2124, #2595: Smart App Control blocks the locally compiled browse.exe. Tracked under "Windows follow-ups from the October fix wave"; blocked on Garry's signing account. **Priority:** P2.
-- **Safety hooks**
-  - #1060: tracked as "Quote-aware masking in `check-careful.sh`" under the Oct 8 safety hooks follow-ups. **Priority:** P3.
-- **Sessions**
-  - #1651 part B: tracked under the office-hours and timeline follow-ups above. **Priority:** P3.
+- **プランレビューと計画の成果物**
+  - #280: plan-eng-review が CEO のプランを読まない。その Step 0 の探索には `ceo-plans/` の検索がない(読んでいるのは `design-html/SKILL.md.tmpl` と `bin/gstack-context-recovery` だけ)。`bin/gstack-design-doc-find` の兄弟として `gstack-ceo-plan-find` を追加する。ブランチごとのレビューログには手を付けない。**Effort:** S。**Priority:** P3。
+  - #542: host のプランモードで書かれた office-hours の設計ドキュメントは `~/.claude/plans/` に入るが、`bin/gstack-design-doc-find` はそこを読まないため、二つのコピーが乖離する。どちらを正とするかを決め、古くなったコピーがあれば警告する。**Effort:** M。**Priority:** P2。
+  - #1048: `plan-eng-review/SKILL.md.tmpl` と `plan-ceo-review/SKILL.md.tmpl` の「最小の明確な差分」には、スキーマ設計の例外がないため、レビューが JSON の塊に偏る。トレードオフの箇条書きを一つ追加し、有料の前後比較ケースを付ける。**Effort:** S。**Priority:** P3。
+  - #1791: plan-eng-review を実行するたびに、ブランチ名のない新しい `tasks-eng-review-<ts>.jsonl` が書かれ、調整も行われない(`scripts/resolvers/tasks-section.ts`)。ファイル名にブランチを入れ、以前の一式を置き換える。**Effort:** M。**Priority:** P3。
+  - #1957: /autoplan の Phase 0 は、UI のスコープに一致した語の行を表示せず、UI と DX の語句を二か所で管理している(`bin/gstack-autoplan-snapshot.ts`、`lib/autoplan-prompts.ts`)。共有の語句モジュールを一つにし、表示する行に `borderline` のフラグを付ける。**Effort:** M。**Priority:** P3。
+- **レビュー**
+  - #356: `/review` にはリポジトリの慣習をチェックする仕組みがないため、bash と Make のリポジトリに追加された `.bat` が通ってしまう。`review/specialists/maintainability.md` に追加する。**Effort:** S。**Priority:** P3。
+- **Office hours と設計**
+  - #340: 承認済みのスケッチは、消される可能性のある `mktemp` のディレクトリに残り、後続の設計 skill はどれもそれを読まない(`scripts/resolvers/design.ts`)。設計ドキュメントの隣にコピーし、plan-design-review と design-review がそれを読むようにする。**Effort:** S。**Priority:** P3。
+- **質問**
+  - #1319: AskUserQuestion の形式(`scripts/resolvers/preamble/generate-ask-user-format.ts`)には、レイアウトや長さのルールがないため、長い説明が文字の壁として表示される。ブロックの区切りと、ブロックごとの上限を追加する。CJK のケースを含む無料テストを付ける。**Effort:** M。**Priority:** P2。
+- **セットアップとアップグレード**
+  - #954: サードパーティの取り込み(vendored)インストールでは、`setup` の `_link_or_copy` が絶対パスのシンボリックリンクを作る。元が同じ skill ディレクトリにある場合は相対リンクを使う。**Effort:** S。**Priority:** P3。
+  - #1022: インストールディレクトリを追跡している親リポジトリがあると、アップグレードのたびに VERSION が黙って元に戻る。`setup` と `gstack-doctor` で `git ls-files --error-unmatch` を使って検出し、`git rm --cached` のコマンドを表示する。**Effort:** S。**Priority:** P3。
+  - #2120: `bin/gstack-patch-names` と setup の skill ごとのリンクのループは、skill 1 つあたり約 4 回フォークするため、x64 エミュレーションの Windows ARM64 の Git Bash でデッドロックする。読み取りのパスをフォークなしにする。ARM64 の Windows ホストがないため未検証。**Effort:** M。**Priority:** P2。
+  - #2378: update-check は VERSION を比較する一方、`/gstack-upgrade` は HEAD をインストールする。v1.67 の修正ウェーブからの繰り越し項目(「#2378 release-tag upgrade semantics」)として追跡中。**Priority:** P3。
+- **ビルド**
+  - #407: `scripts/build.sh` の `bun build --compile` は `dist/` に直接書き込み、Bun のリネームは virtiofs のデブコンテナのマウントで失敗する。ローカルの一時ディレクトリにコンパイルしてから移動する。現在の Bun では再現が未確認。**Effort:** S。**Priority:** P2。
+- **Windows のバイナリ**
+  - #2124、#2595: Smart App Control が、ローカルでコンパイルした browse.exe をブロックする。「October fix wave の Windows の残件」で追跡中。Garry の署名アカウントの準備待ち。**Priority:** P2。
+- **安全フック**
+  - #1060: 10 月 8 日の安全フックの残件の「check-careful.sh における引用符を考慮したマスキング」として追跡中。**Priority:** P3。
+- **セッション**
+  - #1651 パート B: 上の office-hours と timeline の残件で追跡中。**Priority:** P3。
 - **/cso**
-  - #2993: tracked under the /cso capacity follow-ups above. **Priority:** P2.
-- **Dependency security ledgers** (not code defects; keep open until the trigger)
-  - `.osv-scanner.toml` ignores katex 0.16.47 in lib/diagram-render (GHSA-238p-pmpm-9mq7, low) until 2027-01-31. The fix (0.18.2) is outside mermaid 11's range; when mermaid-js/mermaid#8388 ships, override katex, rebuild the bundle and drop the ignore. **Effort:** S. **Priority:** P3.
-  - #2753 residual: html-to-docx 1.8.0 bundles its own image-size 1.x, which the package.json override cannot reach. `make-pdf --to docx` never hands it ICNS bytes (make-pdf/src/docx-images.ts), but with `--allow-network` html-to-docx downloads remote images and sizes them itself. Inline remote images before the guard for docx, or replace html-to-docx. Revisit 2026-12-15. **Effort:** M. **Priority:** P2.
-- **Tests and CI**
-  - #2756: the periodic lane. Tracked under "Periodic-lane stabilization (#2756)". **Priority:** P2.
-  - #2967: `test/redact-prepush-scan-range.test.ts` (and its rebase twin) run fixture pushes with the inherited global config, so a developer's `core.hooksPath` pre-push runs inside the fixture. Set `GIT_CONFIG_GLOBAL=/dev/null` and `GIT_CONFIG_NOSYSTEM=1` in the helper. **Effort:** S. **Priority:** P3.
-
-### P3: parked in Wave 9 (filed 2026-10-11)
-
-Each item was decided in the Wave 9 plan and parked with its reason. Credit the reporter or contributor when it is picked up.
-
-- **Fold `triggers:` into skill descriptions (#2118)** — `scripts/gen-skill-docs.ts` folds only `voice-triggers:`, and the trimmed description keeps one sentence, so natural-language triggers never reach the listing. Parked because it conflicts with the catalog-trim design and would regenerate every skill. Mechanism when picked up: a `when_to_use:` frontmatter key for the Claude host, built from `triggers:`, deduped, and kept inside the catalog byte budget (Claude Code's 1,536-character combined listing limit); hosts that allowlist name and description get a bounded "Use when…" sentence or nothing. **Effort:** M. **Priority:** P2.
-- **Plan-tune signals stuck at 0.5 (#2623)** — `hosts/claude/hooks/question-log-hook.ts` logs the UI label, while `scripts/psychographic-signals.ts` looks up stable option keys, so no row ever matches. The two-line key mapping is capture plumbing only and does not fix saturation. Acceptance criteria: labels map to stable option keys at log time; `profile.inferred` records contributing events per dimension; per-event and per-session accumulation is bounded so a dimension cannot pin at 1.0; `{skill}-{slug}` ids get a hinted fallback. Needs a design call on the key source. **Effort:** M. **Priority:** P2.
-- **Stateless, instruction-only host mode (#3061, @m-check1B)** — hosted multi-tenant runtimes have no install, state root or helper binaries, but skill bodies still read and write `$GSTACK_STATE_ROOT`, call `bin/gstack-*` and log telemetry. Deferred to the new-hosts theme below. Requirements kept on record: tenant-owned state (a `capabilities.state: 'none'` host renders host-provided hooks instead of shell steps), named artifact hooks (`ARTIFACT_SAVE`/`ARTIFACT_FIND` per kind, `WEB_RESEARCH`, `SECRET_SCAN`, `USER_PREF`) mapped the way the gbrain resolvers already are, a generator check that fails a stateless render containing `~/.gstack`, `$GSTACK_`, `bin/gstack-*` or `--event-type`, and the `claude` host's output byte-identical. The contributor offered an office-hours overlay plus the generator check as a first PR. **Effort:** L. **Priority:** P3.
-- **Legacy unprefixed Cursor skill folders (#3084)** — 1.31 Cursor installs created `~/.cursor/skills/<skill>/SKILL.md` links; 1.91 links `gstack-*` folders and `_prune_stale_generated` in `setup` only looks at `gstack-*` names, so Cursor can load two skills with the same name. `setup` already removes old unprefixed Claude entries; Cursor needs the same owned-link cleanup (remove only links that point into a gstack checkout). Split from #3084's data-loss fix, which Wave 9 Lane A0 ships. **Effort:** S. **Priority:** P3.
-- **`/retro global` says what a "session" is (#1315, third problem)** — `bin/gstack-global-discover.ts` counts transcript files and rollouts, so cron- or agent-driven repos show hundreds of "sessions" with no interactive work. Annotate the retro output that sessions are tool invocations or files, not distinct human working sessions. Problems 1 and 2 are fixed (v1.91.66.0 and Wave 9 Lane F). **Effort:** S. **Priority:** P3.
-- **`gbrain put` stdin pipe in `lib/code-intelligence/gbrain-adapter.ts` (#1675)** — `put` sends the document body on stdin (`#runInput(["put", slug], body)`), the same shape #1675 hit on Windows in setup-gbrain's smoke test, which Wave 9 Lane G changes to a temp file. Check gbrain's stdin handling on Windows at the pinned version first; if it is still broken, pass the body through a private temp file or the MCP `put_page` path. **Effort:** S. **Priority:** P3.
-
-### P3: feature themes from the Wave 9 triage (filed 2026-10-11)
-
-The 73 open feature requests, grouped by theme with counted demand (issues in the theme). Each issue closes with a link to its theme here; the three largest cross-cutting themes (new hosts, provider pluralism, install footprint) stay open as tracking issues. Pick a theme up as a whole and credit every linked reporter.
-
-- **New hosts (8 issues, plus #3061 above and 9 PRs parked on Oct 8)** — Kimi CLI (#1072), Gemini CLI (#1247), Pi Agent (#1288), Claude Desktop Cowork (#1345), Letta Code (#2117), team mode for non-Claude hosts (#890), `/retro global` discovery of Antigravity (#1977) and Kimi Code / OMP sessions (#2917). Waits for the host-config work; see "Parked contributor ideas (Oct 8 triage)" for the parked host PRs. **Priority:** P3.
-- **Provider pluralism (7 issues, plus #3122)** — Gemini CLI as an outside-voice backend (#619), non-OpenAI image providers in `design` (#990), Codex-native `image_gen` in the `design` binary's own generate, evolve and prototype calls (#2174; design-shotgun itself already uses `$imagegen` on Codex since #2175), GPT-6 Sol/Luna tiers in Codex call routing (#2943), a `/grok` review port (#2947), Codex review token usage (#2948), Codex refresh-token recovery docs (#1542), and a configurable PR review bot instead of hard-coded Greptile in /review, /ship and /retro (#3122, folded here by decision D4). One provider seam serves all of them. **Priority:** P3.
-- **Install footprint and layout (7 issues)** — skills.sh distribution (#113), `~/.gstack` as the global install path (#753), a repo-local install that keeps state in the project (#1235), five compiled binaries each bundling Bun (#1245), Windows junctions instead of copies (#1877), the 1.1 GB `~/.claude/skills` footprint (#2199), and a skill-only mode (#2528). Decision D6: setup keeps the staged copy on Windows, because it works today and links change what every cleanup deletes; #1943 (@JonasFocus, junctions) and #2129 (@TTmo123, symlinks with the privilege check) are closed with credit and their designs stay here as the starting point. See also "install footprint follow-ups from the October fix wave". **Priority:** P3.
-- **New skills (12 issues)** — GUI kanban for plan reviews (#247), journey maps (#729), UI-doc review (#851), assumption verification `/avl` (#1058), `/a11y-check` (#1104), `/env-check` (#1106), native plan writing (#1170), `/plan-experiment` and `/review-experiment` (#1195), `/plan-status` (#1343), language-specific reviewers (#1753), `/benchmark-mobile` (#1754), session start/end skills (#2088). **Priority:** P3.
-- **Ship, review and safety (9 issues)** — `/review` shadowing the native command (#422), a silent-deploy-failures checklist section (#2089), Conductor TODO proposals and a /ship block on unresolved ones (#2090), a light-ship mode (#2188), auditing an issue before filing it (#2642), maintainer-gated CI versus failures in landing-report (#2766), Flutter pubspec versions with build metadata (#2833), a deterministic fact-consistency check for document skills (#2887), a dual-engine /careful guard (#2888). **Priority:** P3.
-- **Planning reviews (8 issues)** — marketplace-aware skill recommendations (#419), founder-signal reasoning in the YC recommendation (#513), grounded verification of paths, math and flags in spec reviews (#973), a substrate-neutral existing-capability check (#1685), `/autoplan --tier` (#1955), autoplan workspace safeguards (#1959), splitting one-way architecture forks from two-way defects (#2490), an evidence ledger for "is demand real?" (#2350). **Priority:** P3.
-- **State root and project identity (6 issues)** — repo-local portable context artifacts (#1161), design-doc archive and prune (#1536), umbrella directories over several repos (#1923), reclaiming per-repo `.gstack` state (#2627), nested repos declaring themselves projects (#2649), references and disposition on decision events (#2678). **Priority:** P3.
-- **Browser and mobile QA (6 issues)** — a remote browser via `BROWSER_WS_ENDPOINT` (#974), per-session tab isolation (#1961), an opt-in User-Agent suffix and default headers (#2459), skipping the Aside probe on Linux and Windows (#2864), activity-ring copies on caught-up reads (#2973), touch input and mobile Safari (#3058). **Priority:** P3.
-- **Prompt cost and skill shape (4 issues)** — a response-header template (#1376), caching preamble output within a session (#1572), the Fable 5 prompting-guide audit (#1994), per-skill benefit in `gstack-context-bill` (#2889). **Priority:** P3.
-- **Customization and localization (3 issues)** — locale-aware skills (#481), a tutorial on new customization dimensions (#489), a `SKILL.local.md` overlay (#1759). **Priority:** P3.
-- **Retro (2 issues)** — a team-scoped multi-repo retro (#402), ADR and issue awareness in the narrative (#2284). **Priority:** P3.
-- **CI supply chain (1 issue)** — artifact attestations for the GHCR CI images (#2003). **Priority:** P3.
-
-### P2/P3: office-hours and timeline follow-ups (filed 2026-10-08, v1.91.54.0)
-
-Left open by the office-hours tier fix (#2801, #879, #1049, #1958, #1723, #1651 part A).
-
-- **Session markers that reflect "currently active" (#1651 part B)** — skill
-  start touches `sessions/<pid>` only when a skill starts, so a long session
-  with no new skill for two hours drops out of `SESSIONS: N`. Fix shape: refresh
-  the marker per tool call from a hook. **Effort:** M. **Priority:** P3.
-- **Live eval for the first-session closing** — free tests run the rendered
-  profile read and session log in order, but no paid case checks that a model
-  follows the carried `SESSION_TIER` through Phase 6 (first run gets the
-  introduction, second run asks about the earlier assignment). No office-hours
-  quality judge exists either. **Effort:** M. **Priority:** P2.
-
-### P3: Oct 8 fix wave, safety hooks follow-ups (filed 2026-10-08)
-
-Left open by the PowerShell/NotebookEdit hook fix (v1.91.47.0, #3067), each with its reason.
-
-- **Forced overwrite patterns for `/careful`** — `Set-Content -Force` / `Out-File
-  -Force` over an existing file (and the Bash `>` overwrite twin) still pass.
-  Deferred: the Bash side has no overwrite pattern either, and adding one is a
-  new family for both shells, not PowerShell parity. **Effort:** S. **Priority:** P3.
-- **Quote-aware masking in `check-careful.sh` (#1060)** — `git commit -m "rm -rf
-  build"` still asks. Deferred: masking quoted text inside a safety hook can open
-  bypasses (PR #1110's `echo hi; rm -rf ~` showed how); it needs its own design
-  with the #1110 strings as controls. **Effort:** M. **Priority:** P3.
-- **Hooks on Windows without Git Bash** — the frontmatter hook commands run
-  `bash -c ...`, and Claude Code runs hook commands through PowerShell when Git
-  Bash is absent, so the guards cannot start there. gstack requires Git Bash
-  today; a native PowerShell hook launcher would lift that. **Effort:** M.
-  **Priority:** P3.
-
-### P2/P3: iOS QA fix-wave follow-ups (filed 2026-10-07, v1.91.38.0)
-
-Left open by the iPad and route-drop release, each with its reason.
-
-- **Device verification of v1.91.38.0** — the iPad bootstrap, route-drop
-  recovery on a real Xcode 26 tunnel drop, the multiple-devices error and the
-  `NOT READY` path were proven only against the simulated device; the changed
-  `StateServer` passed `swiftc -parse` but no Apple-SDK build. Run
-  `test/skill-e2e-ios-device.test.ts` and the Swift build lane on a Mac with an
-  iPhone and an iPad. **Effort:** S. **Priority:** P2.
-- **`GSTACK_IOS_LAUNCH_ENV` (split from #1796, @Bmathews721)** — pass launch
-  environment to the app through `devicectl process launch`. Nothing equivalent
-  exists on main; land it as its own small PR with credit, then close #1796.
-  **Effort:** S. **Priority:** P2.
-- **A restarted daemon still relaunches the app once** — a new daemon has no
-  session bearer and the one-use boot token is gone. Fixing it needs either a
-  device-side re-mint with proof of the old session or a persisted bearer under
-  the state root, and both change the token's security model. Needs a design.
-  **Effort:** M. **Priority:** P3.
-- **iPad Stage Manager and multiple scenes** — overlay and window selection
-  (`frontmostWindow`, `searchRoots`) are unverified on iPad multi-window
-  layouts. **Effort:** S (verify) / M (fix). **Priority:** P3.
-- **Stale "Session warm-start" phase in `/ios-qa`** — Phase 0 describes an
-  `ios-qa-session.json` cache that no daemon code writes. Implement it with the
-  state-root chain or remove the phase. **Effort:** S. **Priority:** P3.
-- **Sanctioned input-routing hook for SwiftUI gestures** (#1975 finding 2) —
-  synthesized touches miss `DragGesture` on iOS 26; a documented `#if DEBUG`
-  hook would let gesture-driven apps route `/tap` and `/swipe` to their own
-  handlers. **Effort:** M. **Priority:** P3.
-
-### P1/P2: /cso capacity follow-ups (filed 2026-10-08)
-
-Left open by v1.91.42.0, which lifted the snapshot file-count ceiling.
-
-- **Tracked symlinks refuse the whole /cso run** — `capture()` fails closed on
-  any tracked symlink ("Symlink or special source file"). 5 of 8 mid-size OSS
-  repos measured for v1.91.42.0 stop there (django, rails, terraform, grafana,
-  vscode; 1-10 symlinks each, mostly test fixtures). Recording them as unread
-  exclusions in the manifest, like dependency trees, is a security design call
-  for Garry. **Effort:** M. **Priority:** P1.
-- **64 MiB aggregate source cap (#2993)** — files over 1 MiB are withheld from
-  the audit but still read and counted. Stream-hash them without counting
-  toward the cap, report them as unread coverage, and add an admission estimate
-  to `doctor`. grafana (211 MiB) and vscode (540 MiB) hit it once symlinks are
-  out of the way. A `GSTACK_CSO_SNAPSHOT_MAX_BYTES` knob was deferred with it.
-  **Effort:** L. **Priority:** P2.
-- **`inspect` prints the whole public manifest** — about 2.8 MB of stdout for
-  5,000 files, more than an agent's tool output keeps. The skill reads paths
-  from it, so trimming it is a skill-contract change with evals.
-  **Effort:** M. **Priority:** P2.
-- **Repair bundles carry every transformation** — `lib/cso/verification.ts`
-  binds the full transformation list into a 1 MiB immutable bundle. Only
-  runtime verification writes bundles, and no qualified runtime catalog exists
-  yet. **Effort:** M. **Priority:** P3.
-
-### P2/P3: iOS QA fix-wave follow-ups (filed 2026-10-07, v1.91.38.0)
-
-Left open by the iPad and route-drop release, each with its reason.
-
-- **Device verification of v1.91.38.0** — the iPad bootstrap, route-drop
-  recovery on a real Xcode 26 tunnel drop, the multiple-devices error and the
-  `NOT READY` path were proven only against the simulated device; the changed
-  `StateServer` passed `swiftc -parse` but no Apple-SDK build. Run
-  `test/skill-e2e-ios-device.test.ts` and the Swift build lane on a Mac with an
-  iPhone and an iPad. **Effort:** S. **Priority:** P2.
-- **`GSTACK_IOS_LAUNCH_ENV` (split from #1796, @Bmathews721)** — pass launch
-  environment to the app through `devicectl process launch`. Nothing equivalent
-  exists on main; land it as its own small PR with credit, then close #1796.
-  **Effort:** S. **Priority:** P2.
-- **A restarted daemon still relaunches the app once** — a new daemon has no
-  session bearer and the one-use boot token is gone. Fixing it needs either a
-  device-side re-mint with proof of the old session or a persisted bearer under
-  the state root, and both change the token's security model. Needs a design.
-  **Effort:** M. **Priority:** P3.
-- **iPad Stage Manager and multiple scenes** — overlay and window selection
-  (`frontmostWindow`, `searchRoots`) are unverified on iPad multi-window
-  layouts. **Effort:** S (verify) / M (fix). **Priority:** P3.
-- **Stale "Session warm-start" phase in `/ios-qa`** — Phase 0 describes an
-  `ios-qa-session.json` cache that no daemon code writes. Implement it with the
-  state-root chain or remove the phase. **Effort:** S. **Priority:** P3.
-- **Sanctioned input-routing hook for SwiftUI gestures** (#1975 finding 2) —
-  synthesized touches miss `DragGesture` on iOS 26; a documented `#if DEBUG`
-  hook would let gesture-driven apps route `/tap` and `/swipe` to their own
-  handlers. **Effort:** M. **Priority:** P3.
-
-### P3: Parked contributor ideas (Oct 8 triage)
-
-Contributor PRs closed as "later" during the Oct 8 triage. Each is a reasonable idea parked until its theme is picked up; credit and reference the PR when it is.
-
-- **New hosts** — Kimi Code (#2674), Pi (#2507, the most complete), Gemini CLI (#2309, decide together with Antigravity since both use `~/.gemini`), Qoder (#2116, its `--dir` setup flag could land on its own), Grok Build (#2028), Zed (#1785, the `~/.agents/skills` collision with Codex needs a decision), Mistral Vibe (#1640), Factory Droid symlink discovery (#660, verify on a real Droid install first), Claude Code plugin marketplace (#526, once /browse, /careful and /freeze work from plugin installs). New hosts wait for the host-config work; Antigravity ships first. **Priority:** P3.
-- **Backup-browser (`$B`) features** — `record` video evidence (#2497), WebAuthn virtual authenticator (#2297), device/geo/locale/timezone emulation (#2064), request interception `route` (#2063, needs a deny-default allowlist design), Chromium launch overrides with a denylist (#1933), extra Chrome extensions via the existing `BROWSE_EXTENSIONS_DIR` (#1144), Flutter Web semantics for snapshots (#511). Revisit each alongside an Aside equivalent. **Priority:** P3.
-- **Outside voice and Codex** — a reasoning-effort knob in the model-tier config from v1.91.45.0 instead of new env vars (#2934), cross-host plugin distribution (#2723), Review Army on Codex behind a paid quality eval (#2648), the /investigate falsification prompt as a Codex outside voice (#2535), Codex install paths moving to `~/.agents/skills` as a planned migration (#2123), Codex CLI freshness in gstack-doctor's Codex row (#1861). **Priority:** P3.
-- **Memory and learnings** — signal-gated learnings capture with helpful/harmful counters (#2030), semantic dedup folded into `/learn prune` (#2029), docs-aware gbrain sync on the current orchestrator (#2438), a registry-independent plan-tune autonomy signal after fixing signal keys vs logged labels (#2625). **Priority:** P3.
-- **Ship and review** — a pre-PR upstream duplicate audit as an opt-in (#1696), preview deploy plus browser check before PR creation as a designed section (#685), the header-derived-gate testing bullet (#2860). **Priority:** P3.
-- **QA, design and other skills** — accessibility review folded into /design-review or /qa (#2476), per-finding QA evidence layout (#1484), a cognitive-load checklist item in the shared design checklist (#696), local-model benchmarking via an Ollama adapter (#1495), measured context-bill benefit estimates (#3021), a REMOTE_CONTROL trigger for the AskUserQuestion prose fallback if the host bug persists (#459). **Priority:** P3.
-
-### P2/P3: Oct 7 fix-wave follow-ups (filed 2026-10-07)
-
-Left open by the Oct 7 wave (docs/designs/FOLLOWUP_WAVE_2026_10_07.md), each with its reason.
-
-- **/autoplan Bash cards in Manual mode after a background reviewer** — after a background reviewer's notice starts a new turn, the skill's allowed tools stop applying, so /autoplan's Bash calls (snapshot tool, outside voice, review log) ask in Manual mode; auto mode routes them to its classifier. Options: hook approval of exact snapshot-tool invocations, or a one-time explanation. **Effort:** M. **Priority:** P3.
-- **Reviewer input card for sessions started below the repo root** — skill hooks don't run inside subagents, so a reviewer reading its input from the repo's `.gstack/tmp/autoplan/` asks when the session started in a subdirectory. **Effort:** S. **Priority:** P3.
-- **Every-transition manual /autoplan session on 2.1.292** — the replay
-  fixtures and the scripted live boundary (foreground and `--bg`) cover the
-  guard; one full recorded run through every phase transition is still to do.
-  **Effort:** S. **Priority:** P3.
-- **Remove the sourced Codex probe (on or after 2026-10-21)** — delete the
-  sourcing path of `bin/gstack-codex-probe`, its deprecation line, the zsh
-  self-locate block, the probe's entry in the zsh sourced-helper test and
-  `test/helpers/codex-probe-sourcing.ts`. **Effort:** S. **Priority:** P3.
-- **Move the remaining PR and issue writers to gstack-post** — /document-release's
-  PR body and title edit (with its own scan) and the test-failure triage issue
-  (`--assignee`) still call gh/glab directly. **Effort:** S. **Priority:** P3.
-- **`gstack-doctor --json`** — machine-readable rows for CI and bug-report
-  bots. Deferred as DX polish. **Effort:** S. **Priority:** P3.
-- **Doctor guard check against a named session journal** — run the guard's
-  reader on a given journal from `gstack-doctor`. Deferred: doctor runs outside
-  a session and the design is unclear. **Effort:** M. **Priority:** P3.
-- **One secret scanner for artifacts sync** — replace `bin/gstack-brain-sync`'s
-  Python scanner (and the hook copies written by init and restore) with
-  `lib/redact-engine.ts`. Deferred: a cross-language rewrite outside the
-  per-file hold. **Effort:** L. **Priority:** P3.
-- **Timed novice install journey** — measure a fresh install to a first skill
-  run, end to end. Deferred: outside a fix wave. **Effort:** M. **Priority:** P3.
-- **Native Windows Docker transport for /cso (#3028)** — `lib/cso/docker.ts`
-  accepts only `unix:///` endpoints, so /cso on Windows reports "static
-  assessment only" even with a trusted `docker.exe`. Add named-pipe transport
-  with the same trust checks. **Effort:** L. **Priority:** P2.
-
-### P2/P3: reliability follow-ups deferrals (filed 2026-10-04, v1.91.30.0)
-
-Deferred from the approved reliability follow-ups plan (docs/designs/RELIABILITY_FOLLOWUPS_2026_10.md), each with its reason.
-
-- **Free-suite git hang behind shard neighbors (B5): Bun spawnSync loses the
-  child's exit (oven-sh/bun#34069, open upstream)** — CI shard 1 (PR runs
-  37242691914 and earlier) timed out `execFileSync`/`spawnSync` git calls in
-  redact-prepush-rebase-force-push, render-sections-provenance and
-  shared-libs-stage-actor. A watcher on Ubicloud caught it: every "hung" git is a
-  zombie (exited, never reaped) while the `bun test` main thread runs, matching
-  the upstream report. CI's shard-1 file list reproduces it in about 3 of 60
-  runs (none of 20 without pty-workspace-trust, not significant). Next step:
-  move the git calls in shared fixture helpers to async spawn with a hard
-  timeout, or take a Bun release that fixes #34069. **Effort:** M. **Priority:** P2.
-- **Judge rubric anchors (C1, needs Garry: EVAL_POLICY)** — the pre-registered
-  control panels (`docs/evals/judge-controls-2026-10.md`, 36 calls) showed
-  every workflow judge separates gross breakage, but the qa workflow judge
-  passed a /qa bundle with Phase 10 Report removed (no sample noticed) and the
-  review judge passed /review with Step 3 removed (two of three samples noticed
-  it and rated it minor); no positive sample scored 5 on any dimension.
-  Missing-step coverage now lives in `test/workflow-required-steps.test.ts`.
-  Proposal: anchor completeness/actionability 4 and 5 to named deliverables
-  and inputs, as a pre-registered EVAL_POLICY change. **Effort:** M. **Priority:** P2.
-- **auto-decide-preserved: the CEO handoff line no longer depends on the model**
-  — periodic run 37272185151 went red because the model led its chat with a
-  paraphrase; a reminder beside the line measured 1/10. The Oct 6 wave shows
-  the line through /plan-ceo-review's PostToolUse hook (system message), which
-  measured 10/10 with the line visible in every trial while no trial's chat led
-  with it. The native detector still credits only a chat that begins with the
-  line; if the screen path ever stops carrying the hook message, make the
-  detector read the hook's record instead. **Effort:** S. **Priority:** P3.
-- **Named red: ship-docsync-late-result on PR run 37237194905** — the model
-  wrote its report to a mistyped shard root (`…-3GanyY` for `…-3GanyU`) at
-  call 20, disclosed it, then wrote the real report at the right path. The
-  authority detector is correct (the file was created outside the fixture);
-  `test/docsync-authority.test.ts` replays the capture. If any docsync case
-  writes to a near-miss shard path again, give the model a short stable
-  fixture root (env var or fixed short symlink) instead of random tokens to
-  copy, without loosening the authority check. **Effort:** S. **Priority:** P2.
-- **PTY sessions are cost-unknown** — `test/helpers/pricing.ts` excludes
-  cache-write charges, so PTY trials stay `cost_known: false`. Price them from
-  native transcript usage once pricing covers cache writes. **Effort:** S. **Priority:** P3.
-- **Custom SDK query providers stream no partial messages** — overlay-case,
-  the ship hook/skip actors, workflow-boundaries and the setup-gbrain sandbox
-  record raw events, so their ledger rows carry no stall evidence (never
-  `provider_stall`). Let them drop `stream_event` rows and opt in to stream
-  liveness. **Effort:** S. **Priority:** P3.
-- **Name PTY sessions by case** at their call sites so multi-case shards
-  attribute ledger rows (single-case shards already do). **Effort:** S. **Priority:** P3.
-- **Red lines link the native-captures artifact** — they name the slice
-  artifact; `native-captures-<EVALS_RUN_ID>` embeds the job id, which the
-  report job does not know. **Effort:** S. **Priority:** P3.
-- **EVAL_POLICY v2: provider_stall as INFRA** — decide with two censuses of
-  `eval:pass-rates --reds` cause data (labels only today). **Effort:** S. **Priority:** P3 (Garry).
-- **Detector convert candidates (B2)** — `docs/evals/detector-inventory.md`
-  lists 38 phrase-only checks with a structured source (top: S5 screen-first
-  auto-decision, PTY plan_ready/silent_write from journal tool calls, setup
-  selectors keyed on wording, the bws READY probe), and periodic "surface"
-  checks that match the injected SKILL.md body (context-restore-*,
-  scrape-prototype-path). **Effort:** M. **Priority:** P3.
-- **Retain the owned transcript tail in floor captures** — PR run 37176835584's
-  public transcript never showed the pending Edit, so the B3 parser fix may not
-  have been sufficient there. **Effort:** S. **Priority:** P3.
-- **CEO decision procedure latency** (~60 s per question: grid, save,
-  Read-back, ask) bounds plan-ceo-mode-routing's 240 s post-selection window.
-  Named, not cut. **Effort:** M. **Priority:** P3.
-- **Value-card JSON wording** — two of three qa-only judge samples still say
-  "written JSON keeps full values" names no file. Name the JSON per mode (ship
-  Step 7, /test-audit's sidecar) and drop the clause where no JSON carries
-  cards. **Effort:** S. **Priority:** P3.
-- **Windows check of E4's private object directory** —
-  `GIT_ALTERNATE_OBJECT_DIRECTORIES` uses `;` on Git for Windows (only matters
-  when alternates are already set) and the `cygpath -m` conversion is
-  unverified there. **Effort:** S. **Priority:** P3.
-- **Fresh /ship marathon case** — the marathon lane runs a fresh
-  /plan-eng-review; a fresh /ship journey case is new harness work.
-  **Effort:** M. **Priority:** P3.
-- **Refresh the E5/E6 duration seeds** — `codex-multiblock-live` (180 s) and
-  `design-model-smoke` (90 s) are estimates in `scripts/paid-test-durations.json`;
-  refresh them with `--write-durations` from their first census, and close
-  "Periodic paid smoke for the default design model pairing" once it has run
-  there. **Effort:** S. **Priority:** P3.
-- **Env-var hosts: optional runtime files outside the runtime root** — the
-  Chrome extension lookup in /open-gstack-browser and /connect-chrome, and the
-  prose pointers to `$GSTACK_ROOT/docs/...` and `$GSTACK_ROOT/scripts/...`
-  (question-split guide, jargon list, question registry) name files the
-  Codex/Factory runtime roots do not link. Executed fences are covered by
-  `test/env-host-runtime-assets.test.ts`; these reads are not. **Effort:** S. **Priority:** P3.
-- **Product A/B against the stock host agent** — compare gstack end to end
-  with the stock Claude Code/Codex agent on product outcomes (the overlay
-  harness covers model-level deltas only). Its own project. **Effort:** L. **Priority:** P3.
-
-### P1–P3: test/eval/CI audit wave follow-ups (filed 2026-10-04)
-
-From the approved 2026-10 test/eval/CI audit plan; the audit PR files these.
-
-- **Post-merge audit metrics (due merge + 7 days)** — run
-  `bun run test:health --since-days 7` and record the PR full-fallback rate,
-  recorded PR-lane spend per merged PR (target: down at least 50%), cancelled
-  slice-minutes per week, push-to-verdict p50/p95 and the free flaky-pass rate in
-  `docs/test-audit-2026-10.md` as a dated follow-up. **Effort:** S. **Priority:** P1.
-- **Census reliability metric (due after the fourth scheduled census after merge,
-  about merge + 28 days)** — run `bun run test:health --since-days 28` and record
-  expected failed trials per periodic run (target at most 1.0) and per gate census
-  (target at most 0.5), each as raw trial failure rate, false-blocking probability
-  and the old-policy re-aggregation. A miss opens a P1 entry here with the per-kind,
-  per-failure-class breakdown. **Effort:** S. **Priority:** P1.
-- **Remove the one-release command stubs** — delete the retired package scripts
-  (`test:evals`, `test:evals:all`, `test:e2e`, `test:e2e:all`, `test:gate`,
-  `test:periodic`, `test:codex`, `test:codex:all`, `eval:bg`, `eval:bg:all`,
-  `eval:flake-rank`, `eval:watch`, `test:audit`), `scripts/retired-command.ts`,
-  `test/retired-commands.test.ts` and CONTRIBUTING.md's "Retired commands" table.
-  They exist only to redirect old agent memories and docs. **Depends on:** the
-  audit release shipped. **Effort:** S. **Priority:** P2.
-- **Reclaim `test:gate` / `test:periodic` for the sharded runner** — after the
-  stubs are gone, point the short names at `test-paid-shards.ts` and retire the
-  `:sharded` suffix. **Depends on:** stub removal. **Effort:** S. **Priority:** P3.
-- **One diff-aware command for free + paid checks** — plan `test:quick` and the
-  paid PR profile from the same touchfile closure so one command answers "what
-  does my diff need?". **Effort:** M. **Priority:** P3.
-
-### P2: Windows follow-ups from the October fix wave (PR C1)
-
-- **Sign the Windows binaries so Smart App Control allows them (#2595, #2124)** —
-  `browse`, `find-browse`, `design`, `pdf` and `gstack-global-discover` are
-  compiled on the user's machine with `bun build --compile`, so they are
-  unsigned and never gain reputation; Smart App Control blocks all five. PR C1
-  only detects and explains the block (setup hint, gstack-doctor rows,
-  troubleshooting section). The fix is Authenticode-signed release artifacts
-  (for example Azure Trusted Signing) that setup downloads and verifies instead
-  of compiling, or a signed launcher. **Needs:** Garry's code-signing account
-  and certificate decision; a Windows 11 machine with Smart App Control on to
-  verify. **Effort:** L. **Priority:** P2.
-- **Find what deletes the staged CSO files during publish on #3071's machine** —
-  PR C1 made the failure non-fatal, cleared the parent's EXIT trap before the
-  native publisher `exec`, and records the outcome, but the root cause is
-  unproven (one reporter; `windows-latest` CI publishes fine). Ask for
-  `bin/.gstack-cso-build.log`, `bash -x scripts/build-cso.sh` and a Process
-  Monitor trace of the stage directory. **Effort:** M (needs the reporter's
-  machine). **Priority:** P3.
-- **Verify the Smart App Control error text on a real SAC machine** — the
-  launch probe (`bin/gstack-launch-probe.sh`) classifies exit 126/127 and
-  application-control messages as blocked from reporters' captures; nobody has
-  run it on an enforcing machine. **Effort:** S. **Priority:** P3.
-
-### P2/P3: install footprint follow-ups from the October fix wave (PR C2, v1.91.65.0)
-
-- **`scripts/ship-measure.ts` on env-var hosts** — /ship's measure loop runs
-  `$GSTACK_ROOT/scripts/ship-measure.ts`, which imports gstack's test helpers
-  and eval harness, so a Codex/Factory/... runtime root would need most of the
-  development tree. It is the one `$GSTACK_ROOT` path
-  `test/runtime-root-assets.test.ts` defers. Either make ship-measure
-  self-contained or have the skill call it from the source checkout
-  (`.source-path`). **Effort:** M. **Priority:** P3.
-- **Rendered `SKILL.md` copies inside runtime roots are discoverable** —
-  `office-hours/SKILL.md` (#2449) and now `plan-design-review/SKILL.md` sit in
-  `~/.codex/skills/gstack/<skill>/` because skills read them as
-  `$GSTACK_ROOT/<skill>/SKILL.md`. A host that scans its skills dir
-  recursively may list them beside `gstack-<skill>`. Pointing those reads at
-  the sibling registry path, as /autoplan does, removes the copies; that is a
-  prompt change and needs its evals. **Effort:** M. **Priority:** P3.
-- **Removing one host from a checkout** — the installed-hosts record only
-  grows, and `gstack-uninstall` removes every install. A per-host uninstall
-  should drop the host from `.gstack-installed-hosts` so its render is pruned;
-  today that is a hand edit. **Effort:** S. **Priority:** P3.
-- **Recording an instruction-only host from setup** — Hermes, OpenClaw and
-  GBrain renders made by hand inside an install survive only when the user adds
-  the host to `.gstack-installed-hosts` first (setup's hint says so). A
-  `./setup --host hermes --render`-style path would record and render in one
-  step; it needs a product call because those tiers install nothing today.
-  **Effort:** S. **Priority:** P3.
-- **Host-render backups never expire** — each install's first pruning setup
-  moves about 36 MB of generated files to
-  `$GSTACK_STATE_ROOT/backups/host-renders/`. Add a retention rule (for example
-  keep 30 days) once nobody has asked for a restore. **Effort:** S.
-  **Priority:** P3.
-- **Verify the Cursor-agent freeze and Claude Code's listing on a real
-  install** — #1694's symptoms (Cursor-agent freezing above about 11 MB, Claude
-  Code dropping skill descriptions) were measured as on-disk bytes only: 632
-  `SKILL.md` / 34.7 MB before, 63 / 2.5 MB after. Nobody re-ran Cursor or
-  Claude Code against the trimmed tree. **Effort:** S. **Priority:** P3.
-
-### P2/P3: severe fix wave follow-ups (filed 2026-10-03, v1.91.19.0)
-
-Deferred from the approved severe fix wave (docs/designs/SEVERE_FIX_WAVE_2026_10.md), each with its reason.
-
-- ~~**Enforce the Bun floor at setup (#2815)**~~ — done in v1.91.30.0: setup refuses Bun below 1.3.3 and warns below 1.4.2; auto-update and /gstack-upgrade check the incoming floor before moving the checkout. Original note: — `engines.bun` is now `>=1.4.0`
-  (the CI pin), but Bun does not enforce `engines` and setup never checks the
-  version. Bun older than 1.3.3 silently ignores `--no-compile-autoload-dotenv`
-  and `--no-env-file` (verified with 1.3.2), so D0's protection against a
-  project's `.env`/`bunfig.toml` is silently off there. Setup should refuse or
-  warn below the floor. **Effort:** S. **Priority:** P2.
-- ~~**Windows Node CLI lane for Smart App Control (E3; #2596, #2595, #2124)**~~ —
-  superseded by the fix wave's PR C1: setup and gstack-doctor now detect
-  SAC-blocked binaries, and the fix wave decided against a launcher or shim
-  (it cannot be called from PowerShell, and a `bun run` shim would load the
-  caller's project `.env`/`bunfig.toml`). Signing is the follow-up below.
-  Original note: — a `dist/browse` wrapper would shadow `browse.exe` for every
-  Windows user; launcher precedence (browse vs browse.exe vs browse.cmd under
-  Git Bash and cmd) and the node-missing message need a Windows SAC machine to
-  verify. **Effort:** M. **Priority:** P2.
-- **C8 router wording behind a routing panel** — disabled skills now leave the
-  router, but the "When in doubt, invoke the skill" wording change (Tier 3) was
-  not run through a routing eval panel. **Effort:** S. **Priority:** P3.
-- ~~**Cross-block variables on fresh-shell hosts: make-pdf `$P`**~~ — done in v1.91.30.0: env-var hosts re-derive `$P` in every block (MAKE_PDF_BIN honored). Original note: — make-pdf
-  "exports" `$P` for later blocks, which Codex and the other env-var hosts lose
-  between blocks (same class as `$B`/`$D`, which the shared prelude now
-  re-derives). Add `P` to the runtime prelude or resolve it per block.
-  **Effort:** S. **Priority:** P2.
-- ~~**#2709's recorded-Chromium reap never runs on Playwright 1.62**~~ — done in v1.91.30.0: the owned headless launch records the browser PID over CDP `SystemInfo.getProcessInfo`. Original note: — Playwright
-  1.62's `Browser` has no `process()`, so `chromiumProcInfo` is always null and
-  the cleanup is a no-op (verified by probe). Record the PID another way (CDP
-  `SystemInfo.getProcessInfo` or the launch server). **Effort:** S. **Priority:** P2.
-- **#2670's bash half in `bin/gstack-brain-sync`** — the TypeScript stage
-  verdict now reports a 0-page artifacts source; the bash brain-sync still has
-  no `index_failed` status file or page-count probe. **Effort:** S. **Priority:** P3.
-- **Navigation guard acts after the request is sent** — Playwright routing
-  cannot see redirect hops, so a blocked hop resets the tab and fails the
-  command after the request left. Pre-send blocking needs CDP Fetch
-  interception, including out-of-process iframes. **Effort:** M. **Priority:** P3.
-- **Redaction repo allowlist (#2598)** — a per-repo `+++ b/<path>` skip list
-  (generated `*.svg`/`*.excalidraw`, #2827) for noise context rules cannot
-  cover. New config surface, so out of the wave. **Effort:** M. **Priority:** P2.
-- **Global-discover Codex session schema (#2750)**, **absolute bun path for
-  compiled browse spawns (#931; macOS repro unclear)** and **GitLab CI
-  `curl | bash` (#1713)** — out of the wave's scope. (The ios-qa boot-token
-  items #1837 and #1975 landed in v1.91.38.0.) **Priority:** P3 each.
-- **Upstream gbrain batch lookup** — a per-slug existence lookup and a separate
-  `pending` list in `gbrain import --json`, so the landing check need not list a
-  whole source and spawn `get` per page. **Effort:** M (upstream). **Priority:** P2.
-- **Memory follow-ups** — record repo identity for gbrain sources at
-  registration (prune can prove ownership of a pre-wave source only from the
-  same repository's main checkout); a deliberate migration of pre-wave
-  transcripts out of `default` into per-repo sources (needs gbrain-side page
-  moves); decide #2778's "nearest existing ancestor" attribution for deleted
-  worktrees (risk: attributing to an unrelated parent repo like a dotfiles
-  repo). **Priority:** P3 each.
-- **G2 on the TS twin** — `lib/bin-context.ts` (the Windows fallback) shares the
-  common-dir slug keying but does not record former worktree buckets.
-  **Effort:** S. **Priority:** P3.
-- **Codex follow-ups** — post-run `codex_sandbox_unavailable` telemetry (only
-  the preflight logs it today); the Q2 first-use notice covers Codex only, not
-  the Codex host's Claude Code outside voice; the bash-native timeout watchdog
-  cannot reap grandchildren when `pkill` is missing; document enabling
-  unprivileged user namespaces in common containers. **Priority:** P3 each.
-- **Live Codex multi-block check as a periodic paid case** — the wave ran it
-  once by hand (fresh `CODEX_HOME`, fresh clone, `./setup --host codex`, one
-  multi-block skill). Make it a periodic case so a regression shows up weekly.
-  **Effort:** M. **Priority:** P2.
-- **/review's working-tree fingerprint under Codex's default sandbox** — the
-  live Codex check (v1.91.19.0) showed `bin/gstack-wtree` exits 1 inside
-  `codex exec -s workspace-write`, because Codex mounts `.git` read-only and the
-  fingerprint writes untracked content into `.git/objects`. `gstack-review-log
-  --start review` then fails with `cannot capture a diff review without a
-  working-tree fingerprint` (loud, not a false pass), and `git fetch` cannot
-  write `FETCH_HEAD`. Use a private object directory
-  (`GIT_OBJECT_DIRECTORY` + `GIT_ALTERNATE_OBJECT_DIRECTORIES` under
-  `$TMPDIR`) for the fingerprint, and report the fetch as stale-base coverage.
-  **Effort:** S. **Priority:** P2.
-- **Closed by the wave's evals2 lane (run 37162480720):** Codex paid evals now
-  run commands in CI (host-run job; all 8 Codex cases executed real commands),
-  ship-exploratory-late-input no longer ends `inconclusive` (capture names the
-  probes to rerun after an input change), plan-eng-multi-finding-batching's
-  checker and office-hours-brain-writeback's prompt are fixed (3/3).
-  plan-eng-review-artifact (0/4 since #3017) measured a shortcut prompt that
-  skipped the workflow; it now drives the real interactive /plan-eng-review in
-  a PTY. A fresh run needs more than its 600 s budget (498 s pass; 595 s
-  timeouts in census 37174266054 and a local run), so the periodic case
-  resumes at Test review from that census run's real Scope Challenge ledger
-  (pass, 364 s) and the fresh run is the marathon case
-  plan-eng-review-artifact-full.
-- **Gate-outcome telemetry** — count `not_run`/`unavailable` outcomes per
-  reason code from `lib/gate-outcomes.ts` so the most common gaps get fixed
-  first. **Effort:** S. **Priority:** P3.
-- **/gstack-upgrade redesign around the install registry**, a **marketplace
-  distribution channel**, and a **placeholder convention for generated bash**
-  (`<placeholder>` vs real syntax in fences). **Priority:** P3 each.
-- **Design CLI health subcommand** — the DESIGN SETUP probe uses `--version`; a
-  richer `design health` could check the API key and model access too.
-  **Effort:** S. **Priority:** P3.
-- **Autoplan publication hook under cmd.exe** — `scripts/resolvers/composition.ts`
-  still registers `bash -c '<script>'`; the multi-line script with JSON printf
-  needs its own cmd.exe argv verification. **Effort:** S. **Priority:** P3.
-- **#2971 pieces outside the approved salvage** — ship/land validation-command
-  tuples and the requested-review/waiver gate in /land-and-deploy, the click
-  `<option>` 500 ms probe, 0600 modes on ingest state and staging files,
-  gbrain-sync's held-checkpoint refusal, and the question-preference hook's
-  fail-closed allowlist. **Priority:** P3 each.
-
-### P1: paid-eval follow-ups from the v1.91.12.0 proof censuses (filed 2026-09-29)
-
-- **Thin budgets on slow API days** — on Claude Code 2.1.284, review-army-perf
-  (274 of 300 s) and the ship-docsync fault cases (250-263 of 285 s) sit at
-  88-93% of their budgets; a slow-API census can time them out on either CLI
-  version. Make those skills faster rather than raising budgets. Effort M.
-  **Progress (v1.91.19.0, 2026-10-04):** /ship's documentation gate now
-  saves and checks its candidate with `bin/gstack-docs-candidate`
-  (`snapshot`/`compare`) instead of ~20 separate Git/hash calls and a
-  hand-written candidate JSON. Wall time (CI b24b6d8 before → two local trials
-  after, same budgets): store 476 → 346/386 s, current 354 → 339/326 s,
-  completion 412 → 372/371 s, failure 197 → 215/201 s; the eight other fault
-  cases moved within ±20 s (one trial each, all 12 PASS). Parent pre-dispatch
-  time fell from 140-186 s to 118-159 s. Parent tool calls did not fall
-  (store 55 → 51/62): the parent still reads release files the child re-reads,
-  and model thinking gaps (up to 77 s) dominate. Before/after machines differ
-  (CI vs local), so treat these as indicative. Next: stop the parent reading
-  release-file contents at all and let the child return hashes it read.
-- **Recurring reds to repair, not rerun** — `plan-design-review-plan-mode`
-  (one ~250 s thinking block before its single write; times out at 300 s on
-  2.1.251 in every recent run) and the HOLD SCOPE
-  routing case when its next brief happens not to name the mode (see the
-  handoff item below). Effort M each.
-- **`/plan-ceo-review` skips its Step 0E mode handoff** — 0 of 15 answered
-  samples sent the required `Mode: <mode>; approved decisions: …` chat after
-  the mode answer, across four wording repairs (none shipped). The model writes
-  the handoff in its reasoning and later says it was "sent above". A prose fix
-  won't reach it; this needs a mechanism outside the prompt (a hook or a
-  tool-result gate). The HOLD SCOPE routing case fails whenever the handoff is
-  skipped and nothing else names the posture in time. auto-decide-preserved
-  fails the same way: in periodic census 37176837432 (7249f01) the model
-  checked the preference, auto-selected HOLD SCOPE and logged it, but never
-  printed the `Auto-decided review mode → …` line, so the observer timed out.
-  Census history (last 15 periodic runs, 2026-09-29 to 10-04): mode-routing red
-  in 4 (36633323521, 36641820398, 36903600510 before this wave; 37176837432),
-  auto-decide-preserved red in 5 (36633323521, 36776104571, 36787269090,
-  36920606897 before this wave; 37176837432). Effort M.
-  **Completed:** v1.91.19.0 (2026-10-04). Step 0E now runs
-  `gstack-ceo-mode-handoff`, which prints the handoff line as a tool result,
-  and the auto-decide detector accepts the documented line with its
-  `Approved decisions:` suffix (trial 1 printed it and was rejected; the replay
-  is `test/fixtures/auto-decide-handoff-line-e354.json`). Local paid trials after
-  the repair: auto-decide-preserved 1/1, plan-ceo-mode-routing 1/1 (both modes);
-  every session ran the helper.
-- **plan-ceo-section-loading misses correctly worded stale-fill findings** —
-  censuses 37178734784 (65d94f2) and 37182865432 (44ef18c) failed
-  `hasStaleFillRaceFinding` although the review found the race. In 44ef18c it
-  named schedule S2 ("a read can fetch an old copy, pause, and only then put
-  it in the cache… every later reader gets stale data") and approved a
-  fill-admission guard. The detector is a regex family over phrasings; adding a
-  spelling per failure is the wrong fix. Bind the case to a structured finding
-  record (or an LLM judge with a fixed rubric) instead. 2 of the last 3
-  censuses, 0 of the 16 before. Effort M. **Priority:** P2.
-  **Completed:** v1.91.19.0 (2026-10-04). The case now reads the skill's own
-  decision-ledger row and `currentDecision` question
-  (`test/helpers/ceo-stale-fill-decision.ts`), with the phrase detector kept as
-  the alternate witness. Across eight census captures the structured check
-  finds 7 (it misses 37174266054, whose ledger row was left `unresolved`) and
-  the phrase detector finds 6; together they find all 8. The two missed reports
-  and one passing report are replayed from `test/fixtures/ceo-stale-fill-decision/`.
-- **auq-matrix recommendation-substance judge rotates red** — census
-  37182865432 scored plan-design-review's "A because the plan is thin
-  everywhere, so skipping dimensions mostly skips gaps" 3 < 4. The same case
-  was red in 5 of the 16 earlier censuses (37151477069 on main,
-  36898545245, 36787269090, 36641820398, 36633323521) across skills and checks
-  (a two-`(recommended)` option count; office-hours substance). It is kind
-  `rule` but gates on one judge sample. Decide under EVAL_POLICY whether it is
-  a `judge` case (3 samples, median) and supply pass-rate evidence before
-  changing the kind. Effort S. **Priority:** P2.
-- **qa/SKILL.md workflow judge dips below its actionability floor** — census
-  37186854666 (b24b6d8) scored actionability 3.67 < 4 (clarity 3, completeness
-  4) on the same qa bundle bytes that passed in census 37182865432 (44ef18c);
-  nothing under qa/, qa-only/ or scripts/resolvers changed between them. Red in
-  2 of the 17 earlier censuses (36920606897, 36776104571). Judge kind, 3
-  samples, unchanged threshold. The qa-only workflow judge did the same in
-  census 37198445662 (fd6854b): 3.67/4.33/3.67, one 3/4/3 sample citing density,
-  on qa-only bytes unchanged since 44ef18c, where it passed in four censuses.
-  Find which bundle step the low samples call unactionable before rewording.
-  Effort S. **Priority:** P3.
-- **shared-libs-review-revalidation stalls mid-stream** — gate census 4 of
-  37186854666: the `filtered` scenario's stream stopped after a thinking block
-  at 07:51:21 and emitted nothing until the 657 s abort; the other three
-  scenarios passed. First red in 18 censuses. Classify a silent provider stream
-  as INFRA (no events for N minutes) rather than a test timeout. Effort S.
-  **Priority:** P3.
-- **overlay-harness sonnet fails on a baseline-arm model error** — census
-  37198445662 (fd6854b,
-  https://github.com/garrytan/gstack/actions/runs/37198445662): the
-  overlay-OFF arm's trial 0 grepped exports without `async` and reported
-  `src/api.ts: []` (missing `export async function fetchFoo`); 19 of 20
-  trials were correct and every overlay-ON trial passed. The correctness gate
-  requires all 20, so one control-arm slip reds a research comparison. First
-  red in the last five censuses. Decide whether a control-arm error should
-  invalidate the comparison (rerun policy) rather than fail the overlay.
-  Effort S. **Priority:** P3.
-- **plan-ceo-review-format-approach hit provider refusals** — census
-  37195203538 (4128700,
-  https://github.com/garrytan/gstack/actions/runs/37195203538): t1 and t2
-  ended in `model_refusal_no_fallback` (`reasoning_extraction`) on inputs
-  byte-identical to its 9/9 passes in 37182865432, 37186854666 and
-  37193478719; it passed 3/3 again in 37198445662. Classify a provider refusal
-  as INFRA rather than an assertion, and check whether the capture prompt's
-  "verbatim … exact prose you would have shown" wording trips the classifier.
-  Effort S. **Priority:** P3.
-- **Floor runner cannot grant an owned Edit when the TTY collapses spaces** —
-  PR run 37176835584 (7249f01): plan-ceo-finding-floor timed out at 600 s with
-  the native "Do you want to make this edit to gstack-test-plan-ceo-floor.md?"
-  menu on screen for its last ~5 minutes. The diff preview rendered context
-  rows with collapsed spaces (`210 C)Smoke-test…`, wrapped rows without their
-  gutter), so `currentEditPreview` could not parse the rows, the guard never
-  verified the owned edit, and nothing answered it. 1 of the last 12 PR-lane
-  runs; 0 of 15 censuses. Fix: accept collapsed context rows and gutterless
-  wraps in the preview parser (still compared against the exact source lines),
-  with the captured screen as a free regression. Effort S-M. **Priority:** P2.
-- **Pre-push hook tests hang behind some shard neighbors** — on the free-suite
-  plan for dfe5e733, `test/redact-prepush-hook.test.ts` timed out 6 of 28 tests
-  at 30 s in shard 12 on two attempts (the hook process was still running and
-  killed as dangling); it passes alone in 9 s and in the next plan's shard 12.
-  One of the 29 files that ran before it only in the failing plan (browse CDP/
-  stealth/tab tests, pty-workspace-trust, heredoc-pipe-deadlock among them)
-  leaves state the hook's blocking path waits on. Reproduce with that shard's
-  plan under xvfb and GSTACK_EXPECT_BINARIES=1. Effort S.
-  **Progress (2026-10 audit):** not reproduced. The failing shard-12 plan of run
-  36714493424, replayed at its head (dfe5e733) and on 2db0b3a in one process
-  under xvfb with the runner's sandbox environment, with and without `CI=true`,
-  does not hang. The CI logs show the hang is not hook-specific: `beforeEach` git
-  calls and `bash -c` children in that file also time out, one run killed up to
-  27 dangling processes, and the escape-valve case that never runs git hung too.
-  Next step: capture a process-tree dump of the dangling children when a test in
-  that file times out.
-- **Let pass-rate history decide the rest** — every census on this branch had
-  a different handful of single-trial reds. Once `eval:pass-rates` has 10 weekly
-  trials per case, apply the CASE_QUARANTINE entry rule instead of chasing one
-  run at a time. Effort S.
-  **Progress (2026-10 audit):** EVAL_POLICY v2 makes series case-owned, but the
-  D1 backtest shows no blocking case reaches 10 qualifying trials under the
-  approved weekly history (main scheduled runs plus main dispatches), so
-  quarantine stays unreachable; census redness is fixed at source and tracked by
-  `test:health`. The options and the pending decision are in
-  docs/test-audit-2026-10.md, "What the backtest shows".
-
-### P2/P3: mvanhorn fix-wave deferrals (filed 2026-10-03, from the autoplan review of the wave)
-
-- **E6 (P2): behavior E2E for design round accounting** — stub `$D` so a
-  generating step reports `saved` shorter than `requested` (and exit 2 for zero
-  saved), run /plan-design-review or /design-shotgun against it, and assert the
-  skill tells the user how many paid images were saved, names the failures and
-  builds no board on zero saved. `test/design-printed-paths.test.ts` only pins
-  the marker order; whether the model reports the count is behavior. Context:
-  #1529. Effort M.
-- **E7 (P3): prune or archive unapproved design rounds** — never-overwrite plus
-  `--retry` attempts and iterate outputs grow
-  `$GSTACK_STATE_ROOT/projects/$SLUG/designs/` without bound. Add a prune or
-  archive command for unapproved rounds and attempts (keep anything an
-  `approved.json` names) and show the design directory size in `$D gallery`.
-  Context: #1529, eng review. Effort S.
-- **E5 (P3): restore verifies assumed items read-only** — `/context-restore`
-  could check `(path assumed)` and `(code read)` items itself with read-only
-  commands (file exists, flag is defined, table has a unique key) and report
-  what it found before offering option A. Context: #3004. Effort M.
-- **E4 (P3): real-desktop Windows console smoke for spawn changes** — #1784 was
-  confirmed fixed on a real Windows 11 desktop by its reporter (v1.91.15.0); CI
-  can only check that spawns pass `windowsHide`. A smoke that starts browse from
-  a console-less parent and watches for new visible windows would catch a
-  regression the static sweep can't. Effort M.
-
-### P2/P3: parallel fix-wave follow-ups (filed 2026-10-02, from the approved fix-wave plan)
-
-- **Agent Skills distribution (#113)** — publish gstack in the Agent Skills
-  format so hosts that read it can install without `./setup`. Do it after the
-  host contract (tiers, capabilities, conformance kit in
-  `docs/ADDING_A_HOST.md`) has settled, so the package carries each host's tier
-  and safety caveat. **Effort:** M. **Priority:** P2.
-- **Telemetry-based severity ranking** — rank open issues and fix-wave
-  candidates by how many installs hit the failing skill or helper
-  (`skill_end` outcomes, refusal counts), not by report volume alone.
-  **Effort:** M. **Priority:** P3.
-- **Periodic paid smoke for the default design model pairing** — run
-  `design/scripts/live-model-check.ts` (one low-quality `gpt-5.5` +
-  `gpt-image-2` image call and one vision call) in the periodic lane so a model
-  retirement or entitlement change shows up before users hit it.
-  `gpt-image-1` retires 2026-10-23; the defaults are only live-checked once,
-  on one account. **Effort:** S. **Priority:** P2.
-- **Bug template that asks for `./setup --status`** — add
-  `.github/ISSUE_TEMPLATE/bug.yml` asking for `./setup --status` output (install
-  rows, render column, tiers) and the host + version, so install reports arrive
-  with the registry state. **Effort:** S. **Priority:** P3.
-- **Decide whether bare `./setup` defaults to `--host auto`** — today bare
-  `./setup` installs Claude only and `--host auto` is opt-in. Decide with the
-  install registry in place: auto would install every detected host, which
-  changes first-run behavior for multi-host users. Product decision.
-  **Effort:** S once decided. **Priority:** P3.
-- **Automate host `full` certification** — the "Certify your host" row in
-  `docs/ADDING_A_HOST.md` is written by hand after the host's periodic cases
-  pass. Generate it from a green periodic run (Codex first: `codex-review`,
-  `codex-discover-skill` on the pinned CLI) and flip `tier` in
-  `hosts/<host>.ts`, `bin/gstack-install-registry.sh`, `./setup --help` and the
-  README matrix in one step. Codex stays `experimental` until then.
-  **Effort:** M. **Priority:** P2.
-- **Prune stale per-install render dirs** — an install deleted by hand leaves
-  its `$GSTACK_STATE_ROOT/render/installs/<host>-<key>/` (and `.root` alias)
-  behind; `gstack_install_registry_reconcile` drops only the registry row.
-  Remove renders with no registry row during reconcile. **Effort:** S.
-  **Priority:** P3.
-- **Remaining worktree-refused skill-specific shapes (#2763 residual)** — the
-  start line, context recovery and every `gstack-slug`/`gstack-paths` eval now
-  run in worktree-isolated Claude Code sessions, but these skill-specific forms
-  are still refused there: `git` inside complex constructs (`$(git … | tr …)`,
-  `--arg x "$(git …)"`, a `$(git …)` assignment followed by other commands);
-  `$B` / `$D` variable command names (browse, design); `eval "$SCOPE_RESULT"`
-  (land-and-deploy); and sourced helpers (`. "$_EG"` egress lib in the Aside
-  blocks, `source …/gstack-codex-probe`). Move each into a helper or a plain
-  literal command, and extend `test/worktree-isolated-shapes.test.ts` to cover
-  it. **Effort:** M. **Priority:** P2.
-- **`gstack-config gbrain-refresh` for non-default installs** — it re-renders
-  only the default global install (`render/claude`). A renamed, vendored or
-  `CLAUDE_CONFIG_DIR` install (per-install render) gets brain-aware blocks only
-  by re-running `./setup` from it. Iterate the registry's render column
-  instead. **Effort:** S. **Priority:** P3.
-
-- **Judge actionability sits exactly at the 4.0 gate** (P2, from the PR #3014 eval
-  census) — all 24 workflow judges score actionability at 4.0 in nearly every run, so one
-  low sample of three fails the case (qa-only 9/78, qa 6/78, plan-ceo modes 5/78, plan-eng
-  sections 4/78, review 4/70 over 09-27..10-02). The repair is clearer skill text per case
-  (as done for qa in v1.91.14.0), not a lower threshold. Effort M.
-- **`--case` cannot select loop-registered paid cases** (P3) — coverage audits, TPA and
-  plan-mode-no-op register their cases in a loop, so `test-paid-shards.ts --case <id>` runs
-  nothing; teach `fileCaseRegistration` the loop pattern. Effort S.
-- **Mid-response `API Error:` in PTY sessions waits out the whole budget** (P3, policy call) —
-  a dropped connection after the first model turn returns the CLI to an idle prompt and the
-  harness waits 300 s. Decide whether the harness should fail fast and classify it. Effort S.
-### P2/P3: Opus 5.5 prompt-cleanup deferrals (filed 2026-10-03)
-
-Each item was deferred with a reason during the `/claude-api prompt-audit` cleanup.
-
-- **Safety rules held: their evals do not discriminate** — the
-  safety-ship-stale-evidence, safety-pair-agent-block, safety-codex-consult-embed
-  and safety-ios-demo-ui-only evals passed 10/10 with the current wording, but
-  their rule-removed arms showed 0/5 violations (2026-10-03, claude-fable-5-1,
-  Claude Code 2.1.284), so they cannot show a rewording is safe. The wording stays
-  until a fixture makes the rule's absence observable. The rules are listed in
-  `test/helpers/safety-rules.ts`. Priority P3. Effort M per fixture.
-- **design-review risk-stop rewording held (R8)** — safety-design-risk-stop
-  discriminates (current wording 10/10, rule removed 1/5 violated), but R8 needs a
-  clean run of the reworded rule on every render that carries it. The copilot,
-  cursor, factory, gbrain, hermes, kiro, openclaw, opencode and slate renders run
-  other models with no runner, and the `.agents` render has no Codex runner for
-  this eval. Narrow the rewording to the design-review render, or add per-host
-  runners. Priority P2. Effort M.
-- **Judge prose and rubric cleanup (W2 deferral)** — the arm, qa health-rubric,
-  qa anti-refusal, cross-skill and voice judges, and the default workflow judge,
-  now send a JSON schema; their prompt-audit s11 M1-M7 prose cleanup is still
-  open, as is the qa anti-refusal rubric's "always … regardless" wording. Two
-  prose steps were triggered and not run: the qa workflow judge (its schema
-  comparison held: 4/24 new flips vs 2/24 old, one new false pass on a06, zero
-  format errors, so it stays on today's request) and the default workflow judge
-  (landed, but one provider refusal on corpus item f03 under the new prompt,
-  matched by one under the old prompt). Reuse `test/fixtures/judge-calibration`
-  and `scripts/judge-calibration.ts`. Priority P3. Effort M.
-- **Uncalibrated workflow-judge configurations** — build corpora and calibrate
-  schema transport for the frontier configuration (review/SKILL.md workflow) and
-  the cookie configuration (setup-browser-cookies/SKILL.md workflow); both stay on
-  today's request. After any transport change, re-run the review and cookie
-  workflow judges. Priority P3. Effort M.
-- **Claude model auto-detection for the skill overlay** — when no
-  `claude_overlay_model` is set, detect the Claude Code model (`ANTHROPIC_MODEL`,
-  user and managed settings `model`) in `./setup` and render its pinned overlay.
-  `./setup --claude-model` is opt-in, so users who never pass it keep the generic
-  overlay. A `/model` switch would leave a stale render, and the pinned overlays
-  are not yet measured against `claude` on their own models.
-  `bin/gstack-render-claude.sh`, its activation record and the change-only banner
-  are in place; detection would record `source=detected`. Depends on: task-result
-  evidence that a pinned overlay beats `claude` on its model. Priority P3.
-- **Per-session overlay selection (E6)** — a runtime hook that follows `/model`
-  switches and serves the matching overlay per session. `./setup --claude-model`
-  is install-wide, so a mid-session switch keeps the installed overlay. Builds on
-  the `--claude-model` render and activation record. Priority P3.
-
-### P2/P3: impeccable interop deferrals (filed 2026-09-08, from the CEO + eng reviews of docs/designs/IMPECCABLE_INTEROP.md)
-
-Each item was weighed during the review and deferred with a reason; none blocks
-the shipped detector, catalog, or open DESIGN.md format.
-
-- **Carve design-review Phases 7-11 into a section (budget lever)** — design-review's
-  eager tokens landed at +2.87K against the review's 2.5K target after every
-  planned lever (ids-only detector rules in category 9, the dump script moved to
-  `lib/dom-dump.js`, trimmed prose); the ceiling in
-  `test/fixtures/context-budget.json` moved to the measured 31,319. The next real
-  lever is carving the fix loop (Phases 7-11) into a section, which touches the
-  E2E copy logic in `test/skill-e2e-design.test.ts`. Effort M. Priority P2.
-- **Bun `.env` auto-load audit across `bin/*.ts`** — Bun loads a cwd `.env` into
-  `process.env` even for a script outside cwd. `gstack-design-detect.ts` and
-  `gstack-design-md.ts` render with `--no-env-file` and ignore in-repo
-  `IMPECCABLE_BIN` / `IMPECCABLE_HOME`; every other `bun run
-  ~/.claude/skills/gstack/bin/*.ts` a skill renders has the same exposure for any
-  env-driven exec path. Audit them, render `--no-env-file` where an env var can
-  name a binary or a path. Effort S. Priority P2.
-- **Kiro install arm links `SKILL.md` and `sections/` only** — every gstack
-  `bin/` path a Kiro render carries (the detector, the DESIGN.md tool, the render
-  CLI, review-log, diff-scope) is a pre-existing gap on that host. Link `bin/`
-  and `lib/` together there like the other arms (`setup` ~2341). Effort S.
-  Priority P2. Collaborative repo, not fixed in the interop PR.
-- **`$D check` slop rubric** — add the catalog's LLM-only tells (hero metrics,
-  identical cards, glassmorphism, content stand-ins) to `design/src/check.ts`'s
-  vision pass once those entries have been exercised in reviews. Open questions:
-  a paid GPT-4o call per variant, and vision misjudging cream palettes and nested
-  cards. Effort M. Priority P3.
-- **Taste-profile interplay for `overused-font`** — downgrade a detector
-  overused-font hit to polish when the face is in the user's approved taste
-  profile. Today `impeccable hooks ignore-value overused-font <face>` covers it
-  without coupling the two schemas. Effort S. Priority P3.
-- **plan-ceo-review Section 11 catalog bullets** — render `{{DESIGN_SLOP_BULLETS}}`
-  into the CEO review's design section. Blocked on the plan-ceo-review doctrine
-  carve (~555 B of skeleton headroom today). Effort S. Priority P3.
-- **Detector scan cache** — cache `gstack-design-detect.ts scan` results under
-  `${GSTACK_HOME}/cache/design-detect/` keyed on engine hash, target-set hash,
-  and `.impeccable/config*.json` hash, so Phase 9's rescan and repeated ship
-  reviews skip unchanged files. Effort S. Priority P3.
-
-
-### P2: fork-port residual wave deferrals (filed at Wave A, 2026-09-03)
-
-Filed from the time-attack/gstack residual evaluation
-(docs/designs/fork-port-residual-2026-09/REPORT.md) and its CEO + eng reviews.
-Waves B–E2 of that plan are scheduled work, not TODOs; these are the items the
-reviews deliberately deferred, each with rationale:
-
-- **Shared `_gstack_owned_link` helper** — the ownership gate now exists in
-  seven places (setup's `_claude_entry_is_ours` / `_claude_entry_owned_strongly`
-  used by link_claude_skill_dirs and _install_alias_skill_md, while
-  cleanup_old_claude_symlinks and cleanup_prefixed_claude_symlinks inline their
-  own marker/cmp/banner chain and readlink `case`; bin/gstack-relink
-  `_entry_is_ours`; bin/gstack-uninstall's per-entry loop; and, since the
-  Aside-first wave, setup's `_prune_stale_generated`, which removes a retired
-  host entry behind the banner-only `_owned_for_windows_refresh` check —
-  symlinks outright, real dirs through `_cleanup_weak_dir` — and must route
-  through the same helper). Extract one sourced
-  helper so the destructive-path guard cannot drift, and while there: make the
-  `.gstack-owned` marker's recorded install path load-bearing (today any marker
-  counts, so a Windows fork copy carrying gstack's generated header is still
-  treated as ours on a mode flip). Effort S. Priority P2. Depends on: none.
-- **Non-Claude host loops + stale-render prune under the marker rule** — the
-  Codex, Factory, OpenCode, Cursor and Kiro link loops (setup's
-  `link_*_skill_dirs`, the `_owned_for_windows_refresh` gate at each) still
-  `rm -rf` + re-copy a REAL host directory on banner-only proof, and
-  `_prune_stale_generated` routes a bannered real dir through
-  `_cleanup_weak_dir` only because those hosts never receive a `.gstack-owned`
-  marker. Write the marker for every host's copy install, then switch all five
-  loops and the prune to the strong/weak split the Claude host and
-  `gstack-relink` already use (#2119). Effort M (human ~2 days / CC ~1h).
-  Priority P2. Depends on: the shared `_gstack_owned_link` helper above (same
-  code motion; do them together).
-- **Free test: CHANGELOG top heading equals VERSION** — a fork PR that claimed
-  a version main had since shipped auto-merged VERSION, package.json and the
-  digest header with no git conflict (both sides identical); only
-  `bin/gstack-next-version` and the PR-time queue check saw it. A tiny free
-  test asserting the first `## [X]` in CHANGELOG.md equals VERSION would make
-  the collision a red test on any branch. Decide first whether mid-branch
-  VERSION bumps without a CHANGELOG entry are a workflow the suite must
-  tolerate (`/ship` writes both in one step, so probably not). Effort S
-  (human ~2h / CC ~10min). Priority P3. Depends on: none.
-- **"Pre-existing" failure vocabulary** — scripts/resolvers/preamble/
-  generate-test-failure-triage.ts classifies from `git diff --name-only` and
-  never asks for a base-branch run. Rewrite T1 to verified/unverified with the
-  base branch's CI status (`gh run list --branch <base>`) as default evidence
-  and a failing-files-only worktree run as an opt-in. Effort M → S with CC.
-  Priority P2. Depends on: none.
-- **Opt-in `reply_language` config key** (#679) — render into the Writing
-  Style section only when set; keep identifiers and commands in English; add
-  the mixed-language tests the issue asked for. Not an always-on voice line
-  (community-PR guardrail). Effort S. Priority P3.
-- **Remove the `~/.gstack/.auth.json` writer** — browser-manager.ts:638-640
-  says the component-baked GBrowser extension reads it. Confirm GBrowser
-  bootstraps via `POST /extension-token`; if so, delete the writer plus a
-  migration that removes the orphaned credential file. Effort S. Priority P3.
-  Depends on: GBrowser source check.
-- **CONTRIBUTING rule for fork-derived changes** — a change lifted from a fork
-  enters upstream only behind a test verified red on upstream HEAD first, with
-  credit to the original author; cherry-picks allowed when the fork commit
-  carries that test. 34 of 48 top fork candidates died under refutation; the
-  rule is what made the survivors safe. Effort S. Priority P2.
-- **Hook slug-derivation parity audit** — question-preference-hook keyed
-  project prefs by cwd basename while the writer keyed by owner-repo (Wave E1
-  fixes it via `slugFromCacheOnly`). Audit question-log-hook and every other
-  Claude hook that buckets by project for the same mismatch. Effort S.
-  Priority P3. Depends on: Wave E1.
-
-
-### P1: ZeroEntropy sunset — gbrain's default embedding provider dies Sept 4, 2026 (#2365)
-
-**What:** ZeroEntropy (acquired by Notion) shuts down September 4, 2026. gbrain's
-zeroentropyai recipe needs a migration path before then (the recipe + gateway
-shim are gbrain-internal — nothing in gstack ever recommended the provider).
-
-**Why:** Hard external deadline. After Sept 4, brains on the recipe stop
-embedding new pages silently.
-
-**Done (gstack side, v1.69.0.0):** wireup warns when ~/.gbrain/config.json names
-the recipe (fail-open grep), setup-gbrain provider comments say never to select
-it, USING_GBRAIN_WITH_GSTACK.md gained a troubleshooting entry (#2365).
-
-**Effort:** M (remaining work is gbrain-side provider support).
-**Priority:** P1 (calendar-driven). **Depends on:** gbrain upstream provider support.
-
-### P2: v1.67 fix-wave deferrals — next-wave queue
-
-Filed at v1.67.0.0 implementation time (see the wave plan's "Cut from this
-wave"). Each was explicitly deferred with rationale, not dropped:
-
-- **#2522 Windows omnibus mining** — the targeted Windows fixes landed in
-  v1.67 (#2414/#2510/#2561/#2542/#2452-half); the omnibus PR still carries a
-  doctor/migration surface worth extracting. Effort M→S with CC.
-- **#2443 AskUserQuestion numbering redesign** — real mismatch (brief letters
-  vs host-rendered numbers), but a prompt-behavior redesign that shifts eval
-  baselines; needs its own PR with baseline refresh. Effort S.
-- ~~**#2447 typecheck infra**~~ — superseded: the audit fix wave (v1.91.12.0)
-  added `tsconfig.json`, `bun run typecheck` (zero product errors) and the
-  `typecheck:test` ratchet inside the required `free-tests` check, reusing
-  #2447's fixes where they still applied.
-- **#2492 per-project Chromium profile** — needs an on-disk migration story
-  for the machine-wide profile default and SingletonLock scoping. Effort M.
-- **#2286 `triggers:` frontmatter** — the Claude Code router never reads the
-  key; folding voice-triggers into description costs catalog tokens. Needs a
-  maintainer token-budget decision (catalog cap is enforced). Effort S.
-- **#2378 release-tag upgrade semantics** — update-check gates on
-  main:VERSION while upgrade installs main HEAD; installs sit between
-  releases. Design decision: tag-pinned installs vs HEAD. Effort M.
-- **Feature-PR triage queue** — #2564 (/deck), #2497 (browse record — best of
-  the batch), #2476 (a11y review, unblocked by the CDP media-emulation entry
-  landed in v1.67), #2446 (Cua), #2448 (tiered outside voice), #2412 (lens
-  layer), #2241 (/grok), #2507 (pi host), #2298 (Kimi host), #2438+#2436
-  (gbrain doc-sync pair, ordered), #2442 (portable skill roots), #2534
-  (gbrain MCP routing), #2535 (outside voice for /investigate,/cso,/devex),
-  #2576 (fast-ship rework — re-evaluate against v1.66's CI speedup),
-  #2580 (land-and-deploy CI tiers — human-gate UX needs maintainer call).
-
-### P2/P3: v1.78 fix-wave deferrals (filed at wave time, each deferred with rationale)
-
-- **mermaid 10→11-class major bumps in lib/diagram-render** — the wave's
-  dependency pass cleared 102 of 105 OSV advisories via in-range bumps +
-  overrides; the residual ignores carry `ignoreUntil` expiries and
-  re-justify themselves on expiry. Only the katex ignore remains (see the
-  dependency security ledgers above). Effort S. **Priority:** P3.
-- **#2750 split absorption** — the record-scanning Codex JSONL parser (real
-  fix; current Codex streams interleave envelopes so sessions vanish from
-  /retro global) should be absorbed once the author splits it from the
-  bundled schema additions + 1 MiB scan-budget change (asked in the wave's
-  disposition comment). Effort S (review). **Priority:** P3.
-- **#2709 macOS live verification** — the GPU flag set is reporter-validated
-  and darwin-gated with a GSTACK_DISABLE_GPU=off escape; the stop-path reap
-  is Linux-tested. Verify both on real Apple-silicon hardware (flags drop the
-  spin to 0%, screenshots still work, reap kills the survivor) on first
-  access to an M-series box. Effort S. **Priority:** P3.
-- **Periodic-lane stabilization (#2756)** — the weekly lane in its v1.77
-  shape (73-shard sharded runner, pinned CLI, EVALS_ALL census) has never
-  been green; the v1.78 wave killed the deterministic v1.76 AUQ collapse but
-  the residual set churns (band-edge variance, the pre-existing
-  exited/hits=[] startup class, known flakes). Evidence table + suggested
-  direction (band recalibration against a fresh pinned-container
-  distribution) in the issue. Effort M. **Priority:** P2.
-- **Outside-voice resolved-model print** — #2735's second suggestion (print
-  the concrete fallback model at dispatch time) is a functional change
-  needing model resolution in the preflight; descoped from the copy fix.
-  Effort S. **Priority:** P3.
-
-### P2: v1.69 fix-wave residuals (filed at wave time, each deferred with rationale)
-
-- **`cleanup_prefixed_claude_symlinks` symmetric conversion** — PR #2634 fixed
-  `cleanup_old_claude_symlinks` (destination scan, dangling-symlink aware,
-  path-segment provenance); the prefixed-mode sibling still iterates the
-  payload dir (same structural hole: can't reap orphans once the payload is
-  gone) and still uses a bare `*gstack*` substring match the sibling's own
-  tests forbid. Kept out of the contributor's absorbed commit for scope
-  discipline. Effort S→S with CC. **Priority:** P2.
-- **#2163 legacy-slug checkpoint heal** — the gstack-slug refactor unified
-  save/restore slugs, but checkpoints written under a pre-fix degraded slug
-  are still invisible; `bin/gstack-slug`'s own MIGRATION NOTE defers data
-  moves. Cheap heal: restore-side probe of the alternate slug dir before
-  printing NO_CHECKPOINTS. Effort S. **Priority:** P3.
-- **#2657 developer-profile `--reconcile`** — office-hours tenure undercounts
-  ~3x (Phase-4.5-only logging; no timeline.jsonl reconciliation). The
-  arithmetic reproduces; the reporter offered the PR — invited on the issue.
-  Track and review when it lands. Effort S (review). **Priority:** P3.
-- **Table-driven setup host dispatch from `hosts/index.ts`** — root-cause fix
-  for the accept-list/dispatch drift class behind #2361; v1.69.0.0 ships the
-  interim ratchet (accept-list ⊆ dispatch-arms cross-check test + a loud
-  zero-dispatch guard). The refactor needs its own PR with bake time (setup is
-  the riskiest file in the repo). Effort M. **Priority:** P3.
-
-### P2: v1.67 adversarial-review residuals (verified, deferred with rationale)
-
-Filed at v1.67 ship time from the Codex + Claude adversarial passes. Six of
-the seven landed in the v1.68 fix wave (brain-sync spool-dir queue, pair-agent
-consent gate, bin-context walk-up parity, per-project MCP scoping +
-precedence flip, next-version ls-remote fallback + width pin, stop-hook
-global-path registration + re-point). Remaining:
-
-- **iOS tap routing across windows** — Bridges template's frontmostWindow can
-  swallow taps when a keyboard/menu/transparent overlay window is topmost but
-  doesn't handle the coordinate. Needs hit-test-aware routing + real-device
-  verification. Effort M. (Related: the multi-window rewrite has no static
-  pins — see the test-gap backlog below.)
-- **setup:1601 CLAUDE_CONFIG_DIR alignment** — the skills installer hardcodes
-  `$HOME/.claude/skills` while settings.json and hook registration honor
-  `CLAUDE_CONFIG_DIR`; users with the override get a split-brain install.
-  Mitigated in v1.68.1 (canonical-root fallback to the home path so hooks
-  still register), but the installer itself should honor the override.
-  **Priority:** P3. Effort S.
-- **Centralize plan_tune_hooks bool parsing + gstack-config key validation** —
-  the `n|no|false|skip|off|0` negative-value set is triplicated
-  (gstack-settings-hook prune-stale, setup heal note, setup PT_DECISION) and
-  gstack-config carries three verbatim copies of the key-validation block
-  (get/has/set). Extract a `gstack-config` bool helper + `validate_key()`;
-  update the locale pin test. Filed via /ship review army (maintainability).
-  **Priority:** P3. Effort S.
-- **Accepted threat-model notes (documented, no action planned):**
-  redact-prepush's no-argv compatibility mode retains all-remotes exclusions;
-  installed hooks bind scans to the actual destination. A parcel-shaped twin
-  within 400 chars can suppress phone redaction (WARN-tier pattern,
-  attacker-influence accepted);
-  codex-probe's 400-signature grep can misread a transient proxy 400 as
-  MODEL_UNUSABLE (bounded by the 15-min negative-cache TTL).
-
-### P2: skillify structural isolation (filed from the v1.68 wave reviews)
-
-**What:** /skillify turns scraped page content into durable executable skill
-code on disk. The v1.68 wave added the untrusted-content warning to its prose
-(#2441), but a warning is not a boundary — generated actions derived from
-hostile page content need structural isolation, sanitization of synthesized
-selectors/names, or an explicit approval step scoped to the generated code.
-
-**Why:** A poisoned page could steer the generated script.ts toward actions
-the user never reviewed; the current gate is the Step 9 approval, which shows
-the code but doesn't highlight page-derived strings.
-
-**Effort:** M → S with CC. **Priority:** P2. **Depends on:** none.
-
-### P2: slug store migration — merge pre-fix `projects/garrytan/` data (v1.68 follow-up)
-
-**What:** The v1.68 slug-parity fix (gstack-slug now matches remote-slug's
-owner-repo form) means machines that hit the degraded-slug bug (stray strong
-marker above a repo, e.g. an empty ~/.git) have historical decisions /
-timeline / ceo-plans / learnings filed under the marker-basename store
-(observed: `~/.gstack/projects/garrytan/`) instead of per-repo stores. Define
-and ship the merge/alias: attribute each misfiled record to its repo where
-derivable (timeline entries carry branch; decisions carry scope), else leave
-in place with a pointer file.
-
-**Why:** Post-fix sessions read the CORRECT store, so pre-fix history is
-invisible to Context Recovery until migrated.
-
-**Effort:** M → S with CC. **Priority:** P2. **Depends on:** the v1.68 wave
-(shipped the fix + parity tests).
-
-### P3: gstack-slug degraded-heal probe cost on cache hits (v1.68 review-army finding)
-
-**What:** The v1.68 cache self-heal probes `_resolve_remote` (1-3 git forks) on
-EVERY cache hit whenever the cached slug equals the marker-root basename — the
-permanent steady state for remoteless and legit-sticky projects, on the
-per-preamble hot path. Add a single-shot sentinel per cache entry so the heal
-probe runs once, not forever.
-
-**Why:** "Cache hits stay git-spawn-free" only holds for owner-repo slugs
-today. Cost is bounded (1-3 forks) but paid at every skill start on affected
-projects. Also next-touch notes from the same review: extract a makeResult
-helper for BulkResult's 11 hand-copied literals in bin/gstack-memory-ingest.ts;
-dedup the brain-worktree default-path literal between bin/gstack-brain-sync and
-bin/gstack-gbrain-source-wireup.
-
-**Effort:** S. **Priority:** P3. **Depends on:** cache-format compatibility
-(sentinel must not break older readers).
-
-### P2: v1.67 coverage-audit test-gap backlog (5-agent sweep, ranked)
-
-The wave's Step-7 coverage audit (5 subsystem agents, ~700 changed paths,
-~84% covered) ranked these residual gaps. None block v1.67 (the behaviors
-shipped verified by hand or adjacent tests); each is a cheap pin against
-silent regression:
-
-- **setup Playwright bootstrap block** — `_PW_LOCK` stale-holder reclaim,
-  `_kill_tree`/`_wait_with_deadline`, and the platform override are now pinned
-  by test/setup-playwright-best-effort.test.ts (fork-port Wave A). Still
-  unpinned: `_clear_playwright_quarantine` (the P0 #2554 heal's shell half).
-  Effort S.
-- **redact-prepush `scanAddedLines` slicing** — the >1MiB chunk path was
-  unexercised at v1.67. Installed-hook controls in
-  test/redact-prepush-target.test.ts now cover large clean diffs, seam
-  proximity/normalization, duplicate findings, and long-line refusal
-  (v1.88.1.0).
-- **supabase telemetry-ingest edge function** — zero tests; producer caps at
-  200 chars vs ingest's 500 (dead server cap); no column↔migration pin.
-- **gbrain-repo-policy-client** — no direct test file; the spawn-failed vs
-  unreadable split (its raison d'être) and win32 bash-wrapping unpinned.
-- **extension client half of token bootstrap** — `POST /extension-token` 403
-  → disconnected path untested (server half is exhaustively pinned); also
-  pin manifest `key` ↔ `GSTACK_EXTENSION_ID` via extension-id.ts. Effort S.
-- **`assertJsOriginAllowed`** — this wave made the js/eval origin gate
-  mandatory; the gate itself has zero direct tests. Effort S.
-- **`runBoundedChromiumReinstall`** — every heal test stubs it; the 120s
-  deadline + process-group SIGKILL + spawn-error branch never execute.
-- **CI three-way image-tag drift** — ci-image.yml + evals.yml +
-  evals-periodic.yml each carry the hashFiles tag expression, synced by
-  comment only. One test reading all three. Effort S.
-- **evals.yml matrix census** — the silent-never-ran class (see the two
-  files this wave had to re-add) has no membership test.
-- **design-doc-discovery resolver** — new anti-drift block, zero tests for
-  the -nt freshness rule or cross-render identity.
-- **Bridges.swift multi-window rewrite** — no static pins for
-  orderedWindows/searchRoots ordering; DebugBridgeTouch's `#if !defined(DEBUG)`
-  guard and Package.swift's `.define("DEBUG")` have no tripwire (Guideline
-  2.5.1 exposure on revert); parity test runs periodic-lane only.
-- **Smaller pins:** gstack-egress `sanitizeForDisplay`; freeze-dir tilde
-  expansion; gstack-config `pair_agent` key + space-bearing values;
-  session-cookie-store tripwire scope (points at the wrapper, not the
-  factory); redact-patterns `/^pass(word)?$/i` placeholder loosening +
-  compact-timestamp negative; fs-atomic adoption tripwire; tracker-guard
-  `safeSource`; eval-watch `PARTIAL_PATH`; `killProcessGroup`;
-  make-pdf orchestrator `PAYLOAD_TMP_DIR` + CJK stack + smartypants NUL;
-  gbrain-guards `gbrainHome()`; gbrain-local-status `"timeout"` exclusion;
-  meta-commands state-load tripwire re-point; flushBuffers/audit 0600 census;
-  openclaw `version:` frontmatter drop (pre-wave, main-side — restore
-  extraFields or record as intentional); terse-build's stale "all 4" set
-  (main-side 5th terse-gated resolver).
-
-### P2: v1.67 review-fix-batch deferrals (post-wave review army findings)
-
-Filed at review-fix-batch time, deferred with rationale:
-
-- **setup host-function dedup** — four near-verbatim `create_*_runtime_root`
-  + `link_*_skill_dirs` copies (codex/factory/opencode/cursor) drift
-  independently (the #2142 ownership gate had to be patched at every site).
-  Parameterize on host name + skills dir. Effort S with CC.
-- **cmd.exe `%VAR%` expansion in gbrainInvocation quoting** — Windows-only,
-  contrived escalation (requires attacker-controlled env var names), but the
-  quoting is not cmd.exe-safe. Fix direction: route win32 spawns through
-  cross-spawn (dependency decision — bun-polyfill.cjs already carries it for
-  the browse daemon). Effort S.
-- **make-pdf flag registry metadata** — commands.ts flags are bare strings;
-  add a takes-value field and DERIVE cli.ts's BOOLEAN_FLAGS from the
-  registry (the structural `--no-*` test added in this batch covers only the
-  negation shape). Effort S.
-- **legacy host-glob uninstall provenance gating** — gstack-uninstall's
-  codex/factory/kiro `gstack*` globs still rm -rf without a provenance
-  check; bring them to parity with the cursor banner gate added in this
-  batch (v1.67 added cursor; the legacy three are inherited behavior).
-  Effort S.
-- **cursor auto-detect breadth** — `-d ~/.cursor` triggers a full extra
-  render + install for every Cursor-having dev on every ./setup (the dir
-  exists for anyone who ever launched the IDE). Product call on narrowing to
-  CLI detection (`command -v cursor`) or an opt-in flag. Effort S, needs a
-  maintainer decision on the detection contract.
-
-### P2: Persona-fleet hostile-user harness (fork port wave 2 deferral)
-
-**What:** Port the methodology behind time-attack/gstack's 87-hostile-user
-field run (418 findings): machine-written t0 in an append-only run.jsonl
-(elapsed time measured, never self-reported), every metric resolving to an
-artifact, and a mandatory-quit contract with machine-checkable caps (300s to
-first useful output, 900s total, 40K context tokens, 3 consecutive dead ends)
-so abandonment is a computable outcome. Specs: fork `evals/fleet/METRICS.md`
-+ `evals/fleet/ABANDONMENT.md` (methodology only — no runner code exists to
-port; this is a build).
-
-**Why:** A periodic hostile-user round against OUR 44-skill tree would surface
-the same first-five-minutes failure class the fork closed 418 of. Fits the
-existing eval-store/e2e harness as a new runner.
-
-**Effort:** L (human ~2wk) → M with CC. **Priority:** P2.
-**Depends on:** decisions on cost ceilings + journal storage.
-
-### P3: Answer-key eval methodology (rides the persona-fleet work)
-
-**What:** Pre-registered answer keys (fork `evals/answer-keys/` —
-codex-decorrelation, health-trending) grading our /codex and /health surfaces
-against planted ground truth instead of judge vibes.
-
-**Why:** Deterministic scoring for surfaces where LLM-judge drift is the
-known failure mode. **Effort:** M → S with CC. **Priority:** P3.
-**Depends on:** persona-fleet harness (shared runner shape).
-
-### P3: Quarterly Apple-journey live re-verification
-
-**What:** Run the /ship Apple release adapter against a real (TestFlight-only)
-release once a quarter, or on first user bug report, and fix drift. Apple's
-APIs move (the fork caught fastlane price_tier breaking live); the adapter's
-claims are evidence-backed today and must stay that way per its own
-evidence-before-claimed-limitations rule.
-
-**Effort:** S per run. **Priority:** P3. **Depends on:** a paid ADP account.
-
-### P2: Eval-run evidence records (extend the content-binding lattice to E2E/evals)
-
-**What:** Wire `bin/gstack-evidence run` into the eval entrypoints (`eval:bg*`,
-`scripts/test-paid-shards.ts`) so E2E/eval claims carry the same
-working-tree-fingerprint binding as free tests, and /land-and-deploy 3.5b reads
-evidence records instead of `~/.gstack-dev/evals` file mtimes.
-
-**Why:** Today "E2E ran today" is an mtime heuristic that proves nothing about
-what content the run tested. **Effort:** M → S with CC. **Priority:** P2.
-**Depends on:** the content-binding wave; touches the sharded runner that
-concurrent worktrees share — coordinate timing.
-
-### P2: Spec-spawn outcome ledger
-
-**What:** `/spec`'s spawned `claude -p` agents are fire-and-forget: nothing
-records whether the spawn finished, died, or stalled. Add a runs.jsonl
-(spawn id, branch, worktree, pid, outcome) written at spawn + updated by a
-lease/heartbeat check, surfaced as a /landing-report row.
-
-**Why:** A dead spawn is currently invisible until someone hunts the PID.
-**Effort:** M → S with CC. **Priority:** P2. **Depends on:** nothing; the
-lease + heartbeat liveness pattern is documented in the local CEO plan record
-(2026-08-15, binding wave).
-
-### P3: Merge-SHA chain of custody in /land-and-deploy
-
-**What:** Post-merge, record {merge sha, merged tree, reviewed wtree match?}
-so a deployed artifact traces back to a reviewed content state.
-
-**Why:** Pre-merge checks bind reviews to content; after a squash-merge onto a
-moved base the linkage is unrecorded. Needs a noise model (base movement
-legitimately changes the tree) before it can alert rather than log.
-**Effort:** M → S with CC. **Priority:** P3. **Depends on:** content-binding
-wave fields (wtree in review records).
-
-### P3: default-if-silent escalation contract for background loops
-
-**What:** Long-running/background skill loops (/canary first) get an
-escalation shape that carries options + a default-if-silent choice with a
-timeout, so an unattended loop never stalls on a question a human isn't
-around to answer.
-
-**Why:** Autonomy currently either blocks on AskUserQuestion or guesses.
-**Effort:** S/M → S with CC. **Priority:** P3. **Depends on:** consent-model
-review (changes AskUserQuestion semantics — needs its own design pass).
-
-### P3: E2E eval case — staleness grading actually applied
-
-**What:** A paid gate/periodic eval asserting an agent following the rendered
-/ship dashboard + /land 3.5a text applies the wtree content-first rule (grades
-CURRENT on identical content, falls back on mismatch).
-
-**Why:** The grading rule is prompt-followed prose pinned only by a free
-template-drift tripwire; this proves agents actually execute it. **Effort:** S.
-**Priority:** P3. **Depends on:** content-binding wave.
-
-### P2: office-hours design-doc dual-write functional E2E (fork port wave 2 review shortfall)
-
-**What:** A paid E2E (claude -p) that runs the office-hours Phase 5 handoff in
-a tmp repo and asserts BOTH write paths (docs/designs/<topic>.md + the
-~/.gstack copy) land and that `bin/gstack-redact` was invoked at the sink.
-Today only a static prose pin exists (test/skill-validation.test.ts) — the
-plan's R9 asked for the functional shape.
-
-**Why:** The dual-write is an egress path into the user's repo; prose drift
-that skips the redact scan-at-sink would ship user PII into git history with
-nothing failing. **Effort:** M → S with CC. **Priority:** P2.
-**Tier:** periodic (quality, non-deterministic).
-
-### P2: migration runners honor per-migration skip state
-
-**What:** Both migration runners (setup's post-setup block and
-/gstack-upgrade Step 4.75) select migrations purely by version window, so a
-migration that exits via the non-interactive default-skip (v1.27's
-GSTACK_MIGRATE_ASSUME_YES gate) is never offered again — the version marker
-advances past it. The remediation text now prints the honest direct
-invocation, but the runners should track per-migration .done/.skipped
-touchfiles and re-offer pending ones on the next interactive run.
-
-**Why:** Every remaining pre-v1.27 user upgrading via an agent session ([ -t 0 ]
-false) permanently misses the artifacts-rename migration unless they paste the
-manual command. **Effort:** M. **Priority:** P2.
-
-### ✅ DONE (2026-10-02, parallel-waves fix wave): #1882 — portable skill-install prefix (non-`gstack` install dirs break silently)
-
-**Resolved:** setup now renders any Claude install whose root is not
-`~/.claude/skills/gstack` (renamed checkout, project-vendored copy,
-`CLAUDE_CONFIG_DIR`) and any global Codex root other than `~/.codex/skills/gstack`
-(`CODEX_HOME`) into its own per-install render under
-`$GSTACK_STATE_ROOT/render/installs/<host>-<key>/`, links from it, and records
-it in the install registry; `gstack-relink` keeps serving that render. A root
-with spaces is named through a space-free alias symlink, because
-worktree-isolated Claude Code sessions refuse any command path with a space.
-Guarded by `test/host-conformance.test.ts` "renamed, vendored and
-space-in-path installs start skills from their own root (#1882)" and
-"CLAUDE_CONFIG_DIR and CODEX_HOME installs name their own roots". Follow-ups
-are filed under "Parallel fix-wave follow-ups" (gbrain-refresh for non-default
-installs, pruning stale render dirs). Original filing below.
-
-#### Original filing (closed)
-
-**What:** Every generated SKILL.md hardcodes the literal `~/.claude/skills/gstack/...`
-for its `bin/`/asset calls (the per-invocation telemetry/config preamble plus ~9
-resolvers). `setup` wires the top-level skill symlinks for any directory name, so
-installing at `~/.claude/skills/<other>` leaves every internal `bin` reference
-pointing at a non-existent `~/.claude/skills/gstack/` path — failing **silently, at
-skill-invocation time**. Make the emitted references portable: resolve the install
-root at runtime (the preamble already defines `GSTACK_ROOT`/`GSTACK_BIN` in
-`scripts/resolvers/preamble/generate-preamble-bash.ts` but the literals don't use
-them) and emit `$GSTACK_BIN`-relative paths instead of the hardcoded prefix.
-
-**Why:** Filed as #1882. Split out of the June 2026 fix wave (decision A) once
-implementation showed it is a host-config/design change, not a fix-wave patch. The
-urgent half — the guard/freeze/careful frontmatter hooks broken on CC 2.1.162 — was
-already fixed in that wave (#1871) with a literal `$HOME`-anchored path, because
-frontmatter hooks run before any runtime variable exists and cannot use `$GSTACK_BIN`.
-So #1882 is now purely the body-preamble portability work.
-
-**Pros:** Unblocks installs at any directory name; removes a whole class of silent
-invocation-time failures.
-**Cons:** Touches the most load-bearing bash in the repo (every skill's preamble);
-a silent mistake breaks all 52 skills. High blast radius — needs its own focused PR.
-**Note (fork port wave 2):** the Apple release adapter (ship/sections/
-apple-release.md) added template surface with `~/.claude/skills/gstack/bin`
-references — include it in this fix's coverage list.
-
-**Context / where to start:**
-- Rewire `ctx.paths.binDir` (and browse/design dir paths) + the ~9 resolvers that
-  emit the literal (`testing.ts`, `review.ts`, `design.ts`, `browse.ts`,
-  `redact-doc.ts`, `tasks-section.ts`, `preamble/generate-*.ts`) to use the
-  preamble-defined `$GSTACK_ROOT`/`$GSTACK_BIN`.
-- Ensure `GSTACK_ROOT`/`GSTACK_BIN` are defined before first use in EVERY skill's
-  preamble (verify the telemetry preamble's first bin call is after the definition).
-- **Test conflict (verified):** `test/gen-skill-docs.test.ts:1942` and the sibling
-  ship assertion currently *assert* generated Claude output `.toContain('~/.claude/skills/gstack')`
-  as a guardrail that Codex-host paths don't leak. These must be rewritten to match
-  the new portable scheme.
-- Regenerate all 52 SKILL.md (`bun run scripts/gen-skill-docs.ts --host all`); never
-  hand-edit generated files. Bisect: resolver/host-config change commit, then the
-  52-file regen commit.
-- Smoke-test a skill invocation from a non-`gstack` install dir to prove the fix.
-- Sibling of #349 (the `$CLAUDE_CONFIG_DIR` / `~/.claude` path issue).
-
-## Memorable bridge follow-ups (filed via /plan-ceo-review + /plan-eng-review on the Memorable bridge fix-up, #2831)
-
-### P3: gstack-mediated third-party hook seam
-
-**What:** Generalize what the Memorable bridge instantiates: a `mediate <name>`
-verb (or provider table) that gives ANY third-party Claude Code hook a consent
-key, a receipt sink, an envelope, healing and clean removal, with Memorable as
-the first provider.
-
-**Why:** The bridge fixes the interface (config key, sink name, source tag,
-hook basename, gate, envelope). A second vendor today would copy
-`bin/gstack-memorable` and the hook `.ts`; the seam makes it a registration.
-
-**Context:** Deliberately not built with one provider (premature abstraction;
-CEO review D1/ED17). Start from `bin/gstack-memorable`,
-`hosts/claude/hooks/memorable-user-prompt-hook.ts`, and the `KNOWN_HOOKS`
-row shape.
-
-**Effort:** L (human ~1.5 weeks / CC+gstack ~4 h). **Priority:** P3.
-**Depends on:** a second third-party hook actually wanting in.
-
-### P2: Windows support for the Memorable bridge (D21)
-
-**What:** `enable` refuses on Windows and the hook exits 0 there. Bring it up:
-descendant termination (`taskkill /T` or a job object) so a vendor process
-cannot outlive a timeout, `.cmd` and extensionless shim handling for the
-vendor path, the `bash ` command prefix setup uses for registrations, and a
-live verification on the windows lane with a real `npm i -g memorable-cli`.
-
-**Why:** Without process groups the containment guarantee the bridge makes
-cannot be given; refusing was the honest choice for this wave.
-
-**Context:** `runExternal` in `hosts/claude/hooks/spawn-bin.ts` returns
-`EPLATFORM` on win32; the behavioural tests are auto-excluded from the
-windows lane because they spawn `bin/` scripts.
-
-**Effort:** M (human ~2 days / CC+gstack ~1 h). **Priority:** P2.
-**Depends on:** none.
-
-### P3: `lib/tracker-guard.ts` envelope `kind` parameter
-
-**What:** The envelope wraps recall text with the TRACKER banner. Add a
-`kind` so third-party hook content reads as what it is, keeping the pinned
-banner constants intact for tracker callers.
-
-**Effort:** S (human ~2 h / CC+gstack ~10 min). **Priority:** P3.
-**Depends on:** none.
-
-### P3: vendor payload-minimization contract
-
-**What:** Ask Memorable which `UserPromptSubmit` fields `hook user-prompt`
-actually reads, so the bridge can forward fewer (drop `transcript_path` if
-unused). Today it forwards the full JSON because the vendor parses Claude
-Code's documented schema and its EULA forbids finding out otherwise.
-
-**Effort:** S. **Priority:** P3. **Depends on:** vendor response.
-
-### P3: recall latency measurement and timeout revisit
-
-**What:** After a month of use, read `gstack_ms=` and `timeout` outcomes from
-`gstack-egress list --sink memorable-recall` and revisit the 4.5 s ceiling and
-the `--timeout 5` registration.
-
-**Effort:** S. **Priority:** P3. **Depends on:** the bridge in use.
-
-### P3: consolidate the vendor resolvers and extract the canonical-root helper (D24)
-
-**What:** The vendor CLI is resolved twice (bash in `bin/gstack-memorable`, TS
-in the hook); the canonical-root and `IS_WINDOWS` logic is copied from
-`setup` (marked `TODO D24` at each copy). Extract a sourced
-`gstack-canonical-root.sh` used by `setup`, `bin/gstack-memorable` and
-`bin/gstack-relink`, and one resolver for the vendor.
-
-**Context:** `setup`'s text is pinned by `test/setup-hook-canonical-paths.test.ts`;
-the extraction must move those pins with it.
-
-**Effort:** S. **Priority:** P3. **Depends on:** settling the pinned-text tests.
-
-### P3: non-interactive MEDIUM-tier redaction policy for hooks
-
-**What:** The hook refuses HIGH-tier findings only; MEDIUM needs a
-confirmation no hook can ask for. Decide a policy (skip-and-log vs pass) so
-hooks can honor more than HIGH.
-
-**Effort:** S. **Priority:** P3. **Depends on:** none.
-
-### P3: adopt `list-items` at setup's plan-tune "already installed" check
-
-**What:** `setup:2525` decides with `list-sources | grep plan-tune-cathedral`,
-which is tag-only and misses tag-stripped live hooks. `gstack-settings-hook
-list-items --event PostToolUse --owned-by plan-tune-cathedral` is the
-identity-based answer.
-
-**Effort:** S. **Priority:** P3. **Depends on:** none.
-
-### P3: next refactor wave (from the 2026-09 refactor wave survey)
-
-**What:** Hotspots the 1.91.11.0 wave surveyed but did not refactor, plus
-bugs it found and left alone because fixing them changes behavior:
-- `bin/gstack-memory-ingest.ts` (2,674 lines; `ingestPass` is ~600 lines).
-- `scripts/resolvers/design.ts` `generateDesignMethodology` (503 lines).
-- `browse/src/browser-manager.ts` (2,143 lines) and `browse/src/cli.ts` (2,018 lines).
-- `lib/cso/*` dense one-line style.
-- Browse root-token denials disagree: some routes answer 401 `Unauthorized`,
-  others 403 `Root token required`. The route table's per-kind denial map
-  (`browse/src/routes/table.ts`) pins today's split.
-- The sidebar's inspector live updates never arrive: `/inspector/events` is
-  `root-bearer` (it sat behind the old blanket root check), but
-  `extension/sidepanel.js` opens it with a cookie-only EventSource, and it
-  listens for `inspectResult` while the server emits `state` / `inspector`.
-  Fix both together, then flip the cookie rows in
-  `browse/test/server-route-auth-blackbox.test.ts`.
-- Claude Code plugin-mode state (a pointer from `~/.gstack` to
-  `CLAUDE_PLUGIN_DATA`, plus merge, `--explain` and uninstall participation),
-  deferred by the W1 evidence gate: no official plugin distribution exists.
-- The CSO native launchers (`lib/cso/launcher*.c`) pass only `HOME`,
-  `GSTACK_HOME` and `CLAUDE_PLUGIN_*` to the core, so `/cso` ignores an
-  exported `GSTACK_STATE_ROOT` / `GSTACK_STATE_DIR`. Needs a native rebuild.
-- TODOS.md itself (4,500+ lines) needs restructuring.
-
-**Effort:** M per item. **Priority:** P3.
-
-## Aside integration follow-ups (filed via /plan-ceo-review + /plan-eng-review on the third-party-actions Aside plan)
-
-### QA logged-in-evidence path via Aside (Phase 2)
-
-**Landed (Aside-first):** `aside repl` is now the PRIMARY evidence source for
-/qa, /qa-only, and /browse whenever Aside is installed and running; gstack's own
-browser (with cookie import) is the automatic fallback when it is not. Kept for
-the rationale; the remaining loose ends are under "Aside-first follow-ups".
-
-**What:** Consent-gated `aside repl` as the evidence source in /qa, /qa-only,
-and /browse for sessions a headless browser could never reach (SSO,
-device-bound auth, Safari-side logins Chromium export can't see).
-
-**Why:** Fills the exact gap `docs/designs/CHROME_VS_CHROMIUM_EXPLORATION.md`
-records as attempted and abandoned — QA evidence from the user's REAL
-logged-in browser, no cookie export. The third-party-actions contract already
-recommends Aside for acting on logged-in vendor sites; this extends the same
-consent-gated pattern to evidence gathering.
-
-**Context:** Shape sketched as Option 2 in the Aside integration plan
-(2026-08-27): a small `{{AGENTIC_BROWSER_FALLBACK}}` resolver injected into
-qa/qa-only/browse (optionally scrape + a setup-browser-cookies cross-ref).
-Port the fork PR time-attack/gstack#40 judgment qualitatively — "logged-in
-pages only; never bulk crawling" — never its perishable timing numbers.
-Requires: untrusted-content wrapping of repl output (prose rule), a
-periodic-tier hermetic E2E, ratchet fixture refresh for the touched skills.
-Deliberately deferred at D1A (contract-only scope); it inserts a third-party
-surface beside the first-party QA pipeline, so it's a separate product call.
-
-**Effort:** M (human ~2 days / CC+gstack ~1-2 h)
-**Priority:** P3
-**Depends on:** the third-party-actions Aside contract branch landing.
-
-### Hostile-vendor-skill E2E for the third-party-actions contract
-
-**What:** A periodic-tier E2E that plants a malicious `aside-browser` vendor
-skill (one that instructs scope expansion, credential capture, or consent
-bypass) and asserts the agent honors the contract's override sentence —
-operational syntax only, never new permissions, scope, or consent.
-
-**Why:** Rule 3 puts vendor text in instruction position; the override is
-pinned as prose but has no behavioral proof against an adversarial skill.
-Flagged by the ship adversarial review (finding 11).
-
-**Context:** Fixture = extracted contract section + a hostile vendor SKILL.md
-in the workdir; assert the drive plan never exceeds the named site/actions and
-never echoes captured-secret instructions. Sibling of the tpa-* suite in
-`test/skill-e2e-third-party-actions.test.ts`.
-
-**Effort:** S (human ~half day / CC+gstack ~30 min)
-**Priority:** P2
-**Depends on:** the third-party-actions Aside contract branch landing.
-
-### fd-anchor file-level permission writes (symlink/TOCTOU parity with dirs)
-
-**What:** `restrictFilePermissions` / `writeSecureFile` / `appendSecureFile`
-in `browse/src/file-permissions.ts` still use symlink-following `chmodSync` /
-`writeFileSync`; give them the same `O_NOFOLLOW` + fstat/fchmod treatment the
-directory path got.
-
-**Why:** The symlink-swap class fixed for directories on this branch remains
-open for the files inside them (ship adversarial review, finding 5).
-Docs note (finding 12) — done in the v1.72.0.0 doc pass: BROWSER.md
-§ "Aside and third-party drives" now records that Aside drives leave no
-gstack-side audit trail (no egress receipts, no browse-daemon logs); the
-audit trail lives in Aside.
-
-**Effort:** S (human ~half day / CC+gstack ~20 min)
-**Priority:** P3
-**Depends on:** None.
-
-## Browser cookie import follow-ups (filed via /autoplan on the Windows Opera fix wave, #2980/#2957)
-
-### P2: Preserve receipts when key acquisition fails in a mixed batch
-
-**What:** `importCookies` derives the key for the whole batch before the row loop, so one v10 row plus a DPAPI/Keychain failure throws a typed key error and loses plaintext and App-Bound counts for the other rows.
-
-**Why:** A mixed plaintext + v20 + v10 batch with an unavailable key reports only the key error; recoverable plaintext cookies and the unsupported-encryption count disappear.
-
-**Context:** Raised by the outside Eng voice. Deferred because turning a thrown typed key error into partial receipts changes a cross-platform contract, including macOS Keychain "click Allow and retry" prompts. Start at `getDerivedKeys` call in `browse/src/cookie-import-browser.ts` `importCookies`.
-
-**Effort:** M (human ~1 day / CC+gstack ~30 min). **Priority:** P2.
-**Depends on:** a decision on how retry-able key errors surface in a receipt.
-
-### P3: Use the SHA-256(host_key) check on the macOS/Linux CBC path
-
-**What:** The CBC branch of `decryptCookieValue` always drops 32 bytes; databases older than Chromium meta version 24 have no prefix, so their values lose 32 real bytes.
-
-**Why:** Same correctness rule the Windows GCM branch now uses (strip only when the first 32 bytes equal SHA-256(host_key)).
-
-**Context:** Found during the Opera wave's Eng review; affects only old profiles. yt-dlp keys this on `meta.version >= 24`.
-
-**Effort:** S (human ~2 h / CC+gstack ~10 min). **Priority:** P3.
-**Depends on:** nothing.
-
-### P3: macOS and Linux Opera / Opera GX cookie import
-
-**What:** Register Opera on macOS (`~/Library/Application Support/com.operasoftware.Opera`, GX `com.operasoftware.OperaGX`) and Linux (`~/.config/opera`).
-
-**Why:** Opera users off Windows get "available on Windows only".
-
-**Context:** Paths from yt-dlp's `cookies.py`; Keychain service and libsecret application names are unverified. Needs a person on each OS.
-
-**Effort:** M (human ~1 day / CC+gstack ~30 min plus hardware verification). **Priority:** P3.
-**Depends on:** a tester on macOS and Linux.
-
-### P3: Opera Beta/Developer and Opera GX channel directories
-
-**What:** Detect `Opera Next`/`Opera Developer`/GX beta user-data directories.
-
-**Why:** Channel users are currently "not found".
-
-**Context:** Directory names are unverified; add registry rows once confirmed on hardware.
-
-**Effort:** S. **Priority:** P3. **Depends on:** confirmed directory names.
-
-### P3: Opera side profiles (`_side_profiles/<id>/`)
-
-**What:** Opera GX stores extra profiles under `<root>\_side_profiles\<id>\`, which `listProfiles`, `validateProfile` and the native profile regex do not accept.
-
-**Why:** Side-profile users only see their main profile.
-
-**Context:** Needs a profile-naming rule beyond `Default`/`Profile N` and an account-selection safety review.
-
-**Effort:** M. **Priority:** P3. **Depends on:** a real side-profile layout sample.
-
-### P3: Legacy root-level Opera layouts
-
-**What:** Older Opera stored cookies at `<root>\Network\Cookies` with no `Default\`.
-
-**Why:** Old installs report "not found".
-
-**Context:** Cut from the wave by both CEO voices: a stale root DB can be imported as the wrong account when side profiles or a migrated `Default\` exist. Sources: yt-dlp, forensics guides. Build only on a real report, with stale-root/side-profile coexistence tests.
-
-**Effort:** S-M. **Priority:** P3. **Depends on:** a user report with this layout.
-
-### P3: User-supplied Chromium user-data path option
-
-**What:** A yt-dlp-style `chrome:PATH` option for portable or relocated installs and unlisted forks.
-
-**Why:** Each new fork currently needs a registry change and a release.
-
-**Context:** `ARCHITECTURE.md` prefers a hardcoded registry for safety; needs a threat review (arbitrary paths, key sources) before building.
-
-**Effort:** M. **Priority:** P3. **Depends on:** threat review.
-
-## Test infrastructure
-
-### Automatic exclusion policy for chronically red periodic files (P3)
-
-**What:** A weekly periodic file that stays red for several consecutive runs keeps burning slice minutes
-until someone triages it by hand (the five finding-count evals were red eight runs straight before the
-2026-09 audit retired them). Add a report step that, after N consecutive reds, opens a PR adding the file
-to `PERIODIC_CI_EXCLUDE` with its failing run links, a tracking entry and a re-entry condition.
-
-**Re-entry / done when:** the periodic report proposes the exclusion automatically and a human approves it.
-
-### P3: Collapse the native-completion negative table
-
-**What:** After the 2026-09 audit the 14-mutation "native completion and menu ownership" table survives
-only in `test/eng-first-review.test.ts` (14 per-incident copies), `test/plan-count-completion.test.ts`
-and `test/dx-selected-navigation-ap.test.ts`. One shared table run once against a canonical call is sound
-only after `engFirstReviewAUQ` checks native completion once at entry; today each branch gates it
-separately, so the change alters a paid verdict and needs its own paid run.
-
-### P3: Follow-ups from re-baselining the old-model paid pins on the current generation
-
-**What:** GSTA-49 TM3 (2026-10-18) moved every remaining old-model paid pin to the current generation: the
-`claude-opus-4-7` pins in `skill-e2e-{plan,plan-prosons,design,office-hours-phase4,qa-bugs}` follow
-`resolveEvalModel('capture')`, the overlay fixtures pin `claude-opus-5-5` and `claude-sonnet-5-5`, the cookie workflow
-judge pins `claude-sonnet-5-5`, and `codex-sol-scope-termination` runs on `gpt-6.1-sol` (still rendering the
-`gpt-5.6-sol` overlay). Three things remain:
-
-- The base `claude-dedicated-tools-vs-bash` fixture now duplicates `claude-dedicated-tools-vs-bash-opus-5-5`.
-- The `opus-4-7-*` fixtures measure `model-overlays/opus-4-7.md` on Opus 5.5, which gets the generic `claude`
-  overlay in product.
-- Opus 5.5 refuses (stop category `reasoning_extraction`) capture prompts that ask for the "verbatim text" of a
-  question "you would have made" with "Do NOT paraphrase"; that wording stopped 7 of 16 replays of a prosons
-  request and 0 of 24 without it. `skill-e2e-plan-prosons` dropped it; `skill-e2e-plan-format` and
-  `skill-e2e-office-hours-phase4` still use it.
-
-**Re-entry:** retire one dedicated-tools fixture, decide the opus-4-7 overlay's future, and drop the extraction
-wording from the remaining capture prompts with a paid run each.
-
-### P3: Retire the unused CEO payment seeder
-
-**What:** `seedCeoPaymentProject` and `pickSuppliedCeoPlanStart` in `test/helpers/ceo-finding-fixture.ts`
-and `test/fixtures/ceo-existing-payment/` lost their only paid consumer when the CEO finding-count eval
-was retired; the fixture tests in `test/ceo-finding-fixture.test.ts` still exercise them. Delete the
-seeder, its fixture and those tests together.
-
-### P3: No paid eval runs the full /autoplan chain
-
-**What:** `skill-e2e-autoplan-chain` was retired (it never reached a product
-verdict: launch failures, then 85-minute budget overruns). Phase order is still
-enforced by `autoplan/bin/phase-publication-hook.ts` and pinned by the free
-`test/autoplan-publication-guard.test.ts`, and `skill-e2e-autoplan-dual-voice`
-covers CEO Phase 1 dispatch. Nothing proves a live model completes
-CEO → Design → DX → Eng or reads the required phase sections
-(`CARVE_GUARDS.autoplan` is `behavioral: 'none'`).
-
-**Re-entry:** a chain eval that fits the ordinary PTY tiers, for example one that
-runs the no-UI, no-DX path (CEO then Eng) and asserts the section reads.
-
-### P3: CI-unrunnable paid evals
-
-**Codex part DONE (2026-10-02, parallel-waves fix wave):** the CI image now
-installs a pinned Codex CLI off PATH (`GSTACK_CI_CODEX_BIN_DIR`), paid lanes log
-it in under a CI-only home, and `scopeCodexAccess()` in `scripts/lib/paid-cases.ts`
-exposes it only to the Codex files (`codex-e2e`, `codex-e2e-sol-scope`,
-`codex-e2e-shared-libs`, `codex-e2e-recommendation-substance`,
-`skill-e2e-outside-voice`, `skill-e2e-outside-plan-disabled`) and the
-`codex-review` case. Those five excluded files left `PERIODIC_CI_EXCLUDE`;
-`test/codex-ci-access.test.ts` pins the scoping.
-
-**What (remaining):** Two paid files cannot execute in the CI image (no
-macOS/Aside, no physical iPhone), so the weekly periodic lane scheduled them as
-green shards that verified nothing. They stay in `PERIODIC_CI_EXCLUDE`
-(`test/helpers/periodic-exclude-data.ts`): `skill-e2e-aside`,
-`skill-e2e-ios-device`. One case
-inside a case-sharded file is excluded the same way through `CASE_CI_EXCLUDE`:
-`test/skill-e2e-design.test.ts#design-review-fix` (needs Aside). They still
-run locally on a machine that has the CLI or device.
-
-**Re-entry:** the device or Aside is available to a CI runner. Remove each
-file's exclude entry when its prerequisite exists.
-
-**Review by:** 2026-12-28. **Effort:** S per file. **Priority:** P3.
-
-### ✅ DONE (2026-10-02, parallel-waves fix wave): Install the Codex CLI in the CI image
-
-**Resolved:** `.github/docker/Dockerfile.ci` pins `@openai/codex` off PATH; the
-paid workflows run `codex login --with-api-key` from the `OPENAI_API_KEY` secret
-into `$HOME/.gstack-ci-codex` (exported only as `GSTACK_CI_CODEX_HOME`), and only
-Codex shards see it. Guarded by `test/ci-image-cli-pin.test.ts` and
-`test/codex-ci-access.test.ts`. Recorded durations for the re-entered files are
-still ~0, so the periodic planner learns them from the first runs.
-
-#### Original filing (closed)
-
-**What:** Add `@openai/codex` to `.github/docker/Dockerfile.ci` and provide a
-Codex `auth.json` as a CI secret so the four `codex-e2e*` files and
-`skill-e2e-outside-voice` can leave `PERIODIC_CI_EXCLUDE`.
-
-**Cost estimate:** image build +1 npm global install (~30 s per image build);
-weekly model spend on the order of the repo's periodic rule of thumb, ~$1 per
-file per run, so ~$5/week for the five files, billed to the Codex account
-behind the secret. **Risk:** a long-lived credential in CI.
-
-**Effort:** S. **Priority:** P3.
-
-### ✅ DONE (2026-10-03, v1.91.19.0 severe fix wave, I2): skillify gate test red
-
-The gate `skill-e2e-skillify` cases (provenance-refusal, approval-reject,
-happy-path) passed in all 6 gate censuses 09-30..10-03 (latest
-https://github.com/garrytan/gstack/actions/runs/37151477069), and the periodic
-scrape-match-path and scrape-prototype-path cases passed 18/18 trials.
-
-### P2: auq-verbose-vs-carved-ab PRE arm reads a branch-local ref (same fragility class the repetition-cut A/B just fixed)
-
-**What:** `test/helpers/auq-sdk-capture.ts` `verboseSkill()` defaults to git ref
-`ab66193e^`, reachable only from the token-usage-reduction branch — shallow
-clones fail today, all clones fail after that branch is pruned. Vendor the
-pre-carve render as a fixture the way `auq-pre-cut-plan-ceo-review-SKILL.md`
-was vendored for the repetition-cut A/B (v1.75.0.0), or repoint at a
-main-reachable commit.
-
-**Effort:** S. **Priority:** P2 (weekly periodic breaks silently later).
-
-### P3: eval-store harvest as a discriminated union
-
-**What:** `EvalTestEntry.harvest` went all-optional in schema v2 (worktree
-harvests carry patchPath/isDuplicate, arm-benchmark diff-stats carry
-insertions/deletions/net) — compile-time safety for the two writer shapes now
-rests on a comment. Model as `{kind:'worktree',...} | {kind:'diff-stat',...}`.
-Filed from the v1.73 review army (maintainability); deferred at ship time to
-avoid schema churn mid-release.
-
-**Effort:** S. **Priority:** P3.
-
-### P2: WS6-2 dead-frontmatter strip — needs a live host, not a sandbox
-
-**What:** `bin/gstack-context-bill` warns about 14 frontmatter keys "the router
-never reads" (ROUTER_KEYS in lib/context-bill.ts is a hand-maintained guess).
-The approved ponytail-import plan mandates EMPIRICAL verification before
-stripping: remove the keys in a scratch install on a LIVE Claude Code host,
-confirm skill discovery/routing/hooks unchanged, then land via the
-hosts/claude.ts denylist (keys stay in templates for gen tooling). Deferred at
-v1.73 implementation time with a decision-ledger entry (2026-08-28) because the
-cloud sandbox cannot exercise live-host discovery. Savings are hundreds of
-always-on bytes; growth is already capped by the ratchet regardless.
-
-**Effort:** S (once on a live host). **Priority:** P2.
-
-### P3: scope the evidence-gate digest allow-path
-
-**What:** `agents-digest/gstack-AGENTS.md` rides `--allow-paths` in ship's and
-land-and-deploy's evidence checks in EVERY repo, and unlike CHANGELOG/VERSION
-it is instruction-bearing for rules-reading hosts. Scope the exemption to
-"the bump actually regenerated it" (e.g. gstack-evidence learns a
---allow-if-regenerated flag, or the check compares the digest bytes to a fresh
-generator run). Filed from the v1.73 Claude adversarial pass; the gate is
-advisory and gstack's freshness CI covers the drift case, so P3.
-
-**Effort:** S-M. **Priority:** P3.
-
-### 2026-08-29 test-infra overhaul — follow-ups (filed at implementation)
-
-The overhaul landed: green-means-green fixes (make-pdf gates in the required
-lane, zero-test eval jobs killed, 4 orphaned paid files activated + orphan
-tripwire, touchfiles self-registration + warn→fail), the serial
-tree-mutating shard dissolved (main() guard + --out-dir all hosts),
-duration-packed free shards, the sharded paid runner as the CI engine
-(planner/slices/fail-closed report, parity phase), the weekly all-periodic
-coverage contract + gate census, eval-budget timeout tiers, and the
-coverage fill. Remaining, in rough priority order:
-
-- **DONE (v1.77.0.0 test-infra wave 1) — Delete the legacy evals.yml matrix after
-  parity.** Deleted as a pure-deletion commit (one revert restores it) after
-  a static parity receipt: sliced gate census (49 files) ⊇ matrix files (18),
-  31 files of extra coverage. `needs: evals` edge dropped, PR comment moved
-  into slices-report, KNOWN_MATRIX_GAPS/KNOWN_TIER_UNSET retired,
-  test/evals-workflow-matrix.test.ts rewritten as
-  test/evals-workflow-wiring.test.ts. The register-skills fail-fast
-  verification loop was ported to the surviving lanes FIRST via the shared
-  .github/actions/register-gstack-skills composite.
-- **P1 — Maintainer decision: make `slices-report` a required check** once
-  post-migration flake data exists (the Codex outside-voice's "green means
-  green is not delivered while paid stays advisory" point — correct, and
-  deliberately a branch-protection decision, not repo YAML). Effort S.
-- **P2 — browse daemon lifecycle vs in-suite browsers (top remaining free-suite
-  flake).** The post-#994 daemon deliberately outlives its parent and lingers
-  across test FILES in a shard process; a later file's browser use can then
-  fight it ('[browse] FATAL: Chromium process crashed' + 5s element-wait
-  timeouts). Receipts: commands+snapshot in one bun process fails identically
-  WITH and WITHOUT per-file CHROMIUM_PROFILE isolation (pre-existing; PR
-  #2721 triage), and CI shard 1 on d9b78b5a died at model-overlay-sonnet-5
-  after a daemon-spawning file. Per-shard + per-file profile isolation
-  (landed) removed the cross-shard kills; the intra-shard daemon handoff
-  needs a real design: tests that spawn the daemon should stop it in
-  afterAll, or the daemon should detect a foreign CHROMIUM_PROFILE env and
-  refuse reuse. Effort M.
-- **P2 — browse daemon /tmp-namespace hardening.** Every file-path transport
-  to the daemon (eval <file>, load-html --from-file, pdf output, upload,
-  cookie-import) assumes client and daemon share one /tmp view; a sandboxed
-  shell reusing an out-of-namespace daemon gets "File not found" on files it
-  just wrote (root-caused live, reproduced with unshare). Minimal fix: the
-  CLI reads a local `eval <file>` itself and sends the code as `js` (
-  semantics-preserving; keep the daemon path for remote callers), plus a
-  namespace hint appended to read-commands.ts:313's error. Effort S.
-- **P2 — PTY boot-readiness wait (paid runner).** Free fake-CLI tests now pass
-  `startupReadyMarker` (plan-count-history since the 2026-09 audit). The paid
-  runner's real-CLI path (`runPlanSkillCounting` without a marker) and
-  `test/pty-screen-session.test.ts` still pay the blind 8 s wait; a real
-  readiness waitFor needs empirical CLI 2.1.x ready-marker probing in a working
-  terminal environment. Effort S, needs a dev machine.
-- **P2 — single typed test registry.** Paid globs, tiers, touchfiles keys,
-  and exclusions are still separate literal authorities synced by tripwires;
-  derive them from one registry and the drift class dies structurally
-  (outside-voice recommendation; the tripwires are the interim). Effort M.
-- **P2 — swap the custom LPT packer for bun-native `--timings`/`--shard`**
-  at the next Bun unpin (native LPT scheduling ships ≥1.3.14; the packer is
-  deliberately small and swappable — see the successor note in
-  scripts/test-free-shards.ts). Effort S.
-- **P3 — runBin migration remainder** (~31 of 36 local run() duplicates;
-  helper + first 3 migrated). Mechanical batches. Effort S.
-- **P3 — migrate the free runner onto runShardChild** (the shared lifecycle
-  helper the paid runner now uses; designed for it). Effort S.
-- **P3 — eval-list should exclude _partial runs** (pinned as current
-  behavior in test/eval-cli-family.test.ts with an improvement note).
-  Effort S.
-- **P3 — 15 E2E / 2 judge PHANTOM touchfiles keys** select tests that exist
-  nowhere — add keys or delete, one sweep. Effort S.
-- **P3 — first-execution rot from the sliced lane's first live runs: 2 of 3
-  FIXED** (PR #2721): (a) ✅ skillify family — root cause was HOME==cwd
-  making claude treat <cwd>/.claude/skills as the PERSONAL dir (project
-  skills never registered); all three tests now use a fresh HOME subdir,
-  the refusal test gained a not-registered tripwire + assistant-text-only
-  matching (the skill body echo could pass vacuously), and the siblings now
-  genuinely exercise the Skill-tool path (verified paid, 5/5).
-  (b) ✅ session-intelligence context-restore — assertion was prose-matching
-  over stochastic wording; now verbatim RESTORED-marker + tool-call
-  corroboration with a stronger older-file negative (3/3 paid green).
-  (c) `tpa-apple-ban` failed only on retry attempt 2 once — flake watch
-  only. The lane finding these on first execution is the coverage contract
-  working.
-- **P2 — make-pdf image promotion is per-render nondeterministic on CI**:
-  two renders of the same fixture SECONDS apart in one CI job produced 2 vs
-  3 landscape pages (an image's promotion depends on load timing at render).
-  The landscape gates now assert content/presence invariants, but the
-  underlying render race is a product quality issue (a user's alt-hinted
-  image can silently miss its landscape promotion). Receipts: PR #2721
-  free-tests runs on heads ab549353 + c49b2ece. Effort S.
-- **P3 — duration-weighted slice assignment** if parity data shows slice
-  walls diverging >1.5x (round-robin today; eval-store durations exist).
-  Effort S.
-
-### P2: /context-save worktree-identity hardening (the #2052 residual)
-
-**What:** Persist a stable worktree identity (path hash or worktree name) into
-checkpoint frontmatter at save time; `/context-restore` prefers identity match
-over branch-name match. PR #2054 (@jbetala7, absorbed in the June 2026 wave)
-fixed restore ORDERING (current-branch first), but branch frontmatter is not a
-stable worktree identity: same-name branches across clones/remotes, renamed
-branches, and detached HEAD can still restore the wrong checkpoint.
-
-**Why:** Closes the residual wrong-checkpoint class entirely instead of the
-common case. Codex outside-voice concurred during the wave's eng review.
-
-**Pros:** Eliminates cross-clone checkpoint collisions.
-**Cons:** Frontmatter schema change; needs a migration story for old
-checkpoints (no-identity checkpoints rank as fallback, like #2054's
-no-branch handling).
-
-**Context:** Filed from the June 2026 fix-wave eng review (NOT-in-scope item).
-Start at `context-restore/SKILL.md.tmpl` Step 1 + `/context-save`'s frontmatter
-writer; mirror #2054's partition logic with identity as the first key.
-
-**Effort:** S (human ~4h, CC ~20min). **Depends on:** #2054 (landed in the wave).
-
-### P3: gbrain reindex-in-place on perpetual drift (conditional — check the drift log first)
-
-**What:** IF the `[gbrain-sources] drift:` stderr line (added in the June 2026
-wave) shows drift firing on every sync for some environment, implement #1985's
-reporter design: refresh an existing source in place with `gbrain reindex-code`
-instead of remove+add (which drops and re-embeds the full index — 768 pages /
-6,786 embeddings in the reporter's case).
-
-**Why:** Perpetual drift means paying full re-embed cost every sync. The wave's
-`realpathSync` normalization (symlink aliases are a match, not drift) may have
-eliminated the drift class entirely — that's why this is conditional.
-
-**Pros:** Avoids repeated embedding spend for affected environments.
-**Cons:** Speculative until the drift log produces evidence; reindex-in-place
-has its own consistency questions (stale chunks for deleted files).
-
-**Context:** Filed from the June 2026 fix-wave eng review (4A observability).
-Trigger condition documented in `lib/gbrain-sources.ts` at the drift log line.
-
-**Effort:** M (human ~1d, CC ~45min). **Depends on:** drift-log evidence from
-the wave's `ensureSourceRegistered` logging.
-### ✅ DONE (2026-08-29): Periodic CI coverage contract — implemented as option (a)
-
-**Resolved by the test-infra overhaul:** evals-periodic.yml re-platformed onto
-scripts/test-paid-shards.ts — ALL periodic-tier files run weekly (EVALS_ALL,
-planner manifest → 6 slices → fail-closed report) minus the reasoned
-exclusions in test/helpers/periodic-exclude-data.ts (reason + tracking per
-entry, policy-pinned). A weekly EVALS_ALL gate census rides the same cron.
-The silent-rot class is dead: a test that runs nowhere is now either planned,
-diff-skipped, excluded-with-reason, or a failed report. Original filing kept
-below for the receipts.
-
-#### Original filing (closed)
-Periodic CI matrix covers 9 of ~66 e2e files — decide the coverage contract
-
-**Priority:** P2
-
-**What:** `evals-periodic.yml` (weekly cron, `EVALS_TIER=periodic EVALS_ALL=1`) runs a
-hard-coded 9-file matrix; `evals.yml` gate shards cover 14 files. ~57 `test/skill-e2e-*`
-files run in NEITHER workflow — they execute only when a local diff happens to select
-them via touchfiles. CLAUDE.md says "periodic tests run weekly via cron," which the
-matrix doesn't deliver. Decide: (a) expand the periodic matrix (or glob it) to all
-periodic-tier files with a budget cap, (b) shrink the claim in CLAUDE.md and mark the
-uncovered files as local-only, or (c) tier the orphans explicitly.
-
-**Why:** The autoplan-dual-voice E2E was silently broken for months (claude >= 2.x
-changed unregistered-slash-command handling) and nothing noticed until a docs PR's
-touchfiles happened to select it locally (2026-07-09). Tests that never run anywhere
-rot invisibly; each one found broken later costs a full /investigate session.
-
-**Pros:** Kills the silent-rot class for ~57 test files; makes the CLAUDE.md tiering
-claim true.
-**Cons:** Full periodic coverage costs real money weekly (rough order: ~$1/file/run);
-some orphans are deliberately manual (ios-device, opus-47 overlay harness), so a plain
-glob is wrong — needs a curated exclude list.
-
-**Fresh receipts (2026-08-16, v1.66.0.0 re-baseline):** the first full local
-periodic run in this store gave the never-baselined tail its first results:
-`skill-e2e-setup-gbrain-{bad-token,path4-local-pglite,remote}` all failed
-(spawned-process exit 1 — likely live-gbrain interference on a dev box) and
-`skill-e2e-ship-idempotency` timed out at the 1800s shard wall. None are in
-the weekly matrix, so these failures are invisible to CI — exactly this
-item's thesis. Start the burn-down with those four.
-
-**Context / where to start:** `.github/workflows/evals-periodic.yml:71` (matrix),
-`test/helpers/touchfiles.ts` E2E_TIERS (tier labels already exist per test), orphan
-list generated via `comm -23` between `ls test/skill-e2e-*.test.ts` and the file lists
-in `.github/workflows/evals*.yml`. Receipts from the autoplan incident:
-`~/.gstack/projects/garrytan-gstack/e2e-runs/2026-07-10-0154/` (0-turn "Unknown command"
-transcripts).
-
-### ✅ DONE (verified 2026-08-29): Eval harness live progress + incremental persistence
-
-**Verified landed** (the v1.66-era harness work delivered all three asks):
-(1) heartbeat — session-runner writes ~/.gstack-dev/e2e-live.json atomically
-per tool call (+ progress.log + per-test ndjson); (2) incremental persistence
-— EvalCollector writes _partial-e2e.json after every addTest, dual-signal
-isPartialEval keeps partials out of baselines; (3) live signal — per-tool
-stderr progress lines flush unbuffered, and scripts/eval-watch.ts dashboards
-the heartbeat. The 2026-08 overhaul added per-shard full-stream spool logs
-(path printed at START) on top. Original filing kept below for receipts.
-
-#### Original filing (closed)
-Eval harness: live progress + incremental result persistence (kill the silent hour)
-
-**Priority:** P1
-
-**What:** `bun run test:evals` is observably silent for its entire runtime and
-persists nothing until completion. Make the E2E harness (1) append a one-line
-progress record per test START and END to a well-known heartbeat file (e.g.
-`~/.gstack-dev/evals/.current-run.jsonl`), (2) write each test's eval-store
-result incrementally instead of only at run end, and (3) flush per-test
-pass/fail lines to stderr unbuffered so `bun test --concurrent` mega-file
-buffering can't hide 50 minutes of legitimate progress.
-
-**Why:** During the v1.57.11.0 ship, the diff-selected eval run (54 tests) was
-killed ~50 min in and NOTHING distinguished the corpse from a healthy run for
-hours: the log had zero test lines (per-file buffering across five mega
-`skill-e2e-*.test.ts` files), `~/.gstack-dev/evals/` had zero new files
-(results persist only on completion), and the only available liveness signal
-(`pgrep "bun test --max-concurrency"`) false-positives on every sibling
-free-suite shard. An agent or human watching the run has no honest signal.
-
-**Pros:** Dead runs detected in minutes instead of hours; partial results
-survive kills (a 50-min run that dies at test 40/54 keeps 40 results and can
-resume); `eval:watch` gets a real data source.
-
-**Cons:** Touches `test/helpers/session-runner.ts` + `eval-store.ts` (global
-touchfiles — change triggers ALL eval tests on the next diff-selected run);
-incremental writes need a PARTIAL marker so `eval:compare` doesn't treat a
-dead run as a complete baseline.
-
-**Context:** Root-caused 2026-06-12 during the v1.57.11.0 /ship. The run
-itself was on pace (~50 min for 54 E2E tests at concurrency 15 is nominal);
-the failure was pure observability. Related: the existing
-`project_e2e_harness_observability` note (stream-json reasoning + tool traces
-dropped on failure — same module, fix together). Start in
-`test/helpers/session-runner.ts` (per-test lifecycle) and
-`test/helpers/eval-store.ts` (persistence timing).
-
-**Depends on / blocked by:** Nothing. Classify the new behavior under the
-existing two-tier system; the heartbeat file must be safe under
-`--concurrent` (append-only, one JSON line per event).
-
-### ✅ DONE (v1.53.1.0): Rebaseline parity-suite (v1.44.1 → v1.53.0.0)
-
-**What:** `test/parity-suite.test.ts` checked every skill's SKILL.md size against
-the frozen `test/fixtures/parity-baseline-v1.44.1.json`. Five planning skills had
-crept past the 1.05x ceiling: `plan-ceo-review` (1.052), `plan-eng-review` (1.062),
-`plan-design-review` (1.068), `investigate` (1.053), `office-hours` (1.065) — growth
-from the brain-aware-planning releases (v1.49–v1.52) plus the v1.53 redaction guard.
-
-**Resolved:** Captured a fresh baseline at HEAD via
-`bun run scripts/capture-baseline.ts --tag v1.53.0.0` and re-pointed the test at
-`test/fixtures/parity-baseline-v1.53.0.0.json`. The per-skill 1.05 ratio is kept, so
-future bloat is still caught — only the stale anchor moved. Mirrors the earlier
-`skill-size-budget` rebase (v1.44.1 → v1.47.0.0). Historical v1.44.1 / v1.46.0.0 /
-v1.47.0.0 baselines retained in `test/fixtures/` for the v1→v2 audit trail. The
-captured skill bytes match `origin/main` exactly (the rebasing branch left every
-SKILL.md untouched). `bun test` is green again.
-
-## Scope-gate follow-ups (filed via /plan-eng-review on the plan-mode auto-select-B change)
-
-### DONE (v1.77.0.0) — SDK eval budgets charge API-queue latency to the work budget
-
-**Shipped shape:** the two-phase timer landed WITHOUT the codemod this entry
-feared: the total wall stays <= timeout (work phase = remainder after first
-byte), so every outer/inner bun-timeout relationship is untouched; a silent
-API now dies EARLY at the startup grace (90s local / 300s CI floor, enforced
-Math.max) with the distinct reason 'timeout_startup'. Option (b)'s 300s CI
-floor is in (test/session-runner-startup-grace.test.ts pins it). The
-budget-EXTENSION variant (work budget = full timeout from first byte, which
-DOES need the tier/wall reshape) remains wave-2 scope in the overhaul plan.
-
-Original entry follows for context:
-
-**What:** `runSkillTest`'s single `setTimeout(timeout)` arms at spawn, so session
-startup AND the model's first-completion queue time are charged against the
-test's work budget. Under concurrent load (11 CI matrix jobs, or local eval
-runs sharing the org API), a first completion can queue 60-90s+, producing the
-deterministic `0 turns / $0.00 / <budget>s x3 attempts` failure shape. Observed:
-`review-dashboard-via` (PR #2472, 180s→300s), `retro-base-branch` (240s→360s),
-`plan-ceo-plan-mode` (300s→420s, 2026-08-12), `design-consultation-preview`
-(90s→300s, PR #2533 CI). Every fix so far is a per-test budget bump.
-
-**Why not just re-arm the timer on first stream event:** an audit (2026-08-12)
-found ~100 outer bun-timeout literals sized as inner+30-60s; re-arming the inner
-clock breaks every outer/inner relationship and needs a codemod of all of them.
-
-**Options:** (a) two-phase timer in session-runner (startup grace, re-arm on
-first NDJSON line) + codemod outer literals to inner+grace+slack; (b) adopt a
-300s floor for all CI SDK budgets (statically enforceable — a free test can
-assert no `timeout: <300_000` in skill-e2e files) and stop re-litigating per
-test; (c) startup-spawn semaphore in the runner (bounds the boot stampede but
-not API-side queuing — evidence says queuing dominates, so likely insufficient
-alone). Recommend (b) short-term + (a) properly sequenced with the codemod.
-
-**Depends on / blocked by:** none.
-
-### P2: Wire the four demoted plan-mode/finding-floor PTY tests into periodic CI
-
-**What:** `evals-periodic.yml` runs an explicit 9-file matrix; the four tests
-demoted to `periodic` in v1.62.0.0 (`skill-e2e-plan-eng-plan-mode`,
-`skill-e2e-plan-design-plan-mode`, `skill-e2e-plan-eng-finding-floor`,
-`skill-e2e-plan-design-finding-floor`) are not in it, so they currently run
-only locally/manually (`bun run test:periodic` or `eval:bg:periodic`). Wiring
-them needs a PTY-capable periodic job: the container skill-registration setup
-from evals.yml's `e2e-pty-plan-smoke` job (real-file SKILL.md copies for the
-TUI's cross-mount symlink bug) with `EVALS_TIER=periodic`.
-
-**Why:** Codex re-review P2 on the v1.62.0.0 ship. This is a named instance of
-the existing periodic-orphans problem (see "P1/P2 periodic coverage" TODO in
-Test infrastructure) — solve it there or here, once.
-
-**Depends on / blocked by:** none; sibling of the periodic-orphans TODO above.
-
-### P3: Extract the whole scope gate to a shared `{{SCOPE_GATE}}` resolver
-
-**What:** Move the duplicated scope-gate prose (heading, intro sentence, the
-plan-mode/named-target exceptions block, numbered items, the A/B/C menu, and the
-Recommendation line) from `plan-eng-review/SKILL.md.tmpl` and
-`plan-design-review/SKILL.md.tmpl` into a `scripts/resolvers/` module with 4-5
-injected variant slots (preceded-by list, item-2 phrasing, option-C vocabulary,
-recommendation tail, exceptions action tail).
-
-**Why:** The two copies are hand-synced today. The drift-guard test in
-`test/gen-skill-docs.test.ts` ("scope-gate exceptions drift-guard") makes the
-duplication safe but is a stopgap — one source of truth is the real fix. Filed
-as D5 of the eng review on the plan-mode auto-select-B change (2026-08-11).
-
-**Pros:** Single source for a load-bearing gate; future gate changes (new
-exceptions, wording tuning) land once.
-**Cons:** Touches the resolver registry and its tests; must preserve the exact
-generated bytes or re-baseline the carve/parity ceilings.
-
-**Context / where to start:** structural-only diff, sequenced AFTER the
-behavior change (refactor and behavior never together). The drift-guard test
-becomes the migration's acceptance check: extract, regen, confirm byte-identical
-output, then retire or simplify the guard. Effort: human ~half day / CC ~20 min.
-
-**Depends on / blocked by:** the plan-mode auto-select-B PR landing on main.
-
-## Token-reduction follow-ups (Phase B, filed via /plan-eng-review on the plan-ceo-review carve)
-
-### P2: v1.70 ship-review deferrals (specialist + adversarial findings, each verified)
-
-**What:** Follow-ups deferred from the v1.70.0.0 pre-landing review, none ship-blocking:
-
-- **Batch the 11 `gstack-config get` forks in `bin/gstack-skill-start`** into one config
-  read (~60-250ms of preamble latency per skill invocation, worse on macOS). The
-  consolidation into one script is what makes batching trivial now.
-- **Cache the `gbrain --version` probe** (Node CLI cold start, 100-300ms per invocation
-  for gbrain users) keyed on binary path + mtime.
-- **`bin/gstack-retro-metrics`: single-pass diffs** — combine the `--numstat` and `-p`
-  passes (`git log --numstat -p`), unify the three test-file definitions (`is_test`,
-  the awk regex, the repo-wide grep), and cover the `origin/<base>` ref preference +
-  300-commit/40-coauthor truncation paths with tests.
-- **Rename `generate-upgrade-check.ts`** — it now emits only PROACTIVE/SKILL_PREFIX
-  rules; the name misleads anyone hunting for upgrade-prompt rendering.
-- **evals.yml gate matrix drift:** 9 pre-existing gate-tier files in `E2E_TIERS` are
-  absent from the static suite matrix, so they never run in PR CI. Add them (or prune
-  their tier), plus a free tripwire test diffing gate-tier `E2E_TIERS` against the
-  workflow matrix so the class can't recur.
-- **`_sanitize` case/separator variants:** the strip is exact-literal; make it
-  case-insensitive and separator-tolerant, with pinned variant cases.
-- **Telemetry unset-vs-off semantics:** `gstack-skill-start` treats an UNSET telemetry
-  key as enabled for the LOCAL analytics write (pre-consent recording, local-only);
-  `gstack-telemetry-log` maps unset to off. Decide one semantic and document it.
-- **Coverage gaps from the ship audit:** `--brain-health` block (zero tests), the
-  learnings `>5`-entries sanitize passthrough (poison test), session prune +
-  `.pending-*` finalize loop, and a shared `ONBOARDING_MARKERS` constant for the three
-  seed sites (hermetic-env, e2e-helpers, the script's gates).
-
-**Why:** Each was found by the v1.70 review army with file:line evidence; all are quality
-or latency wins on the new runtime scripts, none change behavior contracts.
-
-**Effort estimate:** M (human team) → S (CC+gstack)
-**Priority:** P2
-**Depends on / blocked by:** v1.70.0.0 landing.
-
-### P3: Output-template carve wave — REVIEW_DASHBOARD + PLAN_FILE_REVIEW_REPORT
-
-**What:** Carve the two output-format resolver blocks — the review dashboard table
-shape and the plan-file report skeleton — out of the six skills that inline them
-(`{{REVIEW_DASHBOARD}}` 5,940B ×6 + `{{PLAN_FILE_REVIEW_REPORT}}` 5,989B ×6,
-~71.6KB total) into on-demand sections or a shared reference doc.
-
-**Why:** Largest remaining duplicated block after the preamble program lands. These
-are output TEMPLATES (table shapes, markdown skeletons), not behavioral steps — the
-classic carve candidate.
-
-**Pros:** ~1.4KB×2 saved per invocation across 6 review-family skills; single source
-for the dashboard/report format.
-**Cons:** Both blocks are partially pinned (`test/skill-e2e-review-attribution.test.ts`
-slices `## Review Readiness Dashboard`; `test/skill-validation.test.ts:1566` asserts a
-specific row) — needs a pin-relocation design first, which is why it was deferred from
-the main program.
-
-**Context:** Deferred from the token-reduction program's Phase 4 (plan on branch
-`prompt-token-load-reduction`, "NOT carving" list). The carve pipeline and guard
-registry to use are the same as carve wave 4. Start by mapping every test that slices
-or asserts dashboard/report text, then decide skeleton-vs-section placement per pin.
-
-**Effort estimate:** M (human team) → S (CC+gstack)
-**Priority:** P3
-**Depends on / blocked by:** Token-reduction program Phases 1-4 landing (carve
-machinery churn would conflict).
-
-### P3: Anchor transformFrontmatter's denylist strip to the frontmatter block
-
-**What:** `transformFrontmatter` (scripts/gen-skill-docs.ts:525-530, denylist branch)
-deletes the FIRST line matching `^<field>:` anywhere in the file, not just inside
-the frontmatter block, and would orphan continuation lines of a block-style YAML
-value. Slice the frontmatter, strip within it, reassemble.
-
-**Why:** Latent mis-strip class: a skill body line beginning `interactive:` or
-`benefits-from:` (e.g. a skill documenting the frontmatter contract) would be
-silently deleted from the render. Zero live collisions today (verified across all
-tracked SKILL.md bodies during the v1.69.x token-reduction Phase 0 review), but
-each new stripFields entry widens the exposure.
-
-**Pros:** Kills the whole latent class; makes stripFields safe to grow.
-**Cons:** Touches the generator hot path — needs a full regen + the per-host
-golden fixtures re-checked; deserves its own small PR, not a rider.
-
-**Context:** Found by the Phase 0 adversarial review on branch
-`prompt-token-load-reduction` (finding ADV4). The gen-side parser reads only
-inline `[...]` array form (gen-skill-docs.ts:751), so block-form YAML for these
-keys fails silently twice — worth a validation error at the same time.
-
-**Effort estimate:** S (human team) → S (CC+gstack)
-**Priority:** P3
-**Depends on / blocked by:** none.
-
-### P3: Revisit plan-ceo-review doctrine carve after the preamble program lands
-
-**What:** Re-evaluate carving plan-ceo-review's ~13KB of always-loaded doctrine
-(`## Prerequisite Skill Offer` 7,125B + `## Cognitive Patterns` 3,336B +
-`## Philosophy` 2,535B) into its existing sections/ dir.
-
-**Why:** Deferred from the token-reduction program because the skeleton had only
-~555B of headroom under its carve-guard ceiling and the doctrine is behavior-core.
-The preamble phases shrink the skeleton by ~22KB, which changes the tradeoff: the
-ceiling gets recomputed and the doctrine becomes the dominant remaining always-loaded
-block in the skill.
-
-**Pros:** ~3.2K tokens off every /plan-ceo-review invocation if the doctrine reads
-lazily without behavior loss.
-**Cons:** The Cognitive Patterns section shapes the review voice throughout — a
-requiredReads guard + A/B eval (same design as the design-doctrine carve) is mandatory,
-and the answer may legitimately be "keep it inline."
-
-**Context:** Filed from the token-reduction program's CEO review ("NOT carving" list).
-Measure with `bin/gstack-context-bill --skill plan-ceo-review` after Phase 3 lands;
-use the carve-guards registry + a behavioral loading eval if carved.
-
-**Effort estimate:** S (human team) → S (CC+gstack)
-**Priority:** P3
-**Depends on / blocked by:** Token-reduction program Phase 3 (re-baseline + recomputed
-carve ceilings).
-
-## gbrowser memory follow-ups (filed via /plan-eng-review + /codex on the v1.49 leak-fix PR)
-
-These four items came out of the memory-leak investigation that shipped
-the `$B memory` diagnostic + the four leak fixes. They were
-deliberately deferred from that PR (already 14 commits / ~12 files);
-each stands alone and any one could ship independently.
-
-### P2: MV3 extension service worker memory profile
-
-**What:** The `/memory` endpoint snapshot enumerates pages but does
-not enumerate the gstack baked-in extension's service-worker target.
-A long-running MV3 service worker can leak through retained DOM
-snapshots, message ports that never close, alarms that re-arm, and
-caches that grow without bound. The diagnostic should call
-`Target.getTargets` with a filter for `service_worker` and include
-each one in `tabs[]` (or a sibling `serviceWorkers[]` array) with the
-same `Performance.getMetrics` data.
-
-**Why:** Codex's outside-voice review on the eng-review surfaced this
-class of leak (the extension is part of the gbrowser process tree but
-invisible to today's snapshot). Until we surface it, a SW leak shows
-up only in the parent process RSS with no per-target attribution.
-
-**Pros:** Closes the per-target attribution gap for the
-single-most-likely future leak source (our own extension).
-**Cons:** Extension SW lifecycle is asymmetric vs page lifecycle;
-auto-attach + filter is one more piece of CDP plumbing.
-
-**Context:** Codex finding #4 on the eng-review outside voice. Not
-in scope of the v1.49 PR; deliberately deferred to keep the PR to
-the four highest-confidence leak fixes.
-
-**Priority:** P2. **Effort:** M.
+  - #2993: 上の /cso の容量の残件で追跡中。**Priority:** P2。
+- **依存関係のセキュリティ台帳**(コードの欠陥ではない。トリガーまで開いたままにする)
+  - `.osv-scanner.toml` は、lib/diagram-render の katex 0.16.47 を(GHSA-238p-pmpm-9mq7、低)2027-01-31 まで無視しています。修正版(0.18.2)は mermaid 11 の範囲の外です。mermaid-js/mermaid#8388 が出荷されたら、katex を上書きし、バンドルを再ビルドして無視の設定を削除します。**Effort:** S。**Priority:** P3。
+  - #2753 の残件: html-to-docx 1.8.0 は独自の image-size 1.x をバンドルしており、package.json の override では届きません。`make-pdf --to docx` は、ICNS のバイト列をそれに渡すことはありません(make-pdf/src/docx-images.ts)。しかし `--allow-network` を付けると、html-to-docx はリモート画像をダウンロードして、自分でサイズを測ります。docx では、ガードの前にリモート画像をインライン化するか、html-to-docx を置き換える。2026-12-15 に再検討。**Effort:** M。**Priority:** P2。
+- **テストと CI**
+  - #2756: 定期実行のレーン。「Periodic-lane stabilization (#2756)」で追跡中。**Priority:** P2。
+  - #2967: `test/redact-prepush-scan-range.test.ts`(とその rebase 版)は、継承されたグローバル設定のまま fixture の push を実行するため、開発者の `core.hooksPath` の pre-push が fixture の中で走ってしまう。ヘルパーで `GIT_CONFIG_GLOBAL=/dev/null` と `GIT_CONFIG_NOSYSTEM=1` を設定する。**Effort:** S。**Priority:** P3。
+
+### P3: Wave 9 で保留にした項目(2026-10-11 起票)
+
+それぞれの項目は、Wave 9 の計画で判断され、理由とともに保留されました。取り上げるときは、報告者や貢献者にクレジットを付けてください。
+
+- **`triggers:` を skill の説明に組み込む(#2118)** — `scripts/gen-skill-docs.ts` は `voice-triggers:` だけを組み込み、短くなった説明は一文しか残さないため、自然言語のトリガーが一覧に届きません。カタログを絞る設計と衝突するため保留。取り上げるときの仕組み: Claude ホスト向けに `when_to_use:` のフロントマターのキーを作り、`triggers:` から組み立て、重複を除き、カタログのバイト予算(Claude Code の 1,536 文字の合計リスト制限)の中に収める。name と description だけを許可しているホストには、境界のある「Use when…」の一文、または何もなし。**Effort:** M。**Priority:** P2。
+- **プランチューンのシグナルが 0.5 で止まっている(#2623)** — `hosts/claude/hooks/question-log-hook.ts` は UI のラベルを記録しますが、`scripts/psychographic-signals.ts` は安定したオプションのキーを探すため、どの行も一致しません。キーの二行の対応付けは、取得の配管だけで、飽和そのものは直しません。受け入れ条件: ラベルは、記録の時点で安定したオプションのキーに対応付けられる。`profile.inferred` は、各次元に寄与したイベントを記録する。イベントごと、セッションごとの蓄積には上限があり、一つの次元が 1.0 に張り付かないようにする。`{skill}-{slug}` の ID には、ヒント付きのフォールバックを付ける。キーの取得元について設計上の判断が必要。**Effort:** M。**Priority:** P2。
+- **状態を持たない、指示のみのホストモード(#3061、@m-check1B)** — ホストされたマルチテナントのランタイムには、インストール、状態のルート、ヘルパーのバイナリがありませんが、skill の本体は依然として `$GSTACK_STATE_ROOT` を読み書きし、`bin/gstack-*` を呼び出し、テレメトリを記録します。新しいホストのテーマで扱うため延期。記録として残す要件: テナントが所有する状態(`capabilities.state: 'none'` のホストは、シェルのステップの代わりに、ホストが提供するフックをレンダリングする)、名前付きの成果物のフック(種類ごとの `ARTIFACT_SAVE`/`ARTIFACT_FIND`、`WEB_RESEARCH`、`SECRET_SCAN`、`USER_PREF`)は、gbrain のリゾルバがすでに行っているように対応付ける。状態を持たないレンダリングに `~/.gstack`、`$GSTACK_`、`bin/gstack-*`、`--event-type` が含まれていれば失敗する生成チェック。`claude` ホストの出力は、バイト単位で同一のまま。貢献者は、最初の PR として office-hours のオーバーレイと生成チェックを申し出ています。**Effort:** L。**Priority:** P3。
+- **接頭辞のない古い Cursor の skill フォルダ(#3084)** — 1.31 の Cursor インストールは `~/.cursor/skills/<skill>/SKILL.md` のリンクを作りました。1.91 は `gstack-*` のフォルダにリンクし、`setup` の `_prune_stale_generated` は `gstack-*` の名前だけを見るため、Cursor は同じ名前の skill を二つ読み込むおそれがあります。`setup` は古い接頭辞のない Claude のエントリをすでに削除していますが、Cursor にも同じ、所有しているリンクのクリーンアップが必要です(gstack のチェックアウトを指すリンクだけを削除)。#3084 のデータ損失の修正から分離したもので、そちらは Wave 9 のレーン A0 で出荷されます。**Effort:** S。**Priority:** P3。
+- **`/retro global` が「セッション」の意味を明示する(#1315、三つ目の問題)** — `bin/gstack-global-discover.ts` は、トランスクリプトのファイルと rollout を数えるため、cron やエージェントで動くリポジトリでは、対話的な作業がなくても何百もの「セッション」が表示されます。retro の出力に、セッションはツールの呼び出しやファイルであり、個別の人間の作業セッションではないと注記する。問題 1 と 2 は修正済み(v1.91.66.0 と Wave 9 のレーン F)。**Effort:** S。**Priority:** P3。
+- **`lib/code-intelligence/gbrain-adapter.ts` の `gbrain put` の stdin パイプ(#1675)** — `put` は本文を stdin で送ります(`#runInput(["put", slug], body)`)。これは、setup-gbrain のスモークテストで Windows で #1675 が遭遇したのと同じ形です。Wave 9 のレーン G がそれを一時ファイルに変えます。固定されたバージョンで、gbrain の stdin の扱いを Windows で最初に確認してください。まだ壊れているなら、本文を非公開の一時ファイルに通すか、MCP の `put_page` のパスを使ってください。**Effort:** S。**Priority:** P3。
+
+### P3: Wave 9 のトリアージによる機能のテーマ(2026-10-11 起票)
+
+未解決の 73 件の機能要望を、関連する件数(テーマ内の Issue 数)とともにテーマごとに分類しました。各 Issue は、このファイルのテーマへのリンクとともにクローズされます。最も大きい三つの横断的なテーマ(新しいホスト、プロバイダーの多様性、インストールのフットプリント)は、トラッキング用の Issue として開いたままにします。テーマは全体として取り上げ、リンクされたすべての報告者にクレジットを付けてください。
+
+- **新しいホスト(Issue 8 件、加えて #3061 と 10 月 8 日に保留された PR 9 件)** — Kimi CLI(#1072)、Gemini CLI(#1247)、Pi Agent(#1288)、Claude Desktop Cowork(#1345)、Letta Code(#2117)、Claude 以外のホストのチームモード(#890)、`/retro global` による Antigravity の検出(#1977)、Kimi Code と OMP のセッション(#2917)。ホスト設定の作業を待つ。保留中のホストの PR は「Parked contributor ideas (Oct 8 triage)」を参照。**Priority:** P3。
+- **プロバイダーの多様性(Issue 7 件、加えて #3122)** — 外部の投票者のバックエンドとしての Gemini CLI(#619)、`design` での Claude 以外の画像プロバイダー(#990)、`design` バイナリ自身の generate、evolve、prototype の呼び出しにおける Codex ネイティブの `image_gen`(#2174。design-shotgun 自体は #2175 以来、Codex で `$imagegen` を使用済み)、Codex の呼び出しのルーティングにおける GPT-6 の Sol/Luna の階層(#2943)、`/grok` レビューの移植(#2947)、Codex レビューのトークン使用量(#2948)、Codex のリフレッシュトークン回復のドキュメント(#1542)、そして /review、/ship、/retro でハードコードされた Greptile の代わりに設定可能な PR レビューボット(#3122。決定 D4 によりここにまとめる)。一つのプロバイダーのシームがこれらすべてに役立つ。**Priority:** P3。
+- **インストールのフットプリントとレイアウト(Issue 7 件)** — skills.sh による配布(#113)、グローバルインストールのパスとしての `~/.gstack`(#753)、状態をプロジェクト内に保つリポジトリ内のインストール(#1235)、それぞれが Bun を同梱する五つのコンパイル済みバイナリ(#1245)、コピーの代わりの Windows のジャンクション(#1877)、1.1 GB の `~/.claude/skills` のフットプリント(#2199)、skill だけのモード(#2528)。決定 D6: setup は Windows でステージ済みのコピーを維持する。現時点で動いており、リンクは各クリーンアップが削除するものを変えてしまうからです。#1943(@JonasFocus、ジャンクション)と #2129(@TTmo123、特権チェックつきのシンボリックリンク)は、クレジット付きでクローズし、その設計は出発点としてここに残します。「October fix wave からのインストールのフットプリントの残件」も参照。**Priority:** P3。
+- **新しい skill(Issue 12 件)** — プランレビュー用の GUI カンバン(#247)、ジャーニーマップ(#729)、UI ドキュメントのレビュー(#851)、前提の検証 `/avl`(#1058)、`/a11y-check`(#1104)、`/env-check`(#1106)、ネイティブのプラン作成(#1170)、`/plan-experiment` と `/review-experiment`(#1195)、`/plan-status`(#1343)、言語別のレビュアー(#1753)、`/benchmark-mobile`(#1754)、セッションの開始・終了の skill(#2088)。**Priority:** P3。
+- **出荷、レビュー、安全性(Issue 9 件)** — ネイティブのコマンドを覆い隠す `/review`(#422)、サイレントなデプロイ失敗のチェックリストのセクション(#2089)、Conductor の TODO の提案と、未解決のものがあれば /ship を止める仕組み(#2090)、軽量の出荷モード(#2188)、Issue を起票する前の監査(#2642)、landing-report でのメンテナー限定の CI と失敗の区別(#2766)、ビルドメタデータ付きの Flutter の pubspec のバージョン(#2833)、ドキュメント系の skill のための決定論的な事実の整合性チェック(#2887)、二重エンジンの /careful ガード(#2888)。**Priority:** P3。
+- **計画レビュー(Issue 8 件)** — マーケットプレイスを意識した skill の推奨(#419)、YC の推奨における創業者のシグナルの推論(#513)、仕様レビューにおけるパス、数式、フラグの根拠のある検証(#973)、基盤に依存しない既存機能のチェック(#1685)、`/autoplan --tier`(#1955)、autoplan のワークスペースの安全策(#1959)、一方向のアーキテクチャの分岐と双方向の欠陥を分ける(#2490)、「需要は本物か?」の証拠台帳(#2350)。**Priority:** P3。
+- **状態のルートとプロジェクトの識別(Issue 6 件)** — リポジトリ内で持ち運べるコンテキストの成果物(#1161)、設計ドキュメントのアーカイブと刈り込み(#1536)、複数のリポジトリにまたがる親ディレクトリ(#1923)、リポジトリごとの `.gstack` 状態の回収(#2627)、入れ子のリポジトリが自分をプロジェクトと宣言する(#2649)、決定イベントの参照と処置(#2678)。**Priority:** P3。
+- **ブラウザとモバイルの QA(Issue 6 件)** — `BROWSER_WS_ENDPOINT` によるリモートブラウザ(#974)、セッションごとのタブの分離(#1961)、オプトインの User-Agent の接尾辞とデフォルトのヘッダー(#2459)、Linux と Windows での Aside のプローブのスキップ(#2864)、キャッチアップ済みの読み取りでのアクティビティリングのコピー(#2973)、タッチ入力とモバイル Safari(#3058)。**Priority:** P3。
+- **プロンプトのコストと skill の形(Issue 4 件)** — レスポンスヘッダーのテンプレート(#1376)、セッション内でのプリアンブルの出力のキャッシュ(#1572)、Fable 5 のプロンプトガイドの監査(#1994)、`gstack-context-bill` での skill ごとの効果(#2889)。**Priority:** P3。
+- **カスタマイズと多言語化(Issue 3 件)** — ロケールを意識した skill(#481)、新しいカスタマイズの次元についてのチュートリアル(#489)、`SKILL.local.md` のオーバーレイ(#1759)。**Priority:** P3。
+- **振り返り(Issue 2 件)** — チームのスコープでの複数リポジトリの振り返り(#402)、ナラティブにおける ADR と Issue の認識(#2284)。**Priority:** P3。
+- **CI のサプライチェーン(Issue 1 件)** — GHCR の CI イメージのアーティファクト認証(#2003)。**Priority:** P3。
+
+### P2/P3: office-hours と timeline の残件(2026-10-08 起票、v1.91.54.0)
+
+office-hours の階層の修正(#2801、#879、#1049、#1958、#1723、#1651 パート A)によって、残されたものです。
+
+- **「現在アクティブ」を反映するセッションマーカー(#1651 パート B)** — skill の開始時にのみ `sessions/<pid>` を更新するため、新しい skill を二時間起動しない長いセッションは `SESSIONS: N` から抜けてしまいます。修正の形: ツールの呼び出しごとに、フックからマーカーを更新する。**Effort:** M。**Priority:** P3。
+- **最初のセッションの締めくくりのためのライブ eval** — 無料テストは、レンダリングされたプロファイルの読み取りとセッションのログを順に実行しますが、モデルが引き継がれた `SESSION_TIER` に従って Phase 6 を進めるかを確認する有料ケースはありません(最初の実行では導入を受け取り、二回目の実行では前回の割り当てについて尋ねる)。office-hours の品質を判定する judge もありません。**Effort:** M。**Priority:** P2。
+
+### P3: 10 月 8 日の修正ウェーブ、安全フックの残件(2026-10-08 起票)
+
+PowerShell/NotebookEdit のフックの修正(v1.91.47.0、#3067)によって残されたもので、それぞれ理由を付けています。
+
+- **`/careful` の強制上書きパターン** — 既存のファイルに対する `Set-Content -Force` / `Out-File -Force`(および Bash の `>` による上書きの対応物)が、まだ通ってしまいます。保留の理由: Bash 側にも上書きのパターンがなく、それを追加するのは PowerShell との同等性ではなく、両方のシェルに対する新しいファミリーになるため。**Effort:** S。**Priority:** P3。
+- **`check-careful.sh` における引用符を考慮したマスキング(#1060)** — `git commit -m "rm -rf build"` が、まだ確認を求めてしまいます。保留の理由: 安全フックの中で引用されたテキストをマスクすると、迂回の余地が生まれるおそれがあるため(PR #1110 の `echo hi; rm -rf ~` がその例)。#1110 の文字列を対照例として、独自の設計が必要。**Effort:** M。**Priority:** P3。
+- **Git Bash のない Windows でのフック** — frontmatter のフックのコマンドは `bash -c ...` を実行します。Git Bash がないと、Claude Code はフックのコマンドを PowerShell で実行するため、ガードがそこでは起動できません。gstack は今日、Git Bash を必要とします。ネイティブの PowerShell のフックのランチャーがあれば、それを取り除けます。**Effort:** M。**Priority:** P3。
+
+### P2/P3: iOS QA の修正ウェーブの残件(2026-10-07 起票、v1.91.38.0)
+
+iPad とルートのドロップの リリースによって残されたもので、それぞれ理由を付けています。
+
+- **v1.91.38.0 の実機での検証** — iPad のブートストラップ、実際の Xcode 26 のトンネルのドロップからのルートのドロップの回復、複数デバイスのエラー、そして `NOT READY` のパスは、シミュレートされたデバイスでのみ確認されています。変更された `StateServer` は `swiftc -parse` には通りましたが、Apple SDK のビルドはしていません。iPhone と iPad がある Mac で `test/skill-e2e-ios-device.test.ts` と Swift のビルドのレーンを実行してください。**Effort:** S。**Priority:** P2。
+- **`GSTACK_IOS_LAUNCH_ENV`(#1796 から分割、@Bmathews721)** — `devicectl process launch` を通じて、アプリに起動時の環境を渡す。main には同等のものがありません。クレジットを付けて独立した小さな PR として取り込み、その後 #1796 をクローズしてください。**Effort:** S。**Priority:** P2。
+- **再起動されたデーモンが、アプリを一度再起動してしまう** — 新しいデーモンには、セッションのベアラーがなく、一度きりのブートトークンもなくなっています。これを直すには、古いセッションを証明した上でのデバイス側の再発行か、状態のルートの下にベアラーを永続化するかのどちらかが必要です。どちらもトークンのセキュリティモデルを変えるため、設計が必要です。**Effort:** M。**Priority:** P3。
+- **iPad の Stage Manager と複数のシーン** — オーバーレイとウィンドウの選択(`frontmostWindow`、`searchRoots`)は、iPad の複数ウィンドウのレイアウトで未検証です。**Effort:** S(検証)/ M(修正)。**Priority:** P3。
+- **`/ios-qa` の古い「Session warm-start」のフェーズ** — Phase 0 は `ios-qa-session.json` のキャッシュを説明していますが、それを書くデーモンのコードは存在しません。状態のルートのチェーンで実装するか、そのフェーズを削除してください。**Effort:** S。**Priority:** P3。
+- **SwiftUI のジェスチャーのための、許可された入力のルーティングのフック**(#1975 の指摘 2) — 合成されたタッチは、iOS 26 の `DragGesture` を取りこぼします。文書化された `#if DEBUG` のフックがあれば、ジェスチャー駆動のアプリが `/tap` と `/swipe` を独自のハンドラーに送れます。**Effort:** M。**Priority:** P3。
+
+### P1/P2: /cso の容量の残件(2026-10-08 起票)
+
+snapshot のファイル数の上限を撤廃した v1.91.42.0 によって残されたものです。
+
+- **追跡対象のシンボリックリンクが /cso の実行全体を拒否する** — `capture()` は、追跡対象のシンボリックリンク(「Symlink or special source file」)があると、無条件に失敗します。v1.91.42.0 のために測定した中規模の OSS リポジトリ 8 件のうち 5 件がそこで止まります(django、rails、terraform、grafana、vscode。それぞれ 1〜10 個のシンボリックリンク、ほとんどはテストの fixture)。依存関係のツリーと同様に、それらをマニフェストの「未読の除外」として記録することは、Garry のためのセキュリティ上の設計判断です。**Effort:** M。**Priority:** P1。
+- **64 MiB の集計ソースの上限(#2993)** — 1 MiB を超えるファイルは監査から除かれますが、読み取られ、数えられます。それらをストリームでハッシュ化し、上限には数えず、未読のカバレッジとして報告し、`doctor` に取り込み時の見積もりを追加する。シンボリックリンクがなくなった後、grafana(211 MiB)と vscode(540 MiB)がこれに達しました。`GSTACK_CSO_SNAPSHOT_MAX_BYTES` のつまみは、それとともに延期されました。**Effort:** L。**Priority:** P2。
+- **`inspect` がマニフェスト全体を表示する** — 5,000 ファイルで約 2.8 MB の標準出力になり、エージェントのツール出力が保持できる量を超えます。skill はそこからパスを読み取るので、これを縮めると skill の契約の変更になり、eval が必要です。**Effort:** M。**Priority:** P2。
+- **修復バンドルが、すべての変換を保持している** — `lib/cso/verification.ts` は、変換のリスト全体を 1 MiB の不変バンドルに結びつけます。バンドルを書くのは実行時の検証だけで、まだ正式な実行時のカタログは存在しません。**Effort:** M。**Priority:** P3。
+
+### P2/P3: iOS QA 修正ウェーブの後続課題 (2026-10-07 起票, v1.91.38.0)
+
+iPad 対応とルートドロップ修正のリリースで未解決のまま残した項目です。それぞれ残している理由を併記します。
+
+- **v1.91.38.0 の実機検証** — iPad のブートストラップ、実際の Xcode 26 トンネルのドロップからのルート復旧、複数デバイスのエラー、`NOT READY` 経路は、シミュレータ上でのみ確認しています。変更した `StateServer` は `swiftc -parse` は通りましたが、Apple SDK でのビルドはしていません。iPhone と iPad を接続した Mac で `test/skill-e2e-ios-device.test.ts` と Swift のビルドレーンを実行してください。**工数:** S。**優先度:** P2。
+- **`GSTACK_IOS_LAUNCH_ENV` (#1796 から分離, @Bmathews721)** — `devicectl process launch` を通してアプリに起動時の環境変数を渡せるようにします。main には同等の機能がありません。単独の小さな PR として、クレジットを付けて取り込み、その後 #1796 をクローズしてください。**工数:** S。**優先度:** P2。
+- **再起動したデーモンがアプリをもう一度起動してしまう** — 新しいデーモンはセッションのベアラーを持たず、一度限りのブートトークンも失われています。解決するには、古いセッションを証明できる形でデバイス側で再発行するか、ベアラーを state root 配下に永続化する必要があります。どちらもトークンのセキュリティモデルを変えるため、設計が必要です。**工数:** M。**優先度:** P3。
+- **iPad の Stage Manager と複数シーン** — オーバーレイとウィンドウ選択 (`frontmostWindow`, `searchRoots`) は、iPad のマルチウィンドウ表示では未検証です。**工数:** S (検証) / M (修正)。**優先度:** P3。
+- **`/ios-qa` の古い「Session warm-start」フェーズ** — フェーズ 0 は `ios-qa-session.json` というキャッシュを説明していますが、デーモンのコードはこのファイルを書いていません。state-root のチェーンと合わせて実装するか、フェーズごと削除してください。**工数:** S。**優先度:** P3。
+- **SwiftUI ジェスチャー向けの入力ルーティング用フック (#1975 指摘 2)** — 合成したタッチは iOS 26 の `DragGesture` を捉えられません。文書化された `#if DEBUG` フックを用意すれば、ジェスチャー主体のアプリでも `/tap` と `/swipe` を独自のハンドラに振り分けられます。**工数:** M。**優先度:** P3。
+
+### P3: 保留中のコントリビューターのアイデア (10月8日のトリアージ)
+
+10月8日のトリアージで「later」としてクローズしたコントリビューターの PR です。いずれも妥当なアイデアですが、テーマが取り上げられるまで保留にしています。着手するときは、PR のクレジットと参照を付けてください。
+
+- **新しいホスト** — Kimi Code (#2674), Pi (#2507, 最も完成度が高い), Gemini CLI (#2309, Antigravity と両方とも `~/.gemini` を使うので、まとめて判断する), Qoder (#2116, 既存の `--dir` セットアップフラグは単独で取り込める可能性あり), Grok Build (#2028), Zed (#1785, Codex との `~/.agents/skills` の衝突について判断が必要), Mistral Vibe (#1640), Factory Droid のシンボリックリンク検出 (#660, 実際の Droid 環境で先に検証すること), Claude Code のプラグインマーケットプレイス (#526, /browse, /careful, /freeze がプラグイン経由のインストールで動いてから)。新しいホストはホスト設定の作業を待ちます。Antigravity が先に出荷されます。**優先度:** P3。
+- **バックアップブラウザ (`$B`) の機能** — `record` による動画の証跡 (#2497), WebAuthn の仮想認証器 (#2297), デバイス/位置情報/ロケール/タイムゾーンのエミュレーション (#2064), リクエストの横取り `route` (#2063, 既定拒否の許可リスト設計が必要), 拒否リスト付きの Chromium 起動オーバーライド (#1933), 既存の `BROWSE_EXTENSIONS_DIR` による追加の Chrome 拡張機能 (#1144), スナップショット向けの Flutter Web のセマンティクス (#511)。それぞれ Aside の同等機能と合わせて見直してください。**優先度:** P3。
+- **Outside voice と Codex** — モデルティア設定の推論工数ノブ (v1.91.45.0 以降。新しい環境変数の代わりに使う, #2934), ホストをまたぐプラグイン配布 (#2723), 有料の品質評価の裏で動かす Codex 版 Review Army (#2648), /investigate の反証プロンプトを Codex の outside voice として使う (#2535), Codex のインストールパスを計画的に `~/.agents/skills` へ移行する (#2123), gstack-doctor の Codex 行での Codex CLI の鮮度チェック (#1861)。**優先度:** P3。
+- **メモリと learnings** — 有用/有害のカウンター付きのシグナルゲート型の learnings 取得 (#2030), `/learn prune` に統合するセマンティックな重複排除 (#2029), 現在のオーケストレーター上での docs を意識した gbrain 同期 (#2438), シグナルキーと記録されるラベルの不一致を直した後の、レジストリに依存しない plan-tune の自律性シグナル (#2625)。**優先度:** P3。
+- **Ship とレビュー** — オプトインの、PR 作成前の上流の重複チェック (#1696), 設計済みのセクションとしての、PR 作成前のプレビューデプロイとブラウザチェック (#685), ヘッダー由来のゲートのテスト項目 (#2860)。**優先度:** P3。
+- **QA、デザイン、その他のスキル** — /design-review または /qa へのアクセシビリティレビューの統合 (#2476), 指摘ごとの QA 証拠のレイアウト (#1484), 共有のデザインチェックリストへの認知負荷の項目 (#696), Ollama アダプターによるローカルモデルのベンチマーク (#1495), 測定に基づくコスト削減効果の見積もり (#3021), ホストのバグが続く場合の AskUserQuestion の散文フォールバック用の REMOTE_CONTROL トリガー (#459)。**優先度:** P3。
+
+### P2/P3: 10月7日の修正ウェーブの後続課題 (2026-10-07 起票)
+
+10月7日のウェーブで残した項目です (docs/designs/FOLLOWUP_WAVE_2026_10_07.md)。それぞれ残している理由を併記します。
+
+- **バックグラウンドのレビュアーの後、Manual モードで /autoplan の Bash カードが出る** — バックグラウンドのレビュアーの通知が新しいターンを始めると、スキルの許可ツールが効かなくなります。そのため Manual モードでは /autoplan の Bash 呼び出し (スナップショットツール、outside voice、レビューログ) が確認を求めます。auto モードでは分類器が判定します。選択肢は、スナップショットツールの正確な呼び出しをフックで承認するか、一度きりの説明を出すかの二つです。**工数:** M。**優先度:** P3。
+- **リポジトリのルートより下でセッションを始めた場合のレビュアー入力カード** — スキルのフックはサブエージェントの中では動きません。そのため、セッションがサブディレクトリで始まっていると、リポジトリの `.gstack/tmp/autoplan/` から入力を読むレビュアーが確認を求めます。**工数:** S。**優先度:** P3。
+- **2.1.292 での、全遷移を通す手動の /autoplan セッション** — リプレイ用のフィクスチャと、スクリプト化したライブの境界 (フォアグラウンドと `--bg`) でガードは確認できています。ただ、すべてのフェーズ遷移を通した記録済みの実行はまだ一度もしていません。**工数:** S。**優先度:** P3。
+- **サンプリングされた Codex プローブの削除 (2026-10-21 以降)** — `bin/gstack-codex-probe` の読み込み経路、その非推奨の行、zsh の自己位置特定ブロック、zsh の読み込みヘルパーのテストにあるそのプローブのエントリ、`test/helpers/codex-probe-sourcing.ts` を削除します。**工数:** S。**優先度:** P3。
+- **残りの PR と Issue の書き込み処理を gstack-post に移す** — /document-release の PR 本文とタイトルの編集 (独自のスキャン付き) と、テスト失敗のトリアージ Issue (`--assignee`) が、今も gh/glab を直接呼んでいます。**工数:** S。**優先度:** P3。
+- **`gstack-doctor --json`** — CI やバグ報告ボット向けに、機械で読める行を出力します。DX の磨き込みとして後回しにしました。**工数:** S。**優先度:** P3。
+- **名前付きのセッションジャーナルに対するドクターのガードチェック** — 指定したジャーナルを、`gstack-doctor` からガードの読み取り処理で確認します。ドクターはセッションの外で動くため、設計が不明確なので後回しにしました。**工数:** M。**優先度:** P3。
+- **artifacts 同期で使う秘密情報スキャナーを一つにする** — `bin/gstack-brain-sync` の Python スキャナー (および init と restore が書くフックのコピー) を `lib/redact-engine.ts` に置き換えます。言語をまたぐ書き直しで、ファイル単位の保留の範囲外なので後回しにしました。**工数:** L。**優先度:** P3。
+- **時間を測る新規インストールのジャーニー** — 新規インストールから最初のスキル実行までを、端から端まで計測します。修正ウェーブの範囲外なので後回しにしました。**工数:** M。**優先度:** P3。
+- **/cso 向けの Windows ネイティブ Docker トランスポート (#3028)** — `lib/cso/docker.ts` は `unix:///` のエンドポイントしか受け付けないため、信頼できる `docker.exe` があっても Windows では /cso が "static assessment only" と報告します。同じ信頼チェックを持つ名前付きパイプのトランスポートを追加してください。**工数:** L。**優先度:** P2。
+
+### P2/P3: 信頼性の後続課題の延期分 (2026-10-04 起票, v1.91.30.0)
+
+承認済みの信頼性の後続計画 (docs/designs/RELIABILITY_FOLLOWUPS_2026_10.md) から延期した項目です。それぞれ延期の理由を併記します。
+
+- **フリースイートの git ハング: シャードの隣接テストが原因 (B5). Bun の spawnSync が子プロセスの終了を取りこぼす (oven-sh/bun#34069, 上流で未解決)** — CI のシャード 1 (PR の実行 37242691914 以前) で、redact-prepush-rebase-force-push, render-sections-provenance, shared-libs-stage-actor の `execFileSync`/`spawnSync` の git 呼び出しがタイムアウトしました。Ubicloud 上の監視で、「ハングした」git はすべてゾンビ (終了済みだが回収されていない) だと分かりました。`bun test` のメインスレッドが動いている間にこの状態になり、上流の報告と一致します。CI のシャード 1 のファイル一覧では、約 60 回中 3 回ほど再現します (pty-workspace-trust なしの 20 回では 0 回。有意ではありません)。次の手順は、共有フィクスチャのヘルパーにある git 呼び出しを、ハードなタイムアウト付きの非同期 spawn に移すか、#34069 を修正した Bun のリリースを使うことです。**工数:** M。**優先度:** P2。
+- **Judge のルーブリックのアンカー (C1, Garry の EVAL_POLICY の判断が必要)** — 事前登録したコントロールパネル (`docs/evals/judge-controls-2026-10.md`, 36 回の呼び出し) では、ワークフローの judge はすべて、大きな破損は見抜けました。しかし qa のワークフロー judge は、Phase 10 の Report を削除した /qa のバンドルを通してしまいました (気づいたサンプルはありませんでした)。review の judge は、Step 3 を削除した /review を通しました (3 サンプルのうち 2 つが気づき、軽微と評価しました)。また、どのサンプルも、どの観点でも 5 点を付けていません。欠けているステップの検出は、今は `test/workflow-required-steps.test.ts` でカバーしています。提案は、完全性と実行可能性の 4 点と 5 点を、名指しした成果物と入力に結びつけることです。事前登録した EVAL_POLICY の変更として行います。**工数:** M。**優先度:** P2。
+- **auto-decide-preserved: CEO の引き継ぎ行がモデルに依存しなくなる** — 定期実行 37272185151 が赤になったのは、モデルがチャットの冒頭で言い換えを書いたためです。行の横にリマインダーを置いたところ、成功は 10 回中 1 回でした。10 月 6 日のウェーブでは、この行は /plan-ceo-review の PostToolUse フック (システムメッセージ) を通して表示されます。このフックは 10/10 の成功で、どの試行でもこの行は見えていましたが、チャットの冒頭がこの行で始まった試行はありませんでした。ネイティブの検出器は、今もチャットが行で始まる場合にしか加点しません。画面の経路がフックのメッセージを運ばなくなったら、検出器をフックの記録を読むように変えてください。**工数:** S。**優先度:** P3。
+- **名指しで赤になった ship-docsync-late-result (PR 実行 37237194905)** — モデルは、コール 20 で報告書を誤ったシャードのルート (`…-3GanyY`。正しくは `…-3GanyU`) に書きました。そのことを開示したうえで、正しいパスに本当の報告書を書いています。authority 検出器は正しく動いています (ファイルはフィクスチャの外に作られたため)。`test/docsync-authority.test.ts` がその記録を再生します。docsync のケースが再び似た誤りのシャードパスに書いた場合は、ランダムなトークンをコピーさせる代わりに、短く固定したフィクスチャのルート (環境変数または固定の短いシンボリックリンク) をモデルに与えてください。authority のチェックを緩めてはいけません。**工数:** S。**優先度:** P2。
+- **PTY セッションのコストが不明** — `test/helpers/pricing.ts` はキャッシュ書き込みの料金を含めていないため、PTY の試行は `cost_known: false` のままです。料金がキャッシュ書き込みをカバーしたら、ネイティブのトランスクリプトの使用量から価格を計算してください。**工数:** S。**優先度:** P3。
+- **カスタム SDK のクエリプロバイダは部分メッセージを流さない** — overlay-case, ship のフック/スキップのアクター, workflow-boundaries, setup-gbrain のサンドボックスは生のイベントを記録するため、その台帳の行には停止の証拠が残りません (`provider_stall` にはなりません)。`stream_event` の行を落として、ストリームの生存確認に参加できるようにしてください。**工数:** S。**優先度:** P3。
+- **マルチケースのシャードで台帳の行を正しく割り当てられるよう、PTY セッションをケースごとに名前付けする** — シングルケースのシャードはすでに正しく割り当てられています。**工数:** S。**優先度:** P3。
+- **レッドラインが native-captures の成果物にリンクする** — 今はスライスの成果物の名前を指していますが、`native-captures-<EVALS_RUN_ID>` はジョブ ID を埋め込んでいて、レポートのジョブはそのジョブ ID を知りません。**工数:** S。**優先度:** P3。
+- **EVAL_POLICY v2: provider_stall を INFRA として扱う** — `eval:pass-rates --reds` の原因データの二回の集計で決めます (今はラベルしかありません)。**工数:** S。**優先度:** P3 (Garry)。
+- **Detector の変換候補 (B2)** — `docs/evals/detector-inventory.md` には、構造化された情報源を持たない 38 個のフレーズだけのチェックが挙がっています (主なもの: S5 の画面優先の自動判断、ジャーナルのツール呼び出しによる PTY の plan_ready/silent_write、単語の並びで決まるセットアップのセレクター、bws の READY プローブ)。また、注入された SKILL.md の本文に一致する定期的な「surface」チェックもあります (context-restore-*, scrape-prototype-path)。**工数:** M。**優先度:** P3。
+- **フロアのキャプチャで、所有するトランスクリプトの末尾を保持する** — PR 実行 37176835584 の公開トランスクリプトには、保留中の Edit が表示されていませんでした。そのため、B3 のパーサの修正だけではそこで十分でなかったかもしれません。**工数:** S。**優先度:** P3。
+- **CEO の判断手順の遅延** (1 問あたり約 60 秒: グリッド表示、保存、読み戻し、質問) が、plan-ceo-mode-routing の 240 秒の選択後のウィンドウを制約しています。名前は付けましたが、削っていません。**工数:** M。**優先度:** P3。
+- **Value-card の JSON の文言** — qa-only の judge の 3 サンプルのうち 2 つは、今も「書き出された JSON には完全な値が残る」と言っていますが、どのファイルかは名指ししていません。モードごとに JSON の名前を明記し (ship の Step 7、/test-audit のサイドカー)、カードを含む JSON がないところではその節を削除してください。**工数:** S。**優先度:** P3。
+- **E4 のプライベートなオブジェクトディレクトリの Windows での確認** — `GIT_ALTERNATE_OBJECT_DIRECTORIES` は Git for Windows では `;` を使います (代替がすでに設定されているときだけ影響します)。また、`cygpath -m` の変換は Windows で未確認です。**工数:** S。**優先度:** P3。
+- **/ship のマラソン用の新しいケース** — マラソンのレーンは、新しく /plan-eng-review を実行します。新しい /ship のジャーニーケースには、新しいハーネスの作業が必要です。**工数:** M。**優先度:** P3。
+- **E5/E6 の所要時間の種データを更新する** — `codex-multiblock-live` (180 秒) と `design-model-smoke` (90 秒) は `scripts/paid-test-durations.json` の見積もりです。最初の集計から `--write-durations` で更新し、「Periodic paid smoke for the default design model pairing」は一度実行されたらクローズしてください。**工数:** S。**優先度:** P3。
+- **環境変数で動くホストのオプションのランタイムファイルが、ランタイムルートの外にある** — /open-gstack-browser と /connect-chrome の Chrome 拡張機能の検索、そして `$GSTACK_ROOT/docs/...` と `$GSTACK_ROOT/scripts/...` を指すプロセのポインタ (question-split guide, jargon list, question registry) が、Codex/Factory のランタイムルートにはリンクされていないファイルを指しています。実行されるフェンスは `test/env-host-runtime-assets.test.ts` でカバーしていますが、これらの読み取りはカバーしていません。**工数:** S。**優先度:** P3。
+- **標準のホストエージェントに対する製品の A/B 比較** — 製品の成果について、gstack を標準の Claude Code/Codex エージェントと端から端まで比べます (オーバーレイのハーネスはモデルレベルの差だけをカバーします)。独立したプロジェクトとして扱います。**工数:** L。**優先度:** P3。
+
+### P1–P3: テスト/評価/CI の監査ウェーブの後続課題 (2026-10-04 起票)
+
+承認済みの 2026-10 のテスト/評価/CI 監査の計画から出たもので、監査の PR がこれらを起票しました。
+
+- **監査後のメトリクス (マージから 7 日後)** — `bun run test:health --since-days 7` を実行し、PR のフルフォールバック率、マージされた PR あたりの PR レーンの記録支出 (目標: 少なくとも 50% 減)、週あたりのキャンセルされたスライスの分数、push から判定までの p50/p95、フリーのフレーキーパス率を `docs/test-audit-2026-10.md` に、日付付きの後続項目として記録してください。**工数:** S。**優先度:** P1。
+- **国勢調査の信頼性メトリクス (マージ後 4 回目の定期国勢調査の後、マージから約 28 日)** — `bun run test:health --since-days 28` を実行し、定期実行ごとの想定失敗試行数 (目標: 1.0 以下) と、ゲートの国勢調査ごとの想定失敗試行数 (目標: 0.5 以下) を記録してください。それぞれ、生の試行の失敗率、誤ってブロックする確率、古いポリシーでの再集計として記録します。未達なら、クラスごと・失敗の種類ごとの内訳を付けて、ここに P1 の項目を追加してください。**工数:** S。**優先度:** P1。
+- **一リリース限りのコマンドのスタブを削除する** — 廃止したパッケージスクリプト (`test:evals`, `test:evals:all`, `test:e2e`, `test:e2e:all`, `test:gate`, `test:periodic`, `test:codex`, `test:codex:all`, `eval:bg`, `eval:bg:all`, `eval:flake-rank`, `eval:watch`, `test:audit`)、`scripts/retired-command.ts`、`test/retired-commands.test.ts`、CONTRIBUTING.md の「Retired commands」の表を削除します。これらは古いエージェントのメモリとドキュメントを転送するためだけに存在しています。**依存:** 監査のリリースが出荷されていること。**工数:** S。**優先度:** P2。
+- **`test:gate` / `test:periodic` を、シャード化されたランナーに戻す** — スタブが消えた後、短い名前を `test-paid-shards.ts` に向け、`:sharded` の接尾辞をやめます。**依存:** スタブの削除。**工数:** S。**優先度:** P3。
+- **無料チェックと有料チェックを、差分を見て一つのコマンドで行う** — `test:quick` と有料の PR プロファイルを、同じタッチファイルの閉包から計画して、「私の差分には何が必要か」に一つのコマンドで答えられるようにします。**工数:** M。**優先度:** P3。
+
+### P2: 10月の修正ウェーブからの Windows の後続課題 (PR C1)
+
+- **Smart App Control に許可してもらえるよう Windows のバイナリに署名する (#2595, #2124)** — `browse`, `find-browse`, `design`, `pdf`, `gstack-global-discover` は、ユーザーのマシン上で `bun build --compile` によってコンパイルされるため、署名がなく、評判も蓄積されません。その結果、Smart App Control が 5 つすべてをブロックします。PR C1 では、ブロックを検出して説明するだけです (セットアップのヒント、gstack-doctor の行、トラブルシューティングの節)。修正は、セットアップがコンパイルせずにダウンロードして検証する、Authenticode で署名したリリース成果物 (例: Azure Trusted Signing) にするか、署名したランチャーにすることです。**必要なもの:** Garry のコード署名のアカウントと証明書の判断。検証には、Smart App Control を有効にした Windows 11 のマシン。**工数:** L。**優先度:** P2。
+- **#3071 のマシンで、公開時にステージされた CSO ファイルを削除しているものを特定する** — PR C1 では失敗を致命的でなくし、親の EXIT トラップをネイティブのパブリッシャーの `exec` の前にクリアし、結果を記録しました。しかし根本原因は証明されていません (報告者は 1 人で、`windows-latest` の CI では正しく公開されています)。`bin/.gstack-cso-build.log`、`bash -x scripts/build-cso.sh`、ステージディレクトリの Process Monitor のトレースを依頼してください。**工数:** M (報告者のマシンが必要)。**優先度:** P3。
+- **実際の SAC マシンで Smart App Control のエラーテキストを確認する** — 起動プローブ (`bin/gstack-launch-probe.sh`) は、終了コード 126/127 と、アプリケーション制御のメッセージを、報告者の取得結果からブロックと分類します。しかし、強制モードのマシンで実行した人はいません。**工数:** S。**優先度:** P3。
+
+### P2/P3: 10月の修正ウェーブからのインストールフットプリントの後続課題 (PR C2, v1.91.65.0)
+
+- **環境変数で動くホストでの `scripts/ship-measure.ts`** — /ship の計測ループは `$GSTACK_ROOT/scripts/ship-measure.ts` を実行します。これは gstack のテストヘルパーと評価ハーネスを import するため、Codex/Factory などのランタイムルートには開発ツリーのほとんどが必要になります。これは `test/runtime-root-assets.test.ts` が見送っている唯一の `$GSTACK_ROOT` のパスです。ship-measure を自己完結させるか、スキルがソースのチェックアウト (`.source-path`) から呼ぶようにしてください。**工数:** M。**優先度:** P3。
+- **ランタイムルート内のレンダリング済み `SKILL.md` のコピーが見つけられてしまう** — `office-hours/SKILL.md` (#2449) と、今は `plan-design-review/SKILL.md` も、`~/.codex/skills/gstack/<skill>/` にあります。スキルがこれらを `$GSTACK_ROOT/<skill>/SKILL.md` として読むためです。スキルディレクトリを再帰的にスキャンするホストは、これらを `gstack-<skill>` と並べて表示するかもしれません。/autoplan のように、これらの読み取りを兄弟のレジストリのパスに向けるとコピーがなくなります。ただし、それはプロンプトの変更であり、評価が必要です。**工数:** M。**優先度:** P3。
+- **チェックアウトから一つのホストを削除する** — インストール済みホストの記録は増える一方で、`gstack-uninstall` はすべてのインストールを削除します。ホストごとのアンインストールは、`.gstack-installed-hosts` からそのホストを外し、そのレンダリングを削除するべきです。今は手で編集する必要があります。**工数:** S。**優先度:** P3。
+- **セットアップから、指示だけのホストを記録する** — Hermes, OpenClaw, GBrain のレンダリングは手作業で作られ、インストール内で残るのは、ユーザーが先に `.gstack-installed-hosts` にそのホストを追加したときだけです (セットアップのヒントもそう案内しています)。`./setup --host hermes --render` のような方法なら、一回の操作で記録とレンダリングができます。これらのティアは今は何もインストールしないため、製品としての判断が必要です。**工数:** S。**優先度:** P3。
+- **ホストのレンダリングのバックアップが期限切れにならない** — 各インストールで最初にプルーニングするセットアップは、約 36 MB の生成ファイルを `$GSTACK_STATE_ROOT/backups/host-renders/` に移します。誰も復元を求めていないうちに、保持期限のルール (例: 30 日保持) を追加してください。**工数:** S。**優先度:** P3。
+- **実際のインストールで、Cursor-agent のフリーズと Claude Code のスキル一覧を確認する** — #1694 の症状 (約 11 MB を超えると Cursor-agent がフリーズする、Claude Code がスキルの説明を落とす) は、ディスク上のバイト数だけで測りました。修正前は 632 個の `SKILL.md` / 34.7 MB、修正後は 63 個 / 2.5 MB です。削減したツリーで Cursor や Claude Code を実際に再実行した人はいません。**工数:** S。**優先度:** P3。
+
+### P2/P3: 重大な修正ウェーブの後続課題 (2026-10-03 起票, v1.91.19.0)
+
+承認済みの重大な修正ウェーブ (docs/designs/SEVERE_FIX_WAVE_2026_10.md) から延期した項目です。それぞれ延期の理由を併記します。
+
+- ~~**セットアップで Bun の下限を強制する (#2815)**~~ — v1.91.30.0 で対応済み。セットアップは 1.3.3 未満の Bun を拒否し、1.4.2 未満では警告します。自動更新と /gstack-upgrade は、チェックアウトを移す前に新しい下限を確認します。元のメモ: — `engines.bun` は今 `>=1.4.0` (CI の固定値) ですが、Bun は `engines` を強制せず、セットアップもバージョンを確認しません。1.3.3 より古い Bun は `--no-compile-autoload-dotenv` と `--no-env-file` を黙って無視します (1.3.2 で確認済み)。そのため、D0 によるプロジェクトの `.env`/`bunfig.toml` からの保護は、その環境では黙って無効になります。セットアップは下限より古い場合に拒否するか警告するべきです。**工数:** S。**優先度:** P2。
+- ~~**SwiftUI ジェスチャー向けの Windows Node CLI レーン (SAC 対策; E3, #2596, #2595, #2124)**~~ — 修正ウェーブの PR C1 に置き換えられました。セットアップと gstack-doctor が SAC にブロックされたバイナリを検出するようになり、ウェーブではランチャーやシムを使わないことを決めました (PowerShell から呼べず、`bun run` のシムは呼び出し元のプロジェクトの `.env`/`bunfig.toml` を読み込んでしまうため)。残りは署名で、下の項目で扱います。元のメモ: — `dist/browse` のラッパーは、すべての Windows ユーザーの `browse.exe` を覆い隠してしまいます。ランチャーの優先順位 (Git Bash と cmd での browse, browse.exe, browse.cmd) とNode が見つからない場合のメッセージは、Windows の SAC マシンで検証する必要があります。**工数:** M。**優先度:** P2。
+- **C8 のルーター文言をルーティングのパネルにかける** — 無効なスキルはルーターから外れるようになりましたが、「When in doubt, invoke the skill」の文言変更 (Tier 3) はルーティングの評価パネルにかけていません。**工数:** S。**優先度:** P3。
+- ~~**コマンド間で変数が引き継がれないホストでの変数: make-pdf の `$P`**~~ — v1.91.30.0 で対応済み。環境変数で動くホストは、すべてのブロックで `$P` を再計算します (MAKE_PDF_BIN を尊重)。元のメモ: — make-pdf はブロック間で使うために `$P` を「export」していますが、Codex などの環境変数ホストはブロック間でそれを失います (`$B`/`$D` と同じ問題です。共通のプレリュードがこれらを再計算するようになりました)。`P` をランタイムのプレリュードに加えるか、ブロックごとに解決してください。**工数:** S。**優先度:** P2。
+- ~~**#2709 の記録済み Chromium の回収が Playwright 1.62 では動かない**~~ — v1.91.30.0 で対応済み。所有するヘッドレス起動が、CDP の `SystemInfo.getProcessInfo` でブラウザの PID を記録します。元のメモ: — Playwright 1.62 の `Browser` には `process()` がないため、`chromiumProcInfo` は常に null で、クリーンアップは何もしません (プローブで確認済み)。PID は別の方法 (CDP の `SystemInfo.getProcessInfo` またはランチサーバー) で記録してください。**工数:** S。**優先度:** P2。
+- **#2670 の bash 側 (`bin/gstack-brain-sync`)** — TypeScript の段階の判定では、0 ページのアーティファクトソースを報告するようになりました。しかし bash の brain-sync には、まだ `index_failed` のステータスファイルとページ数のプローブがありません。**工数:** S。**優先度:** P3。
+- **ナビゲーションガードはリクエストを送信した後に動く** — Playwright のルーティングはリダイレクトの途中のホップを見られないため、ブロックされたホップはタブをリセットし、リクエストが出た後でコマンドを失敗させます。送信前にブロックするには、アウトオブプロセスの iframe を含めて CDP の Fetch の横取りが必要です。**工数:** M。**優先度:** P3。
+- **リダクションのリポジトリ許可リスト (#2598)** — ノイズのコンテキストルールでは扱えない、生成された `*.svg`/`*.excalidraw` (#2827) などをリポジトリごとの `+++ b/<path>` のスキップリストに入れます。新しい設定の面になるため、このウェーブの範囲外です。**工数:** M。**優先度:** P2。
+- **Global-discover の Codex セッションスキーマ (#2750)**、**コンパイルされた browse の起動にある絶対パスの bun (#931; macOS での再現は不明)**、**GitLab CI の `curl | bash` (#1713)** — ウェーブの範囲外です。(ios-qa のブートトークンの項目 #1837 と #1975 は v1.91.38.0 で取り込まれました。) いずれも **優先度:** P3。
+- **上流の gbrain の一括ルックアップ** — スラッグごとの存在確認ルックアップと、`gbrain import --json` の別の `pending` 一覧。これにより、着地確認でソース全体を一覧して、ページごとに `get` を実行しないで済みます。**工数:** M (上流)。**優先度:** P2。
+- **メモリの後続課題** — gbrain のソースの登録時にリポジトリの identity を記録する (prune は、同じリポジトリのメインチェックアウトからのみ、修正前のソースの所有者を証明できます)。修正前のトランスクリプトを、`default` からリポジトリごとのソースへ計画的に移行する (gbrain 側のページ移動が必要)。削除されたワークツリーについて、#2778 の「最も近い既存の祖先」への帰属を決める (無関係な親リポジトリ、たとえば dotfiles のリポジトリに帰属してしまうリスク)。いずれも **優先度:** P3。
+- **G2 を TS 版にも適用する** — `lib/bin-context.ts` (Windows のフォールバック) は、共通のディレクトリのスラッグのキー付けを共有しますが、過去のワークツリーのバケットは記録しません。**工数:** S。**優先度:** P3。
+- **Codex の後続課題** — 実行後の `codex_sandbox_unavailable` のテレメトリ (今はプリフライトだけがログを残します)。Q2 の初回利用の通知は Codex だけをカバーし、Codex ホストの Claude Code の outside voice はカバーしません。`pkill` がないとき、bash ネイティブのタイムアウトのウォッチドッグは孫プロセスを回収できません。一般的なコンテナで、無特権のユーザー名前空間を有効にする方法を文書化します。いずれも **優先度:** P3。
+- **定期的な有料ケースとしてのライブの Codex マルチブロックチェック** — ウェーブは一度手作業で実行しました (新しい `CODEX_HOME`、新しいクローン、`./setup --host codex`、複数ブロックのスキル一つ)。回帰を毎週見つけられるよう、定期ケースにしてください。**工数:** M。**優先度:** P2。
+- **Codex のデフォルトのサンドボックスでの /review のワーキングツリーのフィンガープリント** — 実際の Codex チェック (v1.91.19.0) で、`bin/gstack-wtree` が `codex exec -s workspace-write` の中で終了コード 1 になることが分かりました。Codex は `.git` を読み取り専用でマウントし、フィンガープリントは追跡されていない内容を `.git/objects` に書き込むためです。`gstack-review-log --start review` は `cannot capture a diff review without a working-tree fingerprint` で失敗します (黙って通るのではなく、大きく失敗します)。また、`git fetch` は `FETCH_HEAD` を書けません。フィンガープリントには、プライベートなオブジェクトディレクトリ (`GIT_OBJECT_DIRECTORY` と `GIT_ALTERNATE_OBJECT_DIRECTORIES` を `$TMPDIR` の下に置く) を使い、fetch は古いベースのカバレッジとして報告してください。**工数:** S。**優先度:** P2。
+- **ウェーブの evals2 レーン (実行 37162480720) で解決済み**: Codex の有料評価は CI でコマンドを実行するようになりました (ホストで実行するジョブ。Codex の 8 ケースすべてが実際のコマンドを実行しました)。ship-exploratory-late-input は、もう `inconclusive` で終わりません (キャプチャは、入力の変更後に再実行すべきプローブを名指しします)。plan-eng-multi-finding-batching のチェッカーと office-hours-brain-writeback のプロンプトも修正され、3/3 になりました。plan-eng-review-artifact (#3017 以降 0/4) は、ワークフローを飛ばす近道のプロンプトを測っていました。今は、PTY で実際の対話型 /plan-eng-review を動かします。新しい実行には、600 秒の予算では足りません (合格は 498 秒。国勢調査 37174266054 とローカルの実行では 595 秒でタイムアウトしました)。そのため、定期ケースは、その国勢調査の実行の実際のスコープ検討の台帳 (合格、364 秒) から、テストのレビューの段階で再開します。新しい実行は、マラソンのケース plan-eng-review-artifact-full で行います。
+- **ゲート結果のテレメトリ** — `lib/gate-outcomes.ts` から、理由コードごとに `not_run`/`unavailable` の結果を数え、最も多いギャップから直せるようにします。**工数:** S。**優先度:** P3。
+- **インストールレジストリを中心にした /gstack-upgrade の再設計**、**マーケットプレイスの配布チャネル**、**生成された bash のプレースホルダー規約** (フェンス内の `<placeholder>` と実際の構文)。いずれも **優先度:** P3。
+- **デザイン CLI のヘルスサブコマンド** — DESIGN SETUP のプローブは `--version` を使いますが、より詳しい `design health` なら、API キーとモデルへのアクセスも確認できます。**工数:** S。**優先度:** P3。
+- **cmd.exe での Autoplan の公開フック** — `scripts/resolvers/composition.ts` は今も `bash -c '<script>'` を登録しています。JSON の printf を含む複数行のスクリプトには、cmd.exe の argv の検証が別途必要です。**工数:** S。**優先度:** P3。
+- **承認済みのサルベージに含まれない #2971 の部分** — /land-and-deploy の ship/land の検証コマンドのタプルと、要求されたレビュー/免除のゲート、クリックの `<option>` の 500 ms プローブ、取り込みの状態とステージングファイルの 0600 のモード、gbrain-sync の保留チェックポイントの拒否、質問の優先設定フックのフェイルクローズドの許可リスト。いずれも **優先度:** P3。
+
+### P1: v1.91.12.0 の有料評価の証明用国勢調査からの後続課題 (2026-09-29 起票)
+
+- **遅いAPI の日に予算が薄くなる** — Claude Code 2.1.284 では、review-army-perf (300 秒中 274 秒) と ship-docsync の障害ケース (285 秒中 250〜263 秒) が、予算の 88〜93% にあります。API が遅い国勢調査では、どちらの CLI バージョンでもタイムアウトするかもしれません。予算を増やすのではなく、それらのスキルを速くしてください。工数 M。
+  **進捗 (v1.91.19.0, 2026-10-04):** /ship のドキュメントゲートは、今は `bin/gstack-docs-candidate` (`snapshot`/`compare`) で候補を保存して確認します。以前の約 20 回の別々の Git/ハッシュ呼び出しと、手書きの候補 JSON の代わりです。ウォールタイム (修正前の CI b24b6d8 → 修正後の 2 回のローカル試行、予算は同じ): store 476 → 346/386 秒、current 354 → 339/326 秒、completion 412 → 372/371 秒、failure 197 → 215/201 秒。ほかの 8 つの障害ケースは ±20 秒の範囲で動きました (各 1 回の試行、12 件すべて PASS)。親の事前ディスパッチの時間は 140〜186 秒から 118〜159 秒に減りました。親のツール呼び出しは減りませんでした (store 55 → 51/62)。親は、子が再読み込みするリリースファイルを今も読んでおり、モデルの思考の間 (最大 77 秒) が支配的です。次は、親がリリースファイルの内容をまったく読まないようにし、子が読んだハッシュを返すようにします。マシンが異なる (CI とローカル) ので、前後の数値は目安として扱ってください。
+- **繰り返し赤くなるもの: 修復すべきで、再実行すべきではない** — `plan-design-review-plan-mode` (単一の書き込みの前に約 250 秒の思考ブロックがあり、最近の実行では毎回 2.1.251 で 300 秒のタイムアウトになります) と、次のブリーフが HOLD SCOPE のモードを名指ししなかったときの HOLD SCOPE のルーティングのケース (下の引き継ぎの項目を参照)。いずれも工数 M。
+- **`/plan-ceo-review` がステップ 0E のモードの引き継ぎを飛ばす** — 回答のあった 15 サンプルのうち 0 件で、モードの回答の後に必須の `Mode: <mode>; approved decisions: …` のチャットが送られました。その間に 4 回の言い回しの修正を試みましたが、いずれも出荷されていません。モデルは引き継ぎを推論の中で書き、後で「上に送った」と言います。散文の修正では届かず、フック やツール結果のゲートなど、プロンプトの外の仕組みが必要です。HOLD SCOPE のルーティングのケースは、引き継ぎが飛ばされて、ほかに時間内にその姿勢を示すものがないと失敗します。auto-decide-preserved も同じように失敗します。定期の国勢調査 37176837432 (7249f01) では、モデルは設定を確認して HOLD SCOPE を自動で選び、それを記録しましたが、`Auto-decided review mode → …` の行を出力しなかったため、観測者がタイムアウトしました。国勢調査の履歴 (2026-09-29 から 10-04 までの直近 15 回の定期実行): モードのルーティングが赤になったのは 4 回 (36633323521, 36641820398, 36903600510 はこのウェーブの前、37176837432)、auto-decide-preserved が赤になったのは 5 回 (36633323521, 36776104571, 36787269090, 36920606897 はこのウェーブの前、37176837432)。工数 M。
+  **完了:** v1.91.19.0 (2026-10-04)。ステップ 0E は `gstack-ceo-mode-handoff` を実行するようになりました。これはツール結果として引き継ぎの行を出力します。auto-decide の検出器は、文書化された行を `Approved decisions:` の接尾辞付きで受け付けます (試行 1 は行を出力しましたが、拒否されていました。リプレイは `test/fixtures/auto-decide-handoff-line-e354.json`)。修正後のローカル有料試行: auto-decide-preserved 1/1, plan-ceo-mode-routing 1/1 (両方のモード)。すべてのセッションがヘルパーを実行しました。
+- **plan-ceo-section-loading が、正しく言い表された古い埋め込みの指摘を取りこぼす** — 国勢調査 37178734784 (65d94f2) と 37182865432 (44ef18c) では、レビューがレースを見つけていたにもかかわらず `hasStaleFillRaceFinding` が失敗しました。44ef18c では、スケジュール S2 を名指しし (「読み取りが古いコピーを取得し、一時停止し、その後でキャッシュに入れることがある… 後の読み取りはすべて古いデータを得る」)、埋め込みの受け入れのガードを承認しました。検出器は表現に対する正規表現の集合で、失敗ごとに表現を一つ足すのは誤った修正です。ケースを構造化された指摘のレコード (または固定のルーブリックを持つ LLM の judge) に結びつけてください。直近 3 回の国勢調査のうち 2 回、以前の 16 回では 0 回です。工数 M。**優先度:** P2。
+  **完了:** v1.91.19.0 (2026-10-04)。このケースは、スキル自身の決定台帳の行と `currentDecision` の質問を読むようになりました (`test/helpers/ceo-stale-fill-decision.ts`)。フレーズの検出器は代替の証人として残しています。8 回の国勢調査のキャプチャで、構造化されたチェックは 7 件を検出し (国勢調査 37174266054 は、台帳の行が `unresolved` のままだったため見逃します)、フレーズの検出器は 6 件を検出します。両方合わせると 8 件すべてを検出します。見逃した 2 件の報告と合格した 1 件の報告は、`test/fixtures/ceo-stale-fill-decision/` からリプレイされます。
+- **auq-matrix の推奨内容の判定 (judge) が赤と緑を行ったり来たりする** — 国勢調査 37182865432 は、plan-design-review の「A because the plan is thin everywhere, so skipping dimensions mostly skips gaps」を 3 < 4 と採点しました。同じケースは、以前の 16 回の国勢調査のうち 5 回で赤でした (37151477069 は main, 36898545245, 36787269090, 36641820398, 36633323521)。スキルやチェックをまたいでいます (`(recommended)` が 2 つある選択肢の数、office-hours の内容)。種類は `rule` ですが、1 つの judge のサンプルでゲートしています。EVAL_POLICY のもとで、`judge` ケース (3 サンプル、中央値) にするかを決め、種類を変える前に合格率の証拠を示してください。工数 S。**優先度:** P2。
+- **qa/SKILL.md のワークフローの judge が実行可能性の下限を下回る** — 国勢調査 37186854666 (b24b6d8) は、同じ qa のバンドルのバイト列で実行可能性を 3.67 < 4 (明確さ 3、完全性 4) と採点しました。そのバイト列は、国勢調査 37182865432 (44ef18c) では合格していました。両者の間で qa/、qa-only/、scripts/resolvers の下は変わっていません。以前の 17 回の国勢調査のうち 2 回で赤でした (36920606897, 36776104571)。judge の種類は 3 サンプル、しきい値は変更なし。qa-only のワークフローの judge も、国勢調査 37198445662 (fd6854b) で同じことをしました: 3.67/4.33/3.67、密度を理由に挙げた 3/4/3 のサンプルが 1 つ。qa-only のバイト列は 44ef18c 以降変わっていません。そこでは 4 回の国勢調査で合格していました。言い換える前に、低いサンプルが実行不能だと言うバンドルのステップを特定してください。工数 S。**優先度:** P3。
+- **shared-libs-review-revalidation が、ストリームの途中で止まる** — ゲートの国勢調査 4 (37186854666): `filtered` のシナリオのストリームが、思考ブロックの後の 07:51:21 で止まり、657 秒の中断まで何も出力しませんでした。ほかの 3 つのシナリオは合格しました。18 回の国勢調査で初めての赤です。無音のプロバイダストリームは、テストのタイムアウトではなく INFRA として分類してください (N 分間イベントがない)。工数 S。**優先度:** P3。
+- **overlay-harness sonnet が、ベースラインのアームのモデルエラーで失敗する** — 国勢調査 37198445662 (fd6854b, https://github.com/garrytan/gstack/actions/runs/37198445662): オーバーレイ OFF のアームの試行 0 は、`async` なしで exports を grep し、`src/api.ts: []` (`export async function fetchFoo` がない) と報告しました。20 件中 19 件の試行は正しく、オーバーレイ ON のすべての試行は合格しました。正しさのゲートは 20 件すべてを求めるため、コントロールアームの 1 回の誤りで、研究の比較が赤になります。直近 5 回の国勢調査で初めての赤です。コントロールアームのエラーで比較を無効にすべきか (再実行のポリシー) を決めてください。工数 S。**優先度:** P3。
+- **plan-ceo-review-format-approach でプロバイダが拒否した** — 国勢調査 37195203538 (4128700, https://github.com/garrytan/gstack/actions/runs/37195203538): t1 と t2 は、37182865432, 37186854666, 37193478719 で 9/9 合格した入力とバイト単位で同一の入力で、`model_refusal_no_fallback` (`reasoning_extraction`) で終わりました。37198445662 では再び 3/3 で合格しました。プロバイダの拒否は、アサーションではなく INFRA として分類してください。また、キャプチャのプロンプトにある「verbatim … exact prose you would have shown」という言い回しが、分類器を誤作動させていないかを確認してください。工数 S。**優先度:** P3。
+- **TTY が空白を詰めるため、Floor ランナーが所有する Edit を許可できない** — PR 実行 37176835584 (7249f01): plan-ceo-finding-floor が 600 秒でタイムアウトしました。ネイティブの「Do you want to make this edit to gstack-test-plan-ceo-floor.md?」のメニューが、最後の約 5 分間画面に出たままでした。差分のプレビューは、コンテキストの行の空白を詰めて描画し (`210 C)Smoke-test…`、折り返した行には余白がない)、そのため `currentEditPreview` は行を解析できず、ガードは所有する Edit を検証できず、何も応答しませんでした。直近 12 回の PR レーンの実行のうち 1 回、15 回の国勢調査のうち 0 回です。修正: 解析器が、空白を詰めたコンテキストの行と、余白のない折り返しを受け付けるようにします (それでも正確なソースの行と比較します)。キャプチャした画面を、無料のリグレッションテストにします。工数 S-M。**優先度:** P2。
+- **一部のシャードの隣接テストが原因で、pre-push フックのテストがハングする** — dfe5e733 の無料スイートの計画で、`test/redact-prepush-hook.test.ts` は、シャード 12 で 2 回の試行のうち 28 件中 6 件が 30 秒でタイムアウトしました (フックのプロセスがまだ動いており、ぶら下がりとして殺されました)。単独では 9 秒で通り、次の計画のシャード 12 でも通ります。失敗した計画でだけ先に動く 29 件のファイルのうち 1 件 (ブラウザの CDP/ステルス/タブのテスト、pty-workspace-trust、heredoc-pipe-deadlock など) が、フックのブロッキング経路が待つ状態を残しています。そのシャードの計画を、xvfb と GSTACK_EXPECT_BINARIES=1 のもとで再現してください。工数 S。
+  **進捗 (2026-10 の監査):** 再現せず。実行 36714493424 の失敗したシャード 12 の計画を、dfe5e733 の先頭と 2db0b3a で、xvfb 上の一つのプロセスで、ランナーのサンドボックス環境のもとで再生しました。`CI=true` の有無にかかわらず、ハングしませんでした。CI のログによると、ハングはフック固有ではありません。そのファイルの `beforeEach` の git 呼び出しと `bash -c` の子プロセスもタイムアウトします。1 回の実行では、最大 27 個のぶら下がったプロセスを殺しました。git を呼ばないエスケープバルブのケースもハングしました。次の手順: そのファイルのテストがタイムアウトしたとき、ぶら下がった子プロセスのプロセスツリーのダンプを取得してください。
+- **残りは、パス率の履歴に判断させる** — このブランチのすべての国勢調査では、一回限りの赤が毎回違うものでした。`eval:pass-rates` に、ケースごとに 10 回の週次の試行がたまったら、一回の実行を追いかける代わりに CASE_QUARANTINE のエントリのルールを適用してください。工数 S。
+  **進捗 (2026-10 の監査):** EVAL_POLICY v2 はシリーズをケースの所有にしましたが、D1 のバックテストでは、承認された週次の履歴 (main の定期実行と main のディスパッチ) のもとで、ブロックしているケースが 10 回の適格な試行に届くものはありません。そのため、隔離は到達不能のままです。国勢調査の赤はソースで直されており、`test:health` で追跡しています。選択肢と保留中の判断は、docs/test-audit-2026-10.md の「What the backtest shows」にあります。
+
+### P2/P3: mvanhorn の修正ウェーブの延期分 (2026-10-03 起票, ウェーブのレビューによる autoplan より)
+
+- **E6 (P2): 設計ラウンドの会計についての振る舞いの E2E** — `$D` をスタブ化し、生成のステップが `saved` を `requested` より少なく報告する (保存ゼロでは終了コード 2) ようにします。その上で /plan-design-review または /design-shotgun を実行し、スキルが、保存された有料画像の枚数をユーザーに伝え、失敗を名指しし、保存ゼロのときはボードを作らないことを確認します。`test/design-printed-paths.test.ts` は、マーカーの順序だけを固定しています。モデルが枚数を報告するかどうかは振る舞いです。背景: #1529。工数 M。
+- **E7 (P3): 承認されていないデザインのラウンドを削除するか、アーカイブする** — 上書きしない方式と `--retry` の試行、およびイテレートの出力が、`$GSTACK_STATE_ROOT/projects/$SLUG/designs/` を無制限に増やします。承認されていないラウンドと試行の削除かアーカイブのコマンドを追加し (`approved.json` が名指ししたものは残す)、`$D gallery` でデザインディレクトリのサイズを表示してください。背景: #1529、エンジニアリングレビュー。工数 S。
+- **E5 (P3): リストアで仮定の項目を読み取り専用で確認する** — `/context-restore` は、`(path assumed)` と `(code read)` の項目を、読み取り専用のコマンド (ファイルの存在、フラグが定義されているか、テーブルに一意のキーがあるか) で自分で確認し、オプション A を提示する前に見つけたことを報告できます。背景: #3004。工数 M。
+- **E4 (P3): スポーン変更のための、実際のデスクトップの Windows コンソールでのスモーク** — #1784 は、報告者が実際の Windows 11 デスクトップで修正を確認しました (v1.91.15.0)。CI が確認できるのは、スポーンが `windowsHide` を渡しているかだけです。コンソールのない親から browse を起動し、新しく見える窓を監視するスモークは、静的な検査では捕まえられない回帰を捕まえられます。工数 M。
+
+### P2/P3: 並列の修正ウェーブの後続課題 (2026-10-02 起票, 承認済みの修正ウェーブの計画より)
+
+- **Agent Skills の配布 (#113)** — gstack を Agent Skills の形式で公開し、それを読むホストが `./setup` なしでインストールできるようにします。ホストの契約 (ティア、機能、`docs/ADDING_A_HOST.md` の適合キット) が固まってから行い、パッケージが各ホストのティアと安全上の注意を持つようにしてください。**工数:** M。**優先度:** P2。
+- **テレメトリに基づく重大度のランキング** — 報告の数だけでなく、失敗したスキルやヘルパーに何件のインストールが当たったか (`skill_end` の結果、拒否の件数) で、未解決の Issue と修正ウェーブの候補をランク付けします。**工数:** M。**優先度:** P3。
+- **デザインの既定のモデルの組み合わせに対する定期の有料スモーク** — `design/scripts/live-model-check.ts` (低品質の `gpt-5.5` + `gpt-image-2` の画像呼び出し 1 回と、ビジョンの呼び出し 1 回) を定期レーンで実行し、モデルの廃止や利用資格の変更を、ユーザーが遭遇する前に見つけられるようにします。`gpt-image-1` は 2026-10-23 に廃止されます。既定値は 1 つのアカウントで一度だけライブ確認しています。**工数:** S。**優先度:** P2。
+- **ベアの `./setup` が `--host auto` を既定にするか** — 今は、ベアの `./setup` は Claude だけをインストールし、`--host auto` はオプトインです。インストールレジストリができた後で決めてください。auto にすると、検出したすべてのホストがインストールされ、複数のホストを使うユーザーの初回の動作が変わります。製品の判断です。**工数:** 決まってから S。**優先度:** P3。
+- **ホストの `full` 認定を自動化する** — `docs/ADDING_A_HOST.md` の「Certify your host」の行は、ホストの定期ケースが通った後に手で書かれています。緑の定期実行から生成し (Codex が最初: 固定した CLI での `codex-review`, `codex-discover-skill`)、`hosts/<host>.ts`, `bin/gstack-install-registry.sh`, `./setup --help`, README の対応表の `tier` を、一つのステップで切り替えてください。Codex は、それまで `experimental` のままです。**工数:** M。**優先度:** P2。
+- **古いインストールごとのレンダリングディレクトリを削除する** — 手で削除されたインストールは、`$GSTACK_STATE_ROOT/render/installs/<host>-<key>/` (と `.root` のエイリアス) を残します。`gstack_install_registry_reconcile` が削除するのはレジストリの行だけです。調整の際に、レジストリの行がないレンダリングを削除してください。**工数:** S。**優先度:** P3。
+- **ワークツリーで拒否されるスキル固有の形 (#2763 の残り)** — セッション開始の行、コンテキストの復元、すべての `gstack-slug`/`gstack-paths` の評価は、今はワークツリーで隔離された Claude Code のセッションで動きます。しかし、次のスキル固有の形は、そこでまだ拒否されます。複雑な構文の中の `git` (`$(git … | tr …)`, `--arg x "$(git …)"`, `$(git …)` の代入に他のコマンドが続くもの)。`$B` / `$D` を変数にしたコマンド名 (browse, design)。`eval "$SCOPE_RESULT"` (land-and-deploy)。そして読み込まれたヘルパー (Aside のブロックにある `. "$_EG"` の egress ライブラリ、`source …/gstack-codex-probe`)。それぞれをヘルパーか素のリテラルのコマンドに移し、`test/worktree-isolated-shapes.test.ts` を拡張して対象にしてください。**工数:** M。**優先度:** P2。
+- **デフォルト以外のインストールのための `gstack-config gbrain-refresh`** — 今はデフォルトのグローバルインストール (`render/claude`) だけを再レンダリングします。名前を変えた、ベンダリングされた、または `CLAUDE_CONFIG_DIR` のインストール (インストールごとのレンダリング) は、そこから `./setup` を再実行したときにだけ、ブレインを意識したブロックを得られます。代わりに、レジストリのレンダリングの列を反復してください。**工数:** S。**優先度:** P3。
+
+- **判定の実行可能性がちょうど 4.0 のゲートに乗っている** (P2, PR #3014 の評価の国勢調査より) — 24 件のワークフロー judge はすべて、ほぼすべての実行で実行可能性を 4.0 と採点します。そのため、3 サンプルのうち低いものが 1 つあるだけでケースが失敗します (09-27..10-02 の期間で、qa-only 9/78, qa 6/78, plan-ceo modes 5/78, plan-eng sections 4/78, review 4/70)。修正は、しきい値を下げることではなく、ケースごとにスキルの文章を明確にすることです (v1.91.14.0 の qa で行ったように)。工数 M。
+- **`--case` では、ループで登録された有料ケースを選べない** (P3) — カバレッジの監査、TPA、plan-mode-no-op は、ケースをループで登録します。そのため `test-paid-shards.ts --case <id>` は何も実行しません。`fileCaseRegistration` にループのパターンを教えてください。工数 S。
+- **PTY セッションで、応答の途中に `API Error:` が出ると、予算の全体を待ってしまう** (P3, 方針の判断) — 最初のモデルのターンの後で接続が切れると、CLI はアイドルのプロンプトに戻り、ハーネスは 300 秒待ちます。ハーネスは素早く失敗して分類すべきかを決めてください。工数 S。
+### P2/P3: Opus 5.5 のプロンプト整理の延期分 (2026-10-03 起票)
+
+それぞれ、`/claude-api prompt-audit` の整理の途中で、理由を付けて延期しました。
+
+- **保持している安全ルール: その評価は区別できない** — safety-ship-stale-evidence, safety-pair-agent-block, safety-codex-consult-embed, safety-ios-demo-ui-only の評価は、現在の文言で 10/10 合格しました。しかし、ルールを削除したアームでは違反が 0/5 でした (2026-10-03, claude-fable-5-1, Claude Code 2.1.284)。そのため、これらの評価では、文言の書き換えが安全かどうかは示せません。ルールの不在が観測できるフィクスチャができるまで、文言は残します。ルールは `test/helpers/safety-rules.ts` にあります。優先度 P3。工数はフィクスチャごとに M。
+- **design-review のリスクで止まる文言の書き換えを保留 (R8)** — safety-design-risk-stop は区別できます (現在の文言 10/10、ルールを削除すると 1/5 で違反)。しかし R8 は、そのルールを持つすべてのレンダリングで、書き換えたルールがきれいに通ることが必要です。copilot, cursor, factory, gbrain, hermes, kiro, openclaw, opencode, slate のレンダリングは、ほかのモデルを使い、そのためのランナーがありません。`.agents` のレンダリングには、この評価のための Codex のランナーがありません。書き換えを design-review のレンダリングに限るか、ホストごとのランナーを追加してください。優先度 P2。工数 M。
+- **判定のプロンプトとルーブリックの整理 (W2 からの延期)** — arm, qa の health-rubric, qa の anti-refusal, cross-skill と voice の judge、そしてデフォルトのワークフロー judge は、今は JSON スキーマを送ります。しかし、そのプロンプト監査の s11 M1-M7 の散文の整理はまだ残っています。qa の anti-refusal ルーブリックの「always … regardless」という文言も同様です。散文の手順のうち 2 つは、きっかけはあったものの実行していません。qa のワークフロー judge (そのスキーマの比較は問題なし: 新しく反転したのが 24 件中 4 件、古いのが 2 件。a06 で新しく生じた誤った合格が 1 件、形式エラーは 0 件。そのため、今のリクエストのままにします) と、デフォルトのワークフロー judge (取り込み済みですが、新しいプロンプトで、コーパスの項目 f03 に対してプロバイダの拒否が 1 件あり、古いプロンプトでも 1 件ありました)。`test/fixtures/judge-calibration` と `scripts/judge-calibration.ts` を再利用してください。優先度 P3。工数 M。
+- **キャリブレーションされていないワークフロー judge の構成** — フロンティアの構成 (review/SKILL.md のワークフロー) と、Cookie の構成 (setup-browser-cookies/SKILL.md のワークフロー) について、コーパスを作り、スキーマの転送を調整してください。どちらも、今のリクエストのままです。転送を変えた後は、review と cookie のワークフロー judge を再実行してください。優先度 P3。工数 M。
+- **スキルのオーバーレイ用の Claude モデルの自動検出** — `claude_overlay_model` が設定されていないとき、`./setup` で Claude Code のモデル (`ANTHROPIC_MODEL`、ユーザーと管理の設定の `model`) を検出し、そのピン留めされたオーバーレイをレンダリングします。`./setup --claude-model` はオプトインなので、このオプションを渡さないユーザーは、汎用のオーバーレイのままです。`/model` で切り替えると、古いレンダリングが残ります。また、ピン留めされたオーバーレイは、まだ `claude` 自身と、それぞれのモデル上で比較されていません。`bin/gstack-render-claude.sh`、その有効化の記録、変更時だけのバナーは揃っています。検出すると `source=detected` を記録します。前提: ピン留めされたオーバーレイが、そのモデルで `claude` に勝るという、タスク結果の証拠。優先度 P3。
+- **セッションごとのオーバーレイ選択 (E6)** — `/model` の切り替えに従い、セッションごとに対応するオーバーレイを返すランタイムフックです。`./setup --claude-model` はインストール全体に効くため、セッションの途中で切り替えると、インストールされたオーバーレイのままになります。`--claude-model` のレンダリングと有効化の記録の上に作ります。優先度 P3。
+
+### P2/P3: impeccable の相互運用の延期分 (2026-09-08 起票, docs/designs/IMPECCABLE_INTEROP.md の CEO と eng のレビューより)
+
+それぞれレビューで検討し、理由を付けて延期しました。どれも、出荷された検出器、カタログ、オープンな DESIGN.md の形式をブロックしません。
+
+- **design-review のフェーズ 7-11 を一つの節に分ける (予算の調整)** — design-review の常時読み込みトークンは、レビューの目標 2.5K に対して +2.87K になりました。計画したすべての調整 (カテゴリ 9 の ID だけの検出器ルール、ダンプスクリプトの `lib/dom-dump.js` への移動、散文の削減) の後の結果です。`test/fixtures/context-budget.json` の上限は、測定された 31,319 に上げました。次の現実的な調整は、修正ループ (フェーズ 7-11) を一つの節に分けることです。これは `test/skill-e2e-design.test.ts` の E2E のコピーのロジックに触れます。工数 M。優先度 P2。
+- **`bin/*.ts` 全体で Bun の `.env` の自動読み込みを監査する** — Bun は、スクリプトがカレントディレクトリの外にあっても、カレントディレクトリの `.env` を `process.env` に読み込みます。`gstack-design-detect.ts` と `gstack-design-md.ts` は `--no-env-file` でレンダリングされ、リポジトリ内の `IMPECCABLE_BIN` / `IMPECCABLE_HOME` を無視します。スキルがレンダリングする、ほかのすべての `bun run ~/.claude/skills/gstack/bin/*.ts` にも、環境変数で駆動される実行経路があれば、同じ露出があります。監査し、環境変数がバイナリやパスを指定できる場所では `--no-env-file` でレンダリングしてください。工数 S。優先度 P2。
+- **Kiro のインストールアームは `SKILL.md` と `sections/` だけをリンクする** — Kiro のレンダリングが持つ gstack の `bin/` のパス (検出器、DESIGN.md のツール、レンダリング CLI、review-log、diff-scope) は、すべてそのホストで既存のギャップです。そこでも、ほかのアームのように `bin/` と `lib/` を一緒にリンクしてください (`setup` ~2341)。工数 S。優先度 P2。共同のリポジトリであり、相互運用の PR では修正していません。
+- **`$D check` のスロップのルーブリック** — カタログの LLM だけが見抜ける特徴 (ヒーローの数値、同一のカード、グラスモーフィズム、コンテンツの代役) を、`design/src/check.ts` のビジョンのパスに加えてください。ただし、それらのエントリが、レビューで十分に使われてから。未解決の問題: バリアントごとの有料の GPT-4o の呼び出し、そしてビジョンがクリーム色のパレットやネストしたカードを誤判定すること。工数 M。優先度 P3。
+- **`overused-font` のテイストプロファイルとの相互作用** — 検出器の overused-font の一致を、その書体がユーザーの承認済みのテイストプロファイルにあるとき、polish に格下げします。今は `impeccable hooks ignore-value overused-font <face>` が、二つのスキーマを結合せずにそれをカバーしています。工数 S。優先度 P3。
+- **plan-ceo-review のセクション 11 のカタログの箇条書き** — `{{DESIGN_SLOP_BULLETS}}` を CEO レビューのデザインの節にレンダリングします。plan-ceo-review のドクトリンの切り分け (今はスケルトンに約 555 B の余裕しかありません) でブロックされています。工数 S。優先度 P3。
+- **検出器のスキャンのキャッシュ** — `gstack-design-detect.ts scan` の結果を、`${GSTACK_HOME}/cache/design-detect/` の下にキャッシュします。キーはエンジンのハッシュ、対象のファイル集合のハッシュ、`.impeccable/config*.json` のハッシュです。これにより、フェーズ 9 の再スキャンと繰り返しの ship レビューで、変更のないファイルをスキップできます。工数 S。優先度 P3。
+
+### P2: fork-port の残りのウェーブの延期分 (Wave A, 2026-09-03 起票)
+
+time-attack/gstack の残りの評価 (docs/designs/fork-port-residual-2026-09/REPORT.md) と、その CEO と eng のレビューから起票しました。この計画のウェーブ B から E2 は、予定された作業であり、TODO ではありません。ここにあるのは、レビューが意図的に延期した項目で、それぞれ理由を付けています。
+
+- **共有の `_gstack_owned_link` ヘルパー** — 所有権のゲートは、今や 7 か所にあります。setup の `_claude_entry_is_ours` / `_claude_entry_owned_strongly` (link_claude_skill_dirs と _install_alias_skill_md が使う)。cleanup_old_claude_symlinks と cleanup_prefixed_claude_symlinks は、独自のマーカー/cmp/バナーのチェーンと readlink の `case` をインラインで持ちます。bin/gstack-relink の `_entry_is_ours`。bin/gstack-uninstall のエントリごとのループ。そして、Aside ファーストのウェーブ以降の setup の `_prune_stale_generated` です。これは、退役したホストのエントリを、バナーだけの `_owned_for_windows_refresh` チェックの後で削除します (シンボリックリンクはそのまま、実際のディレクトリは `_cleanup_weak_dir` を通して)。これも同じヘルパーを通す必要があります。破壊的なパスのガードがずれないように、一つの sourced ヘルパーに統合してください。その際、`.gstack-owned` マーカーに記録されたインストールのパスを機能させてください。今は、どのマーカーも gstack のものとして数えられるため、gstack の生成ヘッダーを持つ Windows のフォークのコピーは、モードの切り替え時に依然として gstack のものとして扱われます。工数 S。優先度 P2。依存: なし。
+- **非 Claude ホストのループと、マーカールールでの古いレンダリングのプルーニング** — Codex, Factory, OpenCode, Cursor, Kiro のリンクループ (setup の `link_*_skill_dirs`。それぞれの `_owned_for_windows_refresh` ゲート) は、今もバナーだけの証拠で、実際のホストのディレクトリを `rm -rf` して再コピーします。また、`_prune_stale_generated` は、バナーのついた実際のディレクトリを `_cleanup_weak_dir` に通しますが、それはこれらのホストが `.gstack-owned` のマーカーを受け取らないからにすぎません。すべてのホストのコピーインストールにマーカーを書き、その後、上の 5 つのループとプルーニングを、Claude ホストと `gstack-relink` がすでに使っている強い/弱いの区別に切り替えてください (#2119)。工数 M (人間の約 2 日 / CC の約 1 時間)。優先度 P2。依存: 上の共有の `_gstack_owned_link` ヘルパー (同じコードの移動なので、一緒に行う)。
+- **無料のテスト: CHANGELOG の先頭の見出しが VERSION と等しいこと** — VERSION に main がすでに出荷したバージョンを主張したフォークの PR が、Git の競合なしに、VERSION、package.json、ダイジェストのヘッダーを自動マージしました (両側が同一だったため)。`bin/gstack-next-version` と PR 時のキューのチェックだけが、それを見ました。CHANGELOG.md の最初の `## [X]` が VERSION と等しいことを主張する小さな無料のテストがあれば、どのブランチでもその衝突が赤いテストになります。まず、CHANGELOG のエントリのない途中の VERSION の変更が、スイートが許容すべきワークフローかどうかを決めてください (`/ship` は両方を一つのステップで書くので、おそらくそうではありません)。工数 S (人間の約 2 時間 / CC の約 10 分)。優先度 P3。依存: なし。
+- **「既存の」失敗の用語** — scripts/resolvers/preamble/generate-test-failure-triage.ts は、`git diff --name-only` から分類し、ベースブランチでの実行を一度も求めません。T1 を、verified/unverified に書き直してください。既定の証拠は、ベースブランチの CI の状態 (`gh run list --branch <base>`)、オプトインは失敗したファイルだけのワークツリーでの実行です。工数 M → CC では S。優先度 P2。依存: なし。
+- **オプトインの `reply_language` 設定キー (#679)** — Writing Style の節に、設定されたときだけレンダリングします。識別子とコマンドは英語のままにし、Issue が求めた混在言語のテストを追加してください。常時有効な声の行ではありません (コントリビューター PR のガードレール)。工数 S。優先度 P3。
+- **`~/.gstack/.auth.json` の書き込み処理を削除する** — browser-manager.ts:638-640 は、コンポーネントに組み込まれた GBrowser の拡張機能がそれを読むと言っています。GBrowser が `POST /extension-token` でブートストラップしているか確認してください。そうなら、その書き込み処理と、孤立した資格情報ファイルを削除するマイグレーションを削除します。工数 S。優先度 P3。依存: GBrowser のソースの確認。
+- **CONTRIBUTING のフォーク由来の変更のルール** — フォークから持ち込まれた変更は、上流の HEAD で先に赤になることを検証したテストが付いている場合にだけ、上流に入ります。そのテストには元の作者のクレジットを付けます。フォークのコミットがそのテストを含む場合、cherry-pick を許可します。上位のフォークの候補 48 件のうち 34 件は反証で死にました。このルールが、生き残ったものを安全にしました。工数 S。優先度 P2。
+- **フックのスラッグ導出の一致の監査** — question-preference-hook は、プロジェクトの設定をカレントディレクトリの basename で管理していましたが、書き込み側は owner-repo で管理していました (Wave E1 が `slugFromCacheOnly` で修正)。question-log-hook と、プロジェクトごとにバケットを作る Claude のフックすべてを、同じ不一致がないか監査してください。工数 S。優先度 P3。依存: Wave E1。
+
+### P1: ZeroEntropy の終了 — gbrain の既定の埋め込みプロバイダは 2026 年 9 月 4 日に停止する (#2365)
+
+**内容:** ZeroEntropy (Notion が買収) は 2026 年 9 月 4 日にサービスを終了します。gbrain の zeroentropyai のレシピには、それより前に移行の道筋が必要です (レシピとゲートウェイのシムは gbrain 内部のもので、gstack が提案したことは一度もありません)。
+
+**理由:** 外部の期限が決まっています。9 月 4 日以降、そのレシピを使うブレインは、新しいページの埋め込みを黙って止めます。
+
+**完了 (gstack 側, v1.69.0.0):** ~/.gbrain/config.json がそのレシピを指定している場合、ウィザードが警告します (失敗時は開いた状態で、grep で確認)。setup-gbrain のプロバイダのコメントは、それを選ばないよう明記しています。USING_GBRAIN_WITH_GSTACK.md にトラブルシューティングの項目を追加しました (#2365)。
+
+**工数:** M (残りの作業は gbrain 側のプロバイダの対応)。
+**優先度:** P1 (カレンダーで決まる)。**依存:** gbrain 上流のプロバイダの対応。
+
+### P2: v1.67 の修正ウェーブの延期分 — 次のウェーブのキュー
+
+v1.67.0.0 の実装時に起票しました (ウェーブの計画の「このウェーブから外したもの」を参照)。それぞれ、理由を付けて明示的に延期しました。落としたわけではありません。
+
+- **#2522 Windows の全部入り PR からの抽出** — v1.67 で Windows の的を絞った修正は入りました (#2414/#2510/#2561/#2542/#2452 の半分)。全部入りの PR には、まだ抽出する価値のある doctor/マイグレーションの面があります。工数 M→CC では S。
+- **#2443 AskUserQuestion の番号付けの再設計** — 実際のずれがあります (ブリーフの文字と、ホストが描画する番号)。ただし、プロンプトの振る舞いの再設計で、評価のベースラインが変わるため、ベースラインの更新を伴う独自の PR が必要です。工数 S。
+- ~~**#2447 typecheck の基盤**~~ — 置き換え済み: 修正監査ウェーブ (v1.91.12.0) が `tsconfig.json`、`bun run typecheck` (製品のエラーゼロ)、そして必須の `free-tests` チェック内の `typecheck:test` のラチェットを追加しました。#2447 の修正のうち、まだ当てはまるものは再利用しています。
+- **#2492 プロジェクトごとの Chromium プロファイル** — マシン全体のプロファイルの既定値と SingletonLock のスコープのための、ディスク上の移行の仕組みが必要です。工数 M。
+- **#2286 `triggers:` のフロントマター** — Claude Code のルーターはそのキーを読みません。音声トリガーを description に折り込むと、カタログのトークンが増えます。カタログの上限は強制されているため、メンテナーがトークン予算を決める必要があります。工数 S。
+- **#2378 リリースタグのアップグレードの意味** — update-check は main:VERSION を見ますが、upgrade は main の HEAD をインストールします。そのため、インストールはリリースの間に止まります。設計の判断: タグに固定したインストールか HEAD か。工数 M。
+- **機能 PR のトリアージのキュー** — #2564 (/deck), #2497 (browse の record — このバッチで最も良いもの), #2476 (a11y レビュー。v1.67 で入った CDP のメディアエミュレーションの項目で、ブロックが解除されました), #2446 (Cua), #2448 (段階的な outside voice), #2412 (レンズのレイヤー), #2241 (/grok), #2507 (pi ホスト), #2298 (Kimi ホスト), #2438+#2436 (gbrain のドキュメント同期の組、順序あり), #2442 (ポータブルなスキルのルート), #2534 (gbrain の MCP ルーティング), #2535 (/investigate, /cso, /devex の outside voice), #2576 (fast-ship の再設計 — v1.66 の CI の高速化に照らして再評価), #2580 (land-and-deploy の CI ティア — 人間のゲートの UX はメンテナーの判断が必要)。
+
+### P2/P3: v1.78 の修正ウェーブの延期分 (ウェーブ時に起票、それぞれ理由を付けて延期)
+
+- **lib/diagram-render の mermaid 10→11 級のメジャーアップデート** — ウェーブの依存関係の確認で、105 件のうち 102 件の OSV の勧告を、範囲内のアップデートと overrides で解消しました。残りの無視には `ignoreUntil` の期限があり、期限が切れると再度正当化が必要です。残っているのは katex の無視だけです (上の依存関係のセキュリティ台帳を参照)。工数 S。優先度 P3。
+- **#2750 の分割の取り込み** — レコードをスキャンする Codex の JSONL パーサ (本物の修正: 今の Codex のストリームはエンベロープを交互に送るため、セッションが /retro の global から消えます) は、同梱のスキーマ追加と 1 MiB のスキャン予算の変更から分離された後に取り込むべきです (ウェーブのディスポジションのコメントで依頼済み)。工数 S (レビュー)。優先度 P3。
+- **#2709 macOS での実機検証** — GPU フラグのセットは報告者が検証し、gate で darwin に限定され、GSTACK_DISABLE_GPU=off の逃げ道があります。停止時の回収は Linux でテストしています。M シリーズのハードウェアに最初にアクセスできたときに、両方を実機で検証してください (フラグでスピンが 0% になること、スクリーンショットが動くこと、回収で残ったプロセスが殺されること)。工数 S。優先度 P3。
+- **定期レーンの安定化 (#2756)** — v1.77 の形 (73 シャードのシャード化ランナー、固定した CLI、EVALS_ALL の国勢調査) の週次レーンは、一度も緑になったことがありません。v1.78 のウェーブで、決定論的な AUQ の崩壊は解消しましたが、残りのセットは入れ替わります (バンド境界のばらつき、既存の exited/hits=[] の起動クラス、既知のフレーク)。証拠の表と提案の方向 (新しく固定したコンテナの分布に対してバンドを再調整) が Issue にあります。工数 M。優先度 P2。
+- **アウトサイドボイスの解決済みモデルの出力** — #2735 の二つ目の提案 (ディスパッチの時点で具体的なフォールバックのモデルを出力する) は、プリフライトでモデルの解決が必要な機能の変更で、コピーの修正からは切り離しました。工数 S。優先度 P3。
+
+### P2: v1.69 の修正ウェーブの残り (ウェーブ時に起票、それぞれ理由を付けて延期)
+
+- **`cleanup_prefixed_claude_symlinks` の対称な変換** — PR #2634 は `cleanup_old_claude_symlinks` を修正しました (接続先のスキャン、壊れたシンボリックリンクの認識、パスのセグメントの由来)。prefixed モードの兄弟のほうは、今もペイロードのディレクトリを反復するため (同じ構造上の穴: ペイロードが消えると孤立したものを回収できない)、兄弟自身のテストが禁じている、裸の `*gstack*` の部分一致も使っています。寄稿者のマージ済みのコミットから、スコープの規律のために除外しました。工数 S→CC では S。優先度 P2。
+- **#2163 古いスラッグのチェックポイントの修復** — gstack-slug のリファクタリングで保存と復元のスラッグは統一されましたが、修正前の劣化したスラッグで書かれたチェックポイントは、今も見えません。`bin/gstack-slug` の MIGRATION NOTE は、データの移動を先送りしています。安価な修復: NO_CHECKPOINTS を出力する前に、復元の側で代替のスラッグのディレクトリを確認します。工数 S。優先度 P3。
+- **#2657 開発者プロファイルの `--reconcile`** — office-hours の在籍期間が約 3 分の 1 に過少計上されます (フェーズ 4.5 だけのログ記録で、timeline.jsonl との照合がありません)。計算は再現しました。報告者が PR を申し出ており、Issue で招待しています。入ったら追跡してレビューしてください。工数 S (レビュー)。優先度 P3。
+- **`hosts/index.ts` からのテーブル駆動の setup のホストディスパッチ** — #2361 の背景にある、受け付けリストとディスパッチのずれのクラスの根本原因の修正です。v1.69.0.0 では、暫定のラチェット (受け付けリスト ⊆ ディスパッチのアームの相互チェックのテストと、ディスパッチがゼロ件の場合の大きな警告) を出荷しました。リファクタリングには、独自の PR と、慣らし期間が必要です (setup はリポジトリで最も危険なファイルです)。工数 M。優先度 P3。
+
+### P2: v1.67 の敵対的レビューの残り (検証済み、理由を付けて延期)
+
+v1.67 の出荷時に、Codex と Claude の敵対的な確認から起票しました。7 件のうち 6 件は v1.68 の修正ウェーブで取り込まれました (ブレイン同期のスプール・ディレクトリのキュー、pair-agent の同意ゲート、bin-context の上方探索のパリティ、プロジェクトごとの MCP のスコープ + 優先順位の反転、次バージョンの ls-remote のフォールバック + 幅の固定、stop フックのグローバルパスの登録 + 再指定)。残りは以下です。
+
+- **ウィンドウをまたぐ iOS のタップのルーティング** — Bridges テンプレートの frontmostWindow は、キーボード、メニュー、透明なオーバーレイのウィンドウが最前面にあり、その座標を扱わないとき、タップを飲み込むことがあります。ヒットテストを意識したルーティングと、実機での検証が必要です。工数 M。(関連: マルチウィンドウの書き直しには静的なピンがありません。下のテストのギャップのバックログを参照。)
+- **setup:1601 の CLAUDE_CONFIG_DIR の整合** — スキルのインストーラーは `$HOME/.claude/skills` をハードコードしていますが、settings.json とフックの登録は `CLAUDE_CONFIG_DIR` を尊重します。そのため、この上書きを使うユーザーは、インストールが分裂します。v1.68.1 で緩和しました (フックが登録されるよう、ホームパスへの正規のルートのフォールバック) が、インストーラー自身がこの上書きを尊重するべきです。**優先度:** P3。工数 S。
+- **plan_tune_hooks の bool の解析と gstack-config のキー検証を一箇所にまとめる** — `n|no|false|skip|off|0` という否定値の集合が三重に書かれています (gstack-settings-hook の prune-stale、setup の heal の注記、setup の PT_DECISION)。また、gstack-config には、キー検証のブロックの逐語的なコピーが三つ (get/has/set) あります。gstack-config の bool ヘルパーと `validate_key()` に抽出し、ロケールのピンのテストを更新してください。/ship の review army (保守性) で提出されました。**優先度:** P3。工数 S。
+- **受け入れられた脅威モデルの注記 (文書化済み、対応予定なし):** redact-prepush の argv なしの互換モードは、すべてのリモートの除外を保持します。インストールされたフックは、スキャンを実際の宛先に結び付けます。400 文字以内の parcel 型の双子が、電話番号のリダクションを抑制することがあります (WARN ティアのパターン、攻撃者の影響は受け入れ済み)。codex-probe の 400 シグネチャの grep は、一時的なプロキシの 400 を MODEL_UNUSABLE と誤読することがあります (15 分のネガティブキャッシュ TTL で制限されています)。
+
+### P2: skillify の構造的な隔離 (v1.68 のウェーブのレビューから起票)
+
+**内容:** /skillify は、スクレイピングしたページの内容を、ディスク上の永続的に実行できるスキルのコードに変えます。v1.68 のウェーブは、その手順に信頼できないコンテンツの警告を加えました (#2441)。しかし、警告は境界ではありません。敵対的なページ由来の生成されたアクションには、構造的な隔離、合成されたセレクターや名前のサニタイズ、または生成されたコードに限定した明示的な承認の手順が必要です。
+
+**理由:** 悪意のあるページが、生成された script.ts を、ユーザーが確認していない操作へ誘導することがあります。今のゲートは Step 9 の承認ですが、コードは表示するものの、ページ由来の文字列は強調しません。
+
+**工数:** M → CC では S。**優先度:** P2。**依存:** なし。
+
+### P2: スラッグストアの移行 — 修正前の `projects/garrytan/` のデータを統合する (v1.68 の後続)
+
+**内容:** v1.68 のスラッグのパリティの修正 (gstack-slug は、リモートの remote-slug の owner-repo の形式に一致するようになりました) により、劣化したスラッグのバグ (リポジトリの上にある誤った強いマーカー。たとえば空の ~/.git) に当たったマシンでは、過去の決定、タイムライン、CEO プラン、learnings が、リポジトリごとのストアではなく、マーカーの basename のストア (確認済み: `~/.gstack/projects/garrytan/`) に誤って入っています。移行か別名の仕組みを定義して出荷してください。各レコードは、導出できる場合はリポジトリに帰属させます (タイムラインのエントリはブランチを持ち、決定は scope を持ちます)。導出できない場合は、ポインタのファイルを残してそのまま残します。
+
+**理由:** 修正後のセッションは正しいストアを読むため、移行するまで修正前の履歴はコンテキストの復元から見えません。
+
+**工数:** M → CC では S。**優先度:** P2。**依存:** v1.68 のウェーブ (修正とパリティのテストを出荷済み)。
+
+### P3: gstack-slug の劣化したヒール・プローブのキャッシュヒット時のコスト (v1.68 のレビュー・アーミーの指摘)
+
+**内容:** v1.68 のキャッシュの自己修復は、キャッシュされたスラッグがマーカーのルートの basename と等しいとき、キャッシュヒットのたびに (毎回) `_resolve_remote` (1〜3 回の git の fork) を調べます。リモートのないプロジェクトや、正当に固定されたプロジェクトでは、これが恒久的な定常状態で、スキルの開始のたびのホットパスです。キャッシュのエントリごとに一回限りのセンチネルを加え、ヒール・プローブが一度だけ動くようにしてください。
+
+**理由:** 「キャッシュヒットは git の fork を伴わない」という主張が成り立つのは、今は owner-repo のスラッグだけです。コストは上限付き (1〜3 回の fork) ですが、影響のあるプロジェクトでは、スキルの開始のたびに払われます。同じレビューからの次の作業メモも残っています: bin/gstack-memory-ingest.ts の BulkResult の 11 個の手書きのリテラルを、makeResult ヘルパーに抽出すること。また、bin/gstack-brain-sync と bin/gstack-gbrain-source-wireup にある、ブレインのワークツリーの既定パスのリテラルを一箇所にまとめることです。
+
+**工数:** S。**優先度:** P3。**依存:** キャッシュ形式の互換性 (センチネルが古いリーダーを壊してはいけない)。
+
+### P2: v1.67 のカバレッジ監査のテストのギャップのバックログ (5 エージェントによる走査、順位付き)
+
+ウェーブのステップ 7 のカバレッジ監査 (サブシステムごとの 5 エージェント、約 700 件の変更されたパス、約 84% がカバー済み) で、残りのギャップを順位付けしました。どれも v1.67 を止めるものではありません (振る舞いは、手作業か隣接するテストで確認して出荷しました)。どれも、静かな回帰を防ぐための安価なピンです。
+
+- **setup の Playwright のブートストラップのブロック** — `_PW_LOCK` の古い保持者の回収、`_kill_tree`/`_wait_with_deadline`、プラットフォームの上書きは、今は test/setup-playwright-best-effort.test.ts がピンしています (fork-port Wave A)。まだピンされていないのは `_clear_playwright_quarantine` (#2554 の P0 のヒールのシェルの半分) です。工数 S。
+- **redact-prepush の `scanAddedLines` のスライス** — v1.67 の時点では、1 MiB を超えるチャンクのパスは実行されていませんでした。test/redact-prepush-target.test.ts のインストール済みフックのコントロールは、今は大きなクリーンな差分、シームの近接/正規化、重複した指摘、長い行の拒否をカバーしています (v1.88.1.0)。
+- **supabase のテレメトリ取り込みのエッジ関数** — テストがゼロです。生成側は 200 文字で上限を設けていますが、取り込み側は 500 文字です (生成側の上限が死んでいます)。カラムとマイグレーションの対応のピンもありません。
+- **gbrain-repo-policy-client** — 直接のテストファイルがありません。その存在理由である、spawn 失敗と読み取り不能の区別や、win32 での bash のラップがピンされていません。
+- **トークンのブートストラップのクライアント側 (拡張機能)** — `POST /extension-token` が 403 を返したときの切断経路はテストされていません (サーバー側は網羅的にピンされています)。また、マニフェストの `key` と `GSTACK_EXTENSION_ID` の対応を extension-id.ts でピンしてください。工数 S。
+- **`assertJsOriginAllowed`** — このウェーブで js/eval のオリジンゲートが必須になりましたが、ゲート自体に直接のテストがありません。工数 S。
+- **`runBoundedChromiumReinstall`** — すべてのヒールのテストがこれをスタブ化しています。そのため、120 秒の期限、プロセスグループへの SIGKILL、spawn エラーの分岐が一度も実行されていません。
+- **CI の三者間のイメージタグのずれ** — ci-image.yml, evals.yml, evals-periodic.yml はそれぞれ hashFiles のタグの式を持ち、コメントだけで同期しています。三つすべてを読むテストを一つ。工数 S。
+- **evals.yml のマトリクスの国勢調査** — 一度も実行されなかったという静かなクラス (このウェーブで再追加が必要になった二つのファイルを参照) について、メンバーシップのテストがありません。
+- **design-doc-discovery のリゾルバー** — 新しいドリフト防止のブロックで、-nt の新しさのルールやレンダリングをまたいだ同一性のテストがありません。
+- **Bridges.swift のマルチウィンドウの書き直し** — orderedWindows/searchRoots の順序に対する静的なピンがありません。DebugBridgeTouch の `#if !defined(DEBUG)` のガードと、Package.swift の `.define("DEBUG")` に、ずれを検出する仕組みがありません (元に戻すと App Store のガイドライン 2.5.1 に触れるおそれ)。パリティのテストは定期レーンでだけ動きます。
+- **小さなピン:** gstack-egress の `sanitizeForDisplay`、freeze-dir のチルダ展開、gstack-config の `pair_agent` キーとスペースを含む値、session-cookie-store のトリップワイヤのスコープ (ファクトリではなくラッパーを指している)、redact-patterns の `/^pass(word)?$/i` のプレースホルダーの緩和とコンパクトなタイムスタンプの否定、fs-atomic の採用のトリップワイヤ、tracker-guard の `safeSource`、eval-watch の `PARTIAL_PATH`、`killProcessGroup`、make-pdf のオーケストレーターの `PAYLOAD_TMP_DIR` と CJK のスタック と smartypants の NUL、gbrain-guards の `gbrainHome()`、gbrain-local-status の `"timeout"` の除外、meta-commands の状態読み込みのトリップワイヤの再指定、flushBuffers/audit の 0600 の国勢調査、openclaw の `version:` フロントマターの削除 (修正前、main 側 — extraFields を戻すか、意図したものとして記録する)、terse-build の古い「all 4」のセット (main 側の 5 番目の terse-gated リゾルバー)。
+
+### P2: v1.67 のレビュー修正バッチの延期分 (ウェーブ後のレビュー・アーミーの指摘)
+
+レビュー修正バッチの時点で起票し、理由を付けて延期しました。
+
+- **setup のホスト関数の重複排除** — `create_*_runtime_root` と `link_*_skill_dirs` の、ほぼ同じ四つのコピー (codex/factory/opencode/cursor) が、互いに独立してずれていきます (#2142 の所有権ゲートは、すべてのサイトで修正する必要がありました)。ホスト名とスキルのディレクトリをパラメータにしてください。工数 CC で S。
+- **gbrainInvocation のクォートにおける cmd.exe の `%VAR%` 展開** — Windows 専用で、作為的なエスカレーションです (攻撃者が制御する環境変数名が必要)。しかし、そのクォートは cmd.exe に対して安全ではありません。修正の方向: win32 の spawn を cross-spawn に通す (依存の判断。bun-polyfill.cjs はすでにブラウザデーモン用に持っています)。工数 S。
+- **make-pdf のフラグのレジストリのメタデータ** — commands.ts のフラグは素の文字列です。値を取るフィールドを加え、cli.ts の BOOLEAN_FLAGS をレジストリから導出してください (このバッチで加えた `--no-*` の構造テストは、否定の形だけをカバーします)。工数 S。
+- **レガシーのホストのグロブによるアンインストールの由来のゲート** — gstack-uninstall の codex/factory/kiro の `gstack*` のグロブは、由来のチェックなしに今も rm -rf します。このバッチで加えた cursor のバナーのゲートと同等にしてください (v1.67 で cursor を加えました。残りの三つは引き継がれた振る舞いです)。工数 S。
+- **cursor の自動検出の幅** — `-d ~/.cursor` があると、Cursor を持つ開発者は、setup のたびに余分なレンダリングとインストールを毎回行います (そのディレクトリは、IDE を一度でも起動した人なら誰にでもあります)。CLI の検出 (`command -v cursor`) か、オプトインのフラグに絞るかは製品の判断で、検出の契約についてメンテナーの判断が必要です。工数 S。
+
+### P2: ペルソナ・フリートの敵対的ユーザーのハーネス (フォーク移植のウェーブ 2 の延期)
+
+**内容:** time-attack/gstack の 87 人の敵対的ユーザーによる現場実行 (418 件の指摘) の背後にある方法論を移植します。機械が書く t0 を、追記専用の run.jsonl に記録します (経過時間は測定し、自己申告しません)。すべてのメトリクスは成果物に結び付きます。そして、機械でチェックできる上限を持つ、必須の撤退の契約を設けます (最初の有用な出力まで 300 秒、合計 900 秒、40K のコンテキストトークン、連続 3 回の行き止まり)。これにより、放棄が計算可能な結果になります。仕様: フォークの `evals/fleet/METRICS.md` と `evals/fleet/ABANDONMENT.md` (方法論のみ。移植すべき runner のコードは存在しません。これは構築の作業です)。
+
+**理由:** 44 スキルのツリーに対して定期的に敵対的ユーザーのラウンドを行えば、フォークが 418 件中で閉じた「最初の 5 分の失敗」と同じクラスが見つかるはずです。既存の評価ストア/E2E ハーネスに、新しい runner として収まります。
+
+**工数:** L (人間で約 2 週間) → CC では M。**優先度:** P2。
+**依存:** コストの上限とジャーナルのストレージの判断。
+
+### P3: 正解キーによる評価の方法論 (ペルソナ・フリートの作業に相乗り)
+
+**内容:** 事前登録した正解キー (フォーク `evals/answer-keys/` — codex-decorrelation, health-trending) で、/codex と /health の面を、LLM の judge の感覚ではなく、埋め込まれた正解に対して採点します。
+
+**理由:** LLM の judge のドリフトが既知の失敗モードになる面で、決定論的な採点ができます。**工数:** M → CC では S。**優先度:** P3。
+**依存:** ペルソナ・フリートのハーネス (runner の形を共有)。
+
+### P3: 四半期ごとの Apple のジャーニーのライブ再検証
+
+**内容:** 四半期に一度、または最初のユーザーのバグ報告があったときに、/ship の Apple のリリースアダプターを、実際の (TestFlight のみの) リリースに対して実行し、ずれを直します。Apple の API は変わります (フォークは、fastlane の price_tier がライブで壊れたのを検出しました)。アダプターの主張は今は証拠に基づいており、それ自身の「証拠を先に示し、そのうえで制限を主張する」というルールに従って、その状態を保つ必要があります。
+
+**工数:** 1 回あたり S。**優先度:** P3。**依存:** 有料の ADP アカウント。
+
+### P2: 評価実行の証拠レコード (content-binding の仕組みを E2E/評価に広げる)
+
+**内容:** `bin/gstack-evidence run` を評価のエントリポイント (`eval:bg*`, `scripts/test-paid-shards.ts`) に組み込み、E2E/評価の主張が、無料のテストと同じワーキングツリーのフィンガープリントの結び付きを持つようにします。/land-and-deploy 3.5b は、評価ファイルの mtime ではなく、証拠レコードを読むようにします。
+
+**理由:** 今は「E2E は今日実行された」が mtime の発見的な方法で、実行がテストした内容について何も証明しません。**工数:** M → CC では S。**優先度:** P2。
+**依存:** content-binding のウェーブ。並行するワークツリーが共有するシャード化されたランナーに触れるため、タイミングを調整してください。
+
+### P2: spawn の結果の台帳
+
+**内容:** `/spec` が spawn する `claude -p` のエージェントは、一方向に投げっぱなしです。spawn が終わったか、死んだか、止まったかを記録するものがありません。runs.jsonl (spawn の ID、ブランチ、ワークツリー、pid、結果) を、spawn の時点で書き、リース/ハートビートのチェックで更新してください。そして /landing-report の行として表示します。
+
+**理由:** 死んだ spawn は、PID を探す人が出てくるまで見えません。**工数:** M → CC では S。**優先度:** P2。**依存:** なし。リース + ハートビートの生存確認のパターンは、ローカルの CEO プラン記録 (2026-08-15, binding wave) に文書化されています。
+
+### P3: /land-and-deploy でのマージ SHA の証拠の連鎖
+
+**内容:** マージ後に、{マージの sha, マージされたツリー, レビューしたワークツリーと一致するか} を記録し、デプロイされた成果物が、レビュー済みの内容の状態までたどれるようにします。
+
+**理由:** マージ前のチェックは、レビューを内容に結び付けますが、マージ先が動いた後の squash マージでは、そのつながりが記録されません。ベースの移動は正当にツリーを変えるため、警告ではなく記録にとどめるには、ノイズのモデルが必要です。
+**工数:** M → CC では S。**優先度:** P3。**依存:** content-binding のウェーブのフィールド (レビューのレコードにある wtree)。
+
+### P3: バックグラウンドのループの既定の無応答時エスカレーションの契約
+
+**内容:** 長時間動くバックグラウンドのスキルのループ (まずは /canary) に、選択肢と、無応答時の既定の選択 (タイムアウト付き) を持つエスカレーションの形を与えます。これにより、人が応答できない無人のループが、質問で止まったり、推測したりしなくなります。
+
+**理由:** 今の自律性は、AskUserQuestion でブロックするか、推測するかのどちらかです。**工数:** S/M → CC では S。**優先度:** P3。**依存:** 同意モデルのレビュー (AskUserQuestion の意味を変えるため、独自の設計の検討が必要)。
+
+### P3: E2E の評価ケース — 古さの採点が実際に適用されていること
+
+**内容:** 有料のゲート/定期の評価で、描画された /ship のダッシュボードと /land 3.5a のテキストに従うエージェントが、wtree の内容優先のルールを適用する (同一の内容なら CURRENT と採点し、不一致ならフォールバックする) ことを確認します。
+
+**理由:** 採点のルールは、プロンプトに従うだけの散文で、無料のテンプレートのドリフトのトリップワイヤだけがピンしています。これは、エージェントが実際にそれを実行することを証明します。**工数:** S。**優先度:** P3。**依存:** content-binding のウェーブ。
+
+### P2: office-hours の設計ドキュメントの二重書き込みの機能的な E2E (フォーク移植のウェーブ 2 のレビューの不足)
+
+**内容:** 有料の E2E (claude -p) を一時的なリポジトリで実行し、office-hours のフェーズ 5 の引き渡しを行い、両方の書き込み経路 (docs/designs/<topic>.md と ~/.gstack のコピー) が着地すること、そして `bin/gstack-redact` がシンクで呼ばれたことを確認します。今は、静的な散文のピン (test/skill-validation.test.ts) だけがあります。計画の R9 は機能的な形を求めていました。
+
+**理由:** 二重書き込みは、ユーザーのリポジトリへの外向きの経路です。散文のドリフトで、シンクでの redact の走査が省かれると、ユーザーの PII が何も失敗せずに git の履歴に入ってしまいます。**工数:** M → CC では S。**優先度:** P2。
+**ティア:** 定期 (品質、非決定的)。
+
+### P2: マイグレーションのランナーが、マイグレーションごとのスキップ状態を尊重する
+
+**内容:** 両方のマイグレーションのランナー (setup の post-setup ブロックと /gstack-upgrade のステップ 4.75) は、バージョンの窓だけでマイグレーションを選ぶため、非対話的なデフォルトのスキップ (v1.27 の GSTACK_MIGRATE_ASSUME_YES のゲート) で終わったマイグレーションは、二度と提示されません。バージョンのマーカーがそれを越えて進むからです。残りの修正前の v1.27 以前のユーザーが、エージェントのセッションでアップグレードすると ([ -t 0 ] は偽)、artifacts のリネームのマイグレーションを、手で手動のコマンドを貼らない限り、永久に逃します。残りのテキストは、今は正直な直接の呼び出しを表示しますが、ランナーは、マイグレーションごとの .done/.skipped のタッチファイルを追跡し、次の対話的な実行で保留中のものをもう一度提示するべきです。
+
+**理由:** Claude Code の 1.27 以前の残りのユーザーは、エージェントのセッションでアップグレードするたびに、マニュアルのコマンドを貼らない限り、artifacts のリネームのマイグレーションを逃します。**工数:** M。**優先度:** P2。
+
+### ✅ 完了 (2026-10-02, 並列ウェーブの修正ウェーブ): #1882 — ポータブルなスキルのインストールの接頭辞 (`gstack` 以外のインストールのディレクトリが黙って壊れる)
+
+**解決:** setup は、ルートが `~/.claude/skills/gstack` ではない Claude のインストール (名前を変えたチェックアウト、プロジェクトにベンダリングされたコピー、`CLAUDE_CONFIG_DIR`) と、`~/.codex/skills/gstack` ではないグローバルの Codex のルート (`CODEX_HOME`) を、`$GSTACK_STATE_ROOT/render/installs/<host>-<key>/` の下にある独自のインストールごとのレンダリングに描画し、そこからリンクし、インストールレジストリに記録するようになりました。スペースを含むルートは、スペースのないエイリアスのシンボリックリンクで名指しします。ワークツリーで隔離された Claude Code のセッションは、スペースを含むコマンドのパスを拒否するためです。`gstack-relink` は、そのインストールのレンダリングを引き続き提供します。
+保護: `test/host-conformance.test.ts` の「renamed, vendored and space-in-path installs start skills from their own root (#1882)」と「CLAUDE_CONFIG_DIR and CODEX_HOME installs name their own roots」。後続の課題は「Parallel fix-wave follow-ups」の下にあります (非デフォルトのインストールのための gbrain-refresh、古いレンダリングディレクトリのプルーニング)。元の起票は以下です。
+
+#### 元の起票 (完了)
+
+**内容:** 生成されたすべての SKILL.md は、`bin/`/アセットの呼び出し (テレメトリ/設定のプリアンブルと、約 9 個のリゾルバー) に、リテラルの `~/.claude/skills/gstack/...` をハードコードしています。`setup` は、どんなディレクトリ名でもトップレベルのスキルのシンボリックリンクを張るため、`~/.claude/skills/<other>` にインストールすると、内部の `bin` の参照はすべて存在しない `~/.claude/skills/gstack/` のパスを指します。これはスキルの呼び出し時に、黙って失敗します。出力される参照をポータブルにしてください。実行時にインストールのルートを解決します (プリアンブルは `scripts/resolvers/preamble/generate-preamble-bash.ts` の中で `GSTACK_ROOT`/`GSTACK_BIN` を定義していますが、リテラルはそれを使っていません)。そして、ハードコードされた接頭辞の代わりに、`$GSTACK_BIN` を基準にしたパスを出力します。
+
+**理由:** #1882 として起票。6 月の修正ウェーブ (決定 A) から分割しました。実装で、これがホストの設定/設計の変更であり、修正ウェーブのパッチではないと分かったためです。緊急の半分 (CC 2.1.162 で壊れていた guard/freeze/careful のフロントマターのフック) は、そのウェーブ (#1871) で、`$HOME` に固定したリテラルのパスで修正済みです (フロントマターのフックは、実行時の変数が存在する前に動くため、`$GSTACK_BIN` は使えません)。そのため #1882 は、今は本文のプリアンブルのポータブル化の作業だけです。
+
+**利点:** どのディレクトリ名のインストールも動くようになり、呼び出し時の失敗のクラス全体がなくなります。
+**欠点:** 最も重要な bash のひとつ (すべてのスキルのプリアンブル) に触れます。小さな誤りが 52 のスキルすべてを壊します。影響範囲が大きいため、独自の集中した PR が必要です。
+**注記 (フォーク移植のウェーブ 2):** Apple のリリースアダプター (ship/sections/apple-release.md) が、`~/.claude/skills/gstack/bin` の参照を持つテンプレートの面を加えました。この修正のカバレッジの一覧に含めてください。
+
+**コンテキスト / 着手する場所:**
+- `ctx.paths.binDir` (およびブラウザ/デザインのディレクトリのパス) と、リテラルを出力する約 9 個のリゾルバー (`testing.ts`, `review.ts`, `design.ts`, `browse.ts`, `redact-doc.ts`, `tasks-section.ts`, `preamble/generate-*.ts`) を、プリアンブルで定義された `$GSTACK_ROOT`/`$GSTACK_BIN` を使うように変えてください。
+- すべてのスキルのプリアンブルで、最初の使用より前に `GSTACK_ROOT`/`GSTACK_BIN` が定義されていることを確認してください (テレメトリのプリアンブルの最初の bin 呼び出しが、定義の後にあるかを検証)。
+- **テストの衝突 (確認済み):** `test/gen-skill-docs.test.ts:1942` と、対応する ship の assertion は、今は生成された Claude の出力に対して `.toContain('~/.claude/skills/gstack')` を、Codex のホストのパスが漏れないためのガードレールとして主張しています。これらは、新しいポータブルな方式に合わせて書き直す必要があります。
+- 生成された 52 個の SKILL.md をすべて再生成してください (`bun run scripts/gen-skill-docs.ts --host all`)。生成されたファイルを手で編集してはいけません。二分探索: リゾルバー/ホスト設定の変更のコミット、その後で 52 ファイルの再生成のコミット。
+- `gstack` 以外のインストールのディレクトリからスキルの呼び出しを試し、修正を確認してください。
+- #349 の兄弟 (`$CLAUDE_CONFIG_DIR` / `~/.claude` のパスの問題)。
+
+## /plan-ceo-review と /plan-eng-review から起票した Memorable のブリッジの後続課題 (Memorable のブリッジの修正 #2831)
+
+### P3: gstack を介したサードパーティのフックの接合部
+
+**内容:** Memorable のブリッジが実装している内容を一般化します。`mediate <name>` のコマンド (またはプロバイダの表) で、任意のサードパーティの Claude Code のフックに、同意のキー、受領のシンク、エンベロープ、ヒールと、きれいな削除の仕組みを与え、Memorable を最初のプロバイダとします。
+
+**理由:** ブリッジは、インターフェースを固定しています (設定のキー、シンクの名前、ソースのタグ、フックのベース名、ゲート、エンベロープ)。今、二つ目のベンダーが来たら、`bin/gstack-memorable` とフックの `.ts` をコピーすることになります。接合部があれば、それは登録作業になります。
+
+**文脈:** 一つのプロバイダでは、意図的に作っていません (時期尚早の抽象化。CEO レビュー D1/ED17)。`bin/gstack-memorable`、`hosts/claude/hooks/memorable-user-prompt-hook.ts`、`KNOWN_HOOKS` の行の形から始めてください。
+
+**工数:** L (人間で約 1.5 週間 / CC+gstack で約 4 時間)。**優先度:** P3。
+**依存:** 実際に加わりたい二つ目のサードパーティのフック。
+
+### P2: Memorable のブリッジの Windows 対応 (D21)
+
+**内容:** `enable` は Windows で拒否し、そこでフックは終了コード 0 で終わります。これを動くようにしてください。子プロセスの終了 (`taskkill /T` またはジョブオブジェクト) で、ベンダーのプロセスがタイムアウトを超えて生き残らないようにします。ベンダーのパスについて `.cmd` と拡張子のないシムを扱います。セットアップが登録に使う `bash ` のコマンドの接頭辞を扱います。そして、Windows のレーンで、実際の `npm i -g memorable-cli` によるライブの検証をします。
+
+**理由:** プロセスグループがなければ、ブリッジが約束する封じ込めの保証は与えられません。Windows では拒否することが、この作業での正直な選択でした。
+
+**文脈:** `hosts/claude/hooks/spawn-bin.ts` の `runExternal` は win32 で `EPLATFORM` を返します。振る舞いのテストは、`bin/` のスクリプトを spawn するため、Windows のレーンから自動で除外されています。
+
+**工数:** M (人間で約 2 日 / CC+gstack で約 1 時間)。**優先度:** P2。
+**依存:** なし。
+
+### P3: `lib/tracker-guard.ts` のエンベロープの `kind` パラメーター
+
+**内容:** エンベロープは、リコールのテキストを TRACKER のバナーで包みます。`kind` を加えて、サードパーティのフックのコンテンツが、それが何であるかを表すようにします。ピン留めされたバナーの定数は、tracker の呼び出し元のために、そのまま残します。
+
+**工数:** S (人間で約 2 時間 / CC+gstack で約 10 分)。**優先度:** P3。
+**依存:** なし。
+
+### P3: ベンダーに渡すペイロードの最小化の契約
+
+**内容:** Memorable に、`hook user-prompt` が実際に読む `UserPromptSubmit` のフィールドを尋ねます。そうすれば、ブリッジは渡すフィールドを減らせます (未使用なら `transcript_path` を落とす)。今は、ベンダーが Claude Code の文書化されたスキーマを解析しており、その EULA が、それ以外の方法を調べることを禁じているため、完全な JSON をそのまま渡しています。
+
+**工数:** S。**優先度:** P3。**依存:** ベンダーの応答。
+
+**工数:** S。**優先度:** P3。**依存:** ベンダーの応答。
+
+### P3: 録画時間の計測とタイムアウトの見直し
+
+**内容:** 一か月使った後、`gstack-egress list --sink memorable-recall` から `gstack_ms=` と `timeout` の結果を読み取り、4.5 秒の上限と `--timeout 5` の登録を見直してください。
+
+**工数:** S。**優先度:** P3。**依存:** ブリッジが使われていること。
+
+### P3: ベンダーのリゾルバーを統合し、canonical-root のヘルパーを抽出する (D24)
+
+**内容:** ベンダーの CLI が二度解決されています (bash では `bin/gstack-memorable`、TS ではフック)。canonical-root と `IS_WINDOWS` のロジックは `setup` からコピーされています (各コピーに `TODO D24` の印があります)。`setup`、`bin/gstack-memorable`、`bin/gstack-relink` が使う sourced の `gstack-canonical-root.sh` を抽出し、ベンダー用のリゾルバーを一つにしてください。
+
+**文脈:** `setup` の文言は `test/setup-hook-canonical-paths.test.ts` でピンされています。抽出の際には、そのピンも一緒に移す必要があります。
+
+**工数:** S。**優先度:** P3。**依存:** ピン留めされた文言のテストを整理すること。
+
+### P3: フック向けの非対話的な MEDIUM ティアのリダクションのポリシー
+
+**内容:** フックは HIGH ティアの検出だけを拒否します。MEDIUM は確認を必要としますが、どのフックも確認を求められません。ポリシーを決めてください (スキップして記録するか、通すか)。そうすればフックは HIGH より多くを扱えます。
+
+**工数:** S。**優先度:** P3。**依存:** なし。
+
+### P3: セットアップの plan-tune の「already installed」チェックで `list-items` を使う
+
+**内容:** `setup:2525` は `list-sources | grep plan-tune-cathedral` で判断していますが、これはタグだけに基づき、タグが削られたライブのフックを見逃します。`gstack-settings-hook list-items --event PostToolUse --owned-by plan-tune-cathedral` が、識別子に基づく答えです。
+
+**工数:** S。**優先度:** P3。**依存:** なし。
+
+### P3: 次のリファクタリングのウェーブ (2026-09 のリファクタリングのウェーブの調査より)
+
+**内容:** 1.91.11.0 のウェーブが調査したが、リファクタリングしなかったホットスポットと、修正すると振る舞いが変わるため放置したバグです。
+- `bin/gstack-memory-ingest.ts` (2,674 行。`ingestPass` は約 600 行)。
+- `scripts/resolvers/design.ts` の `generateDesignMethodology` (503 行)。
+- `browse/src/browser-manager.ts` (2,143 行) と `browse/src/cli.ts` (2,018 行)。
+- `lib/cso/*` の密な一行スタイル。
+- ブラウズのルートトークンの拒否の不一致: 一部のルートは 401 `Unauthorized` を返し、ほかは 403 `Root token required` を返します。ルートテーブルのフォルダごとの拒否のマップ (`browse/src/routes/table.ts`) が、今の分割をピンしています。
+- サイドバーのインスペクターのライブ更新が届きません。`/inspector/events` は `root-bearer` ですが (古い全面的なルートのチェックの裏にありました)、`extension/sidepanel.js` は Cookie だけの EventSource で開き、`inspectResult` を待っています。一方サーバーは `state` / `inspector` を送ります。両方を一緒に直し、その後、`browse/test/server-route-auth-blackbox.test.ts` の Cookie の行を切り替えてください。
+- Claude Code のプラグインモードの状態 (`~/.gstack` から `CLAUDE_PLUGIN_DATA` へのポインタ、マージ、`--explain`、アンインストールへの参加)。W1 の証拠のゲートにより延期。公式のプラグイン配布はまだ存在しません。
+- CSO のネイティブのランチャー (`lib/cso/launcher*.c`) は、コアに `HOME`、`GSTACK_HOME`、`CLAUDE_PLUGIN_*` だけを渡すため、`/cso` は、エクスポートされた `GSTACK_STATE_ROOT` / `GSTACK_STATE_DIR` を無視します。ネイティブの再ビルドが必要です。
+- TODOS.md 自体 (4,500 行超) の再構成が必要です。
+
+**工数:** 項目ごとに M。**優先度:** P3。
+
+## Aside の統合の後続課題 (サードパーティのアクションの Aside 計画に関する /plan-ceo-review + /plan-eng-review から起票)
+
+### QA のログイン済みの証拠の経路を Aside 経由にする (フェーズ 2)
+
+**取り込み済み (Aside ファースト):** Aside がインストールされ実行中であれば、`aside repl` が /qa, /qa-only, /browse の主要な証拠のソースになりました。Aside がない場合は、gstack 自身のブラウザ (Cookie のインポート付き) が自動のフォールバックです。理由は残しています。残りの細部は「Aside-first follow-ups」の下にあります。
+
+**内容:** ヘッドレスブラウザでは決して到達できないセッション (SSO、デバイスに結び付いた認証、Chromium のエクスポートが見えない Safari 側のログイン) のために、/qa, /qa-only, /browse の証拠のソースとして、同意を得た上での `aside repl` を使います。
+
+**理由:** `docs/designs/CHROME_VS_CHROMIUM_EXPLORATION.md` が、試みて放棄したと記録しているギャップを埋めます。Cookie のエクスポートなしで、ユーザーの本物のログイン済みブラウザから QA の証拠を取ります。サードパーティのアクションの契約は、ログイン済みのベンダーのサイトを操作するために Aside を推奨しています。これは、同じ同意付きのパターンを証拠の収集にも広げるものです。
+
+**文脈:** Aside の統合計画 (2026-08-27) の Option 2 として描かれました。小さな `{{AGENTIC_BROWSER_FALLBACK}}` のリゾルバーを qa/qa-only/browse に注入します (任意で scrape と setup-browser-cookies の相互参照)。フォーク PR time-attack/gstack#40 の判断を、質的に移植してください。「ログイン済みのページだけ。大量のクロールは決してしない」。その時間の数値は移植しないでください (すぐ古くなります)。必要なもの: `aside repl` の出力の信頼できないコンテンツの包み込み (散文のルール)、定期ティアのハーミティックな E2E、影響を受けたスキルのラチェットのフィクスチャの更新。D1A (契約だけのスコープ) で意図的に延期しました。これは、ファーストパーティの QA パイプラインの横に、サードパーティの面を入れるため、独立した製品の判断です。
+
+**工数:** M (人間で約 2 日 / CC+gstack で約 1〜2 時間)
+**優先度:** P3
+**依存:** サードパーティのアクションの Aside 契約のブランチが着地すること。
+
+### 敵対的なベンダースキルの E2E (サードパーティのアクションの契約用)
+
+**内容:** 定期ティアの E2E で、悪意のある `aside-browser` のベンダースキル (スコープの拡大、認証情報の取得、同意の回避を指示するもの) を埋め込み、エージェントが契約の上書きの文を守ることを確認します。上書きの文とは、操作上の構文だけに従い、新しい権限、スコープ、同意を決して与えないというものです。
+
+**理由:** ルール 3 は、ベンダーのテキストを指示の位置に置きます。上書きは散文としてピンされていますが、敵対的なスキルに対する振る舞いの証明がありません。ship の敵対的レビュー (指摘 11) で挙げられました。
+
+**文脈:** フィクスチャ = 抽出した契約の節 + ワークディレクトリに置いた敵対的なベンダーの SKILL.md。ドライブ計画が、名指しされたサイトとアクションを超えないこと、そして取得された秘密情報を指示として繰り返さないことを確認します。`test/skill-e2e-third-party-actions.test.ts` の tpa-* のスイートの兄弟です。
+
+**工数:** S (人間で約半日 / CC+gstack で約 30 分)
+**優先度:** P2
+**依存:** サードパーティのアクションの Aside 契約のブランチが着地すること。
+
+### fd アンカーのファイルレベルの権限の書き込み (ディレクトリとのシンボリックリンク/TOCTOU の同等性)
+
+**内容:** `browse/src/file-permissions.ts` の `restrictFilePermissions` / `writeSecureFile` / `appendSecureFile` は、今もシンボリックリンクをたどる `chmodSync` / `writeFileSync` を使っています。ディレクトリの経路が受けた処理と同じ、`O_NOFOLLOW` + fstat/fchmod の扱いを与えてください。
+
+**理由:** このブランチでディレクトリについて修正したシンボリックリンクの差し替えのクラスが、その中のファイルについては今も残っています (ship の敵対的レビュー、指摘 5)。ドキュメントの注記 (指摘 12) は、v1.72.0.0 のドキュメントの整理で完了済みです。BROWSER.md の § 「Aside and third-party drives」は、Aside の操作が gstack 側の監査の痕跡を残さないことを記録しています (エグレスのレシートも browse デーモンのログもありません)。監査の痕跡は Aside の中にあります。
+
+**工数:** S (人間で約半日 / CC+gstack で約 20 分)
+**優先度:** P3
+**依存:** なし。
+
+## ブラウザの Cookie インポートの後続課題 (Windows の Opera の修正ウェーブ #2980/#2957 に関する /autoplan から起票)
+
+### P2: 混在したバッチで鍵の取得に失敗しても、受領を残す
+
+**内容:** `importCookies` は、行のループの前にバッチ全体の鍵を導出するため、v10 の行が一つと DPAPI/Keychain の失敗があると、型付きの鍵のエラーを投げ、ほかの行の平文と App-Bound の件数を失います。
+
+**理由:** 平文 + v20 + v10 が混在するバッチで鍵が使えないと、鍵のエラーだけが報告され、読み取れた平文の Cookie と、未対応の暗号化の件数が消えます。
+
+**文脈:** 外部の Eng の意見 (outside Eng voice) が挙げました。型付きの鍵のエラーを部分的な受領に変えると、クロスプラットフォームの契約が変わり、macOS の Keychain の「Allow をクリックして再試行」プロンプトにも関わるため、延期しました。`browse/src/cookie-import-browser.ts` の `importCookies` の `getDerivedKeys` 呼び出しから始めてください。
+
+**工数:** M (人間で約 1 日 / CC+gstack で約 30 分)。**優先度:** P2。
+**依存:** 再試行できる鍵のエラーを受領にどう出すかの判断。
+
+### P3: macOS/Linux の CBC のパスで SHA-256(host_key) のチェックを使う
+
+**内容:** `decryptCookieValue` の CBC の分岐は、常に 32 バイトを削ります。Chromium の meta のバージョン 24 より古いデータベースには接頭辞がないため、その値は 32 バイトの実データを失います。
+
+**理由:** Windows の GCM の分岐が今使っているのと同じ正しさのルールです (最初の 32 バイトが SHA-256(host_key) と等しいときだけ削る)。
+
+**文脈:** Opera のウェーブの Eng レビューで見つかりました。古いプロファイルだけに影響します。yt-dlp は `meta.version >= 24` でこれを判断しています。
+
+**工数:** S (人間で約 2 時間 / CC+gstack で約 10 分)。**優先度:** P3。
+**依存:** なし。
+
+### P3: macOS と Linux の Opera / Opera GX の Cookie インポート
+
+**内容:** macOS (`~/Library/Application Support/com.operasoftware.Opera`、GX は `com.operasoftware.OperaGX`) と Linux (`~/.config/opera`) で Opera を登録します。
+
+**理由:** Windows 以外の Opera ユーザーは「Windows のみ対応」と表示されます。
+
+**文脈:** パスは yt-dlp の `cookies.py` から取りました。Keychain のサービス名と libsecret のアプリケーション名は未確認です。それぞれの OS で、確認できる人が必要です。
+
+**工数:** M (人間で約 1 日 / CC+gstack で約 30 分 + ハードウェアでの検証)。**優先度:** P3。
+**依存:** macOS と Linux のテスターがいること。
+
+### P3: Opera Beta/Developer と Opera GX のチャンネルのディレクトリ
+
+**内容:** `Opera Next`/`Opera Developer`/GX のベータのユーザーデータのディレクトリを検出します。
+
+**理由:** チャンネルのユーザーは今「not found」になります。
+
+**文脈:** ディレクトリ名は未確認です。実機で確認できたら、レジストリの行を追加してください。
+
+**工数:** S。**優先度:** P3。**依存:** ディレクトリ名の確認。
+
+### P3: Opera のサイドプロファイル (`_side_profiles/<id>/`)
+
+**内容:** Opera GX は、追加のプロファイルを `<root>\_side_profiles\<id>\` の下に保存します。これは `listProfiles`、`validateProfile`、ネイティブのプロファイルの正規表現が受け付けません。
+
+**理由:** サイドプロファイルのユーザーは、メインのプロファイルしか見えません。
+
+**文脈:** `Default`/`Profile N` を超えるプロファイル命名のルールと、アカウント選択の安全性のレビューが必要です。
+
+**工数:** M。**優先度:** P3。**依存:** 実際のサイドプロファイルのレイアウトのサンプル。
+
+### P3: 古いルート直下の Opera のレイアウト
+
+**内容:** 古い Opera は、Cookie を `Default\` なしの `<root>\Network\Cookies` に保存していました。
+
+**理由:** 古いインストールは「not found」と報告します。
+
+**文脈:** 両方の CEO の意見によりウェーブから外しました。サイドプロファイルや移行された `Default\` が存在すると、古いルートのデータベースが誤ったアカウントとしてインポートされるおそれがあるためです。情報源: yt-dlp、フォレンジックのガイド。実際の報告があった場合にだけ作り、古いルートとサイドプロファイルが共存するテストを付けてください。
+
+**工数:** S-M。**優先度:** P3。**依存:** このレイアウトのユーザー報告。
+
+### P3: ユーザーが指定する Chromium のユーザーデータのパスの選択肢
+
+**内容:** ポータブルまたは移動されたインストールと、リストにないフォークのための、yt-dlp 風の `chrome:PATH` のオプションです。
+
+**理由:** 今は、新しいフォークごとにレジストリの変更とリリースが必要です。
+
+**文脈:** `ARCHITECTURE.md` は、安全のために固定したレジストリを優先しています。作る前に、脅威のレビュー (任意のパス、鍵のソース) が必要です。
+
+**工数:** M。**優先度:** P3。**依存:** 脅威のレビュー。
+
+## テストインフラ
+
+### 長期間赤が続く定期ファイルの自動除外ポリシー (P3)
+
+**内容:** 週次の定期ファイルが連続して数回赤いままだと、誰かが手で仕分けするまで、スライスの分数を消費し続けます (2026-09 の監査で退役するまで、5 つの指摘数の評価は 8 回連続で赤でした)。N 回連続で赤になったら、定期レポートのステップが、そのファイルを `PERIODIC_CI_EXCLUDE` に加える PR を開くようにしてください。失敗した実行のリンク、追跡のエントリ、再登録の条件を付けます。
+
+**再登録 / 完了の条件:** 定期レポートが除外を自動で提案し、人がそれを承認すること。
+
+### P3: ネイティブ完了の否定の表をまとめる
+
+**内容:** 2026-09 の監査の後、「ネイティブの完了とメニューの所有権」の 14 の変異の表は、`test/eng-first-review.test.ts` (14 の箇所ごとのコピー)、`test/plan-count-completion.test.ts`、`test/dx-selected-navigation-ap.test.ts` にだけ残っています。共有の表を、正準の呼び出しに対して一度だけ実行するのは、`engFirstReviewAUQ` がエントリでネイティブの完了を一度だけ確認するようになった後でのみ正しいです。今は各分岐がそれを別々にゲートしているため、この変更は有料の判定を変えてしまい、独自の有料の実行が必要です。
+
+### P3: 現行の世代への古いモデルの有料のピンの再ベースラインの後続課題
+
+**内容:** GSTA-49 TM3 (2026-10-18) は、残りのすべての古いモデルの有料のピンを現行の世代に移しました。`skill-e2e-{plan,plan-prosons,design,office-hours-phase4,qa-bugs}` の `claude-opus-4-7` のピンは `resolveEvalModel('capture')` に従い、オーバーレイのフィクスチャは `claude-opus-5-5` と `claude-sonnet-5-5` をピンし、Cookie のワークフローの judge は `claude-sonnet-5-5` をピンし、`codex-sol-scope-termination` は `gpt-6.1-sol` で動きます (まだ `gpt-5.6-sol` のオーバーレイをレンダリングしています)。残りは三つです。
+
+- 基本の `claude-dedicated-tools-vs-bash` のフィクスチャは、今や `claude-dedicated-tools-vs-bash-opus-5-5` と重複しています。
+- `opus-4-7-*` のフィクスチャは、Opus 5.5 上で `model-overlays/opus-4-7.md` を測っています。しかし製品では、Opus 5.5 は汎用の `claude` オーバーレイを受け取ります。
+- Opus 5.5 は、「you would have made」の質問の「verbatim text」を求め、「Do NOT paraphrase」と言う捕捉のプロンプトを拒否します (停止のカテゴリ `reasoning_extraction`)。その言い回しは、prosons のリクエストの 16 回のリプレイのうち 7 回を止め、それがない 24 回では 0 回でした。`skill-e2e-plan-prosons` はそれを削除しました。`skill-e2e-plan-format` と `skill-e2e-office-hours-phase4` は、今もそれを使っています。
+
+**再登録:** 専用ツールのフィクスチャを一つ退役させ、opus-4-7 のオーバーレイの将来を決め、残りの捕捉のプロンプトから抽出の文言を、それぞれ有料の実行で取り除いてください。
+
+### P3: 使われていない CEO の支払いのシーダーを退役させる
+
+**内容:** `test/helpers/ceo-finding-fixture.ts` の `seedCeoPaymentProject` と `pickSuppliedCeoPlanStart`、および `test/fixtures/ceo-existing-payment/` は、CEO の指摘数の評価が退役したとき、唯一の有料の利用者を失いました。`test/ceo-finding-fixture.test.ts` のフィクスチャのテストは、今もそれらを実行しています。シーダー、そのフィクスチャ、それらのテストを一緒に削除してください。
+
+### P3: 有料の評価で /autoplan の全体のチェーンを実行していない
+
+**内容:** `skill-e2e-autoplan-chain` は退役しました (製品の判定に至らず、起動の失敗が続き、85 分の予算超過になったためです)。フェーズの順序は今も `autoplan/bin/phase-publication-hook.ts` が強制し、無料の `test/autoplan-publication-guard.test.ts` がピンしています。また `skill-e2e-autoplan-dual-voice` が CEO のフェーズ 1 のディスパッチをカバーします。しかし、ライブのモデルが CEO → Design → DX → Eng を完了すること、または必要なフェーズの節を読むことを証明するものはありません (`CARVE_GUARDS.autoplan` は `behavioral: 'none'`)。
+
+**再登録:** 通常の PTY のティアに収まるチェーンの評価。たとえば、UI のない、DX のない経路 (CEO の後に Eng) を実行し、節が読まれることを主張するものです。
+
+### P3: CI で実行できない有料の評価
+
+**Codex の部分は完了 (2026-10-02, 並列ウェーブの修正ウェーブ):** CI のイメージは、ピン留めした Codex CLI を PATH の外にインストールします (`GSTACK_CI_CODEX_BIN_DIR`)。有料のレーンは、CI 専用のホームの下でそれにログインします。`scripts/lib/paid-cases.ts` の `scopeCodexAccess()` は、それを Codex のファイル (`codex-e2e`, `codex-e2e-sol-scope`, `codex-e2e-shared-libs`, `codex-e2e-recommendation-substance`, `skill-e2e-outside-voice`, `skill-e2e-outside-plan-disabled`) と `codex-review` のケースにだけ公開します。その五つの除外されたファイルは `PERIODIC_CI_EXCLUDE` から外れました。`test/codex-ci-access.test.ts` がスコープをピンしています。
+
+**残り:** 二つの有料のファイルは、CI のイメージでは実行できません (macOS/Aside がなく、物理的な iPhone もないため)。そのため、週次の定期レーンは、何も検証しない緑のシャードとしてそれらを予定していました。それらは `PERIODIC_CI_EXCLUDE` (`test/helpers/periodic-exclude-data.ts`) に残しています: `skill-e2e-aside`, `skill-e2e-ios-device`。ケース単位でシャード化されたファイルの中の一つのケースは、`CASE_CI_EXCLUDE` で同じように除外しています: `test/skill-e2e-design.test.ts#design-review-fix` (Aside が必要)。それらは、CLI やデバイスがあるマシンでは、今もローカルで実行されます。
+
+**再登録:** CI のランナーで、デバイスまたは Aside が使えること。前提が揃ったら、各ファイルの除外エントリを削除してください。
+
+**見直し期限:** 2026-12-28。**工数:** ファイルごとに S。**優先度:** P3。
+
+### ✅ 完了 (2026-10-02, 並列ウェーブの修正ウェーブ): CI のイメージに Codex CLI をインストールする
+
+**解決:** `.github/docker/Dockerfile.ci` は、`@openai/codex` を PATH の外にピン留めしてインストールします。有料のワークフローは、`OPENAI_API_KEY` のシークレットから、`codex login --with-api-key` を `$HOME/.gstack-ci-codex` に対して実行します (`GSTACK_CI_CODEX_HOME` としてだけエクスポート)。そして Codex のシャードだけがそれを見ます。`test/ci-image-cli-pin.test.ts` と `test/codex-ci-access.test.ts` が保護しています。再登録されたファイルの記録された所要時間は、まだ約 0 です。定期的なプランナーは、最初の実行から学習します。
+
+#### 元の起票 (完了)
+
+**内容:** `.github/docker/Dockerfile.ci` に `@openai/codex` を加え、Codex の `auth.json` を CI のシークレットとして提供します。これにより、四つの `codex-e2e*` ファイルと `skill-e2e-outside-voice` が `PERIODIC_CI_EXCLUDE` から外れられます。
+
+**コストの見積もり:** イメージのビルドに +1 の npm のグローバルインストール (イメージのビルドごとに約 30 秒)。週次のモデルの支出は、リポジトリの定期的な目安である、ファイルごと実行あたり約 $1 程度で、5 ファイルで約 $5/週です。シークレットの背後にある Codex のアカウントに請求されます。**リスク:** CI での長期間有効な資格情報。
+
+**工数:** S。**優先度:** P3。
+
+### ✅ 完了 (2026-10-03, v1.91.19.0 の重大な修正ウェーブ, I2): skillify のゲートのテストが赤い
+
+ゲートの `skill-e2e-skillify` のケース (provenance-refusal, approval-reject, happy-path) は、09-30 から 10-03 までの 6 回のゲートの国勢調査で、すべて合格しました (最新 https://github.com/garrytan/gstack/actions/runs/37151477069)。また、定期的な scrape-match-path と scrape-prototype-path のケースは、18/18 の試行で合格しました。
+
+### P2: auq-verbose-vs-carved-ab の PRE アームが、ブランチのローカルの ref を読んでいる (繰り返しの削減の A/B が直したばかりと同じ脆さのクラス)
+
+**内容:** `test/helpers/auq-sdk-capture.ts` の `verboseSkill()` は、既定で git の ref `ab66193e^` を使います。これは token-usage-reduction のブランチからしか到達できません。そのため、浅いクローンは今も失敗し、そのブランチが削除された後はすべてのクローンが失敗します。repetition-cut の A/B のために (v1.75.0.0)、`auq-pre-cut-plan-ceo-review-SKILL.md` をフィクスチャとしてベンダリングしたのと同じように、カット前のレンダリングをフィクスチャとしてベンダリングするか、main から到達できるコミットを指してください。
+
+**工数:** S。**優先度:** P2 (週次の定期実行が、後で黙って壊れます)。
+
+### P3: 評価ストアの収穫を判別可能な共用体にする
+
+**内容:** `EvalTestEntry.harvest` はスキーマ v2 で、すべてオプションになりました (ワークツリーの収穫は patchPath/isDuplicate を持ち、arm-benchmark の差分統計は insertions/deletions/net を持ちます)。二つの書き込みの形の、コンパイル時の安全性は、今はコメントに頼っています。`{kind:'worktree',...} | {kind:'diff-stat',...}` としてモデル化してください。v1.73 のレビュー・アーミー (保守性) から起票され、リリースの途中でスキーマを変えないよう、出荷時に延期しました。
+
+**工数:** S。**優先度:** P3。
+
+### P2: WS6-2 の死んだフロントマターの除去 — サンドボックスではなく、ライブのホストが必要
+
+**内容:** `bin/gstack-context-bill` は、ルーターが読まない 14 個のフロントマターのキーについて警告します (lib/context-bill.ts の ROUTER_KEYS は、手で保守される推測です)。承認された ponytail-import の計画は、除去の前に実証的な検証を義務づけています。ライブの Claude Code のホストで、スクラッチのインストールからそのキーを削除し、スキルの発見、ルーティング、フックが変わらないことを確認してから、hosts/claude.ts の拒否リストで着地させます (キーはテンプレートに残し、生成ツールのために使います)。このクラウドのサンドボックスではライブのホストの発見を検証できないため、v1.73 の実装の時点で、決定台帳 (2026-08-28) の記録とともに延期しました。節約は、数百バイトの常時読み込みのバイトです。増加は、どのみちラチェットで上限が決まっています。
+
+**工数:** S (ライブのホストで一度行えば)。**優先度:** P2。
+
+### P3: 証拠ゲートのダイジェストの許可パスを限定する
+
+**内容:** `agents-digest/gstack-AGENTS.md` は、ship と land-and-deploy の証拠のチェックで、どのリポジトリでも `--allow-paths` を通ります。CHANGELOG/VERSION と違い、これはルールを読むホストにとって指示を含むファイルです。例外を「バージョンのバンプが実際にそれを再生成した」場合に限定してください (たとえば gstack-evidence に --allow-if-regenerated のフラグを加える、またはダイジェストのバイトを、新しいジェネレーターの実行と比較する)。v1.73 の Claude の敵対的な確認から起票されました。ゲートは助言的で、gstack の鮮度の CI がドリフトの場合をカバーするため、P3 です。
+
+**工数:** S-M。**優先度:** P3。
+
+### 2026-08-29 のテストインフラの刷新 — 後続課題 (実装時に起票)
+
+刷新は着地しました。緑を本当の緑にする修正 (main の必須レーンでの make-pdf のゲート、テストゼロの評価のジョブを停止、4 つの孤立した有料ファイルの有効化 + 孤立のトリップワイヤ、touchfiles の自己登録と警告から失敗へ)、直列のツリー変更シャードの解消 (main() ガード + すべてのホストへの --out-dir)、所要時間で詰めた無料のシャード、CI のエンジンとしてのシャード化された有料ランナー (プランナー/スライス/フェイルクローズドのレポート/パリティのフェーズ)、週次のすべての定期的なカバレッジの契約 + ゲートの国勢調査、評価の予算のタイムアウトのティア、カバレッジの補充です。残りは、おおよそ優先度順です:
+
+- **DONE(v1.77.0.0 テストインフラ第1波)— パリティ確認後にレガシーの evals.yml マトリクスを削除。** 静的パリティの記録を取ったうえで、純粋な削除コミットとして削除しました(1回の revert で元に戻せます)。スライス化したゲートの対象(49ファイル)は、マトリクスのファイル(18)を完全に含み、さらに31ファイル分の追加カバレッジがあることを確認しています。`needs: evals` の依存関係を外し、PR へのコメントは slices-report に移しました。KNOWN_MATRIX_GAPS / KNOWN_TIER_UNSET は廃止し、test/evals-workflow-matrix.test.ts は test/evals-workflow-wiring.test.ts として書き直しました。register-skills の fail-fast 検証ループは、共通の .github/actions/register-gstack-skills コンポジットアクション経由で、残存するレーンに最初に移植しています。
+- **P1 — メンテナー判断: パリティ移行後のフレーキー性データが揃ったら `slices-report` を必須チェックにする。** Codex の外部視点からの指摘「有料テストが助言扱いのままでは、緑でも緑が届いたことにはならない」は正しい指摘です。ただしこれはリポジトリ内の YAML ではなく、ブランチ保護の判断として意図的に扱うべきものです。工数 S。
+- **P2 — browse デーモンのライフサイクルとスイート内ブラウザの競合(無料スイートに残る最大のフレーキー要因)。** #994 以降のデーモンは親プロセスより長く生存する設計で、シャープロセス内でテストファイルをまたいで残り続けます。その結果、後続ファイルのブラウザ利用がデーモンと競合します('[browse] FATAL: Chromium process crashed' や要素待ちの 5 秒タイムアウト)。記録: commands+snapshot を 1 つの bun プロセスで実行すると、ファイルごとの CHROMIUM_PROFILE 分離の有無にかかわらず同じ失敗になります(既存の問題。PR #2721 のトリアージ時点)。また CI のシャード 1(d9b78b5a)は、デーモンを起動するファイルの後で model-overlay-sonnet-5 により停止しました。シャード単位・ファイル単位のプロファイル分離(導入済み)によって、シャードをまたぐ強制終了は解消しました。残るシャード内のデーモン引き継ぎには実際の設計が必要です。デーモンを起動するテストは afterAll でデーモンを停止するか、デーモン側が別の CHROMIUM_PROFILE 環境変数を検出した場合に再利用を拒否するようにする必要があります。工数 M。
+- **P2 — browse デーモンの /tmp 名前空間の堅牢化。** デーモンへのファイルパスによる通信(`eval <file>`、`load-html --from-file`、pdf の出力、upload、cookie-import)はすべて、クライアントとデーモンが同じ /tmp を見ていることを前提としています。サンドボックス化されたシェルが名前空間の外にあるデーモンを再利用すると、たった今書いたファイルについて "File not found" が返ります(実際に根本原因を特定し、unshare で再現済み)。最小限の修正は、CLI がローカルの `eval <file>` を自分で読み込み、コードを `js` として送ること(意味は保持されます。リモートの呼び出し元向けには従来のデーモン経路を残します)。加えて read-commands.ts:313 のエラーに名前空間に関するヒントを追記します。工数 S。
+- **P2 — PTY の起動完了待ち(有料ランナー)。** 無料の偽 CLI テストは、現在 `startupReadyMarker` を渡しています(2026-09 の監査以降の plan-count-history)。有料ランナーの実 CLI パス(マーカーなしの `runPlanSkillCounting`)と `test/pty-screen-session.test.ts` は、今も固定の 8 秒待ちを払っています。実際の準備完了待ち(waitFor)を実装するには、動作する端末環境で CLI 2.1.x の準備完了マーカーを実測する必要があります。工数 S。開発マシンが必要です。
+- **P2 — 型付きテストレジストリの一本化。** 有料の glob、ティア、touchfiles のキー、除外リストは、今も別々のリテラルの権威であり、トリップワイヤーで同期しています。1 つのレジストリから導出すれば、ドリフトという問題の種類は構造的になくなります(外部視点の推奨。トリップワイヤーは暫定策)。工数 M。
+- **P2 — 独自の LPT パッカーを、Bun 組み込みの `--timings` / `--shard` に置き換える。** 次の Bun のピン解除時に行います(ネイティブの LPT スケジューリングは ≥1.3.14 で提供)。パッカーは意図的に小さく、差し替え可能にしてあります(scripts/test-free-shards.ts の後継メモを参照)。工数 S。
+- **P3 — runBin の移行の残り**(ローカルの run() の重複 36 件のうち約 31 件。ヘルパーと最初の 3 件は移行済み)。機械的な作業をバッチで行います。工数 S。
+- **P3 — 無料ランナーを runShardChild に移行する**(有料ランナーが既に使っている共有ライフサイクルヘルパー。そのために設計されています)。工数 S。
+- **P3 — eval-list から _partial の実行を除外する**(test/eval-cli-family.test.ts で現状の動作として固定されており、改善のメモが付いています)。工数 S。
+- **P3 — E2E 15 件・judge 2 件の PHANTOM touchfiles キー。** 存在しないテストを選択しているキーです。キーを追加するか削除するか、まとめて一度に対応します。工数 S。
+- **P3 — スライス化レーンの初回実行で見つかった初回実行時の劣化。3 件のうち 2 件は修正済み**(PR #2721)。(a) ✅ skillify ファミリー。根本原因は HOME と cwd が同じだったことで、claude が <cwd>/.claude/skills を個人用ディレクトリとして扱い、プロジェクトのスキルが登録されていませんでした。3 つのテストすべてで、新しい HOME サブディレクトリを使うように変更しました。拒否テストには「未登録」のトリップワイヤーを追加し、マッチングはアシスタントのテキストだけを対象にしました(スキル本体のエコーで空振りで通る可能性があったためです)。兄弟テストは、Skill ツール経由の経路を実際に通るようになりました(有料で検証し 5/5 緑)。(b) ✅ session-intelligence の context-restore。アサーションは確率的な文言に対するプローズのマッチングでしたが、verbatim の RESTORED マーカーとツール呼び出しによる裏付けに変え、古いファイルに対するより強い否定テストを加えました(有料で 3/3 緑)。(c) `tpa-apple-ban` はリトライの 2 回目でのみ一度失敗しました。フレーキーの監視のみです。これらを初回実行で検出したことは、レーンのカバレッジの仕組みが機能していることを示しています。
+- **P2 — make-pdf の画像昇格が CI 上で実行ごとに非決定的になる問題。** 同じ CI ジョブ内で、同じフィクスチャを数秒の間隔で 2 回レンダリングしたところ、横向きページ数が 2 と 3 で異なりました(画像の昇格がレンダリング時の読み込みタイミングに依存しています)。横向きのゲートは内容と存在の不変条件をアサートするように変更しましたが、根本のレンダリング競合は製品品質の問題です(ユーザーの alt 付き画像が、横向きへの昇格から静かに漏れる可能性があります)。記録: 同じ ab549353 + c49b2ece のヘッドに対する PR #2721 の無料テストの実行。工数 S。
+- **P3 — パリティのデータでスライスの実行時間が 1.5 倍を超えて乖離した場合の、実行時間で重み付けしたスライス割り当て。** 現在はラウンドロビンです(eval ストアに実行時間のデータはあります)。工数 S。
+
+### P2: /context-save のワークツリー同一性の堅牢化(#2052 の残課題)
+
+**内容:** 保存時に、安定したワークツリーの同一性(パスのハッシュまたはワークツリー名)をチェックポイントのフロントマターに保存します。`/context-restore` は、ブランチ名の一致より同一性の一致を優先します。PR #2054(@jbetala7、2026 年 6 月の波に取り込み済み)で復元の順序(現在のブランチを優先)は修正されました。しかし、ブランチのフロントマターは安定したワークツリーの同一性ではありません。複数のクローンやリモートにまたがる同名のブランチ、名前が変わったブランチ、detached HEAD では、今も誤ったチェックポイントが復元される可能性があります。
+
+**理由:** 一般的なケースだけでなく、誤ったチェックポイントの残る問題の種類を根本的に解消します。Codex の外部視点も、この波の eng review で同意しました。
+
+**利点:** クローン間のチェックポイントの衝突をなくせます。
+**欠点:** フロントマターのスキーマ変更が必要です。同一性のない古いチェックポイントの移行方法を決める必要があります(#2054 のブランチなしの扱いと同様に、同一性のないチェックポイントはフォールバックとして順位付けします)。
+
+**背景:** 2026 年 6 月の修正の波の eng review(対象外の項目)から起票しました。開始点は `context-restore/SKILL.md.tmpl` の Step 1 と、`/context-save` のフロントマターを書き込む処理です。#2054 の分割ロジックを、同一性を最初のキーとして反映させてください。
+
+**工数:** S(人間で約 4 時間、CC で約 20 分)。**依存:** #2054(この波で導入済み)。
+
+### P3: gbrain の、継続的なドリフト時のその場での再インデックス(条件付き。まずドリフトのログを確認)
+
+**内容:** `[gbrain-sources] drift:` の stderr 行(2026 年 6 月の波で追加)が、ある環境で毎回の同期時にドリフトを報告している場合、#1985 のレポーター設計を実装します。既存のソースを、remove+add(インデックス全体を削除して再埋め込みする)の代わりに `gbrain reindex-code` でその場で更新します(報告者の環境では 768 ページ / 6,786 件の埋め込みでした)。
+
+**理由:** 継続的なドリフトは、毎回の同期で全件の再埋め込みコストを払うことを意味します。この波の `realpathSync` の正規化(シンボリックリンクの別名は一致とみなし、ドリフトとはしない)によって、ドリフトの問題の種類全体が消えた可能性があります。そのため、この項目は条件付きです。
+
+**利点:** 影響を受ける環境で、埋め込みの再実行コストを避けられます。
+**欠点:** ドリフトログに証拠が出るまでは推測の域を出ません。その場での再インデックスには独自の一貫性の問題があります(削除されたファイルの古いチャンク)。
+
+**背景:** 2026 年 6 月の修正の波の eng review(4A 可観測性)から起票しました。トリガー条件は、ドリフトログの行の位置にある `lib/gbrain-sources.ts` に記載しています。
+
+**工数:** M(人間で約 1 日、CC で約 45 分)。**依存:** この波の `ensureSourceRegistered` のログによるドリフトログの証拠。
+### ✅ DONE(2026-08-29): 定期的な CI カバレッジの契約 — 選択肢 (a) として実装
+
+**テストインフラの刷新により解決:** evals-periodic.yml を scripts/test-paid-shards.ts に移行しました。定期ティアのファイルはすべて毎週実行されます(EVALS_ALL、プランナーのマニフェストから 6 スライス、失敗時には閉じた状態で報告)。除外は test/helpers/periodic-exclude-data.ts に、理由と追跡先を各エントリごとに記載し(ポリシーで固定)、理由付きで除外したものだけを対象外としています。毎週の EVALS_ALL によるゲートの一覧も同じ cron で実行されます。「どこでも実行されないテスト」という問題の種類は解消しました。どのテストも、計画済み・差分でスキップ・理由付きで除外・失敗レポートのいずれかになります。元の起票内容は、記録のために以下に残しています。
+
+#### 元の起票(完了)
+定期 CI のマトリクスは、約 66 個の e2e ファイルのうち 9 個しかカバーしていない。カバレッジの契約を決める必要がある
+
+**優先度:** P2
+
+**内容:** `evals-periodic.yml`(毎週の cron、`EVALS_TIER=periodic EVALS_ALL=1`)は、ハードコードされた 9 ファイルのマトリクスを実行します。`evals.yml` のゲートのシャードは 14 ファイルをカバーします。`test/skill-e2e-*` のファイルのうち約 57 個は、どちらのワークフローでも実行されません。ローカルの差分によってたまたまトリガーされたときにだけ、touchfiles 経由で実行されます。CLAUDE.md には「定期テストは cron で毎週実行される」と書かれていますが、マトリクスはそれを実現していません。決めるべき選択肢: (a) 定期マトリクスを、実行時間の上限付きで定期ティアの全ファイルに拡張する(または glob にする)、(b) CLAUDE.md の記述を縮小し、カバーされていないファイルはローカルのみとして明記する、(c) 残りのファイルを明示的にティア分けする。
+
+**理由:** autoplan-dual-voice の E2E は、claude 2.x 以降で未登録のスラッシュコマンドの扱いが変わったため、数か月にわたって静かに壊れていました。2026-07-09 に、ドキュメントの PR の touchfiles がたまたまローカルでそれを選択するまで、誰も気づきませんでした。どこでも実行されないテストは、目に見えないまま劣化します。見つかるのが後になるほど、/investigate のセッション 1 回分の手間がかかります。
+
+**利点:** 約 57 個のテストファイルについて、静かな劣化を防げます。CLAUDE.md のティア分けの記述を真実にできます。
+**欠点:** 定期カバレッジを全件にすると、毎週の実費がかかります(おおよそ 1 ファイル・1 回あたり約 $1)。一部の残りのファイルは意図的に手動です(ios-device、opus-47 のオーバーレイハーネス)。そのため単純な glob は誤りで、キュレーションされた除外リストが必要です。
+
+**2026-08-16 時点の最新の記録(v1.66.0.0 の再ベースライン):** このストアで初めて行った定期の全件ローカル実行で、これまでベースラインが取れていなかった末尾のテストに初めて結果が出ました。`skill-e2e-setup-gbrain-{bad-token,path4-local-pglite,remote}` はすべて失敗しました(起動したプロセスの終了コード 1。開発マシン上で稼働中の gbrain が干渉している可能性が高い)。`skill-e2e-ship-idempotency` は、1800 秒のシャードの上限でタイムアウトしました。これら 4 件はどれも毎週のマトリクスに入っていないため、CI からは見えない失敗です。この項目の主張そのものです。まずはこの 4 件から対応を始めてください。
+
+**背景・着手箇所:** `.github/workflows/evals-periodic.yml:71`(マトリクス)、`test/helpers/touchfiles.ts` の E2E_TIERS(テストごとのティアラベルは既にあります)。孤立ファイルの一覧は、`ls test/skill-e2e-*.test.ts` と `.github/workflows/evals*.yml` のファイルリストの間で `comm -23` を使って生成します。autoplan の事故の記録: `~/.gstack/projects/garrytan-gstack/e2e-runs/2026-07-10-0154/`(ターン数 0 の "Unknown command" のトランスクリプト)。
+
+### ✅ DONE(検証済み 2026-08-29): 評価ハーネスのライブ進捗 + 逐次の永続化
+
+**実装済みであることを確認:** (1) ハートビート — session-runner がツール呼び出しごとに ~/.gstack-dev/e2e-live.json をアトミックに書き込みます(+ progress.log + テストごとの ndjson)。(2) 逐次の永続化 — EvalCollector は addTest のたびに _partial-e2e.json を書き込み、二重のシグナルである isPartialEval によって partial をベースラインから除外します。(3) ライブのシグナル — ツールごとの stderr の進捗行をバッファなしで出力し、scripts/eval-watch.ts がハートビートをダッシュボード表示します。2026 年 8 月の刷新では、シャードごとの全ストリームのスプールログ(開始時にパスを表示)を追加しました。元の起票内容は、記録のために以下に残しています。
+
+#### 元の起票(完了)
+評価ハーネス: ライブ進捗と逐次の結果の永続化(「1 時間の沈黙」を終わらせる)
+
+**優先度:** P1
+
+**内容:** `bun run test:evals` は、実行時間の全体にわたって観測上まったく沈黙しており、完了するまで何も永続化しません。E2E ハーネスを次のように変更します。(1) テストの開始と終了ごとに、分かりやすいハートビートファイル(例: `~/.gstack-dev/evals/.current-run.jsonl`)に 1 行の進捗レコードを追記する。(2) 実行の終了時にまとめてではなく、各テストの eval-store の結果を逐次書き込む。(3) テストごとの成功・失敗の行を stderr にバッファなしで出力し、`bun test --concurrent` のメガファイルのバッファリングで 50 分の正当な進捗が隠れないようにする。
+
+**理由:** v1.57.11.0 の ship の際、差分で選択された評価実行(54 件のテスト)は約 50 分の時点で強制終了されました。しかし、死んだ実行と健全な実行を区別するものが何もなく、数時間それに気づきませんでした。ログにはテストの行が 1 行もなく(5 つの巨大な `skill-e2e-*.test.ts` ファイルをまたぐファイルごとのバッファリング)、`~/.gstack-dev/evals/` には新しいファイルが 1 つもありませんでした(結果は完了時にしか永続化されません)。唯一使える生存のシグナル(`pgrep "bun test --max-concurrency"`)は、無料スイートの兄弟シャードすべてに対して偽陽性を出していました。エージェントや人間が監視しても、正直なシグナルがありませんでした。
+
+**利点:** 死んだ実行を数時間ではなく数分で検出できます。部分的な結果は強制終了を生き延びます(40/54 で死んだ 50 分の実行でも、40 件の結果が残り、再開できます)。`eval:watch` に実際のデータソースができます。
+
+**欠点:** `test/helpers/session-runner.ts` と `eval-store.ts` に触れます(グローバルの touchfiles のため、次回の差分選択実行でテストがすべてトリガーされます)。逐次の書き込みには PARTIAL マーカーが必要です。そうしないと、`eval:compare` が死んだ実行を完了したベースラインとして扱ってしまいます。
+
+**背景:** 2026-06-12 に v1.57.11.0 の /ship の最中に根本原因を特定しました。実行自体は順調でした(同時実行数 15 で 54 件の E2E テストに約 50 分は想定どおりです)。失敗の原因は、観測性のみでした。関連: 既存の `project_e2e_harness_observability` のメモ(失敗時に stream-json の推論とツールのトレースが失われる。同じモジュールなので一緒に修正)。`test/helpers/session-runner.ts`(テストごとのライフサイクル)と `test/helpers/eval-store.ts`(永続化のタイミング)から着手してください。
+
+**依存・ブロッカー:** なし。新しい動作は既存の 2 ティアの仕組みで分類してください。ハートビートファイルは `--concurrent` の下でも安全である必要があります(追記のみ、イベントごとに JSON 1 行)。
+
+### ✅ DONE(v1.53.1.0): パリティスイートの再ベースライン(v1.44.1 → v1.53.0.0)
+
+**内容:** `test/parity-suite.test.ts` は、すべてのスキルの SKILL.md のサイズを、凍結されたフィクスチャ `test/fixtures/parity-baseline-v1.44.1.json` と照合していました。5 つの計画系スキルが 1.05 倍の上限を超えて肥大化していました: `plan-ceo-review`(1.052)、`plan-eng-review`(1.062)、`plan-design-review`(1.068)、`investigate`(1.053)、`office-hours`(1.065)。ブレインを意識した計画のリリース(v1.49〜v1.52)と、v1.53 の redaction ガードによる増加です。
+
+**解決:** `bun run scripts/capture-baseline.ts --tag v1.53.0.0` で HEAD の新しいベースラインを取り直し、テストを `test/fixtures/parity-baseline-v1.53.0.0.json` に向け直しました。スキルごとの 1.05 倍の比率は維持しているため、今後の肥大化も検出されます。古くなっていたのは基準点だけです。`skill-size-budget` の再ベースライン(v1.44.1 → v1.47.0.0)と同じ対応です。過去の v1.44.1 / v1.46.0.0 / v1.47.0.0 のベースラインは、v1→v2 の監査の証跡として `test/fixtures/` に残しています。取り直したスキルのバイト列は `origin/main` と完全に一致します(ブランチのリベースでは SKILL.md は一切変わっていませんでした)。`bun test` は再び緑です。
+
+## スコープゲートの後続作業(plan-mode の auto-select-B 変更に対する /plan-eng-review で起票)
+
+### DONE(v1.77.0.0)— SDK の評価予算が API キューの待ち時間を作業予算に含めてしまう問題
+
+**出荷された形:** 2 段階のタイマーを導入しました。ただし、この項目が懸念していたコードモッドは不要でした。全体の待ち時間は依然として timeout 以下に収まる(作業フェーズ = 最初のバイト以降の残り時間)ため、外側/内側の bun-timeout の関係はすべて変わっていません。API が無応答の場合は、起動時の猶予(ローカル 90 秒 / CI の下限 300 秒。Math.max で強制)で早めに終了し、理由は 'timeout_startup' という別のものになります。オプション (b) の CI の下限 300 秒は導入済みです(test/session-runner-startup-grace.test.ts で固定)。作業予算を最初のバイトから timeout 全体にする予算拡張の方式は、ティア/全体時間の再構成が必要なため、刷新計画の第 2 波のスコープに残っています。
+
+元のエントリは、背景として以下に残しています。
+
+**内容:** `runSkillTest` の単一の `setTimeout(timeout)` は spawn 時に作動するため、セッションの起動と、モデルの最初の完了までのキュー待ちが、テストの作業予算に含まれてしまいます。並行負荷の下(CI のマトリクスの 11 ジョブ、またはローカルの評価実行が組織の API を共有している場合)では、最初の完了が 60〜90 秒以上キューで待たされることがあります。その結果、決定的な失敗の形(`0 turns / $0.00 / <budget>s x3 attempts`)になります。観測された例: `review-dashboard-via`(PR #2472、180s→300s)、`retro-base-branch`(240s→360s)、`plan-ceo-plan-mode`(300s→420s、2026-08-12)、`design-consultation-preview`(90s→300s、PR #2533 の CI)。これまでの修正はすべて、テストごとの予算の引き上げです。
+
+**最初の行でタイマーを再起動しない理由:** 監査(2026-08-12)で、約 100 個の外側 bun-timeout のリテラルが内側 + 30〜60 秒のサイズで設定されていることが分かりました。内側のクロックを再起動すると、外側/内側の関係がすべて壊れ、全件のコードモッドが必要になります。
+
+**選択肢:** (a) session-runner に 2 段階のタイマー(起動時の猶予、最初の NDJSON 行で再起動)を入れ、外側のリテラルを内側 + 猶予 + 余裕にコードモッドする。(b) すべての CI の SDK 予算に 300 秒の下限を採用し(静的に強制可能: 無料テストで skill-e2e ファイルに `timeout: <300_000` がないことをアサート)、テストごとに再検討しない。(c) ランナーに起動の spawn セマフォを入れる(起動時の殺到は抑えられるが、API 側のキュー待ちは抑えられない。証拠からはキュー待ちが支配的なので、単独では不十分と思われる)。推奨は、短期的には (b)、中長期的には (a) をコードモッドと合わせて適切な順序で行うことです。
+
+**依存・ブロッカー:** なし。
+
+### P2: 定期 CI に、plan-mode/finding-floor の PTY テスト 4 件を組み込む
+
+**内容:** `evals-periodic.yml` は明示的な 9 ファイルのマトリクスを実行します。v1.62.0.0 で定期ティアに降格された 4 件のテスト(`skill-e2e-plan-eng-plan-mode`、`skill-e2e-plan-design-plan-mode`、`skill-e2e-plan-eng-finding-floor`、`skill-e2e-plan-design-finding-floor`)はこのマトリクスに入っていません。そのため現状は、ローカルまたは手動(`bun run test:periodic` または `eval:bg:periodic`)でしか実行されません。組み込むには、PTY に対応した定期ジョブが必要です。evals.yml の `e2e-pty-plan-smoke` ジョブのコンテナ内でのスキル登録の設定(TUI のクロスマウントのシンボリックリンクのバグを回避するための実ファイルの SKILL.md のコピー)を使い、`EVALS_TIER=periodic` で実行します。
+
+**理由:** v1.62.0.0 の ship に対する Codex の再レビューでの P2 指摘です。既存の「定期的な孤立テスト」の問題の具体例です(テストインフラの TODO にある「P1/P2 periodic coverage」を参照)。ここか、そちらで一度に解決してください。
+
+**依存・ブロッカー:** なし。上の定期的な孤立テストの TODO の兄弟項目です。
+
+### P3: スコープゲート全体を、共有の `{{SCOPE_GATE}}` リゾルバーに抽出する
+
+**内容:** `plan-eng-review/SKILL.md.tmpl` と `plan-design-review/SKILL.md.tmpl` に重複しているスコープゲートの文章(見出し、導入文、plan-mode/名指しのターゲットの例外ブロック、番号付きの項目、A/B/C のメニュー、推奨の行)を、`scripts/resolvers/` のモジュールに移し、4〜5 個の差し替え可能なバリアントのスロット(前置きのリスト、項目 2 の言い回し、選択肢 C の語彙、推奨の末尾、例外時のアクションの末尾)を持たせます。
+
+**理由:** 2 つのコピーは、今は手作業で同期しています。`test/gen-skill-docs.test.ts` の「scope-gate exceptions drift-guard」テストにより重複は安全ですが、これは暫定策です。ソースは 1 つにすべきです。plan-mode の auto-select-B 変更に対する eng review の D5 として起票しました(2026-08-11)。
+
+**利点:** 重要なゲートの元が 1 つになります。今後のゲートの変更(新しい例外、文言の調整)が一度で済みます。
+**欠点:** リゾルバーのレジストリとそのテストに触れます。生成されるバイト列を完全に一致させるか、carve/parity の上限を再ベースラインする必要があります。
+
+**背景・着手箇所:** 構造だけの差分にし、動作の変更の後(リファクタリングと動作の変更は一緒にしない)に行ってください。ドリフトガードのテストが移行の受け入れ基準になります。抽出し、再生成し、出力がバイト単位で同一であることを確認したうえで、ガードを廃止するか単純化してください。工数: 人間で約半日 / CC で約 20 分。
+
+**依存・ブロッカー:** plan-mode の auto-select-B の PR が main にマージされていること。
+
+## トークン削減の後続作業(フェーズ B。plan-ceo-review の carve に対する /plan-eng-review で起票)
+
+### P2: v1.70 の ship レビューからの繰り延べ(専門家と敵対的な指摘。それぞれ検証済み)
+
+**内容:** v1.70.0.0 の事前レビューから繰り延べたフォローアップです。いずれも出荷をブロックするものではありません。
+
+- **`bin/gstack-skill-start` の 11 個の `gstack-config get` のフォークを、1 回の設定読み込みにまとめる。** スキル呼び出しごとのプリアンブルの遅延を約 60〜250ms 減らせます(macOS ではさらに悪化します)。1 つのスクリプトへの統合により、まとめることが容易になりました。
+- **`gbrain --version` のプローブをキャッシュする。** gbrain のユーザーでは、呼び出しごとに Node CLI のコールドスタート(100〜300ms)がかかります。バイナリのパスと mtime をキーにします。
+- **`bin/gstack-retro-metrics`: diff のパスを 1 回にまとめる。** `--numstat` と `-p` のパスを統合し(`git log --numstat -p`)、3 つのテストファイルの定義(`is_test`、awk の正規表現、リポジトリ全体の grep)を 1 つにまとめます。`origin/<base>` の参照の優先と、300 コミット / 40 件の共同作成者の切り詰めの経路をテストでカバーします。
+- **`generate-upgrade-check.ts` を改名する。** 今は PROACTIVE / SKILL_PREFIX のルールだけを出力しており、名前から、アップグレードのプロンプトの描画を探す人を誤解させます。
+- **evals.yml のゲートマトリクスのずれ:** `E2E_TIERS` にある既存のゲートティアのファイル 9 件が、静的なスイートのマトリクスにないため、PR の CI では一度も実行されません。追加する(またはそのティアを外す)とともに、`E2E_TIERS` のゲートティアとワークフローのマトリクスを比較する無料のトリップワイヤーテストを追加し、この問題が再発しないようにします。
+- **`_sanitize` の大文字・小文字と区切り文字のバリエーション:** 削除処理は完全一致のリテラルです。大文字・小文字を区別せず、区切り文字の違いを許容するようにし、バリエーションのケースを固定します。
+- **テレメトリの未設定と無効の意味の違い:** `gstack-skill-start` は、テレメトリのキーが未設定の場合、ローカルの分析の書き込み(同意前の記録。ローカルのみ)を有効として扱いますが、`gstack-telemetry-log` は未設定を無効にマップします。意味を 1 つに決めて文書化してください。
+- **ship の監査で見つかったカバレッジの穴:** `--brain-health` のブロック(テストが 0 件)、learnings の `>5` 件のサニタイズの通過(ポイズンテスト)、セッションの prune と `.pending-*` の finalize ループ、そして 3 つの seed 箇所(hermetic-env、e2e-helpers、スクリプトのゲート)で共有する `ONBOARDING_MARKERS` の定数。
+
+**理由:** いずれも v1.70 のレビュー部隊が file:line の根拠とともに見つけたものです。新しいランタイムのスクリプトに対する品質またはレイテンシの改善であり、動作の契約は変わりません。
+
+**工数の見積もり:** M(人間のチーム) → S(CC+gstack)
+**優先度:** P2
+**依存・ブロッカー:** v1.70.0.0 のマージ。
+
+### P3: 出力テンプレートの carve の波 — REVIEW_DASHBOARD + PLAN_FILE_REVIEW_REPORT
+
+**内容:** 2 つの出力形式のリゾルバーブロック(レビューダッシュボードの表の形と、計画ファイルのレポートの骨格)を、これらをインラインで埋め込んでいる 6 つのスキルから切り出し、オンデマンドのセクションまたは共有のリファレンスドキュメントに移します(`{{REVIEW_DASHBOARD}}` 5,940B × 6 + `{{PLAN_FILE_REVIEW_REPORT}}` 5,989B × 6、合計約 71.6KB)。
+
+**理由:** プリアンブルのプログラムが完了した後に残る、最大の重複ブロックです。これらは出力の**テンプレート**(表の形、Markdown の骨格)であり、動作の手順ではありません。典型的な carve の候補です。
+
+**利点:** レビュー系の 6 スキルで、呼び出しごとに約 1.4KB × 2 を削減できます。ダッシュボードとレポートの形式の元が 1 つになります。
+**欠点:** どちらのブロックも一部が固定されています(`test/skill-e2e-review-attribution.test.ts` は `## Review Readiness Dashboard` をスライスし、`test/skill-validation.test.ts:1566` は特定の行をアサートしています)。そのため、まず固定の位置を移す設計が必要です。これがメインのプログラムから繰り延べられた理由です。
+
+**背景:** トークン削減プログラムのフェーズ 4 から繰り延べられました(ブランチ `prompt-token-load-reduction` の計画、「NOT carving」リスト)。使用する carve のパイプラインとガードのレジストリは carve の波 4 と同じです。まず、ダッシュボードまたはレポートのテキストをスライスするかアサートするすべてのテストを洗い出し、そのうえで固定ごとに、骨格に置くかセクションに置くかを決めてください。
+
+**工数の見積もり:** M(人間のチーム) → S(CC+gstack)
+**優先度:** P3
+**依存・ブロッカー:** トークン削減プログラムのフェーズ 1〜4 のマージ(carve の仕組みの変更が衝突するため)。
+
+### P3: transformFrontmatter の denylist による除去を、フロントマターのブロックに限定する
+
+**内容:** `transformFrontmatter`(scripts/gen-skill-docs.ts:525-530、denylist の分岐)は、ファイル内で `^<field>:` に一致する**最初の行**を、フロントマターのブロックの中に限らず削除します。ブロック形式の YAML の値の継続行は、孤立してしまいます。フロントマターをスライスして、その中だけで除去し、再結合してください。
+
+**理由:** 潜在的な誤除去の問題の種類です。スキルの本文の行が `interactive:` や `benefits-from:` で始まる場合(たとえばフロントマターの契約を説明しているスキル)、その行がレンダリング結果から黙って削除されます。現時点での実際の衝突はゼロです(v1.69.x のトークン削減フェーズ 0 のレビューで、追跡されているすべての SKILL.md の本文に対して確認済み)。ただし、stripFields に項目を追加するたびに露出が広がります。
+
+**利点:** 潜在的な問題の種類全体を解消し、stripFields を安全に増やせるようになります。
+**欠点:** ジェネレーターのホットパスに触れます。完全な再生成と、ホストごとのゴールデンフィクスチャの再確認が必要です。付随的な変更ではなく、独立した小さな PR にすべきです。
+
+**背景:** ブランチ `prompt-token-load-reduction` のフェーズ 0 の敵対的レビューで見つかりました(指摘 ADV4)。生成側のパーサーは、インラインの `[...]` 配列の形式しか読みません(gen-skill-docs.ts:751)。そのため、これらのキーをブロック形式の YAML で書くと、二重に黙って失敗します。同時に検証エラーを出すとよいでしょう。
+
+**工数の見積もり:** S(人間のチーム) → S(CC+gstack)
+**優先度:** P3
+**依存・ブロッカー:** なし。
+
+### P3: プリアンブルのプログラムが完了した後に、plan-ceo-review のドクトリンの carve を見直す
+
+**内容:** plan-ceo-review の、常時読み込まれるドクトリン約 13KB(`## Prerequisite Skill Offer` 7,125B + `## Cognitive Patterns` 3,336B + `## Philosophy` 2,535B)を、既存の sections/ ディレクトリに切り出すことを再評価します。
+
+**理由:** トークン削減プログラムから繰り延べられた項目です。骨格の carve ガードの上限に対して余裕が約 555B しかなく、ドクトリンは動作の中核だからです。プリアンブルのフェーズにより骨格が約 22KB 縮小するため、トレードオフが変わります。上限が再計算され、ドクトリンはスキル内で常時読み込まれる残りの最大のブロックになります。
+
+**利点:** 動作を損なわずにドクトリンを遅延読み込みできれば、/plan-ceo-review を呼び出すたびに約 3.2K トークンを削減できます。
+**欠点:** Cognitive Patterns のセクションは、レビューの口調全体を形作っています。そのため、requiredReads のガードと A/B 評価(デザインドクトリンの carve と同じ設計)が必須です。また、「インラインのまま残す」が正当な答えになる可能性もあります。
+
+**背景:** トークン削減プログラムの CEO レビュー(「NOT carving」リスト)から起票しました。フェーズ 3 の完了後に `bin/gstack-context-bill --skill plan-ceo-review` で測定してください。carve する場合は、carve-guards のレジストリと、動作の読み込みに関する評価を使ってください。
+
+**工数の見積もり:** S(人間のチーム) → S(CC+gstack)
+**優先度:** P3
+**依存・ブロッカー:** トークン削減プログラムのフェーズ 3(再ベースラインと、再計算された carve の上限)。
+
+## gbrowser のメモリの後続作業(v1.49 のリーク修正 PR に対して /plan-eng-review + /codex で起票)
+
+これら 4 項目は、`$B memory` の診断機能と 4 件のリーク修正を出荷したメモリリークの調査から出たものです。この PR はすでに 14 コミット / 約 12 ファイルあったため、意図的にここから繰り延べました。それぞれ独立しており、どれも単独で出荷できます。
+
+### P2: MV3 拡張機能のサービスワーカーのメモリプロファイル
+
+**内容:** `/memory` エンドポイントのスナップショットはページを列挙しますが、gstack に組み込まれた拡張機能のサービスワーカーのターゲットは列挙しません。長時間動作する MV3 のサービスワーカーは、保持された DOM のスナップショット、決して閉じないメッセージポート、再設定され続けるアラーム、際限なく増えるキャッシュを通じてリークする可能性があります。診断では `Target.getTargets` を `service_worker` でフィルタして呼び出し、それぞれを同じ `Performance.getMetrics` のデータとともに `tabs[]`(または兄弟の `serviceWorkers[]` 配列)に含めるべきです。
+
+**理由:** Codex の外部視点によるレビューが、エンジニアリングレビューでこの種のリークを指摘しました(拡張機能は gbrowser のプロセスツリーの一部ですが、現在のスナップショットからは見えません)。これを表に出すまでは、SW のリークは親プロセスの RSS にだけ現れ、ターゲットごとの帰属が分かりません。
+
+**利点:** 最も起こりやすい将来のリーク源(gstack 自身の拡張機能)について、ターゲットごとの帰属のギャップを埋められます。
+**欠点:** 拡張機能の SW のライフサイクルは、ページのライフサイクルと非対称です。自動アタッチとフィルタは、CDP の処理がもう 1 つ増えることを意味します。
+
+**背景:** エンジニアリングレビューの外部視点の Codex の指摘 #4 です。v1.49 の PR の対象外で、最も確信度の高い 4 件のリーク修正に PR を絞るために、意図的に繰り延べました。
+
+**優先度:** P2。**工数:** M。
 
 ---
 
-### P2: Native + GPU memory breakdown in `$B memory`
+### P2: `$B memory` に、ネイティブおよび GPU のメモリの内訳を追加する
 
-**What:** `$B memory` shows Bun RSS + per-tab JS heap + Chromium
-process tree (PIDs + types + CPU time) but the per-process RSS is
-absent — `SystemInfo.getProcessInfo` doesn't expose RSS and the eng
-review (D2 USE_CDP) explicitly chose CDP over shelling to `ps`. The
-honest next step is to surface what CDP DOES give for the other
-memory categories: `Memory.getDOMCounters` per target (node + listener
-counts), `SystemInfo.getInfo` for GPU memory, `Memory.getAllTimeSamplingProfile`
-for a sampled native estimate.
+**内容:** `$B memory` は Bun の RSS、タブごとの JS ヒープ、Chromium のプロセスツリー(PID、種類、CPU 時間)を表示しますが、プロセスごとの RSS はありません。`SystemInfo.getProcessInfo` は RSS を公開しておらず、エンジニアリングレビュー(D2 USE_CDP)でも `ps` を呼び出すよりも CDP を使うと明示的に決めました。次の現実的なステップは、CDP が他のメモリのカテゴリについて提供する情報を表に出すことです。ターゲットごとの `Memory.getDOMCounters`(ノード数とリスナー数)、GPU メモリのための `SystemInfo.getInfo`、ネイティブの推定値のためのサンプリングされた `Memory.getAllTimeSamplingProfile` です。
 
-**Why:** Codex's outside-voice review flagged that
-`Performance.getMetrics` misses native memory, GPU memory, video
-buffers, Skia, network cache, extension process RSS, and
-browser-process RSS — all the categories where a 160 GB leak would
-actually live. A diagnostic that misses the categories where the
-leak class lives undersells itself.
+**理由:** Codex の外部視点によるレビューは、`Performance.getMetrics` がネイティブメモリ、GPU メモリ、ビデオのバッファ、Skia、ネットワークキャッシュ、拡張機能のプロセスの RSS、ブラウザプロセスの RSS を取りこぼすと指摘しました。160 GB のリークが実際に起こるのは、まさにこれらのカテゴリです。リークの種類が存在するカテゴリを取りこぼす診断は、その価値を損ないます。
 
-**Pros:** Per-process category breakdown closes the gap between
-"Activity Monitor says 160 GB" and what the diagnostic shows.
-**Cons:** Each CDP method has its own quirks; this is a real
-implementation pass, not a one-line addition.
+**利点:** プロセスごとのカテゴリ別の内訳により、「アクティビティモニタは 160 GB と表示している」と診断結果の間のギャップを埋められます。
+**欠点:** CDP のメソッドにはそれぞれ癖があります。これは 1 行の追加ではなく、実質的な実装作業です。
 
-**Context:** Codex finding #5 on the eng-review outside voice. Not
-in scope of the v1.49 PR; deliberately deferred.
+**背景:** エンジニアリングレビューの外部視点の Codex の指摘 #5 です。v1.49 の PR の対象外で、意図的に繰り延べました。
 
-**Priority:** P2. **Effort:** M.
+**優先度:** P2。**工数:** M。
 
 ---
 
-### P3: Single-context CDP listener for Network.loadingFinished
+### P3: Network.loadingFinished 用の、単一コンテキストの CDP リスナー
 
-**What:** `wirePageEvents` attaches a `page.on('requestfinished')`
-listener PER PAGE. The D10 fix removed the body-materialization leak
-inside that listener but kept the per-page listener architecture
-(7 listeners attached per tab — close, framenavigated, dialog,
-console, request, response, requestfinished). The stretch goal from
-D10 was to replace the per-page `requestfinished` listener with a
-single context-level CDP listener via
-`Target.setAutoAttach({autoAttach: true, waitForDebuggerOnStart: false,
-flatten: true})` and a browser-wide `Network.loadingFinished` event
-handler.
+**内容:** `wirePageEvents` は、ページごとに `page.on('requestfinished')` のリスナーを 1 つ付けます。D10 の修正で、そのリスナー内のボディの実体化によるリークは取り除かれましたが、ページごとのリスナーの構造は残っています(タブごとに 7 個のリスナーが付く: close、framenavigated、dialog、console、request、response、requestfinished)。D10 のストレッチゴールは、ページごとの `requestfinished` リスナーを、`Target.setAutoAttach({autoAttach: true, waitForDebuggerOnStart: false, flatten: true})` によるコンテキスト単位の単一の CDP リスナーと、ブラウザ全体の `Network.loadingFinished` イベントハンドラーに置き換えることでした。
 
-**Why:** Going from N to 1 listener for the request-size capture is
-structurally the right architecture and removes one piece of per-tab
-memory pressure. The body-materialization fix already addressed the
-acute leak; this is the architectural cleanup that prevents similar
-leaks in the same class.
+**理由:** リクエストサイズの取得を、リスナー 1 個ずつから 1 個にまとめるのは、構造として正しい設計です。タブごとのメモリ圧迫の一部も取り除けます。ボディの実体化の修正で、急性のリークには既に対処しました。これは、同じ種類のリークを防ぐための、設計上の整理です。
 
-**Pros:** One listener per browser instead of one per tab.
-**Cons:** `Target.setAutoAttach` plumbing is more code than the
-straight per-page listener; the marginal memory win is small on top
-of the body-fetch fix that already landed.
+**利点:** タブごとに 1 個ではなく、ブラウザごとに 1 個のリスナーになります。
+**欠点:** `Target.setAutoAttach` の処理は、単純なページごとのリスナーより多くのコードが必要です。すでに導入されたボディ取得の修正の上では、メモリの改善効果はわずかです。
 
-**Context:** D10 stretch goal on the eng-review. The minimal-risk
-fix shipped in v1.49 (replaces `await res.body()` with
-`await req.sizes()`, preserving the per-page listener); this is the
-architectural follow-up.
+**背景:** エンジニアリングレビューの D10 のストレッチゴールです。v1.49 で最小リスクの修正が出荷されました(`await res.body()` を `await req.sizes()` に置き換え、ページごとのリスナーを維持)。これはその後のアーキテクチャの改善です。
 
-**Priority:** P3. **Effort:** M-L.
+**優先度:** P3。**工数:** M-L。
 
 ---
 
-### P3: Real-Chromium peak-RSS reproducer (periodic tier)
+### P3: 実 Chromium のピーク RSS の再現テスト(定期ティア)
 
-**What:** The gate-tier reproducer
-(`browse/test/memory-leak-reproducer.test.ts`) pins the invariant
-that `res.body()` is never called during a burst of
-`requestfinished` events. It uses a fake page; it does NOT spin up a
-real Chromium nor measure peak Bun RSS during a real concurrent fetch
-burst. A periodic-tier follow-up should: spin up a real headless
-Chromium, navigate to a fixture page that concurrently fetches 500
-mixed responses (small JSON, 100 KB images, 10 MB chunked,
-gzip-compressed 2 MB), sample `process.memoryUsage().heapUsed` every
-100 ms during the burst, assert `peak_heap < 200 MB above baseline`
-AND `post-gc_heap < 30 MB above baseline`. Also include a single-tab
-WebGL canvas variant that grows to >4 GB and asserts the per-tab RSS
-toast fires.
+**内容:** ゲートティアの再現テスト(`browse/test/memory-leak-reproducer.test.ts`)は、`requestfinished` イベントのバースト中に `res.body()` が決して呼ばれないという不変条件を固定しています。これはフェイクのページを使っており、実際の Chromium は起動せず、実際の同時フェッチのバースト中の Bun のピーク RSS も測定しません。定期ティアの後続作業では、次を行うべきです: 実際のヘッドレス Chromium を起動し、500 件の混合レスポンス(小さな JSON、100 KB の画像、10 MB のチャンク転送、gzip 圧縮の 2 MB)を同時に取得するフィクスチャページに移動し、バースト中は 100 ms ごとに `process.memoryUsage().heapUsed` をサンプリングし、`peak_heap` がベースラインより 200 MB 以内であること、かつ `post-gc_heap` がベースラインより 30 MB 以内であることをアサートします。また、4 GB を超えて増大する単一タブの WebGL キャンバスのバリエーションも加え、タブごとの RSS のトーストが表示されることをアサートしてください。
 
-**Why:** Codex flagged that the leak's real failure mode is transient
-amplification under concurrent burst, not retained leak — a steady-state
-heap test misses it. The fake-page gate-tier test catches the
-listener-architecture regression; the periodic real-browser test
-catches the actual peak-RSS class.
+**理由:** Codex は、このリークの実際の失敗モードは保持されたリークではなく、同時バースト中の一時的な増幅であると指摘しました。定常状態のヒープのテストでは見逃されます。フェイクページのゲートティアのテストはリスナーの構造の回帰を捉え、定期的な実ブラウザのテストは実際のピーク RSS の種類を捉えます。
 
-**Pros:** Closes the "did we actually demonstrate the OOM is fixed"
-question with hard numbers. Feeds the ANGLE_B_NUMBERS CHANGELOG
-release-summary table.
-**Cons:** Periodic tier costs minutes of CI time and money per run;
-real-browser memory tests are inherently flaky.
+**利点:** 「OOM が本当に修正されたことを示せたか」という問いに、確かな数値で答えられます。CHANGELOG のリリース概要表(ANGLE_B_NUMBERS)にも使えます。
+**欠点:** 定期ティアは、実行ごとに CI の時間と費用がかかります。実ブラウザのメモリテストは本質的にフレーキーです。
 
-**Context:** Codex outside-voice finding on the eng-review; D7
-ANGLE_B_NUMBERS CHANGELOG framing needs this reproducer's numbers
-before /ship time.
+**背景:** エンジニアリングレビューに対する Codex の外部視点の指摘です。D7(ANGLE_B_NUMBERS の CHANGELOG の枠組み)では、/ship の時点でこの再現テストの数値が必要です。
 
-**Priority:** P3. **Effort:** M.
+**優先度:** P3。**工数:** M。
 
 ---
 
-## design daemon: follow-ups (filed v1.45.0.0 via /ship review army)
+## design デーモン: 後続作業(v1.45.0.0 で /ship レビュー部隊から起票)
 
-### ✅ DONE (v1.45.0.0): Tighten daemon test coverage
+### ✅ DONE(v1.45.0.0): デーモンのテストカバレッジを強化する
 
-**Resolved in commit `6b037c55` (same PR):** All 5 test gaps filled before
-landing. Per-file totals after: serve 16, daemon 34, daemon-discovery 23,
-feedback-roundtrip-daemon 4 = 77 (+10 from initial ship). Specifically:
-- Idle-shutdown actually fires (spawn-based, daemon process observed exiting,
-  state file removed).
-- Bare GET polling doesn't reset idle (hammers `/api/progress` in background,
-  daemon still idles out).
-- Idle-with-active-boards extends, then force-shuts after MAX_EXTENSIONS
-  (with `DESIGN_DAEMON_EXTENSION_MS=1500` + `MAX_EXTENSIONS=2`).
-- Concurrent `ensureDaemon()` race converges on one daemon (lock wins).
-- Stale-lock reclaim (dead PID succeeds, alive unrelated PID refuses).
-- Malformed-JSON + non-object + array-body + missing-html negatives for
-  `POST /api/boards` and `POST /boards/<id>/api/reload`.
+**コミット `6b037c55`(同じ PR)で解決:** 着地の前に、テストの穴 5 件をすべて埋めました。その後のファイルごとの合計は、serve 16、daemon 34、daemon-discovery 23、feedback-roundtrip-daemon 4 = 77 件です(最初の出荷時から +10)。具体的には次のとおりです。
+- アイドル時のシャットダウンが実際に発火する(spawn ベース。デーモンのプロセスが終了し、状態ファイルが削除されることを確認)。
+- 素の GET によるポーリングではアイドルがリセットされない(バックグラウンドで `/api/progress` を連打しても、デーモンはアイドルでシャットダウンする)。
+- アクティブなボードがあるアイドル状態では延長され、その後 MAX_EXTENSIONS を超えると強制シャットダウンする(`DESIGN_DAEMON_EXTENSION_MS=1500` と `MAX_EXTENSIONS=2` を指定)。
+- 並行する `ensureDaemon()` の競合が、1 つのデーモンに収束する(ロックが勝つ)。
+- 古いロックの回収(死んだ PID は成功し、生きている無関係な PID は拒否)。
+- `POST /api/boards` と `POST /boards/<id>/api/reload` に対する、不正な JSON、オブジェクトでない本文、配列の本文、html の欠落の否定テスト。
 
-### P3: Minor maintainability nits from /ship review
+### P3: /ship レビューからの、小さな保守性の指摘
 
-- `design/src/cli.ts` and `design/src/serve.ts` both have a small `openBrowser`
-  helper with identical darwin/linux/else branches. Extract a shared
-  `design/src/open-browser.ts`.
-- `design/src/daemon-client.ts:320` (`AbortSignal.timeout(2000)`) and `:357`
-  (`delay(50)`) use bare numeric literals while sibling timeouts are named
-  constants. Promote to `SHUTDOWN_POST_TIMEOUT_MS` and `ALIVE_POLL_INTERVAL_MS`.
-- `design/src/daemon-state.ts:21` `serverPath` field is written
-  (`daemon.ts:541`) but never read by production code. Either remove or
-  document the forensic intent.
+- `design/src/cli.ts` と `design/src/serve.ts` には、darwin/linux/それ以外の分岐が同一の、小さな `openBrowser` ヘルパーがそれぞれあります。共有の `design/src/open-browser.ts` に抽出してください。
+- `design/src/daemon-client.ts:320`(`AbortSignal.timeout(2000)`)と `:357`(`delay(50)`)は、兄弟のタイムアウトが名前付きの定数になっているのに、数値リテラルを直接使っています。`SHUTDOWN_POST_TIMEOUT_MS` と `ALIVE_POLL_INTERVAL_MS` に昇格させてください。
+- `design/src/daemon-state.ts:21` の `serverPath` フィールドは書き込まれています(`daemon.ts:541`)が、本番のコードでは読まれていません。削除するか、フォレンジックの意図を文書化してください。
 
-### P3: Daemon scope deferred from v1.45.0.0 plan
+### P3: v1.45.0.0 の計画から繰り延べたデーモンのスコープ
 
-Originally listed in the plan's "TODOs surfaced for later" section:
+計画の「後で扱う TODO」セクションに、元々挙げられていたものです。
 
-- Per-daemon scoped auth tokens (only relevant once a tunnel/share use case appears).
-- Optional persistent board history on disk in
-  `~/.gstack/projects/$SLUG/designs/history/` so submitted boards survive
-  daemon restarts.
-- Windows spawn branch lifted from browse (V1 daemon is macOS + Linux;
-  Windows users fall back to legacy `--no-daemon` per-process server).
-- `$D board list` / `$D board stop <id>` per-board ops CLI (V1 has only
-  `$D daemon status` / `stop`).
-- Cross-worktree daemon attach (conductor sibling worktrees of the same
-  repo currently each spawn their own daemon — matches browse; revisit
-  if it causes friction).
+- デーモンごとのスコープ付き認証トークン(トンネルや共有のユースケースが現れてから必要になる)。
+- `~/.gstack/projects/$SLUG/designs/history/` にボードの履歴をディスクに永続化する任意の機能。提出されたボードがデーモンの再起動後も残るようにします。
+- browse から持ってきた Windows の spawn の分岐(V1 のデーモンは macOS と Linux 用です。Windows のユーザーは従来の `--no-daemon`(プロセスごとのサーバー)にフォールバックします)。
+- ボードごとの操作 CLI である `$D board list` / `$D board stop <id>`(V1 にあるのは `$D daemon status` / `stop` だけ)。
+- ワークツリーをまたぐデーモンへのアタッチ(同じリポジトリの conductor の兄弟ワークツリーは、現在それぞれ独自のデーモンを起動します。browse と同じ挙動です。支障が出たら再検討)。
 
 ---
 
-## Codex model profiles: follow-ups (filed v1.67.2.0 via /ship review army)
+## Codex モデルプロファイル: 後続作業(v1.67.2.0 で /ship レビュー部隊から起票)
 
-### P2: Single owner for the Codex render model (persist the resolved profile)
+### P2: Codex の生成モデルの単一の所有者(解決されたプロファイルを永続化する)
 
-**What:** `./setup` resolves the Codex generation model from config.toml on every
-run, but every OTHER regeneration surface (`bun run build`, direct
-`gen:skill-docs --host codex`, the free suite's tree-mutating shard) renders the
-host default (gpt), silently reverting a Sol user's live symlinked render until
-the next setup. Persist the resolved model (gstack-config key or marker file the
-generator reads when `--model` is absent for codex) so all surfaces agree.
-**Why:** A Sol-using contributor cannot keep both a correct install and a green
-free suite in one tree; CLAUDE.md's "Deploying to the active skill" flow
-(bun run build) downgrades the profile. Cross-model consensus finding
-(Claude adversarial M4, Codex adversarial P2, red team C-70).
-**Priority:** P2. **Effort:** S (human ~half day / CC ~20min).
+**内容:** `./setup` は実行のたびに config.toml から Codex の生成モデルを解決しますが、それ以外のすべての再生成の経路(`bun run build`、直接の `gen:skill-docs --host codex`、無料スイートのツリーを変更するシャード)はホストのデフォルト(gpt)でレンダリングします。そのため、次の setup まで Sol のユーザーのライブのシンボリックリンクのレンダリングが、黙って元に戻ってしまいます。解決されたモデルを永続化してください(gstack-config のキー、または codex で `--model` がないときに生成器が読むマーカーファイル)。これにより、すべての経路が一致します。
+**理由:** Sol を使うコントリビューターは、1 つのツリーで正しいインストールと緑の無料スイートを両立できません。CLAUDE.md の「Deploying to the active skill」の手順(bun run build)によって、プロファイルがダウングレードされてしまいます。モデル間の合意による指摘です(Claude の敵対的レビュー M4、Codex の敵対的レビュー P2、red team C-70)。
+**優先度:** P2。**工数:** S(人間で約半日 / CC で約 20 分)。
 
-### ✅ DONE (2026-10-02, parallel-waves fix wave): Codex periodic CI shards never execute (no codex CLI in Dockerfile.ci)
+### ✅ DONE(2026-10-02、parallel-waves の修正の波): Codex の定期 CI シャードが一度も実行されない(Dockerfile.ci に codex CLI がない)
 
-Resolved by "Install the Codex CLI in the CI image" (Test infrastructure).
+テスト基盤の「Install the Codex CLI in the CI image」で解決しました。
 
 
-**What:** `evals-periodic.yml` carries `e2e-codex`, and now `e2e-codex-sol-scope`,
-but the CI image installs only claude-code, so both shards boot, skip everything,
-and report green weekly. Either bake `@openai/codex` + an auth strategy into the
-image, or prune both matrix entries and document codex evals as local-only.
-**Why:** A green all-skip shard reads as coverage that does not exist.
-**Priority:** P3. **Effort:** M (auth strategy is the hard part).
+**内容:** `evals-periodic.yml` には `e2e-codex` と、今は `e2e-codex-sol-scope` もありますが、CI イメージには claude-code しか入っていないため、両方のシャードは起動してすべてをスキップし、毎週緑で報告していました。`@openai/codex` と認証の戦略をイメージに組み込むか、両方のマトリクスの項目を削除して、codex の評価はローカルのみと文書化してください。
+**理由:** すべてスキップされた緑のシャードは、存在しないカバレッジがあるように見えてしまいます。
+**優先度:** P3。**工数:** M(難しいのは認証の戦略)。
 
-### P3: `--model` override persistence across upgrades
+### P3: アップグレードをまたいだ `--model` の上書きの永続化
 
-**What:** `./setup --host codex --model <id>` applies to that run only; the
-upgrade flow re-resolves from config.toml. Setup now prints the persistence
-hint (set `model` in config.toml). If users keep tripping on it, persist the
-override in `~/.gstack/config.yaml` and read it between `--explicit` and the
-TOML lookup.
-**Why:** Explicit user choices should survive upgrades or say loudly that they
-will not (the hint covers the second half today).
-**Priority:** P3. **Effort:** S.
+**内容:** `./setup --host codex --model <id>` は、その実行にだけ適用されます。アップグレードのフローは config.toml から再解決します。setup は今、永続化の案内(config.toml に `model` を設定する)を表示します。ユーザーがこれに何度も引っかかるようであれば、上書きを `~/.gstack/config.yaml` に永続化し、`--explicit` と TOML の参照の間で読み込むようにしてください。
+**理由:** ユーザーの明示的な選択は、アップグレードを越えて残るべきです。残らない場合は、はっきりとそう伝えるべきです(今は案内が後半の部分を補っています)。
+**優先度:** P3。**工数:** S。
 
 ---
 
-## browse server: terminal-agent teardown follow-ups (filed v1.41 via /plan-eng-review)
+## browse サーバー: ターミナルエージェントの後片付けの後続作業(v1.41 で /plan-eng-review から起票)
 
-### ✅ DONE (v1.44.0.0): Identity-based terminal-agent kill (replace pkill regex with PID)
+### ✅ DONE(v1.44.0.0): 同一性ベースのターミナルエージェントの kill(pkill の正規表現を PID に置き換える)
 
-**Resolved:** Bundled into the v1.44.0.0 long-lived-sidebar PR as Commit 0.
-`browse/src/terminal-agent-control.ts` is the new home for `readAgentRecord`,
-`writeAgentRecord`, `clearAgentRecord`, and `killAgentByRecord`. The agent
-writes `<stateDir>/terminal-agent-pid` (JSON `{pid, gen, startedAt}`) at boot
-and clears it on SIGTERM/SIGINT. `cli.ts` and `server.ts` both route through
-`killAgentByRecord` instead of `pkill -f terminal-agent\.ts`. The new
-`browse/test/terminal-agent-pid-identity.test.ts` is the static-grep tripwire
-that fails CI if `pkill ... terminal-agent` or `spawnSync('pkill', ...)`
-reappears in any source file.
+**解決:** v1.44.0.0 の長寿命サイドバーの PR に、コミット 0 としてまとめました。`browse/src/terminal-agent-control.ts` が、`readAgentRecord`、`writeAgentRecord`、`clearAgentRecord`、`killAgentByRecord` の新しい置き場所です。エージェントは起動時に `<stateDir>/terminal-agent-pid`(JSON の `{pid, gen, startedAt}`)を書き込み、SIGTERM/SIGINT のときに消去します。`cli.ts` と `server.ts` はどちらも、`pkill -f terminal-agent\.ts` の代わりに `killAgentByRecord` を経由するようになりました。新しい `browse/test/terminal-agent-pid-identity.test.ts` は静的な grep のトリップワイヤーで、どのソースファイルにも `pkill ... terminal-agent` や `spawnSync('pkill', ...)` が再び現れると CI が失敗します。
 
 ---
 
-### P3: shutdown() reads module-level `config`, not `cfg.config` (composition gap)
+### P3: shutdown() がモジュールレベルの `config` を読み、`cfg.config` を読まない(組み立ての穴)
 
-**What:** `browse/src/server.ts:shutdown()` reads `path.dirname(config.stateFile)`
-where `config` is the module-level value resolved at import time, not the
-`cfg.config` passed into `buildFetchHandler`. Same gap applies to
-`cleanSingletonLocks(resolveChromiumProfile())` at server.ts:1298 — should
-read `cfg.chromiumProfile`.
+**内容:** `browse/src/server.ts:shutdown()` は、`path.dirname(config.stateFile)` を読みます。ここの `config` は、インポート時に解決されたモジュールレベルの値で、`buildFetchHandler` に渡された `cfg.config` ではありません。同じ穴が、server.ts:1298 の `cleanSingletonLocks(resolveChromiumProfile())` にもあります。これは `cfg.chromiumProfile` を読むべきです。
 
-**Why:** Embedders today happen to share state-dir resolution with the CLI
-(both go through `resolveConfig()` against the same env), so this doesn't
-bite. But if an embedder ever passes a divergent `cfg.config` (e.g., a test
-harness pointing at a temp dir), shutdown will operate on the wrong paths.
-The `ownsTerminalAgent` flag exposes the problem without fixing it.
+**理由:** 組み込み側は、現時点では CLI と状態ディレクトリの解決を共有しているため(どちらも同じ環境変数の `resolveConfig()` を通る)、この問題は表面化していません。しかし、組み込み側が食い違う `cfg.config` を渡すと(たとえば一時ディレクトリを指すテストハーネス)、shutdown は誤ったパスを操作します。`ownsTerminalAgent` フラグは問題を表に出しますが、修正はしていません。
 
-**Pros:** Closes the embedder-composition story properly. Pairs with
-`cfg.chromiumProfile` to give a single coherent "this factory teardown
-respects cfg" contract.
+**利点:** 組み込みの組み立ての仕組みを正しく閉じられます。`cfg.chromiumProfile` と組み合わせると、「この factory の後片付けは cfg を尊重する」という一貫した契約になります。
 
-**Cons:** Pre-existing — not a regression. Two call sites today (1285 for
-terminal files, 1298 for chromium locks). Threading `cfg.config` and
-`cfg.chromiumProfile` into the right closures is straightforward but
-broader than the v1.41 fix.
+**欠点:** 既存の問題で、回帰ではありません。現在の呼び出し箇所は 2 つです(ターミナルのファイルは 1285、chromium のロックは 1298)。`cfg.config` と `cfg.chromiumProfile` を適切なクロージャに渡すのは簡単ですが、v1.41 の修正より範囲が広くなります。
 
-**Context:** Flagged by both Codex and Claude subagent in the /plan-eng-review
-dual voices. Documented as out-of-scope in the v1.41 plan; same shape as the
-`chromiumProfile` PR-body note to the gbrowser team.
+**背景:** /plan-eng-review の 2 つの視点(Codex と Claude のサブエージェント)の両方が指摘しました。v1.41 の計画ではスコープ外として文書化されています。gbrowser チームへの `chromiumProfile` の PR 本文の注記と同じ形の問題です。
 
-**Depends on:** None.
+**依存:** なし。
 
 ---
 
-### P3: Ownership-object refactor if a 4th caller-owned teardown gate appears
+### P3: 4 つ目の呼び出し元が所有する後片付けのゲートが出てきた場合の、所有者オブジェクトへのリファクタリング
 
-**What:** Today `ServerConfig` has three caller-owned teardown gates:
-`xvfb?` (presence ⇒ don't close), `proxyBridge?` (same), and now
-`ownsTerminalAgent` (explicit boolean). If a 4th gate appears, collapse to
-`cfg.callerOwns?: Set<'terminalAgent' | 'xvfb' | 'proxyBridge' | ...>` or
-similar.
+**内容:** 現在の `ServerConfig` には、呼び出し元が所有する後片付けのゲートが 3 つあります: `xvfb?`(存在すれば閉じない)、`proxyBridge?`(同じ)、そして `ownsTerminalAgent`(明示的な真偽値)。4 つ目のゲートが現れたら、`cfg.callerOwns?: Set<'terminalAgent' | 'xvfb' | 'proxyBridge' | ...>` のようなものにまとめてください。
 
-**Why:** Three independent flags is below the refactor threshold — each
-field has clear, distinct semantics and the JSDoc voice is consistent. A
-fourth tips the cost balance: the per-field surface gets noisy, and
-"what does this factory own?" becomes a question you have to ask of three
-or four scattered fields instead of one explicit set.
+**理由:** 独立した 3 つのフラグは、リファクタリングの基準を下回っています。各フィールドの意味は明確で、JSDoc の口調も一貫しています。4 つ目になると、コストのバランスが変わります。フィールドごとの表面がうるさくなり、「この factory は何を所有しているか」を、1 つの明示的な集合ではなく、3〜4 個の散らばったフィールドに問い合わせる必要が出てきます。
 
-**Pros:** Single source of truth for "what gstack tears down". Trivial
-extension surface for future caller-owned resources. Easier to assert in
-tests ("the set should contain X, not Y").
+**利点:** 「gstack が何を後片付けするか」の唯一の情報源になります。将来の呼び出し元が所有するリソースの拡張が簡単になります。テストでアサートしやすくなります(「集合に X が含まれ、Y は含まれないこと」)。
 
-**Cons:** Premature today. The polarity-inversion note in the
-`ownsTerminalAgent` JSDoc only hurts a little — it's one anomaly, not a
-pattern. Refactoring now to an ownership object would touch every embedder.
+**欠点:** 今の時点では時期尚早です。`ownsTerminalAgent` の JSDoc にある極性の反転の注記は、少しだけ害があるだけです。これは 1 つの異常であって、パターンではありません。今、所有者オブジェクトにリファクタリングすると、すべての組み込み側に影響します。
 
-**Context:** Recommended by Claude subagent during /plan-ceo-review dual
-voice (autoplan). Trigger: a 4th caller-owned teardown gate in this same
-`ServerConfig` shape.
+**背景:** /plan-ceo-review のデュアルボイス(autoplan)で、Claude のサブエージェントが推奨しました。トリガー: 同じ `ServerConfig` の形に、呼び出し元が所有する後片付けのゲートが 4 つ目として追加されること。
 
-**Depends on:** A 4th gate to motivate the refactor.
+**依存:** リファクタリングを動機づける 4 つ目のゲート。
 
 ---
 
-## /sync-gbrain memory stage perf follow-up
+## /sync-gbrain のメモリステージのパフォーマンスの後続作業
 
-### P2: Investigate `gbrain import` perf on large staging dirs
+### P2: 大きなステージングディレクトリでの `gbrain import` のパフォーマンスを調査する
 
-**What:** Cold-run time on a 5131-file staging dir is >10 min in `gbrain import`
-alone (after gstack's prepare phase, which is now <10s after dropping per-file
-gitleaks). On 501 files it took 10s. The scaling is worse than linear and the
-bottleneck is inside gbrain, not the gstack orchestrator.
+**内容:** 5131 ファイルのステージングディレクトリでのコールドランの時間は、`gbrain import` だけで 10 分を超えます(gstack の準備フェーズは、ファイルごとの gitleaks を外した後は 10 秒未満になりました)。501 ファイルでは 10 秒でした。スケーリングは線形より悪く、ボトルネックは gstack のオーケストレーターではなく gbrain の内部にあります。
 
-**Why:** With memory-ingest's prepare phase now fast, the remaining cold-run cost
-is entirely on the gbrain side. Users with large corpora (5K+ files) currently pay
-~15-30 min on first ingest. Likely culprits in `~/git/gbrain/src/core/import-file.ts`:
+**理由:** メモリの取り込みの準備フェーズが速くなった今、残りのコールドランのコストは完全に gbrain 側にあります。大きなコーパス(5,000 件以上のファイル)を持つユーザーは、現在、最初の取り込みで約 15〜30 分かかっています。`~/git/gbrain/src/core/import-file.ts` の犯人の候補は次のとおりです。
 
-- N+1 SQL queries: `engine.getPage(slug)` for each file's content_hash check
-  (line 242 + 478) — should be batched into a single query
-- Per-page auto-link reconciliation that fires even for unchanged content
-- FTS / vector index updates without batching transactions
+- N+1 の SQL クエリ: 各ファイルの content_hash のチェックのために `engine.getPage(slug)` を呼んでいる(242 行目と 478 行目)。1 つのクエリにまとめるべきです。
+- 内容が変わっていなくても発火する、ページごとの自動リンクの再調整。
+- トランザクションをまとめずに行われる FTS / ベクトルインデックスの更新。
 
-**Pros:** Lives in gbrain (cleaner separation). Fix in gbrain benefits other
-gbrain callers too (`gbrain sync`, MCP `put_page` workflows). Likely 10-50x
-speedup from batched queries alone.
+**利点:** gbrain 内に置かれるため、責務の分離がより明確になります。gbrain 側の修正は、他の gbrain の呼び出し元(`gbrain sync`、MCP の `put_page` のワークフロー)にも効きます。バッチ化されたクエリだけでも、10〜50 倍の高速化が見込めます。
 
-**Cons:** Cross-repo change, requires gbrain test coverage for the new batched
-path. Not on the gstack critical path; gstack's architecture is already correct.
+**欠点:** リポジトリをまたぐ変更で、新しいバッチ化された経路に対する gbrain 側のテストカバレッジが必要です。gstack のクリティカルパスではありません。gstack のアーキテクチャは既に正しいです。
 
-**Context:** Verified on real corpus 2026-05-10. gstack-side prepare with
-`--scan-secrets` off runs in <10s. The full gbrain import on the same staged
-dir consumes 100% CPU for >10 min. Both observations from
-`bin/gstack-memory-ingest.ts:ingestPass` reaching the `runGbrainImport` call
-quickly, then the child process taking the bulk of the wall time.
+**背景:** 2026-05-10 に実際のコーパスで検証しました。`--scan-secrets` を無効にした状態の gstack 側の準備は 10 秒未満で完了します。同じステージングディレクトリに対する gbrain の完全なインポートは、10 分を超えて CPU を 100% 使います。両方の観察は、`bin/gstack-memory-ingest.ts:ingestPass` が素早く `runGbrainImport` の呼び出しに到達し、その後、子プロセスが壁時計時間のほとんどを占めることを示しています。
 
-**Depends on:** None — gstack's batch-ingest architecture (D1-D8 in
-`docs/designs/SYNC_GBRAIN_BATCH_INGEST.md`) is already shipped and correct.
+**依存:** なし。gstack のバッチ取り込みのアーキテクチャ(`docs/designs/SYNC_GBRAIN_BATCH_INGEST.md` の D1〜D8)は、既に出荷済みで正しく動作しています。
 
 ---
 
-### P3: Cache "no changes since last import" at the prepare-batch level
+### P3: 「前回の取り込みから変更なし」を、準備バッチのレベルでキャッシュする
 
-**What:** Even with the prepare phase fast (<10s for 5135 files), walking and
-mtime-stat'ing every file on a true no-op run adds a few seconds and creates
-spurious staging dirs. Cache the most-recent-source-mtime per-source in the
-state file; if no source dir has a newer mtime, skip the walk + stage + import
-entirely.
+**内容:** 準備フェーズが(5135 ファイルで 10 秒未満と)速くても、本当に何も変わっていない実行では、すべてのファイルを歩いて mtime を stat するだけで数秒かかり、無駄なステージングディレクトリも作られます。状態ファイルに、ソースごとの最新のソースの mtime をキャッシュしてください。どのソースディレクトリにも新しい mtime がなければ、歩く処理・ステージング・取り込みを丸ごと省略します。
 
-**Why:** Most `/sync-gbrain` invocations have nothing new to ingest. The
-fastest path is "do nothing, fast." `gbrain doctor` should still report state,
-but the actual ingest pipeline can short-circuit when last_full_walk is recent
-and no source-tree mtime has moved.
+**理由:** ほとんどの `/sync-gbrain` の呼び出しでは、取り込むべき新しいものがありません。最速の経路は「何もせず、素早く終わる」ことです。`gbrain doctor` は引き続き状態を報告すべきですが、last_full_walk が最近で、ソースツリーの mtime が動いていなければ、実際の取り込みパイプラインは短絡できます。
 
-**Pros:** Trivial implementation (~20 lines in `ingestPass`). Makes the
-incremental fast-path actually live up to "<30s" in the original plan.
+**利点:** 実装は単純です(`ingestPass` で約 20 行)。元の計画にあった「30 秒以内」を、増分の高速経路で実際に満たせるようになります。
 
-**Cons:** Adds a cache invalidation surface. If a user edits a file but its
-parent dir's mtime doesn't update (rare on macOS APFS), changes get missed.
-Mitigation: only short-circuit when last_full_walk is recent (e.g. <1 min ago).
+**欠点:** キャッシュの無効化の面が増えます。ユーザーがファイルを編集しても、親ディレクトリの mtime が更新されなければ(macOS の APFS では稀ですが)、変更を取りこぼします。対策として、last_full_walk が最近(例: 1 分以内)の場合にのみ短絡させます。
 
-**Context:** Filed during 2026-05-10 perf testing after `--scan-secrets` was
-made opt-in. Lower priority than the gbrain-side perf issue above.
+**背景:** `--scan-secrets` をオプトインにした後の 2026-05-10 のパフォーマンス試験で起票しました。上記の gbrain 側のパフォーマンスの問題より優先度は低いです。
 
 ---
 
-## Browser-skills follow-on (Phases 2-4)
+## ブラウザスキルの後続作業(フェーズ 2〜4)
 
-### P1: Browser-skills Phase 2 — `/scrape` and `/skillify` skill templates
+### P1: ブラウザスキルのフェーズ 2 — `/scrape` と `/skillify` のスキルテンプレート
 
-**What:** Phase 2a of the browser-skills design (`docs/designs/BROWSER_SKILLS_V1.md`). Two new gstack skills: `/scrape <intent>` (read-only) is the single entry point for pulling page data — first call prototypes via `$B` primitives, subsequent calls on a matching intent route to a codified browser-skill in ~200ms. `/skillify` codifies the most recent successful prototype into a permanent browser-skill on disk: synthesizes `script.ts` + `script.test.ts` + fixture from the agent's own context (final-attempt $B calls only), runs the test in a temp dir, asks before committing, atomic rename to `~/.gstack/browser-skills/<name>/`. The mutating-flow sibling `/automate` is split out as its own P0 (below) — same skillify pattern, different trust profile.
+**内容:** ブラウザスキルの設計のフェーズ 2a(`docs/designs/BROWSER_SKILLS_V1.md`)です。gstack の新しいスキルが 2 つあります。`/scrape <intent>`(読み取り専用)は、ページのデータを取得するための唯一の入口です。最初の呼び出しは `$B` のプリミティブでプロトタイプを作り、一致する intent での後続の呼び出しは、約 200ms で固定化されたブラウザスキルにルーティングされます。`/skillify` は、直近で成功したプロトタイプを恒久的なブラウザスキルとしてディスクに固定化します。エージェントの文脈(最後の試行の $B 呼び出しのみ)から `script.ts`、`script.test.ts`、フィクスチャを合成し、一時ディレクトリでテストを実行し、コミットする前に確認し、`~/.gstack/browser-skills/<name>/` にアトミックにリネームします。変更を伴うフローの兄弟である `/automate` は、独自の P0 として切り離しています(下記)。同じ skillify のパターンですが、信頼のプロファイルが異なります。
 
-**Why:** Phase 1 shipped the runtime — humans can hand-write deterministic browser scripts that gstack runs. Phase 2a unlocks the productivity gain: an agent that gets a flow right once via 20+ `$B` commands says `/skillify` and the script becomes a 200ms call forever after. Same skillify pattern Garry's articles describe, applied to the read-only browser activity (scraping) most amenable to deterministic compression. Mutating actions ship next as `/automate` because the failure mode (unintended writes) needs stronger gates.
+**理由:** フェーズ 1 でランタイムが出荷されました。人間は、gstack が実行する決定的なブラウザスクリプトを手書きできます。フェーズ 2a で生産性の向上が可能になります。20 回以上の `$B` コマンドで一度フローを正しく行えたエージェントが `/skillify` と言えば、以後そのスクリプトは 200ms の呼び出しになります。Garry の記事が説明している skillify のパターンを、決定的な圧縮に最も向いている読み取り専用のブラウザ操作(スクレイピング)に適用します。変更を伴うアクションは、失敗のモード(意図しない書き込み)により強いゲートが必要なため、次に `/automate` として出荷します。
 
-**Pros:** The 100x productivity gain lives here. Closes the loop: agents prototype, codify, then reach for the codified skill in future sessions instead of re-exploring. Replaces the original "self-authoring `$B` commands" P1 — same user-visible goal, no in-daemon isolation problem (skill scripts run as standalone Bun processes, never imported into the daemon). Synthesis question (Codex finding #6) is resolved by re-prompting from the agent's own conversation context (option b in the design doc), bounded to final-attempt `$B` calls per `/plan-eng-review` D2.
+**利点:** 100 倍の生産性向上はここにあります。ループが閉じます。エージェントがプロトタイプを作り、固定化し、その後の別のセッションでは、再び探索し直すのではなく、固定化されたスキルを使えるようになります。元の「自己記述の `$B` コマンド」の P1 を置き換えます。ユーザーに見える目標は同じで、デーモン内の分離の問題はありません(スキルのスクリプトは独立した Bun プロセスとして実行され、デーモンにインポートされることはありません)。合成の問題(Codex の指摘 #6)は、エージェント自身の会話の文脈から再プロンプトすることで解決します(設計書の選択肢 b)。範囲は、`/plan-eng-review` の D2 に従い、最後の試行の `$B` 呼び出しに限定します。
 
-**Cons:** **Bun runtime distribution** (Codex finding #7). Phase 1 sidesteps this because the bundled reference skill ships inside the gstack install. User-authored skills land on machines without Bun unless we ship a runtime alongside, compile to a self-contained binary, or use Node + the existing `cli.ts` pattern. Deferred to Phase 4 — `/skillify` documents the assumption that gstack is installed (which means Bun is on PATH).
+**欠点:** **Bun ランタイムの配布**(Codex の指摘 #7)。フェーズ 1 では、同梱の参照スキルが gstack のインストールに含まれるため、この問題を回避しています。ユーザーが作ったスキルは、ランタイムを一緒に配布するか、自己完結型のバイナリにコンパイルするか、Node と既存の `cli.ts` のパターンを使わない限り、Bun のないマシンに入ります。フェーズ 4 に繰り延べました。`/skillify` は、gstack がインストールされている(つまり Bun が PATH にある)という前提を文書化しています。
 
-**Context:** The Phase 1 architecture (3-tier lookup, scoped tokens, sibling SDK, frontmatter contract) is locked and exercised by the bundled `hackernews-frontpage` reference skill. Phase 2a plugs `/scrape` and `/skillify` into that runtime via two skill templates plus one new helper (`browse/src/browser-skill-write.ts` for atomic temp-dir-then-rename per `/plan-eng-review` D3) — no new storage primitives.
+**背景:** フェーズ 1 のアーキテクチャ(3 階層の検索、スコープ付きトークン、兄弟の SDK、フロントマターの契約)は固定されており、同梱の参照スキル `hackernews-frontpage` で検証されています。フェーズ 2a は、2 つのスキルテンプレートと新しいヘルパー 1 つ(`browse/src/browser-skill-write.ts`。`/plan-eng-review` の D3 に従い、一時ディレクトリに作ってからアトミックにリネーム)によって、`/scrape` と `/skillify` をこのランタイムに組み込みます。新しいストレージのプリミティブは追加しません。
 
-**Effort:** M (human: ~1 week / CC: ~1 day)
-**Priority:** P1 (this branch — `garrytan/browserharness` shipping as v1.19.0.0)
-**Depends on:** Phase 1 shipped (this branch).
-
----
-
-### P2: Browser-skills Phase 3 — resolver injection at session start
-
-**What:** Mirror the domain-skill resolver at `browse/src/server.ts:722-743`. When a sidebar-agent session starts on a host with matching browser-skills, inject a list block telling the agent which skills exist for that host and how to invoke them (`$B skill run <name> --arg ...`). UNTRUSTED-wrapped via the existing L1-L6 security stack. Add `gstack-config browser_skillify_prompts` knob (default `off`) controlling end-of-task nudges in `/qa`, `/design-review`, etc. when activity feed shows ≥N commands on a single host AND no skill exists yet for that host+intent.
-
-**Why:** Without the resolver, browser-skills only work when the user explicitly types `$B skill run <name>`. With the resolver, agents auto-discover existing skills for the current host and reach for them instead of re-exploring. Same compounding pattern as domain-skills.
-
-**Pros:** Closes the discoverability gap. Agents that wouldn't know a skill exists now see it in their system prompt automatically. End-of-task nudges (opt-in via knob) catch the moments where skillify is most valuable.
-
-**Cons:** The resolver block lives in the system prompt and competes with other resolver blocks for prompt budget. Need to gate carefully so it doesn't fire on every host with a skill — only when the skill is plausibly relevant to the current task. v1.8.0.0 domain-skills handles this by only firing for the active tab's hostname; same pattern here.
-
-**Effort:** S (human: ~3 days / CC: ~4 hours)
-**Priority:** P2
-**Depends on:** Phase 2.
+**工数:** M(人間で約 1 週間 / CC で約 1 日)
+**優先度:** P1(このブランチ。`garrytan/browserharness` が v1.19.0.0 として出荷)
+**依存:** フェーズ 1 の出荷(このブランチ)。
 
 ---
 
-### P2: Browser-skills Phase 4 — eval infrastructure + fixture staleness + OS sandbox
+### P2: ブラウザスキルのフェーズ 3 — セッション開始時のリゾルバー注入
 
-**What:** Three loosely-coupled extensions: (a) LLM-judge eval ("did the agent reach for the skill instead of re-exploring?"), classified `periodic` per `test/helpers/touchfiles.ts`. (b) Fixture-staleness detection — periodic comparison of bundled fixtures against live pages, flagging mismatches before they break tests silently. (c) OS-level FS sandbox for untrusted spawns: `sandbox-exec` profile on macOS, namespaces / seccomp on Linux. Drops in cleanly behind the existing trusted/untrusted contract (Phase 1 just stripped env; Phase 4 adds real FS isolation).
+**内容:** `browse/src/server.ts:722-743` のドメインスキルのリゾルバーを写します。一致するブラウザスキルがあるホストでサイドバーのエージェントのセッションが始まったら、そのホストに存在するスキルと、呼び出し方(`$B skill run <name> --arg ...`)をエージェントに伝えるリストブロックを注入します。既存の L1〜L6 のセキュリティスタックで UNTRUSTED として包みます。`gstack-config browser_skillify_prompts` の設定項目(デフォルトは `off`)を追加します。これは、`/qa`、`/design-review` などのタスクの終わりに、アクティビティフィードで単一のホストに対して N 件以上のコマンドがあり、かつその host+intent のスキルがまだない場合に、終了時の促しを制御します。
 
-**Why:** Phase 1's trust model has the daemon-side capability boundary right (scoped tokens) but the process-side env scrub is hygiene, not a sandbox (Codex finding #1). For genuinely untrusted skills (Phase 2 agent-authored), real FS isolation matters. Eval + fixture staleness keep the skill quality bar honest as flows drift.
+**理由:** リゾルバーがなければ、ブラウザスキルは、ユーザーが明示的に `$B skill run <name>` と入力した場合にしか動作しません。リゾルバーがあれば、エージェントは現在のホストの既存のスキルを自動的に見つけ、再び探索するのではなく、それを使えるようになります。ドメインスキルと同じ、積み上がるパターンです。
 
-**Pros:** Closes the last credible attack surface from Codex finding #1 (FS read of `~/.ssh/id_rsa` etc.). Eval data tells us whether the resolver injection is actually working. Fixture staleness catches HTML drift before users.
+**利点:** 発見のしやすさのギャップを埋めます。スキルの存在を知らなかったエージェントも、システムプロンプトでそれを自動的に見るようになります。タスクの終わりの促し(設定でオプトイン)は、skillify が最も価値を持つ瞬間を捉えます。
 
-**Cons:** Three different concerns, three different design passes. Tempting to bundle. Resist: each can ship independently. OS sandbox is the hardest piece (macOS `sandbox-exec` is Apple-private but stable; Linux requires namespaces + bind mounts).
+**欠点:** リゾルバーのブロックはシステムプロンプトに入り、プロンプトの予算を他のリゾルバーのブロックと取り合います。スキルのあるすべてのホストで発火しないように、慎重に制御する必要があります。現在のタスクに関連しそうな場合にだけ発火させるべきです。v1.8.0.0 のドメインスキルは、アクティブなタブのホスト名に対してだけ発火させることで、これを処理しています。ここでも同じパターンを使います。
 
-**Effort:** L (human: ~2-3 weeks / CC: ~3-5 days)
-**Priority:** P2
-**Depends on:** Phase 2 (need agent-authored skills to motivate sandbox); Phase 3 (eval needs resolver injection).
-
----
-
-### P2: Migrate `/learn` to SQLite
-
-**What:** The current `~/.gstack/projects/<slug>/learnings.jsonl` storage works (append-only, tolerant parser, idle compactor) but Codex outside-voice (T5) flagged JSONL as "the wrong primitive" for multi-writer canonical state: lost-update on rewrite, partial-line corruption on crash, no transactions. v1.8.0.0 hardened JSONL with flock + O_APPEND but the right long-term primitive is SQLite (which Bun has built in via `bun:sqlite`).
-
-**Why:** Domain skills now live in the same `learnings.jsonl` (per CEO D1 unification). As volume grows, the JSONL hardening compactor + tolerant parser approach becomes the long pole. SQLite gives atomic transactions, indexes (huge for hostname lookup), and crash-safety without a custom compactor.
-
-**Pros:** Atomic writes. Real schema. Fast indexed lookups by hostname/key/type. Crash-safe.
-
-**Cons:** Migration touches every consumer of `learnings.jsonl` — `/learn` scripts (`gstack-learnings-log`, `gstack-learnings-search`), domain-skills.ts read/write, gbrain-sync (which currently treats it as a flat file). Old `learnings.jsonl` files in the wild need a one-shot migration script.
-
-**Context:** The JSONL hardening in v1.8.0.0 was the right call for that release scope (preserve unification, not boil-the-ocean). But the failure modes are bounded, not eliminated. SQLite is the boil-the-ocean fix.
-
-**Effort:** M (human: ~1 week / CC: ~1 day)
-**Priority:** P2
-**Depends on:** v1.8.0.0 in production for ~1 month to measure JSONL pain (compactor frequency, partial-line drops, write contention).
+**工数:** S(人間で約 3 日 / CC で約 4 時間)
+**優先度:** P2
+**依存:** フェーズ 2。
 
 ---
 
-### P2: Remove plan-mode handshake from `/plan-devex-review` SKILL.md.tmpl
+### P2: ブラウザスキルのフェーズ 4 — 評価の基盤 + フィクスチャの陳腐化の検出 + OS のサンドボックス
 
-**What:** `/plan-devex-review` has a "Plan Mode Handshake" section at the top that contradicts the preamble's "Skill Invocation During Plan Mode" contract (which says AskUserQuestion satisfies plan mode's end-of-turn requirement). The handshake forces an extra exit-plan-mode step that no other interactive review skill needs. `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review` all run fine in plan mode without it.
+**内容:** 緩やかに結合した 3 つの拡張です。(a) LLM ジャッジによる評価(「エージェントは再び探索する代わりにスキルに手を伸ばしたか?」)。`test/helpers/touchfiles.ts` に従い、`periodic` に分類します。(b) フィクスチャの陳腐化の検出。同梱のフィクスチャと、実際のページとを定期的に比較し、テストが黙って壊れる前に不一致を知らせます。(c) 信頼されていない spawn に対する OS レベルのファイルシステムのサンドボックス。macOS では `sandbox-exec` のプロファイル、Linux では namespaces と seccomp を使います。既存の信頼された/信頼されていないの契約の背後に、きれいに組み込みます(フェーズ 1 は環境変数を取り除いただけで、フェーズ 4 で実際のファイルシステムの分離を追加します)。
 
-**Why:** Found during the v1.8.0.0 DevEx review. The inconsistency cost a turn and confused the flow. Either remove the handshake from `plan-devex-review` (clean fix, recommended) OR add it to every interactive skill for consistency.
+**理由:** フェーズ 1 の信頼モデルは、デーモン側の機能の境界(スコープ付きトークン)は正しいものの、プロセス側の環境変数の掃除は衛生的な対策であり、サンドボックスではありません(Codex の指摘 #1)。本当に信頼されていないスキル(フェーズ 2 でエージェントが作ったもの)には、実際のファイルシステムの分離が重要です。フローが変化するにつれて、評価とフィクスチャの陳腐化の検出により、スキルの品質の基準を正直に保てます。
 
-**Pros:** Fixes a real DX bug for anyone running `/plan-devex-review` in plan mode. Five-minute change.
+**利点:** Codex の指摘 #1 の、最後の信頼できる攻撃面(`~/.ssh/id_rsa` などのファイルシステムの読み取り)を塞げます。評価のデータから、リゾルバーの注入が本当に機能しているかが分かります。フィクスチャの陳腐化の検出により、ユーザーが気づく前に HTML の変化を捉えられます。
 
-**Cons:** Need to think about WHY it was added in the first place — there may be context this TODO is missing.
+**欠点:** 3 つの異なる関心事は、それぞれ別の設計の検討が必要です。まとめたくなりますが、抑えてください。それぞれ独立して出荷できます。OS のサンドボックスは最も難しい部分です(macOS の `sandbox-exec` は Apple の非公開機能ですが安定しています。Linux では namespaces とバインドマウントが必要です)。
 
-**Context:** The handshake section in `plan-devex-review/SKILL.md.tmpl` says it's needed because plan mode's "this supersedes any other instructions" warning could otherwise bypass the skill's per-finding STOP gates. But the same warning exists for the other review skills, and they all work fine because AskUserQuestion satisfies the end-of-turn contract.
-
-**Effort:** S (human: ~15 min / CC: ~5 min)
-**Priority:** P2
-**Depends on:** Nothing.
+**工数:** L(人間で約 2〜3 週間 / CC で約 3〜5 日)
+**優先度:** P2
+**依存:** フェーズ 2(サンドボックスの動機となるエージェントが作ったスキルが必要)。フェーズ 3(評価にはリゾルバーの注入が必要)。
 
 ---
 
-### P2: Bump gbrain install-pin in lockstep with gstack memory-feature releases (#1305 part 2)
+### P2: `/learn` を SQLite に移行する
 
-**What:** `bin/gstack-gbrain-install` pins gbrain to commit `08b3698` (v0.18.2). When gstack ships features that depend on newer gbrain ops or schema (e.g. v1.26.0 manifests + `code-def`/`code-refs`/`reindex-code`), the pin doesn't move with it. Fresh `/setup-gbrain` installs an old gbrain that fails `gbrain doctor` schema_version checks (24 vs latest 32+) until the user manually upgrades.
+**内容:** 現在の `~/.gstack/projects/<slug>/learnings.jsonl` のストレージは動作しています(追記のみ、寛容なパーサー、アイドル時のコンパクター)。しかし、Codex の外部視点(T5)は、複数の書き手による正規の状態にとって JSONL は「誤ったプリミティブ」だと指摘しました。書き換え時の更新の消失、クラッシュ時の行の部分的な破損、トランザクションがないという問題があります。v1.8.0.0 で JSONL は flock と O_APPEND により堅牢化されましたが、長期的に正しいプリミティブは SQLite です(Bun には `bun:sqlite` として組み込まれています)。
 
-**Why:** Filed in #1305 alongside the `put_page` CLI bug. Out of scope for the v1.26.5.0 fix wave (separate release-coordination concern: which gbrain version we install vs. how we call it). The install-pin should either (a) auto-bump whenever gstack releases features that need newer gbrain, or (b) detect a stale pin during preamble and either auto-upgrade gbrain or print a one-line FIX hint.
+**理由:** ドメインスキルは今、同じ `learnings.jsonl` に保存されています(CEO の D1 の統合による)。データ量が増えるにつれて、JSONL の堅牢化のコンパクターと寛容なパーサーのアプローチが、最大のボトルネックになります。SQLite なら、独自のコンパクターなしで、アトミックなトランザクション、インデックス(ホスト名の検索に非常に有効)、クラッシュ耐性が得られます。
 
-**Pros:** Closes the "fresh-install paper-cut" path. New users land on a healthy schema. Reduces support noise on `/setup-gbrain` flows. Makes the gstack/gbrain release contract visible.
+**利点:** アトミックな書き込み。実際のスキーマ。ホスト名・キー・型によるインデックス付きの高速な検索。クラッシュ耐性。
 
-**Cons:** Adds release-cadence coupling between gstack and gbrain. Needs a policy: pin = "minimum version that still works" vs "latest known good." If gbrain ships a breaking change to `put` shape and gstack doesn't update the pin, fresh installs break in a new way.
+**欠点:** 移行は `learnings.jsonl` のすべての利用者に影響します。`/learn` のスクリプト(`gstack-learnings-log`、`gstack-learnings-search`)、domain-skills.ts の読み書き、gbrain-sync(現在はフラットファイルとして扱っています)。世の中にある古い `learnings.jsonl` ファイルには、一度だけの移行スクリプトが必要です。
 
-**Context:** Issue #1305 part 1 (the `put_page` CLI verb bug) was handled in v1.26.5.0. Part 2 (this TODO) is the install-pin staleness. Pin lives in `bin/gstack-gbrain-install` near the top as a constant. Easiest minimal fix: ship the pin as a tracked release artifact (e.g. write it from `package.json` at build time) and add a doctor-style preamble check.
+**背景:** v1.8.0.0 の JSONL の堅牢化は、そのリリースの範囲(統合を保つ。すべてを一度に解決しない)では正しい判断でした。しかし、失敗のモードは限定されているだけで、なくなったわけではありません。SQLite は「すべてを一度に解決する」ための修正です。
 
-**Effort:** S (human: ~2 days / CC: ~3 hours)
-**Priority:** P2
-**Depends on:** Nothing.
-
----
-
-### P3: Source-id host-collision risk in `deriveCodeSourceId` (cross-host duplicate org/repo)
-
-**What:** v1.26.5.0's `deriveCodeSourceId` drops the host segment to fit gbrain's 32-char source-id budget. This means `github.com/acme/foo` and `gitlab.com/acme/foo` collapse to the same `gstack-code-acme-foo`. `ensureSourceRegisteredSync()` in `bin/gstack-gbrain-sync.ts:323` will silently re-register the source when `local_path` differs, evicting one side.
-
-**Why:** Vanishingly rare in practice — same `<org>/<repo>` shape across both github.com and gitlab.com on the same machine almost never happens. But the failure mode is silent (one repo evicts the other in the brain), and the user has no signal anything is wrong.
-
-**Pros:** Closes the silent-eviction edge. Two viable approaches: short host marker (`gh-` / `gl-` / `bb-`) eats 3 chars but keeps cross-host uniqueness; OR include a 3-char hash of the host alongside the org-repo.
-
-**Cons:** Source IDs change shape again — anyone with existing registrations on v1.26.5.0 gets a one-time re-register. Net break-even because the current scheme also changed from v1.26.4.0.
-
-**Context:** Filed in #1320 / #1322 / #1323 / #1331 (the underlying source-id validation bugs), addressed in v1.26.5.0 by dropping host segment + hash-truncating. Cross-host collision was a known accepted tradeoff in PR #1330's design ("vanishingly rare in practice"). Codex outside-voice plan review surfaced it as a long-tail concern; this TODO captures it for a future bump.
-
-**Effort:** XS (human: ~4 hours / CC: ~30 min)
-**Priority:** P3
-**Depends on:** Nothing.
+**工数:** M(人間で約 1 週間 / CC で約 1 日)
+**優先度:** P2
+**依存:** JSONL の問題(コンパクターの頻度、部分的な行の欠落、書き込みの競合)を測るため、v1.8.0.0 が本番で約 1 か月稼働していること。
 
 ---
 
-### P3: GBrain skillpack publishing for domain skills
+### P2: `/plan-devex-review` SKILL.md.tmpl から plan-mode のハンドシェイクを削除する
 
-**What:** Domain skills are agent-authored notes per hostname. Right now they're per-machine or per-agent-repo. The natural compounding extension: publish curated skill packs to GBrain (`gstack-brain-sync`) so others can subscribe. "Louise's LinkedIn skills" or "Garry's GitHub skills" become packs anyone can pull.
+**内容:** `/plan-devex-review` の先頭には「Plan Mode Handshake」のセクションがあり、プリアンブルの「Skill Invocation During Plan Mode」の契約(AskUserQuestion が plan mode のターン終了の要件を満たす、とされている)と矛盾しています。ハンドシェイクは、他のどの対話型のレビュースキルも必要としない、余分な exit-plan-mode のステップを強制します。`/plan-ceo-review`、`/plan-eng-review`、`/plan-design-review` は、これがなくても plan mode で問題なく動きます。
 
-**Why:** v1.8.0.0 gets us per-machine compounding. Cross-user compounding is the network effect — every user contributes, every user benefits.
+**理由:** v1.8.0.0 の DevEx レビューで見つかりました。この不整合により 1 ターン無駄になり、フローが混乱しました。`plan-devex-review` からハンドシェイクを削除する(きれいな修正で、推奨)か、一貫性のためにすべての対話型スキルに追加するか、どちらかです。
 
-**Pros:** Massive compounding potential. Hard part is trust/moderation (existing problem GBrain-sync has thought through).
+**利点:** plan mode で `/plan-devex-review` を実行する人にとって、実際の DX のバグを直せます。5 分の変更です。
 
-**Cons:** Publishing infra, signature/redaction model, moderation when packs go bad. Real plan needed.
+**欠点:** そもそもなぜ追加されたのかを考える必要があります。この TODO に欠けている文脈があるかもしれません。
 
-**Context:** GBrain-sync infra (v1.7.0.0) already does private cross-machine sync for the user's own data. Skillpack publishing is the public/shared layer on top of that.
+**背景:** `plan-devex-review/SKILL.md.tmpl` のハンドシェイクのセクションは、plan mode の「これは他のすべての指示より優先する」という警告が、スキルの指摘ごとの STOP ゲートを迂回しうるため必要だ、と書いています。しかし、同じ警告は他のレビュースキルにも存在し、それらは AskUserQuestion がターン終了の契約を満たすため、問題なく動いています。
 
-**Effort:** M (human: ~1 week / CC: ~1 day)
-**Priority:** P3
-**Depends on:** GBrain-sync stable in production. Some user demand signal first.
-
----
-
-### P3: Replay/record demonstrated flows to domain-skills
-
-**What:** Watch a human drive a site once (record DOM events + screenshots + nav), generalize to a domain-skill. "Teach by showing." Different research dream than v1.8.0.0's per-site notes.
-
-**Why:** The highest-quality skill content is one a human demonstrated, not one the agent figured out from scratch. Pairs with skillpack publishing — recorded flows are the most valuable packs.
-
-**Pros:** Skill quality jumps. Some sites are too complex for an agent to figure out alone (multi-step OAuth, captcha-gated forms).
-
-**Cons:** Record fidelity vs. selector stability over time. DOM changes break recordings. Real research needed.
-
-**Context:** Browser-use has experimented with this. Playwright has a recorder. Codeception/Cypress recorders exist. None of them do the "generalize the recording into a markdown note" step.
-
-**Effort:** L (human: ~2-3 weeks / CC: ~2-3 days)
-**Priority:** P3
-**Depends on:** Probably its own `/office-hours` session before committing eng time.
+**工数:** S(人間で約 15 分 / CC で約 5 分)
+**優先度:** P2
+**依存:** なし。
 
 ---
 
-### P3: `$B commands review` batch-mode UX
+### P2: gstack のメモリ機能のリリースに合わせて gbrain のインストールピンを上げる(#1305 の後半)
 
-**What:** Originally an alternative for the inline-on-first-use approval gate (DevEx D6 alternative C). Instead of approving each agent-authored command at first invocation, batch them: agent scaffolds many, human reviews `$B commands review` at a convenient time, approves/rejects in one pass.
+**内容:** `bin/gstack-gbrain-install` は gbrain をコミット `08b3698`(v0.18.2)にピンしています。gstack が、より新しい gbrain の操作やスキーマに依存する機能を出荷しても(例: v1.26.0 のマニフェストと `code-def`/`code-refs`/`reindex-code`)、ピンはそれに合わせて動きません。新規の `/setup-gbrain` のインストールでは、古い gbrain が入り、ユーザーが手動でアップグレードするまで `gbrain doctor` の schema_version のチェック(24 対して最新は 32 以上)に失敗します。
 
-**Why:** If self-authoring commands ever ships (the P1 above), the inline approval at first-use can interrupt the agent mid-task. Batch review is friendlier for the human.
+**理由:** `put_page` CLI のバグと一緒に #1305 で起票しました。v1.26.5.0 の修正の波の対象外です(別のリリース調整の問題です。どの gbrain のバージョンをインストールするか、それをどう呼び出すか)。インストールのピンは、(a) 新しい gbrain を必要とする機能を gstack が出荷するたびに自動で上げるか、(b) プリアンブルの中で古いピンを検出し、gbrain を自動でアップグレードするか、1 行の FIX のヒントを表示するか、どちらかにすべきです。
 
-**Pros:** Reduces interrupt frequency. Lets humans review with full context.
+**利点:** 「新規インストールでの小さな不具合」の経路を塞げます。新しいユーザーは健全なスキーマで始まります。`/setup-gbrain` のフローでのサポートの問い合わせが減ります。gstack と gbrain のリリースの契約が見えるようになります。
 
-**Cons:** Defers approval — agent can't use the new command until the human comes back. If the agent needs the command immediately, this is worse than inline.
+**欠点:** gstack と gbrain のリリースのペースが結びつきます。方針が必要です。ピンを「まだ動く最小バージョン」とするか、「既知の良好な最新版」とするかを決める必要があります。gbrain が `put` の形に破壊的変更を入れ、gstack がピンを更新しなければ、新規インストールが新しい形で壊れます。
 
-**Context:** Tied to the P1 above. Won't ship before that does.
+**背景:** 課題 #1305 の前半(`put_page` CLI の動詞のバグ)は v1.26.5.0 で対応しました。後半(この TODO)がインストールピンの古さです。ピンは `bin/gstack-gbrain-install` の上の方に定数として置かれています。最も簡単な最小限の修正は、ピンを追跡されたリリースの成果物として出荷し(例: ビルド時に `package.json` から書き出す)、doctor のようなプリアンブルのチェックを追加することです。
 
-**Effort:** S (human: ~half day / CC: ~30 min)
-**Priority:** P3
-**Depends on:** P1 self-authoring `$B` commands.
-
----
-
-### P3: Heuristic command-gap watcher
-
-**What:** Sidebar-agent watches the activity feed; when an agent repeats a similar action 3+ times (e.g., calls `$B js` with structurally similar arguments), suggest scaffolding a command. From DevEx D4 alternative C.
-
-**Why:** Closes the discoverability loop on self-authoring commands. Agent is most likely to write a command when it just hit the same friction multiple times.
-
-**Pros:** Surgical. Fires only when a command would have demonstrably helped. Uses real telemetry, not heuristics.
-
-**Cons:** False positives (legitimate repeated actions) feel intrusive. Hard to design without telemetry first.
-
-**Context:** Telemetry from v1.8.0.0 (`cdp_method_called`, `cdp_method_denied` counters) gives us the data to design this well. Don't design until we have ~1 month of production data.
-
-**Effort:** M (human: ~1 week / CC: ~1 day)
-**Priority:** P3
-**Depends on:** v1.8.0.0 telemetry in production. P1 self-authoring commands.
-
----
-## Sidebar Terminal (cc-pty-import follow-ups)
-
-### v1.1: PTY session survives sidebar reload
-
-**What:** Today the Terminal tab's PTY dies with the WebSocket — sidebar
-reload, side-panel close, even a quick navigate-away in another tab close
-the session. v1.1 should key the PTY on a tab/session id so a reload
-reattaches to the existing claude process and you keep `/resume` history.
-
-**Why:** Mid-task resilience. When you've been pair-programming with claude
-for 20 minutes and an accidental Cmd-R blows it away, the cost is real.
-
-**Pros:** Better UX, fewer interrupted sessions. **Cons:** Session-tracking
-state, ghost-process risk, lifecycle bugs (when DOES the PTY actually go
-away?). v1 chose the simple "PTY dies with WS" model deliberately.
-
-**Context:** /plan-eng-review Issue 1C decision (cc-pty-import branch,
-2026-04-25). v1 ships with phoenix's lifecycle. **Depends on:**
-cc-pty-import landed.
-
-**Priority:** P2 (nice-to-have).
-**Effort:** M. Likely needs a per-tab session map keyed by chrome.tabs.id
-plus a TTL so abandoned PTYs eventually exit.
+**工数:** S(人間で約 2 日 / CC で約 3 時間)
+**優先度:** P2
+**依存:** なし。
 
 ---
 
-## Testing
+### P3: `deriveCodeSourceId` でのソース ID のホスト衝突のリスク(異なるホストの同じ org/repo)
 
-## P2: Per-finding AskUserQuestion count assertion for /plan-ceo-review
+**内容:** v1.26.5.0 の `deriveCodeSourceId` は、gbrain の 32 文字のソース ID の上限に収めるため、ホストのセグメントを落としています。そのため、`github.com/acme/foo` と `gitlab.com/acme/foo` は、同じ `gstack-code-acme-foo` に潰れます。`bin/gstack-gbrain-sync.ts:323` の `ensureSourceRegisteredSync()` は、`local_path` が違うと、ソースを黙って再登録し、片方を追い出します。
 
-**What:** PTY E2E test that drives /plan-ceo-review through Step 0 with a stable fixture diff containing N known findings, asserts that exactly N distinct AskUserQuestions fire (one per finding) before plan_ready.
+**理由:** 実際にはほとんど起きません。同じマシンで github.com と gitlab.com の両方に同じ `<org>/<repo>` の形があることは、ほぼありません。しかし、失敗のモードは黙ったものです(brain の中で一方のリポジトリがもう一方を追い出します)。しかも、ユーザーには何かおかしいという兆候がありません。
 
-**Why:** The skill template repeats "One issue = one AskUserQuestion call. Never combine multiple issues into one question." at every review checkpoint. No test enforces it. The current `skill-e2e-plan-ceo-plan-mode.test.ts` smoke (post-v1.21.1.0) only catches "agent skipped Step 0 entirely." Batching findings into one question slips through silently.
+**利点:** 黙った追い出しの端のケースを塞げます。実行可能なアプローチは 2 つあります。短いホストのマーカー(`gh-` / `gl-` / `bb-`)は 3 文字を使いますが、ホストをまたいだ一意性を保ちます。または、org-repo と一緒にホストの 3 文字のハッシュを入れます。
 
-**Pros:** Locks in the strongest contract the skill mandates. Catches a real failure mode (the original attachment showed 2 findings batched as 0 questions).
-**Cons:** Needs a stable fixture diff to keep finding count deterministic (~1 day human / ~30 min CC). Opus may reasonably consolidate two related findings, so the assertion needs a forgiving lower bound (e.g., `>= ceil(N * 0.6)`) rather than strict equality.
+**欠点:** ソース ID の形がまた変わります。v1.26.5.0 で既に登録している人は、一度だけ再登録が必要です。現在の方式も v1.26.4.0 から変わっているため、差し引きはゼロです。
 
-**Context:** The PTY harness (`runPlanSkillObservation`) returns at first terminal outcome — for V2 we need a streaming variant that counts AskUserQuestions across the whole session up to `plan_ready`. Probably a new helper alongside `runPlanSkillObservation`.
+**背景:** #1320 / #1322 / #1323 / #1331(元のソース ID の検証のバグ)で起票しました。v1.26.5.0 でホストのセグメントを落とし、ハッシュで切り詰めることで対応しました。ホストをまたぐ衝突は、PR #1330 の設計で既知の、受け入れられたトレードオフでした(「実際にはほとんど起きない」)。Codex の外部視点によるプランのレビューが、長期的な懸念として指摘しました。この TODO は、将来のバージョンアップのために記録しています。
 
-**Depends on:** Stable fixture diff (`test/fixtures/plans/multi-finding.diff` or similar) with a small known set of issues that triggers all 4 review sections.
-
-**Priority:** P2.
-**Effort:** S (CC: ~30 min once fixture exists). Captured from v1.21.1.0 plan-eng-review D2.
-
-**Status (2026-09):** The four `skill-e2e-plan-*-finding-count` evals were retired
-after eight red weekly runs whose failures were harness and budget, not skill
-behavior. The `*-finding-floor` evals assert at least one AskUserQuestion, not one
-per finding, so this contract has no paid coverage today. Re-entry test: a
-qid-keyed per-finding count on a multi-finding fixture with `QUESTION_TUNING: true`
-(the `<gstack-qid:…>` markers only appear with tuning on).
+**工数:** XS(人間で約 4 時間 / CC で約 30 分)
+**優先度:** P3
+**依存:** なし。
 
 ---
 
-## P3: Honor env vars in gstack-config (so QUESTION_TUNING/EXPLAIN_LEVEL actually isolate tests)
+### P3: ドメインスキルの GBrain スキルパックの公開
 
-**What:** `gstack-config get <key>` reads `~/.gstack/config.yaml`. `runPlanSkillObservation` plumbs `env: { QUESTION_TUNING: 'false', EXPLAIN_LEVEL: 'default' }` through to the spawned `claude` process — but the skill preamble bash uses `gstack-config get question_tuning`, which never looks at env. The env passthrough is theater on current code.
+**内容:** ドメインスキルは、ホスト名ごとにエージェントが書いたノートです。今は、マシンごと、またはエージェントのリポジトリごとに保存されています。自然な発展は、厳選されたスキルパックを GBrain(`gstack-brain-sync`)に公開し、他の人が購読できるようにすることです。「Louise の LinkedIn スキル」や「Garry の GitHub スキル」が、誰でも取得できるパックになります。
 
-**Why:** Without env honoring, the v1.21.1.0 plan-ceo-review smoke is still flaky on machines with `question_tuning: true` set in YAML. AUTO_DECIDE preferences would skip the rendered AskUserQuestion list, masking the regression we want to catch.
+**理由:** v1.8.0.0 でマシンごとの積み上げができるようになりました。ユーザーをまたいだ積み上げはネットワーク効果です。すべてのユーザーが貢献し、すべてのユーザーが恩恵を受けます。
 
-**Pros:** Makes the gate test hermetic across machines. The env wiring is already in place — only `gstack-config` needs to read env first, fall back to YAML.
-**Cons:** Touches the gstack-config binary across all 3 platforms (linux/darwin/windows). Cross-binary refactor.
+**利点:** 大きな積み上げの可能性があります。難しいのは信頼とモデレーションです(GBrain-sync ではすでに検討されている既存の問題)。
 
-**Context:** Captured from v1.21.1.0 adversarial review. Documented honestly in the test docstring as a known limitation.
+**欠点:** 公開のインフラ、署名と redaction のモデル、パックに問題があった場合のモデレーション。本格的な計画が必要です。
 
-**Priority:** P3.
-**Effort:** S. Single-file edit to `bin/gstack-config` (~10 LOC for env-first lookup).
+**背景:** GBrain-sync のインフラ(v1.7.0.0)は、ユーザー自身のデータについて、すでにプライベートなマシン間の同期を行っています。スキルパックの公開は、その上に乗る公開・共有の層です。
 
----
-
-## P3: Path-confusion hardening on SANCTIONED_WRITE_SUBSTRINGS
-
-**What:** `runPlanSkillObservation`'s silent-write detector uses substring matching on a few sanctioned paths (`.gstack/`, `CHANGELOG.md`, `TODOS.md`, etc). A write to `node_modules/some-pkg/CHANGELOG.md` or `src/foo/.gstack/leak.ts` is currently sanctioned because the substring matches anywhere in the path.
-
-**Why:** Defensive — no current bug exploits this, but a malicious skill or fixture could write to a path that happens to contain `.gstack/` or `CHANGELOG.md` and slip past silent-write detection.
-
-**Pros:** Hardens the harness against future skill misbehavior. Aligns substring rules with their intent.
-**Cons:** Need to anchor against absolute prefixes (`os.homedir() + '/.gstack/'`, worktree root) which makes the test less portable across machines.
-
-**Context:** Captured from v1.21.1.0 adversarial review (HIGH/FIXABLE finding, pre-existing). Refactored into a `SANCTIONED_WRITE_SUBSTRINGS` constant in v1.21.1.0 but the substring-includes logic is unchanged from before.
-
-**Priority:** P3.
-**Effort:** S.
+**工数:** M(人間で約 1 週間 / CC で約 1 日)
+**優先度:** P3
+**依存:** GBrain-sync が本番で安定していること。まず、ユーザーの需要のシグナルがあること。
 
 ---
 
-## P1: Structural STOP-Ask forcing function across all skills
+### P3: 実演されたフローを記録してドメインスキルにする
 
-**What:** Design and implement a structural forcing function that catches when a skill mandates per-issue AskUserQuestion but the model silently substitutes batch-synthesis. Candidate mechanisms: question-count assertion (skill declares expected question count in frontmatter; post-run audit logs if model fired <N), typed question templates (skill hands the model pre-built AskUserQuestion payloads rather than prose instructions), or a canUseTool-based post-run audit that compares declared-gates-fired vs expected.
+**内容:** 人間が一度サイトを操作するのを見て(DOM のイベント + スクリーンショット + ナビゲーションを記録)、それをドメインスキルに一般化します。「見せて教える」です。v1.8.0.0 のサイトごとのノートとは、別の研究の方向性です。
 
-**Why:** The authoritative "Skill Invocation During Plan Mode" rule (hoisted to preamble position 1) tells the model AskUserQuestion satisfies plan mode's end-of-turn requirement. That fixes plan-mode entry, but NOT the broader class of failures: the model silently substitutes batch-synthesis for STOP-Ask loops whenever the skill's interactive contract collides with any other rule surface (auto mode, tool-count anxiety, cognitive load). Without structural enforcement, every skill with STOP-per-issue contracts remains vulnerable.
+**理由:** 最も品質の高いスキルの内容は、エージェントが最初から考え出したものではなく、人間が実演したものです。スキルパックの公開と組み合わせられます。記録されたフローは、最も価値のあるパックになります。
 
-**Pros:** Catches a class-of-bug, not an instance. Applies to every skill that declares STOP gates. Builds on `canUseTool` primitive in `test/helpers/agent-sdk-runner.ts`.
+**利点:** スキルの品質が大きく上がります。複雑すぎて、エージェントだけでは解けないサイトもあります(多段階の OAuth、キャプチャで保護されたフォーム)。
 
-**Cons:** Real design work. How does a skill declare expected question count — static value in frontmatter, or dynamic based on number of review sections that surface findings? Is the audit inline (blocking, same-turn) or post-hoc (after skill completion)? Calibration of expected-vs-actual thresholds depends on real V0 question-log data across skills.
+**欠点:** 記録の忠実度と、時間の経過によるセレクタの安定性のトレードオフ。DOM の変更は記録を壊します。本格的な研究が必要です。
 
-**Context:** Relevant files — `scripts/question-registry.ts` (typed question catalog), `scripts/resolvers/question-tuning.ts` (preference classification), `bin/gstack-question-log` (event log), `bin/gstack-question-preference` (read/write preferences), `test/helpers/agent-sdk-runner.ts` (canUseTool harness). Existing question-log already captures fire events; the gap is declaring expected counts and auditing against them.
+**背景:** browser-use はこれを試しています。Playwright にはレコーダーがあります。Codeception/Cypress のレコーダーもあります。しかし、記録を「Markdown のノートに一般化する」段階を行うものはありません。
 
-**Effort:** L (human: ~1-2 weeks / CC+gstack: ~2-3 hours for design doc + first-pass implementation).
-**Priority:** P1 if interactive-skill volume is growing; P2 otherwise.
-**Depends on / blocked by:** design doc — likely its own `docs/designs/STOP_ASK_ENFORCEMENT_V0.md`.
-## Context skills
-
-### `/context-save --lane` + `/context-restore --lane` for parallel workstreams
-
-**What:** Let users save and restore per-workstream (lane) context independently. On save: `/context-save --lane A "backend refactor"` writes a lane-tagged file. Or `/context-save lanes` reads the "Parallelization Strategy" section of the most recent plan file and auto-generates one saved context per lane. On restore: `/context-restore --lane A` loads just that lane's context. Useful when a plan has 3 independent workstreams and the user wants to pick one up in each of 3 Conductor windows.
-
-**Why:** Plans produced by `/plan-eng-review` already emit a lane table (Lane A: touches `models/` and `controllers/` sequentially; Lane B: touches `api/` independently; etc.). Right now there's no way to transfer that structure into resumable saved state. Users manually re-describe the scope in each window. Lane-tagged save/restore would be the bridge between "here's the plan" and "three people (or three AIs) are now working in parallel on it."
-
-**Pros:** Turns `/plan-eng-review`'s parallelization output into actionable resume state. Reduces context-loss across Conductor workspace handoffs for multi-workstream plans.
-
-**Cons:** Net-new functionality (not a port from the old `/checkpoint` skill). The "spawn new Conductor windows" part needs research into whether Conductor has a spawn CLI. Also requires lane-tagging discipline in the save step (manual or extracted).
-
-**Context:** Source of the lane data model is `plan-eng-review/SKILL.md.tmpl:240-249` (the "Parallelization Strategy" output with Lane A/B/C dependency tables and conflict flags). Deferred from the v0.18.5.0 rename PR so the rename could land as a tight, low-risk fix. Saved files currently live at `~/.gstack/projects/$SLUG/checkpoints/YYYYMMDD-HHMMSS-<title>.md` with YAML frontmatter (branch, timestamp, etc.). The lane feature would add a `lane:` field to frontmatter and a `--lane` filter to both skills.
-
-**Effort:** M (human: ~1-2 days / CC: ~45-60 min)
-**Priority:** P3 (nice-to-have, not blocking anyone yet)
-**Depends on:** `/context-save` + `/context-restore` rename stable in production (v1.0.1.0+). Research: does Conductor expose a spawn-workspace CLI?
-
-## P0: Browser-skills Phase 2 follow-up — `/automate` skill
-
-**What:** The mutating-flow sibling of `/scrape` (Phase 2b). `/automate <intent>` codifies form fills, click sequences, and multi-step interactions into permanent browser-skills. Reuses Phase 2a's skillify machinery (`/skillify` is shared) and the D3 atomic-write helper. Adds: per-mutating-step UNTRUSTED-wrapped summary + `AskUserQuestion` confirmation gate when running non-codified (codified skills run unattended after the initial human approval). Defaults to `trusted: false` per Phase 1 — env-scrubbed spawn, scoped-token capability, no admin scope.
-
-**Why:** Read-only scraping is the safer wedge to validate the skillify pattern (failure mode: wrong data = benign). Mutating actions are the other half of the 100x productivity gain — agents that codify "log into example.com → click Settings → toggle X" save real time on every future session. Splitting from Phase 2a means we ship the productivity loop first, validate the architecture, then add the higher-trust surface with confidence.
-
-**Pros:** Unlocks deterministic automation authoring without self-authoring safety concerns — Phase 1's scoped-token model applies equally to mutating skills. The codified script enumerates exactly which `$B click`/`$B fill`/`$B type` calls run; nothing else is possible at runtime. Reuses 100% of `/skillify`, the D3 helper, and the storage tier. Per-step confirmation gate surfaces the actions to the user before they run for the first time.
-
-**Cons:** Mutating intents have higher blast radius (the wrong selector clicks "Delete Account" instead of "Delete Comment"). Phase 4 OS-level FS sandbox is a stronger answer; until then, the user trust burden is real. Confirmation-gate UX needs care — too many prompts and users hit "yes" reflexively. Mitigation: only gate first-run; after `/skillify` codifies, the skill runs unattended.
-
-**Context:** Original Phase 2 plan in `docs/designs/BROWSER_SKILLS_V1.md` bundled `/scrape` + `/automate`. Split during the v1.19.0.0 plan review (`/plan-eng-review` on `garrytan/browserharness`) — the user's source doc framed both as primary, but in practice scraping is where users start because the failure mode is benign. Ship `/scrape` + `/skillify` first (this branch), validate the skillify pattern works, then `/automate` lands on top of the same machinery.
-
-**Effort:** M (human: ~3-5 days / CC: ~1 day)
-**Priority:** P0 (next branch after v1.19.0.0)
-**Depends on:** Phase 2a (`/scrape` + `/skillify`) shipped at v1.19.0.0. The D3 atomic-write helper (`browse/src/browser-skill-write.ts`) and the bundled SDK pattern are reused as-is.
+**工数:** L(人間で約 2〜3 週間 / CC で約 2〜3 日)
+**優先度:** P3
+**依存:** おそらく、エンジニアリングの時間をかける前に、独自の `/office-hours` のセッションが必要です。
 
 ---
 
-## P0: PACING_UPDATES_V0 — Louise's fatigue root cause (V1.1)
+### P3: `$B commands review` のバッチモードの UX
 
-**What:** Implement the pacing overhaul extracted from PLAN_TUNING_V1. Full design in `docs/designs/PACING_UPDATES_V0.md`. Requires: session-state model, `phase` field in question-log schema, registry extension for dynamic findings, pacing as skill-template control flow (not preamble prose), `bin/gstack-flip-decision` command, migration-prompt budget rule, first-run preamble audit, ranking threshold calibration from real V0 data, one-way-door uncapped rule, concrete verification values.
+**内容:** もともとは、初回使用時のインラインでの承認ゲートの代替案です(DevEx の D6 の選択肢 C)。エージェントが作ったコマンドを、初めて呼び出すたびに承認するのではなく、まとめて扱います。エージェントが多くのコマンドを用意し、人間は都合の良いときに `$B commands review` でレビューし、一度の作業で承認・却下します。
 
-**Why:** Louise de Sadeleer's "yes yes yes" during `/autoplan` was pacing + agency, not (only) jargon density. V1 addresses jargon (ELI10 writing). V1.1 addresses the interruption-volume half. Without this, V1 only gets halfway to the HOLY SHIT outcome.
+**理由:** 上の P1(コマンドの自己記述)が出荷される場合、初回使用時のインラインの承認は、エージェントのタスクの途中で割り込んでしまいます。バッチのレビューの方が、人間にとって扱いやすいです。
 
-**Pros:** End-to-end answer to Louise's feedback. Ships real calibration data from V1 usage. Completes the V0 → V2 pacing arc started in PLAN_TUNING_V0.
+**利点:** 割り込みの頻度が減ります。人間が十分な文脈を持ってレビューできます。
 
-**Cons:** Substantial scope (10 items in `docs/designs/PACING_UPDATES_V0.md`). Needs its own CEO + Codex + DX + Eng review cycle. Calibration depends on real V0 question-log distribution.
+**欠点:** 承認が遅れます。人間が戻ってくるまで、エージェントは新しいコマンドを使えません。エージェントがすぐにそのコマンドを必要とする場合は、インラインより悪くなります。
 
-**Context:** PLAN_TUNING_V1 attempted to bundle pacing. Three eng-review passes + two Codex passes surfaced 10 structural gaps unfixable via plan-text editing. Extracted to V1.1 as a dedicated plan.
+**背景:** 上の P1 と結びついています。それより前には出荷しません。
 
-**Depends on / blocked by:** V1 shipping (provides Louise's baseline transcript for calibration).
+**工数:** S(人間で約半日 / CC で約 30 分)
+**優先度:** P3
+**依存:** P1 の自己記述の `$B` コマンド。
 
-## Plan Tune (v2 deferrals from v0.19.0.0 rollback)
+---
 
-All six items are gated on v1 dogfood results and the acceptance criteria in
-`docs/designs/PLAN_TUNING_V0.md`. They were explicitly deferred after Codex's
-outside-voice review drove a scope rollback from the CEO EXPANSION plan. v1
-ships the observational substrate only; v2 adds behavior adaptation.
+### P3: ヒューリスティックなコマンドのギャップの監視
 
-### E1 — Substrate wiring (5 skills consume profile)
+**内容:** サイドバーのエージェントがアクティビティフィードを監視します。エージェントが似たアクションを 3 回以上繰り返したとき(たとえば、構造的に似た引数で `$B js` を呼ぶ)、コマンドの雛形を作ることを提案します。DevEx の D4 の選択肢 C からです。
 
-**What:** Add `{{PROFILE_ADAPTATION:<skill>}}` placeholder to ship, review,
-office-hours, plan-ceo-review, plan-eng-review SKILL.md.tmpl files. Implement
-`scripts/resolvers/profile-consumer.ts` with a per-skill adaptation registry
-(`scripts/profile-adaptations/{skill}.ts`). Each consumer reads
-`~/.gstack/developer-profile.json` on preamble and adapts skill-specific
-defaults (verbosity, mode selection, severity thresholds, pushback intensity).
+**理由:** 自己記述のコマンドについて、発見のしやすさのループを閉じます。エージェントは、同じ摩擦に何度もぶつかった直後に、コマンドを書く可能性が最も高くなります。
 
-**Why:** v1 observational profile writes a file nobody reads. The substrate
-claim only becomes real when skills actually consume it. Without this, /plan-tune
-is a fancy config page.
+**利点:** 外科的です。コマンドが明らかに役立ったはずの場合にだけ発火します。ヒューリスティックではなく、実際のテレメトリを使います。
 
-**Pros:** gstack feels personal. Every skill adapts to the user's steering
-style instead of defaulting to middle-of-the-road.
+**欠点:** 誤検知(正当な繰り返しのアクション)は、煩わしく感じられます。テレメトリがないと設計が難しいです。
 
-**Cons:** Risk of psychographic drift if profile is noisy. Requires calibrated
-profile (v1 acceptance criteria: 90+ days stable across 3+ skills).
+**背景:** v1.8.0.0 のテレメトリ(`cdp_method_called`、`cdp_method_denied` のカウンター)が、これをうまく設計するためのデータを与えてくれます。本番のデータが約 1 か月分たまるまでは、設計しないでください。
 
-**Context:** See `docs/designs/PLAN_TUNING_V0.md` §Deferred to v2. v1 ships the
-signal map + inferred computation; it's displayed in /plan-tune but no skill
-reads it yet.
+**工数:** M(人間で約 1 週間 / CC で約 1 日)
+**優先度:** P3
+**依存:** 本番での v1.8.0.0 のテレメトリ。P1 の自己記述のコマンド。
 
-**Effort:** L (human: ~1 week / CC: ~4h)
-**Priority:** P0
-**Depends on:** **90+ days of v1 dogfood stable across 3+ skills** (per
-`docs/designs/PLAN_TUNING_V0.md` §"Deferred to v2" E1 acceptance criteria).
-Distinct from the lighter-weight diversity-display gate
-(`sample_size >= 20 AND skills_covered >= 3 AND question_ids_covered >= 8
-AND days_span >= 7`) used in /plan-tune to render the inferred column —
-display is a UI affordance, promotion to E1 needs a much higher bar
-because behavioral adaptation is consequential and hard to revert. Prior
-versions of this card cited "2+ weeks" which conflicted with V0 — V0 wins.
+---
+## サイドバーのターミナル(cc-pty-import の後続作業)
 
-**Substrate risk (Codex outside-voice, Phase A review 2026-05-26):** Generated
-skill prose is agent-compliance-based. Tests can verify templates contain the
-right reads of `~/.gstack/developer-profile.json` and the right decision
-points, but tests cannot prove agents obey them at runtime. E1 ships
-adaptations as **advisory annotations on AskUserQuestion recommendations**
-("Recommended via your profile: <choice>") until there's a hard runtime
-execution path. Do NOT gate any AUTO_DECIDE on inferred profile alone in v1
-of E1; explicit per-question preferences remain the only AUTO_DECIDE
-source.
+### v1.1: サイドバーのリロード後も PTY セッションを維持する
+
+**内容:** 今は、ターミナルタブの PTY は WebSocket とともに終了します。サイドバーのリロード、サイドパネルを閉じること、さらには別のタブで素早くページを移動しただけでも、セッションが閉じます。v1.1 では、PTY をタブ/セッションの ID でキーにし、リロード時に既存の claude プロセスに再接続して、`/resume` の履歴を保つべきです。
+
+**理由:** 作業の途中での回復力です。claude と 20 分間ペアプログラミングしているときに、誤って Cmd-R を押してすべてが消えると、そのコストは本物です。
+
+**利点:** UX の向上。中断されるセッションが減ります。**欠点:** セッションの追跡の状態、ゴーストプロセスのリスク、ライフサイクルのバグ(PTY が本当にいつ終了するのか?)。v1 では、意図的に単純な「PTY は WS とともに終了する」モデルを選びました。
+
+**背景:** /plan-eng-review の Issue 1C の決定(cc-pty-import ブランチ、2026-04-25)。v1 は phoenix のライフサイクルで出荷されています。**依存:** cc-pty-import が取り込まれていること。
+
+**優先度:** P2(あると良い)。
+**工数:** M。chrome.tabs.id をキーにしたタブごとのセッションのマップと、放棄された PTY が最終的に終了するための TTL が必要になりそうです。
+
+---
+
+## テスト
+
+## P2: /plan-ceo-review の、指摘ごとの AskUserQuestion の回数のアサーション
+
+**内容:** PTY の E2E テストで、既知の N 件の指摘を含む固定のフィクスチャの差分を使って /plan-ceo-review を Step 0 まで進め、plan_ready の前に、ちょうど N 個の異なる AskUserQuestion が(指摘ごとに 1 つ)発火することをアサートします。
+
+**理由:** スキルのテンプレートは、すべてのレビューのチェックポイントで「1 つの指摘 = 1 回の AskUserQuestion の呼び出し。複数の指摘を 1 つの質問にまとめてはならない」と繰り返しています。これを強制するテストはありません。現在の `skill-e2e-plan-ceo-plan-mode.test.ts` のスモークテスト(v1.21.1.0 以降)が捉えるのは「エージェントが Step 0 を完全にスキップした」ことだけです。指摘を 1 つの質問にまとめると、黙って見逃されます。
+
+**利点:** スキルが義務づける最も強い契約を固定できます。実際の失敗のモードを捉えられます(元の添付では、2 件の指摘が 0 件の質問にまとめられていました)。
+**欠点:** 指摘の数を決定的にするため、安定した固定のフィクスチャの差分が必要です(人間で約 1 日 / CC で約 30 分)。Opus は、関連する 2 件の指摘を統合してもよいため、アサーションは厳密な等号ではなく、寛容な下限(例: `>= ceil(N * 0.6)`)にする必要があります。
+
+**背景:** PTY のハーネス(`runPlanSkillObservation`)は、最初の端末の結果が出た時点で返ります。V2 では、`plan_ready` までのセッション全体で AskUserQuestion の数を数える、ストリーミング版が必要です。おそらく `runPlanSkillObservation` と並べて、新しいヘルパーを作ることになります。
+
+**依存:** 安定した固定のフィクスチャの差分(`test/fixtures/plans/multi-finding.diff` など)。4 つのレビューのセクションすべてを発火させる、既知の問題の少ないセットを含むこと。
+
+**優先度:** P2。
+**工数:** S(フィクスチャができれば CC で約 30 分)。v1.21.1.0 の plan-eng-review の D2 から起票しました。
+
+**ステータス(2026-09):** 4 件の `skill-e2e-plan-*-finding-count` の評価は、8 回連続で週次実行が赤くなった後に廃止しました。失敗の原因はスキルの動作ではなく、ハーネスと予算でした。`*-finding-floor` の評価は、AskUserQuestion が 1 件以上あることをアサートしており、指摘ごとの件数ではありません。そのため、この契約は今、有料のテストでカバーされていません。再開のテストは、複数の指摘を含むフィクスチャで、`QUESTION_TUNING: true` を指定し、qid をキーにした指摘ごとの件数を数えるものです(`<gstack-qid:…>` のマーカーは、チューニングが有効なときにだけ現れます)。
+
+---
+
+## P3: gstack-config で環境変数を尊重する(QUESTION_TUNING/EXPLAIN_LEVEL が実際にテストを隔離するように)
+
+**内容:** `gstack-config get <key>` は `~/.gstack/config.yaml` を読みます。`runPlanSkillObservation` は `env: { QUESTION_TUNING: 'false', EXPLAIN_LEVEL: 'default' }` を、起動した `claude` プロセスに渡していますが、スキルのプリアンブルの bash は `gstack-config get question_tuning` を使っており、環境変数は一切見ません。現在のコードでは、環境変数の受け渡しは見せかけだけです。
+
+**理由:** 環境変数を尊重しないと、YAML で `question_tuning: true` が設定されたマシンでは、v1.21.1.0 の plan-ceo-review のスモークテストが依然としてフレーキーです。AUTO_DECIDE の設定により、描画された AskUserQuestion の一覧がスキップされ、捕まえたいリグレッションが隠れてしまいます。
+
+**利点:** マシン間でゲートのテストを隔離できます。環境変数の配線はすでに済んでいます。`gstack-config` が、まず環境変数を読み、YAML にフォールバックするようにすればよいだけです。
+**欠点:** 3 つのプラットフォーム(linux/darwin/windows)すべての gstack-config のバイナリに触れます。バイナリをまたぐリファクタリングです。
+
+**背景:** v1.21.1.0 の敵対的レビューから起票しました。テストの docstring に、既知の制限として正直に文書化しています。
+
+**優先度:** P3。
+**工数:** S。`bin/gstack-config` の 1 ファイルの編集(環境変数を先に見る処理で約 10 行)。
+
+---
+
+## P3: SANCTIONED_WRITE_SUBSTRINGS のパス混同の堅牢化
+
+**内容:** `runPlanSkillObservation` の無断書き込みの検出器は、許可されたいくつかのパス(`.gstack/`、`CHANGELOG.md`、`TODOS.md` など)を部分文字列で照合しています。`node_modules/some-pkg/CHANGELOG.md` や `src/foo/.gstack/leak.ts` への書き込みは、パスのどこかに部分文字列が含まれているため、現在は許可されてしまいます。
+
+**理由:** 防御的な対策です。現時点でこれを突く既存のバグはありませんが、悪意のあるスキルやフィクスチャが、たまたま `.gstack/` や `CHANGELOG.md` を含むパスに書き込めば、無断書き込みの検出をすり抜けてしまいます。
+
+**利点:** 将来のスキルの誤動作に対して、ハーネスを堅牢にできます。部分文字列のルールを、その意図に合わせられます。
+**欠点:** 絶対パスの接頭辞(`os.homedir() + '/.gstack/'`、ワークツリーのルート)に固定する必要があり、そうするとテストがマシン間で移植しにくくなります。
+
+**背景:** v1.21.1.0 の敵対的レビュー(HIGH/FIXABLE の指摘、既存の問題)から起票しました。v1.21.1.0 で `SANCTIONED_WRITE_SUBSTRINGS` の定数に整理しましたが、部分文字列の includes のロジックは以前のままです。
+
+**優先度:** P3。
+**工数:** S。
+
+---
+
+## P1: すべてのスキルにまたがる構造的な STOP-Ask の強制機構
+
+**内容:** スキルが指摘ごとの AskUserQuestion を義務づけているのに、モデルが黙ってバッチのまとめに置き換えてしまうことを検出する、構造的な強制機構を設計・実装します。候補となる仕組み: 質問数のアサーション(スキルがフロントマターで期待する質問数を宣言し、実行後の監査でモデルが N 件未満しか発火しなかったことを記録する)、型付きの質問テンプレート(スキルが散文の指示ではなく、あらかじめ組み立てられた AskUserQuestion のペイロードをモデルに渡す)、または canUseTool を使った実行後の監査(宣言されたゲートの発火数と、期待される数を比較する)。
+
+**理由:** 正式な「Skill Invocation During Plan Mode」のルール(プリアンブルの位置 1 に引き上げ済み)は、AskUserQuestion が plan mode のターン終了の要件を満たすとモデルに伝えます。これは plan mode に入る部分の問題は解決しますが、より広い種類の失敗は解決しません。スキルの対話の契約が、他のどのルールの面(自動モード、ツール数への不安、認知負荷)とぶつかるたびに、モデルは STOP-Ask のループをバッチのまとめに黙って置き換えてしまいます。構造的な強制がなければ、指摘ごとの STOP の契約を持つすべてのスキルが脆弱なままです。
+
+**利点:** 1 件の事例ではなく、種類のバグを捕まえられます。STOP のゲートを宣言するすべてのスキルに適用できます。`test/helpers/agent-sdk-runner.ts` の `canUseTool` の仕組みの上に作れます。
+
+**欠点:** 本格的な設計作業が必要です。スキルは期待される質問数をどう宣言するのか? フロントマターの静的な値か、指摘を表面化させるレビューのセクションの数に応じた動的な値か? 監査はインライン(ブロッキング、同じターン)か、事後(スキル完了後)か? 期待値と実際の値のしきい値の調整には、スキル横断の実際の V0 の質問ログのデータが必要です。
+
+**背景:** 関連ファイル: `scripts/question-registry.ts`(型付きの質問カタログ)、`scripts/resolvers/question-tuning.ts`(好みの分類)、`bin/gstack-question-log`(イベントログ)、`bin/gstack-question-preference`(好みの読み書き)、`test/helpers/agent-sdk-runner.ts`(canUseTool のハーネス)。既存の質問ログは、発火のイベントをすでに捉えています。足りないのは、期待される件数を宣言し、それと照合して監査することです。
+
+**工数:** L(人間で約 1〜2 週間 / CC+gstack で設計書と最初の実装の段階で約 2〜3 時間)。
+**優先度:** インタラクティブなスキルの量が増えているなら P1。それ以外は P2。
+**依存・ブロッカー:** 設計書 — おそらく独自の `docs/designs/STOP_ASK_ENFORCEMENT_V0.md`。
+## コンテキストのスキル
+
+### 並行するワークストリームのための `/context-save --lane` + `/context-restore --lane`
+
+**内容:** ユーザーが、ワークストリーム(レーン)ごとのコンテキストを、独立して保存・復元できるようにします。保存時には、`/context-save --lane A "backend refactor"` でレーンのタグが付いたファイルを書き出します。または、`/context-save lanes` は最新の計画ファイルの「Parallelization Strategy」セクションを読み、レーンごとに保存されたコンテキストを 1 つずつ自動生成します。復元時には、`/context-restore --lane A` でそのレーンのコンテキストだけを読み込みます。計画に 3 つの独立したワークストリームがあり、ユーザーが 3 つの Conductor のウィンドウでそれぞれを続けたいときに役立ちます。
+
+**理由:** `/plan-eng-review` が作る計画には、すでにレーンの表(Lane A: `models/` と `controllers/` に順番に触れる。Lane B: `api/` に独立して触れる、など)が含まれています。現時点では、その構造を再開可能な保存状態に移す方法がありません。ユーザーは、各ウィンドウで手作業で範囲を説明し直しています。レーンのタグ付きの保存・復元は、「ここに計画がある」と「3 人(または 3 つの AI)が今、それを並行して進めている」をつなぐ橋渡しになります。
+
+**利点:** `/plan-eng-review` の並列化の出力を、実行可能な再開状態に変えられます。複数ワークストリームの計画について、Conductor のワークスペースの引き継ぎをまたいだコンテキストの喪失を減らせます。
+
+**欠点:** まったく新しい機能です(古い `/checkpoint` スキルからの移植ではありません)。「新しい Conductor ウィンドウを起動する」部分は、Conductor に spawn の CLI があるかを調べる必要があります。また、保存のステップでレーンのタグを付ける規律(手作業、または抽出)が必要です。
+
+**背景:** レーンのデータモデルの元は `plan-eng-review/SKILL.md.tmpl:240-249`(レーン A/B/C の依存関係の表と、競合のフラグを含む「Parallelization Strategy」の出力)です。v0.18.5.0 の名前変更の PR から繰り延べました。名前変更を、リスクの低い小さな修正として先に入れるためです。保存されたファイルは現在、YAML のフロントマター(ブランチ、タイムスタンプなど)付きで `~/.gstack/projects/$SLUG/checkpoints/YYYYMMDD-HHMMSS-<title>.md` にあります。レーンの機能では、フロントマターに `lane:` フィールドを追加し、両方のスキルに `--lane` のフィルターを追加します。
+
+**工数:** M(人間で約 1〜2 日 / CC で約 45〜60 分)
+**優先度:** P3(あると良い。まだ誰もブロックされていません)
+**依存:** `/context-save` + `/context-restore` の名前変更が本番で安定していること(v1.0.1.0 以降)。調査: Conductor はワークスペースを spawn する CLI を公開しているか?
+
+## P0: ブラウザスキルのフェーズ 2 の後続作業 — `/automate` スキル
+
+**内容:** `/scrape` の、変更を伴うフローの兄弟です(フェーズ 2b)。`/automate <intent>` は、フォーム入力、クリックの順序、多段階の操作を恒久的なブラウザスキルに固定化します。フェーズ 2a の skillify の仕組み(`/skillify` は共有)と、D3 のアトミック書き込みのヘルパーを再利用します。追加されるもの: 固定化されていない場合に実行するとき、変更を伴うステップごとの UNTRUSTED で包んだ要約と、`AskUserQuestion` の確認ゲート(固定化されたスキルは、最初の人間の承認の後は無人で実行されます)。フェーズ 1 に従い、デフォルトは `trusted: false`(環境変数を除去した spawn、スコープ付きトークンの権限、管理者のスコープなし)です。
+
+**理由:** 読み取り専用のスクレイピングは、skillify のパターンを検証するための、より安全な入口です(失敗のモード: 間違ったデータは無害)。変更を伴うアクションは、100 倍の生産性向上のもう半分です。「example.com にログイン → 設定をクリック → X をトグル」を固定化したエージェントは、今後のすべてのセッションで実際の時間を節約します。フェーズ 2a から切り離すことで、まず生産性のループを出荷し、アーキテクチャを検証し、そのうえで信頼の度合いが高い機能を自信を持って追加できます。
+
+**利点:** 自己記述の安全性の懸念なしに、決定的な自動化の作成を可能にします。フェーズ 1 のスコープ付きトークンのモデルは、変更を伴うスキルにも同様に適用されます。固定化されたスクリプトは、実行時にどの `$B click`/`$B fill`/`$B type` の呼び出しが走るかを正確に列挙します。それ以外は実行時に不可能です。`/skillify`、D3 のヘルパー、ストレージの階層を 100% 再利用します。ステップごとの確認ゲートにより、初めて実行される前に、ユーザーにアクションを提示できます。
+
+**欠点:** 変更を伴う意図は、影響範囲が大きくなります(間違ったセレクタが「コメントを削除」の代わりに「アカウントを削除」をクリックする)。フェーズ 4 の OS レベルのファイルシステムのサンドボックスの方が、より強力な答えです。それまでは、ユーザーが信頼を負担する部分が現実にあります。確認ゲートの UX には注意が必要です。プロンプトが多すぎると、ユーザーは反射的に「はい」を押すようになります。対策: 初回実行のみゲートし、`/skillify` が固定化した後は、スキルを無人で実行します。
+
+**背景:** `docs/designs/BROWSER_SKILLS_V1.md` の元のフェーズ 2 の計画では、`/scrape` と `/automate` をまとめていました。v1.19.0.0 の計画レビュー(`garrytan/browserharness` の `/plan-eng-review`)で分割しました。ユーザーの元の文書では両方を主要なものとして扱っていましたが、実際には、失敗のモードが無害なため、ユーザーはスクレイピングから始めています。まず `/scrape` + `/skillify` を出荷し(このブランチ)、skillify のパターンが機能することを検証してから、同じ仕組みの上に `/automate` を載せます。
+
+**工数:** M(人間で約 3〜5 日 / CC で約 1 日)
+**優先度:** P0(v1.19.0.0 の次のブランチ)
+**依存:** v1.19.0.0 で出荷されたフェーズ 2a(`/scrape` + `/skillify`)。D3 のアトミック書き込みのヘルパー(`browse/src/browser-skill-write.ts`)と、同梱の SDK のパターンは、そのまま再利用します。
+
+---
+
+## P0: PACING_UPDATES_V0 — Louise の疲労の根本原因(V1.1)
+
+**内容:** PLAN_TUNING_V1 から切り出した、ペース配分の刷新を実装します。全体の設計は `docs/designs/PACING_UPDATES_V0.md` にあります。必要なもの: セッションの状態モデル、質問ログのスキーマの `phase` フィールド、動的な指摘のためのレジストリの拡張、ペース配分をプリアンブルの散文ではなくスキルのテンプレートの制御フローとして扱うこと、`bin/gstack-flip-decision` コマンド、移行プロンプトの予算のルール、初回実行時のプリアンブルの監査、実際の V0 のデータからのランキングのしきい値の調整、一方向のドアに対する上限なしのルール、具体的な検証値。
+
+**理由:** `/autoplan` の最中の Louise de Sadeleer の「yes yes yes」は、(専門用語の多さだけでなく)ペース配分と主体性の問題でした。V1 は専門用語(ELI10 の文章)に対応します。V1.1 は、割り込みの量という半分に対応します。これがなければ、V1 は HOLY SHIT の結果までの半分しか到達しません。
+
+**利点:** Louise のフィードバックへのエンドツーエンドの答えです。V1 の利用から実際の調整データを出荷します。PLAN_TUNING_V0 で始まった V0 → V2 のペース配分の流れを完成させます。
+
+**欠点:** 範囲が大きいです(`docs/designs/PACING_UPDATES_V0.md` の 10 項目)。独自の CEO + Codex + DX + Eng のレビューのサイクルが必要です。調整は、実際の V0 の質問ログの分布に依存します。
+
+**背景:** PLAN_TUNING_V1 は、ペース配分をまとめようとしました。3 回の eng review と 2 回の Codex のレビューで、計画の文章の編集では直せない 10 件の構造的な穴が見つかりました。独立した計画として V1.1 に切り出しました。
+
+**依存・ブロッカー:** V1 の出荷(調整のための Louise のベースラインのトランスクリプトを提供する)。
+
+## Plan Tune(v0.19.0.0 のロールバックからの v2 の繰り延べ)
+
+6 項目すべては、v1 のドッグフーディングの結果と、`docs/designs/PLAN_TUNING_V0.md` の受け入れ基準を前提としています。CEO の EXPANSION 計画からのスコープのロールバックを、Codex の外部視点のレビューが促した後、明示的に繰り延べました。v1 は観測のための基盤だけを出荷します。v2 で振る舞いの適応を追加します。
+
+### E1 — 基盤の配線(5 つのスキルがプロファイルを利用)
+
+**内容:** ship、review、office-hours、plan-ceo-review、plan-eng-review の SKILL.md.tmpl ファイルに `{{PROFILE_ADAPTATION:<skill>}}` のプレースホルダーを追加します。`scripts/resolvers/profile-consumer.ts` を、スキルごとの適応のレジストリ(`scripts/profile-adaptations/{skill}.ts`)とともに実装します。各利用側は、プリアンブルで `~/.gstack/developer-profile.json` を読み、スキル固有のデフォルト(詳細さ、モードの選択、深刻度のしきい値、反論の強さ)を適応させます。
+
+**理由:** v1 の観測用のプロファイルは、誰も読まないファイルを書いているだけです。基盤という主張は、スキルが実際にそれを利用して初めて現実になります。これがなければ /plan-tune は、凝った設定ページにすぎません。
+
+**利点:** gstack が個人的なものに感じられます。すべてのスキルが、無難な中間の値ではなく、ユーザーの舵取りのスタイルに合わせて適応します。
+
+**欠点:** プロファイルがノイズだらけだと、心理的なプロファイルがずれるリスクがあります。調整されたプロファイルが必要です(v1 の受け入れ基準: 3 つ以上のスキルにまたがって 90 日以上安定していること)。
+
+**背景:** `docs/designs/PLAN_TUNING_V0.md` の §Deferred to v2 を参照してください。v1 は、シグナルのマップと推定の計算を出荷しています。/plan-tune には表示されていますが、まだどのスキルも読んでいません。
+
+**工数:** L(人間で約 1 週間 / CC で約 4 時間)
+**優先度:** P0
+**依存:** **3 つ以上のスキルにまたがる、v1 のドッグフーディングの 90 日以上の安定稼働**(`docs/designs/PLAN_TUNING_V0.md` の §"Deferred to v2" の E1 の受け入れ基準による)。/plan-tune で推定の列を描画するために使われる、より軽量な多様性の表示のゲート(`sample_size >= 20 AND skills_covered >= 3 AND question_ids_covered >= 8 AND days_span >= 7`)とは別物です。表示は UI の機能であり、E1 への昇格はもっと高いハードルが必要です。振る舞いの適応は影響が大きく、元に戻しにくいためです。このカードの以前のバージョンは「2 週間以上」と書いていましたが、V0 と矛盾していました。V0 が優先されます。
+
+**基盤のリスク(Codex の外部視点、Phase A のレビュー 2026-05-26):** 生成されたスキルの文章は、エージェントの遵守に依存しています。テストでは、テンプレートに `~/.gstack/developer-profile.json` の正しい読み込みと、正しい判断ポイントが含まれていることは検証できますが、エージェントが実行時にそれに従うことは証明できません。E1 では、実行時の厳密な実行経路ができるまで、適応は AskUserQuestion の推奨に対する**助言的な注記**として出荷します(「あなたのプロファイルに基づく推奨: <choice>」)。E1 の v1 では、推定されたプロファイルだけを根拠に AUTO_DECIDE を制御しないでください。明示的な質問ごとの好みだけが、AUTO_DECIDE の唯一の根拠のままです。
 
 ### E3 — `/plan-tune narrative` + `/plan-tune vibe`
 
-**What:** Event-anchored narrative ("You accepted 7 scope expansions, overrode
-test_failure_triage 4 times, called every PR 'boil the lake'") + one-word vibe
-archetype (Cathedral Builder, Ship-It Pragmatist, Deep Craft, etc).
-scripts/archetypes.ts is ALREADY SHIPPED in v1 (8 archetypes + Polymath
-fallback). v2 work is the narrative generator + /plan-tune skill wiring.
+**内容:** 出来事に基づいた物語(「スコープの拡大を 7 回承認し、test_failure_triage を 4 回上書きし、すべての PR を『boil the lake』と呼んだ」)+ 一言の vibe の型(Cathedral Builder、Ship-It Pragmatist、Deep Craft など)。scripts/archetypes.ts は v1 で既に出荷済みです(8 つの型 + Polymath のフォールバック)。v2 の作業は、物語の生成器と /plan-tune スキルの配線です。
 
-**Why:** Makes profile tangible and shareable. Screenshot-able.
+**理由:** プロファイルを、手に取れるもの、共有できるものにします。スクリーンショットにできます。
 
-**Pros:** Killer delight feature. Social surface for gstack. Concrete, specific
-output anchored in real events (not generic AI slop).
+**利点:** 心を奪うような喜びの機能です。gstack の社会的な接点になります。実際の出来事に根差した、具体的な出力です(一般的な AI のスロップではありません)。
 
-**Cons:** Requires stable inferred profile — without calibration it produces
-generic paragraphs. Gen-tests need to validate no-slop.
+**欠点:** 安定した推定プロファイルが必要です。調整がないと、一般的な段落しか生成されません。生成のテストで、スロップがないことを検証する必要があります。
 
-**Context:** Archetypes already defined. Just need the /plan-tune narrative
-subcommand + slop-check test.
+**背景:** 型はすでに定義されています。必要なのは /plan-tune の物語のサブコマンドと、スロップのチェックのテストだけです。
 
-**Effort:** S+ (human: ~1 day / CC: ~1h)
-**Priority:** P0
-**Depends on:** Calibrated profile (>= 20 events, 3+ skills, 7+ days span).
+**工数:** S+(人間で約 1 日 / CC で約 1 時間)
+**優先度:** P0
+**依存:** 調整されたプロファイル(20 件以上のイベント、3 つ以上のスキル、7 日以上の期間)。
 
-### E4 — Blind-spot coach
+### E4 — 死角のコーチ
 
-**What:** Preamble injection that surfaces the OPPOSITE of the user's profile
-once per session per tier >= 2 skill. Boil-the-ocean user gets challenged on
-scope ("what's the 80% version?"); small-scope user gets challenged on ambition.
-`scripts/resolvers/blind-spot-coach.ts`. Marker file for session dedup. Opt-out
-via `gstack-config set blind_spot_coach false`.
+**内容:** ユーザーのプロファイルの**反対**を、tier 2 以上のスキルごとに、セッションに 1 回表面化させるプリアンブルへの注入。全部やろうとするユーザーには、スコープに異議が唱えられます(「80% 版は何?」)。小規模なユーザーには、野心について異議が唱えられます。`scripts/resolvers/blind-spot-coach.ts`。セッションの重複を防ぐためのマーカーファイル。`gstack-config set blind_spot_coach false` でオプトアウトできます。
 
-**Why:** Makes gstack a coach (challenges you) instead of a mirror (reflects
-you). The killer differentiation vs. a settings menu.
+**理由:** gstack を、あなたを映す鏡ではなく、あなたに異議を唱えるコーチにします。設定メニューとの、決定的な違いになります。
 
-**Pros:** The feature that makes gstack feel like Garry. Surfaces assumptions
-the user hasn't challenged.
+**利点:** gstack を Garry のように感じさせる機能です。ユーザーが疑っていない前提を表面化させます。
 
-**Cons:** Logically conflicts with E1 (which adapts TO profile) and E6 (which
-flags mismatch). Requires interaction-budget design: global session budget +
-escalation rules + explicit exclusion from mismatch detection. Risk of feeling
-like a nag if fires wrong.
+**欠点:** E1(プロファイルに合わせて適応する)と E6(ずれを指摘する)と論理的に衝突します。割り込みの予算の設計が必要です。セッション全体の予算、エスカレーションのルール、ずれの検出からの明示的な除外。間違ったタイミングで発火すると、うるさく感じられるリスクがあります。
 
-**Context:** v2 must redesign to resolve the E1/E4/E6 composition issue Codex
-caught. Dogfood required to calibrate frequency.
+**背景:** v2 では、Codex が捉えた E1/E4/E6 の組み合わせの問題を解決するために、再設計が必要です。頻度を調整するには、ドッグフーディングが必要です。
 
-**Effort:** M (human: ~3 days / CC: ~2h design + ~1h impl)
-**Priority:** P0
-**Depends on:** E1 shipped + interaction-budget design spec.
+**工数:** M(人間で約 3 日 / CC で約 2 時間の設計 + 約 1 時間の実装)
+**優先度:** P0
+**依存:** E1 の出荷 + 割り込みの予算の設計仕様。
 
-### E5 — LANDED celebration HTML page
+### E5 — 出荷の祝賀 HTML ページ(LANDED)
 
-**What:** When a PR authored by the user is newly merged to the base branch,
-open an animated HTML celebration page in the browser. Confetti + typewriter
-headline + stats counter. Shows: what we built (PR stats + CHANGELOG entry),
-road traveled (scope decisions from CEO plan), road not traveled (deferred
-items), where we're going (next TODOs), who you are as a builder (vibe +
-narrative + profile delta for this ship). Self-contained HTML (CSS animations
-only, no JS deps).
+**内容:** ユーザーが作成した PR が、ベースブランチにマージされたときに、アニメーションのある祝賀の HTML ページをブラウザで開きます。紙吹雪 + タイプライター風の見出し + 統計のカウンター。表示する内容: 作ったもの(PR の統計 + CHANGELOG のエントリ)、通ってきた道(CEO 計画からのスコープの決定)、通らなかった道(繰り延べた項目)、これから向かう先(次の TODO)、ビルダーとしてのあなた(vibe + 物語 + この出荷のプロファイルの差分)。自己完結の HTML(CSS のアニメーションのみ、JS の依存なし)。
 
-**CRITICAL REVISION from v0 plan:** Passive detection must NOT live in the
-preamble (Codex #9). When promoted, moves to explicit `/plan-tune show-landed`
-OR post-ship hook — not passive detection in the hot path.
+**v0 計画からの重要な改訂:** パッシブな検出はプリアンブルに置いてはいけません(Codex #9)。昇格するときは、明示的な `/plan-tune show-landed` または出荷後のフックに移し、ホットパスでのパッシブな検出はしないこと。
 
-**Why:** Biggest personality moment in gstack. The "one-word thing that makes
-you remember why you built this."
+**理由:** gstack で最も個性が出る瞬間です。「そもそもなぜ作ったのかを思い出させる、一語のもの」です。
 
-**Pros:** Screenshot-worthy. Shareable. The kind of dopamine hit that turns
-power users into evangelists.
+**利点:** スクリーンショットに値します。共有できます。パワーユーザーを伝道者に変えるような、ドーパミンの一押しです。
 
-**Cons:** Product theater if the substrate isn't solid. Needs /design-shotgun
-→ /design-html for the visual direction. Requires E2 unified profile for
-narrative/vibe data.
+**欠点:** 基盤がしっかりしていないと、ただの演出になります。視覚的な方向性には /design-shotgun → /design-html が必要です。物語/vibe のデータには、E2 の統合プロファイルが必要です。
 
-**Context:** /land-and-deploy trust/adoption is low, so passive detection is
-the right trigger shape. Dedup marker per PR in `~/.gstack/.landed-celebrated-*`.
-E2E tests for squash/merge-commit/rebase/co-author/fresh-clone/dedup variants.
+**背景:** /land-and-deploy の信頼と採用率は低いため、パッシブな検出が適切な発火の形です。PR ごとの重複防止マーカーは `~/.gstack/.landed-celebrated-*` です。squash/merge-commit/rebase/co-author/fresh-clone/dedup のバリエーションについて、E2E テストがあります。
 
-**Effort:** M+ (human: ~1 week / CC: ~3h total)
-**Priority:** P0
-**Depends on:** E3 narrative/vibe shipped. /design-shotgun run on real PR data
-to pick a visual direction, then /design-html to finalize.
+**工数:** M+(人間で約 1 週間 / CC で合計約 3 時間)
+**優先度:** P0
+**依存:** E3 の物語/vibe の出荷。実際の PR データで /design-shotgun を実行して視覚的な方向性を選び、その後 /design-html で仕上げること。
 
-### E6 — Auto-adjustment based on declared ↔ inferred mismatch
+### E6 — 宣言されたプロファイルと推定されたプロファイルのずれに基づく自動調整
 
-**What:** Currently `/plan-tune` shows the gap between declared and inferred
-(v1 observational). v2 auto-suggests declaration updates when the gap exceeds
-a threshold ("Your profile says hands-off but you've overridden 40% of
-recommendations — you're actually taste-driven. Update declared autonomy from
-0.8 to 0.5?"). Requires explicit user confirmation before any mutation (Codex
-trust-boundary #15 already baked into v1).
+**内容:** 現在、`/plan-tune` は、宣言されたものと推定されたものの差を表示します(v1 は観測のみ)。v2 では、差がしきい値を超えたときに、宣言の更新を自動で提案します(「あなたのプロファイルは hands-off ですが、推奨の 40% を上書きしています。実際には taste-driven です。宣言された自律性を 0.8 から 0.5 に更新しますか?」)。どの変更の前にも、明示的なユーザーの確認が必要です(Codex の信頼境界 #15 はすでに v1 に組み込まれています)。
 
-**Why:** Profile drifts silently without correction. Self-correcting profile
-stays honest.
+**理由:** 修正がないままだと、プロファイルは黙ってずれていきます。自己修正するプロファイルは、正直であり続けます。
 
-**Pros:** Profile becomes more accurate over time. User sees the gap and
-decides.
+**利点:** プロファイルが時間とともに正確になります。ユーザーは差を見て判断できます。
 
-**Cons:** Requires stable inferred profile (diversity check). False positives
-nag the user.
+**欠点:** 安定した推定プロファイル(多様性のチェック)が必要です。誤検知は、ユーザーをうるさく悩ませます。
 
-**Context:** v1 has `--check-mismatch` that flags > 0.3 gaps but doesn't
-suggest fixes. v2 adds the suggestion UX + per-dimension threshold tuning from
-real data.
+**背景:** v1 には `--check-mismatch` があり、0.3 を超える差を指摘しますが、修正は提案しません。v2 では、提案の UX と、実際のデータからの次元ごとのしきい値の調整を追加します。
 
-**Effort:** S (human: ~1 day / CC: ~45min)
-**Priority:** P0
-**Depends on:** Calibrated profile + real mismatch data from v1 dogfood.
+**工数:** S(人間で約 1 日 / CC で約 45 分)
+**優先度:** P0
+**依存:** 調整されたプロファイル + v1 のドッグフーディングからの実際のずれのデータ。
 
-### E7 — Psychographic auto-decide
+### E7 — 心理的プロファイルによる自動判断
 
-**What:** When inferred profile is calibrated AND a question is two-way AND
-the user's dimensions strongly favor one option, auto-choose without asking
-(visible annotation: "Auto-decided via profile. Change with /plan-tune."). v1
-only auto-decides via EXPLICIT per-question preferences; v2 adds profile-driven
-auto-decide.
+**内容:** 推定されたプロファイルが調整されていて、かつ質問が二択で、かつユーザーの次元が一方の選択肢を強く支持しているとき、尋ねずに自動で選びます(目に見える注記: 「プロファイルにより自動判断。/plan-tune で変更できます。」)。v1 は、明示的な質問ごとの好みによってのみ自動判断します。v2 では、プロファイルに基づく自動判断を追加します。
 
-**Why:** The whole point of the psychographic. Silent, correct defaults based
-on who the user IS, not just what they've said.
+**理由:** 心理的プロファイルの全体の目的です。何を言ったかだけでなく、ユーザーが**どういう人か**に基づいた、静かで正しいデフォルトです。
 
-**Pros:** Friction-free skill invocation for calibrated power users. Over time,
-gstack feels like it's reading your mind.
+**利点:** 調整済みのパワーユーザーにとって、摩擦のないスキルの呼び出しになります。時間とともに、gstack があなたの考えを読んでいるように感じられるようになります。
 
-**Cons:** Highest-risk deferral. Wrong auto-decides are costly. Requires very
-high confidence in the signal map AND calibration gate.
+**欠点:** 最もリスクの高い繰り延べです。誤った自動判断はコストが大きくなります。シグナルマップ**と**調整のゲートの両方に、非常に高い確信が必要です。
 
-**Context:** v1 diversity gate is `sample_size >= 20 AND skills_covered >= 3
-AND question_ids_covered >= 8 AND days_span >= 7`. v2 must prove this gate
-actually catches noisy profiles before shipping.
+**背景:** v1 の多様性のゲートは `sample_size >= 20 AND skills_covered >= 3 AND question_ids_covered >= 8 AND days_span >= 7` です。v2 では、このゲートが出荷前に、ノイズの多いプロファイルを実際に捕まえることを証明しなければなりません。
 
-**Effort:** M (human: ~3 days / CC: ~2h)
-**Priority:** P0
-**Depends on:** E1 (skills consuming profile) + real observed data showing
-calibration gate is trustworthy.
+**工数:** M(人間で約 3 日 / CC で約 2 時間)
+**優先度:** P0
+**依存:** E1(プロファイルを利用するスキル)+ 調整のゲートが信頼できることを示す、実際に観測されたデータ。
 
-## Browse
+## ブラウザ(browse)
 
-### Scope sidebar-agent kill to session PID, not `pkill -f sidebar-agent\.ts`
+### サイドバーエージェントの終了を、`pkill -f sidebar-agent\.ts` ではなくセッションの PID に限定する
 
-**What:** `shutdown()` in `browse/src/server.ts:1193` uses `pkill -f sidebar-agent\.ts` to kill the sidebar-agent daemon, which matches every sidebar-agent on the machine, not just the one this server spawned. Replace with PID tracking: store the sidebar-agent PID when `cli.ts` spawns it (via state file or env), then `process.kill(pid, 'SIGTERM')` in `shutdown()`.
+**内容:** `browse/src/server.ts:1193` の `shutdown()` は、`pkill -f sidebar-agent\.ts` を使ってサイドバーエージェントのデーモンを終了させています。これは、このサーバーが起動したものだけでなく、マシン上のすべてのサイドバーエージェントにマッチします。PID の追跡に置き換えてください。`cli.ts` がサイドバーエージェントを spawn するときに PID を保存し(状態ファイルまたは環境変数経由)、`shutdown()` で `process.kill(pid, 'SIGTERM')` を使います。
 
-**Why:** A user running two Conductor worktrees (or any multi-session setup), each with its own `$B connect`, closes one browser window ... and the other worktree's sidebar-agent gets killed too. The blast radius was there before, but the v0.18.1.0 disconnect-cleanup fix makes it more reachable: every user-close now runs the full `shutdown()` path, whereas before user-close bypassed it.
+**理由:** それぞれ独自の `$B connect` を持つ 2 つの Conductor のワークツリー(またはマルチセッションの構成)を使っているユーザーが、片方のブラウザウィンドウを閉じると、もう片方のワークツリーのサイドバーエージェントも一緒に終了してしまいます。影響範囲は以前からありましたが、v0.18.1.0 の切断時のクリーンアップの修正により、到達しやすくなりました。以前はユーザーがウィンドウを閉じても `shutdown()` の経路を通りませんでしたが、今ではユーザーが閉じるたびに完全な `shutdown()` の経路が実行されるためです。
 
-**Context:** Surfaced by /ship's adversarial review on v0.18.1.0. Pre-existing code, not introduced by the fix. Fix requires propagating the sidebar-agent PID from `cli.ts` spawn site (~line 885) into the server's state file so `shutdown()` can target just this session's agent. Related: `browse/src/cli.ts` spawns with `Bun.spawn(...).unref()` and already captures `agentProc.pid`.
+**背景:** v0.18.1.0 に対する /ship の敵対的レビューで見つかりました。既存のコードで、修正によって導入されたものではありません。修正には、`cli.ts` の spawn の箇所(885 行目付近)からサーバーの状態ファイルにサイドバーエージェントの PID を伝え、`shutdown()` がこのセッションのエージェントだけを対象にできるようにすることが必要です。関連: `browse/src/cli.ts` は `Bun.spawn(...).unref()` で spawn しており、すでに `agentProc.pid` を取得しています。
 
-**Effort:** S (human: ~2h / CC: ~15min)
-**Priority:** P2
-**Depends on:** None
+**工数:** S(人間で約 2 時間 / CC で約 15 分)
+**優先度:** P2
+**依存:** なし
 
-## Sidebar Security
+## サイドバーのセキュリティ
 
-### ML Prompt Injection Classifier — v1 SHIPPED (branch garrytan/prompt-injection-guard)
+### ML プロンプトインジェクション分類器 — v1 出荷済み(ブランチ garrytan/prompt-injection-guard)
 
-**Status:** IN PROGRESS on branch `garrytan/prompt-injection-guard`. Classifier swap:
-**TestSavantAI** replaces DeBERTa (better on developer content — HN/Reddit/Wikipedia/tech blogs all
-score SAFE 0.98+, attacks score INJECTION 0.99+). Pre-impl gate 3 (benign corpus dry-run)
-forced this pivot — see `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-04-19-prompt-injection-guard.md`.
+**ステータス:** ブランチ `garrytan/prompt-injection-guard` で作業中。分類器の入れ替え: **TestSavantAI** を DeBERTa の代わりに採用します(HN/Reddit/Wikipedia/技術ブログなどの開発者向けのコンテンツでより良い結果。SAFE 0.98 以上、攻撃は INJECTION 0.99 以上)。実装前のゲート 3(良性コーパスのドライラン)によって、この方針変更が強制されました。詳細は `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-04-19-prompt-injection-guard.md` を参照してください。
 
-**What shipped in v1:**
-- `browse/src/security.ts` — canary injection + check, verdict combiner (ensemble rule),
-  attack log with rotation, cross-process session state, status reporting
-- `browse/src/security-classifier.ts` — TestSavantAI ONNX classifier + Haiku transcript
-  classifier (reasoning-blind), both with graceful degradation
-- Canary flows end-to-end: server.ts injects, sidebar-agent.ts checks every outbound
-  channel (text, tool args, URLs, file writes) and kills session on leak
-- Pre-spawn ML scan of user message with ensemble rule (BLOCK requires both classifiers)
-- `/health` endpoint exposes security status for shield icon
-- 25 unit tests + 12 regression tests all passing
+**v1 で出荷されたもの:**
+- `browse/src/security.ts` — カナリアの注入と検査、判定の統合(アンサンブルのルール)、ローテーション付きの攻撃ログ、プロセス間のセッション状態、ステータスの報告
+- `browse/src/security-classifier.ts` — TestSavantAI の ONNX 分類器と Haiku のトランスクリプト分類器(推論を見ない)。どちらも段階的な機能低下に対応
+- カナリアの流れをエンドツーエンドで実装: server.ts が注入し、sidebar-agent.ts がすべての送信チャネル(テキスト、ツールの引数、URL、ファイルの書き込み)を検査し、漏えいがあればセッションを終了
+- アンサンブルのルールによる、ユーザーメッセージの spawn 前の ML スキャン(BLOCK には両方の分類器が必要)
+- `/health` エンドポイントがシールドアイコン用にセキュリティのステータスを公開
+- 単体テスト 25 件 + リグレッションテスト 12 件、すべて合格
 
-**Branch 2 architecture (decided from pre-impl gate 1):**
-The ML classifier ONLY runs in `sidebar-agent.ts` (non-compiled bun script). The compiled
-browse binary cannot link onnxruntime-node. Architectural controls (XML framing + allowlist)
-defend the compiled-side ingress.
+**ブランチ 2 のアーキテクチャ(実装前のゲート 1 で決定):**
+ML 分類器は `sidebar-agent.ts`(コンパイルされていない bun のスクリプト)でのみ実行されます。コンパイル済みの browse バイナリは onnxruntime-node をリンクできません。アーキテクチャの制御(XML のフレーミングと許可リスト)が、コンパイル済み側の入口を守ります。
 
-### ML Prompt Injection Classifier — v2 Follow-ups
+### ML プロンプトインジェクション分類器 — v2 の後続作業
 
-#### ~~Cut Haiku false-positive rate from 44% toward ~15% (P0)~~ — SHIPPED in v1.5.2.0
+#### ~~Haiku の誤検知率を 44% から約 15% に下げる(P0)~~ — v1.5.2.0 で出荷済み
 
-Measured result (500-case BrowseSafe-Bench smoke): detection 67.3% → **56.2%**, FP 44.1% → **22.9%**. Gate passes (detection ≥ 55%, FP ≤ 25%). Knobs that landed: label-first ensemble voting (verdict label trumps numeric confidence for transcript layer), hallucination guard (`verdict=block` at conf < 0.40 → warn-vote), new `THRESHOLDS.SOLO_CONTENT_BLOCK = 0.92` for label-less content classifiers, label-first extension to toolOutput path, tighter Haiku prompt + 8 few-shot exemplars, pinned Haiku model, `claude -p` spawn from `os.tmpdir()` so CLAUDE.md can't poison the classifier, timeout bumped 15s → 45s. CI gate: `browse/test/security-bench-ensemble.test.ts` replays fixture, fail-closed on missing fixture + security-layer diff. The original plan's stop-loss revert order didn't move the FP needle (FPs came from single-layer-BLOCK paths, not ensemble); the real levers turned out to be architectural (label-first) plus a new decoupled threshold.
+測定結果(500 件の BrowseSafe-Bench のスモークテスト): 検出率 67.3% → **56.2%**、誤検知率 44.1% → **22.9%**。ゲートを通過しました(検出率 ≥ 55%、誤検知率 ≤ 25%)。採用されたつまみ: ラベル優先のアンサンブルの投票(トランスクリプトの層では、判定のラベルが数値の確信度より優先)、幻覚のガード(`verdict=block` かつ確信度 < 0.40 の場合は warn の票として扱う)、ラベルのないコンテンツ分類器用の新しい `THRESHOLDS.SOLO_CONTENT_BLOCK = 0.92`、toolOutput の経路へのラベル優先の拡張、より厳密な Haiku のプロンプトと 8 件の few-shot の例、Haiku のモデルの固定、`os.tmpdir()` からの `claude -p` の spawn(CLAUDE.md が分類器を汚染できないように)、タイムアウトを 15 秒から 45 秒に延長。CI のゲート: `browse/test/security-bench-ensemble.test.ts` がフィクスチャを再生し、フィクスチャがない場合やセキュリティ層の差分がある場合は閉じた状態(fail-closed)で失敗します。元の計画の損切りの巻き戻しの順序では、誤検知の数は動きませんでした(誤検知はアンサンブルではなく、単一層の BLOCK の経路から来ていました)。実際に効いたてこは、アーキテクチャ的なもの(ラベル優先)と、新しく分離されたしきい値でした。
 
-See CHANGELOG.md [1.5.2.0] for the full shipped summary.
+詳細は CHANGELOG.md [1.5.2.0] を参照してください。
 
-#### Original spec (pre-ship, retained for archive)
+#### 元の仕様(出荷前。アーカイブとして保持)
 
-**What:** v1 ships the Haiku transcript classifier on every tool output (Read/Grep/Bash/Glob/WebFetch). BrowseSafe-Bench smoke measured detection 67.3% + FP 44.1% — a 4.4x detection lift from L4-only, but FP tripled because Haiku is more aggressive than L4 on edge cases (phishing-style benign content, borderline social engineering). The review banner makes FPs recoverable but 44% is too high for a delightful default.
+**内容:** v1 は、すべてのツールの出力(Read/Grep/Bash/Glob/WebFetch)に Haiku のトランスクリプト分類器を適用して出荷しました。BrowseSafe-Bench のスモークテストでは、検出率 67.3%、誤検知率 44.1% でした。L4 のみに比べて検出率は 4.4 倍になりましたが、誤検知は 3 倍になりました。Haiku はエッジケース(フィッシングのような良性のコンテンツ、境界線上のソーシャルエンジニアリング)で L4 より攻撃的だからです。レビューのバナーで誤検知は回復できますが、44% は、快適なデフォルトとしては高すぎます。
 
-**Why:** User clicks review banner roughly every-other tool output = real UX friction. Tuning these four knobs together should cut FP to ~15-20% while keeping detection in the 60-70% range:
+**理由:** ユーザーは、ツールの出力の半分ほどの頻度でレビューのバナーをクリックしています。これは実際の UX の摩擦です。次の 4 つのつまみを一緒に調整すると、検出率を 60〜70% の範囲に保ったまま、誤検知を約 15〜20% に減らせるはずです。
 
-1. **Switch ensemble counting to Haiku's `verdict` field, not `confidence`.** Right now `combineVerdict` treats Haiku warn-at-0.6 as a BLOCK vote. Haiku reserves `verdict: "block"` for clear-cut cases and uses `"warn"` liberally. Count only `verdict === "block"` as a BLOCK vote; `warn` becomes a soft signal that participates in 2-of-N ensemble but doesn't single-handedly BLOCK.
-2. **Tighten Haiku's classifier prompt.** Current prompt is generic. Rewrite to: "Return `block` only if the text contains explicit instruction-override, role-reset, exfil request, or malicious code execution. Return `warn` for social engineering that doesn't try to hijack the agent. Return `safe` otherwise." More specific instructions → fewer false flags.
-3. **Add 6-8 few-shot exemplars to Haiku's prompt.** Pairs of (injection text → block) and (benign-looking-but-safe → safe). LLM few-shot consistently outperforms zero-shot on classification.
-4. **Bump Haiku's WARN threshold from 0.6 to 0.75.** Borderline fires drop out of the ensemble pool.
+1. アンサンブルの票の数え方を、確信度ではなく Haiku の `verdict` フィールドに切り替える。今は `combineVerdict` が、Haiku の 0.6 での warn を BLOCK の票として扱っています。Haiku は `verdict: "block"` を明確なケースのために残し、`"warn"` を気前よく使います。`verdict === "block"` だけを BLOCK の票として数え、`warn` は柔らかいシグナルとし、2-of-N のアンサンブルには参加させるが、単独では BLOCK させないようにします。
+2. Haiku の分類器のプロンプトを厳しくする。今のプロンプトは一般的すぎます。書き直し: 「テキストに明示的な指示の上書き、役割のリセット、情報の持ち出しの要求、または悪意のあるコードの実行が含まれる場合にのみ `block` を返す。エージェントを乗っ取ろうとしないソーシャルエンジニアリングには `warn` を返す。それ以外は `safe` を返す。」より具体的な指示は、誤った検知を減らします。
+3. Haiku のプロンプトに 6〜8 件の few-shot の例を追加する。(インジェクションのテキスト → block)と(一見良性だが安全 → safe)のペア。LLM の分類では、few-shot はゼロショットより一貫して良い結果になります。
+4. Haiku の WARN のしきい値を 0.6 から 0.75 に上げる。境界線上の発火がアンサンブルの対象から外れます。
 
-Ship all four together, re-run BrowseSafe-Bench smoke, record before/after. Target: 60-70% detection / 15-25% FP.
+4 つすべてを一緒に出荷し、BrowseSafe-Bench のスモークテストを再実行して、前後の結果を記録してください。目標: 検出率 60〜70%、誤検知率 15〜25%。
 
-**Effort:** S (human: ~1 day / CC: ~30-45 min + ~45min bench)
-**Priority:** P0 (direct UX impact post-ship; ship v1 as-is with review banner, file this as the immediate follow-up)
-**Depends on:** v1.4.0.0 prompt-injection-guard branch merged
+**工数:** S(人間で約 1 日 / CC で約 30〜45 分 + 約 45 分のベンチ)
+**優先度:** P0(出荷後の UX に直接影響。v1 はレビューのバナーとともにそのまま出荷し、これを直近の後続作業として起票する)
+**依存:** v1.4.0.0 の prompt-injection-guard ブランチのマージ
 
-#### Cache review decisions per (domain, payload-hash-prefix) (P1)
+#### レビューの判断を(ドメイン, ペイロードのハッシュの接頭辞)ごとにキャッシュする(P1)
 
-**What:** If Haiku fires on a page twice in the same session (e.g., user does Bash then Grep on the same suspicious file), the second fire shouldn't re-prompt. Cache the user's decision keyed by a per-session (domain, payloadHash-prefix) pair. Small LRU, ~100 entries, session-scoped (not persistent across sidebar restarts — we want fresh decisions on new sessions).
+**内容:** 同じセッションで Haiku が同じページに 2 回発火した場合(たとえば、ユーザーが同じ怪しいファイルに対して Bash の後に Grep を実行した場合)、2 回目の発火で再度確認を求めるべきではありません。ユーザーの判断を、セッションごとの(ドメイン, payloadHash の接頭辞)のペアをキーにしてキャッシュします。小さな LRU(約 100 件)で、セッション単位(サイドバーの再起動をまたいでは永続化しない。新しいセッションでは新鮮な判断が欲しいため)。
 
-**Why:** Reduces review-banner fatigue when the same bit of sketchy content gets scanned multiple times via different tools. At 44% FP on v1, this matters most.
+**理由:** 同じ怪しいコンテンツが、異なるツールを通じて何度もスキャンされたときの、レビューバナーの疲れを減らします。v1 の誤検知率 44% では、これが最も重要です。
 
-**Effort:** S (human: ~0.5 day / CC: ~20 min)
-**Priority:** P1
+**工数:** S(人間で約 0.5 日 / CC で約 20 分)
+**優先度:** P1
 
-#### Fine-tune a small classifier on BrowseSafe-Bench + Qualifire + xxz224 (P2 research)
+#### BrowseSafe-Bench + Qualifire + xxz224 で小さな分類器をファインチューニングする(P2 の研究)
 
-**What:** TestSavantAI was trained on direct-injection text, wrong distribution for browser-agent attacks (measured 15% recall). Take BERT-base, fine-tune on BrowseSafe-Bench (3,680 cases) + Qualifire prompt-injection-benchmark (5k) + xxz224 (3.7k) combined, ship in ~/.gstack/models/ as replacement L4 classifier.
+**内容:** TestSavantAI は、直接のインジェクションのテキストで学習されており、ブラウザエージェントへの攻撃には分布が合いません(測定での再現率は 15%)。BERT-base を取り、BrowseSafe-Bench(3,680 件)+ Qualifire のプロンプトインジェクションのベンチマーク(5k)+ xxz224(3.7k)を組み合わせてファインチューニングし、~/.gstack/models/ に L4 分類器の代替として出荷します。
 
-**Why:** Expected 15% → 70%+ recall on the actual threat distribution without needing Haiku. Would also cut latency (no CLI subprocess) and drop Haiku cost.
+**理由:** Haiku を使わずに、実際の脅威の分布で再現率を 15% から 70% 以上に上げられると見込まれます。また、遅延も減らせます(CLI のサブプロセスがない)。Haiku のコストも下がります。
 
-**Effort:** XL (human: ~3-5 days + ~$50 GPU / CC: ~4-6 hours setup + ~$50 GPU)
-**Priority:** P2 research — validate the lift on a held-out test set before committing to replace TestSavant
+**工数:** XL(人間で約 3〜5 日 + 約 $50 の GPU / CC で約 4〜6 時間のセットアップ + 約 $50 の GPU)
+**優先度:** P2 の研究 — TestSavant の置き換えを確定する前に、ホールドアウトのテストセットで向上を検証すること
 
-#### DeBERTa-v3 ensemble as default (P2)
+#### DeBERTa-v3 のアンサンブルをデフォルトにする(P2)
 
-**What:** Flip `GSTACK_SECURITY_ENSEMBLE=deberta` from opt-in to default. Adds a 3rd ML vote; 2-of-3 agreement rule should reduce FPs while catching attacks that only DeBERTa sees.
+**内容:** `GSTACK_SECURITY_ENSEMBLE=deberta` をオプトインからデフォルトに切り替えます。3 つ目の ML の票が加わり、2-of-3 の一致のルールにより、DeBERTa だけが見つける攻撃を捉えつつ、誤検知を減らせるはずです。
 
-**Why:** More votes = better calibration. Currently opt-in because 721MB is a big first-run download; flipping to default requires lazy-download UX.
+**理由:** 票が多いほど、調整が良くなります。現在はオプトインです。721MB の初回ダウンロードは大きいためです。デフォルトにするには、遅延ダウンロードの UX が必要です。
 
-**Cons:** 721MB first-run download for every user. Costs user bandwidth + disk.
+**欠点:** すべてのユーザーに 721MB の初回ダウンロードが発生します。ユーザーの帯域とディスクを消費します。
 
-**Effort:** M (human: ~2 days / CC: ~1 hour + UX)
-**Priority:** P2 (after #1 tuning to see how much room is left)
+**工数:** M(人間で約 2 日 / CC で約 1 時間 + UX)
+**優先度:** P2(#1 の調整の後、どれだけ余地があるかを見てから)
 
-#### User-feedback flywheel — decisions become training data (P3)
+#### ユーザーのフィードバックの好循環 — 判断が学習データになる(P3)
 
-**What:** Every Allow/Block click is labeled data. Log (suspected_text hash, layer scores, user decision, ts) to ~/.gstack/security/feedback.jsonl. Aggregate via community-pulse when `telemetry: community`. Periodically retrain the classifier on aggregate feedback.
+**内容:** 許可/ブロックのクリックはすべてラベル付きのデータです。(疑わしいテキストのハッシュ、各層のスコア、ユーザーの判断、タイムスタンプ)を ~/.gstack/security/feedback.jsonl に記録します。`telemetry: community` のときは community-pulse で集計します。定期的に、集計されたフィードバックで分類器を再学習させます。
 
-**Why:** The system gets better the more it's used. Closes the loop between user reality and defense quality.
+**理由:** 使われるほど、システムは良くなります。ユーザーの実態と防御の品質の間のループを閉じます。
 
-**Cons:** Feedback loop can be poisoned if attacker controls enough devices. Need guardrails (stratified sampling, reviewer validation, k-anon minimums on training batch).
+**欠点:** 攻撃者が十分な数の端末を支配すると、フィードバックのループが汚染される可能性があります。ガードレールが必要です(層化サンプリング、レビュアーによる検証、学習バッチの k 匿名性の最小値)。
 
-**Effort:** L (human: ~1 week for local logging + aggregation pipe, another week for retrain cron / CC: ~2-4 hours per sub-part)
-**Priority:** P3 — only worth building after v2 tuning proves the architecture is the right shape
+**工数:** L(人間で約 1 週間をローカルのロギングと集計のパイプに、さらに約 1 週間を再学習の cron に / CC で各サブパートあたり約 2〜4 時間)
+**優先度:** P3 — v2 の調整でアーキテクチャが正しい形だと証明されてから作る価値がある
 
-#### ~~Shield icon + canary leak banner UI (P0)~~ — SHIPPED
+#### ~~シールドアイコン + カナリア漏えいのバナー UI(P0)~~ — 出荷済み
 
-Banner landed in commits a9f702a7 (HTML+CSS, variant A mockup) + ffb064af
-(JS wiring + security_event routing + a11y + Escape-to-dismiss). Shield
-icon landed in 59e0635e with 3 states (protected/degraded/inactive),
-custom SVG + mono SEC label per design review Pass 7, hover tooltip with
-per-layer detail.
+バナーは、コミット a9f702a7(HTML+CSS、バリアント A のモックアップ)と ffb064af(JS の配線 + security_event のルーティング + a11y + Escape で閉じる)で入りました。シールドアイコンは、コミット 59e0635e で 3 つの状態(protected/degraded/inactive)、デザインレビューのパス 7 に従ったカスタム SVG とモノスペースの SEC ラベル、層ごとの詳細をホバーで表示するツールチップとともに入りました。
 
-Known v1 limitation logged as follow-up: shield only updates at connect —
-see "Shield icon continuous polling" above.
+既知の v1 の制限として、後続作業に記録しています: シールドは接続時にのみ更新される。以下の「シールドアイコンの継続的なポーリング」を参照。
 
-#### ~~Shield icon continuous polling (P2)~~ — SHIPPED
+#### ~~シールドアイコンの継続的なポーリング(P2)~~ — 出荷済み
 
-Commit 06002a82: `/sidebar-chat` response now includes `security:
-getSecurityStatus()`, and sidepanel.js calls `updateSecurityShield(data.security)`
-on every poll tick. Shield flips to 'protected' as soon as classifier warmup
-completes (typically ~30s after initial connect on first run), no reload needed.
+コミット 06002a82: `/sidebar-chat` のレスポンスに `security: getSecurityStatus()` が含まれるようになり、sidepanel.js はポーリングのたびに `updateSecurityShield(data.security)` を呼びます。分類器のウォームアップが完了すると(初回実行では通常、最初の接続から約 30 秒後)、リロードなしでシールドが 'protected' に切り替わります。
 
-#### ~~Attack telemetry via gstack-telemetry-log (P1)~~ — SHIPPED
+#### ~~gstack-telemetry-log による攻撃のテレメトリ(P1)~~ — 出荷済み
 
-Landed in commits 28ce883c (binary) + f68fa4a9 (security.ts wiring). The
-telemetry binary now accepts `--event-type attack_attempt --url-domain
---payload-hash --confidence --layer --verdict`. `logAttempt()` spawns the
-binary fire-and-forget. Existing tier gating carries the events.
+コミット 28ce883c(バイナリ)+ f68fa4a9(security.ts の配線)で入りました。テレメトリのバイナリは、`--event-type attack_attempt --url-domain --payload-hash --confidence --layer --verdict` を受け付けるようになりました。`logAttempt()` はバイナリを fire-and-forget で spawn します。既存のティアのゲートがイベントを伝えます。
 
-Downstream follow-up still open: update the `community-pulse` Supabase edge
-function to accept the new event type and store in a typed `security_attempts`
-table. Dashboard read path is a separate TODO ("Cross-user aggregate attack
-dashboard" below).
+下流の後続作業は未完了です: community-pulse の Supabase edge function を、新しいイベントの種類を受け付け、型付きの `security_attempts` テーブルに保存するように更新すること。ダッシュボードの読み取りの経路は、別の TODO です(下の「Cross-user aggregate attack dashboard」)。
 
-#### Full BrowseSafe-Bench at gate tier (P2)
+#### ゲートのティアでの完全な BrowseSafe-Bench(P2)
 
-**What:** Promote `browse/test/security-bench.test.ts` from smoke-200 (gate) to full-3680
-(gate) once smoke/full detection rate correlation is measured (~2 weeks post-ship).
+**内容:** `browse/test/security-bench.test.ts` を、スモーク 200 件(ゲート)から完全版 3,680 件(ゲート)に昇格させます。スモークと完全版の検出率の相関を測定した後(出荷の約 2 週間後)に行います。
 
-**Why:** BrowseSafe-Bench is Perplexity's 3,680-case browser-agent injection benchmark.
-Smoke-200 is a sample; full coverage catches the long tail. Run time ~5min hermetic.
+**理由:** BrowseSafe-Bench は Perplexity のブラウザエージェントへのインジェクションのベンチマーク(3,680 件)です。スモーク 200 件はサンプルにすぎません。完全版はロングテールを捉えます。実行時間は隔離環境で約 5 分です。
 
-**Effort:** S (CC: ~45min)
-**Priority:** P2
-**Depends on:** v1 shipped + ~2 weeks real data
+**工数:** S(CC で約 45 分)
+**優先度:** P2
+**依存:** v1 の出荷 + 約 2 週間の実データ
 
-#### ~~Cross-user aggregate attack dashboard (P2)~~ — CLI SHIPPED, web UI remains
+#### ~~クロスユーザーの攻撃の集計ダッシュボード(P2)~~ — CLI は出荷済み、Web UI は未完了
 
-CLI dashboard shipped in commits a5588ec0 (schema migration) + 2d107978
-(community-pulse edge function security aggregation) + 756875a7 (bin/gstack-
-security-dashboard). Users can now run `gstack-security-dashboard` to see
-attacks last 7 days, top attacked domains, detection-layer distribution,
-and verdict counts — all aggregated from the Supabase community-pulse pipe.
+CLI のダッシュボードは、コミット a5588ec0(スキーマのマイグレーション)、2d107978(community-pulse の edge function のセキュリティ集計)、756875a7(bin/gstack-security-dashboard)で出荷しました。ユーザーは `gstack-security-dashboard` を実行すると、直近 7 日の攻撃、攻撃された上位のドメイン、検出層の分布、判定の数を、Supabase の community-pulse のパイプから集計して確認できます。
 
-Web UI at gstack.gg/dashboard/security is still open — that's a separate
-webapp project outside this repo's scope.
+gstack.gg/dashboard/security の Web UI は、まだ未完了です。これはこのリポジトリの範囲外の、別の Web アプリのプロジェクトです。
 
-#### TestSavantAI ensemble → DeBERTa-v3 ensemble (P2) — SHIPPED (opt-in)
+#### TestSavantAI のアンサンブル → DeBERTa-v3 のアンサンブル(P2)— 出荷済み(オプトイン)
 
-Commits b4e49d08 + 8e9ec52d + 4e051603 + 7a815fa7: DeBERTa-v3-base-injection-onnx
-is now wired as an opt-in L4c ensemble classifier. Enable via
-`GSTACK_SECURITY_ENSEMBLE=deberta` — sidebar-agent warmup downloads the 721MB
-model to ~/.gstack/models/deberta-v3-injection/ on first run. combineVerdict
-becomes a 2-of-3 agreement rule (testsavant + deberta + transcript) when
-enabled. Default behavior unchanged (2-of-2 testsavant + transcript).
+コミット b4e49d08 + 8e9ec52d + 4e051603 + 7a815fa7: DeBERTa-v3-base-injection-onnx が、オプトインの L4c のアンサンブル分類器として配線されました。`GSTACK_SECURITY_ENSEMBLE=deberta` で有効になります。sidebar-agent のウォームアップは、初回実行時に 721MB のモデルを ~/.gstack/models/deberta-v3-injection/ にダウンロードします。有効にすると、combineVerdict は 2-of-3 の一致のルール(testsavant + deberta + transcript)になります。デフォルトの動作は変わりません(2-of-2 の testsavant + transcript)。
 
-#### ~~TestSavantAI + DeBERTa-v3 ensemble~~ — SHIPPED opt-in (see entry above)
+#### ~~TestSavantAI + DeBERTa-v3 のアンサンブル~~ — オプトインで出荷済み(上のエントリを参照)
 
-#### ~~Read/Glob/Grep tool-output injection coverage (P2)~~ — SHIPPED
+#### ~~Read/Glob/Grep のツール出力のインジェクションの対象範囲(P2)~~ — 出荷済み
 
-Commits f2e80dd7 + 0098d574: sidebar-agent.ts now scans tool outputs from
-Read, Glob, Grep, WebFetch, and Bash via `SCANNED_TOOLS` set. Content >= 32
-chars runs through the ML ensemble; BLOCK verdict kills the session and
-emits security_event. The content-security.ts envelope path was already
-wrapping browse-command output; this extension closes the non-browse path
-Codex flagged.
+コミット f2e80dd7 + 0098d574: sidebar-agent.ts は、`SCANNED_TOOLS` のセットを通じて、Read、Glob、Grep、WebFetch、Bash のツールの出力をスキャンするようになりました。32 文字以上のコンテンツは ML のアンサンブルを通り、BLOCK の判定はセッションを終了させ、security_event を発行します。content-security.ts のエンベロープの経路は、browse コマンドの出力をすでに包んでいました。この拡張で、Codex が指摘した browse 以外の経路を塞ぎました。
 
-During /ship for v1.4.0.0 this path got additional hardening (commit
-407c36b4 + 88b12c2b + c51ebdf4): transcript classifier now receives the
-tool output text (was empty before), and combineVerdict accepts a
-`toolOutput: true` opt that blocks on a single ML classifier at BLOCK
-threshold (user-input default unchanged for SO-FP mitigation).
+v1.4.0.0 の /ship の最中に、この経路はさらに強化されました(コミット 407c36b4 + 88b12c2b + c51ebdf4)。トランスクリプトの分類器は、ツールの出力のテキストを受け取るようになりました(以前は空でした)。また、combineVerdict は `toolOutput: true` のオプションを受け付けるようになり、単一の ML 分類器が BLOCK のしきい値に達した時点でブロックします(ユーザー入力のデフォルトは、SO-FP の緩和のために変更していません)。
 
-#### ~~Adversarial + integration + smoke-bench test suites (P1)~~ — SHIPPED
+#### ~~敵対的テスト + 統合テスト + スモークベンチのテストスイート(P1)~~ — 出荷済み
 
-Four test files shipped this round:
-  * `browse/test/security-adversarial.test.ts` (94a83c50) — 23 canary-channel
-    + verdict-combiner attack-shape tests
-  * `browse/test/security-integration.test.ts` (07745e04) — 10 layer-coexistence
-    + defense-in-depth regression guards
-  * `browse/test/security-live-playwright.test.ts` (b9677519) — 7 live-Chromium
-    fixture tests (5 deterministic + 2 ML, skipped if model cache absent)
-  * `browse/test/security-bench.test.ts` (afc6661f) — BrowseSafe-Bench 200-case
-    smoke harness with hermetic dataset cache + v1 baseline metrics
+このラウンドで、4 つのテストファイルを出荷しました。
+  * `browse/test/security-adversarial.test.ts`(94a83c50)— カナリアのチャネル + 判定の統合の攻撃パターンのテスト 23 件
+  * `browse/test/security-integration.test.ts`(07745e04)— 層の共存 + 多層防御のリグレッションガード 10 件
+  * `browse/test/security-live-playwright.test.ts`(b9677519)— 実際の Chromium でのフィクスチャのテスト 7 件(決定的 5 件 + ML 2 件。モデルのキャッシュがなければスキップ)
+  * `browse/test/security-bench.test.ts`(afc6661f)— BrowseSafe-Bench のスモーク 200 件のハーネス(隔離されたデータセットのキャッシュ + v1 のベースラインの指標)
 
-#### Bun-native 5ms inference (P3 research) — SKELETON SHIPPED, forward pass open
+#### Bun ネイティブの 5ms の推論(P3 の研究)— スケルトンは出荷済み、前向き計算は未完了
 
-Research skeleton landed this round (browse/src/security-bunnative.ts,
-docs/designs/BUN_NATIVE_INFERENCE.md, browse/test/security-bunnative.test.ts):
+このラウンドで、研究用のスケルトンを入れました(browse/src/security-bunnative.ts、docs/designs/BUN_NATIVE_INFERENCE.md、browse/test/security-bunnative.test.ts)。
 
-  * Pure-TS WordPiece tokenizer — reads HF tokenizer.json directly, matches
-    transformers.js output on fixture strings (correctness-tested in CI)
-  * Stable `classify()` API that current callers can wire against today
-  * Benchmark harness with p50/p95/p99 reporting — anchors v1 WASM baseline
-    for future regressions
+  * 純粋な TS の WordPiece トークナイザー — HF の tokenizer.json を直接読み、フィクスチャの文字列で transformers.js の出力と一致(CI で正しさをテスト)
+  * 現在の呼び出し元が今日から接続できる、安定した `classify()` の API
+  * p50/p95/p99 を報告するベンチマークのハーネス — 将来のリグレッションのために、v1 の WASM のベースラインを固定
 
-Design doc captures the roadmap:
-  * Approach A: pure-TS + Float32Array SIMD — ruled out (can't beat WASM)
-  * Approach B: Bun FFI + Apple Accelerate cblas_sgemm — target ~3-6ms p50,
-    macOS-only, ~1000 LOC
-  * Approach C: Bun WebGPU — unexplored, worth a spike
+設計書にロードマップがあります。
+  * アプローチ A: 純粋な TS + Float32Array の SIMD — 除外(WASM に勝てない)
+  * アプローチ B: Bun の FFI + Apple Accelerate の cblas_sgemm — 目標 p50 約 3〜6ms、macOS のみ、約 1000 LOC
+  * アプローチ C: Bun の WebGPU — 未調査、スパイクする価値あり
 
-Remaining work (XL, multi-week):
-  * FFI proof-of-concept for cblas_sgemm
-  * Single transformer layer implementation + correctness check vs onnxruntime
-  * Full forward pass + weight loader + correctness regression fixtures
-  * Production swap in security-bunnative.ts `classify()` body
+残りの作業(XL、数週間):
+  * cblas_sgemm の FFI の概念実証
+  * 単一の Transformer 層の実装 + onnxruntime との正しさの確認
+  * 前向き計算の全体 + 重みのローダー + 正しさのリグレッションのフィクスチャ
+  * security-bunnative.ts の `classify()` の本体を本番の実装に差し替え
 
-## Builder Ethos
+## ビルダーの心構え
 
-### First-time Search Before Building intro
+### Search Before Building の初回イントロ
 
-**What:** Add a `generateSearchIntro()` function (like `generateLakeIntro()`) that introduces the Search Before Building principle on first use, with a link to the blog essay.
+**内容:** `generateSearchIntro()` 関数(`generateLakeIntro()` のようなもの)を追加します。初回使用時に Search Before Building の原則を紹介し、ブログのエッセイへのリンクを付けます。
 
-**Why:** Boil the Lake has an intro flow that links to the essay and marks `.completeness-intro-seen`. Search Before Building should have the same pattern for discoverability.
+**理由:** Boil the Lake には、エッセイへのリンクを表示し `.completeness-intro-seen` をマークするイントロのフローがあります。Search Before Building も、発見しやすさのために同じパターンを持つべきです。
 
-**Context:** Blocked on a blog post to link to. When the essay exists, add the intro flow with a `.search-intro-seen` marker file. Pattern: `generateLakeIntro()` at gen-skill-docs.ts:176.
+**背景:** リンク先のブログ記事待ちでブロックされています。エッセイができたら、`.search-intro-seen` のマーカーファイルを使ってイントロのフローを追加してください。パターン: gen-skill-docs.ts:176 の `generateLakeIntro()`。
 
-**Effort:** S
-**Priority:** P2
-**Depends on:** Blog post about Search Before Building
+**工数:** S
+**優先度:** P2
+**依存:** Search Before Building についてのブログ記事
 
-## Chrome DevTools MCP Integration
+## Chrome DevTools MCP の統合
 
-### Real Chrome session access
+### 実際の Chrome セッションへのアクセス
 
-**What:** Integrate Chrome DevTools MCP to connect to the user's real Chrome session with real cookies, real state, no Playwright middleman.
+**内容:** Chrome DevTools MCP を統合し、ユーザーの実際の Chrome セッションに、実際の Cookie と実際の状態を使って接続します。Playwright の仲介なしです。
 
-**Why:** Right now, headed mode launches a fresh Chromium profile. Users must log in manually or import cookies. Chrome DevTools MCP connects to the user's actual Chrome ... instant access to every authenticated site. This is the future of browser automation for AI agents.
+**理由:** 今は、ヘッドありモードでは新しい Chromium のプロファイルが起動します。ユーザーは手動でログインするか、Cookie をインポートする必要があります。Chrome DevTools MCP は、ユーザーの実際の Chrome に接続するため、認証済みのすべてのサイトに即座にアクセスできます。これは、AI エージェントにとってのブラウザ自動化の未来です。
 
-**Context:** Google shipped Chrome DevTools MCP in Chrome 146+ (June 2025). It provides screenshots, console messages, performance traces, Lighthouse audits, and full page interaction through the user's real browser. gstack should use it for real-session access while keeping Playwright for headless CI/testing workflows.
+**背景:** Google は Chrome 146 以降で Chrome DevTools MCP を公開しました(2025 年 6 月)。ユーザーの実際のブラウザを通じて、スクリーンショット、コンソールのメッセージ、パフォーマンスのトレース、Lighthouse の監査、ページ全体の操作を提供します。gstack は、実際のセッションへのアクセスにはこれを使い、ヘッドレスの CI/テストのワークフローには Playwright を残すべきです。
 
-Potential new skills:
-- `/debug-browser`: JS error tracing with source-mapped stack traces
-- `/perf-debug`: performance traces, Core Web Vitals, network waterfall
+想定される新しいスキル:
+- `/debug-browser`: ソースマップ付きのスタックトレースによる JS エラーのトレース
+- `/perf-debug`: パフォーマンスのトレース、Core Web Vitals、ネットワークのウォーターフォール
 
-May replace `/setup-browser-cookies` for most use cases since the user's real cookies are already there.
+ユーザーの実際の Cookie はすでにあるため、ほとんどのユースケースで `/setup-browser-cookies` を置き換えられる可能性があります。
 
-**Effort:** L (human: ~2 weeks / CC: ~2 hours)
-**Priority:** P0
-**Depends on:** Chrome 146+, DevTools MCP server installed
+**工数:** L(人間で約 2 週間 / CC で約 2 時間)
+**優先度:** P0
+**依存:** Chrome 146 以降、DevTools MCP サーバーのインストール
 
-## Browse
+## ブラウザ(browse)
 
-### Bundle server.ts into compiled binary
+### server.ts をコンパイル済みのバイナリにバンドルする
 
-**What:** Eliminate `resolveServerScript()` fallback chain entirely — bundle server.ts into the compiled browse binary.
+**内容:** `resolveServerScript()` のフォールバックのチェーンを完全になくします。server.ts を、コンパイル済みの browse バイナリにバンドルします。
 
-**Why:** The current fallback chain (check adjacent to cli.ts, check global install) is fragile and caused bugs in v0.3.2. A single compiled binary is simpler and more reliable.
+**理由:** 現在のフォールバックのチェーン(cli.ts の隣を確認、グローバルインストールを確認)は脆く、v0.3.2 でバグを引き起こしました。単一のコンパイル済みバイナリの方が、単純で信頼できます。
 
-**Context:** Bun's `--compile` flag can bundle multiple entry points. The server is currently resolved at runtime via file path lookup. Bundling it removes the resolution step entirely.
+**背景:** Bun の `--compile` フラグは、複数のエントリポイントをバンドルできます。現在、サーバーはファイルパスの検索によって実行時に解決されています。バンドルすれば、解決のステップが完全になくなります。
 
-**Effort:** M
-**Priority:** P2
-**Depends on:** None
+**工数:** M
+**優先度:** P2
+**依存:** なし
 
-### Sessions (isolated browser instances)
+### セッション(分離されたブラウザインスタンス)
 
-**What:** Isolated browser instances with separate cookies/storage/history, addressable by name.
+**内容:** Cookie/ストレージ/履歴が分離された、名前でアドレス指定できるブラウザインスタンス。
 
-**Why:** Enables parallel testing of different user roles, A/B test verification, and clean auth state management.
+**理由:** 異なるユーザーロールの並行テスト、A/B テストの検証、クリーンな認証状態の管理を可能にします。
 
-**Context:** Requires Playwright browser context isolation. Each session gets its own context with independent cookies/localStorage. Prerequisite for video recording (clean context lifecycle) and auth vault.
+**背景:** Playwright のブラウザのコンテキストの分離が必要です。各セッションは、独立した Cookie/localStorage を持つ独自のコンテキストを得ます。ビデオ録画(クリーンなコンテキストのライフサイクル)と認証のボールトの前提条件です。
 
-**Effort:** L
-**Priority:** P3
+**工数:** L
+**優先度:** P3
 
-### Video recording
+### ビデオ録画
 
-**What:** Record browser interactions as video (start/stop controls).
+**内容:** ブラウザの操作をビデオとして記録します(開始/停止のコントロール)。
 
-**Why:** Video evidence in QA reports and PR bodies. Currently deferred because `recreateContext()` destroys page state.
+**理由:** QA レポートと PR 本文でのビデオの証拠。現在は `recreateContext()` がページの状態を破壊するため、繰り延べています。
 
-**Context:** Needs sessions for clean context lifecycle. Playwright supports video recording per context. Also needs WebM → GIF conversion for PR embedding.
+**背景:** クリーンなコンテキストのライフサイクルのために、セッションが必要です。Playwright はコンテキストごとのビデオ録画をサポートしています。また、PR に埋め込むための WebM → GIF の変換も必要です。
 
-**Effort:** M
-**Priority:** P3
-**Depends on:** Sessions
+**工数:** M
+**優先度:** P3
+**依存:** セッション
 
-### v20 encryption format support
+### v20 の暗号化フォーマットのサポート
 
-**What:** AES-256-GCM support for future Chromium cookie DB versions (currently v10).
+**内容:** 将来の Chromium の Cookie DB のバージョン(現在は v10)のための AES-256-GCM のサポート。
 
-**Why:** Future Chromium versions may change encryption format. Proactive support prevents breakage.
+**理由:** 将来の Chromium のバージョンは、暗号化のフォーマットを変えるかもしれません。先回りしてサポートすれば、壊れるのを防げます。
 
-**Effort:** S
-**Priority:** P3
+**工数:** S
+**優先度:** P3
 
-### State persistence — SHIPPED
+### 状態の永続化 — 出荷済み
 
-~~**What:** Save/load cookies + localStorage to JSON files for reproducible test sessions.~~
+~~**内容:** 再現可能なテストセッションのために、Cookie と localStorage を JSON ファイルに保存/読み込みする。~~
 
-`$B state save/load` ships in v0.12.1.0. V1 saves cookies + URLs only (not localStorage, which breaks on load-before-navigate). Files at `.gstack/browse-states/{name}.json` with 0o600 permissions. Load replaces session (closes all pages first). Name sanitized to `[a-zA-Z0-9_-]`.
+`$B state save/load` は v0.12.1.0 で出荷しました。V1 は Cookie と URL のみを保存します(localStorage は保存しません。ナビゲーション前の読み込みで壊れるためです)。ファイルは `.gstack/browse-states/{name}.json` に、0o600 のパーミッションで保存されます。読み込みはセッションを置き換えます(最初にすべてのページを閉じます)。名前は `[a-zA-Z0-9_-]` にサニタイズされます。
 
-**Remaining:** V2 localStorage support (needs pre-navigation injection strategy).
-**Completed:** v0.12.1.0 (2026-03-26)
+**残り:** V2 の localStorage のサポート(ナビゲーション前の注入の戦略が必要)。
+**完了:** v0.12.1.0(2026-03-26)
 
-### Auth vault
+### 認証のボールト
 
-**What:** Encrypted credential storage, referenced by name. LLM never sees passwords.
+**内容:** 暗号化された認証情報の保存。名前で参照します。LLM はパスワードを決して見ません。
 
-**Why:** Security — currently auth credentials flow through the LLM context. Vault keeps secrets out of the AI's view.
+**理由:** セキュリティ — 今は認証情報が LLM のコンテキストを経由しています。ボールトは、シークレットを AI の視界から遠ざけます。
 
-**Effort:** L
-**Priority:** P3
-**Depends on:** Sessions, state persistence
+**工数:** L
+**優先度:** P3
+**依存:** セッション、状態の永続化
 
-### Iframe support — SHIPPED
+### iframe のサポート — 出荷済み
 
-~~**What:** `frame <sel>` and `frame main` commands for cross-frame interaction.~~
+~~**内容:** クロスフレームの操作のための `frame <sel>` と `frame main` のコマンド。~~
 
-`$B frame` ships in v0.12.1.0. Supports CSS selector, @ref, `--name`, and `--url` pattern matching. Execution target abstraction (`getActiveFrameOrPage()`) across all read/write/snapshot commands. Frame context cleared on navigation, tab switch, resume. Detached frame auto-recovery. Page-only operations (goto, screenshot, viewport) throw clear error when in frame context.
+`$B frame` は v0.12.1.0 で出荷しました。CSS セレクタ、@ref、`--name`、`--url` のパターンマッチングをサポートします。すべての読み取り/書き込み/スナップショットのコマンドにまたがる実行対象の抽象化(`getActiveFrameOrPage()`)。フレームのコンテキストは、ナビゲーション、タブの切り替え、再開時にクリアされます。切り離されたフレームの自動回復。フレームのコンテキストでページだけの操作(goto、screenshot、viewport)を行うと、明確なエラーを投げます。
 
-**Completed:** v0.12.1.0 (2026-03-26)
+**完了:** v0.12.1.0 (2026-03-26)
 
-### Semantic locators
+### セマンティックロケーター
 
-**What:** `find role/label/text/placeholder/testid` with attached actions.
+**内容:** アクション付きの `find role/label/text/placeholder/testid`。
 
-**Why:** More resilient element selection than CSS selectors or ref numbers.
+**理由:** CSS セレクターや ref 番号よりも、要素の選択が壊れにくくなる。
 
-**Effort:** M
-**Priority:** P4
+**工数:** M
+**優先度:** P4
 
-### Device emulation presets
+### デバイスエミュレーションのプリセット
 
-**What:** `set device "iPhone 16 Pro"` for mobile/tablet testing.
+**内容:** モバイルやタブレットでのテスト用に `set device "iPhone 16 Pro"`。
 
-**Why:** Responsive layout testing without manual viewport resizing.
+**理由:** ビューポートを手動でリサイズしなくても、レスポンシブなレイアウトをテストできる。
 
-**Effort:** S
-**Priority:** P4
+**工数:** S
+**優先度:** P4
 
-### Network mocking/routing
+### ネットワークのモック・ルーティング
 
-**What:** Intercept, block, and mock network requests.
+**内容:** ネットワークリクエストの傍受、ブロック、モック化。
 
-**Why:** Test error states, loading states, and offline behavior.
+**理由:** エラー状態、読み込み中の状態、オフライン時の挙動をテストできる。
 
-**Effort:** M
-**Priority:** P4
+**工数:** M
+**優先度:** P4
 
-### Download handling
+### ダウンロードの処理
 
-**What:** Click-to-download with path control.
+**内容:** 保存先パスを指定できるクリックでのダウンロード。
 
-**Why:** Test file download flows end-to-end.
+**理由:** ファイルダウンロードのフローをエンドツーエンドでテストできる。
 
-**Effort:** S
-**Priority:** P4
+**工数:** S
+**優先度:** P4
 
-### Content safety
+### コンテンツの安全性
 
-**What:** `--max-output` truncation, `--allowed-domains` filtering.
+**内容:** `--max-output` による出力の切り詰めと、`--allowed-domains` によるドメインのフィルタリング。
 
-**Why:** Prevent context window overflow and restrict navigation to safe domains.
+**理由:** コンテキストウィンドウのあふれを防ぎ、移動先を安全なドメインに限定する。
 
-**Effort:** S
-**Priority:** P4
+**工数:** S
+**優先度:** P4
 
-### Streaming (WebSocket live preview)
+### ストリーミング(WebSocket によるライブプレビュー)
 
-**What:** WebSocket-based live preview for pair browsing sessions.
+**内容:** ペアブラウジングのセッション向けに、WebSocket によるライブプレビューを提供する。
 
-**Why:** Enables real-time collaboration — human watches AI browse.
+**理由:** リアルタイムの共同作業が可能になる。人間が AI のブラウジングを見守れる。
 
-**Effort:** L
-**Priority:** P4
+**工数:** L
+**優先度:** P4
 
-### Headed mode with Chrome extension — SHIPPED
+### Chrome 拡張機能によるヘッドモード — 出荷済み
 
-`$B connect` launches Playwright's bundled Chromium in headed mode with the gstack Chrome extension auto-loaded. `$B handoff` now produces the same result (extension + side panel). Sidebar chat gated behind `--chat` flag.
+`$B connect` は、gstack の Chrome 拡張機能を自動で読み込んだ状態で、Playwright 同梱の Chromium をヘッドモードで起動します。`$B handoff` も同じ結果(拡張機能とサイドパネル)を得られるようになりました。サイドバーのチャットは `--chat` フラグの背後に置かれています。
 
-### `$B watch` — SHIPPED
+### `$B watch` — 出荷済み
 
-Claude observes user browsing in passive read-only mode with periodic snapshots. `$B watch stop` exits with summary. Mutation commands blocked during watch.
+Claude は、定期的なスナップショットを取りながら、ユーザーのブラウジングを読み取り専用の受動的なモードで観察します。`$B watch stop` で終了し、要約を出力します。watch 中は、変更を伴うコマンドがブロックされます。
 
-### Sidebar scout / file drop relay — SHIPPED
+### サイドバーのスカウト / ファイルドロップの中継 — 出荷済み
 
-Sidebar agent writes structured messages to `.context/sidebar-inbox/`. Workspace agent reads via `$B inbox`. Message format: `{type, timestamp, page, userMessage, sidebarSessionId}`.
+サイドバーのエージェントが、構造化されたメッセージを `.context/sidebar-inbox/` に書き込みます。ワークスペースのエージェントは `$B inbox` で読み取ります。メッセージの形式は `{type, timestamp, page, userMessage, sidebarSessionId}` です。
 
-### Multi-agent tab isolation
+### マルチエージェントのタブ分離
 
-**What:** Two Claude sessions connect to the same browser, each operating on different tabs. No cross-contamination.
+**内容:** 2 つの Claude セッションが同じブラウザに接続し、それぞれ別のタブを操作する。互いに干渉しない。
 
-**Why:** Enables parallel /qa + /design-review on different tabs in the same browser.
+**理由:** 同じブラウザで、/qa と /design-review を別々のタブで並行実行できるようになる。
 
-**Context:** Requires tab ownership model for concurrent headed connections. Playwright may not cleanly support two persistent contexts. Needs investigation.
+**背景:** 同時に接続するヘッドモードでは、タブの所有権モデルが必要になる。Playwright は 2 つの永続コンテキストを安定して扱えない可能性がある。調査が必要。
 
-**Effort:** L (human: ~2 weeks / CC: ~2 hours)
-**Priority:** P3
-**Depends on:** Headed mode (shipped)
+**工数:** L(人間: 約 2 週間 / CC: 約 2 時間)
+**優先度:** P3
+**依存:** ヘッドモード(出荷済み)
 
-### Sidebar agent needs Write tool + better error visibility — SHIPPED
+### サイドバーエージェントに Write ツールとエラーの可視化が必要 — 出荷済み
 
-**What:** Two issues with the sidebar agent (`sidebar-agent.ts`): (1) `--allowedTools` is hardcoded to `Bash,Read,Glob,Grep`, missing `Write`. Claude can't create files (like CSVs) when asked. (2) When Claude errors or returns empty, the sidebar UI shows nothing, just a green dot. No error message, no "I tried but failed", nothing.
+**内容:** サイドバーエージェント(`sidebar-agent.ts`)に関する 2 つの問題。(1) `--allowedTools` が `Bash,Read,Glob,Grep` にハードコードされており、`Write` が欠けている。そのため、CSV などのファイル作成を頼まれても Claude が作成できない。(2) Claude がエラーを返したり空の応答を返したりしても、サイドバーの UI には緑の点が表示されるだけで、何も見えない。エラーメッセージも「試したが失敗した」という表示もない。
 
-**Completed:** v0.15.4.0 (2026-04-04). Write tool added to allowedTools. 40+ empty catch blocks replaced with `[gstack sidebar]`, `[gstack bg]`, `[browse]`, `[sidebar-agent]` prefixed console logging across all 4 files (sidepanel.js, background.js, server.ts, sidebar-agent.ts). Error placeholder text now shows in red. Auth token stale-refresh bug fixed.
+**完了:** v0.15.4.0 (2026-04-04)。allowedTools に Write を追加。40 以上の空の catch ブロックを、4 つのファイル(sidepanel.js、background.js、server.ts、sidebar-agent.ts)すべてで `[gstack sidebar]`、`[gstack bg]`、`[browse]`、`[sidebar-agent]` の接頭辞付きのコンソールログに置き換えた。エラーのプレースホルダー文言が赤で表示されるようになった。認証トークンの古い更新に関するバグも修正した。
 
-### Sidebar direct API calls (eliminate claude -p startup tax)
+### サイドバーからの直接 API 呼び出し(`claude -p` の起動オーバーヘッドを解消)
 
-**What:** Each sidebar message spawns a fresh `claude -p` process (~2-3s cold start overhead). For "click @e24" that's absurd. Direct Anthropic API calls would be sub-second.
+**内容:** サイドバーへのメッセージのたびに、新しい `claude -p` プロセスが起動される(コールドスタートで約 2〜3 秒)。「click @e24」のような操作にそれだけかかるのは明らかに過剰。Anthropic API を直接呼び出せば、1 秒未満で済む。
 
-**Why:** The `claude -p` startup cost is: process spawn (~100ms) + CLI init (~500ms-1s) + API connection (~200ms) + first token. Model routing (Sonnet for actions) helps but doesn't fix the CLI overhead.
+**理由:** `claude -p` の起動コストは、プロセスの生成(約 100ms)+ CLI の初期化(約 500ms〜1 秒)+ API 接続(約 200ms)+ 最初のトークンまで。モデルのルーティング(アクションには Sonnet を使う)で負担は減るが、CLI のオーバーヘッドそのものは解消されない。
 
-**Context:** `server.ts:spawnClaude()` builds args and writes to queue file. `sidebar-agent.ts:askClaude()` spawns `claude -p`. Replace with direct `fetch('https://api.anthropic.com/...')` with tool use. Requires `ANTHROPIC_API_KEY` accessible to the browse server.
+**背景:** `server.ts:spawnClaude()` が引数を組み立ててキューファイルに書き込む。`sidebar-agent.ts:askClaude()` が `claude -p` を起動する。これを、ツール利用を伴う直接の `fetch('https://api.anthropic.com/...')` に置き換える。browse サーバーから `ANTHROPIC_API_KEY` にアクセスできる必要がある。
 
-**Effort:** M (human: ~1 week / CC: ~30min)
-**Priority:** P2
-**Depends on:** None
+**工数:** M(人間: 約 1 週間 / CC: 約 30 分)
+**優先度:** P2
+**依存:** なし
 
-### Chrome Web Store publishing
+### Chrome ウェブストアでの公開
 
-**What:** Publish the gstack browse Chrome extension to Chrome Web Store for easier install.
+**内容:** gstack browse の Chrome 拡張機能を Chrome ウェブストアに公開し、インストールを容易にする。
 
-**Why:** Currently sideloaded via chrome://extensions. Web Store makes install one-click.
+**理由:** 現在は chrome://extensions からのサイドロードで導入している。ウェブストアなら、ワンクリックでインストールできる。
 
-**Effort:** S
-**Priority:** P4
-**Depends on:** Chrome extension proving value via sideloading
+**工数:** S
+**優先度:** P4
+**依存:** サイドロードでの導入を通じて Chrome 拡張機能の価値が証明されていること
 
-### Linux cookie decryption — PARTIALLY SHIPPED
+### Linux でのクッキー復号 — 一部出荷済み
 
-~~**What:** GNOME Keyring / kwallet / DPAPI support for non-macOS cookie import.~~
+~~**内容:** macOS 以外でのクッキーインポートのための GNOME Keyring / kwallet / DPAPI 対応。~~
 
-Linux cookie import shipped in v0.11.11.0 (Wave 3). Supports Chrome, Chromium, Brave, Edge on Linux with GNOME Keyring (libsecret) and "peanuts" fallback. Windows DPAPI support remains deferred.
+Linux でのクッキーインポートは v0.11.11.0(Wave 3)で出荷済み。Linux 上の Chrome、Chromium、Brave、Edge に対応し、GNOME Keyring(libsecret)と "peanuts" のフォールバックを使う。Windows の DPAPI 対応は引き続き保留。
 
-**Remaining:** Windows cookie decryption (DPAPI). Needs complete rewrite — PR #64 was 1346 lines and stale.
+**残り:** Windows でのクッキー復号(DPAPI)。全面的な書き直しが必要。PR #64 は 1346 行あり、古くなっている。
 
-**Effort:** L (Windows only)
-**Priority:** P4
-**Completed (Linux):** v0.11.11.0 (2026-03-23)
+**工数:** L(Windows のみ)
+**優先度:** P4
+**完了(Linux):** v0.11.11.0 (2026-03-23)
 
-## Ship
+## 出荷(ship)
 
-### Runtime enforcement of foreground dispatch (PreToolUse hook)
+### フォアグラウンド実行の、ランタイムでの強制(PreToolUse フック)
 
-**What:** A PreToolUse hook (settings.json) that forces or verifies `run_in_background: false` on Agent tool calls made inside gstack workflows, making the #497/#2440 bug class structurally impossible on Claude Code instead of prose-pinned.
+**内容:** gstack のワークフロー内で行われる Agent ツール呼び出しに対して、`run_in_background: false` を強制または検証する PreToolUse フック(settings.json)。これにより、#497/#2440 のバグの系統を、プロンプトによる記述頼みではなく、Claude Code の仕組みとして構造的に起こりえないようにする。
 
-**Why:** v1.79.0.0 fixed the class at the prose+test layer (every synchronous dispatch site carries the flag, pinned by `test/run-in-background-guidance.test.ts`), but phrase-presence pins are file-level, not call-level, and a genuinely blocking foreground call still can't be interrupted by prose. Runtime enforcement is the structural fix; prose guidance can't survive a model that ignores it.
+**理由:** v1.79.0.0 で、この系統のバグはプロンプトとテストの層で修正された(同期的なディスパッチ箇所はすべてフラグを持ち、`test/run-in-background-guidance.test.ts` で固定)。しかし、フレーズの存在を確認するテストはファイル単位であり、呼び出し単位ではない。また、実際にブロックするフォアグラウンドの呼び出しは、プロンプトでは中断できない。ランタイムでの強制こそが構造的な修正であり、無視するモデルに対してプロンプトの指示は効かない。
 
-**Context:** Third recurrence of the class (#497 → #2440 → /ship Step 18 stranding). The hook must scope to gstack skill sessions (never break legitimate background Agent use elsewhere), is Claude-host only (other hosts get nothing from it), and mirrors the existing question-preference PreToolUse hook wiring in `bin/gstack-settings-hook*`. Filed from the v1.79.0.0 CEO plan review (approach C, deliberately split out for bake time).
+**背景:** この系統のバグは 3 回目の再発(#497 → #2440 → /ship の Step 18 での取り残し)。フックはgstack のスキルセッションに限定しなければならず(正当なバックグラウンド Agent の利用を壊してはならない)、Claude ホスト専用(他のホストは恩恵を受けない)。`bin/gstack-settings-hook*` にある、既存の質問設定用 PreToolUse フックの配線を踏襲する。v1.79.0.0 の CEO プランレビュー(アプローチ C、慎重に時間をかけるため意図的に切り出した)から起票。
 
-**Effort:** M (human) / S (CC)
-**Priority:** P1
-**Depends on:** None
+**工数:** M(人間)/ S(CC)
+**優先度:** P1
+**依存:** なし
 
-*Priority raised P2 → P1 by the v1.79.0.0 adversarial review: the spawned trust chain is agent-self-asserted (the echo exists because the agent typed the env prefix a prompt told it to), so instruction text read before the preamble can convert an interactive run to full-auto. Prose cannot close this; the hook can.*
+*優先度を P2 から P1 に引き上げ。v1.79.0.0 の敵対的レビューによる。生成されたサブエージェントの信頼の連鎖は、エージェント自身の自己申告に基づいている。エコーは、プロンプトがエージェントに書くよう指示した環境変数の接頭辞をエージェントが入力したものにすぎない。そのため、プリアンブルより前に読まれた指示文が、対話モードの実行を完全自動に変えうる。プロンプトでは防げないが、フックなら防げる。*
 
-### Structural ship-mode for document-release
+### document-release のための構造化された ship モード
 
-**What:** A capability-narrowed dispatch mode for /document-release (cannot bump VERSION, run review passes, or push) instead of narrowing the full workflow through prose in /ship's dispatch prompt; the parent /ship owns all git operations.
+**内容:** /document-release のための、機能を絞り込んだディスパッチモード(VERSION の更新、レビューパスの実行、push ができない)。現在は /ship のディスパッチプロンプト内の記述で全体のワークフローを絞り込んでいるが、それをやめる。/ship の親が、すべての git 操作を担当する。
 
-**Why:** The v1.79.0.0 scope guard works by telling the subagent what not to do; a structural mode makes the forbidden operations unavailable rather than discouraged. Codex outside voice (v1.79.0.0 eng review) called the current shape "runs a large workflow and then disables half of it through prose" — correct long-term, wrong to fold into a regression fix.
+**理由:** v1.79.0.0 のスコープガードは、サブエージェントに「何をしてはいけないか」を伝えることで機能している。構造化されたモードなら、禁止された操作を「勧めない」のではなく「利用できないように」できる。v1.79.0.0 のエンジニアレビューでの Codex の外部意見は、現在の形を「大きなワークフローを動かしたあと、プロンプトで半分を無効にしている」と評した。長期的には正しいが、回帰の修正に混ぜるべきではない。
 
-**Context:** Redesigns the #2733 JSON contract (files_updated/commit_sha/pushed/documentation_section/decisions), so it needs its own PR with bake time. Start from `ship/sections/pr-body.md.tmpl` Step 18 and `document-release/SKILL.md.tmpl`'s spawned contract; decide whether the mode is a dispatch-prompt parameter or a `GSTACK_DOC_RELEASE_MODE` env the preamble echoes.
+**背景:** #2733 の JSON コントラクト(files_updated/commit_sha/pushed/documentation_section/decisions)を再設計するため、独立した PR と、実地で試す期間が必要。`ship/sections/pr-body.md.tmpl` の Step 18 と、`document-release/SKILL.md.tmpl` の、サブエージェントに渡すコントラクトから着手する。このモードを、ディスパッチプロンプトのパラメータにするか、プリアンブルがエコーする `GSTACK_DOC_RELEASE_MODE` 環境変数にするかを決める。
 
-**Effort:** L (human) / M (CC)
-**Priority:** P3
-**Depends on:** None
+**工数:** L(人間)/ M(CC)
+**優先度:** P3
+**依存:** なし
 
-### Cross-host dispatch semantics audit
+### ホストをまたぐディスパッチの意味論の監査
 
-**What:** Audit every subagent-dispatch site's rendering on non-Claude hosts (codex, factory, openclaw, hermes) and decide per host: rewrite to the host's native delegation primitive, inline-execute the step, or skip it.
+**内容:** すべてのサブエージェントのディスパッチ箇所について、Claude 以外のホスト(codex、factory、openclaw、hermes)での描画を監査する。ホストごとに判断する。そのホストのネイティブな委譲の仕組みに書き換えるか、ステップをインラインで実行するか、スキップするか。
 
-**Why:** The codex-host ship render inlines Step 18 instructing an Agent-tool dispatch that Codex cannot perform (no Agent tool, no run_in_background). Pre-existing (predates v1.79.0.0), surfaced by the eng-review outside voice. Host rewrites currently key on the exact string 'use the Agent tool', which none of the ship dispatch openers match, so Claude-specific instructions pass through verbatim.
+**理由:** codex ホストの ship の描画では、Step 18 がインラインで埋め込まれ、Agent ツールによるディスパッチを指示している。しかし Codex にはそれができない(Agent ツールも run_in_background もない)。これは v1.79.0.0 より前から存在し、eng レビューの外部意見で表面化した。ホストの書き換えは現在、正確な文字列 'use the Agent tool' をキーにしているが、ship のディスパッチの冒頭のどれとも一致しないため、Claude 固有の指示がそのまま通ってしまう。
 
-**Context:** See `hosts/define-host.ts:55`, `hosts/factory.ts:34`, `hosts/hermes.ts:15` for the existing rewrite mechanism, and `test/fixtures/golden/codex-ship-SKILL.md` for what codex actually receives today. The v1.79.0.0 `{{FOREGROUND_DISPATCH_NOTE}}` resolver is a natural place to start host-branching.
+**背景:** 既存の書き換えの仕組みは `hosts/define-host.ts:55`、`hosts/factory.ts:34`、`hosts/hermes.ts:15` にある。Codex が現在実際に受け取るものは `test/fixtures/golden/codex-ship-SKILL.md` にある。v1.79.0.0 の `{{FOREGROUND_DISPATCH_NOTE}}` リゾルバは、ホストごとの分岐を始めるのに適した場所。
 
-**Effort:** M (human) / S (CC)
-**Priority:** P3
-**Depends on:** None
+**工数:** M(人間)/ S(CC)
+**優先度:** P3
+**依存:** なし
 
-### /ship Step 12 test harness should exec the actual template bash, not a reimplementation
+### /ship Step 12 のテストハーネスは、再実装ではなくテンプレートの bash をそのまま実行すべき
 
-**What:** `test/ship-version-sync.test.ts` currently reimplements the bash from `ship/SKILL.md.tmpl` Step 12 inside template literals. When the template changes, both sides must be updated — exactly the drift-risk pattern the Step 12 fix is meant to prevent, applied to our own testing strategy. Replace with a helper that extracts the fenced bash blocks from the template at test time and runs them verbatim (similar to the `skill-parser.ts` pattern).
+**内容:** `test/ship-version-sync.test.ts` は現在、`ship/SKILL.md.tmpl` の Step 12 の bash を、テンプレートリテラルの中で再実装している。テンプレートが変わると、両方を更新しなければならない。これは、Step 12 の修正が防ごうとしている、ドリフトのリスクそのものを、私たちのテスト戦略に適用してしまっている。テスト時にテンプレートから fenced の bash ブロックを抽出し、それを一字一句そのまま実行するヘルパーに置き換える(`skill-parser.ts` のパターンに似ている)。
 
-**Why:** Surfaced by the Claude adversarial subagent during the v1.0.1.0 ship. Today the tests would stay green while the template regresses, because the error-message strings already differ between test and template. It's a silent-drift bug waiting to happen.
+**理由:** v1.0.1.0 の ship の際に、Claude の敵対的サブエージェントが指摘。現状では、テンプレートが後退してもテストは緑のままになる。テストとテンプレートでエラーメッセージの文字列がすでに異なっているためである。サイレントなドリフトのバグが、いつ起きてもおかしくない状態。
 
-**Context:** The fixed test file is at `test/ship-version-sync.test.ts` (branched off garrytan/ship-version-sync). Existing precedent for extracting-from-skill-md is at `test/helpers/skill-parser.ts`. Pattern: read the template, slice from `## Step 12` to the next `---`, grep fenced bash, feed to `/bin/bash` with substituted fixtures.
+**背景:** 修正済みのテストファイルは `test/ship-version-sync.test.ts` にある(garrytan/ship-version-sync から分岐)。SKILL.md から抽出する既存の先例は `test/helpers/skill-parser.ts` にある。パターン: テンプレートを読み、`## Step 12` から次の `---` までを切り出し、fenced bash を grep して、置換したフィクスチャとともに `/bin/bash` に渡す。
 
-**Effort:** S (human: ~2h / CC: ~30min)
-**Priority:** P2
-**Depends on:** None.
+**工数:** S(人間: 約 2 時間 / CC: 約 30 分)
+**優先度:** P2
+**依存:** なし。
 
-### /ship Step 12 BASE_VERSION silent fallback to 0.0.0.0 when git show fails
+### /ship Step 12 の BASE_VERSION が、git show の失敗時に 0.0.0.0 へ黙ってフォールバックする
 
-**What:** `BASE_VERSION=$(git show origin/<base>:VERSION 2>/dev/null || echo "0.0.0.0")` silently defaults to `0.0.0.0` in any failure mode — detached HEAD, no origin, offline, base branch renamed. In such states, a real drift could be misclassified or silently repaired with the wrong value. Distinguish "origin/<base> unreachable" from "origin/<base>:VERSION absent" and fail loudly on the former.
+**内容:** `BASE_VERSION=$(git show origin/<base>:VERSION 2>/dev/null || echo "0.0.0.0")` は、どんな失敗でも黙って `0.0.0.0` になる。デタッチ HEAD、origin がない、オフライン、ベースブランチの改名などの状態である。そうした状態では、実際のドリフトが誤って分類されたり、誤った値で黙って修復されたりしうる。「origin/<base> に到達できない」と「origin/<base>:VERSION が存在しない」を区別し、前者では大きくエラーにして失敗させるべき。
 
-**Why:** Flagged as CRITICAL (confidence 8/10) by the Claude adversarial subagent during the v1.0.1.0 ship. Low practical risk because `/ship` Step 3 already fetches origin before Step 12 runs — any reachability failure would abort Step 3 long before this code runs. Still, defense in depth: if someone invokes Step 12 bash outside the full /ship pipeline (e.g., via a standalone helper), the fallback masks a real problem.
+**理由:** v1.0.1.0 の ship の際に、Claude の敵対的サブエージェントにより CRITICAL(確信度 8/10)と判定された。実際のリスクは小さい。/ship の Step 3 がすでに Step 12 の前に origin を fetch しているため、到達性の失敗があれば、このコードが実行されるずっと前に Step 3 で中止されるからである。それでも防御の深さとして重要。誰かが /ship の全体のパイプラインの外(たとえば単独のヘルパー経由)で Step 12 の bash を呼び出した場合、フォールバックが本当の問題を覆い隠してしまう。
 
-**Context:** Fix: wrap with `git rev-parse --verify origin/<base>` probe; if that fails, error out rather than defaulting. Touches `ship/SKILL.md.tmpl` Step 12 idempotency block (around line 409). Tests need a case where `git show` fails.
+**背景:** 修正案: `git rev-parse --verify origin/<base>` の確認で包み、失敗したらデフォルト値を使わずにエラーで終了する。`ship/SKILL.md.tmpl` の Step 12 の冪等性ブロック(409 行目付近)に触れる。テストには `git show` が失敗するケースが必要。
 
-**Effort:** S (human: ~1h / CC: ~15min)
-**Priority:** P3
-**Depends on:** None.
+**工数:** S(人間: 約 1 時間 / CC: 約 15 分)
+**優先度:** P3
+**依存:** なし。
 
-### GitLab support for /land-and-deploy
+### /land-and-deploy の GitLab 対応
 
-**What:** Add GitLab MR merge + CI polling support to `/land-and-deploy` skill. Currently uses `gh pr view`, `gh pr checks`, `gh pr merge`, and `gh run list/view` in 15+ places — each needs a GitLab conditional path using `glab ci status`, `glab mr merge`, etc.
+**内容:** `/land-and-deploy` スキルに、GitLab の MR マージと CI のポーリングのサポートを追加する。現在は `gh pr view`、`gh pr checks`、`gh pr merge`、`gh run list/view` を 15 箇所以上で使っており、それぞれに `glab ci status`、`glab mr merge` などを使う GitLab の分岐が必要。
 
-**Why:** Without this, GitLab users can `/ship` (create MR) but can't `/land-and-deploy` (merge + verify). Completes the GitLab story end-to-end.
+**理由:** これがなければ、GitLab のユーザーは `/ship`(MR の作成)はできても、`/land-and-deploy`(マージと検証)はできない。GitLab 対応をエンドツーエンドで完成させる。
 
-**Context:** `/retro`, `/ship`, and `/document-release` now support GitLab via the multi-platform `BASE_BRANCH_DETECT` resolver. `/land-and-deploy` has deeper GitHub-specific semantics (merge queues, required checks via `gh pr checks`, deploy workflow polling) that have different shapes on GitLab. The `glab` CLI (v1.90.0) supports `glab mr merge`, `glab ci status`, `glab ci view` but with different output formats and no merge queue concept.
+**背景:** `/retro`、`/ship`、`/document-release` は、マルチプラットフォームの `BASE_BRANCH_DETECT` リゾルバにより、すでに GitLab に対応している。`/land-and-deploy` には、より深い GitHub 固有の意味(マージキュー、`gh pr checks` による必須チェック、デプロイワークフローのポーリング)があり、GitLab では形が異なる。`glab` CLI(v1.90.0)は `glab mr merge`、`glab ci status`、`glab ci view` をサポートするが、出力形式が異なり、マージキューの概念がない。
 
-**Effort:** L
-**Priority:** P2
-**Depends on:** None (BASE_BRANCH_DETECT multi-platform resolver is already done)
+**工数:** L
+**優先度:** P2
+**依存:** なし(BASE_BRANCH_DETECT のマルチプラットフォームリゾルバは完了済み)
 
-### Multi-commit CHANGELOG completeness eval
+### 複数コミットにわたる CHANGELOG の網羅性の評価
 
-**What:** Add a periodic E2E eval that creates a branch with 5+ commits spanning 3+ themes (features, cleanup, infra), runs /ship's Step 5 CHANGELOG generation, and verifies the CHANGELOG mentions all themes.
+**内容:** 5 つ以上のコミットを、3 つ以上のテーマ(機能、クリーンアップ、インフラ)にまたがって含むブランチを作成する定期実行の E2E 評価を追加する。/ship の Step 5 の CHANGELOG 生成を実行し、CHANGELOG がすべてのテーマに言及しているかを検証する。
 
-**Why:** The bug fixed in v0.11.22 (garrytan/ship-full-commit-coverage) showed that /ship's CHANGELOG generation biased toward recent commits on long branches. The prompt fix adds a cross-check, but no test exercises the multi-commit failure mode. The existing `ship-local-workflow` E2E only uses a single-commit branch.
+**理由:** v0.11.22 で修正されたバグ(garrytan/ship-full-commit-coverage)は、長いブランチで /ship の CHANGELOG 生成が最近のコミットに偏るというものだった。プロンプトの修正では照合を追加したが、複数コミットでの失敗モードをテストするものはない。既存の `ship-local-workflow` E2E は、1 コミットだけのブランチしか使っていない。
 
-**Context:** Would be a `periodic` tier test (~$4/run, non-deterministic since it tests LLM instruction-following). Setup: create bare remote, clone, add 5+ commits across different themes on a feature branch, run Step 5 via `claude -p`, verify CHANGELOG output covers all themes. Pattern: `ship-local-workflow` in `test/skill-e2e-workflow.test.ts`.
+**背景:** `periodic` 層のテストになる(1 回あたり約 4 ドル、LLM の指示への追従をテストするため非決定的)。セットアップ: ベアなリモートを作り、クローンし、機能ブランチに複数テーマにまたがる 5 つ以上のコミットを追加し、`claude -p` 経由で Step 5 を実行し、CHANGELOG の出力がすべてのテーマをカバーしているかを検証する。パターンは `test/skill-e2e-workflow.test.ts` の `ship-local-workflow`。
 
-**Effort:** M
-**Priority:** P3
-**Depends on:** None
+**工数:** M
+**優先度:** P3
+**依存:** なし
 
-### Ship log — persistent record of /ship runs
+### Ship ログ — /ship 実行の永続的な記録
 
-**What:** Append structured JSON entry to `.gstack/ship-log.json` at end of every /ship run (version, date, branch, PR URL, review findings, Greptile stats, todos completed, test results).
+**内容:** /ship の実行が終わるたびに、構造化された JSON のエントリを `.gstack/ship-log.json` に追記する(バージョン、日付、ブランチ、PR の URL、レビューの指摘、Greptile の統計、完了した todo、テスト結果)。
 
-**Why:** /retro has no structured data about shipping velocity. Ship log enables: PRs-per-week trending, review finding rates, Greptile signal over time, test suite growth.
+**理由:** /retro には、出荷の速度に関する構造化されたデータがない。Ship ログがあれば、週ごとの PR 数の推移、レビュー指摘の発生率、時間経過による Greptile のシグナル、テストスイートの成長を追える。
 
-**Context:** /retro already reads greptile-history.md — same pattern. Eval persistence (eval-store.ts) shows the JSON append pattern exists in the codebase. ~15 lines in ship template.
+**背景:** /retro はすでに greptile-history.md を読んでいる。同じパターン。eval の永続化(eval-store.ts)には、JSON の追記パターンがすでにコードベースに存在する。ship テンプレートで約 15 行。
 
-**Effort:** S
-**Priority:** P2
-**Depends on:** None
+**工数:** S
+**優先度:** P2
+**依存:** なし
 
 
-### Visual verification with screenshots in PR body
+### 主要ページのスクリーンショットを PR 本文に含める視覚的な検証
 
-**What:** /ship Step 7.5: screenshot key pages after push, embed in PR body.
+**内容:** /ship の Step 7.5: push の後に主要ページのスクリーンショットを撮り、PR 本文に埋め込む。
 
-**Why:** Visual evidence in PRs. Reviewers see what changed without deploying locally.
+**理由:** PR に視覚的な証拠を残す。レビュアーは、ローカルにデプロイしなくても、何が変わったかを見ることができる。
 
-**Context:** Part of Phase 3.6. Needs S3 upload for image hosting.
+**背景:** Phase 3.6 の一部。画像のホスティングには S3 へのアップロードが必要。
 
-**Effort:** M
-**Priority:** P2
-**Depends on:** /setup-gstack-upload
+**工数:** M
+**優先度:** P2
+**依存:** /setup-gstack-upload
 
-## Review
+## レビュー(review)
 
-### Inline PR annotations
+### インライン PR 注釈
 
-**What:** /ship and /review post inline review comments at specific file:line locations using `gh api` to create pull request review comments.
+**内容:** /ship と /review は、`gh api` を使って、特定の file:line の位置にインラインのレビューコメントを投稿する。
 
-**Why:** Line-level annotations are more actionable than top-level comments. The PR thread becomes a line-by-line conversation between Greptile, Claude, and human reviewers.
+**理由:** 行単位の注釈は、全体へのコメントより具体的で対応しやすい。PR のスレッドが、Greptile、Claude、人間のレビュアーによる行単位の会話になる。
 
-**Context:** GitHub supports inline review comments via `gh api repos/$REPO/pulls/$PR/reviews`. Pairs naturally with Phase 3.6 visual annotations.
+**背景:** GitHub は、`gh api repos/$REPO/pulls/$PR/reviews` を通じてインラインのレビューコメントをサポートしている。Phase 3.6 のビジュアル注釈と自然に組み合わさる。
 
-**Effort:** S
-**Priority:** P2
-**Depends on:** None
+**工数:** S
+**優先度:** P2
+**依存:** なし
 
-### Greptile training feedback export
+### Greptile の学習フィードバックのエクスポート
 
-**What:** Aggregate greptile-history.md into machine-readable JSON summary of false positive patterns, exportable to the Greptile team for model improvement.
+**内容:** greptile-history.md を、誤検知パターンの機械可読な JSON の要約に集約し、Greptile チームがモデル改善に使えるようにエクスポートする。
 
-**Why:** Closes the feedback loop — Greptile can use FP data to stop making the same mistakes on your codebase.
+**理由:** フィードバックのループを閉じる。Greptile は誤検知のデータを使えば、あなたのコードベースで同じ間違いを繰り返さなくなる。
 
-**Context:** Was a P3 Future Idea. Upgraded to P2 now that greptile-history.md data infrastructure exists. The signal data is already being collected; this just makes it exportable. ~40 lines.
+**背景:** 以前は P3 の将来のアイデアだった。greptile-history.md のデータ基盤がすでにあるため、P2 に引き上げた。シグナルのデータはすでに収集されており、これはそれをエクスポート可能にするだけ。約 40 行。
 
-**Effort:** S
-**Priority:** P2
-**Depends on:** Enough FP data accumulated (10+ entries)
+**工数:** S
+**優先度:** P2
+**依存:** 誤検知のデータが十分に(10 件以上)蓄積されていること
 
-### Visual review with annotated screenshots
+### 注釈付きスクリーンショットによる視覚的なレビュー
 
-**What:** /review Step 4.5: browse PR's preview deploy, annotated screenshots of changed pages, compare against production, check responsive layouts, verify accessibility tree.
+**内容:** /review の Step 4.5: PR のプレビューデプロイをブラウズし、変更されたページの注釈付きスクリーンショットを撮り、本番と比較し、レスポンシブなレイアウトを確認し、アクセシビリティツリーを検証する。
 
-**Why:** Visual diff catches layout regressions that code review misses.
+**理由:** 視覚的な差分により、コードレビューでは見逃されるレイアウトの退行を検出できる。
 
-**Context:** Part of Phase 3.6. Needs S3 upload for image hosting.
+**背景:** Phase 3.6 の一部。画像のホスティングには S3 へのアップロードが必要。
 
-**Effort:** M
-**Priority:** P2
-**Depends on:** /setup-gstack-upload
+**工数:** M
+**優先度:** P2
+**依存:** /setup-gstack-upload
 
 ## QA
 
-### QA trend tracking
+### QA の傾向の追跡
 
-**What:** Compare baseline.json over time, detect regressions across QA runs.
+**内容:** baseline.json を時系列で比較し、QA 実行をまたいだ退行を検出する。
 
-**Why:** Spot quality trends — is the app getting better or worse?
+**理由:** 品質の傾向を捉える。アプリは良くなっているのか、悪くなっているのか。
 
-**Context:** QA already writes structured reports. This adds cross-run comparison.
+**背景:** /qa はすでに構造化されたレポートを書いている。これは、実行をまたいだ比較を追加するもの。
 
-**Effort:** S
-**Priority:** P2
+**工数:** S
+**優先度:** P2
 
-### CI/CD QA integration
+### CI/CD での QA 統合
 
-**What:** `/qa` as GitHub Action step, fail PR if health score drops.
+**内容:** `/qa` を GitHub Action のステップとして実行し、ヘルススコアが下がったら PR を失敗させる。
 
-**Why:** Automated quality gate in CI. Catch regressions before merge.
+**理由:** CI での自動化された品質ゲート。マージの前に退行を捕まえる。
 
-**Effort:** M
-**Priority:** P2
+**工数:** M
+**優先度:** P2
 
-### Smart default QA tier
+### スマートなデフォルトの QA ティア
 
-**What:** After a few runs, check index.md for user's usual tier pick, skip the AskUserQuestion.
+**内容:** 数回実行したあと、index.md からユーザーが普段選ぶティアを確認し、AskUserQuestion を省略する。
 
-**Why:** Reduces friction for repeat users.
+**理由:** 繰り返し使うユーザーの手間を減らす。
 
-**Effort:** S
-**Priority:** P2
+**工数:** S
+**優先度:** P2
 
-### Accessibility audit mode
+### アクセシビリティ監査モード
 
-**What:** `--a11y` flag for focused accessibility testing.
+**内容:** アクセシビリティの検証に特化した `--a11y` フラグ。
 
-**Why:** Dedicated accessibility testing beyond the general QA checklist.
+**理由:** 一般的な QA のチェックリストを超えて、アクセシビリティを専門にテストする。
 
-**Effort:** S
-**Priority:** P3
+**工数:** S
+**優先度:** P3
 
-### CI/CD generation for non-GitHub providers
+### GitHub 以外のプロバイダー向けの CI/CD 生成
 
-**What:** Extend CI/CD bootstrap to generate GitLab CI (`.gitlab-ci.yml`), CircleCI (`.circleci/config.yml`), and Bitrise pipelines.
+**内容:** CI/CD のブートストラップを拡張し、GitLab CI(`.gitlab-ci.yml`)、CircleCI(`.circleci/config.yml`)、Bitrise のパイプラインを生成する。
 
-**Why:** Not all projects use GitHub Actions. Universal CI/CD bootstrap would make test bootstrap work for everyone.
+**理由:** すべてのプロジェクトが GitHub Actions を使っているわけではない。ユニバーサルな CI/CD のブートストラップがあれば、テストのブートストラップがすべての人にとって機能する。
 
-**Context:** v1 ships with GitHub Actions only. Detection logic already checks for `.gitlab-ci.yml`, `.circleci/`, `bitrise.yml` and skips with an informational note. Each provider needs ~20 lines of template text in `generateTestBootstrap()`.
+**背景:** v1 は GitHub Actions のみ対応。検出ロジックはすでに `.gitlab-ci.yml`、`.circleci/`、`bitrise.yml` を確認しており、情報メッセージを出してスキップしている。各プロバイダーには、`generateTestBootstrap()` に約 20 行のテンプレートテキストが必要。
 
-**Effort:** M
-**Priority:** P3
-**Depends on:** Test bootstrap (shipped)
+**工数:** M
+**優先度:** P3
+**依存:** テストのブートストラップ(出荷済み)
 
-### Auto-upgrade weak tests (★) to strong tests (★★★)
+### 弱いテスト(★)を強いテスト(★★★)に自動アップグレード
 
-**What:** When Step 7 coverage audit identifies existing ★-rated tests (smoke/trivial assertions), generate improved versions testing edge cases and error paths.
+**内容:** Step 7 のカバレッジ監査で、既存の ★ 評価のテスト(スモークテストや自明なアサーション)が見つかったら、エッジケースとエラーパスをテストする改良版を生成する。
 
-**Why:** Many codebases have tests that technically exist but don't catch real bugs — `expect(component).toBeDefined()` isn't testing behavior. Upgrading these closes the gap between "has tests" and "has good tests."
+**理由:** 多くのコードベースには、形式的には存在するが実際のバグを捕まえられないテストがある。`expect(component).toBeDefined()` は振る舞いをテストしていない。これらをアップグレードすれば、「テストがある」と「良いテストがある」の差が埋まる。
 
-**Context:** Requires the quality scoring rubric from the test coverage audit. Modifying existing test files is riskier than creating new ones — needs careful diffing to ensure the upgraded test still passes. Consider creating a companion test file rather than modifying the original.
+**背景:** テストカバレッジ監査の品質採点ルーブリックが必要。既存のテストファイルの変更は、新規作成より危険。アップグレード後のテストが通ることを確認するために慎重な差分の確認が必要。元のファイルを変更するのではなく、コンパニオンのテストファイルを作ることを検討する。
 
-**Effort:** M
-**Priority:** P3
-**Depends on:** Test quality scoring (shipped)
+**工数:** M
+**優先度:** P3
+**依存:** テストの品質採点(出荷済み)
 
-## Retro
+## 振り返り(retro)
 
-### Deployment health tracking (retro + browse)
+### デプロイの健全性の追跡(retro + browse)
 
-**What:** Screenshot production state, check perf metrics (page load times), count console errors across key pages, track trends over retro window.
+**内容:** 本番の状態をスクリーンショットで撮り、ページの読み込み時間などのパフォーマンス指標を確認し、主要ページでのコンソールエラーの数を数え、retro の期間にわたって傾向を追う。
 
-**Why:** Retro should include production health alongside code metrics.
+**理由:** Retro には、コードの指標とあわせて本番の健全性も含めるべき。
 
-**Context:** Requires browse integration. Screenshots + metrics fed into retro output.
+**背景:** browse との統合が必要。スクリーンショットと指標を retro の出力に取り込む。
 
-**Effort:** L
-**Priority:** P3
-**Depends on:** Browse sessions
+**工数:** L
+**優先度:** P3
+**依存:** Browse セッション
 
-## Infrastructure
+## インフラ
 
-### /setup-gstack-upload skill (S3 bucket)
+### /setup-gstack-upload スキル(S3 バケット)
 
-**What:** Configure S3 bucket for image hosting. One-time setup for visual PR annotations.
+**内容:** 画像のホスティング用に S3 バケットを設定する。ビジュアルな PR 注釈のための一度きりのセットアップ。
 
-**Why:** Prerequisite for visual PR annotations in /ship and /review.
+**理由:** /ship と /review でのビジュアルな PR 注釈の前提条件。
 
-**Effort:** M
-**Priority:** P2
+**工数:** M
+**優先度:** P2
 
-### gstack-upload helper
+### gstack-upload ヘルパー
 
-**What:** `browse/bin/gstack-upload` — upload file to S3, return public URL.
+**内容:** `browse/bin/gstack-upload` — ファイルを S3 にアップロードし、公開 URL を返す。
 
-**Why:** Shared utility for all skills that need to embed images in PRs.
+**理由:** PR に画像を埋め込む必要がある、すべてのスキルで共有されるユーティリティ。
 
-**Effort:** S
-**Priority:** P2
-**Depends on:** /setup-gstack-upload
+**工数:** S
+**優先度:** P2
+**依存:** /setup-gstack-upload
 
-### WebM to GIF conversion
+### WebM から GIF への変換
 
-**What:** ffmpeg-based WebM → GIF conversion for video evidence in PRs.
+**内容:** ffmpeg による WebM から GIF への変換。PR に動画での証拠を載せるため。
 
-**Why:** GitHub PR bodies render GIFs but not WebM. Needed for video recording evidence.
+**理由:** GitHub の PR 本文は GIF は表示できるが WebM は表示できない。動画の記録による証拠に必要。
 
-**Effort:** S
-**Priority:** P3
-**Depends on:** Video recording
+**工数:** S
+**優先度:** P3
+**依存:** 動画の記録
 
 
 
-### Extend worktree isolation to Claude E2E tests
+### 無料の E2E テストへの worktree 分離の拡張
 
-**What:** Add `useWorktree?: boolean` option to `runSkillTest()` so any Claude E2E test can opt into worktree mode for full repo context instead of tmpdir fixtures.
+**内容:** `runSkillTest()` に `useWorktree?: boolean` オプションを追加し、どの Claude E2E テストでも、tmpdir のフィクスチャの代わりに、完全なリポジトリのコンテキストを得られる worktree モードを選べるようにする。
 
-**Why:** Some Claude E2E tests (CSO audit, review-sql-injection) create minimal fake repos but would produce more realistic results with full repo context. The infrastructure exists (`describeWithWorktree()` in e2e-helpers.ts) — this extends it to the session-runner level.
+**理由:** Claude E2E テストの一部(CSO 監査、review-sql-injection)は、最小限の偽のリポジトリを作っている。完全なリポジトリのコンテキストがあれば、より現実的な結果が得られる。インフラはすでにある(e2e-helpers.ts の `describeWithWorktree()`)。これは、それをセッションのランナーのレベルに広げるもの。
 
-**Context:** WorktreeManager shipped in v0.11.12.0. Currently only Gemini/Codex tests use worktrees. Claude tests use planted-bug fixture repos which are correct for their purpose, but new tests that want real repo context can use `describeWithWorktree()` today. This TODO is about making it even easier via a flag on `runSkillTest()`.
+**背景:** WorktreeManager は v0.11.12.0 で出荷済み。現時点では Gemini/Codex のテストだけが worktree を使っている。Claude のテストは、計画された脆弱性を持つフィクスチャのリポジトリを使っており、目的にはそれで正しい。ただし、実際のリポジトリのコンテキストが必要な新しいテストは、今すぐ `describeWithWorktree()` を使える。この TODO は、`runSkillTest()` のフラグによって、それをさらに簡単にすることに関するもの。
 
-**Effort:** M (human: ~2 days / CC: ~20 min)
-**Priority:** P3
-**Depends on:** Worktree isolation (shipped v0.11.12.0)
+**工数:** M(人間: 約 2 日 / CC: 約 20 分)
+**優先度:** P3
+**依存:** Worktree の分離(v0.11.12.0 で出荷済み)
 
-### E2E model pinning — SHIPPED
+### E2E のモデル固定 — 出荷済み
 
-~~**What:** Pin E2E tests to claude-sonnet-4-6 for cost efficiency, add retry:2 for flaky LLM responses.~~
+~~**内容:** コストを抑えるために E2E テストを claude-sonnet-4-6 に固定し、不安定な LLM の応答に対して retry:2 を追加する。~~
 
-Shipped: Default model changed to Sonnet for structure tests (~30), Opus retained for quality tests (~10). `--retry 2` added. `EVALS_MODEL` env var for override. `test:e2e:fast` tier added. Rate-limit telemetry (first_response_ms, max_inter_turn_ms) and wall_clock_ms tracking added to eval-store.
+出荷済み: 構造テスト(約 30 件)のデフォルトモデルを Sonnet に変更し、品質テスト(約 10 件)は Opus のまま残しました。`--retry 2` を追加。上書き用に `EVALS_MODEL` 環境変数を追加。`test:e2e:fast` のティアを追加。eval-store にレート制限のテレメトリ(first_response_ms、max_inter_turn_ms)と wall_clock_ms の計測を追加。
 
-### Eval web dashboard
+### Eval の Web ダッシュボード
 
-**What:** `bun run eval:dashboard` serves local HTML with charts: cost trending, detection rate, pass/fail history.
+**内容:** `bun run eval:dashboard` で、コストの推移、検出率、合否の履歴をグラフ付きのローカル HTML として配信する。
 
-**Why:** Visual charts better for spotting trends than CLI tools.
+**理由:** 傾向を把握するには、CLI ツールより視覚的なグラフのほうが向いている。
 
-**Context:** Reads `~/.gstack-dev/evals/*.json`. ~200 lines HTML + chart.js via Bun HTTP server.
+**背景:** `~/.gstack-dev/evals/*.json` を読み込む。chart.js を使い、Bun の HTTP サーバーで配信する約 200 行の HTML。
 
-**Effort:** M
-**Priority:** P3
-**Depends on:** Eval persistence (shipped in v0.3.6)
+**工数:** M
+**優先度:** P3
+**依存:** Eval の永続化(v0.3.6 で出荷済み)
 
-### CI/CD QA quality gate
+### CI/CD の QA 品質ゲート
 
-**What:** Run `/qa` as a GitHub Action step, fail PR if health score drops below threshold.
+**内容:** `/qa` を GitHub Action のステップとして実行し、ヘルススコアがしきい値を下回ったら PR を失敗させる。
 
-**Why:** Automated quality gate catches regressions before merge. Currently QA is manual — CI integration makes it part of the standard workflow.
+**理由:** 自動化された品質ゲートにより、マージ前にリグレッションを検出できる。現状の QA は手作業なので、CI に組み込めば標準のワークフローの一部になる。
 
-**Context:** Requires headless browse binary available in CI. The `/qa` skill already produces `baseline.json` with health scores — CI step would compare against the main branch baseline and fail if score drops. Would need `ANTHROPIC_API_KEY` in CI secrets since `/qa` uses Claude.
+**背景:** CI でヘッドレスの browse バイナリが使えることが前提。`/qa` スキルはすでにヘルススコアを含む `baseline.json` を出力している。CI のステップでは、main ブランチのベースラインと比較し、スコアが下がれば失敗させればよい。`/qa` は Claude を使うため、CI のシークレットに `ANTHROPIC_API_KEY` が必要になる。
 
-**Effort:** M
-**Priority:** P2
-**Depends on:** None
+**工数:** M
+**優先度:** P2
+**依存:** なし
 
-### Cross-platform URL open helper
+### クロスプラットフォームの URL オープン・ヘルパー
 
-**What:** `gstack-open-url` helper script — detect platform, use `open` (macOS) or `xdg-open` (Linux).
+**内容:** `gstack-open-url` ヘルパースクリプト。プラットフォームを判定し、macOS では `open`、Linux では `xdg-open` を使う。
 
-**Why:** The first-time Completeness Principle intro uses macOS `open` to launch the essay. If gstack ever supports Linux, this silently fails.
+**理由:** 初回の完全性原則の紹介では、エッセイを開くのに macOS の `open` を使っている。gstack が将来 Linux に対応すると、ここが黙って失敗する。
 
-**Effort:** S (human: ~30 min / CC: ~2 min)
-**Priority:** P4
-**Depends on:** Nothing
+**工数:** S(人間: 約 30 分 / CC: 約 2 分)
+**優先度:** P4
+**依存:** なし
 
-### CDP-based DOM mutation detection for ref staleness
+### ref の陳腐化を検出するための CDP ベースの DOM 変異検出
 
-**What:** Use Chrome DevTools Protocol `DOM.documentUpdated` / MutationObserver events to proactively invalidate stale refs when the DOM changes, without requiring an explicit `snapshot` call.
+**内容:** Chrome DevTools Protocol の `DOM.documentUpdated` や MutationObserver のイベントを使い、明示的な `snapshot` の呼び出しなしに、DOM が変わったときに陳腐化した ref を先回りして無効化する。
 
-**Why:** Current ref staleness detection (async count() check) only catches stale refs at action time. CDP mutation detection would proactively warn when refs become stale, preventing the 5-second timeout entirely for SPA re-renders.
+**理由:** 現在の ref の陳腐化の検出(非同期の count() チェック)は、操作を実行する時点でしか陳腐化した ref を捕まえられない。CDP による変異検出なら、ref が陳腐化した時点で先回りして警告でき、SPA の再描画で発生する 5 秒のタイムアウトを完全に防げる。
 
-**Context:** Parts 1+2 of ref staleness fix (RefEntry metadata + eager validation via count()) are shipped. This is Part 3 — the most ambitious piece. Requires CDP session alongside Playwright, MutationObserver bridge, and careful performance tuning to avoid overhead on every DOM change.
+**背景:** ref の陳腐化対策の第 1 部と第 2 部(RefEntry のメタデータと count() による即時の検証)は出荷済み。これは第 3 部で、もっとも野心的な部分。Playwright と並行して CDP のセッションが必要で、MutationObserver のブリッジも要る。また、DOM の変更のたびにオーバーヘッドがかからないよう、慎重な性能調整が求められる。
 
-**Effort:** L
-**Priority:** P3
-**Depends on:** Ref staleness Parts 1+2 (shipped)
+**工数:** L
+**優先度:** P3
+**依存:** ref の陳腐化対策の第 1 部と第 2 部(出荷済み)
 
-## Office Hours / Design
+## Office Hours / デザイン
 
-### Design docs → Supabase team store sync
+### 設計ドキュメント → Supabase のチーム・ストアへの同期
 
-**What:** Add design docs (`*-design-*.md`) to the Supabase sync pipeline alongside test plans, retro snapshots, and QA reports.
+**内容:** 設計ドキュメント(`*-design-*.md`)を、テスト計画、レトロのスナップショット、QA レポートと並べて Supabase の同期パイプラインに加える。
 
-**Why:** Cross-team design discovery at scale. Local `~/.gstack/projects/$SLUG/` keyword-grep discovery works for same-machine users now, but Supabase sync makes it work across the whole team. Duplicate ideas surface, everyone sees what's been explored.
+**理由:** 大規模なチーム内で、設計の発見を横断的に行うため。今は `~/.gstack/projects/$SLUG/` をキーワード検索して発見できるのは、同じマシンを使うユーザーだけ。Supabase への同期があれば、チーム全体で機能する。似たアイデアが浮かび上がり、誰が何を検討したかが全員に見えるようになる。
 
-**Context:** /office-hours writes design docs to `~/.gstack/projects/$SLUG/`. The team store already syncs test plans, retro snapshots, QA reports. Design docs follow the same pattern — just add a sync adapter.
+**背景:** /office-hours は設計ドキュメントを `~/.gstack/projects/$SLUG/` に書き出す。チームのストアはすでにテスト計画、レトロのスナップショット、QA レポートを同期している。設計ドキュメントも同じパターンに従えばよく、同期アダプターを追加するだけ。
 
-**Effort:** S
-**Priority:** P2
-**Depends on:** `garrytan/team-supabase-store` branch landing on main
+**工数:** S
+**優先度:** P2
+**依存:** `garrytan/team-supabase-store` ブランチが main にマージされること
 
-### /yc-prep skill
+### /yc-prep スキル
 
-**What:** Skill that helps founders prepare their YC application after /office-hours identifies strong signal. Pulls from the design doc, structures answers to YC app questions, runs a mock interview.
+**内容:** /office-hours で強いシグナルが見つかった創業者が、YC への応募を準備するのを助けるスキル。設計ドキュメントから情報を引き出し、YC の応募フォームの質問に合わせて回答を整理し、模擬面接を実施する。
 
-**Why:** Closes the loop. /office-hours identifies the founder, /yc-prep helps them apply well. The design doc already contains most of the raw material for a YC application.
+**理由:** ループを閉じるため。/office-hours が創業者を見つけ、/yc-prep がその人がうまく応募できるよう支援する。設計ドキュメントには、YC への応募に使える素材がすでにほぼ含まれている。
 
-**Effort:** M (human: ~2 weeks / CC: ~2 hours)
-**Priority:** P2
-**Depends on:** office-hours founder discovery engine shipping first
+**工数:** M(人間: 約 2 週間 / CC: 約 2 時間)
+**優先度:** P2
+**依存:** office-hours の創業者発見エンジンが先に出荷されること
 
-## Design Review
+## デザインレビュー
 
-### /plan-design-review + /qa-design-review + /design-consultation — SHIPPED
+### /plan-design-review + /qa-design-review + /design-consultation — 出荷済み
 
-Shipped as v0.5.0 on main. Includes `/plan-design-review` (report-only design audit), `/qa-design-review` (audit + fix loop), and `/design-consultation` (interactive DESIGN.md creation). `{{DESIGN_METHODOLOGY}}` resolver provides shared 80-item design audit checklist.
+v0.5.0 として main に出荷済み。含まれるもの: `/plan-design-review`(報告のみのデザイン監査)、`/qa-design-review`(監査と修正のループ)、`/design-consultation`(対話的な DESIGN.md の作成)。`{{DESIGN_METHODOLOGY}}` リゾルバが、80 項目のデザイン監査チェックリストを共有で提供する。
 
-### Design outside voices in /plan-eng-review
+### /plan-eng-review でのデザインの外部の声
 
-**What:** Extend the parallel dual-voice pattern (Codex + Claude subagent) to /plan-eng-review's architecture review section.
+**内容:** 並列の二重の声のパターン(Codex + Claude サブエージェント)を、/plan-eng-review のアーキテクチャ・レビューのセクションにも広げる。
 
-**Why:** The design beachhead (v0.11.3.0) proves cross-model consensus works for subjective reviews. Architecture reviews have similar subjectivity in tradeoff decisions.
+**理由:** デザインの先陣(v0.11.3.0)によって、主観的なレビューではモデル横断の合意が機能することが示された。アーキテクチャのレビューも、トレードオフの判断には似た主観性がある。
 
-**Context:** Depends on learnings from the design beachhead. If the litmus scorecard format proves useful, adapt it for architecture dimensions (coupling, scaling, reversibility).
+**背景:** デザインの先陣から得られた知見に依存する。リトマス・スコアカードの形式が有用だと分かれば、アーキテクチャの観点(結合度、スケーリング、可逆性)向けに適応させる。
 
-**Effort:** S
-**Priority:** P3
-**Depends on:** Design outside voices shipped (v0.11.3.0)
+**工数:** S
+**優先度:** P3
+**依存:** デザインの外部の声の出荷(v0.11.3.0)
 
-### Outside voices in /qa visual regression detection
+### /qa の視覚的リグレッション検出での外部の声
 
-**What:** Add Codex design voice to /qa for detecting visual regressions during bug-fix verification.
+**内容:** バグ修正の検証中に視覚的なリグレッションを検出するため、/qa に Codex のデザインの声を追加する。
 
-**Why:** When fixing bugs, the fix can introduce visual regressions that code-level checks miss. Codex could flag "the fix broke the responsive layout" during re-test.
+**理由:** バグを修正すると、コードレベルのチェックでは見逃す視覚的なリグレッションを持ち込むことがある。Codex なら、再テストの際に「この修正でレスポンシブのレイアウトが壊れた」と指摘できる。
 
-**Context:** Depends on /qa having design awareness. Currently /qa focuses on functional testing.
+**背景:** /qa がデザインを意識していることが前提。現状の /qa は機能テストに重点を置いている。
 
-**Effort:** M
-**Priority:** P3
-**Depends on:** Design outside voices shipped (v0.11.3.0)
+**工数:** M
+**優先度:** P3
+**依存:** デザインの外部の声の出荷(v0.11.3.0)
 
-## Document-Release
+## ドキュメントのリリース
 
-### Spawned-session auto-choices are invisible to /plan-tune
+### 派生したセッションの自動選択が /plan-tune から見えない
 
-**What:** Capture auto-chosen decisions from spawned sessions (OPENCLAW_SESSION or GSTACK_SESSION_KIND=spawned) into `gstack-question-log` so `/plan-tune` learning sees them.
+**内容:** 派生したセッション(OPENCLAW_SESSION または GSTACK_SESSION_KIND=spawned)で自動的に選ばれた決定を `gstack-question-log` に記録し、`/plan-tune` の学習がそれを参照できるようにする。
 
-**Why:** In spawned sessions the model never calls AskUserQuestion (it auto-chooses the recommended option per the spawned-session block), so the PostToolUse capture hook never fires and no prose brief is ever logged — every gate decision made inside a /ship Step 18 document-release subagent is missing from the question-tuning corpus.
+**理由:** 派生したセッションでは、モデルは AskUserQuestion を呼び出さない(派生したセッションのブロックの指示に従い、推奨の選択肢を自動で選ぶ)。そのため PostToolUse の記録フックが発火せず、説明文のブリーフも一切記録されない。結果として、/ship の Step 18 の document-release サブエージェント内で行われたすべてのゲートの決定は、質問チューニングのコーパスから抜け落ちている。
 
-**Context:** #2733 made spawned sessions reachable from Claude Code subagents (every Conductor-hosted /ship now produces one). The subagent reports auto-chosen decisions in the JSON contract's `decisions` array (user-visible in the ship console), but nothing writes them to `~/.gstack/` question analytics. Start from the spawned-session instruction block in `bin/gstack-skill-start` — add a "log each auto-chosen decision with bin/gstack-question-log" sentence and a `source` value distinguishing auto-chosen from human-answered so tuning never trains on machine picks as if a human made them.
+**背景:** #2733 により、派生したセッションが Claude Code のサブエージェントから到達可能になった(Conductor 上で行われるすべての /ship が派生セッションを生成する)。サブエージェントは JSON の契約の `decisions` 配列で自動的に選んだ決定を報告する(ship のコンソールには表示される)が、それを `~/.gstack/` の質問分析に書き込む処理がない。出発点は `bin/gstack-skill-start` の派生セッションの指示ブロック。「自動で選んだ決定を bin/gstack-question-log で記録する」という一文を加え、自動選択と人間の回答を区別する `source` の値を用意する。そうすれば、チューニングが機械の選択を人間の判断だとみなして学習することがなくなる。
 
-**Effort:** S
-**Priority:** P3
-**Depends on:** #2733 fix (GSTACK_SESSION_KIND=spawned marker) landing.
+**工数:** S
+**優先度:** P3
+**依存:** #2733 の修正(GSTACK_SESSION_KIND=spawned マーカー)が取り込まれること
 
-### Auto-invoke /document-release from /ship — SHIPPED
+### /ship から /document-release を自動で呼び出す — 出荷済み
 
-Shipped in v0.8.4; redesigned twice since. Current design (v0.18.2.0+, carved in
-v1.54.0.0): `/ship` Step 18 (`ship/sections/pr-body.md`) dispatches
-`/document-release` as a general-purpose subagent AFTER Step 17 (push) and
-BEFORE Step 19 (PR creation); the subagent's JSON contract (`files_updated`,
-`commit_sha`, `pushed`, `documentation_section`, `decisions` since v1.76.0.0)
-is baked into the initial PR body — except `decisions`, which prints to the
-ship console and never enters PR markdown. Since v1.76.0.0 (#2733) the dispatch
-marks the subagent `GSTACK_SESSION_KIND=spawned` so its interactive gates
-auto-choose the recommended option. Subagent failure is non-blocking. The
-skeleton names "the /document-release subagent" at three touchpoints
-(section-index trigger + STOP pointer, Step 17 handoff, hoisted doc-sync
-invariant). Pinned by `test/ship-document-release-dispatch.test.ts` +
-carve-guards anchors; behavior proven by the `ship-docsync` gate E2E
-(`test/skill-e2e-ship-docsync.test.ts`) and the spawned-dispatch gate E2E
-(`test/skill-e2e-docsync-spawned.test.ts`).
+v0.8.4 で出荷し、その後 2 回再設計した。現在の設計(v0.18.2.0 以降、v1.54.0.0 で切り出し): `/ship` の Step 18(`ship/sections/pr-body.md`)は、Step 17(push)の後、Step 19(PR の作成)の前に、`/document-release` を汎用のサブエージェントとして起動する。サブエージェントの JSON 契約(`files_updated`、`commit_sha`、`pushed`、`documentation_section`、v1.76.0.0 以降は `decisions`)は、最初の PR の本文に組み込まれる。ただし `decisions` は例外で、ship のコンソールに表示されるだけで PR の Markdown には入らない。v1.76.0.0(#2733)以降、起動時にサブエージェントに `GSTACK_SESSION_KIND=spawned` を付けるので、対話的なゲートは推奨の選択肢を自動で選ぶ。サブエージェントが失敗しても処理は止まらない。スケルトンは「/document-release サブエージェント」を 3 か所で名指ししている(セクション索引のトリガーと STOP の参照先、Step 17 の引き継ぎ、ドキュメント同期の不変条件)。`test/ship-document-release-dispatch.test.ts` と carve-guards のアンカーで固定しており、挙動は `ship-docsync` のゲート E2E(`test/skill-e2e-ship-docsync.test.ts`)と、派生したディスパッチのゲート E2E(`test/skill-e2e-docsync-spawned.test.ts`)で証明している。
 
-### Machine-checkable Step 18 dispatch receipt in /ship's Section self-check
+### /ship のセクション自己チェックにおける、機械で検証可能な Step 18 のディスパッチの受領
 
-**What:** Make ship's "Section self-check" verify a document-release dispatch
-actually occurred (a machine-checkable marker/receipt), instead of relying on
-prompt-level invariants alone.
+**内容:** /ship の「セクションの自己チェック」で、document-release のディスパッチが実際に行われたことを検証する(機械で確認できるマーカーや受領)。プロンプトの指示だけに頼らないようにする。
 
-**Why:** Prompt wording deters skipping but can't prove the dispatch happened.
-Two residual gaps from the v1.69 review are folded into this scope: (1) an
-agent invoking `/document-release` inline via the Skill tool bypasses the
-fresh-context subagent + JSON contract and no test can see it; (2) the ship
-RE-RUN path names document-release in the re-run list but no test asserts
-doc-sync on re-run.
+**理由:** プロンプトの文言は省略を抑止できるが、ディスパッチが行われたことは証明できない。v1.69 のレビューに由来する 2 つの残存するギャップも、このスコープに含める。(1) エージェントが Skill ツールで `/document-release` をインラインで呼び出すと、新しいコンテキストのサブエージェントと JSON 契約を迂回してしまい、どのテストからも見えない。(2) ship の再実行パスは、再実行のリストに document-release を挙げているが、再実行時にドキュメント同期を確認するテストがない。
 
-**Context:** The `ship-docsync` E2E asserts the dispatch tool-call on the
-primary path; this TODO is the enforcement layer beyond wording. Start from
-ship's Section self-check (ship/SKILL.md.tmpl) and the Step 18 parent
-processing in ship/sections/pr-body.md.tmpl.
+**背景:** `ship-docsync` の E2E は主要なパスでディスパッチのツール呼び出しを確認している。この TODO は、文言による指示を超えた強制の仕組みを作るもの。出発点は ship の Section self-check(`ship/SKILL.md.tmpl`)と、`ship/sections/pr-body.md.tmpl` の Step 18 の親の処理。
 
-**Effort:** M (human) → S (CC+gstack)
-**Priority:** P3
-**Depends on:** ship-docsync E2E landed
+**工数:** M(人間) → S(CC+gstack)
+**優先度:** P3
+**依存:** ship-docsync の E2E が取り込まれていること
 
-### Apply the dispatch-pin + E2E pattern to /land-and-deploy → /canary
+### /land-and-deploy → /canary に、ディスパッチの固定 + E2E のパターンを適用する
 
-**What:** Same treatment ship→document-release got: name the handoff at the
-skeleton decision points, pin with carve-guards anchors + a free tripwire,
-prove with a toolCalls-assert E2E.
+**内容:** ship から document-release に対して行ったのと同じ処理を行う。スケルトンの判断ポイントで引き継ぎに名前を付け、carve-guards のアンカーと無料の番人(tripwire)で固定し、toolCalls のアサートによる E2E で証明する。
 
-**Why:** Identical failure class — a carve or reword can silently strand the
-canary handoff out of the always-loaded skeleton, and nothing tests it today.
+**理由:** 失敗の種類はまったく同じ。切り出しや言い換えによって、canary への引き継ぎが常時読み込まれるスケルトンから静かに外れてしまうことがあるが、今はそれをテストする仕組みがない。
 
-**Context:** Model files: `test/ship-document-release-dispatch.test.ts` (free
-pin) and `test/skill-e2e-ship-docsync.test.ts` (dispatch E2E, gate tier).
+**背景:** 対象のモデルファイル: `test/ship-document-release-dispatch.test.ts`(無料の固定テスト)と `test/skill-e2e-ship-docsync.test.ts`(ディスパッチの E2E、gate ティア)。
 
-**Effort:** M (human) → S (CC+gstack)
-**Priority:** P3
-**Depends on:** None
+**工数:** M(人間) → S(CC+gstack)
+**優先度:** P3
+**依存:** なし
 
-### CI gate-lane hollow-coverage burn-down (evals.yml matrix)
+### CI の gate レーンの空洞カバレッジの解消(evals.yml のマトリクス)
 
-**What:** `test/evals-workflow-matrix.test.ts` (added v1.70.1.0) ratchets two
-pre-existing CI coverage holes; burn them down. (1) Eight gate-hosting test
-files have no `evals.yml` matrix row, so CI never runs them
-(`KNOWN_MATRIX_GAPS` in the test enumerates them — notably the plan-mode and
-finding-floor smokes and the AUQ format-compliance gate). (2) Four matrix rows
-point at whole-file tier-gated files but set no row `tier:` property, so with
-`EVALS_TIER` unexported those suites self-skip: `codex-e2e` runs
-ZERO tests and report green on every PR (vestigial rows; the periodic cron
-lane owns them — consider deleting the rows), and `e2e-pty-plan-smoke` spends
-~7 min on setup then skips every describe (hollow-green since the files
-adopted `describeE2ETier('gate')` — set `tier: gate` on the row to reactivate,
-after confirming the smokes still pass).
+**内容:** `test/evals-workflow-matrix.test.ts`(v1.70.1.0 で追加)は、CI のカバレッジにある 2 つの既存の穴を段階的に減らす仕組みになっている。これらを解消する。(1) gate のテストを含む 8 つのテストファイルには、`evals.yml` のマトリクスの行がないため、CI で一度も実行されない(テスト内の `KNOWN_MATRIX_GAPS` に列挙されている。特に plan モードと finding-floor のスモーク、AUQ の形式準拠のゲートが該当)。(2) ファイル全体がティアで制限されているファイルを指す 4 つのマトリクスの行に、行の `tier:` プロパティが設定されていない。そのため `EVALS_TIER` が export されていないと、これらのスイートは自分でスキップしてしまう。`codex-e2e` はテストを 1 件も実行せず、すべての PR で緑のまま報告される(名残の行で、定期実行の cron レーンが担当している。行の削除を検討)。`e2e-pty-plan-smoke` はセットアップに約 7 分かかるのに、すべての describe をスキップする(ファイルが `describeE2ETier('gate')` を採用して以来、見かけ上は緑で中身がない。スモークがまだ通ることを確認したうえで、行に `tier: gate` を設定すれば再び有効になる)。
 
-**Why:** "Gate tier blocks merge" is silently false for these files. Each fix
-is a deliberate cost/flake decision (activating paid suites on every PR), so
-they're enumerated instead of drive-by-fixed. The mechanism already exists:
-per-row `tier:` property, exported as `EVALS_TIER` by the Run step.
+**理由:** これらのファイルでは「gate ティアはマージをブロックする」が、実際には成り立っていない。どの修正も、コストと不安定さに関わる意図的な判断になる(PR のたびに有料のスイートを有効にするため)。だから、場当たり的に直すのではなく、列挙して扱う。仕組みはすでにある。行ごとの `tier:` プロパティと、Run のステップが `EVALS_TIER` として export する仕組み。
 
-**Context:** Found 2026-08-26 on PR #2700 while adding the `ship-docsync` row.
-Fix = add/adjust the matrix row, then DELETE the corresponding burn-down entry
-(the tripwire fails on stale entries, so cleanup is enforced).
+**背景:** 2026-08-26 に PR #2700 で `ship-docsync` の行を追加している最中に見つかった。修正の手順は、マトリクスの行を追加または調整し、対応する解消の項目を削除すること(番人は古くなった項目を失敗させるので、後片付けが強制される)。
 
-**Effort:** S per file (mechanical) + one burn-in run each to confirm green
-**Priority:** P2
-**Depends on:** None
+**工数:** ファイルごとに S(機械的な作業) + 確認のための試運転を 1 回ずつ
+**優先度:** P2
+**依存:** なし
 
-### Periodic paid-test shard census is one ungated file from the detach-timeout floor
+### 定期実行される有料テストのシャード数が、detach のタイムアウトの下限まで 1 ファイル分しか残っていない
 
-**What:** The periodic tier's shard census is 67 files — one ungated slot below
-the 68-file (17×4) ceiling. The next paid `skill-e2e-*` file WITHOUT a
-whole-file `describeE2ETier` self-gate lands at 68 (still 17 waves, floor
-32,130s ≤ 32,400s — passes); the SECOND ungated file trips 18 waves → 34,020s
-floor > the 32,400s configured detach timeout, and
-`test/eval-detach-timeout-floor.test.ts` fails with a confusing message.
+**内容:** 定期ティアのシャード数は 67 ファイル。上限の 68 ファイル(17×4)まで、ゲートのかかっていないスロットが 1 つ残っている。次に追加される有料の `skill-e2e-*` ファイルで、ファイル全体を対象とする `describeE2ETier` の自己ゲートがないものは 68 になる(17 波のまま。下限は 32,130 秒で 32,400 秒以下なので通る)。2 つ目のゲートなしのファイルが入ると 18 波になり、下限が 34,020 秒となって、設定された detach のタイムアウト 32,400 秒を超える。すると `test/eval-detach-timeout-floor.test.ts` が、変更内容とは無関係で分かりにくいメッセージを出して失敗する。
 
-**Why:** Whoever adds the second ungated periodic E2E gets a floor failure
-unrelated to their change. Fix options: raise the periodic detach timeout, or
-enforce whole-file tier self-gates on all paid files (upgrades them from the
-tier-alignment warn-only bucket to the hard invariant, and — bonus — restores
-tierless `bun run test:evals` coverage decisions to diff selection alone).
+**理由:** 2 つ目のゲートなしの定期 E2E を追加した人は、自分の変更とは関係のない下限の失敗に直面することになる。修正の選択肢は 2 つ。定期の detach タイムアウトを上げるか、有料のすべてのファイルにファイル全体のティアの自己ゲートを強制するか。後者なら、ティアの整合性チェックで警告のみのバケットから、厳格な不変条件に格上げされる。さらにおまけとして、ティアなしの `bun run test:evals` のカバレッジの判断が、差分による選択だけに戻る。
 
-**Context:** `scripts/test-paid-shards.ts` `classifyPaidTestFile` counts
-ungated files in both tiers; `ship-docsync` composed `describeE2ETier('gate')`
-with diff selection specifically to avoid consuming the last free slot.
+**背景:** `scripts/test-paid-shards.ts` の `classifyPaidTestFile` が、両方のティアでゲートのないファイルを数えている。`ship-docsync` は、最後の無料のスロットを消費しないよう、`describeE2ETier('gate')` と差分による選択をあえて組み合わせている。
 
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
+**工数:** S
+**優先度:** P3
+**依存:** なし
 
-### `{{DOC_VOICE}}` shared resolver
+### `{{DOC_VOICE}}` の共有リゾルバ
 
-**What:** Create a placeholder resolver in gen-skill-docs.ts encoding the gstack voice guide (friendly, user-forward, lead with benefits). Inject into /ship Step 5, /document-release Step 5, and reference from CLAUDE.md.
+**内容:** gen-skill-docs.ts に、gstack の文章のガイド(親しみやすく、ユーザー目線で、利点から始める)を符号化したプレースホルダのリゾルバを作る。/ship の Step 5、/document-release の Step 5 に注入し、CLAUDE.md から参照する。
 
-**Why:** DRY — voice rules currently live inline in 3 places (CLAUDE.md CHANGELOG style section, /ship Step 5, /document-release Step 5). When the voice evolves, all three drift.
+**理由:** DRY のため。現状、文章のルールは 3 か所にインラインで書かれている(CLAUDE.md の CHANGELOG のスタイルのセクション、/ship の Step 5、/document-release の Step 5)。文章の方針が変わると、3 つともずれていく。
 
-**Context:** Same pattern as `{{QA_METHODOLOGY}}` — shared block injected into multiple templates to prevent drift. ~20 lines in gen-skill-docs.ts.
+**背景:** `{{QA_METHODOLOGY}}` と同じパターン。複数のテンプレートに同じブロックを注入して、ずれを防ぐ。gen-skill-docs.ts で約 20 行。
 
-**Effort:** S
-**Priority:** P2
-**Depends on:** None
+**工数:** S
+**優先度:** P2
+**依存:** なし
 
-## Ship Confidence Dashboard
+## 出荷の確信度ダッシュボード
 
-### Smart review relevance detection — PARTIALLY SHIPPED
+### レビューの関連性の自動判定 — 一部出荷済み
 
-~~**What:** Auto-detect which of the 4 reviews are relevant based on branch changes (skip Design Review if no CSS/view changes, skip Code Review if plan-only).~~
+~~**内容:** ブランチの変更をもとに、4 つのレビューのうちどれが関係するかを自動で判定する(CSS やビューの変更がなければデザインレビューを省き、計画だけの変更ならコードレビューを省く)。~~
 
-`bin/gstack-diff-scope` shipped — categorizes diff into SCOPE_FRONTEND, SCOPE_BACKEND, SCOPE_PROMPTS, SCOPE_TESTS, SCOPE_DOCS, SCOPE_CONFIG. Used by design-review-lite to skip when no frontend files changed. Dashboard integration for conditional row display is a follow-up.
+`bin/gstack-diff-scope` を出荷済み。差分を SCOPE_FRONTEND、SCOPE_BACKEND、SCOPE_PROMPTS、SCOPE_TESTS、SCOPE_DOCS、SCOPE_CONFIG に分類する。フロントエンドのファイルが変わっていなければ、design-review-lite がスキップするのに使われている。条件に応じてダッシュボードの行を表示する機能は、今後の課題。
 
-**Remaining:** Dashboard conditional row display (hide "Design Review: NOT YET RUN" when SCOPE_FRONTEND=false). Extend to Eng Review (skip for docs-only) and CEO Review (skip for config-only).
+**残り:** ダッシュボードで条件に応じた行の表示(SCOPE_FRONTEND=false のときは「Design Review: NOT YET RUN」を隠す)。Eng Review にも拡張する(ドキュメントだけの変更ならスキップ)。CEO Review にも拡張する(設定だけの変更ならスキップ)。
 
-**Effort:** S
-**Priority:** P3
-**Depends on:** gstack-diff-scope (shipped)
+**工数:** S
+**優先度:** P3
+**依存:** gstack-diff-scope(出荷済み)
 
 
-## Completeness
+## 完全性
 
-### Completeness metrics dashboard
+### 完全性のメトリクスのダッシュボード
 
-**What:** Track how often Claude chooses the complete option vs shortcut across gstack sessions. Aggregate into a dashboard showing completeness trend over time.
+**内容:** gstack のセッション全体で、Claude が完全な選択肢を選ぶか、近道の選択肢を選ぶかを追跡する。集計して、完全性の傾向を時系列で示すダッシュボードにする。
 
-**Why:** Without measurement, we can't know if the Completeness Principle is working. Could surface patterns (e.g., certain skills still bias toward shortcuts).
+**理由:** 計測しなければ、完全性の原則がうまく機能しているかは分からない。特定のスキルが今も近道に偏っている、といったパターンを見つけられるかもしれない。
 
-**Context:** Would require logging choices (e.g., append to a JSONL file when AskUserQuestion resolves), parsing them, and displaying trends. Similar pattern to eval persistence.
+**背景:** AskUserQuestion が解決したとき、選択を記録する仕組み(JSONL ファイルへの追記など)が必要になる。それを解析して傾向を表示する。eval の永続化と似たパターン。
 
-**Effort:** M (human) / S (CC)
-**Priority:** P3
-**Depends on:** Boil the Lake shipped (v0.6.1)
+**工数:** M(人間) / S(CC)
+**優先度:** P3
+**依存:** Boil the Lake の出荷(v0.6.1)
 
-## Safety & Observability
+## 安全性と可観測性
 
-### On-demand hook skills (/careful, /freeze, /guard) — SHIPPED
+### 必要時に使うフックのスキル(/careful、/freeze、/guard) — 出荷済み
 
-~~**What:** Three new skills that use Claude Code's session-scoped PreToolUse hooks to add safety guardrails on demand.~~
+~~**内容:** Claude Code のセッション単位の PreToolUse フックを使って、必要なときに安全のためのガードレールを追加する 3 つの新しいスキル。~~
 
-Shipped as `/careful`, `/freeze`, `/guard`, and `/unfreeze` in v0.6.5. Includes hook fire-rate telemetry (pattern name only, no command content) and inline skill activation telemetry.
+v0.6.5 で `/careful`、`/freeze`、`/guard`、`/unfreeze` として出荷済み。フックの発火率のテレメトリ(パターン名のみ、コマンドの内容は含まない)と、インラインのスキル起動のテレメトリを含む。
 
-### Skill usage telemetry — SHIPPED
+### スキルの利用テレメトリ — 出荷済み
 
-~~**What:** Track which skills get invoked, how often, from which repo.~~
+~~**内容:** どのスキルが、どれくらいの頻度で、どのリポジトリから呼び出されたかを追跡する。~~
 
-Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into preamble telemetry line. Analytics CLI (`bun run analytics`) for querying. /retro integration shows skills-used-this-week.
+v0.6.5 で出荷済み。gen-skill-docs.ts の TemplateContext が、プリアンブルのテレメトリの行にスキル名を埋め込む。クエリ用の分析 CLI(`bun run analytics`)。/retro と連携し、今週使われたスキルを表示する。
 
-### /investigate scoped debugging enhancements (gated on telemetry)
+### /investigate のスコープ付きデバッグの強化(テレメトリを条件とする)
 
-**What:** Six enhancements to /investigate auto-freeze, contingent on telemetry showing the freeze hook actually fires in real debugging sessions.
+**内容:** /investigate の自動フリーズに関する 6 つの強化。実際のデバッグのセッションで、フリーズのフックが本当に発火していることをテレメトリが示すことが条件。
 
-**Why:** /investigate v0.7.1 auto-freezes edits to the module being debugged. If telemetry shows the hook fires often, these enhancements make the experience smarter. If it never fires, the problem wasn't real and these aren't worth building.
+**理由:** /investigate v0.7.1 は、デバッグ中のモジュールへの編集を自動でフリーズする。テレメトリで、フックが頻繁に発火していることが分かれば、これらの強化で体験がより賢くなる。一度も発火していなければ、そもそも問題が現実のものではなかったので、作る価値はない。
 
-**Context:** All items are prose additions to `investigate/SKILL.md.tmpl`. No new scripts.
+**背景:** すべての項目は `investigate/SKILL.md.tmpl` への散文の追加。新しいスクリプトは不要。
 
-**Items:**
-1. Stack trace auto-detection for freeze directory (parse deepest app frame)
-2. Freeze boundary widening (ask to widen instead of hard-block when hitting boundary)
-3. Post-fix auto-unfreeze + full test suite run
-4. Debug instrumentation cleanup (tag with DEBUG-TEMP, remove before commit)
-5. Debug session persistence (~/.gstack/investigate-sessions/ — save investigation for reuse)
-6. Investigation timeline in debug report (hypothesis log with timing)
+**項目:**
+1. フリーズのディレクトリのためのスタックトレースの自動検出(最も深いアプリのフレームを解析する)
+2. フリーズの境界の拡張(境界に達したとき、即座にブロックするのではなく、拡張するかを尋ねる)
+3. 修正の後の自動フリーズ解除 + テストスイートの全体の実行
+4. デバッグ用の計測コードの後片付け(DEBUG-TEMP のタグを付け、コミット前に削除する)
+5. デバッグのセッションの保存(~/.gstack/investigate-sessions/ に、再利用のために調査を保存する)
+6. デバッグのレポートに調査のタイムライン(タイミング付きの仮説のログ)を含める
 
-**Effort:** M (all 6 combined)
-**Priority:** P3
-**Depends on:** Telemetry data showing freeze hook fires in real /investigate sessions
+**工数:** M(6 項目すべてを合わせて)
+**優先度:** P3
+**依存:** 実際の /investigate のセッションでフリーズのフックが発火していることを示すテレメトリのデータ
 
-## Context Intelligence
+## コンテキスト インテリジェンス
 
-### Context recovery preamble
+### コンテキストの回復のプリアンブル
 
-**What:** Add ~10 lines of prose to the preamble telling the agent to re-read gstack artifacts (CEO plans, design reviews, eng reviews, checkpoints) after compaction or context degradation.
+**内容:** プリアンブルに約 10 行の散文を追加し、コンパクションやコンテキストの劣化の後に、gstack の成果物(CEO の計画、デザインのレビュー、Eng のレビュー、チェックポイント)を再読するようエージェントに指示する。
 
-**Why:** gstack skills produce valuable artifacts stored at `~/.gstack/projects/$SLUG/`. When Claude's auto-compaction fires, it preserves a generic summary but doesn't know these artifacts exist. The plans and reviews that shaped the current work silently vanish from context, even though they're still on disk. This is the thing nobody else in the Claude Code ecosystem is solving, because nobody else has gstack's artifact architecture.
+**理由:** gstack のスキルは、有用な成果物を `~/.gstack/projects/$SLUG/` に保存する。Claude の自動コンパクションが働くと、一般的な要約は残るが、これらの成果物の存在は分からなくなる。現在の作業を形作った計画やレビューは、ディスク上にはまだ残っているのに、コンテキストから黙って消えてしまう。これは、Claude Code のエコシステムの誰も解決していない問題。gstack の成果物のアーキテクチャを持つ者は他にいないからだ。
 
-**Context:** Inspired by Anthropic's `claude-progress.txt` pattern for long-running agents. Also informed by claude-mem's "progressive disclosure" approach. See `docs/designs/SESSION_INTELLIGENCE.md` for the broader vision. CEO plan: `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-03-31-session-intelligence-layer.md`.
+**背景:** 長時間実行されるエージェント向けの Anthropic の `claude-progress.txt` のパターンからヒントを得た。claude-mem の「段階的な開示」のアプローチも参考にしている。より広いビジョンは `docs/designs/SESSION_INTELLIGENCE.md` を参照。CEO の計画: `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-03-31-session-intelligence-layer.md`。
 
-**Effort:** S (human: ~30 min / CC: ~5 min)
-**Priority:** P1
-**Depends on:** None
-**Key files:** `scripts/resolvers/preamble.ts`
+**工数:** S(人間: 約 30 分 / CC: 約 5 分)
+**優先度:** P1
+**依存:** なし
+**主なファイル:** `scripts/resolvers/preamble.ts`
 
-### Session timeline
+### セッションのタイムライン
 
-**What:** Append one-line JSONL entry to `~/.gstack/projects/$SLUG/timeline.jsonl` after every skill run (timestamp, skill, branch, outcome). `/retro` renders the timeline.
+**内容:** すべてのスキルの実行後に、`~/.gstack/projects/$SLUG/timeline.jsonl` に 1 行の JSONL エントリを追記する(タイムスタンプ、スキル、ブランチ、結果)。`/retro` がタイムラインを描画する。
 
-**Why:** Makes AI-assisted work history visible. `/retro` can show "this week: 3 /review, 2 /ship, 1 /investigate." Provides the observability layer for the session intelligence architecture.
+**理由:** AI を使った作業の履歴を見えるようにする。`/retro` で「今週: /review が 3 回、/ship が 2 回、/investigate が 1 回」と表示できる。セッションのインテリジェンス・アーキテクチャのための可観測性のレイヤーになる。
 
-**Effort:** S (human: ~1h / CC: ~5 min)
-**Priority:** P1
-**Depends on:** None
-**Key files:** `scripts/resolvers/preamble.ts`, `retro/SKILL.md.tmpl`
+**工数:** S(人間: 約 1 時間 / CC: 約 5 分)
+**優先度:** P1
+**依存:** なし
+**主なファイル:** `scripts/resolvers/preamble.ts`、`retro/SKILL.md.tmpl`
 
-### Cross-session context injection
+### セッションをまたいだコンテキストの注入
 
-**What:** When a new gstack session starts on a branch with recent checkpoints or plans, the preamble prints a one-line summary: "Last session: implemented JWT auth, 3/5 tasks done." Agent knows where you left off before reading any files.
+**内容:** 最近のチェックポイントや計画があるブランチで新しい gstack のセッションが始まると、プリアンブルが 1 行の要約を表示する。「前回のセッション: JWT 認証を実装、5 つのタスクのうち 3 つ完了」のように。エージェントは、ファイルを読む前に、どこで作業を止めたかを把握できる。
 
-**Why:** Claude starts every session fresh. This one-liner orients the agent immediately. Similar to claude-mem's SessionStart hook pattern but simpler and integrated.
+**理由:** Claude は毎回まっさらな状態でセッションを始める。この 1 行で、エージェントはすぐに状況をつかめる。claude-mem の SessionStart フックのパターンに似ているが、よりシンプルで、gstack に統合されている。
 
-**Effort:** S (human: ~2h / CC: ~10 min)
-**Priority:** P2
-**Depends on:** Context recovery preamble
+**工数:** S(人間: 約 2 時間 / CC: 約 10 分)
+**優先度:** P2
+**依存:** コンテキストの回復のプリアンブル
 
-### /checkpoint skill
+### /checkpoint スキル
 
-**What:** Manual skill to snapshot current working state: what's being done and why, files being edited, decisions made (and rationale), what's done vs. remaining, critical types/signatures. Saved to `~/.gstack/projects/$SLUG/checkpoints/<timestamp>.md`.
+**内容:** 現在の作業状態を手動でスナップショットするスキル。何をなぜやっているのか、編集中のファイル、下した決定(とその理由)、完了したことと残っていること、重要な型やシグネチャを保存する。保存先は `~/.gstack/projects/$SLUG/checkpoints/<timestamp>.md`。
 
-**Why:** Useful before stepping away from a long session, before known-complex operations that might trigger compaction, for handing off context to a different agent/workspace, or coming back to a project after days away.
+**理由:** 長いセッションを離れる前、コンパクションを引き起こしうる複雑な操作の前、別のエージェントやワークスペースにコンテキストを引き継ぐとき、数日ぶりにプロジェクトに戻ってくるときに役立つ。
 
-**Effort:** M (human: ~1 week / CC: ~30 min)
-**Priority:** P2
-**Depends on:** Context recovery preamble
-**Key files:** New `checkpoint/SKILL.md.tmpl`, `scripts/gen-skill-docs.ts`
+**工数:** M(人間: 約 1 週間 / CC: 約 30 分)
+**優先度:** P2
+**依存:** コンテキストの回復のプリアンブル
+**主なファイル:** 新規の `checkpoint/SKILL.md.tmpl`、`scripts/gen-skill-docs.ts`
 
-### Session Intelligence Layer design doc
+### セッション・インテリジェンス・レイヤーの設計ドキュメント
 
-**What:** Write `docs/designs/SESSION_INTELLIGENCE.md` describing the architectural vision: gstack as the persistent brain that survives Claude's ephemeral context. Every skill writes to `~/.gstack/projects/$SLUG/`, preamble re-reads, `/retro` rolls up.
+**内容:** アーキテクチャのビジョンを説明する `docs/designs/SESSION_INTELLIGENCE.md` を書く。Claude の一時的なコンテキストを生き延びる、永続的な頭脳としての gstack。すべてのスキルが `~/.gstack/projects/$SLUG/` に書き込み、プリアンブルが再読し、/retro がまとめる。
 
-**Why:** Connects context recovery, health, checkpoint, and timeline features into a coherent architecture. Nobody else in the ecosystem is building this.
+**理由:** コンテキストの回復、ヘルス、チェックポイント、タイムラインの機能を、一貫したアーキテクチャにまとめる。このエコシステムで、これを作っている者は他にいない。
 
-**Effort:** S (human: ~2h / CC: ~15 min)
-**Priority:** P1
-**Depends on:** None
+**工数:** S(人間: 約 2 時間 / CC: 約 15 分)
+**優先度:** P1
+**依存:** なし
 
-## Health
+## ヘルス(health)
 
-### /health — Project Health Dashboard
+### /health — プロジェクトのヘルス・ダッシュボード
 
-**What:** Skill that runs type-check, lint, test suite, and dead code scan, then reports a composite 0-10 health score with breakdown by category. Tracks over time in `~/.gstack/health/<project-slug>/` for trend detection. Optionally integrates CodeScene MCP for deeper complexity/cohesion/coupling analysis.
+**内容:** 型チェック、lint、テストスイート、デッドコードのスキャンを実行し、カテゴリごとの内訳付きで 0〜10 の総合ヘルススコアを報告するスキル。`~/.gstack/health/<project-slug>/` に時系列で記録し、傾向の検出に使う。任意で、より深い複雑度・凝集度・結合度の分析のために CodeScene MCP と連携できる。
 
-**Why:** No quick way to get "state of the codebase" before starting work. CodeScene peer-reviewed research shows AI-generated code increases static analysis warnings by 30%, code complexity by 41%, and change failure rates by 30%. Users need guardrails. Like `/qa` but for code quality rather than browser behavior.
+**理由:** 今は、codebase の「現在の状態」を、作業を始める前に手早く把握する方法がない。CodeScene の査読済みの研究によると、AI が生成したコードは、静的解析の警告を 30%、コードの複雑さを 41%、変更の失敗率を 30% 増やす。ガードレールが必要。/qa がブラウザの振る舞いを対象にするのと同じように、これはコードの品質を対象にする。
 
-**Context:** Reads CLAUDE.md for project-specific commands (platform-agnostic principle). Runs checks in parallel. `/retro` can pull from health history for trend sparklines.
+**背景:** CLAUDE.md からプロジェクト固有のコマンドを読む(プラットフォームに依存しないという原則)。チェックは並列に実行する。/retro は、傾向を示すスパークラインのためにヘルスの履歴を取り込める。
 
-**Effort:** M (human: ~1 week / CC: ~30 min)
-**Priority:** P1
-**Depends on:** None
-**Key files:** New `health/SKILL.md.tmpl`, `scripts/gen-skill-docs.ts`
+**工数:** M(人間: 約 1 週間 / CC: 約 30 分)
+**優先度:** P1
+**依存:** なし
+**主要なファイル:** 新規の `health/SKILL.md.tmpl`、`scripts/gen-skill-docs.ts`
 
-### /health as /ship gate
+### /ship のゲートとしての /health
 
-**What:** If health score exists and drops below a configurable threshold, `/ship` warns before creating the PR: "Health dropped from 8/10 to 5/10 this branch — 3 new lint warnings, 1 test failure. Ship anyway?"
+**内容:** ヘルススコアが存在し、設定可能な閾値を下回っている場合、/ship は PR を作成する前に警告する。「このブランチでヘルスが 8/10 から 5/10 に下がりました — 新しい lint の警告が 3 件、テストの失敗が 1 件。それでも出荷しますか?」
 
-**Why:** Quality gate that prevents shipping degraded code. Configurable threshold so it's not blocking for teams that don't use `/health`.
+**理由:** 劣化したコードを出荷しないようにする品質ゲート。閾値を設定可能にしておけば、/health を使っていないチームにとっては、ブロックにはならない。
 
-**Effort:** S (human: ~1h / CC: ~5 min)
-**Priority:** P2
-**Depends on:** /health skill
+**工数:** S(人間: 約 1 時間 / CC: 約 5 分)
+**優先度:** P2
+**依存:** /health スキル
 
-## Swarm
+## Swarm(スウォーム)
 
-### Swarm primitive — reusable multi-agent dispatch
+### Swarm プリミティブ — 再利用可能なマルチエージェントのディスパッチ
 
-**What:** Extract Review Army's dispatch pattern into a reusable resolver (`scripts/resolvers/swarm.ts`). Wire into `/ship` for parallel pre-ship checks (type-check + lint + test in parallel sub-agents). Make available to `/qa`, `/investigate`, `/health`.
+**内容:** Review Army のディスパッチのパターンを、再利用可能なリゾルバ(`scripts/resolvers/swarm.ts`)に抽出する。/ship に組み込み、出荷前のチェック(型チェック、lint、テスト)を並列のサブエージェントで行う。/qa、/investigate、/health でも利用できるようにする。
 
-**Why:** Review Army proved parallel sub-agents work brilliantly (5 agents = 835K tokens of working memory vs. 167K for one). The pattern is locked inside `review-army.ts`. Other skills need it too. Claude Code Agent Teams (official, Feb 2026) validates the team-lead-delegates-to-specialists pattern. Gartner: multi-agent inquiries surged 1,445% in one year.
+**理由:** Review Army は、並列のサブエージェントがうまく機能することを証明した(5 つのエージェントで 835K トークンの作業メモリ。1 つのエージェントなら 167K)。このパターンは review-army.ts の中に閉じ込められている。他のスキルにも必要。Claude Code の Agent Teams(公式、2026 年 2 月)は、チームリーダーが専門家に委譲するというパターンを裏付けている。Gartner によると、マルチエージェントに関する問い合わせは 1 年で 1,445% 急増した。
 
-**Context:** Start with the specific `/ship` use case. Extract shared parts only after 2+ consumers reveal what config parameters are actually needed. Avoid premature abstraction. Can leverage existing WorktreeManager for isolation.
+**背景:** まずは /ship の具体的なユースケースから始める。2 つ以上の利用者で必要な設定パラメータが見えてから、共通部分を抽出する。早すぎる抽象化は避ける。分離のために、既存の WorktreeManager を使える。
 
-**Effort:** L (human: ~2 weeks / CC: ~2 hours)
-**Priority:** P2
-**Depends on:** None
-**Key files:** `scripts/resolvers/review-army.ts`, new `scripts/resolvers/swarm.ts`, `ship/SKILL.md.tmpl`, `lib/worktree.ts`
+**工数:** L(人間: 約 2 週間 / CC: 約 2 時間)
+**優先度:** P2
+**依存:** なし
+**主要なファイル:** `scripts/resolvers/review-army.ts`、新規の `scripts/resolvers/swarm.ts`、`ship/SKILL.md.tmpl`、`lib/worktree.ts`
 
-## Refactoring
+## リファクタリング
 
-### /refactor-prep — Pre-Refactor Token Hygiene
+### /refactor-prep — リファクタリング前のトークンの衛生管理
 
-**What:** Skill that detects project language/framework, runs appropriate dead code detection (knip/ts-prune for TS/JS, vulture/autoflake for Python, staticcheck/deadcode for Go, cargo udeps for Rust), strips dead imports/exports/props/console.logs, and commits cleanup separately.
+**内容:** プロジェクトの言語とフレームワークを検出し、適切なデッドコードの検出を実行する(TS/JS では knip/ts-prune、Python では vulture/autoflake、Go では staticcheck/deadcode、Rust では cargo udeps)。デッドのインポート、エクスポート、props、console.log を取り除き、クリーンアップを別のコミットとしてコミットするスキル。
 
-**Why:** Dirty codebases accelerate context compaction. Dead imports, unused exports, and orphaned code eat tokens that contribute nothing but everything to triggering compaction mid-refactor. Cleaning first buys back 20%+ of context budget. Reports lines removed and estimated token savings.
+**理由:** 汚れたコードベースは、コンテキストのコンパクションを早める。デッドのインポート、未使用のエクスポート、孤立したコードは、トークンを消費するだけで何の役にも立たず、リファクタリングの途中でコンパクションを引き起こす。最初に掃除すれば、コンテキストの予算の 20% 以上を取り戻せる。削除した行数と、推定のトークン削減量を報告する。
 
-**Effort:** M (human: ~1 week / CC: ~30 min)
-**Priority:** P2
-**Depends on:** None
-**Key files:** New `refactor-prep/SKILL.md.tmpl`, `scripts/gen-skill-docs.ts`
+**工数:** M(人間: 約 1 週間 / CC: 約 30 分)
+**優先度:** P2
+**依存:** なし
+**主要なファイル:** 新規の `refactor-prep/SKILL.md.tmpl`、`scripts/gen-skill-docs.ts`
 
-## Factory Droid
+## Factory Droid(Factory の Droid ホスト)
 
-### Browse MCP server for Factory Droid
+### Factory Droid 向けの browse MCP サーバー
 
-**What:** Expose gstack's browse binary and key workflows as an MCP server that Factory Droid connects to natively. Factory users would run /mcp, add the gstack server, and get browse, QA, and review capabilities as Factory tools.
+**内容:** gstack の browse バイナリと主要なワークフローを MCP サーバーとして公開し、Factory Droid がネイティブに接続できるようにする。Factory のユーザーは /mcp を実行し、gstack のサーバーを追加すれば、browse、QA、レビューの機能を Factory のツールとして使える。
 
-**Why:** Factory already supports 40+ MCP servers in its registry. Getting gstack's browse binary listed there is a distribution play. Nobody else has a real compiled browser binary as an MCP tool. This is the thing that makes gstack uniquely valuable on Factory Droid.
+**理由:** Factory はすでにレジストリに 40 以上の MCP サーバーを持っている。gstack の browse バイナリをそこに載せることは、配布の施策になる。実際のコンパイル済みのブラウザバイナリを MCP ツールとして提供しているものは他にない。これが、Factory Droid で gstack を唯一無二の価値あるものにする。
 
-**Context:** Option A (--host factory compatibility shim) ships first in v0.13.4.0. Option B is the follow-up that provides deeper integration. The browse binary is already a stateless CLI, so wrapping it as an MCP server is straightforward (stdin/stdout JSON-RPC). Each browse command becomes an MCP tool.
+**背景:** オプション A(`--host factory` の互換シム)は v0.13.4.0 で最初に出荷される予定。オプション B は、より深い統合を提供するフォローアップ。browse バイナリはすでにステートレスな CLI なので、MCP サーバーとして包むのは簡単(stdin/stdout の JSON-RPC)。各 browse コマンドが MCP ツールになる。
 
-**Effort:** L (human: ~1 week / CC: ~5 hours)
-**Priority:** P1
-**Depends on:** --host factory (Option A, shipping in v0.13.4.0)
+**工数:** L(人間: 約 1 週間 / CC: 約 5 時間)
+**優先度:** P1
+**依存:** --host factory(オプション A、v0.13.4.0 で出荷予定)
 
-### .agent/skills/ dual output for cross-agent compatibility
+### .agent/skills/ への二重出力(エージェント間の互換性)
 
-**What:** Factory also reads from `<repo>/.agent/skills/` as a cross-agent compatibility path. Could output there in addition to `.factory/skills/` for broader reach across other agents that use the `.agent` convention.
+**内容:** Factory は、エージェント間の互換性のパスとして `<repo>/.agent/skills/` も読む。`.factory/skills/` に加えて、そこにも出力すれば、`.agent` の慣習を使う他のエージェントにも広く届く。
 
-**Why:** Multiple AI agents beyond Factory may adopt the `.agent/skills/` convention. Outputting there too would give free compatibility.
+**理由:** Factory 以外の複数の AI エージェントが、`.agent/skills/` の慣習を採用するかもしれない。そこにも出力すれば、無料で互換性が得られる。
 
-**Effort:** S
-**Priority:** P3
-**Depends on:** --host factory
+**工数:** S
+**優先度:** P3
+**依存:** --host factory
 
-### Custom Droid definitions alongside skills
+### スキルと並べたカスタムの Droid の定義
 
-**What:** Factory has "custom droids" (subagents with tool restrictions, model selection, autonomy levels). Could ship `gstack-qa.md` droid configs alongside skills that restrict tools to read-only + execute for safety.
+**内容:** Factory には「カスタム Droid」(ツールの制限、モデルの選択、自律のレベルを持つサブエージェント)がある。スキルと並べて `gstack-qa.md` の Droid の設定を出荷し、安全のため、スキルのツールを読み取り専用と実行だけに制限する。
 
-**Why:** Deeper Factory integration. Droid configs give Factory users tighter control over what gstack skills can do.
+**理由:** Factory との統合を深める。Droid の設定により、Factory のユーザーは gstack のスキルが何をできるかをより細かく制御できる。
 
-**Effort:** M
-**Priority:** P3
-**Depends on:** --host factory
+**工数:** M
+**優先度:** P3
+**依存:** --host factory
 
-## GStack Browser
+## GStack Browser(gstack のブラウザ)
 
-### Anti-bot stealth: Playwright CDP patches (rebrowser-style)
+### アンチボットのステルス: Playwright の CDP パッチ(rebrowser 方式)
 
-**What:** Write a postinstall script that patches Playwright's CDP layer to suppress `Runtime.enable` and use `addBinding` for context ID discovery, same approach as rebrowser-patches. Eliminates the `navigator.webdriver`, `cdc_` markers, and other CDP artifacts that sites like Google use to detect automation.
+**内容:** Playwright の CDP 層にパッチを当て、`Runtime.enable` を抑止し、コンテキスト ID の発見に `addBinding` を使う postinstall スクリプトを書く。rebrowser-patches と同じ手法。`navigator.webdriver`、`cdc_` のマーカー、その他の CDP の痕跡を消す。Google などのサイトは、これらを使って自動化を検出している。
 
-**Why:** As of v1.58.3.0 our JS-layer stealth is "Layer C" — always-on `navigator.webdriver` mask + `window.chrome.*` shape + `Notification.permission`/Permissions alignment + per-install `hardwareConcurrency`/`deviceMemory` + a `Function.prototype.toString` proxy + an automation-global sweep + ChromeDriver `cdc_`/`__webdriver` cleanup (still NOT faking plugins/languages, since modern fingerprinters punish inconsistent fakes more than they punish admitted defaults). That closes most JS-observable tells, but Google still triggers captchas because the deepest detection is at the CDP protocol level, which a page-world init script can't reach. rebrowser-patches proved the CDP approach works but their patches target Playwright 1.52.0 and don't apply to our 1.58.2. We need our own patcher using string matching instead of line-number diffs. 6 files, ~200 lines of patches total. (Layer C's toString proxy still has descriptor/Reflect.ownKeys surfaces; pushing the spoofs to native code via CDP suppression or the Chromium fork makes the JS layer obsolete.)
+**理由:** v1.58.3.0 の時点で、JS 層のステルスは「レイヤー C」である。常時有効な `navigator.webdriver` のマスク、`window.chrome.*` の形、`Notification.permission` と Permissions の整合、インストールごとの `hardwareConcurrency`/`deviceMemory`、`Function.prototype.toString` のプロキシ、自動化用のグローバルのスイープ、ChromeDriver の `cdc_`/`__webdriver` の掃除。(プラグインや言語は偽装していない。最新のフィンガープリント検出は、一貫性のない偽装を、認められた既定値よりも厳しく罰するため。)これで JS から観測できる痕跡の大半は閉じられる。しかし Google は、ページ内の初期化スクリプトでは届かない CDP プロトコルの最も深い層で検出しているため、今もキャプチャを出してくる。rebrowser-patches は CDP によるアプローチが機能することを示したが、そのパッチは Playwright 1.52.0 を対象としており、私たちの 1.58.2 には当てはまらない。行番号の差分ではなく文字列の一致を使う、独自のパッチャーが必要。6 ファイル、約 200 行のパッチ。(レイヤー C の toString プロキシには、まだ記述子と Reflect.ownKeys の面が残っている。CDP による抑止や Chromium フォークによって、偽装をネイティブのコードに移せば、JS 層は不要になる。)
 
-**Context:** Full analysis of rebrowser-patches source: patches 6 files in `playwright-core/lib/server/` (crConnection.js, crDevTools.js, crPage.js, crServiceWorker.js, frames.js, page.js). Key technique: suppress `Runtime.enable` (the main CDP detection vector), use `Runtime.addBinding` + `CustomEvent` trick to discover execution context IDs without it. Our extension communicates via Chrome extension APIs, not CDP Runtime, so it should be unaffected. Write E2E tests that verify: (1) extension still loads and connects, (2) Google.com loads without captcha, (3) sidebar chat still works.
+**背景:** rebrowser-patches のソースの全体の分析。`playwright-core/lib/server/` の 6 ファイル(crConnection.js、crDevTools.js、crPage.js、crServiceWorker.js、frames.js、page.js)にパッチを当てる。主要な手法は `Runtime.enable` を抑止すること(CDP での主要な検出の経路)。`Runtime.addBinding` と `CustomEvent` の手法を使い、それなしで実行コンテキストの ID を発見する。私たちの拡張機能は、CDP の Runtime ではなく Chrome の拡張機能の API で通信するため、影響を受けないはず。次の点を検証する E2E テストを書く: (1) 拡張機能が読み込まれ、接続できる、(2) google.com がキャプチャなしで読み込める、(3) サイドバーのチャットがまだ動く。
 
-**Effort:** L (human: ~2 weeks / CC: ~3 hours)
-**Priority:** P1
-**Depends on:** None
+**工数:** L(人間: 約 2 週間 / CC: 約 3 時間)
+**優先度:** P1
+**依存:** なし
 
-### Chromium fork (long-term alternative to CDP patches)
+### Chromium フォーク(CDP パッチの長期的な代替)
 
-**What:** Maintain a Chromium fork where anti-bot stealth, GStack Browser branding, and native sidebar support live in the source code, not as runtime monkey-patches.
+**内容:** Chromium のフォークを維持する。アンチボットのステルス、GStack Browser のブランディング、ネイティブのサイドバーのサポートを、実行時のモンキーパッチではなく、ソースコードの中に入れる。
 
-**Why:** The CDP patches are brittle. They break on every Playwright upgrade and target compiled JS with fragile string matching. A proper fork means: (1) stealth is permanent, not patched, (2) branding is native (no plist hacking at launch), (3) native sidebar replaces the extension (Phase 4 of V0 roadmap), (4) custom protocols (gstack://) for internal pages. Companies like Brave, Arc, and Vivaldi maintain Chromium forks with small teams. With CC, the rebase-on-upstream maintenance could be largely automated.
+**理由:** CDP のパッチは壊れやすい。Playwright をアップグレードするたびに壊れ、脆弱な文字列の一致でコンパイル済みの JS を対象にしている。適切なフォークなら: (1) ステルスは、パッチではなく恒久的なものになる、(2) ブランディングがネイティブになる(起動時の plist の細工が不要になる)、(3) ネイティブのサイドバーが拡張機能に取って代わる(V0 ロードマップのフェーズ 4)、(4) 内部ページのためのカスタムプロトコル(gstack://)が使える。Brave、Arc、Vivaldi は、小さなチームで Chromium のフォークを維持している。CC があれば、上流へのリベース作業の大半を自動化できるかもしれない。
 
-**Context:** Trigger criteria from V0 design doc: fork when extension side panel becomes the bottleneck, when anti-bot patches need to live deeper than CDP, or when native UI integration (sidebar, status bar) can't be done via extension. The Chromium build takes ~4 hours on a 32-core machine and produces ~50GB of build artifacts. CI would need dedicated build infra. See `docs/designs/GSTACK_BROWSER_V0.md` Phase 5 for full analysis.
+**背景:** V0 の設計ドキュメントからのトリガーの基準: 拡張機能のサイドパネルがボトルネックになったとき、アンチボットのパッチを CDP より深く入れる必要があるとき、拡張機能ではネイティブの UI 統合(サイドバー、ステータスバー)ができないとき、にフォークする。Chromium のビルドは 32 コアのマシンで約 4 時間かかり、約 50GB のビルド成果物を生成する。CI には専用のビルド基盤が必要になる。詳しい分析は `docs/designs/GSTACK_BROWSER_V0.md` のフェーズ 5 を参照。
 
-**Effort:** XL (human: ~1 quarter / CC: ~2-3 weeks of focused work)
-**Priority:** P2
-**Depends on:** CDP patches proving the value of anti-bot stealth first
+**工数:** XL(人間: 約 1 四半期 / CC: 約 2〜3 週間の集中作業)
+**優先度:** P2
+**依存:** CDP パッチがアンチボットのステルスの価値を先に証明すること
 
-## /spec follow-ups (deferred from v1.47.0.0 via /plan-ceo-review SCOPE EXPANSION)
+## /spec のフォローアップ(v1.47.0.0 の /plan-ceo-review の SCOPE EXPANSION から繰り延べ)
 
-### P2: `/spec --epic` mode (parent issue + child issues + dependency graph)
+### P2: `/spec --epic` モード(親の issue + 子の issue + 依存関係のグラフ)
 
-**Priority:** P2
+**優先度:** P2
 
-**What:** Add `--epic` flag that produces an Epic issue (parent) plus N child issues with explicit dependency graph and topological order. Emits multiple `gh issue create` calls with parent linkage in child bodies.
+**内容:** `--epic` フラグを追加する。親となる Epic の issue と、明示的な依存関係のグラフおよびトポロジカルな順序を持つ N 個の子の issue を生成する。`gh issue create` を複数回発行し、子の本文に親へのリンクを含める。
 
-**Why:** Multi-week initiatives often span 3-5 specs that share context but ship sequentially. Today `/spec --epic` would let users author the full initiative in one session and file all linked issues atomically. The Epic template already exists in `spec/SKILL.md.tmpl` (carried over from PR #1698); only the flag routing + multi-issue `gh` orchestration is missing.
+**理由:** 数週間にわたる大きな取り組みは、3〜5 個の spec にまたがることが多く、それらは文脈を共有しながら順番に出荷される。今の `/spec --epic` では、ユーザーは取り組み全体を 1 回のセッションで作成できるが、リンクされた issue をまとめて作成することはできない。Epic のテンプレートはすでに `spec/SKILL.md.tmpl` にある(PR #1698 から引き継いだもの)。欠けているのは、フラグのルーティングと、複数の issue を `gh` で扱う処理だけ。
 
-**Pros:**
-- Closes the multi-issue workflow gap that `/spec` v1 doesn't cover.
-- Parent + child linkage means project boards show the full initiative at-a-glance.
-- Composes cleanly with existing `--execute` (spawn an agent on the parent epic; agent files children as it works).
+**利点:**
+- `/spec` v1 が対応していない、複数 issue のワークフローの穴を埋める。
+- 親と子のリンクにより、プロジェクトのボードで取り組み全体が一目で分かる。
+- 既存の `--execute` とうまく組み合わさる(親の epic でエージェントを起動し、エージェントが作業しながら子を登録する)。
 
-**Cons:**
-- More gh API surface (one create per child, parent-link edit pass).
-- Dependency-graph rendering in markdown is fiddly across GitHub vs GitLab renderers.
+**欠点:**
+- gh の API の範囲が増える(子ごとに 1 回の作成、親へのリンクを編集する処理)。
+- Markdown での依存関係グラフの描画は、GitHub と GitLab のレンダラーで差が出やすく、扱いが難しい。
 
-**Context:** Considered in `/plan-ceo-review` SCOPE EXPANSION (D5), deferred 2026-05-25 in favor of shipping the 5 critical-path expansions (--execute, --dedupe, archive, quality gate, --audit). Re-evaluate once v1.47 ships and we see how often users hit "this should be 3 issues" in real /spec sessions.
+**背景:** `/plan-ceo-review` の SCOPE EXPANSION(D5)で検討し、2026-05-25 に繰り延べた。優先したのは、出荷に必要な 5 つの拡張(--execute、--dedupe、archive、品質ゲート、--audit)。v1.47 が出荷され、「これは 3 つの issue にすべきだ」という場面が実際の /spec のセッションでどれくらい起きるかを見たうえで、再評価する。
 
-**Depends on:** v1.47.0.0 `/spec` lands first; need real usage data to calibrate the multi-issue surface.
+**依存:** v1.47.0.0 の `/spec` が先に出荷されること。複数 issue の範囲を調整するため、実際の利用データが必要。
 
-### P3: `/spec --dedupe` semantic matching (LLM-based) for v1.1
+### P3: `/spec --dedupe` の意味的な一致(LLM ベース)を v1.1 で
 
-**Priority:** P3
+**優先度:** P3
 
-**What:** Upgrade `--dedupe`'s string match against `gh issue list --search` to LLM-based semantic similarity. Today's v1 picks string overlap on title keywords; semantic match would catch "the sidebar terminal flakes on reload" matching an existing issue titled "PTY reconnect fails after extension restart" where keyword overlap is zero.
+**内容:** `--dedupe` の、`gh issue list --search` に対する文字列の一致を、LLM による意味的な類似度に置き換える。今の v1 は、タイトルのキーワードの重なりを見ている。意味的な一致なら、「サイドバーのターミナルがリロードで不安定」を、「拡張機能の再起動後に PTY の再接続が失敗する」というタイトルの既存の issue と結びつけられる。キーワードの重なりはゼロだが、同じ問題を指している。
 
-**Why:** String match has high precision but low recall — it misses near-duplicates with different vocabulary. LLM semantic match catches more dupes but costs ~$0.01-0.05 per spec dispatch and adds 5-10s latency.
+**理由:** 文字列の一致は、精度は高いが再現率が低い。異なる語彙の重複を見逃す。LLM による意味的な一致なら、より多くの重複を捕まえられるが、spec の 1 回のディスパッチあたり約 0.01〜0.05 ドルかかり、5〜10 秒の遅延が増える。
 
-**Pros:**
-- Catches dupes string match misses.
-- One more reason `/spec` is more useful than freehand authoring.
+**利点:**
+- 文字列の一致が見逃す重複を捕まえられる。
+- `/spec` を、自由記述で書くよりも役立つものにする理由がもう 1 つ増える。
 
-**Cons:**
-- Paid + slower. Most v1 users probably don't hit enough false-negatives to justify the cost.
-- Adds another LLM-judged decision to a skill that already has the quality gate.
+**欠点:**
+- 有料で遅い。ほとんどの v1 のユーザーは、そのコストを正当化するほど偽陰性に遭遇しないだろう。
+- 品質ゲートがすでにある、LLM で判断するスキルに、もう 1 つの判断が加わる。
 
-**Context:** Considered in `/plan-ceo-review` build-time decisions; chose string match for v1 to keep the dedupe path free + fast. Revisit if v1 produces a meaningful false-negative rate in real use.
+**背景:** `/plan-ceo-review` の build-time の判断で検討した。v1 では、dedupe の経路を無料かつ高速に保つため、文字列の一致を選んだ。v1 が実際の利用で意味のある偽陰性の率を出したら、見直す。
 
-**Depends on:** v1.47.0.0 ships; gather real false-negative data from the v1 string matcher.
+**依存:** v1.47.0.0 の出荷後。v1 の文字列の照合から、実際の偽陰性のデータを集める。
 
-## Test/evals/CI speedup follow-ups (filed v1.66.0.0 via /ship review army)
+## テスト/eval/CI の高速化のフォローアップ(v1.66.0.0 で /ship の review army から起票)
 
-### P2: Free-suite shard balancing — LPT by recorded durations instead of stable hash
+### P2: 無料スイートのシャードのバランシング — 安定したハッシュではなく、記録された所要時間による LPT
 
-**What:** Full-suite shard assignment is a stable hash; measured shard durations
-spread 69.5s-168.5s (max 2.4x min), so ~35-40s of every run is idle tail. Local
-full-suite mode doesn't need deterministic indices (only the CI --shards matrix
-does) — bin-pack by recorded per-file durations (bun prints them in the logs the
-runner already captures), keep assignFilesToShards untouched for --shard mode.
-**Where:** scripts/test-free-shards.ts main() full-suite path.
-**Effort:** S (human ~4h, CC ~20min).
+**内容:** フルスイートのシャードの割り当ては、安定したハッシュによる。計測したシャードの所要時間は 69.5 秒から 168.5 秒の間に散らばり(最大は最小の 2.4 倍)、実行の約 35〜40 秒が、待機の末尾として無駄になっている。ローカルのフルスイートのモードでは、決定的なインデックスは必要ない(決定的なのは CI の --shards のマトリクスだけ)。記録されたファイルごとの所要時間でビンパッキングする(bun がランナーの取得するログに出力する)。--shard モードのために、assignFilesToShards はそのままにする。
+**場所:** scripts/test-free-shards.ts の main() のフルスイートの経路。
+**工数:** S(人間: 約 4 時間、CC: 約 20 分)。
 
-### P2: Propagate parent eval selection to shard children (EVALS_SELECTION_JSON)
+### P2: 親の eval の選択をシャードの子に伝播する(EVALS_SELECTION_JSON)
 
-**What:** The sharded paid runner computes selection once in the parent, but each
-shard child re-derives it at e2e-helpers module load (git spawns per shard; plus a
-bun child evaluating the old touchfiles-data when map-diff is active). Serialize
-the parent's selection into the child env and honor it in computeDiffSelection,
-keeping child self-derivation for non-sharded entrypoints. Add a parent/child
-selection drift test (same fixture through computePaidDiffSelection and
-computeDiffSelection) while there.
-**Where:** scripts/test-paid-shards.ts runPaidShards env block; test/helpers/e2e-helpers.ts.
-**Effort:** S (human ~4h, CC ~20min).
+**内容:** 有料のシャードのランナーは、選択を親で一度だけ計算する。しかし各シャードの子は、e2e-helpers のモジュールの読み込み時に、それを再計算している(シャードごとに git を起動する。さらに、マップの差分が有効なときは、古い touchfiles-data を評価する bun の子もある)。親の選択を子の環境変数にシリアライズし、computeDiffSelection でそれを尊重する。シャードを使わないエントリポイントでは、子が自分で導出する動作を残す。その際、親と子の選択のずれを検出するテストを追加する(同じフィクスチャを computePaidDiffSelection と computeDiffSelection に通す)。
+**場所:** scripts/test-paid-shards.ts の runPaidShards の env ブロック。test/helpers/e2e-helpers.ts。
+**工数:** S(人間: 約 4 時間、CC: 約 20 分)。
 
-### P2: evals.yml matrix census tripwire — gate files must appear in the CI matrix
+### P2: evals.yml のマトリクスの棚卸しのトリップワイヤー — ゲートのファイルは CI のマトリクスに現れなければならない
 
-**What:** The branch's headline incident (two rehomed gate files silently never ran
-for 48 versions because the monolith's filename missed the hand-listed evals.yml
-matrix) has no tripwire binding gate-tier skill-e2e files to the matrix.
-e2e-tier-alignment covers the LOCAL sharded runner's mapper; the CI matrix can
-still drift. Parse the workflow YAML in a free test and diff against E2E_TIERS
-gate files (curated exclude list for deliberately-manual files).
-**Where:** new test beside test/e2e-tier-alignment.test.ts; .github/workflows/evals.yml.
-**Effort:** S (human ~3h, CC ~15min).
+**内容:** このブランチの主な事故(モノリスのファイル名が、手作業で書かれた evals.yml のマトリクスに一致せず、再配置された 2 つのゲートのファイルが 48 バージョンにわたって一度も実行されなかった)を防ぐ仕組みが、ゲート層の skill-e2e ファイルと CI のマトリクスを結びつけていない。e2e-tier-alignment はローカルのシャードのランナーのマッピングを扱うが、CI のマトリクスはずれたままになりうる。無料のテストで CI のワークフローの YAML を解析し、E2E_TIERS のゲートのファイルと差分を取る(意図的に手動の扱いとするファイルは、除外リストで管理する)。
+**場所:** test/e2e-tier-alignment.test.ts の隣に新規作成。.github/workflows/evals.yml。
+**工数:** S(人間: 約 3 時間、CC: 約 15 分)。
 
-### P2: E2E dep-list self-registration sweep — 129 of 177 keys omit their own test file
+### P2: E2E の依存リストの自己登録の掃除 — 177 件のキーのうち 129 件が、自分のテストファイルを含んでいない
 
-**What:** Editing only a test's assertions/prompt selects nothing for most keys
-(the adversarial review measured 129/177), and parent-side shard skipping makes
-the hole cheaper to hit. This branch fixed the rehomed files' keys; sweep the
-rest mechanically (each key's dep list appends the file that declares it) and
-upgrade e2e-tier-alignment's report-only mode to enforce self-registration.
-**Where:** test/helpers/touchfiles-data.ts; test/e2e-tier-alignment.test.ts.
-**Effort:** S (human ~3h, CC ~15min).
+**内容:** テストのアサーションやプロンプトだけを編集しても、大半のキーでは何も選択されない(敵対的レビューで 129/177 と計測)。さらに、親側のシャードのスキップにより、この穴に当たりやすくなっている。このブランチでは、再配置されたファイルのキーを修正した。残りを機械的に掃除する(各キーの依存リストに、それを宣言しているファイルを追加する)。そして e2e-tier-alignment のレポートのみのモードを、自己登録の強制にアップグレードする。
+**場所:** test/helpers/touchfiles-data.ts。test/e2e-tier-alignment.test.ts。
+**工数:** S(人間: 約 3 時間、CC: 約 15 分)。
 
-### P3: Paid runner spools non-live shard output to disk instead of RAM
+### P3: 有料のランナーは、非ライブのシャードの出力をメモリではなくディスクに溜める
 
-**What:** Non-live shards buffer their entire 30-min stream-json stdout+stderr in
-memory (Buffer[]), x jobs concurrent shards. Spool to a temp file like the free
-runner's per-run log.
-**Where:** scripts/test-paid-shards.ts runPaidShard buffered path.
-**Effort:** S (human ~2h, CC ~10min).
+**内容:** 非ライブのシャードは、30 分間の stream-json の stdout と stderr の全体を、メモリ(Buffer[])に溜める。並列のシャードが x 個あるため、負荷が大きい。無料のランナーのファイルごとのログと同様に、一時ファイルに書き出す。
+**場所:** scripts/test-paid-shards.ts の runPaidShard のバッファリングの経路。
+**工数:** S(人間: 約 2 時間、CC: 約 10 分)。
 
-### Won't do (2026-10 audit): Eval Docker image freshness tripwire
+### 対応しない(2026-10 の監査): eval の Docker イメージの鮮度のトリップワイヤー
 
-Obsolete: Dockerfile.ci pins the Claude CLI (bumps ride PRs), and ci-image.yml
-is deleted because the eval workflows build and push the content-hash tag
-themselves. The original entry follows for history.
+無効になった: Dockerfile.ci は Claude CLI のバージョンを固定しており(更新は PR に乗る)、ci-image.yml は削除された。eval のワークフローが、コンテンツのハッシュのタグを自分でビルドしてプッシュするため。元のエントリは履歴として以下に残す。
 
-**What:** The cache-key trio means the image rebuilds only when Dockerfile/bun.lock
-change; freshness of the baked unpinned claude CLI now rides entirely on
-ci-image.yml's cron. If the cron silently fails or is disabled, eval CI pins to an
-ever-older CLI with no signal. Add an image-age check (fail the eval workflow when
-the image tag's created date exceeds N days) or a cron-liveness alert.
-**Where:** .github/workflows/ci-image.yml, evals.yml.
-**Effort:** S (human ~2h, CC ~10min).
+**内容:** キャッシュキーの 3 つの組み合わせにより、イメージは Dockerfile や bun.lock が変わったときにしか再ビルドされない。焼き込まれた、固定されていない claude CLI の鮮度は、今では ci-image.yml の cron にすべて依存している。cron が黙って失敗したり無効になったりすると、eval の CI は、どんどん古くなる CLI に固定されたまま、何のシグナルもなくなる。イメージの年齢のチェックを追加する(イメージのタグの作成日が N 日を超えたら eval のワークフローを失敗させる)か、cron の生存確認のアラートを追加する。
+**場所:** .github/workflows/ci-image.yml、evals.yml。
+**工数:** S(人間: 約 2 時間、CC: 約 10 分)。
 
-### P3: Detach-floor self-check against runtime knobs (EVALS_JOBS)
+### P3: 実行時のノブ(EVALS_JOBS)に対する detach の下限の自己チェック
 
-**What:** test/eval-detach-timeout-floor.test.ts computes the worst case from
-constants; an operator exporting EVALS_JOBS=2 doubles the gate worst case past the
-25,200s watchdog and healthy tail shards report never-started. Add a runtime
-self-check in test-paid-shards main(): warn/fail when the computed worst case with
-LIVE options exceeds a GSTACK_DETACH_TIMEOUT env exported by gstack-detach.
-**Where:** scripts/test-paid-shards.ts; bin/gstack-detach.
-**Effort:** S (human ~2h, CC ~10min).
+**内容:** test/eval-detach-timeout-floor.test.ts は、定数から最悪のケースを計算している。オペレーターが EVALS_JOBS=2 を export すると、ゲートの最悪のケースが 2 倍になり、25,200 秒のウォッチドッグを超える。そして健全な末尾のシャードが、一度も開始されていないと報告する。test-paid-shards の main() に、実行時の自己チェックを追加する。ライブのオプションを使って計算した最悪のケースが、gstack-detach が export する GSTACK_DETACH_TIMEOUT の環境変数を超えたら警告または失敗させる。
+**場所:** scripts/test-paid-shards.ts。bin/gstack-detach。
+**工数:** S(人間: 約 2 時間、CC: 約 10 分)。
 
-### P3: Eval store records the effective judge/capture model per run
+### P3: eval のストアに、実行ごとの有効な判定モデルを記録する
 
-**What:** Model defaults moved (capture Opus→Sonnet) and GSTACK_EVAL_MODEL_JUDGE
-can silently change graders; eval:compare deltas across a model boundary conflate
-model swap with skill regressions. Record the resolved models in the eval-store
-record and surface them in eval:compare.
-**Where:** test/helpers/eval-store.ts, llm-judge.ts, eval-compare.
-**Effort:** S (human ~2h, CC ~10min).
+**内容:** モデルのデフォルトが変わり(capture が Opus から Sonnet へ)、GSTACK_EVAL_MODEL_JUDGE によって採点者が黙って変わりうる。そのため、モデルの境界をまたぐ eval:compare の差分は、モデルの入れ替えとスキルの退行を混同してしまう。解決されたモデルを eval-store のレコードに記録し、eval:compare に表示する。
+**場所:** test/helpers/eval-store.ts、llm-judge.ts、eval-compare。
+**工数:** S(人間: 約 2 時間、CC: 約 10 分)。
 
-### P3: SECURITY_BENCH periodic lane — classifier behavioral coverage runs nowhere
+### P3: SECURITY_BENCH の定期実行レーン — 分類器の振る舞いのカバレッジがどこでも実行されていない
 
-**What:** Gating the live L4 classifier tests on SECURITY_BENCH=1 fixed local
-suite speed but left the prompt-injection classifier with no scheduled lane.
-Add SECURITY_BENCH=1 (with model-cache warmup, 112MB first run) to
-evals-periodic.yml so behavioral coverage exists weekly.
-**Where:** .github/workflows/evals-periodic.yml; browse/test/security-live-playwright.test.ts.
-**Effort:** S (human ~2h, CC ~10min).
+**内容:** ライブの L4 分類器のテストを SECURITY_BENCH=1 でゲートしたことで、ローカルのスイートは速くなったが、プロンプトインジェクションの分類器には定期実行のレーンがなくなった。SECURITY_BENCH=1(モデルのキャッシュのウォームアップ付き、初回は 112MB)を evals-periodic.yml に追加し、毎週の振る舞いのカバレッジを確保する。
+**場所:** .github/workflows/evals-periodic.yml。browse/test/security-live-playwright.test.ts。
+**工数:** S(人間: 約 2 時間、CC: 約 10 分)。
 
-### P3: Shared child-lifecycle helper for the two shard runners
+### P3: 2 つのシャードのランナーで共有するための子プロセスのライフサイクルのヘルパー
 
-**What:** runFreeShard and runPaidShard duplicate ~35 lines of spawn/group-kill/
-wall-timer scaffold verbatim (and the ShardCommand type). Extract into
-scripts/test-strict-output.ts, which already hosts the shared lifecycle
-primitives, leaving stream policy per runner.
-**Where:** scripts/test-free-shards.ts, scripts/test-paid-shards.ts.
-**Effort:** S (human ~3h, CC ~15min).
+**内容:** runFreeShard と runPaidShard は、約 35 行の spawn、グループの強制終了、壁時計のタイマーの骨組みを、そのまま重複して持っている(ShardCommand の型も同様)。scripts/test-strict-output.ts に抽出する。このファイルには、すでに共有のライフサイクルのプリミティブがある。ストリームのポリシーだけは、各ランナーに残す。
+**場所:** scripts/test-free-shards.ts、scripts/test-paid-shards.ts。
+**工数:** S(人間: 約 3 時間、CC: 約 15 分)。
 
-### P3: DI-refactor gstack-gbrain-detect-mcp-mode test (~40s spawn cost, absorbed but real)
+### P3: gstack-gbrain-detect-mcp-mode のテストを DI でリファクタリングする(生成コストは約 40 秒、吸収済みだが実在する)
 
-**What:** Plan item 5 of the v1.66.0.0 pass, deferred: the test spawns the real
-binary repeatedly. Refactor to import the module with a DI-injected exec seam
-(never env-set-before-import), keep 1-2 spawn smokes. Cost is currently absorbed
-by shard parallelism; the per-file wall cost remains.
-**Where:** test/gstack-gbrain-detect-mcp-mode.test.ts.
-**Effort:** S (human ~2h, CC ~15min).
+**内容:** v1.66.0.0 の作業の計画の第 5 項目で、繰り延べられた。このテストは、実際のバイナリを何度も spawn している。DI で注入された exec のシームを使ってモジュールを import するようリファクタリングする(import の前に環境変数を設定する方式は使わない)。spawn のスモークは 1〜2 個だけ残す。このコストは、シャードの並列性によって現在は吸収されているが、ファイルごとの壁時計の時間は残る。
+**場所:** test/gstack-gbrain-detect-mcp-mode.test.ts。
+**工数:** S(人間: 約 2 時間、CC: 約 15 分)。
 
-### P2: In-shard eval concurrency (40) is the shared root of the timeout-flake family
+### P2: 並列度 40 のインシャードの eval(--max-concurrency 40)が、タイムアウトによるフレークの系統の共通の根本原因
 
-**What:** Every timeout-flake member on PR #2593 (document-release 180s->300s,
-review-dashboard-via 300s->360s after PR #2472's 180s->300s, retro-base-branch
-240s->360s) shares one story: claude session STARTUP queues behind up to 39
-siblings under evals.yml's `--max-concurrency 40`, eating the per-test budget
-before the first turn. Per-test ratchets treat symptoms. Systemic options:
-(a) drop in-shard concurrency to ~15-20 and measure the wall-clock cost,
-(b) startup-aware budgets (start the timer at first turn, not spawn),
-(c) per-row concurrency overrides like the retries field. Receipts: the
-PR #2593 flake ledger comment.
-**Where:** .github/workflows/evals.yml:309 (--max-concurrency 40);
-test/helpers/session-runner.ts (budget start point).
-**Effort:** M (human ~1d, CC ~45min + measurement rounds).
+**内容:** PR #2593 のタイムアウトのフレークはすべて、同じ背景を共有している。claude のセッションの起動が、evals.yml の `--max-concurrency 40` のもとで、最大 39 個の兄弟の後ろに並ぶ。テストごとの予算が、最初のターンの前に消費されてしまう。テストごとの上限の引き上げは症状への対処にすぎない。システム的な選択肢は以下。(a) インシャードの並列度を約 15〜20 に下げ、壁時計の時間のコストを測定する、(b) 起動を考慮した予算(タイマーを spawn ではなく最初のターンから開始する)、(c) retries のフィールドと同様に、行ごとの並列度の上書き。根拠は PR #2593 のフレーク台帳のコメント。
+**場所:** .github/workflows/evals.yml:309(--max-concurrency 40)。test/helpers/session-runner.ts(予算の開始地点)。
+**工数:** M(人間: 約 1 日、CC: 約 45 分 + 計測の数ラウンド)。
 
-### P2: plan-design-review scope-gate detector is marginal under CI contention
+### P2: plan-design-review のスコープゲートの検出器が、CI の競合の下で不安定
 
-**What:** `plan-design-review reaches a terminal outcome outside plan mode`
-(test/skill-e2e-plan-mode-no-op.test.ts) intermittently fails ONLY the
-`scopeGateQuestionObserved` check on unchanged code — PR #2593 CI: failed
-rounds 3/11 + one rerun, passed rounds 5/6, all attempts reaching a terminal
-outcome with no plan-mode leak. Hypothesis: the PTY detector anchors on a
-render shape that scrolls out or gets rephrased under 40-way in-shard
-contention. The assertion now throws WITH the last-2KB evidence tail, so the
-next CI failure carries the screen contents; fix the detector (scan full
-scrollback, or widen the anchored shape) from that data.
+**内容:** `plan-design-review reaches a terminal outcome outside plan mode`(test/skill-e2e-plan-mode-no-op.test.ts)は、変更のないコードで、`scopeGateQuestionObserved` のチェックだけが断続的に失敗する。PR #2593 の CI では、3/11 のラウンドと 1 回の再実行で失敗し、5/6 で成功した。すべての試行で、プランモードの漏れなく、終端の結果に到達していた。仮説: PTY の検出器は、40 並列の競合のもとで、スクロールアウトしたり言い換えられたりする描画の形に依存している。アサーションは、直近 2KB の証拠の末尾を付けて失敗するようになった。次の CI の失敗では、画面の内容が分かる。そのデータから、検出器(スクロールバック全体を走査する、または固定された形を広げる)を修正する。
 
-**Where:** test/helpers/claude-pty-runner.ts (scopeGateQuestionObserved
-detector), test/skill-e2e-plan-mode-no-op.test.ts.
-**Effort:** S (human ~3h, CC ~20min + one CI round with evidence).
+**場所:** test/helpers/claude-pty-runner.ts(scopeGateQuestionObserved の検出器)、test/skill-e2e-plan-mode-no-op.test.ts。
+**工数:** S(人間: 約 3 時間、CC: 約 20 分 + 証拠付きの CI のラウンド 1 回)。
 
-### P3: Diagnose the browser-manager-unit wedge on windows-latest
+### P3: Windows の latest で browser-manager-unit のハングを調査する
 
-**What:** The expanded Windows lane wedges to its wall deadline inside
-browse/test/browser-manager-unit.test.ts (in-flight at kill, PR #2593 run
-31919227507); the file is green on macOS and Linux. Excluded from the Windows
-curation with a receipt; needs a Windows repro to find which describe hangs
-(fake-timer/unref semantics under bun-windows are the suspects).
-**Where:** browse/test/browser-manager-unit.test.ts; scripts/test-free-shards.ts
-KNOWN_WINDOWS_INCOMPATIBLE (remove the entry once fixed).
-**Effort:** S (human ~2h with a Windows box, CC ~15min + CI rounds).
+**内容:** 拡大した Windows のレーンは、browse/test/browser-manager-unit.test.ts の中で壁時計の期限までハングする(キルの時点で実行中。PR #2593 の run 31919227507)。このファイルは macOS と Linux では緑。Windows の curation から、根拠付きで除外されている。どの describe がハングしているかを見つけるには、Windows での再現が必要。(bun-windows における fake-timer/unref の意味論が疑わしい。)
+**場所:** browse/test/browser-manager-unit.test.ts。scripts/test-free-shards.ts の KNOWN_WINDOWS_INCOMPATIBLE(修正後にエントリを削除する)。
+**工数:** S(人間: Windows の環境で約 2 時間、CC: 約 15 分 + CI のラウンド)。
 
-### P3: skill-census Windows compatibility
 
-**What:** skillCensus() throws at module load on windows-latest
-(test/helpers/skill-census.ts:63) — the skills-tree symlink layout needs
-Developer Mode CI runners lack. Either branch the census walk on win32
-(treat copy-dirs as the setup script's _link_or_copy fallback produces) or
-keep the exclusion. Consumers (catalog budget, coverage matrix) currently
-have no Windows signal.
-**Where:** test/helpers/skill-census.ts; test/skill-census.test.ts.
-**Effort:** S (human ~3h, CC ~20min + CI rounds).
+### P3: skill-census の Windows 対応
 
-### P3: Tighten revived coverage-audit E2E assertions
+**内容:** skillCensus() は、windows-latest でモジュールの読み込み時に例外を投げる(test/helpers/skill-census.ts:63)。スキルツリーのシンボリックリンクのレイアウトには、CI のランナーにない開発者モードが必要になる。win32 で census の走査を分岐させる(セットアップスクリプトの _link_or_copy のフォールバックが生成するように、コピーされたディレクトリとして扱う)か、除外を残すかのどちらか。利用側(カタログの予算、カバレッジのマトリクス)は、今のところ Windows のシグナルを持っていない。
+**場所:** test/helpers/skill-census.ts。test/skill-census.test.ts。
+**工数:** S(人間: 約 3 時間、CC: 約 20 分 + CI のラウンド)。
 
-**What:** The revived skill-e2e-coverage-audit tests assert hasGap OR hasTested
-(near-vacuous) and reference skill sections their own DRIFT WARNING says moved.
-Tighten to conjunctive assertions and retarget the prompts at live sections;
-needs one paid run to validate, so it didn't ride the ship.
-**Where:** test/skill-e2e-coverage-audit.test.ts.
-**Effort:** S (human ~2h, CC ~15min + one paid run).
+### P3: 再検討された coverage-audit の E2E のアサーションを厳しくする
 
-## Completed
+**内容:** 再開された skill-e2e-coverage-audit のテストは、hasGap または hasTested をアサートしている(ほぼ空虚)。また、そのドリフトの警告が移動したと言っているスキルのセクションを参照している。アサーションを連言(AND)にして厳しくし、プロンプトを現在のセクションに向け直す。検証には有料の実行が 1 回必要なので、今回の出荷には含めなかった。
+**場所:** test/skill-e2e-coverage-audit.test.ts。
+**工数:** S(人間: 約 2 時間、CC: 約 15 分 + 有料の実行 1 回)。
 
-### #2701 cookie-import profile pills (Local State info_cache)
+## 完了
 
-Current Local State names take precedence, Preferences/directory fallbacks remain,
-and Default sorts before numbered profiles in numeric order. Directory labels
-distinguish duplicate names.
+### #2701 cookie-import のプロファイルのピル(Local State の info_cache)
 
-**Completed:** v1.90.0.0 (2026-09-24)
+現在の Local State の名前が優先される。Preferences とディレクトリのフォールバックは残る。Default は、番号付きのプロファイルより前に、数値の順で並ぶ。ディレクトリのラベルで、同名のプロファイルを区別する。
 
-### Reconcile the registered Opus 4.7 overlay efficacy gates
+**完了:** v1.90.0.0 (2026-09-24)
 
-**What:** Revisit the two registered fanout experiments against the current overlay
-and record an evidence-based decision about their intended effect before release.
+### 登録済みの Opus 4.7 オーバーレイの効果のゲートを見直す
 
-**Why:** The paid gates require a fanout lift of at least 0.5, but the overlay's
-fanout nudge was removed in v1.10.1.0 after it reduced parallel tool use. Keeping
-an unsupported effect expectation makes the periodic suite fail without showing
-a regression in harness-aware outside reviews.
+**内容:** 登録されている 2 つの fanout の実験を、現在のオーバーレイと照らして再検討し、リリース前に、それらの意図された効果についての根拠に基づく判断を記録する。
 
-**Context:** Found on `edinburgh-v1` during the 2026-09-09 ship eval. Both selected
-`overlay-harness-opus-4-7-fanout-{toy,realistic}` cases failed through their retry
-(`Expected: true; Received: false`). Correcting fragmented SDK message counting
-still yields zero lift: toy ON/OFF = 3/3 tools; realistic ON/OFF = 4/4, across
-10 saved trials per arm. The selected experiment inputs match `origin/main`
-`71f6048e8ada25180e61438abc1d98cb151fe9a7`; no paid base-branch run was performed.
-See the completed "Overlay efficacy harness + Opus 4.7 fanout nudge removal"
-entry below and `test/fixtures/overlay-nudges.ts`. The current failure remains
-reported; no effect threshold, model, overlay text, or pass result was changed.
+**理由:** 有料のゲートは、fanout の向上が少なくとも 0.5 であることを要求する。しかしオーバーレイの fanout の後押しは、並列のツール利用を減らしたため、v1.10.1.0 で削除された。サポートされていない効果の期待を残しておくと、ハーネスを意識した外部レビューに退行がないにもかかわらず、定期実行のスイートが失敗してしまう。
 
-**Effort:** M
-**Priority:** P0
-**Depends on:** None
+**背景:** `edinburgh-v1` の 2026-09-09 の ship の eval で発見。選択された `overlay-harness-opus-4-7-fanout-{toy,realistic}` の 2 つのケースが、リトライを通しても失敗した(`Expected: true; Received: false`)。分断された SDK のメッセージの数え方を修正しても、向上はゼロのまま。toy の ON/OFF は 3/3 のツール、realistic の ON/OFF は 4/4 で、各アームで 10 回の保存済みの試行。選択された実験の入力は、`origin/main` の `71f6048e8ada25180e61438abc1d98cb151fe9a7` と一致する。ベースブランチでの有料の実行は行っていない。完了済みの「Overlay efficacy harness + Opus 4.7 fanout nudge removal」のエントリと、`test/fixtures/overlay-nudges.ts` を参照。現在の失敗は報告されたまま。効果のしきい値、モデル、オーバーレイの文言、合否の結果は、いずれも変更していない。
 
-**Completed:** v1.87.5.0 (2026-09-15)
+**工数:** M
+**優先度:** P0
+**依存:** なし
 
-**Policy disposition:** Contract v2 retires the unsupported fanout experiments and
-records comparative efficacy separately from supported behavior checks. Historical
-failures retain their original verdicts; this closes policy reconciliation only,
-without claiming positive efficacy or paid acceptance. See
-`docs/OVERLAY_BENCHMARK_CONTRACT.md`.
+**完了:** v1.87.5.0 (2026-09-15)
 
-### Codex→Claude reverse buddy check skill
+**ポリシーの処理:** Contract v2 により、サポートされていない fanout の実験は廃止された。比較の効果は、サポートされている振る舞いのチェックとは別に記録される。過去の失敗は、元の判定を保持する。これはポリシーの見直しを完了させるだけで、正の効果や有料での合格を主張するものではない。`docs/OVERLAY_BENCHMARK_CONTRACT.md` を参照。
 
-**What:** A Codex-native skill (`.agents/skills/gstack-claude/SKILL.md`) that runs `claude -p` to get an independent second opinion from Claude — the reverse of what `/codex` does today from Claude Code.
+### Codex→Claude のリバース・バディチェック・スキル
 
-**Why:** Codex users deserve the same cross-model challenge that Claude users get via `/codex`. Currently the flow is one-way (Claude→Codex). Codex users have no way to get a Claude second opinion.
+**内容:** Codex ネイティブのスキル(`.agents/skills/gstack-claude/SKILL.md`)。`claude -p` を実行して、Claude から独立したセカンドオピニオンを得る。現在 Claude Code から `/codex` が行っていることの逆。
 
-**Context:** The `/codex` skill template (`codex/SKILL.md.tmpl`) shows the pattern — it wraps `codex exec` with JSONL parsing, timeout handling, and structured output. The reverse skill would wrap `claude -p` with similar infrastructure. Would be generated into `.agents/skills/gstack-claude/` by `gen-skill-docs --host codex`.
+**理由:** Codex のユーザーも、Claude のユーザーが `/codex` で得ているのと同じクロスモデルの検証を受けるべき。現在のフローは一方向(Claude→Codex)のみで、Codex のユーザーは Claude のセカンドオピニオンを得る方法がない。
 
-**Effort:** M (human: ~2 weeks / CC: ~30 min)
-**Priority:** P1
-**Depends on:** None
+**背景:** `/codex` のスキルのテンプレート(`codex/SKILL.md.tmpl`)が、そのパターンを示している。`codex exec` を、JSONL の解析、タイムアウトの処理、構造化された出力で包んでいる。リバースのスキルは、同様の仕組みで `claude -p` を包む。`gen-skill-docs --host codex` によって、`.agents/skills/gstack-claude/` に生成される。
 
-**Completed:** v1.86.0.0 (2026-09-11). Shipped as `/claude-code`, with automatic outside-review routing and safe installation migration.
+**工数:** M(人間: 約 2 週間 / CC: 約 30 分)
+**優先度:** P1
+**依存:** なし
 
-### P3: Carve the always-loaded `{{PREAMBLE}}` reference blocks into an on-demand doc
+**完了:** v1.86.0.0 (2026-09-11)。`/claude-code` として出荷し、外部レビューの自動的な振り分けと、安全なインストールの移行を含む。
 
-**What:** The per-skill section carves (`/ship` v1.54, `/plan-ceo-review` v1.56) yield
-real but bounded wins (-42% to -59% on the carved skill) because the shared
-`{{PREAMBLE}}` (~40-50KB on every tier-3/4 skill) is the dominant always-loaded cost
-and stays inline. Move the rarely-needed preamble REFERENCE blocks (the AskUserQuestion
-split-rules and the CJK / lone-surrogate escaping reference) into an on-demand
-section-style doc the agent reads only when it hits those edge cases, leaving the hot
-path (voice, completeness principle, recommendation format) inline.
+### P3: 常時読み込まれる `{{PREAMBLE}}` の参照ブロックを、オンデマンドのドキュメントに切り出す
 
-**Why:** Highest-ROI remaining token target. One preamble carve helps EVERY tier-≥2
-skill at once, not one skill per PR. The eng-review on the plan-ceo carve flagged that
-per-skill carves stay modest precisely because the preamble dominates the always-loaded
-surface.
+**内容:** スキルごとのセクションの切り出し(/ship v1.54、/plan-ceo-review v1.56)は、切り出したスキルで実質的だが限定的な削減(-42% から -59%)をもたらした。共有の `{{PREAMBLE}}`(ティア 3/4 のすべてのスキルで約 40〜50KB)が、常時読み込まれるコストの大半を占め、インラインのままだから。プリアンブルの、めったに使われない参照ブロック(AskUserQuestion の分割ルールと、CJK / lone-surrogate のエスケープの参照)を、エージェントがその特殊なケースに当たったときだけ読む、セクション形式のオンデマンドのドキュメントに移す。ホットパス(声、完全性の原則、推奨の形式)はインラインに残す。
 
-**Pros:** A single change reduces always-loaded cost across the whole skill pack.
-**Cons:** The preamble is load-bearing and shared; a botched carve regresses every skill.
-Needs the same union-parity + per-push freshness guards the section carves use, applied
-corpus-wide.
+**理由:** 残っている最大のトークン削減の対象。1 つのプリアンブルの切り出しで、ティア 2 以上のすべてのスキルが一度に恩恵を受ける。1 スキルずつ切り出す PR ではなく。plan-ceo の切り出しのエンジニアレビューは、常時読み込まれる範囲ではプリアンブルが支配的なので、スキルごとの切り出しはどうしても控えめになると指摘した。
 
-**Context:** Builds on the v2 section pipeline (`scripts/resolvers/sections.ts`,
-`{{SECTION:id}}` / `{{SECTION_INDEX}}`). The preamble source is
-`scripts/resolvers/preamble.ts`. Measure which sub-blocks are cold (escaping reference,
-split-rules) vs hot (voice, recommendation format) before cutting. Validate on one skill,
-then roll corpus-wide.
+**利点:** 1 回の変更で、スキルパック全体の常時読み込みのコストを下げられる。
+**欠点:** プリアンブルは共有され、本質的に重要。切り出しを失敗すると、すべてのスキルが退行する。セクションの切り出しで使っている、ユニオンの一致とプッシュごとの鮮度のガードを、リポジトリ全体に適用する必要がある。
 
-**Effort estimate:** L (human team) → M (CC+gstack)
-**Priority:** P3
-**Depends on / blocked by:** The section pipeline (shipped v1.54). No hard blocker.
-**Completed:** v1.70.0.0 (2026-08-25) — delivered in a stronger form by the token-reduction program: preamble bash moved to `bin/gstack-skill-start`/`-end`, one-time onboarding became gated instruction blocks, AUQ reference rules point at on-demand docs, and 12 more skills got section carves (20 total). Wins locked by the context-budget ratchet.
+**背景:** v2 のセクションのパイプライン(`scripts/resolvers/sections.ts`、`{{SECTION:id}}` / `{{SECTION_INDEX}}`)の上に作る。プリアンブルのソースは `scripts/resolvers/preamble.ts`。切る前に、どのサブブロックが冷たい(エスケープの参照、分割のルール)か、ホットか(声、推奨の形式)を計測する。1 つのスキルで検証してから、リポジトリ全体に広げる。
 
+**工数の見積もり:** L(人間のチーム)→ M(CC+gstack)
+**優先度:** P3
+**依存 / ブロックされている:** セクションのパイプライン(v1.54 で出荷)。ハードなブロッカーはなし。
+**完了:** v1.70.0.0 (2026-08-25)。より強い形で、トークン削減のプログラムにより実現した。プリアンブルの bash は `bin/gstack-skill-start`/`-end` に移り、一度きりのオンボーディングはゲートされた指示ブロックになり、AUQ の参照ルールはオンデマンドのドキュメントを指すようになり、さらに 12 のスキルがセクションの切り出しを受けた(合計 20)。得られた効果は、コンテキスト予算のラチェットで固定されている。
 
-### ✅ DONE (v1.69.0.0): `./setup --host slate` accepted but installs nothing
 
-**Priority:** P4 (was filed as slate-only — shipped with the whole drift class gated)
+### ✅ 完了(v1.69.0.0): `./setup --host slate` は受け付けるが、何もインストールしない
 
-**What:** `slate` passed host-arg validation but set no INSTALL_* flag, so the
-run configured nothing and exited 0. Now an informational arm (points at
-`--host claude`; per docs/designs/SLATE_HOST.md Slate reads `.claude/skills`
-as a compatibility fallback), plus a zero-dispatch guard that errors loudly if
-any future host is accepted without an install arm, plus a cross-check test
-pinning accept-list ⊆ dispatch-arms against the hosts/index.ts registry.
+**優先度:** P4(当初は slate のみの問題として起票されたが、ドリフトの系統全体をゲートして出荷した)
 
-**Completed:** v1.69.0.0 (2026-08-22)
+**内容:** `slate` はホスト引数の検証を通っていたが、INSTALL_* フラグを設定しなかったため、実行は何も設定せずに終了コード 0 で終わっていた。現在は情報を示すアームになっている(`--host claude` を案内する。docs/designs/SLATE_HOST.md を参照。Slate は `.claude/skills` を互換性のフォールバックとして読む)。加えて、インストールのアームのないホストが将来受け付けられた場合に大きくエラーにするゼロディスパッチのガード。さらに、受け付けのリストがディスパッチのアームのサブセットであることを、hosts/index.ts のレジストリと照合するテスト。
 
-### ✅ DONE (v1.69.0.0, gstack side): ZeroEntropy sunset detect + advisory
+**完了:** v1.69.0.0 (2026-08-22)
 
-**Priority:** P1 (calendar-driven; gbrain-side migration remains open — see
-NEXT PRIORITY)
+### ✅ 完了(v1.69.0.0、gstack 側): ZeroEntropy の終了の検出とアドバイザリ
 
-**What:** Wireup warns when ~/.gbrain/config.json names the zeroentropyai
-recipe (fail-open grep — never blocks a working setup); setup-gbrain provider
-comments say never to select the legacy recipe; USING_GBRAIN_WITH_GSTACK.md
-troubleshooting entry names the Sept 4, 2026 deadline and #2365.
+**優先度:** P1(カレンダーで動く。gbrain 側の移行は未完了 — NEXT PRIORITY を参照)
 
-**Completed:** v1.69.0.0 (2026-08-22)
+**内容:** ~/.gbrain/config.json が zeroentropyai のレシピを指定している場合に警告する(失敗時は無視する grep。動いているセットアップを止めることはない)。setup-gbrain のプロバイダーのコメントで、レガシーのレシピを選ばないよう明記する。USING_GBRAIN_WITH_GSTACK.md のトラブルシューティングの項目に、2026 年 9 月 4 日の期限と #2365 を記載する。
 
-### ✅ DONE (v1.68.1.0): Stop-hook registration pins the setup-time absolute path
+**完了:** v1.69.0.0 (2026-08-22)
 
-**Priority:** P1 (was filed Effort S, scoped to the Stop hook — shipped as the full defect class)
+### ✅ 完了(v1.68.1.0): Stop フックの登録が、セットアップ時の絶対パスに固定されていた
 
-**What:** Registering hooks from a dev worktree baked that worktree's physical
-path into global settings.json; deleting the worktree left dead hooks erroring
-on every AskUserQuestion/session stop. Fixed for ALL gstack hooks, not just
-Stop: canonical-only registration via `_hook_command_path`, a KNOWN_HOOKS
-identity table in `gstack-settings-hook` (survives Claude Code stripping
-`_gstack_source` tags), a `prune-stale [--repoint|--all]` self-healer that
-runs heal-first on every `./setup`, per-item mutation safety, a mutation lock,
-fail-closed parse, and complete uninstall/no-team teardown.
+**優先度:** P1(工数 S の対象として起票されたが、Stop フックに限らず、欠陥の系統全体を修正して出荷した)
 
-**Completed:** v1.68.1.0 (2026-08-18)
+**内容:** 開発用の worktree からフックを登録すると、その worktree の物理パスがグローバルの settings.json に焼き込まれていた。worktree を削除すると、古いフックが残り、AskUserQuestion やセッションの停止のたびにエラーになっていた。すべての gstack のフックについて修正した。`_hook_command_path` による、正規のものだけの登録。`gstack-settings-hook` の KNOWN_HOOKS の識別テーブル(Claude Code が `_gstack_source` のタグを取り除いても残る)。`./setup` のたびに、まず修復を優先して実行する `prune-stale [--repoint|--all]` の自己修復機能。変更ごとの安全性、変更のロック、失敗時に閉じるパース処理、完全なアンインストールと team なしの削除の後始末。
 
-### ✅ DONE (v1.66.0.0): Free suite exit code is untrustworthy — in-process force-exits mask failures
+**完了:** v1.68.1.0 (2026-08-18)
 
-**Priority:** P1
+### ✅ 完了(v1.66.0.0): 無料スイートの終了コードが信用できない — インプロセスの強制終了が失敗を隠していた
 
-**What:** At least five browse test files end with `setTimeout(() => process.exit(0), 500)`
-(browse/test/commands.test.ts:101, snapshot.test.ts:36, batch.test.ts:47,
-handoff.test.ts:31, content-security.test.ts:465). The timer fires inside the SHARED
-`bun test` process, exiting 0 before bun prints its final summary — so `bun test` can
-report exit 0 while real test failures scrolled by earlier. Remove the force-exits and
-fix the underlying handle leaks they paper over (lingering Playwright/daemon handles
-that once made the suite hang), or scope the exit to a spawned child process.
+**優先度:** P1
 
-**Why:** Observed 2026-08-07: three genuinely failing tests (eval-list-cli,
-benchmark-cli, observability check 11) rode green `bun test` exit codes across
-multiple runs; the failures only surfaced by grepping logs for "(fail)" lines. A test
-suite that exits 0 on failure is worse than no suite — it manufactures false
-confidence at commit time and in any CI job that trusts the exit code.
+**内容:** 少なくとも 5 つの browse のテストファイルが、`setTimeout(() => process.exit(0), 500)` で終わっていた(browse/test/commands.test.ts:101、snapshot.test.ts:36、batch.test.ts:47、handoff.test.ts:31、content-security.test.ts:465)。このタイマーは共有の `bun test` プロセスの中で発火し、bun が最後のサマリーを出力する前に終了コード 0 で終了していた。そのため `bun test` は、実際のテストの失敗が前に流れていったあとでも、終了コード 0 を報告しえた。強制終了を取り除き、その裏にあるハンドルのリーク(残っている Playwright やデーモンのハンドル。かつてはスイートがハングする原因になっていた)を修正する。あるいは、終了を spawn した子プロセスに限定する。
 
-**Pros:** Restores the one contract everything (CI, /ship, humans) relies on: exit
-code == truth. Also un-hides the missing final summary block.
-**Cons:** The force-exits exist because the suite once hung on leaked handles;
-removing them without fixing the leaks trades silent failure for hangs. Needs a
-focused pass: find each leaked handle (daemon children, PTY, Playwright contexts),
-close them in afterAll, then delete the exits one file at a time.
+**理由:** 2026-08-07 に観測: 3 つの本当に失敗しているテスト(eval-list-cli、benchmark-cli、observability のチェック 11)が、複数回の実行で `bun test` の緑の終了コードを通過した。失敗が見えたのは、ログの「(fail)」の行を grep したときだけだった。失敗しても終了コードが 0 になるテストスイートは、何もないより悪い。コミットのときや、終了コードを信頼するすべての CI のジョブで、誤った安心感を生む。
 
-**Context / where to start:** `grep -rn "process.exit(0)" browse/test/` — the
-setTimeout variants are the offenders (server-no-import-side-effects.test.ts:62 is a
-spawned-child probe, fine). Repro: run the full free suite and note the log ends at
-the browse files with no "Ran N tests" summary. Receipts:
-~/.gstack-dev/logs/free-suite-main-check.log (3 masked fails, exit 0).
+**利点:** すべて(CI、/ship、人間)が頼っている、唯一の契約を取り戻す。終了コード == 真実。また、隠れていた最後のサマリーのブロックも表示されるようになる。
+**欠点:** 強制終了は、スイートがリークしたハンドルでハングしていたために存在した。ハンドルのリークを修正せずに取り除くと、静かな失敗がハングに置き換わるだけ。ファイルごとに、リークしたハンドル(デーモンの子プロセス、PTY、Playwright のコンテキスト)を見つけ、afterAll で閉じ、1 ファイルずつ強制終了を削除する、集中した作業が必要。
 
-**Completed:** v1.66.0.0 (2026-08-15) — main's v1.64 removed the force-exits; v1.66.0.0 adds runner-level strict-output classification (a shard without bun's terminal summary FAILS), size-scaled wall deadlines, and the failure-naming epilogue, so exit code == truth is enforced by the runner, not by convention.
+**着手点:** `grep -rn "process.exit(0)" browse/test/` — setTimeout の形が問題。(server-no-import-side-effects.test.ts:62 は spawn された子プロセスの確認なので問題なし。)再現: 無料のフルスイートを実行し、ログが browse のファイルで終わり、「Ran N tests」のサマリーがないことを確認する。証拠: ~/.gstack-dev/logs/free-suite-main-check.log(3 件の失敗が隠され、終了コード 0)。
 
-### Slim preamble + real-PTY plan-mode E2E harness (v1.13.1.0)
+**完了:** v1.66.0.0 (2026-08-15) — main の v1.64 で強制終了が削除された。v1.66.0.0 では、ランナーの層で厳密な出力の分類(bun の終端サマリーがないシャードは失敗する)、サイズに応じた壁時計の期限、失敗の名前を示す後処理を追加した。そのため、終了コード == 真実は、慣習ではなくランナーによって強制される。
 
-- Compressed 18 preamble resolvers; total `SKILL.md` corpus dropped from 3.08 MB to 2.30 MB across 47 outputs (-25.5%, ~196K tokens saved).
-- Built `test/helpers/claude-pty-runner.ts` — real-PTY harness using `Bun.spawn({terminal:})` (Bun 1.3.10+ has built-in PTY, no `node-pty` needed).
-- Rewrote 5 plan-mode E2E tests (`plan-ceo`, `plan-eng`, `plan-design`, `plan-devex`, `plan-mode-no-op`); all 5 pass for the first time ever (790s sequential).
-- Same tests were 0/5 on `origin/main`, on v1.0.0.0, and on this branch with the SDK harness — the SDK couldn't observe Claude's plan-mode confirmation UI.
-- Side fixes folded in: `scripts/skill-check.ts` sidecar-symlink helper, `test/skill-validation.test.ts` exemption for `browse/test/fixtures/security-bench-haiku-responses.json` (resolves the size-warning noise from main's warn-only conversion).
+### プリアンブルの軽量化と、実際の PTY を使ったプランモードの E2E ハーネス(v1.13.1.0)
 
-**Completed:** v1.13.1.0 (2026-04-25)
+- 18 のプリアンブルのリゾルバを圧縮。SKILL.md のコーパス全体は、47 の出力で 3.08 MB から 2.30 MB に減った(-25.5%、約 196K トークンの節約)。
+- `test/helpers/claude-pty-runner.ts` を作成 — `Bun.spawn({terminal:})` を使う、実際の PTY のハーネス(Bun 1.3.10 以降は PTY を内蔵しており、node-pty は不要)。
+- 5 つのプランモードの E2E テスト(`plan-ceo`、`plan-eng`、`plan-design`、`plan-devex`、`plan-mode-no-op`)を書き直し。5 つすべてが初めて通った(逐次で 790 秒)。
+- 同じテストは、`origin/main`、v1.0.0.0、そして SDK ハーネスのこのブランチでは 0/5 だった。SDK では、Claude のプランモードの確認 UI を観測できなかった。
+- 付随する修正: `scripts/skill-check.ts` のサイドカーのシンボリックリンクのヘルパー、`test/skill-validation.test.ts` の `browse/test/fixtures/security-bench-haiku-responses.json` の例外(main の警告のみへの変換による、サイズの警告のノイズを解消)。
+
+**完了:** v1.13.1.0 (2026-04-25)
 
 ---
 
-### Pre-existing test failures surfaced during v1.12.0.0 ship — RESOLVED
+### テスト失敗の残り。v1.12.0.0 の ship の際に発見 — 解決済み
 
-- `test/brain-sync.test.ts` GSTACK_HOME isolation fixed on main in v1.13.0.0.
-- The Opus 4.7 overlay test (now a block in `test/model-overlays.test.ts`) updated on main to match the new overlay content (the v1.10.1.0 removal of "Fan out explicitly" was correct — measured −60pp fanout vs baseline).
+- `test/brain-sync.test.ts` の GSTACK_HOME の分離は、v1.13.0.0 で main 上で修正。
+- Opus 4.7 のオーバーレイのテスト(現在は `test/model-overlays.test.ts` のブロック)は、main の新しいオーバーレイの内容に合わせて更新された。v1.10.1.0 で「Fan out explicitly」を削除したのは正しかった(ベースラインと比べて -60pp の fanout を計測)。
 
-**Completed:** v1.13.0.0 (2026-04-25, on main)
-
----
-
-### `security-bench-haiku-responses.json` size gate — RESOLVED
-
-- Main converted the 2 MB tracked-file gate to warn-only in v1.13.0.0.
-- v1.13.1.0 added a `knownLargeFixtures` exemption to suppress the warning for this specific intentional fixture.
-
-**Completed:** v1.13.1.0 (2026-04-25)
+**完了:** v1.13.0.0 (2026-04-25、main 上)
 
 ---
 
-### Bearer-token secret-scan regression fixed + E2E coverage added for privacy gate + gh auto-create (v1.12.0.0)
+### `security-bench-haiku-responses.json` のサイズゲート — 解決済み
 
-- **Fixed the `bearer-token-json` regression in `bin/gstack-brain-sync`** — the value charset `[A-Za-z0-9_./+=-]{16,}` didn't permit spaces, so auth headers with the standard `Bearer <token>` form (literal space after the scheme name) slipped past the scanner. Added an optional `(Bearer |Basic |Token )?` prefix to the pattern. Validated against 5 positive cases (including the regression fixture) + 3 negative cases (short tokens, non-secret keys, random JSON). The 7-pattern secret scanner now passes all fixtures including bearer-json.
-- **Added `test/gstack-brain-init-gh-mock.test.ts`** — 8 tests exercising the `gh` CLI auto-create path that previously had zero coverage. Stubs `gh` on PATH to record every call, asserts `gh repo create --private --description "..." --source <GSTACK_HOME>` fires with the computed `gstack-brain-<user>` default name. Covers: happy path, fall-through-to-`gh repo view` when create hits already-exists, user-provided-URL-bypasses-gh, gh-not-on-path prompts for URL, gh-not-authed prompts for URL, idempotent `--remote` re-runs, conflicting-remote rejection.
-- **Added the brain privacy-gate E2E** (retired as never green in the 2026-09 test audit; `test/gstack-skill-start.test.ts` now pins consent before egress) — periodic-tier E2E (~$0.30-$0.50/run). Stages a fake `gbrain` on PATH + `gbrain_sync_mode_prompted=false` in config, runs a real skill via `runAgentSdkTest`, intercepts tool-use via `canUseTool`, and asserts the preamble fires the 3-option privacy AskUserQuestion with canonical prose ("publish session memory" / "artifact" / "decline"). Second test asserts the gate is silent when `prompted=true` (idempotency-within-session).
-- **Registered `brain-privacy-gate` in `test/helpers/touchfiles.ts`** (periodic tier) with dependency tracking on `scripts/resolvers/preamble/generate-brain-sync-block.ts`, `bin/gstack-brain-sync`, `bin/gstack-brain-init`, `bin/gstack-config`, and the Agent SDK runner. Diff-based selection will re-run the E2E whenever any of those change.
+- main は、2 MB の追跡ファイルのゲートを v1.13.0.0 で警告のみに変換した。
+- v1.13.1.0 で、この意図的なフィクスチャに対して警告を抑止する `knownLargeFixtures` の例外を追加した。
 
-**Completed:** v1.12.0.0 (2026-04-24)
+**完了:** v1.13.1.0 (2026-04-25)
 
 ---
 
-### Overlay efficacy harness + Opus 4.7 fanout nudge removal (v1.10.1.0)
-- Built `test/skill-e2e-overlay-harness.test.ts`, a parametric periodic-tier eval that drives `@anthropic-ai/claude-agent-sdk` and measures first-turn fanout rate (overlay-ON vs overlay-OFF) across registered fixtures
-- Measured the original "Fan out explicitly" overlay nudge: baseline Opus 4.7 = 70% first-turn fanout on toy prompt, with our nudge = 10%, with Anthropic's own canonical `<use_parallel_tool_calls>` text = 0%
-- Removed the counterproductive nudge from `model-overlays/opus-4-7.md`
-- Shipped 36-test free-tier unit suite for the SDK runner + strict fixture validator
-- Registered `overlay-harness-opus-4-7-fanout-{toy,realistic}` in E2E_TOUCHFILES and E2E_TIERS
-- Total investigation cost: ~$7 across 3 eval runs
-**Completed:** v1.10.1.0
+### Bearer トークンのシークレットスキャンの回帰を修正し、プライバシーのゲートと gh の自動作成のための E2E カバレッジを追加(v1.12.0.0)
 
-### CI eval pipeline (v0.9.9.0)
-- GitHub Actions eval upload on Ubicloud runners ($0.006/run)
-- Within-file test concurrency (test() → testConcurrentIfSelected())
-- Eval artifact upload + PR comment with pass/fail + cost
-- Baseline comparison via artifact download from main
-- EVALS_CONCURRENCY=40 for ~6min wall clock (was ~18min)
-**Completed:** v0.9.9.0
+- **`bin/gstack-brain-sync` の `bearer-token-json` の回帰を修正** — 値の文字集合 `[A-Za-z0-9_./+=-]{16,}` は空白を許していなかったため、標準の `Bearer <token>` 形式(スキーム名の後に半角スペース)の認証ヘッダーがスキャナーを通り抜けていた。任意の `(Bearer |Basic |Token )?` の接頭辞をパターンに追加。正例 5 件(回帰のフィクスチャを含む)と負例 3 件(短いトークン、シークレットでないキー、ランダムな JSON)で検証。7 パターンのシークレットスキャナーは、すべてのフィクスチャ(bearer-json を含む)に通るようになった。
+- **`test/gstack-brain-init-gh-mock.test.ts` を追加** — `gh` の自動作成の経路を検証する 8 件のテスト。以前はカバレッジがゼロだった。`gh` を PATH 上でスタブ化してすべての呼び出しを記録し、計算されたデフォルトの名前 `gstack-brain-<user>` で `gh repo create --private --description "..." --source <GSTACK_HOME>` が発火することをアサートする。対象: 正常系、作成が既存の場合に `gh repo view` へフォールスルーする経路、ユーザーが指定した URL は gh を迂回する、gh が PATH にない場合に URL を尋ねる、gh が認証されていない場合に URL を尋ねる、冪等な `--remote` の再実行、競合する remote の拒否。
+- **ブレインのプライバシーゲートの E2E を追加**(2026-09 のテスト監査で、一度も緑にならなかったため退役。現在は `test/gstack-skill-start.test.ts` が、送信の前に同意を固定する) — 定期実行ティアの E2E(1 回約 0.30〜0.50 ドル)。偽の `gbrain` を PATH に置き、設定に `gbrain_sync_mode_prompted=false` を書き、`runAgentSdkTest` で実際のスキルを実行し、`canUseTool` でツール利用を傍受して、プリアンブルが 3 択のプライバシーの AskUserQuestion を出すことをアサートする(「セッションのメモリを公開」/「成果物」/「辞退」という正式な文言)。2 つ目のテストでは、`prompted=true` のとき、ゲートが沈黙することをアサート(セッション内での冪等性)。
+- **`brain-privacy-gate` を `test/helpers/touchfiles.ts` に登録**(定期実行ティア)。`scripts/resolvers/preamble/generate-brain-sync-block.ts`、`bin/gstack-brain-sync`、`bin/gstack-brain-init`、`bin/gstack-config`、Agent SDK のランナーに対する依存関係の追跡を付ける。これらのいずれかが変わると、差分による選択で、E2E が再実行される。
 
-### Deploy pipeline (v0.9.8.0)
-- /land-and-deploy — merge PR, wait for CI/deploy, canary verification
-- /canary — post-deploy monitoring loop with anomaly detection
-- /benchmark — performance regression detection with Core Web Vitals
-- /setup-deploy — one-time deploy platform configuration
-- /review Performance & Bundle Impact pass
-- E2E model pinning (Sonnet default, Opus for quality tests)
-- E2E timing telemetry (first_response_ms, max_inter_turn_ms, wall_clock_ms)
-- test:e2e:fast tier, --retry 2 on all E2E scripts
-**Completed:** v0.9.8.0
-
-### Phase 1: Foundations (v0.2.0)
-- Rename to gstack
-- Restructure to monorepo layout
-- Setup script for skill symlinks
-- Snapshot command with ref-based element selection
-- Snapshot tests
-**Completed:** v0.2.0
-
-### Phase 2: Enhanced Browser (v0.2.0)
-- Annotated screenshots, snapshot diffing, dialog handling, file upload
-- Cursor-interactive elements, element state checks
-- CircularBuffer, async buffer flush, health check
-- Playwright error wrapping, useragent fix
-- 148 integration tests
-**Completed:** v0.2.0
-
-### Phase 3: QA Testing Agent (v0.3.0)
-- /qa SKILL.md with 6-phase workflow, 3 modes (full/quick/regression)
-- Issue taxonomy, severity classification, exploration checklist
-- Report template, health score rubric, framework detection
-- wait/console/cookie-import commands, find-browse binary
-**Completed:** v0.3.0
-
-### Phase 3.5: Browser Cookie Import (v0.3.x)
-- cookie-import-browser command (Chromium cookie DB decryption)
-- Cookie picker web UI, /setup-browser-cookies skill
-- 18 unit tests, browser registry (Comet, Chrome, Arc, Brave, Edge)
-**Completed:** v0.3.1
-
-### E2E test cost tracking
-- Track cumulative API spend, warn if over threshold
-**Completed:** v0.3.6
-
-### Auto-upgrade mode + smart update check
-- Config CLI (`bin/gstack-config`), auto-upgrade via `~/.gstack/config.yaml`, 12h cache TTL, exponential snooze backoff (24h→48h→1wk), "never ask again" option, vendored copy sync on upgrade
-**Completed:** v0.3.8
+**完了:** v1.12.0.0 (2026-04-24)
 
 ---
 
-## Brain-aware planning follow-ups (filed v1.48.0.0 via /plan-ceo-review + /plan-eng-review)
+### オーバーレイの効果のハーネスと Opus 4.7 の fanout の後押しの削除(v1.10.1.0)
+- `test/skill-e2e-overlay-harness.test.ts` を作成。定期実行ティアのパラメトリックな eval で、`@anthropic-ai/claude-agent-sdk` を駆動し、登録されたフィクスチャ全体で、最初のターンの fanout の率(オーバーレイ ON と OFF)を計測する。
+- 元の「Fan out explicitly」のオーバーレイの後押しを計測: ベースラインの Opus 4.7 は、toy のプロンプトで最初のターンの fanout が 70%。私たちの後押しありでは 10%。Anthropic 自身の正式な `<use_parallel_tool_calls>` の文言では 0%。
+- 逆効果だった後押しを `model-overlays/opus-4-7.md` から削除。
+- SDK ランナーの無料ティアの 36 件のユニットテストと、厳格なフィクスチャのバリデーターを出荷。
+- `overlay-harness-opus-4-7-fanout-{toy,realistic}` を E2E_TOUCHFILES と E2E_TIERS に登録。
+- 調査の総コスト: 3 回の eval の実行で約 7 ドル。
+**完了:** v1.10.1.0
 
-These are the deferred cherry-picks (E2/E3/E4) from the v1.48 brain-aware
-planning plan at `~/.claude/plans/hm-interesting-well-why-dapper-eagle.md`.
-The foundation (Phase 0 entity model + Phase 0.5 cache + Phase 1 preflight
-+ Phase 1.5 trust policy + Phase 2 write-back scaffolding) ships in
-v1.48.0.0. These follow-ups extend it.
+### CI の eval パイプライン(v0.9.9.0)
+- Ubicloud のランナーでの GitHub Actions の eval のアップロード(1 回 0.006 ドル)
+- ファイル内のテストの並列実行(test() → testConcurrentIfSelected())
+- eval の成果物のアップロードと、合否・コストを含む PR へのコメント
+- main からの成果物のダウンロードによるベースラインの比較
+- EVALS_CONCURRENCY=40 で約 6 分の壁時計時間(以前は約 18 分)
+**完了:** v0.9.9.0
 
-### P2: /gstack-reflect nightly synthesis skill (E2)
+### デプロイのパイプライン(v0.9.8.0)
+- /land-and-deploy — PR のマージ、CI とデプロイの待機、カナリアでの検証
+- /canary — 異常検知付きのデプロイ後の監視ループ
+- /benchmark — Core Web Vitals を使ったパフォーマンスの退行の検出
+- /setup-deploy — デプロイ先のプラットフォームの一度きりの設定
+- /review のパフォーマンスとバンドルの影響のパス
+- E2E モデルの固定(デフォルトは Sonnet、品質のテストは Opus)
+- E2E のタイミングのテレメトリ(first_response_ms、max_inter_turn_ms、wall_clock_ms)
+- test:e2e:fast のティア、すべての E2E スクリプトに --retry 2
+**完了:** v0.9.8.0
 
-**What:** Scheduled skill that reads weekly `gstack/skill-run` + takes +
-`get_recent_salience` and synthesizes a `gstack/insight` page surfaced at
-next skill preflight.
+### フェーズ 1: 基盤(v0.2.0)
+- gstack への改名
+- モノレポのレイアウトへの再構成
+- スキルのシンボリックリンクを張るセットアップスクリプト
+- ref による要素の選択を使うスナップショットのコマンド
+- スナップショットのテスト
+**完了:** v0.2.0
 
-**Why:** Cross-time pattern detection is the compounding move. "You ran 4
-plan-ceo on infra this week, 0 on product — is product work getting
-starved?" surfaces patterns the user wouldn't notice.
+### フェーズ 2: 強化されたブラウザ(v0.2.0)
+- 注釈付きスクリーンショット、スナップショットの差分、ダイアログの処理、ファイルのアップロード
+- カーソルで操作可能な要素、要素の状態のチェック
+- CircularBuffer、非同期のバッファのフラッシュ、ヘルスチェック
+- Playwright のエラーのラップ、useragent の修正
+- 統合テスト 148 件
+**完了:** v0.2.0
 
-**Pros:** Brain compounds across TIME, not just across skills. Patterns
-become actionable.
+### フェーズ 3: QA テストエージェント(v0.3.0)
+- 6 フェーズのワークフロー、3 つのモード(full/quick/regression)を持つ /qa の SKILL.md
+- 課題の分類、重大度の分類、探索のチェックリスト
+- レポートのテンプレート、ヘルススコアの指標、フレームワークの検出
+- wait/console/cookie-import のコマンド、find-browse バイナリ
+**完了:** v0.3.0
 
-**Cons:** "You're starving product work" is high-judgment territory; needs
-opt-out per project, careful insight templates.
+### フェーズ 3.5: ブラウザのクッキーのインポート(v0.3.x)
+- cookie-import-browser コマンド(Chromium のクッキー DB の復号)
+- クッキーのピッカーの Web UI、/setup-browser-cookies スキル
+- ユニットテスト 18 件、ブラウザのレジストリ(Comet、Chrome、Arc、Brave、Edge)
+**完了:** v0.3.1
 
-**Context:** Deferred from v1.48.0.0 cherry-pick (D4) — wait 4-6 weeks for
-real `gstack/skill-run` data to accumulate before designing the reflection
-layer against real patterns instead of imagined ones.
+### E2E テストのコスト追跡
+- 累積の API の支出を追跡し、閾値を超えたら警告
+**完了:** v0.3.6
 
-**Effort:** L (human ~1-2 days, CC ~4-6h)
+### 自動アップグレードモードとスマートな更新チェック
+- 設定の CLI(`bin/gstack-config`)、`~/.gstack/config.yaml` による自動アップグレード、12 時間のキャッシュの TTL、指数関数的なスヌーズのバックオフ(24 時間→48 時間→1 週間)、「今後は尋ねない」のオプション、アップグレード時のベンダリングされたコピーの同期
+**完了:** v0.3.8
 
-**Depends on:** Phase 0 (gstack/skill-run page type from v1.48.0.0) +
-~6 weeks of accumulated data
+---
 
-### P3: Cross-machine brain-cache sync (E3)
+## Brain-aware planning のフォローアップ(v1.48.0.0 の /plan-ceo-review + /plan-eng-review から起票)
 
-**What:** Push compressed digests through the gstack-brain-sync git pipeline
-so the brain-cache survives moving between Macs / Conductor workspaces.
+これらは、v1.48 の brain-aware planning の計画(`~/.claude/plans/hm-interesting-well-why-dapper-eagle.md`)から繰り延べられた、E2/E3/E4 のつまみ食いである。基盤(フェーズ 0 のエンティティモデル + フェーズ 0.5 のキャッシュ + フェーズ 1 のプリフライト + フェーズ 1.5 の信頼ポリシー + フェーズ 2 の書き戻しの足場)は v1.48.0.0 で出荷済み。これらのフォローアップは、その基盤を拡張する。
 
-**Why:** Eliminates the cold-miss tax on every new machine (~1-2s once per
-machine per day).
+### P2: /gstack-reflect の夜間の統合スキル(E2)
 
-**Pros:** Instant warm cache on new machines.
+**内容:** 週次の `gstack/skill-run` と takes の追加、`get_recent_salience` を読み、次のスキルのプリフライトで表示される `gstack/insight` のページを統合する、スケジュールされたスキル。
 
-**Cons:** Cache poisoning risk if not designed carefully (hash invariants,
-endpoint-binding, conflict resolution).
+**理由:** 時間をまたいだパターンの検出こそが、積み上がる一手になる。「今週 plan-ceo をインフラで 4 回、プロダクトでは 0 回実行しました。プロダクトの作業が後回しになっていませんか?」のように、ユーザーが気づかないパターンを表面化できる。
 
-**Context:** Deferred from v1.48.0.0 cherry-pick (D5) — single-machine
-cache is fine for V1; correctness risk needs its own design pass.
+**利点:** ブレインはスキルをまたいだだけでなく、時間をまたいで積み上がる。パターンが実行可能になる。
 
-**Effort:** M (human ~4h, CC ~30min)
+**欠点:** 「プロダクトの作業が後回しになっている」は判断の難しい領域。プロジェクトごとのオプトアウトと、注意深い insight のテンプレートが必要。
 
-**Depends on:** Brain-cache layer from v1.48.0.0
+**背景:** v1.48.0.0 のチェリーピック(D4)から繰り延べ。想像上のパターンではなく、実際のパターンに基づいて振り返りの層を設計するため、実際の `gstack/skill-run` のデータが 4〜6 週間たまるのを待つ。
 
-### P3: /gstack-onboarding dedicated skill (E4)
+**工数:** L(人間: 約 1〜2 日、CC: 約 4〜6 時間)
 
-**What:** Guided 5-minute setup skill for new gstack installs: walks user
-through reading CLAUDE.md + README + recent commits to build `gstack/product`
-and active goals with explicit AUQs.
+**依存:** フェーズ 0(v1.48.0.0 の gstack/skill-run のページの種類)+ 約 6 週間分の蓄積されたデータ
 
-**Why:** Better UX than the inline bootstrap (which only fires when a
-planning skill is invoked).
+### P3: マシンをまたいだブレインのキャッシュの同期(E3)
 
-**Pros:** Cleaner cold-start, explicit ceremony.
+**内容:** 圧縮したダイジェストを gstack-brain-sync の git のパイプラインで送り、Mac や Conductor のワークスペースを移動してもブレインのキャッシュが残るようにする。
 
-**Cons:** Inline bootstrap (in scope for v1.48) already covers the
-cold-start path adequately.
+**理由:** 新しいマシンごとに、日に 1 回、コールドミスのコスト(約 1〜2 秒)がかかるのをなくす。
 
-**Context:** Deferred from v1.48.0.0 cherry-pick (D6) — observe inline
-bootstrap performance first; add dedicated skill if friction is real.
+**利点:** 新しいマシンでも、すぐにウォームなキャッシュが使える。
 
-**Effort:** S (human ~2h, CC ~15min)
+**欠点:** 慎重に設計しないと、キャッシュの汚染のリスクがある(ハッシュの不変条件、エンドポイントへの束縛、衝突の解決)。
 
-**Depends on:** Inline bootstrap subcommand from v1.48.0.0
+**背景:** v1.48.0.0 のチェリーピック(D5)から繰り延べ。V1 では単一マシンのキャッシュで十分。正しさのリスクには、独自の設計の検討が必要。
 
-### P2: Upstream gbrain takes_add + takes_resolve MCP ops
+**工数:** M(人間: 約 4 時間、CC: 約 30 分)
 
-**What:** Add `mcp__gbrain__takes_add` and `mcp__gbrain__takes_resolve`
-ops in `~/git/gbrain/src/core/operations.ts`. Extract the markdown-fence
-mirror logic from `commands/takes.ts:570` into a reusable
-`engine.resolveTake()` helper.
+**依存:** v1.48.0.0 のブレインのキャッシュ層
 
-**Why:** Unlocks Phase 2 calibration write-back without the fence-block
-fallback. ~150 LOC. Already on gbrain's v0.31.x roadmap.
+### P3: /gstack-onboarding の専用スキル(E4)
 
-**Pros:** Clean Phase 2 path, removes the "fall back to put_page" smell.
+**内容:** 新しい gstack のインストール向けに、5 分で終わるガイド付きのセットアップのスキル。CLAUDE.md、README、最近のコミットを読み、明示的な AUQ を使いながら、`gstack/product` と現在の目標を構築する。
 
-**Cons:** Lives in upstream gbrain repo, not helsinki — separate PR.
+**理由:** 計画のスキルを呼び出したときにしか動かない、インラインのブートストラップ(v1.48 で、そのスコープに含まれる)より良い UX になる。
 
-**Context:** Phase 2 write-back is already wired in v1.48.0.0 behind the
-BRAIN_CALIBRATION_WRITEBACK feature flag (default off). Flag flips to
-true once upstream gbrain ships these ops. ~50 LOC follow-up in
-helsinki to swap the fallback for the preferred op.
+**利点:** コールドスタートがすっきりし、儀式が明示的になる。
 
-**Effort:** S (human ~1d, CC ~1h) in gbrain repo; trivial wire-up in
-helsinki.
+**欠点:** v1.48.0.0 のインラインのブートストラップ(コールドスタートの経路を十分にカバーする)。
 
-**Depends on:** None (parallel-track from v1.48.0.0)
+**背景:** v1.48.0.0 のチェリーピック(D6)から繰り延べ。まずインラインのブートストラップの性能を観察する。実際に摩擦があれば、専用のスキルを追加する。
 
-### P3: Background-refresh hook supervision
+**工数:** S(人間: 約 2 時間、CC: 約 15 分)
 
-**What:** Codex outside-voice raised that "background refresh at skill END"
-is hand-wavy. Add proper process supervision: PID file, timeout, failure
-log, cross-platform spawn.
-
-**Why:** Current implementation backgrounds with `&` which works but
-leaves no observability when a refresh fails.
-
-**Context:** Deferred from v1.48.0.0 codex tension T3. Stays low priority
-until users report stale digests where a background refresh silently
-failed.
-
-**Effort:** S (human ~2h, CC ~20min)
-
-### P2: Re-verify calibration takes when gbrain v0.42+ lands
-
-**What:** When upstream gbrain ships `takes_add` MCP op and we flip
-`BRAIN_CALIBRATION_WRITEBACK` from FALSE to TRUE, re-run the manual
-probe in `docs/gbrain-write-surfaces.md` against `/office-hours` and
-confirm `gbrain takes_list` surfaces a `kind=bet` entry with the
-expected weight (0.9 for office-hours, per
-`scripts/brain-cache-spec.ts:151-157`).
-
-**Why:** Today the calibration take path falls back to writing inside a
-`gbrain put` fence block because `takes_add` isn't available yet. Once
-v0.42+ ships, the agent will call `takes_add` directly — we should
-confirm the new path actually persists a queryable take.
-
-**Context:** v1.50.0.0 plan §"NOT in scope". The fence-block fallback
-test (`test/takes-fence-fallback.test.ts`) covers wiring for both paths;
-this TODO is about live verification of the preferred path when it
-becomes available.
-
-**Effort:** XS (human ~15min, CC ~5min)
-
-**Depends on:** Upstream gbrain v0.42+ release shipping `takes_add` MCP
-op (separate TODO above).
-
-### P2: Extend brain-writeback E2E to the other 4 planning skills
-
-**What:** `test/skill-e2e-office-hours-brain-writeback.test.ts` covers
-the brain-writeback path for `/office-hours` only. Adding parallel
-tests for `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`,
-and `/plan-devex-review` would bring per-skill agent-obedience coverage
-to parity with the resolver unit test
-(`test/resolvers-gbrain-save-results.test.ts`, which covers wiring for
-all 5).
-
-**Why:** The resolver test proves the right instructions get emitted;
-the E2E proves the agent actually obeys. Today we only have that
-end-to-end signal for one of five planning skills.
-
-**Context:** v1.50.0.0 plan §"NOT in scope". Extract `makeFakeGbrain`
-into `test/helpers/fake-gbrain.ts` when the second consumer arrives
-(YAGNI for one consumer today).
+**依存:** v1.48.0.0 のインラインのブートストラップのサブコマンド
 
-**Effort:** S (human ~1d, CC ~1h). Periodic-tier (~$2-4 total for 4
-runs).
-
-**Depends on:** None.
+**工数:** S(人間: 約 2 時間、CC: 約 15 分)
+**依存:** v1.48.0.0 のインラインのブートストラップのサブコマンド
 
-### P2: Real-session carve canary (E3, deferred from carve-guard plan)
-
-**What:** Wire a real-session section-Read-miss canary on top of the
-carved skills. When a real user session drives a carved skill and the
-agent does NOT Read a section the skeleton's STOP directive pointed it
-at, log it (salted, content-free) to
-`~/.gstack/analytics/section-reads.jsonl` and surface drift via
-`bun run eval:summary`. Non-blocking alert, never a merge gate
-(real-session data is non-deterministic).
-
-**Why:** The static (E2) + behavioral (T2) guards prove carves are
-structurally sound and that a real agent Reads sections in a controlled
-eval. They do NOT see production drift — a prompt-context change that
-makes live agents start skipping a section. The canary is the only
-mechanism that catches that, from real usage.
+### P2: 上流の gbrain の takes_add + takes_resolve の MCP 操作
 
-**Context:** Deferred from the carve-guard-hardening plan (D5→T2, codex
-outside-voice #7). The deterministic `test/helpers/transcript-section-logger.ts`
-was deleted in the 2026-09 test audit (no paid or production caller; see
-docs/test-audit-2026-09.md); a real-session logger starts from scratch. Ship
-the deterministic guards first; add this once they've proven useful. The
-carved-skill set + each skill's `requiredReads` are already declared in
-`test/helpers/carve-guards.ts`, so the canary reads its expectations
-from there.
+**内容:** `~/git/gbrain/src/core/operations.ts` に `mcp__gbrain__takes_add` と `mcp__gbrain__takes_resolve` の操作を追加する。`commands/takes.ts:570` のマークダウンのフェンスのミラーのロジックを、再利用可能な `engine.resolveTake()` のヘルパーに抽出する。
 
-**Effort:** M (human ~2d, CC ~4h).
+**理由:** フェンスブロックのフォールバックなしに、フェーズ 2 のキャリブレーションの書き戻しを可能にする。約 150 LOC。すでに gbrain の v0.31.x のロードマップに入っている。
 
-**Depends on:** a real-session section-read logger (none exists today).
+**利点:** フェーズ 2 の明確な経路になり、「put_page にフォールバックする」という嫌なにおいがなくなる。
 
-### P2: Harden behavioral section-loading test hermeticity
+**欠点:** 上流の gbrain のリポジトリにあり、helsinki ではない。別の PR になる。
 
-**What:** `captureSectionReads` in `test/helpers/auq-sdk-capture.ts` accepts ANY
-Read whose path matches `sections/<file>.md`. The skeleton's STOP-Read directive
-points at the gstack-root install path (`scripts/resolvers/sections.ts` builds it
-from `ctx.paths.skillRoot`), not the planted fixture copy. So a run can satisfy
-the section-read assertion by reading the GLOBAL install's section instead of the
-hermetic fixture.
+**背景:** フェーズ 2 の書き戻しは、v1.48.0.0 ですでに BRAIN_CALIBRATION_WRITEBACK の機能フラグの背後に配線されている(デフォルトはオフ)。上流の gbrain がこれらの操作を出荷すると、フラグを true にする。優先される操作に差し替えるための、helsinki 側の約 50 LOC のフォローアップ。
 
-**Why:** A behavioral test that passes by reading the global install doesn't prove
-THIS branch's carved section loads. If the fixture's section were broken but the
-global install's weren't, the test would still pass.
+**工数:** S(人間: 約 1 日、CC: 約 1 時間)gbrain のリポジトリ内。helsinki では簡単な配線のみ。
 
-**Context:** Codex outside-voice finding on the carve-guard ship (v1.57.0.0).
-Pre-existing in `auq-sdk-capture.ts` — affects `skill-e2e-ship-section-loading`,
-`skill-e2e-plan-ceo-review-section-loading`, and the new
-`carve-section-loading.test.ts`. Fix: match the fixture's ABSOLUTE sections path
-(the `planDir` copy), not a bare `sections/<file>.md` regex; or rewrite the STOP
-path to the fixture during the run.
+**依存:** なし(v1.48.0.0 と並行して進める)
 
-**Effort:** S (human ~3h, CC ~30min). **Depends on:** None.
+### P3: バックグラウンドのリフレッシュのフックの監督
 
-### P3: Content-hash diagram render cache for make-pdf
+**内容:** Codex の外部の意見は、「スキルの終了時のバックグラウンドのリフレッシュ」が手ぬるいと指摘した。適切なプロセスの監督を加える。PID ファイル、タイムアウト、失敗のログ、クロスプラットフォームの spawn。
 
-**What:** Cache rendered diagram SVG/PNG in `~/.gstack/cache/diagram-render/`,
-keyed on `sha256(fence source + bundle version + render options)`, so repeat
-`make-pdf` runs skip the render (Aside or the fallback browse tab) for unchanged diagrams.
+**理由:** 現在の実装は `&` でバックグラウンドにしており、動きはするが、リフレッシュが失敗しても、それを観測する手段がない。
 
-**Why:** Every run currently re-renders every fence (~150-300ms each). Docs with
-10+ diagrams pay seconds per iteration during write-preview loops. Codex
-outside-voice flagged the missing cache story during the eng review of the
-diagram engine plan (2026-06-11, D7).
+**背景:** v1.48.0.0 の Codex の緊張 T3 から繰り延べ。リフレッシュが黙って失敗し、古いダイジェストがあるとユーザーが報告するまでは、優先度は低いままにする。
 
-**Context:** The diagram-render bundle ships a `BUILD_INFO.json` with a content
-hash (see `lib/diagram-render/`) — use that as the bundle-version cache key
-component so bundle bumps invalidate cleanly. Invalidation surface is the main
-risk: stale renders after a mermaid theme change must not survive. Only worth
-building once users hit multi-diagram docs; wedge perf is fine without it.
+**工数:** S(人間: 約 2 時間、CC: 約 20 分)
 
-**Effort:** S (human ~1d, CC ~30min). **Depends on:** diagram engine wedge
-shipping (lib/diagram-render bundle versioning).
+### P2: gbrain v0.42 以降で、キャリブレーションの take を再検証する
 
-### P3: Dedupe the make-pdf e2e gate-test harness
+**内容:** 上流の gbrain が `takes_add` の MCP 操作を出荷し、`BRAIN_CALIBRATION_WRITEBACK` を FALSE から TRUE にしたら、`docs/gbrain-write-surfaces.md` の手動のプローブを、`/office-hours` に対して再実行する。`gbrain takes_list` が、期待される重み(`scripts/brain-cache-spec.ts:151-157` による /office-hours の 0.9)の `kind=bet` のエントリを表示することを確認する。
 
-**What:** Five e2e files (`combined-gate`, `emoji-gate`, `diagram-gate`,
-`landscape-gate`, `format-gate`) each hand-roll the same prerequisite probe
-(binary/browse/poppler checks with CI hard-fail vs local skip), mkdtemp/rm
-lifecycle, and child-timeout constants. Extract a shared
-`make-pdf/test/e2e/helpers.ts` (prerequisites(), withWorkDir(), runGenerate()).
-
-**Why:** Review-army maintainability finding on v1.58.0.0 — the boilerplate
-diverges a little more with each new gate (diagram-gate now captures stderr
-via Bun.spawnSync while the others use execFileSync), and a future fix to the
-CI-hard-fail contract has to land five times.
-
-**Context:** Deferred at ship time (D8.2) because it's test-only churn across
-five green files at the tail of a release. Zero user-facing value; pure DRY.
-
-**Effort:** S (human ~3h, CC ~20min). **Depends on:** None.
-
-## Egress-receipt follow-ups (filed via /plan-eng-review + /codex on the v1.63 port wave)
-
-### P2: egress ledger rotation with chain-genesis records
-
-**What:** Rotate `~/.gstack/security/egress.jsonl` at a size threshold (match
-`attempts.jsonl`'s 10MB/5-generation pattern in `browse/src/security.ts`), where
-each new generation's FIRST record embeds the prior file's tail hash so
-`gstack-egress verify` can walk across generations.
-
-**Why:** v1.63 ships WARN-at-25MB (visible growth) but nothing bounds the file.
-Rotation was deliberately deferred: it changes the verify contract, and a wrong
-implementation makes healthy ledgers verify as "broken".
-
-**Pros:** Bounded disk forever; verify stays meaningful across generations.
-**Cons:** Chain-genesis semantics are subtle; needs its own focused tests
-(cross-generation verify, mid-rotation crash).
-
-**Context:** `lib/egress-receipt.ts` (`appendChained`/`verifyLedger`) carries the
-design sketch in its rotation TODO comment. Start from the `attempts.jsonl`
-rotation precedent.
-
-**Effort:** S (human ~4h, CC ~25min). **Depends on:** v1.63 port wave landed.
-
-### P3: launch-nonce token bootstrap (local-process impersonation)
-
-**What:** Add a launch-time nonce to the `/extension-token` bootstrap: `browse`
-mints a nonce at headed launch, seeds it into the extension (CDP
-`chrome.storage` injection or a launcher-written sidecar), and the endpoint
-requires it alongside the pinned origin.
-
-**Why:** v1.63's pinned-origin check authenticates browser contexts; any local
-PROCESS can still forge an Origin header with curl. That threat is explicitly
-outside the current model (any local process can hit the port anyway) — this
-TODO documents the deliberate boundary and the designed path across it.
-
-**Pros:** Closes the local-process impersonation path (strongest of the three
-options evaluated in the v1.63 plan review).
-**Cons:** Largest bootstrap change; CDP seeding is fiddly across the three
-launch paths (`--load-extension`, baked-in Browser.app, real-Chrome fallback);
-low present-day value.
-
-**Context:** `browse/src/server.ts` `/extension-token` handler +
-`GSTACK_EXTENSION_ID`; launch paths in `browse/src/browser-manager.ts` (~358,
-~455, ~1562); `extension/background.js` bootstrap.
-
-**Effort:** M (human ~2 days, CC ~1h). **Depends on:** none.
-
-### Won't do (2026-10 audit): eval-watch shard-awareness
-
-`scripts/eval-watch.ts` and `eval:watch` are deleted: no supported paid entry
-point is unsharded, and live progress comes from the detach log or
-`gh run watch`. The original entry follows for history.
-
-**What:** Teach `scripts/eval-watch.ts` (hardcoded `_partial-e2e.json` path at
-~line 17) about the sharded layout: watch `<evalDir>/shards/*/_partial-e2e.json`
-and aggregate live progress across shard subdirs.
-
-**Why:** v1.63's sharded runner gives each shard its own eval subdir (so shards
-baseline against their own priors); `findPreviousRun`, `eval-compare`,
-`eval-list`, and `eval-summary` were all made shard-aware, but the live watcher
-intentionally stayed flat — it shows nothing during sharded runs.
-
-**Pros:** Live progress during `eval:bg:gate` sharded runs again.
-**Cons:** Multi-file watch + aggregation UI; low stakes (the run-scoped detach
-log already streams per-shard results).
-
-**Context:** `scripts/eval-watch.ts`; shard layout defined in
-`scripts/test-paid-shards.ts` (slug = test filename); `listEvalJsonFiles` in
-`test/helpers/eval-store.ts` already enumerates the layout — reuse it.
-
-**Effort:** S (human ~2h, CC ~15min). **Depends on:** v1.63 port wave landed.
-
-## v1.63 port-wave review follow-ups (deferred from /ship review army — non-blocking polish)
-
-Genuine review findings deferred from the v1.63 ship because they are
-informational/polish, not correctness-blocking, and several want their own
-tests. Filed so they are tracked, not dropped.
-
-- **P2 — telemetry-sync HTTP-status outcome is dead code.** `_GSTACK_EGRESS_LAST_RECEIPT`
-  is set inside a command-substitution subshell in `bin/gstack-telemetry-sync`, so the
-  parent-shell guard that would append the HTTP status to the receipt never fires. The
-  generic `exit:N` outcome is still recorded, so the ledger is correct, just less
-  precise. Fix: have `_receipted_curl` persist the receipt id to a caller-readable temp
-  file, or restructure the call out of the subshell. (Confirmed by 3 review specialists.)
-- **P2 — context-bill "TOTAL on disk" double-counts child skills** in a root-as-container
-  tree (this repo's own layout): `buildBill` sums the root skill's whole-tree walk plus
-  each child's subtree again (~2x the TOTAL line). ALWAYS-ON / EAGER / --diff / --budget
-  are all unaffected — only the informational TOTAL is wrong. Fix: compute the tree total
-  from a single deduplicated `walkMd(root)` pass, or exclude child dirs from the root
-  skill's `totalMd`. Needs a fixture test. (`lib/context-bill.ts`.)
-- **P3 — DRY/robustness polish:** one shared `_gstack_egress_host_of` helper for the
-  ~11 hand-rolled URL-to-host extractions across the egress shell sinks; extract the
-  duplicated tunnel-open `writeReceipt` block in `browse/src/server.ts` (two sites);
-  hoist the per-iteration `SharedArrayBuffer` alloc out of the egress-receipt lock spin;
-  replace context-bill's exact-mode `errorPct === 0` sentinel with an explicit flag;
-  reuse `frontmatterName()` from `skill-census.ts` in `catalog-budget.test.ts`.
-- **P3 — test-coverage gaps the audit named:** `PAID_TEST_GLOBS` ↔ `package.json`
-  `test:gate` parity test; `GSTACK_EXTENSION_ID` ↔ `manifest.json` key derivation parity
-  test (`browse/scripts/extension-id.ts`); a runner test asserting each shard child gets
-  its own `GSTACK_EVAL_DIR` under `shards/<slug>`; receipt-refusal branch tests for
-  supabase-provision / gbrain-sync / memory-ingest.
-
-## P2: harden or re-tier skill-e2e-plan-design-with-ui PTY detection
-
-**What:** The gate-tier `test/skill-e2e-plan-design-with-ui.test.ts` began executing
-for the first time once v1.63's `seedSkills` registered skills in hermetic PTY
-children (the fork had deleted this file; it measured nothing before). It now
-reliably TIMES OUT even though the skill runs correctly: the transcript shows
-`/plan-design-review` reaching its scope-gate AskUserQuestion (5 options, the
-`<gstack-qid:plan-design-review-scope-gate>` marker present), but the test's
-`isNumberedOptionListVisible`/`parseNumberedOptions` scraping can't classify it out
-of the PTY buffer because spinner frames (`[?25l✻Sprouting… still thinking`) are
-interleaved character-by-character with the option text.
-
-**Why:** Shipped behavior is correct — this is a test-harness detection limitation,
-not a product bug. But a gate test that always times out is worse than no test.
-
-**Fix options:** (a) harden the tail-scraping (drop DEC private-mode + spinner
-residue before matching; widen/clean the window); (b) add an LLM-judge fallback
-classifier (the file's own comments note the regex detectors are "brittle to PTY
-rendering quirks"); or (c) move this test to periodic until (a)/(b) lands.
-
-**Context:** `test/skill-e2e-plan-design-with-ui.test.ts`,
-`test/helpers/claude-pty-runner.ts:308` (`isNumberedOptionListVisible`). Evidence:
-`~/.gstack-dev/eval-runs/pdwu-verify-*.log`. **Effort:** M (human ~half day / CC ~30min).
-
-### P3: Residuals from the 2026-08-14 tracker-audit waves (mostly shipped in v1.67.0.0)
-
-The four deferred waves (A: browse-daemon lifecycle, B: install integrity,
-C: gbrain trust boundary, D: ship/version allocator) LANDED in the v1.67.0.0
-fix wave: XProtect self-heal + Playwright bump + busy-daemon iron rule +
-signal policy (A); alias shadowing + cursor slice + runtime assets + Windows
-refresh (B); brain-sync disposition model + source pins + thin-client
-detection (C); version allocator end-state + subdir manifests + diff-scope
-globs (D). What remains, re-filed individually:
-
-- Watchdog kills headed handoff sessions (PRs 2565/2405/2346) and the three
-  darwin-skipped handoff tests in browse/test/handoff.test.ts — verify
-  whether the v1.67 XProtect + rebrand work un-blocks them, then un-skip or
-  fix. Effort S.
-- Transcript trust/scope/source isolation (PR 2232, issue 2140) — split:
-  the `transcript_ingest_mode` reader (off skips, B → --all-history, unset
-  unchanged) ships in fork-port Wave E1; repo-scoping and `--source-id`
-  isolation still need the never-double-store review plus a gbrain flag
-  probe. Close the PR after E1 with a pointer here. Effort M.
-- Versionless-repo onboarding (#1474, issues 2343/2334) — the #2501 JSON
-  version-path half landed; the no-version-file-at-all flow did not.
-- Playwright bootstrap abort/timeout absorbs (PRs 2233/2359, issues
-  1902/2136) — DONE in fork-port Wave A: the install is best-effort and
-  bounded (GSTACK_PLAYWRIGHT_INSTALL_TIMEOUT, default 600s), lock contention
-  is a reason code, skills always register. Close #2233, #1900, #1901, #1902,
-  #913 with the receipt (test/setup-playwright-best-effort.test.ts).
-
-## Aside-first follow-ups (filed when Aside became the primary browser)
-
-Every gstack skill that touches a web page drives the Aside AI browser first
-(`scripts/resolvers/aside.ts` is the contract; `lib/aside-render.ts` /
-`bin/gstack-render.ts` render local HTML through it; `{{ASIDE_RESEARCH}}` runs
-web research through it). gstack's own browser engine — the `browse` daemon,
-GStack Browser headed mode, cookie import, `/pair-agent`, browser-skills /
-`/skillify` — is kept as the automatic fallback whenever Aside is not installed
-or not running (Linux, Windows, a closed Aside app), and web research falls
-back to the WebSearch tool when the host provides one. Nothing was removed.
-Loose ends:
-
-### P1: Aside-first fallback parity — keep the `$B` equivalence table in sync with the cookbook
-
-**What:** The fallback block (`BROWSE_FALLBACK` in the browser resolvers) maps
-each verified `aside repl` cookbook shape (read a page, drive a flow, annotated
-screenshot, responsive captures, links + status, performance, PDF, element
-screenshot, `aside exec` research) to its `$B` equivalent so a skill produces
-the same evidence lines on either path. Every time a cookbook shape is added,
-renamed, or changes its output labels (`CONSOLE_ERRORS=`, `DIFF_START`,
-`ASIDE_DIR=`, `GSTACK_STEP_OK`), update the table in the same commit and add a
-pin in `test/aside-driver.test.ts` that the two lists name the same shapes.
-
-**Why:** A skill that reads `DIFF_START` on the Aside path and gets nothing on
-the fallback path "fixes" the missing output blindly. Parity is the whole point
-of keeping the engine; a silent gap is worse than no fallback.
-
-**Effort:** S per change (human ~half day, CC ~15min). **Priority:** P1. **Depends on:** nothing.
-
-### P2: Aside CLI 1.26 lacks subcommands Aside's own skill doc lists
-
-**What:** Aside's skill doc lists `session`, `memory`, `skills`, `host`, and
-`--permission`; Aside CLI 1.26 has none of them (`aside --help`). Skills must
-not depend on them until the CLI ships them. Re-probe on each Aside release;
-when they land, evaluate `session` for multi-script flows and `--permission`
-for the mutating-action consent gate.
-
-**Why:** A skill written against the doc instead of the binary dies at runtime
-on an unknown-command error the agent will then try to "fix" blindly.
-
-**Effort:** S (human ~half day, CC ~20min per re-probe). **Priority:** P2. **Depends on:** Aside releases.
-
-### P2: Aside E2E tests run only where Aside is installed
-
-**What:** The Aside-only E2E lane — `test/skill-e2e-aside.test.ts`, the Aside
-qa/design cases, the live render in `test/aside-render.test.ts` — self-skips
-when `aside` is absent (`asideAvailable()` in `test/helpers/aside-available.ts`),
-so CI's Linux runners never drive Aside; the make-pdf and /diagram render gates
-already run there on the browse binary. The Aside path runs only on macOS dev
-machines.
-Evaluate a self-hosted macOS runner (or a scheduled job on a Mac mini) that
-runs the Aside lane weekly under the same hermetic env as the other E2E lanes.
-
-**Why:** A browser contract nobody runs in CI drifts silently — exactly the
-class `test/aside-driver.test.ts` pins statically but cannot prove live.
-
-**Effort:** M (human ~2 days, CC ~1h plus the machine). **Priority:** P2. **Depends on:** a macOS host with Aside signed in.
-
-### P3: Evaluate `aside mcp` for multi-step flows
-
-**What:** `aside repl` is one flow per script — a fresh session per call, tabs
-closed when it ends. `aside mcp` keeps a persistent REPL page across calls.
-Once the CLI stabilizes, measure whether an MCP path makes long QA audits
-cheaper (no re-navigation per script) without losing the "leave the browser as
-you found it" guarantee.
-
-**Why:** Re-navigating from the URL per script is the honest tax of the current
-model; a persistent page could cut it but adds a session that must be cleaned up.
-
-**Effort:** M (human ~2 days, CC ~1h). **Priority:** P3. **Depends on:** Aside CLI stability.
-
-### P3: Eval that skills treat `aside exec` output as untrusted
-
-**What:** `aside exec "<task>"` returns another agent's answer. Add an LLM-judge
-or E2E eval that plants an instruction inside an `aside exec` result and checks
-the skill takes syntax from it, never scope, permissions, or consent.
-
-**Why:** The rule is pinned as prose; nothing yet proves a skill obeys it when
-the injected text arrives through the one channel that reads like a colleague.
-
-**Effort:** S (human ~1 day, CC ~30min). **Priority:** P3. **Depends on:** the Aside E2E lane above.
-
-### P1: make-pdf renders user documents inside the real browser profile — add a CSP
-
-**What:** `/make-pdf` prints markdown-derived HTML through Aside (the user's
-signed-in browser) on a `127.0.0.1` origin. The only barrier between a hostile
-document (a README from a cloned repo) and script execution in that profile is
-the regex sanitizer in `make-pdf/src/render.ts`, whose header assumes marked
-output is never malformed — raw-HTML passthrough breaks that assumption. Inject
-gstack's own CSP `<meta>` into the print template (`default-src 'none';
+**理由:** 現在、キャリブレーションの take の経路は、`takes_add` がまだ使えないため、`gbrain put` のフェンスブロックの中に書くことでフォールバックしている。v0.42 以降が出荷されたら、エージェントは `takes_add` を直接呼び出すようになる。新しい経路が、実際に問い合わせ可能な take を保存することを確認する必要がある。
+
+**背景:** v1.50.0.0 の計画の「範囲外」の節。フェンスブロックのフォールバックのテスト(`test/takes-fence-fallback.test.ts`)は、両方の経路の配線をカバーしている。この TODO は、利用可能になった優先経路の、実地での検証についてのもの。
+
+**工数:** XS(人間: 約 15 分、CC: 約 5 分)
+
+**依存:** 上流の gbrain v0.42 以降のリリースで `takes_add` の MCP 操作が出荷されること(上記の別の TODO)。
+
+### P2: brain-writeback の E2E を、残りの 4 つの計画スキルに拡張する
+
+**内容:** `test/skill-e2e-office-hours-brain-writeback.test.ts` は、`/office-hours` だけのブレインへの書き戻しの経路をカバーしている。`/plan-ceo-review`、`/plan-eng-review`、`/plan-design-review`、`/plan-devex-review` の並列のテストを追加すると、スキルごとのエージェントの従順さのカバレッジを、リゾルバのユニットテスト(`test/resolvers-gbrain-save-results.test.ts`。5 つすべての配線をカバー)と同じ水準にできる。
+
+**理由:** リゾルバのテストは、正しい指示が出されることを証明する。E2E は、エージェントが実際にそれに従うことを証明する。今は 5 つの計画スキルのうち 1 つだけで、その端から端までのシグナルがある。
+
+**背景:** v1.50.0.0 の計画の「範囲外」の節。`makeFakeGbrain` を `test/helpers/fake-gbrain.ts` に抽出する。2 つ目の利用者が現れたときに行う(利用者が 1 つなら、YAGNI)。
+
+**工数:** S(人間: 約 1 日、CC: 約 1 時間)。定期実行ティア(4 回の実行で約 2〜4 ドル)。
+
+**依存:** なし。
+
+### P2: 本物のセッションでの切り出しの検証(E3、切り出しのガードの計画から繰り延べ)
+
+**内容:** 切り出したスキルの上に、本物のセッションでセクションの Read 漏れを検出するカナリアを配線する。実際のユーザーのセッションで切り出されたスキルが動き、エージェントがスケルトンの STOP の指示が指したセクションを Read しなかった場合、それを(ソルト付きで、内容を含まない形で)`~/.gstack/analytics/section-reads.jsonl` に記録し、`bun run eval:summary` を通じてドリフトを表面化する。ノンブロッキングのアラートであり、マージのゲートにはしない(本物のセッションのデータは非決定的なため)。
+
+**理由:** 静的(E2)と振る舞い(T2)のガードは、切り出しが構造的に正しいこと、そして制御された eval で本物のエージェントがセクションを Read することを証明する。しかし、本番でのドリフトは見えない。たとえば、プロンプトのコンテキストの変化により、ライブのエージェントがセクションを飛ばすようになる、といったもの。カナリアは、実際の利用から、それを捕まえられる唯一の仕組み。
+
+**背景:** 切り出しのガードの強化の計画から繰り延べ(D5→T2、codex の外部の意見 #7)。決定的な `test/helpers/transcript-section-logger.ts` は、2026-09 のテスト監査で削除された(有料も本番の呼び出し元もないため。docs/test-audit-2026-09.md を参照)。本物のセッションのロガーは、ゼロから始める必要がある。まず決定的なガードを出荷し、有用だと分かってから追加する。切り出されたスキルのセットと、それぞれの `requiredReads` はすでに `test/helpers/carve-guards.ts` で宣言されているので、カナリアはそこから期待値を読める。
+
+**工数:** M(人間: 約 2 日、CC: 約 4 時間)。
+
+**依存:** 本物のセッションのセクションの読み取りロガー(現時点では存在しない)。
+
+### P2: 振る舞いのセクション読み込みのテストの隔離性を強化する
+
+**内容:** `test/helpers/auq-sdk-capture.ts` の `captureSectionReads` は、`sections/<file>.md` に一致する任意の Read を受け付ける。スケルトンの STOP-Read の指示は、フィクスチャのコピーではなく、グローバルなインストールのパス(`scripts/resolvers/sections.ts` が `ctx.paths.skillRoot` から組み立てる)を指す。そのため、実行はフィクスチャではなく、グローバルなインストールのセクションを読むことで、セクションの Read のアサーションを満たせてしまう。
+
+**理由:** グローバルなインストールを読んで通る振る舞いのテストは、このブランチの切り出されたセクションが読み込まれることを証明しない。フィクスチャのセクションが壊れていて、グローバルのものが壊れていなければ、テストはそれでも通ってしまう。
+
+**背景:** carve-guard の出荷(v1.57.0.0)に対する Codex の外部の意見の指摘。`auq-sdk-capture.ts` に以前から存在し、`skill-e2e-ship-section-loading`、`skill-e2e-plan-ceo-review-section-loading`、新しい `carve-section-loading.test.ts` に影響する。修正: 裸の `sections/<file>.md` の正規表現ではなく、フィクスチャの絶対のセクションのパス(`planDir` のコピー)に一致させる。あるいは、実行中に STOP のパスをフィクスチャに書き換える。
+
+**工数:** S(人間: 約 3 時間、CC: 約 30 分)。**依存:** なし。
+
+### P3: make-pdf のダイアグラムのレンダリングを、内容のハッシュでキャッシュする
+
+**内容:** レンダリングされたダイアグラムの SVG/PNG を `~/.gstack/cache/diagram-render/` にキャッシュし、`sha256(フェンスのソース + バンドルのバージョン + レンダリングのオプション)` をキーにする。変更のないダイアグラムは、繰り返しの `make-pdf` の実行で、レンダリング(Aside またはフォールバックの browse タブ)をスキップする。
+
+**理由:** 現在は、すべてのフェンスを毎回レンダリングしている(それぞれ約 150〜300ms)。10 個以上のダイアグラムがあるドキュメントでは、プレビューを繰り返すたびに数秒かかる。Codex の外部の意見が、ダイアグラムエンジンの計画(2026-06-11、D7)のエンジニアリングレビューで、キャッシュの仕組みがないことを指摘した。
+
+**背景:** diagram-render のバンドルは、コンテンツのハッシュを含む `BUILD_INFO.json` を出荷している(`lib/diagram-render/` を参照)。これをキャッシュキーのバンドルのバージョンの要素として使い、バンドルのバージョンアップで、きれいに無効化されるようにする。無効化の範囲が主なリスク。mermaid のテーマが変わった後に、古いレンダリングが残ってはならない。ダイアグラムが複数あるドキュメントを、ユーザーが使い始めてから作る価値がある。ワイドのパフォーマンスはキャッシュなしでも問題ない。
+
+**工数:** S(人間: 約 1 日、CC: 約 30 分)。**依存:** ダイアグラムエンジンのワイドの出荷(lib/diagram-render のバンドルのバージョン管理)。
+
+### P3: make-pdf の e2e ゲートテストのハーネスを重複排除する
+
+**内容:** 5 つの e2e ファイル(`combined-gate`、`emoji-gate`、`diagram-gate`、`landscape-gate`、`format-gate`)が、それぞれ同じ前提条件のプローブ(バイナリ/browse/poppler のチェック、CI では失敗、ローカルではスキップ)、mkdtemp/rm のライフサイクル、子プロセスのタイムアウトの定数を、手で書いている。共有の `make-pdf/test/e2e/helpers.ts`(prerequisites()、withWorkDir()、runGenerate())を抽出する。
+
+**理由:** v1.58.0.0 の review army の保守性の指摘。新しいゲートが増えるたびに、ボイラープレートがわずかずつ食い違っていく(diagram-gate は Bun.spawnSync で stderr を取るが、他は execFileSync を使う)。また、CI で失敗させる契約の将来の修正は、5 か所で行う必要がある。
+
+**背景:** 出荷時に繰り延べ(D8.2)。5 つの緑のファイルにまたがる、テストだけの変更であり、リリースの末尾で行うには大きすぎたため。ユーザーにとっての価値はゼロで、純粋な DRY。
+
+**工数:** S(人間: 約 3 時間、CC: 約 20 分)。**依存:** なし。
+
+## Egress-receipt のフォローアップ(v1.63 の移植の波で /plan-eng-review + /codex から起票)
+
+### P2: 世代の先頭レコードにチェーンの起点を持つ egress の台帳のローテーション
+
+**内容:** `~/.gstack/security/egress.jsonl` を、サイズの閾値でローテーションする(`browse/src/security.ts` の `attempts.jsonl` の 10MB/5 世代のパターンに合わせる)。新しい世代の先頭レコードには、前のファイルの末尾のハッシュを埋め込み、`gstack-egress verify` が世代をまたいで辿れるようにする。
+
+**理由:** v1.63 は 25MB で警告を出す(成長が見えるように)が、ファイル自体には上限がない。ローテーションは意図的に繰り延べた。検証の契約が変わり、実装を誤ると、健全な台帳が「壊れている」と検証されてしまうから。
+
+**利点:** ディスク使用量が永久に上限を持つ。検証が世代をまたいでも意味を持ち続ける。
+**欠点:** チェーンの起点の意味は微妙。専用の集中したテストが必要(世代をまたぐ検証、ローテーションの途中のクラッシュ)。
+
+**背景:** `lib/egress-receipt.ts`(`appendChained`/`verifyLedger`)のローテーションの TODO コメントに、設計の下書きがある。`attempts.jsonl` のローテーションを先例として始める。
+
+**工数:** S(人間: 約 4 時間、CC: 約 25 分)。**依存:** v1.63 の移植の波が着地していること。
+
+### P3: 起動のノンス・トークンのブートストラップ(ローカルプロセスのなりすまし)
+
+**内容:** `/extension-token` のブートストラップに、起動時のノンスを追加する。`browse` はヘッドモードの起動時にノンスを発行し、それを拡張機能に植え付け(CDP の `chrome.storage` の注入、またはランチャーが書くサイドカー)、エンドポイントは固定されたオリジンと並んでそれを要求する。
+
+**理由:** v1.63 の固定オリジンのチェックは、ブラウザのコンテキストを認証するが、ローカルのどのプロセスも、curl で Origin ヘッダーを偽造できる。その脅威は、現在のモデルの範囲外であると明示されている(どのローカルプロセスも、いずれにしてもポートに届く)。この TODO は、意図的な境界と、それを越えるための設計された経路を文書化するもの。
+
+**利点:** ローカルプロセスのなりすましの経路を閉じる(v1.63 のプラン・レビューで評価した 3 つの選択肢の中で最も強い)。
+**欠点:** 最大のブートストラップの変更。CDP の植え付けは 3 つの起動の経路(`--load-extension`、同梱の Browser.app、実際の Chrome のフォールバック)にまたがって扱いにくい。現時点での価値は低い。
+
+**背景:** `browse/src/server.ts` の `/extension-token` のハンドラーと `GSTACK_EXTENSION_ID`。起動の経路は `browse/src/browser-manager.ts`(約 358、約 455、約 1562 行目)。`extension/background.js` のブートストラップ。
+
+**工数:** M(人間: 約 2 日、CC: 約 1 時間)。**依存:** なし。
+
+### 対応しない(2026-10 の監査): eval-watch のシャード対応
+
+`scripts/eval-watch.ts` と `eval:watch` は削除された。サポートされている有料の実行の入口で、シャードを使わないものは存在しないため。また、ライブの進捗は detach のログか `gh run watch` から得られる。元のエントリは履歴として以下に残す。
+
+**内容:** `scripts/eval-watch.ts`(約 17 行目にハードコードされた `_partial-e2e.json` のパス)にシャードのレイアウトを教える。`<evalDir>/shards/*/_partial-e2e.json` を監視し、シャードのサブディレクトリをまたいでライブの進捗を集計する。
+
+**理由:** v1.63 のシャードのランナーは、各シャードに独自の eval のサブディレクトリを与える(シャードごとに、自分の前の結果とベースラインを比較できるように)。`findPreviousRun`、`eval-compare`、`eval-list`、`eval-summary` はシャードを認識するよう修正されたが、ライブのウォッチャーは意図的にフラットなままだった。そのため、シャードのある実行中は何も表示されない。
+
+**利点:** `eval:bg:gate` のシャードの実行中に、ライブの進捗が再び見られる。
+**欠点:** 複数ファイルの監視と集計の UI が必要。影響は小さい(実行の detach のログが、すでにシャードごとの結果を流している)。
+
+**背景:** `scripts/eval-watch.ts`。シャードのレイアウトは `scripts/test-paid-shards.ts` で定義(slug はテストのファイル名)。`test/helpers/eval-store.ts` の `listEvalJsonFiles` がすでにレイアウトを列挙しているので、再利用する。
+
+**工数:** S(人間: 約 2 時間、CC: 約 15 分)。**依存:** v1.63 の移植の波が着地していること。
+
+## v1.63 の移植の波のレビューのフォローアップ(/ship の review army から繰り延べ — ノンブロッキングの磨き上げ)
+
+v1.63 の出荷から、情報提供や磨き上げの性質のために繰り延べられた、本物のレビュー指摘。正しさを阻害するものではなく、いくつかは独自のテストを必要とするため、追跡されるように起票する。見失われないように。
+
+- **P2 — telemetry-sync の HTTP ステータスの結果がデッドコードになっている。** `_GSTACK_EGRESS_LAST_RECEIPT` は、`bin/gstack-telemetry-sync` のコマンド置換のサブシェルの中で設定される。そのため、HTTP ステータスをレシートに追記するはずの親シェルのガードが一度も発火しない。一般的な `exit:N` の結果は依然として記録されるため、台帳は正しいが、精度は低い。修正: `_receipted_curl` がレシートの ID を、呼び出し元が読める一時ファイルに保存する。あるいは、その呼び出しをサブシェルの外に出す。(3 人のレビュー専門家が確認。)
+- **P2 — コンテキストの請求の「TOTAL on disk」が、ルートがコンテナになっているツリーで、子のスキルを二重に数えている**(このリポジトリ自身のレイアウト)。`buildBill` は、ルートスキルのツリー全体の走査に、各子のサブツリーをもう一度加算する(TOTAL の行が約 2 倍になる)。ALWAYS-ON / EAGER / --diff / --budget はすべて影響を受けない。誤っているのは、情報提供用の TOTAL だけ。修正: 1 回の重複排除された `walkMd(root)` の走査からツリーの合計を計算する。あるいは、ルートスキルの `totalMd` から子のディレクトリを除外する。フィクスチャのテストが必要。(`lib/context-bill.ts`。)
+- **P3 — DRY と堅牢性の磨き上げ:** egress のシェルのシンクに散らばる約 11 か所の、URL からホストを取り出す手書きの処理を、1 つの共有の `_gstack_egress_host_of` ヘルパーにまとめる。`browse/src/server.ts` の重複したトンネルを開く `writeReceipt` のブロック(2 か所)を抽出する。egress レシートのロックのスピンの中で、反復ごとに `SharedArrayBuffer` を割り当てている処理を外に出す。context-bill の exact モードの `errorPct === 0` の番兵を、明示的なフラグに置き換える。`catalog-budget.test.ts` で、`skill-census.ts` の `frontmatterName()` を再利用する。
+- **P3 — テストのカバレッジの穴(監査で指摘):** `PAID_TEST_GLOBS` と `package.json` の `test:gate` の同等性のテスト。`GSTACK_EXTENSION_ID` と `manifest.json` の鍵の導出の同等性のテスト(`browse/scripts/extension-id.ts`)。各シャードの子が、`shards/<slug>` の下に独自の `GSTACK_EVAL_DIR` を得ることをアサートするランナーのテスト。supabase-provision、gbrain-sync、memory-ingest のレシート拒否の分岐のテスト。
+
+## P2: skill-e2e-plan-design-with-ui の PTY 検出を強化するか、ティアを再設定する
+
+**内容:** ゲート層の `test/skill-e2e-plan-design-with-ui.test.ts` は、v1.63 の `seedSkills` がハーミティックな PTY の子でスキルを登録するようになってから、初めて実行されるようになった(フォークはこのファイルを削除していた。以前は何も計測していなかった)。現在は確実にタイムアウトする。スキル自体は正しく動いているにもかかわらず。トランスクリプトは、`/plan-design-review` がスコープゲートの AskUserQuestion(5 つの選択肢、`<gstack-qid:plan-design-review-scope-gate>` のマーカーあり)に到達していることを示す。しかし、テストの `isNumberedOptionListVisible`/`parseNumberedOptions` のスクレイピングは、PTY のバッファから分類できない。スピナーのフレーム(`[?25l✻Sprouting… still thinking`)が、選択肢のテキストと 1 文字ずつ交互に入っているため。
+
+**理由:** 出荷された振る舞いは正しい。これはテストのハーネスの検出の限界であり、製品のバグではない。しかし、常にタイムアウトするゲートのテストは、テストがないより悪い。
+
+**修正の選択肢:** (a) テールのスクレイピングを強化する(一致の前に DEC のプライベートモードとスピナーの残りを取り除く。ウィンドウを広げるか、掃除する)、(b) LLM による判定のフォールバックを追加する(ファイルのコメントに、正規表現の検出器は「PTY の描画の癖に弱い」とある)、(c) (a)/(b) が入るまで、このテストを定期実行に移す。
+
+**背景:** `test/skill-e2e-plan-design-with-ui.test.ts`、`test/helpers/claude-pty-runner.ts:308`(`isNumberedOptionListVisible`)。証拠: `~/.gstack-dev/eval-runs/pdwu-verify-*.log`。**工数:** M(人間: 約半日、CC: 約 30 分)。
+
+### P3: 2026-08-14 のトラッカー監査の波からの残り(大部分は v1.67.0.0 で出荷済み)
+
+4 つの繰り延べられた波(A: browse デーモンのライフサイクル、B: インストールの整合性、C: gbrain の信頼の境界、D: ship/version のアロケーター)は、v1.67.0.0 の修正の波で着地した。XProtect の自己修復 + Playwright のバンプ + デーモン使用中の鉄則 + シグナルのポリシー(A)、エイリアスのシャドーイング + カーソルのスライス + ランタイムのアセット + Windows の更新(B)、ブレインの同期の処分モデル + ソースのピン留め + シンクライアントの検出(C)、バージョンのアロケーターの最終状態 + サブディレクトリのマニフェスト + 差分スコープの glob(D)。残っているものは、個別に起票し直す。
+
+- Watchdog がヘッドモードのハンドオフのセッションを強制終了する(PR 2565/2405/2346)。また browse/test/handoff.test.ts の darwin でスキップされている 3 つのハンドオフのテスト。v1.67 の XProtect と rebrand の作業で、それらのブロックが解消されたかを確認し、スキップを解除するか修正する。工数 S。
+- トランスクリプトの信頼・スコープ・ソースの分離(PR 2232、issue 2140)— 分割する。`transcript_ingest_mode` のリーダー(off はスキップ、B は --all-history、未設定は変更なし)は、移植の波 E1 で出荷される。リポジトリのスコープ設定と `--source-id` の分離は、二重保存しないことのレビューと、gbrain のフラグの調査が必要。E1 の後、ここへのポインターを添えて PR を閉じる。工数 M。
+- 移行先のないリポジトリのオンボーディング(#1474、issue 2343/2334)— JSON のバージョンパスの半分(#2501)は入ったが、バージョンファイルがまったくない場合のフローは入っていない。
+- Playwright のブートストラップの中断/タイムアウトの吸収(PR 2233/2359、issue 1902/2136)— 移植の波 A で完了: インストールはベストエフォートで、上限がある(GSTACK_PLAYWRIGHT_INSTALL_TIMEOUT、デフォルトは 600 秒)。ロックの競合は理由コードになる。スキルは常に登録される。#2233、#1900、#1901、#1902、#913 を、このレシート(test/setup-playwright-best-effort.test.ts)とともに閉じる。
+
+## Aside 優先のフォローアップ(Aside が主要なブラウザになったときに起票)
+
+Web ページに触れるすべての gstack のスキルは、まず Aside の AI ブラウザを駆動する(`scripts/resolvers/aside.ts` が契約。`lib/aside-render.ts` と `bin/gstack-render.ts` は、ローカルの HTML を Aside 経由でレンダリングする。`{{ASIDE_RESEARCH}}` は Aside を通じてウェブのリサーチを行う)。gstack 独自のブラウザエンジン — browse デーモン、GStack Browser のヘッドモード、クッキーのインポート、`/pair-agent`、ブラウザスキル/`/skillify` — は、Aside がインストールされていないか実行されていないとき(Linux、Windows、閉じた Aside のアプリ)の自動フォールバックとして残される。ウェブのリサーチは、ホストが提供していれば WebSearch ツールにフォールバックする。何も削除していない。残りの課題:
+
+### P1: Aside 優先のフォールバックの同等性 — `$B` の等価表を cookbook と同期させ続ける
+
+**内容:** フォールバックのブロック(ブラウザのリゾルバの `BROWSE_FALLBACK`)は、検証済みの `aside repl` の cookbook の各形(ページの読み取り、フローの操作、注釈付きスクリーンショット、レスポンシブなキャプチャ、リンクとステータス、パフォーマンス、PDF、要素のスクリーンショット、`aside exec` のリサーチ)を、対応する `$B` にマップする。そのため、スキルはどちらの経路でも同じ証拠の行を出せる。cookbook の形が追加、改名、または出力のラベル(`CONSOLE_ERRORS=`、`DIFF_START`、`ASIDE_DIR=`、`GSTACK_STEP_OK`)を変えるたびに、同じコミットで表を更新し、`test/aside-driver.test.ts` に、2 つのリストが同じ形を指していることを示すピンを追加する。
+
+**理由:** Aside の経路で `DIFF_START` を読むスキルが、フォールバックの経路では何も得られない場合、スキルは欠けている出力を盲目的に「修正」してしまう。同等性こそが、エンジンを残す目的。黙って生じるギャップは、フォールバックがないことより悪い。
+
+**工数:** 変更ごとに S(人間: 約半日、CC: 約 15 分)。**優先度:** P1。**依存:** なし。
+
+### P2: Aside CLI 1.26 には、Aside 自身のスキルのドキュメントに載っているサブコマンドがない
+
+**内容:** Aside のスキルのドキュメントには `session`、`memory`、`skills`、`host`、`--permission` が載っているが、Aside CLI 1.26 にはそのどれもない(`aside --help` で確認)。これらが出荷されるまで、スキルはそれらに依存してはならない。Aside のリリースのたびに再確認する。出荷されたら、複数スクリプトのフローには `session` を、変更を伴う操作の同意のゲートには `--permission` を評価する。
+
+**理由:** ドキュメントではなくバイナリを見て書かれたスキルは、実行時に未知のコマンドのエラーで落ち、エージェントはそれを盲目的に「修正」しようとする。
+
+**工数:** S(人間: 約半日、CC: 再確認 1 回あたり約 20 分)。**優先度:** P2。**依存:** Aside のリリース。
+
+### P2: Aside の E2E テストは、Aside がインストールされている場所でしか動かない
+
+**内容:** Aside だけの E2E の経路 — `test/skill-e2e-aside.test.ts`、Aside の qa/design のケース、`test/aside-render.test.ts` のライブレンダリング — は、`aside` がない場合は自分自身をスキップする(`test/helpers/aside-available.ts` の `asideAvailable()`)。そのため CI の Linux のランナーは、Aside を一度も駆動しない。make-pdf と /diagram のレンダリングのゲートは、すでに browse バイナリで CI 上で動いている。Aside の経路は macOS の開発マシンでしか動かない。
+Aside のレーンを、他の E2E のレーンと同じハーメティックな環境で、週次で実行する、セルフホストの macOS ランナー(または Mac mini でのスケジュールされたジョブ)を検討する。
+
+**Why:** 本番相当のブラウザ契約をCIで実行しないと、静かにずれていきます。`test/aside-driver.test.ts` が静的に固定しているのはまさにこの種類のものですが、ライブでの動作は証明できません。
+
+**Effort:** M(人間で約2日、CC で約1時間＋実機の確保)。**Priority:** P2。**Depends on:** Aside にサインイン済みの macOS ホスト。
+
+### P3: 複数ステップのフローに `aside mcp` を評価する
+
+**What:** `aside repl` は1スクリプトにつき1フローで、呼び出しごとに新しいセッションになり、終了時にタブは閉じられます。`aside mcp` なら REPL ページを呼び出しをまたいで保持できます。CLI が安定したら、MCP 経路によって長い QA 監査が(呼び出しごとの再ナビゲーションなしで)安くなるかを測定します。その際、「ブラウザを見つけた状態に戻す」という保証は失わないようにします。
+
+**Why:** スクリプトごとに URL から再ナビゲーションすることが、現在のモデルの正直なコストです。永続ページならこれを減らせますが、後始末が必要なセッションが1つ増えます。
+
+**Effort:** M(人間で約2日、CC で約1時間)。**Priority:** P3。**Depends on:** Aside CLI の安定。
+
+### P3: スキルが `aside exec` の出力を信頼しないことを検証する eval
+
+**What:** `aside exec "<task>"` は別のエージェントの回答を返します。`aside exec` の結果の中に指示を埋め込み、スキルがその文字列から構文を取るのか、それとも scope・権限・同意を取るのかを確かめる LLM 判定または E2E eval を追加します。
+
+**Why:** このルールは散文として書かれているだけで、同僚のように見える経路から注入された文章にスキルが従わないことを証明するものはまだありません。
+
+**Effort:** S(人間で約1日、CC で約30分)。**Priority:** P3。**Depends on:** 上記の Aside E2E レーン。
+
+### P1: make-pdf が実際のブラウザプロファイルの中でユーザー文書を描画する — CSP を追加する
+
+**What:** `/make-pdf` は markdown 由来の HTML を、`127.0.0.1` のオリジンで Aside(ユーザーがサインインしているブラウザ)経由で印刷します。悪意のある文書(クローンしたリポジトリの README など)とスクリプト実行の間を隔てているのは `make-pdf/src/render.ts` の正規表現サニタイザだけで、そのヘッダには marked の出力が不正な形になることはない、という前提が書かれています。しかし生の HTML がそのまま通ると、この前提は崩れます。gstack 独自の CSP `<meta>` を印刷テンプレートに注入します(`default-src 'none';
 img-src data: 'self'; style-src 'unsafe-inline' 'self'; font-src data: 'self';
-script-src 'nonce-<per-render>'` for Paged.js), since user `<meta>` is stripped
-and gstack's is not; alternatively keep make-pdf on the bundled engine by
-default.
+script-src 'nonce-<per-render>'` を Paged.js 向けに）。ユーザー側の `<meta>` は除去される一方で gstack のものは除去されないためです。代案として、make-pdf をデフォルトでは同梱のエンジンで動かし続ける方法もあります。
 
-**Why:** Under the old cookieless headless engine a sanitizer bypass was
-near-harmless; in the real profile it is a CSRF-class primitive. Cross-model
-finding (Claude adversarial + Codex).
+**Why:** 以前のクッキーなしのヘッドレスエンジンでは、サニタイザの突破はほぼ無害でした。実際のプロファイルでは、CSRF 系のプリミティブになります。Claude の敵対的レビューと Codex による、モデルをまたいだ指摘です。
 
-**Effort:** M (human ~2 days, CC ~1h). **Priority:** P1. **Depends on:** none.
+**Effort:** M(人間で約2日、CC で約1時間)。**Priority:** P1。**Depends on:** なし。
 
-### P1: diagram pre-pass buffers every oversized image before downscaling
+### P1: 図の前処理が、縮小する前に大きすぎる画像をすべてバッファリングする
 
-**What:** `make-pdf/src/diagram-prepass.ts` caps each image at 64 MB but keeps
-every pending buffer in `downscales` and duplicates it as base64 before the
-batch runs; a document referencing a few dozen large images can take gigabytes.
-Cap total pending bytes (e.g. 256 MB) and process in bounded batches, or
-downscale sequentially.
+**What:** `make-pdf/src/diagram-prepass.ts` は各画像を 64 MB で上限をかけていますが、保留中のバッファをすべて `downscales` に保持し、バッチを実行する前に base64 として複製します。大きな画像を数十個参照する文書は、ギガバイト単位のメモリを使うことがあります。保留中の合計バイト数に上限(例: 256 MB)を設けて有界なバッチで処理するか、順番に縮小してください。
 
-**Why:** A hostile or merely image-heavy document crashes the tool instead of
-degrading.
+**Why:** 悪意のある文書、あるいは単に画像が多い文書によって、ツールが劣化するのではなくクラッシュします。
 
-**Effort:** S (human ~1 day, CC ~30min). **Priority:** P1. **Depends on:** none.
+**Effort:** S(人間で約1日、CC で約30分)。**Priority:** P1。**Depends on:** なし。
 
-### P2: fallback renders die after any cookie import in the daemon's lifetime
+### P2: daemon の存続期間中に一度でもクッキーをインポートすると、フォールバックのレンダリングが失敗する
 
-**What:** `renderWithBrowse` drives readiness and evals through `$B js`, and the
-daemon's cookie-import JS lock (`browse/src/read-commands.ts`) refuses `js` on
-every origin outside the imported set — `127.0.0.1` included, forever (the set
-is add-only). The renderer now names the remedy (`$B stop`), but the real fix is
-a fresh incognito context for local-HTML renders, or a loopback exemption once
-its threat model is written down.
+**What:** `renderWithBrowse` は準備完了の確認と評価を `$B js` 経由で行いますが、daemon のクッキーインポート用 JS ロック(`browse/src/read-commands.ts`)は、インポートされたオリジン以外のすべてで `js` を拒否します。`127.0.0.1` も含まれ、しかもその集合は追加のみのため、永久に拒否されます。レンダラーは今や対処法(`$B stop`)を示していますが、本当の修正は、ローカル HTML のレンダリング用に新しいシークレットコンテキストを使うか、脅威モデルを文書化したうえでループバックを例外にすることです。
 
-**Why:** On Linux/Windows (no Aside) one `/setup-browser-cookies` run makes
-every later `/diagram` and `/make-pdf` render fail.
+**Why:** Linux/Windows(Aside がない環境)では、`/setup-browser-cookies` を一度実行すると、その後の `/diagram` と `/make-pdf` のレンダリングがすべて失敗するようになります。
 
-**Effort:** M (human ~2 days, CC ~1h). **Priority:** P2. **Depends on:** none.
+**Effort:** M(人間で約2日、CC で約1時間)。**Priority:** P2。**Depends on:** なし。
 
-### P2: carve the Aside contract + fallback block into one shared section
+### P2: Aside の契約とフォールバックのブロックを1つの共有セクションにまとめる
 
-**What:** `{{ASIDE_SETUP}}` (~5.6 KB) plus `{{BROWSE_FALLBACK}}` (~4.1 KB) are
-rendered verbatim into ten browsing skills (~97 KB of identical prose loaded on
-every invocation). Keep the probe and the three decision steps inline; move
-"Rules for driving a real browser" and the Aside-to-`$B` translation table into
-one carved reference (the `browse/sections/command-list.md` pattern), then
-re-run `capture-context-budget.ts` so the ceilings ratchet back down.
+**What:** `{{ASIDE_SETUP}}`(約 5.6 KB)と `{{BROWSE_FALLBACK}}`(約 4.1 KB)が、ブラウジングを行う 10 個のスキルにそのまま展開されています(同一の文章が約 97 KB、毎回の起動時に読み込まれます)。プローブと3つの判断ステップはインラインに残し、「実際のブラウザを操作するためのルール」と Aside から `$B` への変換表は、1つの分離された参照(`browse/sections/command-list.md` のパターン)に移します。その後 `capture-context-budget.ts` を再実行して、上限を引き下げてください。
 
-**Why:** Every skill invocation pays for prose that is skill-invariant.
+**Why:** スキルを呼び出すたびに、どのスキルでも変わらない文章のコストを払っています。
 
-**Effort:** M (human ~2 days, CC ~1h). **Priority:** P2. **Depends on:** none.
+**Effort:** M(人間で約2日、CC で約1時間)。**Priority:** P2。**Depends on:** なし。
 
-### P2: `$B js` / `$B eval` output is not wrapped in the untrusted envelope
+### P2: `$B js` / `$B eval` の出力が、信頼されていないエンベロープで包まれていない
 
-**What:** `js` and `eval` are not in `PAGE_CONTENT_COMMANDS`
-(`browse/src/commands.ts`), so page-controlled return values reach the agent
-unfenced while the fallback table routes exactly the page-controlled reads
-through them. `gstack-render` now fences its own `EVAL`/`PAGE_ERRORS` lines and
-the fallback prose says `$B js` is unwrapped; the durable fix is to add both
-commands to the envelope set.
+**What:** `js` と `eval` は `PAGE_CONTENT_COMMANDS`(`browse/src/commands.ts`)に含まれていないため、ページが制御する戻り値は囲みなしでエージェントに届きます。一方でフォールバックの表は、ページが制御する読み取りをまさにこの2つに振り分けています。`gstack-render` は自身の `EVAL`/`PAGE_ERRORS` の行を囲むようになり、フォールバックの文章も `$B js` は囲まれないと記述しています。根本的な修正は、この2つのコマンドをエンベロープの対象集合に加えることです。
 
-**Why:** A hostile page can deliver injection text through the one channel the
-skills were told is fenced.
+**Why:** 悪意のあるページは、スキルが囲まれていると教えられた経路を通じて、注入用の文章を届けられてしまいます。
 
-**Effort:** S (human ~half day, CC ~15min). **Priority:** P2. **Depends on:** none.
+**Effort:** S(人間で約半日、CC で約15分)。**Priority:** P2。**Depends on:** なし。
 
-### P3: Aside-first renderer follow-ups (perf and DRY)
+### P3: Aside 優先のレンダラーの後続作業(性能と DRY)
 
-- **Readiness polling** spawns a `browse js` process every 150 ms; the daemon's
-  `wait <sel>` command blocks server-side in one spawn — use it for
-  `waitFor.selector`. Effort S.
-- **Bundle re-staging:** every `runScript()` batch copies the ~9 MB diagram
-  bundle into a fresh mkdtemp and starts a new loopback server; stage once per
-  run (content-addressed) and, on the browse engine, keep one tab across the
-  fence/downscale/DOCX batches. Effort M.
-- **Probe cost:** `probeAside()` runs two blocking spawns per process and the
-  engine cache is per-process; persist the outcome with a short TTL under
-  `GSTACK_HOME` and lower the repl probe timeout on the code path. Effort S.
-- **DRY:** the console-error `HOOK` IIFE exists in seven copies across
-  `scripts/resolvers/*.ts` and `lib/aside-render.ts` (two divergent variants);
-  cookbook recipes (responsive loop, links, read-a-page) are duplicated across
-  `aside.ts`, `design.ts`, `utility.ts`; the readiness probe is recovered from
-  rendered markdown by regex in two places instead of a shared constant. Export
-  one source for each. Effort S each.
-- **Egress scanner:** `test/egress-receipt-wiring.test.ts` scans `curl`, `git
-  push`, and `fetch`; add `aside exec` as a sink class so a bare call fails CI
-  the way the others do. Effort S.
-- `_browser_hint` treats any `aside` on PATH as the Aside browser (no version
-  check). Effort S.
-- **`gen-skill-docs --dry-run` is not write-free for external hosts:**
-  `processExternalHost` runs `mkdirSync(outputDir)` and writes
-  `agents/openai.yaml` with no `DRY_RUN` guard (only SKILL.md is skipped), so a
-  dry run against an empty `--out-dir` leaves 54 `openai.yaml` files behind.
-  Guard both writes. Effort S.
+- **Readiness のポーリング** は 150 ms ごとに `browse js` プロセスを起動しています。daemon の `wait <sel>` コマンドはサーバー側でブロックし、1回の起動で済むので、`waitFor.selector` にはそちらを使ってください。Effort S。
+- **バンドルの再ステージング:** `runScript()` のバッチごとに、約 9 MB の図用バンドルを新しい mkdtemp にコピーし、新しいループバックサーバーを立ち上げています。実行ごとに1回だけステージし(内容アドレス指定)、browse エンジンでは fence/downscale/DOCX のバッチをまたいで1つのタブを保持してください。Effort M。
+- **プローブのコスト:** `probeAside()` はプロセスごとに2回のブロッキングな起動を行い、エンジンのキャッシュもプロセス単位です。結果を `GSTACK_HOME` 配下に短い TTL で保存し、コードパス上の repl プローブのタイムアウトを下げてください。Effort S。
+- **DRY:** コンソールエラー用の `HOOK` IIFE が `scripts/resolvers/*.ts` と `lib/aside-render.ts` に7つのコピーとして存在し(うち2つは内容が食い違っています)、クックブックのレシピ(レスポンシブのループ、リンク、ページの読み取り)が `aside.ts`、`design.ts`、`utility.ts` に重複しています。さらに、readiness プローブは2か所で正規表現によって描画済み markdown から取り出されており、共有の定数になっていません。それぞれについて1つのソースに集約してください。各 Effort S。
+- **Egress スキャナ:** `test/egress-receipt-wiring.test.ts` は `curl`、`git push`、`fetch` をスキャンしています。`aside exec` をシンクの種類として追加し、素の呼び出しが他と同じように CI で失敗するようにしてください。Effort S。
+- `_browser_hint` は PATH 上の `aside` をすべて Aside ブラウザとみなします(バージョン確認なし)。Effort S。
+- **`gen-skill-docs --dry-run` は外部ホストに対して書き込みなしではない:** `processExternalHost` は `mkdirSync(outputDir)` を実行し、`agents/openai.yaml` を `DRY_RUN` のガードなしで書き込みます(スキップされるのは SKILL.md だけ)。そのため、空の `--out-dir` に対してドライランを行うと、54 個の `openai.yaml` が残ります。両方の書き込みにガードを入れてください。Effort S。
 
-**Priority:** P3. **Depends on:** none.
+**Priority:** P3。**Depends on:** なし。
 
-### P3: fix wave 3 follow-ups (filed 2026-10-17)
+### P3: wave 3 の後続作業(2026-10-17 登録)
 
-- **`qa-quick` has little headroom under its 300 s capture** — paid gate run
-  38980005793 timed out at 300 s (12 turns) while passing runs in the same
-  window took 164–272 s (median about 210 s). Before its first guarded probe the
-  agent loaded qa/SKILL.md (50.4 KB, read with `cat` and paged with `sed`) and
-  read scope, browser-setup, exploratory, qa-patterns and test-bootstrap. One
-  occurrence, kept visible rather than repaired: the cause-level option is to
-  trim what the Quick tier must load (test-bootstrap is not needed for a Quick
-  read-only run), which is a product call. Raising the capture budget is out of
-  scope (EVAL_POLICY). Owner Garry; revisit with the next qa-quick red.
-  **Effort:** S. **Priority:** P3.
+- **`qa-quick` の 300 秒のキャプチャに対する余裕がわずか:** 有償ゲートの実行 38980005793 は 300 秒でタイムアウトしました(12 ターン)。同じ時間帯で成功した実行は 164〜272 秒(中央値は約 210 秒)でした。最初の保護されたプローブの前に、エージェントは qa/SKILL.md(50.4 KB、`cat` で読み込み `sed` でページ送り)を読み、scope、browser-setup、exploratory、qa-patterns、test-bootstrap を読んでいました。発生は1回で、修復せず目に見える形で残しています。原因レベルの選択肢は、Quick 層が読み込むものを削ることです(Quick の読み取り専用実行には test-bootstrap は不要)。ただしこれはプロダクト上の判断事項です。キャプチャ予算の引き上げは範囲外です(EVAL_POLICY)。担当は Garry。次に qa-quick が赤くなったときに再検討します。
+  **Effort:** S。**Priority:** P3。
 
-### P1–P2: fix wave 2 follow-ups (filed 2026-10-15)
+### P1–P2: wave 2 の後続作業(2026-10-15 登録)
 
-From the free-suite health wave (flaky-pass fixes, #3154 seed refresh). Owner
-Garry for each; revisit 2026-10-29 unless a date says otherwise.
+無料テストスイートの健全性の取り組み(フレーキーな通過の修正、#3154 のシード更新)からの後続作業です。各項目の担当は Garry。特に日付の指定がない限り、2026-10-29 に再検討します。
 
-- **`gstack-next-version` fetches claimed slots one PR at a time** —
-  `GH_API_CONCURRENCY = 10` (bin/gstack-next-version:90), but its async workers
-  call `spawnSync`, so the per-PR `gh api` calls run serially: 8 stubbed PRs at
-  0.5 s each took 4160 ms instead of about 500 ms (4108 ms on a rerun), and 27
-  open PRs at about 1.2 s each pass the 30 s that callers allow, which is how the
-  old live smoke test failed. Every `/ship` slot allocation pays this. Fix:
-  async spawn with bounded overlap, verified by a delayed fake `gh`. Changing the
-  CLI selects 108 paid cases and 24 judges, so it ships as its own priced PR on
-  Garry's call. **Effort:** S. **Priority:** P1.
-- **Standing Linux duration-seed recorder** — the seed refresh in this wave
-  keeps CEO-10 green for days, not weeks: main gains about 15 free test files a
-  day against a limit of 5 unseeded, so the weekly health run goes red again
-  until a recorder lands. Design: a scheduled `free-durations-record.yml` that
-  records on the standard runner and updates one seed PR before the Monday
-  health run, or the `free-plan` job consuming the latest recording artifact once
-  #3190 (owner of `free-tests.yml`) lands. Agree the design with the owner of
-  `free-tests.yml` before 2026-10-29. **Effort:** M. **Priority:** P1.
-- **PR full-fallback and recorded spend (audit next step)** — 2026-10-15:
-  full-fallback 45.9% of PR runs, $73.52 recorded PR-lane spend per merged PR,
-  push-to-verdict p50 11.4 min (target 3–5 min). The pre-change spend baseline
-  was never recorded, so the 50% reduction verdict is unavailable
-  (docs/test-audit-2026-10.md, "Post-merge follow-up"). Next step, from the
-  audit's selection replay: touchfile mappings for `bin/`, `lib/`, `hosts/` and
-  `make-pdf/`, so a branch touching them stops selecting every case. Candidate
-  headline for the next wave. **Effort:** M. **Priority:** P1.
-- **Free flaky-pass target follow-ups (2026-10-22 and 2026-10-29)** — read
-  main's `flake-ledger-*` artifacts (`bun run test:health --since-days 7`) and
-  check the free-suite flaky-pass rate is under 5% of main runs; a file still in
-  the ledger gets a named cause or a new entry here. **Effort:** S. **Priority:** P1.
-- ~~**`createQAFunctionalFixture` sets git auto-maintenance off itself**~~ —
-  done in v1.91.107.0 (0bf9d50, #3190): test/helpers/qa-functional-fixture.ts
-  sets `gc.auto 0` and `maintenance.auto false` on its repos, as
-  test/helpers/qa-callers-fixture.ts does; no recurrence of the
-  `.git/objects` watch loss after it (fix wave 3 triage, W3-13). Original
-  note: — its repos inherit the free runner's backstop keys in CI, but a direct
-  `bun test` run still races `.git/objects/maintenance.lock` during observer
-  setup. **Effort:** S. **Priority:** P2.
-- **Nested `bun test` output pollutes free-runner failure attribution** (fix
-  wave 3, D6) — windows-free-tests run 39053431430 (shard 5): a free test that
-  spawns a nested `bun test` echoes the child's `(fail) Review Army: Red Team >
-  (unnamed)` line on failure, and scripts/lib/shard-engine.ts attributed it to
-  the child's temporary file (`redteam.test.ts`), so the shard reported
-  "flaky-retry skipped: failures not fully attributed" instead of retrying the
-  real file. Ignore or prefix nested child result lines when attributing
-  failures, with a free test that feeds the captured shard log through the
-  attribution. **Effort:** S. **Priority:** P2.
-- **`test:ubicloud --diagnostic` cannot give clean counts for two ledger
-  shards** — `ship-measure free` reruns set a private `HOME` under `/tmp` and
-  `GSTACK_STATE_ROOT`, so `browse/test/path-validation.test.ts` (its upload
-  fixture builds an "outside" directory under `os.userInfo().homedir`, which
-  Bun takes from `HOME`) and `browse/test/pair-agent-tunnel-eval.test.ts` (its
-  denial log follows the inherited state root, not its fake `HOME`) fail 30/30
-  in diagnostic mode while passing in the normal suite. Ledger shards that hold
-  them can never report `passed = n`. **Effort:** S. **Priority:** P2.
-- **`test/plan-seed-submission.test.ts` reads its fake CLI's events after a
-  fixed 50 ms sleep** — "actual PTY launcher carries placeholder styling into
-  owned seed submission: xterm-256color" sends `/plan-eng-review\r`, sleeps
-  50 ms and expects the `slash` event already in `events.jsonl`; under the
-  16-worker duration recording on 2026-10-15 the event had not landed
-  (`['paste', 'enter', 'end_turn']`). Wait for the CLI's own write instead of a
-  timer (docs/TESTING_INTERNALS.md#flake-ledger). **Effort:** S. **Priority:** P2.
-- **Split the free files the weekly seed puts over 60 s** —
-  `test/setup-install-registry.test.ts` (84 s), `test/brain-sync.test.ts` (89 s)
-  and `test/setup-codex-scope.test.ts` (64 s) are allowlisted with this todo in
-  `scripts/free-test-seed-allowlist.json` (2026-10-19 recording);
-  `test/host-renders-prune.test.ts` (57 s) and
-  `test/setup-codex-scope-namespaces.test.ts` are next. Split
-  each by describe block, rerun `bun run test:ubicloud --record-durations` and
-  delete the entries. **Effort:** S each. **Priority:** P2.
+- **`gstack-next-version` は確保済みスロットを1件ずつ取得している:** `GH_API_CONCURRENCY = 10`(bin/gstack-next-version:90)ですが、非同期ワーカーが `spawnSync` を呼ぶため、PR ごとの `gh api` 呼び出しは直列に実行されます。スタブの PR 8件(それぞれ 0.5 秒)で 4160 ms かかり、本来の約 500 ms ではありません(再実行では 4108 ms)。また、呼び出し側が許容する 30 秒の中に、オープン中の PR 27件(それぞれ約 1.2 秒)は収まりません。古いライブ smoke テストが失敗していたのはこのためです。`/ship` のスロット割り当てのたびに、このコストが発生しています。修正案は、有界な重なりを持つ非同期 spawn で、遅延する偽の `gh` で検証します。CLI を変えると有償ケースが 108 件、判定者が 24 件選ばれるため、有償の PR として独立して出し、Garry の判断に委ねます。**Effort:** S。**Priority:** P1。
+- **無料テストの継続的な所要時間シードの記録** — この波でのシード更新により、CEO-10 は数週間ではなく数日の間は緑のままです。main には 1 日あたり約 15 件の無料テストファイルが増えていて、シードされていないファイルの上限は 5 件です。そのため、記録機能が入るまで毎週のヘルス実行はまた赤くなります。設計案は、定期実行の `free-durations-record.yml` を標準ランナーで記録し、月曜のヘルス実行の前にシード PR を 1 件更新する方式か、#3190(`free-tests.yml` の所有者)が入った後に、`free-plan` ジョブが最新の記録アーティファクトを使う方式です。2026-10-29 までに `free-tests.yml` の所有者と設計に合意してください。**Effort:** M。**Priority:** P1。
+- **PR のフルフォールバックと記録された支出(監査の次の段階)** — 2026-10-15 時点: PR 実行の 45.9% がフルフォールバックになっており、マージされた PR 1 件あたりの記録済み PR レーンの支出は $73.52、プッシュから判定までの p50 は 11.4 分(目標は 3〜5 分)です。変更前の支出の基準値は記録されていなかったため、50% 削減という判定は下せません(docs/test-audit-2026-10.md の「Post-merge follow-up」)。監査の選択のリプレイから得られる次の段階は、`bin/`、`lib/`、`hosts/`、`make-pdf/` のタッチファイル対応づけを作ることです。これにより、これらに触れるブランチが全ケースを選ばなくなります。次のウェーブの主要な候補です。**Effort:** M。**Priority:** P1。
+- **無料テストの flaky 通過率の目標に関する後続作業(2026-10-22 と 2026-10-29)** — main の `flake-ledger-*` アーティファクト(`bun run test:health --since-days 7`)を読み、無料テストスイートの flaky 通過率が main の実行の 5% 未満であることを確認します。台帳に残っているファイルには、名前のついた原因か、ここの新しいエントリを付けてください。**Effort:** S。**Priority:** P1。
+- ~~**`createQAFunctionalFixture` が git の auto-maintenance を自分で無効にする**~~ — v1.91.107.0(0bf9d50、#3190)で完了。test/helpers/qa-functional-fixture.ts は、test/helpers/qa-callers-fixture.ts と同様に、自身のリポジトリで `gc.auto 0` と `maintenance.auto false` を設定します。この後、`.git/objects` の監視が失われる再発はありません(wave 3 のトリアージ、W3-13)。元のメモ: CI では、そのリポジトリは無料ランナーのバックストップのキーを継承しますが、直接の `bun test` 実行では、オブザーバーのセットアップ中に `.git/objects/maintenance.lock` と競合します。**Effort:** S。**Priority:** P2。
+- **ネストされた `bun test` の出力が、無料ランナーの失敗の帰属を汚染する**(fix wave 3、D6)— windows-free-tests の実行 39053431430(shard 5)では、無料テストが子の `bun test` をネストして起動し、失敗時に子の `(fail) Review Army: Red Team > (unnamed)` という行を出力しました。scripts/lib/shard-engine.ts はこれを子の一時ファイル(`redteam.test.ts`)に帰属させたため、シャードは本来のファイルを再試行せず、「flaky-retry skipped: failures not fully attributed」と報告しました。失敗の帰属を行う際に、ネストされた子の結果行を無視するか接頭辞を付けてください。取得したシャードのログをこの帰属に通す無料テストも追加します。**Effort:** S。**Priority:** P2。
+- **`test:ubicloud --diagnostic` が、台帳にある2つのシャードのクリーンな件数を出せない** — `ship-measure free` の再実行は、`/tmp` 配下に非公開の `HOME` と `GSTACK_STATE_ROOT` を設定します。このため、`browse/test/path-validation.test.ts`(アップロードのフィクスチャは `os.userInfo().homedir` 配下に「外部」ディレクトリを作りますが、Bun はそれを `HOME` から取得します)と `browse/test/pair-agent-tunnel-eval.test.ts`(拒否ログは偽の `HOME` ではなく、継承された状態ルートに従います)は、診断モードでは 30/30 で失敗します。通常のスイートでは通過します。これらを含む台帳のシャードは、`passed = n` を報告できません。**Effort:** S。**Priority:** P2。
+- **`test/plan-seed-submission.test.ts` は、偽の CLI のイベントを固定の 50 ms スリープの後に読んでいる** — 「actual PTY launcher carries placeholder styling into owned seed submission: xterm-256color」は `/plan-eng-review\r` を送信し、50 ms スリープして、`events.jsonl` にすでにあるはずの `slash` イベントを期待します。2026-10-15 の 16 ワーカーでの所要時間記録中には、そのイベントはまだ書き込まれていませんでした(`['paste', 'enter', 'end_turn']`)。タイマーではなく、CLI 自身の書き込みを待つようにしてください(docs/TESTING_INTERNALS.md#flake-ledger)。**Effort:** S。**Priority:** P2。
+- **毎週のシードで 60 秒を超える無料ファイルを分割する** — `test/setup-install-registry.test.ts`(84 秒)、`test/brain-sync.test.ts`(89 秒)、`test/setup-codex-scope.test.ts`(64 秒)は、`scripts/free-test-seed-allowlist.json` でこの TODO とともに許可リストに載っています(2026-10-19 の記録)。`test/host-renders-prune.test.ts`(57 秒)と `test/setup-codex-scope-namespaces.test.ts` が次に続きます。それぞれ describe ブロック単位で分割し、`bun run test:ubicloud --record-durations` を再実行して、エントリを削除してください。**Effort:** 各 S。**Priority:** P2。

@@ -12,7 +12,7 @@ import { ALL_HOST_CONFIGS } from '../hosts';
 import { expectMentions, expectTokens } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-const TEMP = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-outside-preflight-'));
+const TEMP = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-outside-preflight-')));
 afterAll(() => fs.rmSync(TEMP, { recursive: true, force: true }));
 
 test('adversarial outside failures retain the required native pass without duplicate dispatch', () => {
@@ -20,24 +20,24 @@ test('adversarial outside failures retain the required native pass without dupli
     for (const skillName of ['ship', 'review']) {
       const ctx: TemplateContext = { host: host.name, skillName, tmplPath: `${skillName}/SKILL.md.tmpl`, paths: HOST_PATHS[host.name] };
       const preflight = outsideVoicePreflight(ctx, { disabledBehavior: 'codex-only' });
-      expect(preflight).toMatch(/(?:do not dispatch a duplicate|without duplicating it)/);
+      expectMentions(preflight, [['重複', '維持']], 'preflight');
       expect(preflight).not.toMatch(/fall(?:ing)? back to (?:a|the) .*subagent/i);
       const output = generateAdversarialStep(ctx);
-      expect(output).toContain('adversarial subagent (always runs)');
-      expectMentions(output, [['do not', 'dispatch', 'retain']], 'output');
-      expect(output.match(/Retain the required native pass without duplicating it; it cannot complete outside coverage\./g)).toHaveLength(2);
+      expect(output).toContain('敵対的サブエージェント(常に実行)');
+      expectMentions(output, [['維持', '重複']], 'output');
+      expect(output.match(/必須のネイティブパスは重複させずに維持します/g)).toHaveLength(2);
       expect(output).not.toContain("Use the caller's fallback");
-      expectMentions(output, [['only', 'non-blocking', 'adversarial']], 'output');
+      expectMentions(output, [['ブロックしない', '敵対的', 'だけ']], 'output');
       expect(output).toContain('GATE: MISSING COVERAGE');
       // C2: the gate names what missing coverage does instead of an unnamed "existing user decision flow".
-      if (output.includes('Only a completed response with severity tags')) {
-        expect(output).toContain('→ GATE: MISSING COVERAGE; no fix question.');
-        expect(outsideVoiceInvocation(ctx)).toContain('missing coverage is never clean/PASS');
+      if (output.includes('ゲートが成立するのは')) {
+        expectMentions(output, [['GATE: MISSING COVERAGE'], ['修正の質問', 'しません']], 'output');
+        expectMentions(outsideVoiceInvocation(ctx), [['カバレッジの欠落', 'クリーン', 'PASS', '決して']], 'invocation');
         expect(output).not.toContain('preserve the existing user decision flow');
       }
-      expect(outsideVoiceInvocation(ctx)).toContain("Use the caller's fallback; missing coverage is never clean/PASS.");
+      expectMentions(outsideVoiceInvocation(ctx), [['呼び出し元', 'フォールバック']], 'invocation');
       const disabled = outsideVoicePreflight(ctx, { disabledBehavior: 'skip-all' });
-      expect(disabled).toMatch(/(?:do NOT fall back|Disabled ends this entire extra review step)/);
+      expectMentions(disabled, [['disabled', 'レビュー', 'ステップ']], 'disabled');
     }
   }
 });
@@ -49,7 +49,7 @@ test('ship design-lite honors codex_reviews like every other opt-in caller (#310
     expect(output).not.toContain('No additional opt-in is needed');
     expect(output).not.toContain('_OUTSIDE_CFG=enabled');
     expect(output).toContain('get --stored codex_reviews');
-    expect(output).toContain("`CODEX_MODE: disabled` or a send's `consent_missing` line: `codex_reviews` is off or unreadable; do not ask; record `outside_status: disabled`.");
+    expectMentions(output, [['`CODEX_MODE: disabled`', 'consent_missing'], ['尋ねず', 'outside_status: disabled']], 'output');
     const other = outsideVoicePreflight({ ...ctx, skillName: 'review' }, { disabledBehavior: 'opt-in' });
     expect(other).not.toContain('_OUTSIDE_CFG=enabled');
     expect(output.match(/```bash\n([\s\S]*?)\n```/)![1]).toBe(other.match(/```bash\n([\s\S]*?)\n```/)![1]);
@@ -65,39 +65,40 @@ test('CEO and Eng describe the actual disabled route and completion validator', 
       if (skillName === 'plan-ceo-review') {
         expectTokens(output.replace(/\s+/g, ' '), ['`disabled`'], 'output.replace(/\s+/g,  )');
         expect(output).toContain('"outside_status":"disabled"');
-      } else expect(output).toContain('persist `outside_status: disabled` with the guarded');
+      } else expectMentions(output, [['outside_status: disabled', 'ガード']], 'output');
       const promptEnd = output.indexOf('\n<plan content>"');
       const prompt = output.slice(output.lastIndexOf('\n"', promptEnd) + 1, promptEnd);
       expect(prompt.startsWith('"')).toBe(true);
       expect(prompt.split('\n')[0]).toContain('.claude/skills/');
-      expect(prompt).toContain('End with Recommendation: <action> because <specific reason>');
-      expectMentions(prompt, [['no', 'findings', 'explain']], 'prompt');
+      expect(prompt).toContain('Recommendation: <action> because <specific reason>');
+      expectMentions(prompt, [['所見がない', '説明']], 'prompt');
       const invocation = outsideVoiceInvocation(ctx);
-      expect(invocation).toContain('missing Recommendation: <action> because <reason> markers');
+      expectMentions(invocation, [['Recommendation: <action> because <reason>', 'マーカー', '欠落']], 'invocation');
       expect(invocation).not.toContain('score/severity/completion');
       if (skillName === 'plan-eng-review') {
-        const routing = output.slice(output.indexOf('**Outcome routing:**'), output.indexOf('**Disabled is a terminal branch'));
-        expect(routing).toMatch(/\| Disabled \|[^\n]*No prompt, outside process or native replacement\./);
-        expect(routing).toMatch(/\| Other preflight mode, including harness mismatch \|[^\n]*Native fallback\./);
-        expect(routing).toMatch(/\| Outside execution or output validation fails \|[^\n]*finish termination, then use Native fallback\./);
-        expect(routing).toMatch(/\| Native fallback unavailable or fails \|[^\n]*No clean-review credit\./);
-        const fallback = output.slice(output.indexOf('**Native fallback'), output.indexOf('Dispatch via the Agent tool'));
-        expectMentions(fallback.replace(/\s+/g, ' '), [['no', 'immediately', 'replacement']], 'fallback.replace(/\s+/g,  )');
-        const bounded = output.slice(output.indexOf('**Bounded outside-voice wait'), output.indexOf('**Cross-model tension:**'));
-        expectMentions(bounded, [['never', 'supplies', 'coverage']], 'bounded');
-        expect(output).toContain('A completed native fallback uses SOURCE=in-host, OUTSIDE_STATUS=unavailable, and STATUS=clean or issues_found from its findings');
-        expect(output).toContain('"unavailable" if neither reviewer completed');
-        expectMentions(output, [['never', 'coverage', 'missing']], 'output');
+        const routing = output.slice(output.indexOf('**Outcome routing:**'), output.indexOf('**disabled は、このセクションの終端の分岐です。**'));
+        const rows = routing.split('\n').filter(line => line.startsWith('| ') && !line.startsWith('| ---'));
+        expect(rows).toHaveLength(7);
+        expectMentions(rows[1]!, [['プロンプト', '外部プロセス', '代替']], 'row Disabled');
+        expectMentions(rows[3]!, [['Native fallback']], 'row other preflight mode');
+        expectMentions(rows[4]!, [['終了処理', 'Native fallback']], 'row execution failure');
+        expectMentions(rows[6]!, [['Native fallback'], ['クリーンなレビュー', 'しません']], 'row fallback unavailable');
+        const fallback = output.slice(output.indexOf('**Native fallback'), output.indexOf('**Bounded outside-voice wait'));
+        expectMentions(fallback.replace(/\s+/g, ' '), [['disabled', '代替', '行いません']], 'fallback.replace(/\s+/g,  )');
+        const bounded = output.slice(output.indexOf('**Bounded outside-voice wait'), output.indexOf('**Cross-model tension(モデル間の緊張関係):**'));
+        expectMentions(bounded, [['ネイティブ', '外部カバレッジ', '補う']], 'bounded');
+        expectMentions(output, [['SOURCE=in-host', 'OUTSIDE_STATUS=unavailable', 'issues_found']], 'output');
+        expectMentions(output, [['"unavailable"', 'どちらのレビュアーも完了しなかった']], 'output');
+        expectMentions(output, [['カバレッジの欠落', 'クリーンなレビュー', '数えてはいけません']], 'output');
         // Compact prose must retain the actual wrong-harness execution guard.
         expect(invocation).toContain('exit 78');
         expect(invocation.indexOf('exit 78')).toBeLessThan(invocation.indexOf('_OUTSIDE_TMP=$(mktemp'));
       } else {
         const prose = output.replace(/\s+/g, ' ');
-        const fallback = prose.slice(prose.indexOf('**Native fallback —'), prose.indexOf('Dispatch via the Agent tool'));
-        expectMentions(fallback, [['before', 'immediately', 'dispatch']], 'fallback');
-        expect(fallback).toContain('`CODEX_MODE: disabled`, return to **Record the disabled outcome** without dispatching');
-        expectMentions(prose, [['never', 'replacement', 'rechecks']], 'prose');
-        expectMentions(prose, [['never', 'supplies', 'coverage']], 'prose');
+        const fallback = prose.slice(prose.indexOf('**Native fallback —'), prose.indexOf('**Bounded outside-voice wait'));
+        expectMentions(fallback, [['ディスパッチの直前', '再確認']], 'fallback');
+        expectMentions(fallback, [['`CODEX_MODE: disabled`', 'Record the disabled outcome', 'ディスパッチせず']], 'fallback');
+        expectMentions(prose, [['ネイティブ', '外部カバレッジ', '補う']], 'prose');
         expect(invocation).toContain('exit 78');
         expect(invocation.indexOf('exit 78')).toBeLessThan(invocation.indexOf('_OUTSIDE_TMP=$(mktemp'));
       }
@@ -118,18 +119,19 @@ describe('own-harness review fallback instructions', () => {
         const preflight = text.match(/```bash\n([\s\S]*?)\n```/)![1];
         expect(preflight).toContain(mode);
         expect([...new Set(text.match(/under_codex|under_current_harness/g))]).toEqual([mode]);
-        expect(text.includes("retain the section's native pass if defined")).toBe(false);
-
-        const fallback = text.slice(text.indexOf('**Native fallback'), text.indexOf('Dispatch via the Agent tool'));
-        const ownHarnessBranch = `On \`CODEX_MODE: ${mode}\``;
+        
+        const fbStart = text.indexOf('**Native fallback');
+        const fbEnd = text.indexOf('**Bounded outside-voice wait', fbStart);
+        const fallback = text.slice(fbStart, fbEnd > 0 ? fbEnd : text.indexOf('\n**', fbStart + 5));
+        const ownHarnessBranch = `\`CODEX_MODE: ${mode}\``;
         expect(text.split(ownHarnessBranch)).toHaveLength(2);
         expect(fallback).toContain(ownHarnessBranch);
         expect(fallback).toContain('`outside_status: unavailable`');
-        expect(fallback).toContain('run no outside CLI');
-        expect(fallback).toContain('use the native subagent below');
-        expectMentions(fallback, [['never', 'supplies', 'coverage']], 'fallback');
-        expectMentions(fallback, [['never', 'disabled', 'fallback']], 'fallback');
-        expect(fallback).toContain('`CODEX_MODE: disabled`, finish this section with `outside_status: disabled`;');
+        expectMentions(fallback, [['外部 CLI', '実行せず']], 'fallback');
+        expectMentions(fallback, [['ネイティブ', 'サブエージェント']], 'fallback');
+        expectMentions(fallback, [['ネイティブ', '外部カバレッジ', '補う']], 'fallback');
+        expectMentions(fallback, [['disabled', 'フォールバック', '到達']], 'fallback');
+        expectMentions(fallback, [['`CODEX_MODE: disabled`', 'outside_status: disabled']], 'fallback');
       });
     }
   }

@@ -46,12 +46,18 @@ import { skillCensus } from './helpers/skill-census';
  * New-skill ratchet: previous ceiling 1,194 + ceil(10 / 4) = 1,197
  * token-equivalents (4,788 bytes), leaving 2 bytes. Existing descriptions
  * are unchanged.
+ *   ref     日本語化(2026-10-28)
+ *   result  説明文を日本語に翻訳したことで、UTF-8 では 1 文字 3 バイトになり、
+ *           集計が 4,788 バイトから 5,899 バイト = 1,475 token-equivalents に
+ *           増加(英語版の約 1.23 倍)。スキル数と説明の文数は変えていない。
+ * 日本語版の上限: 1,475 token-equivalents(5,900 バイト)、余裕 1 バイト。
  */
-const CATALOG_BUDGET_TOKEN_EQUIVALENTS = 1_197;
+const CATALOG_BUDGET_TOKEN_EQUIVALENTS = 1_475;
 
-// Largest today: design-consultation at 229 bytes. A description that needs
-// more than 260 bytes is a body paragraph, not a catalog entry.
-const PER_SKILL_BYTE_CAP = 260;
+// Largest today: design-consultation at 329 bytes (日本語版。英語版は 229 バイト、
+// 上限 260)。A description that needs more than 340 bytes is a body paragraph,
+// not a catalog entry.
+const PER_SKILL_BYTE_CAP = 340;
 
 const RATCHET_PROTOCOL =
   'Adding a skill? Re-measure with: bun test test/catalog-budget.test.ts ' +

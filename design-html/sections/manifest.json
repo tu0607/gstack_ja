@@ -8,19 +8,19 @@
       "id": "doctrine",
       "file": "doctrine.md",
       "title": "UX principles doctrine (how users actually behave)",
-      "trigger": "analyzing the design or making any layout/visual decision (Step 1 onward) — the UX-principles doctrine governs every design choice"
+      "trigger": "デザインの分析、またはレイアウト・ビジュアルの判断(Step 1 以降。UX 原則の教義がすべてのデザイン判断を支配する)"
     },
     {
       "id": "pretext-patterns",
       "file": "pretext-patterns.md",
       "title": "Pretext wiring patterns + API reference",
-      "trigger": "writing the finalized HTML in Step 3 — the Pretext wiring patterns and API cheatsheet are the required reference for all text-layout code"
+      "trigger": "Step 3 での最終 HTML の記述(Pretext の配線パターンと API チートシートが、すべてのテキストレイアウトコードの必須リファレンス)"
     },
     {
       "id": "detector-install-offer",
       "file": "detector-install-offer.md",
       "title": "Design detector install offer (one question, asked once)",
-      "trigger": "the Setup probe printed DESIGN_DETECTOR_INSTALL_OFFER — ask the user once whether gstack may download impeccable's engine (checksum-pinned, receipted) before any other step"
+      "trigger": "Setup プローブが DESIGN_DETECTOR_INSTALL_OFFER を出力した場合の対応(ほかのステップより前に、gstack が impeccable のエンジン(チェックサム固定、記録付き)をダウンロードしてよいかをユーザーに 1 回だけ尋ねる)"
     }
   ]
 }

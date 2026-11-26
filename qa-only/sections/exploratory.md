@@ -1,107 +1,106 @@
 <!-- AUTO-GENERATED from exploratory.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-# Shared exploratory QA
+# Shared exploratory QA(共有の探索的 QA)
 
-The **caller** (/qa, /qa-only, /review or /ship) owns decisions, tests, fixes and publication. Discovery writes only reports/evidence
-and owned fixture state; no workflows, framework installs or publication.
+**呼び出し元**(/qa、/qa-only、/review、/ship)が、判断、テスト、修正、公開を担います。探索が書き込むのはレポート/証拠
+と、自分が所有するフィクスチャの状態だけです。ワークフロー、フレームワークのインストール、公開は行いません。
 
-## 0. Preparation gate
+## 0. Preparation gate(準備ゲート)
 
-Complete these Reads in order before writing charters or probing:
-1. Read `sections/scope.md` relative to the installed `qa`/`gstack-qa` SKILL.md directory in full and select the surfaces.
-2. Read the selected surface methods below in full.
+チャーターの作成やプローブの前に、次の Read を順番に完了します:
+1. `sections/scope.md` relative to the installed `qa`/`gstack-qa` SKILL.md directory を全文 Read し、面を選びます。
+2. 選んだ面に応じた下記の手法を全文 Read します。
 
-Use this host's installed `qa`/`gstack-qa` SKILL.md directory for these reads:
+これらの Read には、このホストにインストールされた `qa`/`gstack-qa` の SKILL.md のディレクトリを使います:
 
-**Functional surfaces:**
-Read `sections/system-functional.md` in full.
+**Functional の面:**
+`sections/system-functional.md` を全文 Read します。
 
-**Browser surfaces only:**
-Read `sections/qa-patterns.md` in full.
+**Browser の面のみ:**
+`sections/qa-patterns.md` を全文 Read します。
 
-Await each successful Read result before continuing. A supplied target, isolation
-description, section index or remembered method is not a completed instruction Read.
-Do not repeat a Read already completed in this invocation; reuse only its acknowledged
-full contents. If either required Read is missing, complete it now before Charter and preflight.
-Missing or unreadable assets, prerequisites or permission block affected probes, not independent safe checks. Report QA setup blockers.
+続行する前に、成功した各 Read の結果を待ちます。渡された対象、隔離の説明、セクションの索引、
+記憶している手法は、完了した命令の Read にはなりません。
+この呼び出しですでに完了した Read は繰り返さず、確認済みの全文だけを再利用します。
+必要な Read のどちらかが欠けている場合は、Charter と preflight の前に、今すぐ完了します。
+アセット、前提条件、許可が欠けている、または読めない場合は、影響を受けるプローブをブロックします。独立した安全なチェックはブロックしません。QA のセットアップ上のブロッカーを報告します。
 
-## 1. Charter and preflight
+## 1. Charter and preflight(チャーターと事前確認)
 
-Reuse resolved REPORT_DIR; otherwise own a fresh `.gstack/qa-reports` subdirectory.
-Write a **charter** per behavior: contract, risk, entrypoint, isolation, exit condition, source, commands and inputs. Save charters as Markdown in the report.
+解決済みの REPORT_DIR を再利用します。なければ、新しい `.gstack/qa-reports` のサブディレクトリを自分で所有します。
+挙動ごとに **charter** を書きます: 契約、リスク、エントリポイント、隔離、終了条件、ソース、コマンド、入力。charter は Markdown としてレポートに保存します。
 
 
-For /qa and /qa-only:
-- Browser Quick: SECONDS=180. Browser Full/Regression: SECONDS=900.
-- Functional Full, Quick and Regression have no default total timer.
-Set SECONDS to the shorter mode/caller limit; an unlimited mode uses the caller's bound.
-Without a total time limit, do not create DEADLINE_FILE; announce finite command timeouts.
-Stop when scoped contracts are tested or blocked: each field's documented input rule needs a probe that breaks only it and satisfies every other rule; rules uncovered at a probe/time cap go in limits.
-Clocks/checkpoints use REPORT_DIR; mixed standalone runs use REPORT_DIR/browser and REPORT_DIR/functional, with one final report at REPORT_DIR. Caller paths win.
-Names used below (quote every path):
-- PROBE_DIR: this surface's owned probe directory per the line above. DEADLINE_FILE: `PROBE_DIR/deadline.json`, which exists only for a bounded run.
-- SECONDS: the total probe budget set above. NNN: a fresh three-digit ID (001, 002, ...) for each capture or checkpoint; never reuse one.
-- DEADLINE_TOOL = `$HOME/.claude/skills/gstack/bin/gstack-qa-deadline`, the deadline guard: `start` creates DEADLINE_FILE, `status` prints `remainingMs` and `expired`, and `run` executes one command, stopping it at the deadline.
-- EVIDENCE_TOOL = `$HOME/.claude/skills/gstack/bin/gstack-qa-evidence`, the functional evidence recorder: `capture` runs one command, stores its exit code, stdout and stderr under `PROBE_DIR/.qa-evidence/NNN/`, and prints status `complete`, `incomplete` or `sensitive`.
+/qa と /qa-only の場合:
+- Browser Quick: SECONDS=180。Browser Full/Regression: SECONDS=900。
+- Functional の Full、Quick、Regression には、デフォルトの合計タイマーはありません。
+SECONDS には、モードと呼び出し元の制限のうち短い方を設定します。無制限のモードでは、呼び出し元の上限を使います。
+合計の時間制限がない場合は、DEADLINE_FILE を作成せず、有限のコマンドタイムアウトを宣言します。
+スコープ内の契約がテスト済みまたはブロック済みになった時点で停止します: 各フィールドの文書化された入力ルールごとに、そのルールだけを破り、他のすべてのルールを満たすプローブが必要です。プローブ/時間の上限で到達できなかったルールは limits に記載します。
+クロックとチェックポイントは REPORT_DIR を使います。standalone の mixed 実行では REPORT_DIR/browser と REPORT_DIR/functional を使い、最終レポートは REPORT_DIR に 1 つ置きます。呼び出し元のパスが優先されます。
+以下で使う名前(すべてのパスをクォートする):
+- PROBE_DIR: 上の行に従った、この面で所有するプローブ用ディレクトリ。DEADLINE_FILE: `PROBE_DIR/deadline.json`。時間制限のある実行にのみ存在します。
+- SECONDS: 上で設定した、プローブの合計予算。NNN: キャプチャやチェックポイントごとに新しい 3 桁の ID(001、002、...)。再利用しません。
+- DEADLINE_TOOL = `$HOME/.claude/skills/gstack/bin/gstack-qa-deadline`、期限ガード: `start` は DEADLINE_FILE を作成し、`status` は `remainingMs` と `expired` を出力し、`run` は 1 つのコマンドを実行して、期限で停止します。
+- EVIDENCE_TOOL = `$HOME/.claude/skills/gstack/bin/gstack-qa-evidence`、functional の証拠レコーダー: `capture` は 1 つのコマンドを実行し、その終了コード、stdout、stderr を `PROBE_DIR/.qa-evidence/NNN/` に保存して、ステータス `complete`、`incomplete`、`sensitive` のいずれかを出力します。
 
-Start once before baseline: `bun DEADLINE_TOOL start DEADLINE_FILE SECONDS [EARLIER_UTC]` if bounded.
-EARLIER_UTC = caller's absolute deadline, if set.
-Functional: `bun EVIDENCE_TOOL capture PROBE_DIR NNN [--public] --deadline DEADLINE_FILE -- COMMAND ARGS`.
-Unbounded: use `--timeout-ms MS` instead of `--deadline DEADLINE_FILE`.
---public requires approved public/synthetic output; EVIDENCE_TOOL screens credentials. For complete private captures, await a safe Read of `PROBE_DIR/.qa-evidence/NNN/observation.json` (the decoded stdout). Sensitive/incomplete captures cannot anchor checkpoints.
-Bounded browsers: `bun DEADLINE_TOOL run DEADLINE_FILE -- COMMAND ARGS`. No detached probes.
-Never reset DEADLINE_FILE/bypass DEADLINE_TOOL. Expiry or an invalid/missing DEADLINE_FILE stops probes; report unfinished coverage. QA_DEADLINE receipts are not observations.
+ベースラインの前に一度だけ開始します: 時間制限がある場合は `bun DEADLINE_TOOL start DEADLINE_FILE SECONDS [EARLIER_UTC]`。
+EARLIER_UTC = 呼び出し元の絶対的な期限(設定されている場合)。
+Functional: `bun EVIDENCE_TOOL capture PROBE_DIR NNN [--public] --deadline DEADLINE_FILE -- COMMAND ARGS`。
+無制限の場合: `--deadline DEADLINE_FILE` の代わりに `--timeout-ms MS` を使います。
+--public には、承認された公開/合成の出力が必要です。EVIDENCE_TOOL が認証情報をスクリーニングします。完全な非公開キャプチャでは、`PROBE_DIR/.qa-evidence/NNN/observation.json`(デコードされた stdout)を安全に Read して結果を待ちます。sensitive/incomplete のキャプチャは、チェックポイントの根拠にできません。
+時間制限のある browser: `bun DEADLINE_TOOL run DEADLINE_FILE -- COMMAND ARGS`。切り離したプローブは禁止です。
+DEADLINE_FILE をリセットしたり、DEADLINE_TOOL を迂回したりしてはいけません。期限切れ、または DEADLINE_FILE が無効/欠落している場合は、プローブを停止し、未完了のカバレッジを報告します。QA_DEADLINE のレシートは観測ではありません。
 
-## 2. Probe loop
+## 2. Probe loop(プローブのループ)
 
-Each probe is one native command/interaction plus checks, excluding bookkeeping.
-Never batch probes.
+各プローブは、ネイティブなコマンド/操作 1 つとチェックです(記録作業は除く)。
+プローブをまとめて実行してはいけません。
 
-1. First demonstrate success: output AND durable effects. Guard if bounded; await completion.
-2. **Decide whether another probe is needed.** If bounded, run `bun DEADLINE_TOOL status DEADLINE_FILE`.
-   If expired or no safe next probe remains, STOP exploration; write the report (§4), not a checkpoint.
-   **Classify the last result before copying it.** For public or synthetic observations,
-   retain the entire result unchanged, including owned fixture paths, IDs, hashes and
-   existing credential placeholders. An absolute state path is not itself a secret.
-   For actual secrets/private payloads, withhold those values and disclose the redaction
-   and replay limits in the report. If no safe exact observation can be retained,
-   stop the affected probe chain; never invent a substitute path, identity or state.
-   **Publish before probing.** Create (browser) or compose (functional) `exploration-NNN.json` in the probe directory, beside its deadline if bounded, with exactly four top-level fields:
-   observationCommand: last completed probe's full outer command, including guard.
-   observed: its exact decoded child JSON (no wrapper/extra keys), or its full non-JSON text.
-   For guarded text, copy the complete span between the guard's started and finished receipt lines.
-   Keep its whitespace and content fences verbatim. Do not summarize, relabel or add timing text.
-   The guard adds one newline before its finished receipt; that separator is not child text.
-   For unguarded text, copy the complete result instead.
-   If capture is incomplete, report that limit instead of reconstructing it.
-   hypothesis: why nextCommand. nextCommand: exact command/request, guarded if bounded.
-   Preserve every safe program-JSON key/value and identity hash unchanged.
-   Withhold unsafe values, disclose limits and stop that chain.
-   Check fields before publication. No drafts/placeholders or invented safe-path redactions; corrections cannot repair published notes.
-   Functional: do not write this file; the next capture publishes it: `bun EVIDENCE_TOOL capture PROBE_DIR NNN --deadline DEADLINE_FILE --after PREV --hypothesis 'why' -- CMD` (PREV: the last complete capture's ID). EVIDENCE_TOOL supplies observed; never transcribe it.
-   Browser checkpoints use Write.
-   Wait for successful checkpoint publication before dispatch.
-   Never backfill or overwrite notes.
-3. Run that exact probe; DEADLINE_TOOL enforces the deadline when bounded.
-   Report refusals as not-run; retain initial state/inputs/results. Repeat from step 2.
-4. Replay the exact failing command/request from the same initial fixture state via steps 2–3 (same native command, fresh capture ID)
-   to confirm it, then minimize via those gates. Expiry leaves confirmation/minimization incomplete.
-   Another input or a regression test is not that replay.
-5. If the user or another process changes source, commands or fixtures, review the affected
-   contracts and return to step 2 for each affected revalidation (unproven=affected). Do not make product changes yourself.
-   Keep the original limits/notes; update outcomes only from fresh evidence.
+1. まず成功を実証します: 出力と、永続的な効果の両方です。時間制限があればガードを付け、完了を待ちます。
+2. **別のプローブが必要かを判断します。** 時間制限があれば `bun DEADLINE_TOOL status DEADLINE_FILE` を実行します。
+   期限切れ、または安全な次のプローブが残っていない場合は、探索を STOP してレポート(§4)を書きます。チェックポイントではありません。
+   **最後の結果をコピーする前に分類します。** 公開または合成の観測は、
+   所有するフィクスチャのパス、ID、ハッシュ、既存の認証情報プレースホルダーを含め、結果全体を
+   変更せずに保持します。状態の絶対パスそれ自体はシークレットではありません。
+   実際のシークレットや非公開のペイロードは、その値を伏せ、レポートで伏せたことと
+   再現の制限を開示します。安全で正確な観測を保持できない場合は、
+   影響を受けるプローブの連鎖を停止します。代わりのパス、ID、状態を創作してはいけません。
+   **プローブの前に公開します。** プローブ用ディレクトリに `exploration-NNN.json` を作成(browser)または作成して構成(functional)します。時間制限があれば期限ファイルの隣に置き、トップレベルのフィールドはちょうど 4 つです:
+   observationCommand: 最後に完了したプローブの、ガードを含む完全な外側のコマンド。
+   observed: そのデコード済みの子 JSON そのまま(ラッパーや余分なキーなし)、または JSON でない場合は全文。
+   ガード付きのテキストは、ガードの started と finished のレシート行の間のスパン全体をコピーします。
+   空白とコンテンツのフェンスはそのまま保ちます。要約、ラベル変更、タイミングのテキスト追加はしません。
+   ガードは finished のレシートの前に改行を 1 つ追加します。その区切りは子のテキストではありません。
+   ガードなしのテキストは、結果全体をコピーします。
+   キャプチャが不完全な場合は、再構成せず、その制限を報告します。
+   hypothesis: nextCommand の理由。nextCommand: 正確なコマンド/リクエスト。時間制限があればガード付き。
+   安全なプログラム JSON のキーと値、ID のハッシュはすべてそのまま保持します。
+   安全でない値は伏せ、制限を開示し、その連鎖を停止します。
+   公開前にフィールドを確認します。下書きやプレースホルダー、創作した安全なパスの伏せ字は禁止です。公開済みのメモは訂正で修復できません。
+   Functional: このファイルは書きません。次の capture が公開します: `bun EVIDENCE_TOOL capture PROBE_DIR NNN --deadline DEADLINE_FILE --after PREV --hypothesis 'why' -- CMD`(PREV: 直前に完了したキャプチャの ID)。observed は EVIDENCE_TOOL が供給します。転記してはいけません。
+   Browser のチェックポイントは Write を使います。
+   ディスパッチの前に、チェックポイントの公開が成功するのを待ちます。
+   メモを後から埋めたり、上書きしたりしてはいけません。
+3. その正確なプローブを実行します。時間制限があれば、DEADLINE_TOOL が期限を強制します。
+   拒否されたものは not-run として報告し、初期状態/入力/結果を保持します。ステップ 2 から繰り返します。
+4. 同じ初期フィクスチャの状態から、失敗した正確なコマンド/リクエストを、ステップ 2〜3(同じネイティブコマンド、新しいキャプチャ ID)でリプレイし、
+   確認します。その後、それらのゲートを通して最小化します。期限切れの場合、確認/最小化は未完了のままです。
+   別の入力や回帰テストは、そのリプレイにはなりません。
+5. ユーザーや別のプロセスがソース、コマンド、フィクスチャを変更した場合は、影響を受ける
+   契約を見直し、影響を受ける再検証ごとにステップ 2 に戻ります(未証明=影響あり)。自分でプロダクトを変更してはいけません。
+   元の limits/メモは保持し、結果は新しい証拠からのみ更新します。
 
-## 3. Parent handoff
+## 3. Parent handoff(親への引き継ぎ)
 
-Never change product code, tests, configuration, dependencies or Git through any tool,
-including shell, rename, deletion, commit, stash or edit-then-restore. Return test_stub proposals
-with their failing contract and expected assertion; never create tests or freeze buggy output.
+シェル、リネーム、削除、コミット、stash、編集して戻す操作を含め、どのツールを通しても、プロダクトコード、テスト、設定、依存関係、Git を変更してはいけません。
+失敗する契約と期待されるアサーションを添えた test_stub の提案を返します。テストを作成したり、バグのある出力を固定したりしてはいけません。
 
-## 4. Final report
+## 4. Final report(最終レポート)
 
-Use the surface report template; link each checkpoint. Separate browser scores, functional outcomes and proposed/executed tests.
-Write PROBE_DIR/annotations.json {evidence: [{capture, command, contract, expected, classification}], limits: ["checkpoint 001"]} (limits: non-empty string array, not an object; browser-only: evidence []); before Markdown `bun EVIDENCE_TOOL materialize PROBE_DIR annotations.json` (fills observed/metadata; prints reportLinks; runs once per PROBE_DIR); you classify. Annotate every safe capture, including failures/replays: an omitted capture is withheld and keeps the verdict inconclusive. Classify a capture taken before an input change `superseded`; it closes when the same command reran on current inputs. Disclose withheld/incomplete evidence.
-Evidence is invocation-local.
-Missing prerequisites/expectations/observations, timeouts and refusal never pass.
-Pass requires all required current-input contracts to pass with no required remainder.
-Report blocked, inconclusive and not-run coverage without claiming success.
+面ごとのレポートテンプレートを使い、各チェックポイントにリンクします。browser のスコア、functional の結果、提案した/実行したテストを分けます。
+PROBE_DIR/annotations.json {evidence: [{capture, command, contract, expected, classification}], limits: ["checkpoint 001"]} を書きます(limits: オブジェクトではなく、空でない文字列の配列。browser のみ: evidence []。)。Markdown の前に `bun EVIDENCE_TOOL materialize PROBE_DIR annotations.json`(observed/メタデータを埋め、reportLinks を出力し、PROBE_DIR ごとに 1 回だけ実行)を実行します。分類は自分で行います。失敗やリプレイを含め、安全なキャプチャはすべて注釈を付けます。省略したキャプチャは伏せられたものとして扱われ、判定は inconclusive のままです。入力の変更前に取ったキャプチャは `superseded` に分類します。同じコマンドを現在の入力で再実行すると、それは閉じられます。 伏せた/不完全な証拠は開示します。
+証拠は呼び出し単位でのものです。
+前提条件/期待/観測の欠落、タイムアウト、拒否は、決して pass になりません。
+pass には、現在の入力に対する必要な契約がすべて pass し、必要な残りがないことが求められます。
+ブロック、inconclusive、not-run のカバレッジは、成功を主張せずに報告します。

@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { usePrivateStateRoot } from './helpers/private-state-root';
-import { expectMentions } from './helpers/prompt-structure';
+import { expectMentions, expectTokens, compact } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 
@@ -66,10 +66,10 @@ describe('CSO host permission boundary', () => {
 
   test('retains helper-only source access, sequential challenge, and honest host containment', () => {
     const content = readSkillUnion('cso');
-    expect(content).toContain('Never use host `Read`/`Glob`/`Grep`');
+    expectMentions(content, [['`Read`', '`Glob`', '`Grep`', 'ください']], 'content');
     expect(content).toContain('sequential challenge; independent agent unavailable');
-    expectMentions(content, [['do not', 'independent', 'reviewer']], 'content');
-    expectMentions(content, [['does not', 'containment', 'sandbox']], 'content');
+    expectMentions(content, [['独立', 'レビュアー', 'ください']], 'content');
+    expectMentions(content, [['隔離', 'サンドボックス', 'ありません']], 'content');
   });
 });
 
@@ -90,8 +90,8 @@ describe('SKILL.md command validation', () => {
   test('top-level SKILL.md is a router with no browse body (P2)', () => {
     const md = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
     expect(md).not.toContain('gstack browse: QA Testing'); // browse body removed
-    expect(md).toContain('## Route first'); // router head present
-    expect(md).toContain('invoke `/investigate`'); // routing rules present
+    expect(md).toContain('## 最初にルーティング'); // router head present
+    expect(md).toMatch(/`\/investigate` を呼び出す/); // routing rules present
     const result = validateSkill(path.join(ROOT, 'SKILL.md'));
     expect(result.invalid).toHaveLength(0); // no INVALID browse commands
     expect(result.valid.length).toBe(0); // and no browse commands at all — it routes, not browses
@@ -225,7 +225,7 @@ describe('SKILL.md command validation', () => {
     // hard-STOP AskUserQuestion that contradicts autoplan's auto-decide
     // contract. Nothing else pins the skip-list contents.
     const md = fs.readFileSync(path.join(ROOT, 'autoplan', 'SKILL.md'), 'utf-8');
-    expect(md).toContain('- Scope gate (the plan under review is already the target)');
+    expect(md).toMatch(/^- スコープゲート/m);
   });
 });
 
@@ -362,11 +362,10 @@ describe('Update check preamble', () => {
       expect(content).toMatch(/^~\/\.claude\/skills\/gstack\/bin\/gstack-skill-start --skill "[^"]+" --model "[^"]+"$/m);
       expect(content).not.toContain('_SS=');
       expect(content).not.toContain('SKILL_START: unavailable');
-      expect(content).toContain('**Degraded mode:** if `SKILL_START_PROTO: 1` is missing');
+      expectMentions(compact(content), [['縮退モード', '`SKILL_START_PROTO: 1`']], 'content');
       expect(content).toContain('GSTACK_INSTRUCTION_BEGIN');
-      expect(content).toContain('direct tool result');
-      expect(content).toMatch(/same .?SESSION_ID.? that run echoed/);
-      expectMentions(content, [['never', 'output', 'tool']], 'content');
+      expectMentions(compact(content), [['直接のツール結果', '`SESSION_ID`', '同じ']], 'content');
+      expectMentions(compact(content), [['ほかのツール出力', '決して', 'ブロック']], 'content');
     });
   }
 
@@ -462,7 +461,7 @@ describe('Cross-skill path consistency', () => {
       // ship's greptile handling moved into sections/greptile.md (T9 carve).
       const content = file === 'ship/SKILL.md' ? readShipUnion() : fs.readFileSync(filePath, 'utf-8');
 
-      const hasBoth = (content.includes('per-project') && content.includes('global')) ||
+      const hasBoth = (content.includes('プロジェクト単位') && (content.includes('グローバル') || content.includes('全体'))) ||
         (content.includes('$REMOTE_SLUG/greptile-history') && content.includes('~/.gstack/greptile-history'));
 
       expect(hasBoth).toBe(true);
@@ -477,7 +476,7 @@ describe('Cross-skill path consistency', () => {
 
   test('retro/SKILL.md reads global greptile-history (not per-project)', () => {
     const content = fs.readFileSync(path.join(ROOT, 'retro', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('the path `GREPTILE_HISTORY` printed');
+    expectMentions(compact(content), [['`GREPTILE_HISTORY`', 'パス']], 'content');
     expect(fs.readFileSync(path.join(ROOT, 'bin', 'gstack-retro-metrics'), 'utf-8')).toContain('$_GH/greptile-history.md');
     // Should NOT reference per-project path for reads
     expect(content).not.toContain('$REMOTE_SLUG/greptile-history.md');
@@ -492,22 +491,11 @@ describe('QA skill structure validation', () => {
   const qaContent = readSkillUnion('qa');
 
   test('qa/SKILL.md has all 11 phases', () => {
-    const phases = [
-      'Phase 1', 'Initialize',
-      'Phase 2', 'Authenticate',
-      'Phase 3', 'Orient',
-      'Phase 4', 'Explore',
-      'Phase 5', 'Document',
-      'Phase 6', 'Wrap Up',
-      'Phase 7', 'Triage',
-      'Phase 8', 'Fix Loop',
-      'Phase 9', 'Final QA',
-      'Phase 10', 'Report',
-      'Phase 11', 'TODOS',
-    ];
-    for (const phase of phases) {
-      expect(qaContent).toContain(phase);
+    // Headings carry the English `Phase N:` marker; titles are localized.
+    for (let n = 1; n <= 11; n++) {
+      expect(qaContent).toMatch(new RegExp(`^#{2,3} Phase ${n}: `, 'm'));
     }
+    expect(qaContent).toContain('TODOS.md');
   });
 
   test('has all four QA modes defined', () => {
@@ -774,37 +762,44 @@ describe('office-hours skill structure', () => {
   const content = readSkillUnion('office-hours');
 
   // Original structural assertions
-  for (const section of ['Phase 1', 'Phase 2', 'Phase 3', 'Phase 4', 'Phase 5', 'Phase 6',
-                          'Design Doc', 'Supersedes', 'APPROVED', 'Premise Challenge',
-                          'Alternatives', 'Smart-skip']) {
-    test(`contains ${section}`, () => expect(content).toContain(section));
+  // Phase headings are localized (`フェーズ N`); machine-read tokens stay English.
+  for (const [section, marker] of [
+    ['Phase 1', 'フェーズ 1:'], ['Phase 2', 'フェーズ 2A:'], ['Phase 3', 'フェーズ 3:'],
+    ['Phase 4', 'フェーズ 4:'], ['Phase 5', 'フェーズ 5:'], ['Phase 6', 'フェーズ 6:'],
+    ['Design Doc', '# Design: {title}'], ['Supersedes', 'Supersedes:'], ['APPROVED', 'APPROVED'],
+    ['Premise Challenge', '前提への異議'], ['Alternatives', '代替案'], ['Smart-skip', 'スマートスキップ'],
+  ] as const) {
+    test(`contains ${section}`, () => expect(content).toContain(marker));
   }
 
   // Dual-mode structure
-  for (const section of ['Startup mode', 'Builder mode']) {
-    test(`contains ${section}`, () => expect(content).toContain(section));
+  for (const [section, marker] of [['Startup mode', 'スタートアップモード'], ['Builder mode', 'ビルダーモード']] as const) {
+    test(`contains ${section}`, () => expect(content).toContain(marker));
   }
 
   // Mode detection question
   test('contains explicit mode detection question', () => {
-    expect(content).toContain("what's your goal");
+    expectMentions(compact(content), [['質問', '今回の目的は何ですか', '本物']], 'content');
+    expect(content).toContain('**スタートアップを立ち上げる**');
   });
 
   // Six forcing questions (startup mode)
-  for (const question of ['Demand Reality', 'Status Quo', 'Desperate Specificity',
-                           'Narrowest Wedge', 'Observation & Surprise', 'Future-Fit']) {
-    test(`contains forcing question: ${question}`, () => expect(content).toContain(question));
+  for (const [question, heading] of [
+    ['Demand Reality', '#### Q1: 需要の現実'], ['Status Quo', '#### Q2: 現状'],
+    ['Desperate Specificity', '#### Q3: 切実な具体性'], ['Narrowest Wedge', '#### Q4: 最も狭い楔'],
+    ['Observation & Surprise', '#### Q5: 観察と驚き'], ['Future-Fit', '#### Q6: 未来への適合'],
+  ] as const) {
+    test(`contains forcing question: ${question}`, () => expect(content).toContain(heading));
   }
 
   // Builder mode questions
   test('contains builder brainstorming questions', () => {
-    expect(content).toContain('coolest version');
-    expect(content).toContain('delightful');
+    expectTokens(content, ['これの最もクールな版は何ですか', '何があれば、本当に楽しいものになりますか']);
   });
 
   // Intrapreneurship adaptation
   test('contains intrapreneurship adaptation', () => {
-    expect(content).toContain('Intrapreneurship');
+    expectMentions(compact(content), [['社内起業', 'Q4', 'Q6']], 'content');
   });
 
   // YC founder discovery engine
@@ -817,39 +812,37 @@ describe('office-hours skill structure', () => {
   });
 
   test('contains golden age framing', () => {
-    expect(content).toContain('golden age');
+    expect(content).toContain('黄金時代');
   });
 
   test('contains Garry Tan personal plea', () => {
-    expect(content).toContain('Garry Tan, the creator of GStack');
+    expect(content).toMatch(/> Garry Tan より、GStack の作者として一言/);
   });
 
   test('contains founder signal synthesis phase', () => {
-    expect(content).toContain('Founder Signal Synthesis');
+    expect(content).toMatch(/^## フェーズ 4\.5: 創業者シグナルの統合/m);
   });
 
   test('contains three-tier decision rubric', () => {
-    expect(content).toContain('Top tier');
-    expect(content).toContain('Middle tier');
-    expect(content).toContain('Base tier');
+    expectTokens(content, ['**トップティア**', '**ミドルティア**', '**ベーシックティア**']);
   });
 
   test('contains anti-slop examples', () => {
-    expect(content).toContain('GOOD:');
-    expect(content).toContain('BAD:');
+    expectMentions(content, [['アンチスロップ', '言うのではなく見せる']], 'content');
+    expectTokens(content, ['- 良い例:', '- 悪い例:']);
   });
 
   test('contains "One more thing" transition beat', () => {
-    expect(content).toContain('One more thing');
+    expect(content).toContain('**ビート 2: 「もう一つ。」**');
   });
 
   // Operating principles per mode
   test('contains startup operating principles', () => {
-    expect(content).toContain('Specificity is the only currency');
+    expect(content).toContain('**具体性だけが通貨です。**');
   });
 
   test('contains builder operating principles', () => {
-    expect(content).toContain('Delight is the currency');
+    expect(content).toContain('**面白さが通貨です**');
   });
 
   // Spec Review Loop (Phase 5.5)
@@ -868,11 +861,11 @@ describe('office-hours skill structure', () => {
   });
 
   test('contains max 3 iterations', () => {
-    expect(content).toMatch(/3.*iteration|maximum.*3/i);
+    expectMentions(compact(content), [['反復', '最大 3 回']], 'content');
   });
 
   test('contains quality score', () => {
-    expect(content).toContain('quality score');
+    expectMentions(compact(content), [['品質スコア', 'メトリクス']], 'content');
   });
 
   test('contains spec review metrics path', () => {
@@ -908,9 +901,12 @@ describe('office-hours skill structure', () => {
 
 describe('investigate skill structure', () => {
   const content = fs.readFileSync(path.join(ROOT, 'investigate', 'SKILL.md'), 'utf-8');
-  for (const section of ['Iron Law', 'Root Cause', 'Pattern Analysis', 'Hypothesis',
-                          'DEBUG REPORT', '3-strike', 'BLOCKED']) {
-    test(`contains ${section}`, () => expect(content).toContain(section));
+  for (const [section, marker] of [
+    ['Iron Law', '## 鉄則'], ['Root Cause', '## フェーズ 1: 根本原因の調査'],
+    ['Pattern Analysis', '## フェーズ 2: パターン分析'], ['Hypothesis', '## フェーズ 3: 仮説の検証'],
+    ['DEBUG REPORT', 'DEBUG REPORT'], ['3-strike', '**3 回失敗のルール:**'], ['BLOCKED', 'BLOCKED'],
+  ] as const) {
+    test(`contains ${section}`, () => expect(content).toContain(marker));
   }
 });
 
@@ -926,31 +922,29 @@ describe('Enum & Value Completeness in review checklist', () => {
 
   test('Enum & Value Completeness is classified as CRITICAL', () => {
     // It should appear under Pass 1 — CRITICAL, not Pass 2
-    const pass1Start = checklist.indexOf('### Pass 1');
-    const pass2Start = checklist.indexOf('### Pass 2');
-    const enumStart = checklist.indexOf('Enum & Value Completeness');
+    const pass1Start = checklist.indexOf('### パス 1');
+    const pass2Start = checklist.indexOf('### パス 2');
+    const enumStart = checklist.indexOf('#### Enum と値の網羅性');
+    expect(pass1Start).toBeGreaterThan(-1);
     expect(enumStart).toBeGreaterThan(pass1Start);
     expect(enumStart).toBeLessThan(pass2Start);
   });
 
   test('Enum & Value Completeness mentions tracing through consumers', () => {
-    expect(checklist).toContain('Trace it through every consumer');
-    expect(checklist).toContain('case');
-    expect(checklist).toContain('allowlist');
+    expectMentions(compact(checklist), [['すべての利用箇所', 'たどる'], ['許可リスト'], ['`case`/`if-elsif`']], 'checklist');
   });
 
   test('Enum & Value Completeness covers loosened input acceptance and stale user-facing strings', () => {
-    const start = checklist.indexOf('#### Enum & Value Completeness');
-    const section = checklist.slice(start, checklist.indexOf('### Pass 2', start));
-    expect(section).toContain('loosens what an input accepts');
-    expect(section).toContain('Loosened acceptance breaks unchanged consumers');
+    const start = checklist.indexOf('#### Enum と値の網羅性');
+    const section = checklist.slice(start, checklist.indexOf('### パス 2', start));
+    expectMentions(compact(section), [['受け入れる入力を緩める'], ['緩められた受け入れ', '利用箇所', '壊す']], 'section');
     const maintainability = fs.readFileSync(path.join(ROOT, 'review', 'specialists', 'maintainability.md'), 'utf-8');
-    const stale = maintainability.slice(maintainability.indexOf('### Stale Comments & Docstrings'));
-    expect(stale.slice(0, stale.indexOf('\n### ', 5))).toContain('User-facing strings (errors, toasts, labels) whose guarding condition changed');
+    const stale = maintainability.slice(maintainability.indexOf('### 古くなったコメントとドキュメント文字列'));
+    expectMentions(compact(stale.slice(0, stale.indexOf('\n### ', 5))), [['ユーザー向けの文字列', 'エラー', 'トースト', 'ラベル']], 'stale section');
   });
 
   test('Enum & Value Completeness is in the severity classification as CRITICAL', () => {
-    const gateSection = checklist.slice(checklist.indexOf('## Severity Classification'));
+    const gateSection = checklist.slice(checklist.indexOf('## 重大度の分類'));
     // The ASCII art has CRITICAL on the left and INFORMATIONAL on the right
     // Enum & Value Completeness should appear on a line with the CRITICAL tree (├─ or └─)
     const enumLine = gateSection.split('\n').find(l => l.includes('Enum & Value Completeness'));
@@ -960,7 +954,7 @@ describe('Enum & Value Completeness in review checklist', () => {
   });
 
   test('Fix-First Heuristic exists in checklist and is referenced by review + ship', () => {
-    expect(checklist).toContain('## Fix-First Heuristic');
+    expect(checklist).toContain('## Fix-First のヒューリスティック');
     expect(checklist).toContain('AUTO-FIX');
     expect(checklist).toContain('ASK');
 
@@ -1002,9 +996,9 @@ describe('Completeness Principle in generated SKILL.md files', () => {
     // CSO is intentionally exempt; use a regular tier 2+ PREAMBLE consumer.
     const content = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Completeness: X/10');
-    expect(content).toContain('10 = all edge cases');
+    expect(content).toContain('10 = すべてのエッジケース');
     expect(content).toContain('Note: options differ in kind, not coverage');
-    expect(content).toContain('Do not fabricate scores');
+    expectMentions(compact(content), [['スコア', '捏造']], 'content');
   });
 });
 
@@ -1095,8 +1089,8 @@ describe('CEO review mode validation', () => {
   });
 
   test('contains mid-session detection', () => {
-    expect(content).toContain('Mid-session detection');
-    expect(content).toMatch(/still figuring out|seems lost/i);
+    expect(content).toContain('**セッション途中の検出(0A):**');
+    expectMentions(compact(content), [['よくわからない', '`/office-hours`', '提案']], 'content');
   });
 
   // Spec review on CEO plans
@@ -1196,7 +1190,7 @@ describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
 
   test('TEST_BOOTSTRAP appears in qa/SKILL.md', () => {
     const content = readSkillUnion('qa');
-    expect(content).toContain('Test Framework Bootstrap');
+    expect(content).toMatch(/^## テストフレームワークのブートストラップ/m);
     expect(content).toContain('TESTING.md');
     expect(content).toContain('CLAUDE.md');
   });
@@ -1215,9 +1209,9 @@ describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
   test('TEST_BOOTSTRAP does NOT appear in qa-only/SKILL.md', () => {
     const content = fs.readFileSync(path.join(ROOT, 'qa-only', 'SKILL.md'), 'utf-8');
     expect(content).not.toContain('Test Framework Bootstrap');
+    expect(content).not.toMatch(/^#+ .*ブートストラップ/m);
     // But should have the recommendation note
-    expect(content).toContain('No test framework detected');
-    expect(content).toContain('Run `/qa` to bootstrap');
+    expectMentions(compact(content), [['テストフレームワークが検出されません'], ['`/qa`', 'ブートストラップ']], 'content');
   });
 
   test('bootstrap includes framework knowledge table', () => {
@@ -1238,15 +1232,14 @@ describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
 
   test('bootstrap includes first real tests step', () => {
     const content = readSkillUnion('qa');
-    expect(content).toContain('First real tests');
+    expect(content).toContain('**最初の実テスト:**');
     expect(content).toContain('git log --since=30.days');
-    expect(content).toContain('Prioritize by risk');
+    expectMentions(compact(content), [['リスクの高い順', '優先', 'エラーハンドラー']], 'content');
   });
 
   test('bootstrap includes vibe coding philosophy', () => {
     const content = readSkillUnion('qa');
-    expect(content).toContain('vibe coding');
-    expect(content).toContain('100% test coverage');
+    expectMentions(compact(content), [['バイブコーディング', '100%', 'テストカバレッジ']], 'content');
   });
 
   test('WebSearch is in allowed-tools for qa, ship, design-review', () => {
@@ -1264,27 +1257,28 @@ describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
 describe('Phase 8e.5 regression test generation', () => {
   test('qa/SKILL.md contains Phase 8e.5', () => {
     const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('8e.5. Regression Test');
+    expect(content).toContain('### 8e.5. 回帰テストの記録');
     expect(content).toContain('test(qa): regression test');
-    expectMentions(content, [['do not', 'test-only', 'commits']], 'content');
+    expectMentions(compact(content), [['テストのみのコミット', '8f', '数えません']], 'content');
   });
 
   test('qa/SKILL.md Rule 13 is amended for regression tests', () => {
     const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
-    expectMentions(content, [['only', 'codification', 'authorized']], 'content');
-    expectMentions(content, [['never', 'configuration', 'existing']], 'content');
-    expect(content.indexOf('### 8a.5. Regression test before repair')).toBeLessThan(content.indexOf('### 8b. Fix'));
-    expectMentions(content, [['before', 'detected', 'command']], 'content');
+    expectMentions(compact(content), [['Phase 8a.5', '明文化', 'テストを作成']], 'content');
+    expectMentions(compact(content), [['決して', 'CI', '既存のテスト']], 'content');
+    expect(content.indexOf('### 8a.5. 修復の前に回帰テストを書く')).toBeGreaterThan(-1);
+    expect(content.indexOf('### 8a.5. 修復の前に回帰テストを書く')).toBeLessThan(content.indexOf('### 8b. 修正'));
+    expectMentions(compact(content), [['修復の前に', '検出したコマンド']], 'content');
     const exploratory = fs.readFileSync(path.join(ROOT, 'qa', 'sections', 'exploratory.md'), 'utf-8').replace(/\s+/g, ' ');
-    expectMentions(exploratory, [['before', 'regression', 'verified']], 'exploratory');
-    expectMentions(exploratory, [['before', 'command/request', 'failing']], 'exploratory');
-    expectMentions(exploratory, [['not', 'regression', 'another']], 'exploratory');
+    expectMentions(exploratory, [['修復の前に', '回帰', '検証済み']], 'exploratory');
+    expectMentions(exploratory, [['コマンド/リクエスト', '失敗', '修復の前に']], 'exploratory');
+    expectMentions(exploratory, [['別の入力', '回帰テスト', 'なりません']], 'exploratory');
   });
 
   test('design-review has CSS-aware Phase 8e.5 variant', () => {
     const content = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('8e.5. Regression Test (design-review variant)');
-    expect(content).toContain('CSS-only');
+    expect(content).toContain('### 8e.5. 回帰テスト (design-review の変形)');
+    expect(content).toContain('CSS のみ');
     expect(content).toContain('test(design): regression test');
   });
 
@@ -1297,8 +1291,7 @@ describe('Phase 8e.5 regression test generation', () => {
 
   test('regression test uses auto-incrementing names', () => {
     const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('auto-incrementing');
-    expect(content).toContain('max number + 1');
+    expectMentions(compact(content), [['自動で増分', '{name}.regression-N.test.{ext}'], ['最大の番号 + 1']], 'content');
   });
 });
 
@@ -1307,7 +1300,7 @@ describe('Phase 8e.5 regression test generation', () => {
 describe('Step 3.4 test coverage audit', () => {
   test('ship/SKILL.md contains Step 7', () => {
     const content = readShipUnion();
-    expect(content).toContain('Step 7: Test Coverage Audit');
+    expect(content).toContain('## Step 7: テストカバレッジ監査');
     // The coverage diagram collapses code-path and user-flow counts onto one
     // summary line. Verify that summary is present (labels are stable).
     expect(content).toContain('Code paths:');
@@ -1317,8 +1310,8 @@ describe('Step 3.4 test coverage audit', () => {
     const content = readShipUnion();
     expect(content).toContain('★★★');
     expect(content).toContain('★★');
-    expect(content).toContain('edge cases AND error paths');
-    expect(content).toContain('happy path only');
+    expectMentions(compact(content), [['★★★', 'エッジケース', 'エラーパス']], 'content');
+    expectMentions(compact(content), [['★★', 'ハッピーパスのみ']], 'content');
   });
 
   test('Step 3.4 includes before/after test count', () => {
@@ -1334,30 +1327,33 @@ describe('Step 3.4 test coverage audit', () => {
 
   test('ship rules include test generation rule', () => {
     const content = readShipUnion();
-    expect(content).toContain('Step 7 generates coverage tests');
-    expect(content).toContain('Never commit failing tests');
+    expectMentions(compact(content), [['Step 7', 'カバレッジのテストを生成']], 'content');
+    expectMentions(compact(content), [['失敗するテスト', '決してコミットしない']], 'content');
   });
 
   test('Step 3.4 states the value-based coverage goal', () => {
     const content = readShipUnion();
-    expect(content).toContain('Coverage goal: every changed behavior is protected by a test that would catch a real regression. Test count is not a goal.');
+    expectMentions(compact(content), [['カバレッジの目標', '変更されたすべての挙動', '実際の回帰', 'テスト']], 'content');
+    expectMentions(compact(content), [['テストの数', '目標ではありません']], 'content');
   });
 
   test('Step 3.4 traces actual codepaths, not just syntax', () => {
     const content = readShipUnion();
-    expect(content).toContain('Trace every codepath');
-    expect(content).toContain('Trace data flow');
-    expect(content).toContain('Diagram the execution');
+    expectMentions(compact(content), [['変更されたすべてのコードパス', '`git diff origin/<base>`', 'トレース']], 'content');
+    expectMentions(compact(content), [['データフロー', 'トレース']], 'content');
+    expectMentions(compact(content), [['実行を diagram', 'します']], 'content');
   });
 
   test('Step 3.4 maps user flows and interaction edge cases', () => {
     const content = readShipUnion();
-    expect(content).toContain('Map user flows');
-    expect(content).toContain('Interaction edge cases');
-    expect(content).toContain('Double-click');
-    expect(content).toContain('Navigate away');
-    expect(content).toContain('Error states the user can see');
-    expect(content).toContain('Empty/zero/boundary states');
+    expectTokens(content, [
+      '**2. ユーザーフロー、操作、エラー状態をマッピングします:**',
+      '**操作のエッジケース:**',
+      'ダブルクリック',
+      '操作の途中での離脱',
+      '**ユーザーに見えるエラー状態:**',
+      '**空/ゼロ/境界の状態:**',
+    ], 'ship step 7');
   });
 
   test('Step 3.4 diagram includes user-flow coverage summary', () => {
@@ -1421,7 +1417,7 @@ describe('ship step numbering', () => {
     // these would vanish. This test catches that.
     expect(skill).toContain('## Step 1.5: Scope Drift Detection');
     expect(skill).toContain('## Step 4.5: Review Army');
-    expect(skill).toContain('## Step 4.8: Adversarial review');
+    expect(skill).toMatch(/^## Step 4\.8: /m);
   });
 });
 
@@ -1451,18 +1447,16 @@ describe('Retro test health tracking', () => {
 
   test('retro/SKILL.md has Test Health metrics row', () => {
     const content = readSkillUnion('retro');
-    expect(content).toContain('Test Health');
-    expect(content).toContain('N test files');
-    expect(content).toContain('M changed this period');
-    expect(content).toContain('K regression test commits');
+    expect(content).toMatch(/^\| テストの健全性 \| N テストファイル/m);
+    expectMentions(compact(content), [['この期間に M 件変更', 'K 件のリグレッションテストのコミット']], 'content');
   });
 
   test('retro/SKILL.md has Test Health narrative section', () => {
     // Carved: the narrative report format lives in sections/report-format.md.
     const content = readSkillUnion('retro');
-    expect(content).toContain('### Test Health');
-    expect(content).toContain('Total test files');
-    expect(content).toContain('vibe coding safe');
+    expect(content).toContain('### テストの健全性');
+    expectMentions(compact(content), [['テストファイルの総数', '`TEST_FILES_TOTAL`']], 'content');
+    expectMentions(compact(content), [['テストカバレッジ 100%'], ['バイブコーディング', '安全']], 'content');
   });
 
   test('retro JSON schema includes test_health field', () => {
@@ -1478,10 +1472,10 @@ describe('Retro test health tracking', () => {
 describe('QA report template', () => {
   test('qa-report-template.md has Regression Tests section', () => {
     const content = fs.readFileSync(path.join(ROOT, 'qa', 'templates', 'qa-report-template.md'), 'utf-8');
-    expect(content).toContain('## Regression Tests');
+    expect(content).toContain('## リグレッションテスト');
     expect(content).toContain('committed / deferred / skipped');
-    expect(content).toContain('### Deferred Tests');
-    expect(content).toContain('**Precondition:**');
+    expect(content).toContain('### 延期したテスト');
+    expect(content).toContain('**前提条件:**');
   });
 });
 
@@ -1500,12 +1494,12 @@ describe('Codex skill', () => {
   // mode DISPATCH must stay in the always-loaded skeleton.
   test('codex union contains all three modes; skeleton keeps the dispatch', () => {
     const content = readSkillUnion('codex');
-    expect(content).toContain('Step 2A: Review Mode');
-    expect(content).toContain('Step 2B: Challenge');
-    expect(content).toContain('Step 2C: Consult Mode');
+    expect(content).toContain('## ステップ 2A: レビューモード');
+    expect(content).toContain('## ステップ 2B: チャレンジ');
+    expect(content).toContain('## ステップ 2C: 相談モード');
     const skeleton = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md'), 'utf-8');
-    expect(skeleton).toContain('## Step 1: Detect mode');
-    expect(skeleton).toMatch(/mutually exclusive/i);
+    expect(skeleton).toContain('## ステップ 1: モードの判定');
+    expectMentions(compact(skeleton), [['3 つのモード', '互いに排他的']], 'skeleton');
   });
 
   test('codex union contains gate verdict logic', () => {
@@ -1594,35 +1588,36 @@ describe('Codex skill', () => {
   test('adversarial review in /review always runs both passes', () => {
     // Carved skill: the Step 4.8 adversarial body lives in sections/adversarial.md.
     const content = readSkillUnion('review');
-    expect(content).toContain('Adversarial review (always-on)');
+    expect(content).toContain('## Step 4.8: 敵対的レビュー(常時実行)');
     // Always-on: both Claude and Codex adversarial
-    expect(content).toContain('Claude adversarial subagent (always runs)');
-    expect(content).toContain('Codex adversarial challenge (runs whenever');
+    expect(content).toContain('### Claude 敵対的サブエージェント(常に実行)');
+    expect(content).toContain('### Codex 敵対的チャレンジ(`CODEX_MODE` が `ready` または `unverified` のときは常に実行)');
     // Claude adversarial subagent dispatch
-    expect(content).toContain('Agent tool');
+    expect(content).toContain('Agent ツール');
     expect(content).toContain('FIXABLE');
     expect(content).toContain('INVESTIGATE');
     // Probe-based availability via the shared codexPreflight() (install + auth)
     expect(content).toContain('CODEX_MODE');
     expect(content).toContain('command -v codex'); // install check kept literal
     // codex_reviews=disabled gates Codex passes only; Claude adversarial still runs
-    expectMentions(content, [['only', 'disabled', 'passes']], 'content');
+    expectMentions(compact(content), [['`CODEX_MODE: disabled`', 'Codex のパスだけ', 'スキップ']], 'content');
+    expectMentions(compact(content), [['Claude の敵対的サブエージェント', '常に実行']], 'content');
     // Review log
     expect(content).toContain('adversarial-review');
     expect(content).toContain('run-with-timeout --effort high ');
     expect(content).toContain('ADVERSARIAL REVIEW SYNTHESIS');
     // Large diff structured review still gated
-    expectMentions(content, [['only', 'structured', 'review']], 'content');
-    expect(content).toContain('200');
+    expect(content).toContain('### Codex 構造化レビュー(大きな diff のみ、200 行以上)');
+    expect(content).toContain('DIFF_TOTAL >= 200');
   });
 
   test('adversarial review in /ship always runs both passes', () => {
     const content = readShipUnion();
-    expect(content).toContain('Adversarial review (always-on)');
+    expect(content).toContain('## Step 11: 敵対的レビュー(常時実行)');
     expect(content).toContain('adversarial-review');
     expect(content).toContain('run-with-timeout --effort high ');
-    expect(content).toContain('Investigate and fix');
-    expect(content).toContain('Claude adversarial subagent (always runs)');
+    expect(content).toContain('今すぐ調査して修正する');
+    expect(content).toContain('### Claude 敵対的サブエージェント(常に実行)');
   });
 
   test('scope drift detection in /review and /ship', () => {
@@ -1634,7 +1629,7 @@ describe('Codex skill', () => {
       expect(content).toContain('DRIFT DETECTED');
       expect(content).toContain('SCOPE CREEP');
       expect(content).toContain('MISSING REQUIREMENTS');
-      expect(content).toContain('stated intent');
+      expectMentions(compact(content), [['表明された意図', '実際の変更', '比較']]);
     }
   });
 
@@ -1645,7 +1640,7 @@ describe('Codex skill', () => {
       expect(content).toContain('gstack-claude-code');
       expect(content).toContain('codex_reviews');
       expect(content).toContain('adversarial-review');
-      expect(content).toContain('Investigate and fix');
+      expect(content).toContain('今すぐ調査して修正する');
     }
   });
 
@@ -1679,7 +1674,7 @@ describe('Codex skill', () => {
     // always-loaded skeleton to respect the skeleton-byte budget).
     const content = fs.readFileSync(
       path.join(ROOT, 'document-release', 'sections', 'release-body.md'), 'utf-8');
-    expect(content).toContain('Codex Documentation Review (default-on)');
+    expect(content).toContain('## Codex ドキュメントレビュー(デフォルトで有効)');
     expect(content).toContain('CODEX_MODE');
     expect(content).toContain('codex-doc-review');
   });
@@ -1741,13 +1736,16 @@ describe('Codex skill', () => {
     // Do NOT "restore" the boundary by putting a prompt argument back on a
     // scoped `codex review` call: that combination fails to parse, and
     // dropping the scope flag to make it parse silently reviews the wrong diff.
+    // codex/SKILL.md carries the boundary as a localized instruction; the prompts
+    // that are sent to Codex (review/ship adversarial) stay English on purpose.
     const boundaryLine = /do not read or execute any files under ~\/\.claude\/, ~\/\.agents\/, \.claude\/skills\/, or agents\//i;
+    const boundaryLineJa = /~\/\.claude\/、~\/\.agents\/、\.claude\/skills\/、agents\/ の下にあるファイルを読んだり実行したりしないでください/;
     for (const rel of ['codex/SKILL.md', 'review/SKILL.md', 'ship/SKILL.md']) {
       // ship's AND review's codex/adversarial boundary lines moved into sections/adversarial.md.
       const content = rel === 'ship/SKILL.md' ? readShipUnion()
         : rel === 'review/SKILL.md' ? readSkillUnion('review')
         : fs.readFileSync(path.join(ROOT, rel), 'utf-8');
-      expect(content).toMatch(boundaryLine);
+      expect(content).toMatch(boundaryLine.test(content) ? boundaryLine : boundaryLineJa);
     }
   });
 
@@ -1755,7 +1753,7 @@ describe('Codex skill', () => {
     const content = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
     expect(content).toContain('"skill":"review"');
     expect(content).toContain('"issues_found":N');
-    expect(content).toContain('Persist Eng Review result');
+    expect(content).toContain('## Step 5.8: エンジニアリングレビューの結果を保存する');
   });
 
   test('Review Readiness Dashboard includes Adversarial Review row', () => {
@@ -1786,7 +1784,8 @@ describe('Skill trigger phrases', () => {
       // The catalog trim drops trigger prose from the Claude SKILL.md, so check
       // the template description: --catalog-mode=full and the other hosts
       // still route on it.
-      expect(content).toMatch(/Use when/i);
+      // Descriptions are localized: the trigger sentence ends with 「…と依頼されたときに使います/使用します」.
+      expect(content).toMatch(/使(い|用し)ます/);
     });
   }
 
@@ -1803,7 +1802,8 @@ describe('Skill trigger phrases', () => {
       if (!fs.existsSync(skillPath)) return;
       const content = fs.readFileSync(skillPath, 'utf-8');
       // Same catalog-trim consideration — check the template description.
-      expect(content).toMatch(/Proactively (suggest|invoke)/i);
+      // Localized: 積極的に提案/起動/呼び出す (document-release words it as 提案すべきときに使います).
+      expect(content).toMatch(/積極的に(提案|起動|このスキルを呼び出|このスキルを積極的に)|提案すべきとき/);
     });
   }
 });
@@ -1999,7 +1999,7 @@ describe('Repo mode preamble validation', () => {
   test('tier 3+ skills contain See Something Say Something section', () => {
     // Root SKILL.md is tier 1 (no Repo Mode). Check a tier 3 skill instead.
     const content = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('See Something, Say Something');
+    expect(content).toContain('## リポジトリの所有権 — 気づいたら声に出す');
     expect(content).toContain('REPO_MODE');
     expect(content).toContain('solo');
     expect(content).toContain('collaborative');
@@ -2022,8 +2022,8 @@ describe('Test failure triage in ship skill', () => {
     expect(content).toContain('REPO_MODE');
     expect(content).toContain('solo');
     expect(content).toContain('collaborative');
-    expect(content).toContain('Investigate and fix now');
-    expect(content).toContain('Add as P0 TODO');
+    expect(content).toContain('今すぐ調査して修正する');
+    expect(content).toContain('P0 の TODO として追加する');
   });
 
   test('ship/SKILL.md triage has GitHub issue assignment for collaborative mode', () => {
@@ -2039,7 +2039,9 @@ describe('Test failure triage in ship skill', () => {
 
   test('ship/SKILL.md uses in-branch language for stop condition', () => {
     const content = readShipUnion();
-    expectMentions(content, [['in-branch', 'unfixed', 'stop']], 'content');
+    expectMentions(compact(content), [['ブランチ内', 'In-branch'], ['曖昧な場合', 'ブランチ内として扱います']], 'content');
+    expectMentions(compact(content), [['STOP'], ['あなたの失敗']], 'content');
+    expectMentions(compact(content), [['先へ進まないでください']], 'content');
   });
 });
 

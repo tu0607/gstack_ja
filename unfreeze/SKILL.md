@@ -1,7 +1,7 @@
 ---
 name: unfreeze
 version: 0.1.0
-description: Clear the freeze boundary set by /freeze, allowing edits to all directories again. (gstack)
+description: /freeze で設定された編集境界を解除し、すべてのディレクトリで再び編集できるようにします。 (gstack)
 triggers:
   - unfreeze edits
   - unlock all directories
@@ -13,9 +13,9 @@ allowed-tools:
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
 
-# /unfreeze — Clear Freeze Boundary
+# /unfreeze — 凍結境界の解除
 
-Remove the edit restriction set by `/freeze`, allowing edits to all directories.
+`/freeze` で設定された編集の制限を解除し、すべてのディレクトリでの編集を許可します。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -23,14 +23,12 @@ mkdir -p "$GSTACK_STATE_ROOT"/analytics
 echo '{"skill":"unfreeze","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> "$GSTACK_STATE_ROOT"/analytics/skill-usage.jsonl 2>/dev/null || true
 ```
 
-## Clear the boundary
+## 境界の解除
 
 ```bash
 bash "$HOME/.claude/skills/gstack/freeze/bin/freeze-state.sh" clear
 ```
 
-This is explicit user-requested removal, not investigation cleanup. The shared writer serializes it with acquisition, replacement and owner-checked release. On `FREEZE_BUSY` or unexpected state, leave everything untouched and report recovery; never delete state or a possibly active mutation lock directly.
+これはユーザーが明示的に求めた削除であり、調査後の後片付けではありません。共有のライターが、取得、置き換え、所有者を確認したうえでの解放を直列化します。`FREEZE_BUSY` や想定外の状態が出た場合は、何にも触れず、復旧方法を報告してください。状態ファイルや、アクティブかもしれない変更用のロックを直接削除してはいけません。
 
-Tell the user the result. Note that `/freeze` hooks are still registered for the
-session — they will just allow everything since no state file exists. To re-freeze,
-run `/freeze` again.
+結果をユーザーに伝えてください。`/freeze` のフックはセッション中もまだ登録されたままです。状態ファイルが存在しないため、すべての編集を許可する動作になります。再び凍結するには、もう一度 `/freeze` を実行してください。

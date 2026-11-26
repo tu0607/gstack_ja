@@ -1,8 +1,8 @@
-# Project structure
+# プロジェクト構成
 
-Moved verbatim from CLAUDE.md (token-load reduction).
+CLAUDE.md から、トークン読み込みを減らすために原文のまま移したものです。
 
-## Directory tree
+## ディレクトリツリー
 
 ```
 gstack/

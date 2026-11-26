@@ -1,48 +1,12 @@
-# CSO scanner image release inputs
+# CSO スキャナーのイメージのリリース入力
 
-The committed scanner catalog is intentionally empty until trusted CI produces
-real qualification evidence. Nothing in this directory authorizes a host tool,
-a mutable tag, or an agent-supplied image.
+コミットされているスキャナーのカタログは、信頼された CI が実際の認定の証拠を作るまで、意図的に空のままです。このディレクトリにあるものは、ホストのツール、可変のタグ、エージェントが提供したイメージを認可しません。
 
-`build-inputs.json` is the review gate. A reviewed file contains exactly six
-profiles, two native image digests per profile, and one immutable SBOM generator.
-Every image records its source repository and commit, signer workflow and
-digest, and reviewed canonical SLSA/SPDX statement-set digests. CI uses
-`gh attestation verify` with all of those identities and rejects a statement
-digest mismatch before the image participates in a build. Each upstream image
-must already expose the declared scanner executable. Semgrep images must contain the
-reviewed local rules at `/policy/catalog/...`. OSV and Trivy images must contain
-their complete offline data below `/opt/cso/scanner-data/...`; the release job
-copies that path out of the staged image and recomputes its canonical content
-hash before running the network-none adapter test. Preparing those asset-bearing
-upstream images is an external publication prerequisite, not something an audit
-may download on demand.
+`build-inputs.json` はレビューのゲートです。レビュー済みのファイルには、正確に 6 つのプロファイルが含まれ、プロファイルごとに 2 つのネイティブイメージのダイジェストがあり、変更不可能な SBOM のジェネレーターが 1 つあります。各イメージは、そのソースのリポジトリとコミット、署名したワークフローとそのダイジェスト、そしてレビュー済みの正規化された SLSA/SPDX の statement セットのダイジェストを記録します。CI は、それらすべてのアイデンティティを指定して `gh attestation verify` を使い、statement のダイジェストが一致しなければ、そのイメージをビルドに参加させる前に拒否します。上流の各イメージは、宣言されたスキャナーの実行ファイルをすでに公開していなければなりません。Semgrep のイメージには、レビュー済みのローカルルールを `/policy/catalog/...` に含める必要があります。OSV と Trivy のイメージには、完全なオフラインのデータを `/opt/cso/scanner-data/...` の下に含める必要があります。リリースのジョブは、そのパスをステージングされたイメージからコピーし、ネットワークなしのアダプターのテストを実行する前に、その正規のコンテンツのハッシュを再計算します。こうしたアセットを含む上流のイメージを準備することは、公開に必要な外部の前提条件です。監査が、その場でダウンロードすることは許されません。
 
-The wrapper normalizes every image to `/opt/cso/entrypoint` and
-`/opt/cso/bin/scanner`, embeds the trusted HTTP assertion verifier needed by the
-Schemathesis qualification fixture, and runs as a fixed non-root image user.
-The product runner still supplies the effective host uid, read-only root,
-dropped capabilities, seccomp, no-new-privileges, bounded tmpfs and shared
-memory, network
-namespace, disabled daemon logging, and watchdog cleanup.
-Images that declare `VOLUME` are rejected; exact cleanup also removes anonymous
-volumes defensively.
+ラッパーは、すべてのイメージを `/opt/cso/entrypoint` と `/opt/cso/bin/scanner` に正規化し、Schemathesis の認定フィクスチャに必要な、信頼された HTTP アサーションの検証器を組み込み、固定の非 root のイメージユーザーとして動作させます。製品のランナーは、実効的なホストの uid、読み取り専用のルート、削除されたケーパビリティ、seccomp、no-new-privileges、上限のある tmpfs と共有メモリ、ネットワークの名前空間、デーモンのログ出力の無効化、そしてウォッチドッグによるクリーンアップを、引き続き提供します。`VOLUME` を宣言しているイメージは拒否されます。正確なクリーンアップでは、防御的に匿名ボリュームも削除します。
 
-`.github/workflows/cso-scanner-images.yml` lets a dispatched branch run only its
-read-only input and contract checks. Publishing and native qualification require
-a dispatch from protected `main` plus approval through the
-`cso-scanner-release` environment. That protected lane emits a complete
-`catalog.json` proposal with image, version-output, asset, SBOM, provenance,
-source-commit, and workflow identities. Selecting the promotion input may then
-open a catalog update pull request. Review that PR like code. The helper
-validates the committed catalog at startup and has no fallback when a profile is
-absent or incompatible.
-Promotion also requires the proposal's `previousRevision` to equal the catalog
-currently on `main`, so a stale qualification run cannot overwrite a newer one.
+`.github/workflows/cso-scanner-images.yml` では、ディスパッチされたブランチは、読み取り専用の入力と契約のチェックだけを実行できます。公開と、ネイティブの認定には、保護された `main` からのディスパッチと、`cso-scanner-release` 環境を通じた承認が必要です。その保護されたレーンは、イメージ、バージョン出力、アセット、SBOM、provenance、ソースのコミット、ワークフローのアイデンティティを含む、完全な `catalog.json` の提案を出力します。昇格の入力を選ぶと、カタログ更新の PR を開くことができます。その PR は、コードと同じように注意深くレビューしてください。ヘルパーは起動時にコミットされたカタログを検証します。プロファイルがないか、互換性がない場合は、代替の経路はありません。
+昇格には、提案の `previousRevision` が、現在 `main` にあるカタログと一致することも必要です。そうしないと、古い認定の実行が、より新しい結果を上書きしてしまうためです。
 
-GHCR creates a new scanner package private. A package administrator must make
-the bootstrap package public in GitHub's package settings before its wrapper can
-qualify; GitHub documents this change as irreversible. The qualification row
-and the protected promotion job both require public package metadata and pull
-the exact platform digest through a fresh Docker client config containing empty
-`auths`. A workflow GHCR login cannot satisfy this gate.
+GHCR は新しいスキャナーのパッケージを非公開で作成します。ラッパーが認定を行えるようにするには、パッケージの管理者が、最初のパッケージを GitHub のパッケージ設定で公開にしなければなりません。GitHub はこの変更を取り消せないものとして扱います。認定の行と、保護された昇格ジョブはどちらも、公開されたパッケージのメタデータを要求し、`auths` が空の新しい Docker クライアントの設定を通じて、正確なプラットフォームのダイジェストを pull できることを確認します。ワークフローの GHCR へのログインでは、このゲートを満たすことはできません。

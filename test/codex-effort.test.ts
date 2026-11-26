@@ -40,28 +40,28 @@ describe('manual /codex modes (#3098)', () => {
   test('the skill body documents the precedence and the --effort / --xhigh overrides', () => {
     const body = read('codex/SKILL.md.tmpl');
     for (const want of ['GSTACK_CODEX_EFFORT', 'codex_effort', 'run-with-timeout --effort <default>', '--request-effort']) expect(body).toContain(want);
-    const flags = between(body, '**Effort flags, read before the mode:**', '```bash');
+    const flags = between(body, '**エフォートのフラグ。モードの前に読んでください:**', '```bash');
     expectTokens(flags, ['--effort <level>', '--effort=<level>', '--xhigh', '--effort xhigh', '<effort-level>'], 'codex effort flags');
-    expectMentions(flags, [['directly after', 'mode word', 'leading flags', '--model', '--role', 'before any prompt text'], ['later', 'prompt text'], ['remove', 'before Step 1'],
-      ['missing', 'lowercase word', 'differing levels', 'stop'], ['later', 'level', 'say so']], 'codex effort flags');
-    const step1 = between(body, '## Step 1: Detect mode', '- Review (2A)');
-    expectMentions(step1, [['effort flags removed'], ['--request-effort', 'outranks']], 'codex Step 1');
+    expectMentions(flags, [['直後', '先頭のフラグ', '--model', '--role', 'プロンプトのテキストの前'], ['後に続く', 'プロンプトのテキスト'], ['取り除', 'ステップ 1'],
+      ['値がない', '小文字の単語', '食い違う', '停止'], ['レベルが続いて', '伝え']], 'codex effort flags');
+    const step1 = between(body, '## ステップ 1: モードの判定', '## ファイルシステムの境界');
+    expectMentions(step1, [['エフォートのフラグ', '取り除'], ['--request-effort', '渡します'], ['GSTACK_CODEX_EFFORT', '優先']], 'codex Step 1');
   });
 
   test('effort flags are read and validated before mode detection and before the paid model probe', () => {
     const body = read('codex/SKILL.md.tmpl');
     const at = (s: string) => { const i = body.indexOf(s); expect(i, s).toBeGreaterThan(-1); return i; };
     const check = at(`"$_CODEX_PROBE" check-effort high --request '<effort-level>' >/dev/null || exit 1`);
-    expect(at('**Effort flags, read before the mode:**')).toBeLessThan(check);
+    expect(at('**エフォートのフラグ。モードの前に読んでください:**')).toBeLessThan(check);
     expect(check).toBeLessThan(at('"$_CODEX_PROBE" probe-model exec'));
-    expect(check).toBeLessThan(at('## Step 1: Detect mode'));
+    expect(check).toBeLessThan(at('## ステップ 1: モードの判定'));
     expect(body).not.toMatch(/prefix each\s+`run-with-timeout` dispatch with `GSTACK_CODEX_EFFORT/);
   });
 
   test('docs/model-policy.md documents the per-request --effort flag in its Reasoning effort section', () => {
-    const doc = between(read('docs/model-policy.md'), '## Reasoning effort', '## Which workflows use the tiers?');
+    const doc = between(read('docs/model-policy.md'), '## 推論の努力レベル', '## どのワークフローが階層を使うか');
     expectTokens(doc, ['/codex review --effort medium', '--effort=<level>', '--xhigh', '--request-effort', 'GSTACK_CODEX_EFFORT'], 'model-policy effort');
-    expectMentions(doc, [['outranks', 'exported'], ['directly after', 'mode word', 'leading flags', 'prompt'], ['unknown level', 'before any Codex call']], 'model-policy effort');
+    expectMentions(doc, [['優先', 'GSTACK_CODEX_EFFORT'], ['直後', '先頭のフラグ', 'プロンプト'], ['未知のレベル', 'Codex を呼び出す前']], 'model-policy effort');
     expect(doc).toContain('| 0 | `/codex ... --effort <level>`');
   });
 });

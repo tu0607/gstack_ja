@@ -17,7 +17,7 @@
  * per-host rule-text sprawl gstack's generator model exists to avoid). If a
  * host ever needs rewrites, this generator gains a per-host emit then.
  *
- * Size budget: <= 2,048 bytes, enforced by test/agents-digest.test.ts. Every
+ * Size budget: <= 3,000 bytes (UTF-8, Japanese text; see DIGEST_BYTE_BUDGET), enforced by test/agents-digest.test.ts. Every
  * host that loads this pays for it in every session — trim, don't grow.
  *
  * Refresh: invoked from scripts/gen-skill-docs.ts after SKILL.md generation.
@@ -32,47 +32,51 @@ const ROOT = path.resolve(import.meta.dir, '..');
 // wiring test), where a Windows path.join backslash form would never match.
 // path.join(root, DIGEST_RELPATH) at the write site normalizes it fine.
 export const DIGEST_RELPATH = 'agents-digest/gstack-AGENTS.md';
-export const DIGEST_BYTE_BUDGET = 2048;
+// Budget history: 2,048 bytes for the English digest. The Japanese text measures
+// 2,609 UTF-8 bytes (Japanese characters take 3 bytes each, so the same content is
+// larger on disk although it is shorter in characters); the budget is that measure
+// plus ~15% headroom, rounded to 3,000. The always-on cost is unchanged in spirit.
+export const DIGEST_BYTE_BUDGET = 3000;
 
 export function generateAgentsDigest(opts?: { root?: string }): { content: string; bytes: number } {
   const root = opts?.root ?? ROOT;
   const version = fs.readFileSync(path.join(root, 'VERSION'), 'utf-8').trim();
 
-  const content = `# gstack digest v${version} — regenerate/re-copy after upgrading gstack
+  const content = `# gstack ダイジェスト v${version} — gstack をアップグレードしたら再生成して、もう一度コピーしてください
 
-Behavioral rules from gstack (https://github.com/garrytan/gstack), compressed
-for agent hosts without a full skill install. The full skills add workflows,
-reviews, and evals on top of these rules.
+gstack (https://github.com/garrytan/gstack) の行動ルールを、フルのスキルを
+インストールしていないエージェントホスト向けに圧縮したものです。フルのスキルは、
+これらのルールの上にワークフロー、レビュー、eval を加えます。
 
-## Ethos
+## 行動原則
 
-- **Boil the Ocean** — AI makes completeness cheap, so do the complete thing: tests, edge cases, error paths. Shortcuts need an explicit, recorded decision.
-- **Search Before Building** — know what exists before deciding what to build. Don't reinvent (tried-and-true); scrutinize the popular; prize first-principles insight above all.
-- **User Sovereignty** — models recommend, the user decides. Cross-model agreement is signal, never permission. Ask before changing the user's stated direction.
-- **Build for Yourself** — the specificity of a real problem beats the generality of a hypothetical one.
+- **Boil the Ocean** — AI は完全さを安くします。だから完全なものを作ります: テスト、エッジケース、エラー経路。近道には、明示的で記録された判断が必要です。
+- **Search Before Building** — 作るかどうか決める前に、すでにあるものを知ります。作り直さない(実績のある定番)、人気のものは吟味する、第一原理の洞察を何より重んじる。
+- **User Sovereignty** — モデルは提案し、決めるのはユーザーです。複数モデルの一致はシグナルであって、許可ではありません。ユーザーが示した方向を変える前には尋ねます。
+- **Build for Yourself** — 実在する問題の具体性は、仮定の問題の一般性に勝ります。
 
-## The reuse ladder
+## 再利用のはしご
 
-Before writing new code, stop at the first rung that holds:
-1. A helper, util, or pattern already in this repo.
-2. The standard library.
-3. A native platform feature (CSS over JS, DB constraint over app code).
-4. An already-installed dependency — never add a new one for what a few lines cover.
+新しいコードを書く前に、最初に成り立つ段で止まってください:
+1. このリポジトリにすでにあるヘルパー、ユーティリティ、パターン。
+2. 標準ライブラリ。
+3. プラットフォームのネイティブ機能(JS より CSS、アプリコードより DB 制約)。
+4. インストール済みの依存関係。数行で済むことのために、新しい依存を追加しないこと。
 
-Then build the complete version of what remains. Bug fixes hit root cause,
-not symptom: one guard in the shared function beats a guard in every caller.
+そのうえで、残った部分の完全版を作ります。バグ修正は症状ではなく根本原因に
+当てます。すべての呼び出し側にガードを入れるより、共有関数に 1 つ入れるほうが優れています。
 
-## Voice
+## 文体
 
-Direct, concrete, builder-to-builder. Name the file, function, command, and
-user-visible impact. Short paragraphs; end with what to do. No filler, no
-corporate tone, no AI vocabulary.
+直接的で具体的に、作り手から作り手へ。ファイル、関数、コマンド、ユーザーに見える
+影響を名指しします。段落は短く、最後は次にすることで締めます。前置き、堅苦しい口調、
+AI 特有の言い回しは不要です。
 
-## Full gstack
+## gstack の全体
 
-Clone https://github.com/garrytan/gstack and run \`./setup\` for the full
-skill suite (reviews, ship, QA, evals). This digest is generated — edit
-scripts/gen-agents-digest.ts, not this file.
+https://github.com/garrytan/gstack をクローンし、\`./setup\` を実行すると、フルの
+スキル一式(レビュー、ship、QA、eval)が入ります。このダイジェストは生成物です。
+このファイルではなく scripts/gen-agents-digest.ts を編集してください。
 `;
 
   return { content, bytes: Buffer.byteLength(content, 'utf-8') };

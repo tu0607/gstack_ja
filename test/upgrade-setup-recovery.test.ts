@@ -28,8 +28,8 @@ describe.skipIf(process.platform === 'win32')('upgrade setup recovery (real shel
           writeFileSync(join(source, 'setup'), '#!/bin/sh\nexit "$SETUP_EXIT"\n', { mode: 0o755 });
           writeFileSync(join(bin, 'git'), '#!/bin/sh\nfor last; do :; done\ncp -R "$UPGRADE_FIXTURE" "$last"\n', { mode: 0o755 });
           const script = blockAfter(mode === 'vendored'
-            ? '**For vendored installs**'
-            : '**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is NOT `true`:**');
+            ? '**ベンダリングされたインストールの場合**'
+            : '**`LOCAL_GSTACK` が空でなく、かつ `TEAM_MODE` が `true` ではない場合:**');
           const result = spawnSync('bash', ['-c', script], {
             cwd: root, encoding: 'utf8', timeout: 10_000,
             env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, INSTALL_DIR: mode === 'vendored' ? target : source,
@@ -56,7 +56,7 @@ describe.skipIf(process.platform === 'win32')('upgrade setup recovery (real shel
       writeFileSync(join(root, 'VERSION'), '1.0.0.0\n');
       writeFileSync(join(root, 'bin', 'gstack-config'), '#!/bin/sh\n', { mode: 0o755 });
       writeFileSync(join(root, 'bin', 'gstack-ff-update'), '#!/bin/sh\necho "ok old-commit new-commit"\n', { mode: 0o755 });
-      const result = spawnSync('bash', ['-c', blockAfter('**For git installs**')], {
+      const result = spawnSync('bash', ['-c', blockAfter('**git のインストールの場合**')], {
         cwd: root, encoding: 'utf8', timeout: 10_000,
         env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, INSTALL_DIR: root },
       });
@@ -103,7 +103,7 @@ describe.skipIf(process.platform === 'win32')('upgrade Bun floor (real git)', ()
     git(seed, 'push', '-q', 'origin', 'main');
     writeFileSync(join(stub, 'bun'), `#!/bin/sh\necho ${bunVersion}\n`, { mode: 0o755 });
     const before = git(install, 'rev-parse', 'HEAD');
-    const result = spawnSync('bash', ['-c', blockAfter('**For git installs**')], {
+    const result = spawnSync('bash', ['-c', blockAfter('**git のインストールの場合**')], {
       cwd: root, encoding: 'utf8', timeout: 30_000,
       env: { ...process.env, PATH: `${stub}:${process.env.PATH}`, INSTALL_DIR: install, SETUP_LOG: join(root, 'setup.log') },
     });

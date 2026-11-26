@@ -204,8 +204,8 @@ IMPORTANT:
 
     // Extract the save section from the skill template (before the List section)
     const full = fs.readFileSync(path.join(ROOT, 'context-save', 'SKILL.md'), 'utf-8');
-    const saveStart = full.indexOf('## Save flow');
-    const listStart = full.indexOf('## List flow');
+    const saveStart = full.indexOf('## 保存の流れ');
+    const listStart = full.indexOf('## 一覧の流れ');
     const saveSection = full.slice(saveStart, listStart > saveStart ? listStart : undefined);
 
     const result = await runSkillTest({
@@ -324,8 +324,8 @@ This is the newest saved context. Cross-branch restore should load THIS file.
 
     // Extract the restore-flow section from the skill template
     const full = fs.readFileSync(path.join(ROOT, 'context-restore', 'SKILL.md'), 'utf-8');
-    const restoreStart = full.indexOf('## Restore flow');
-    const importantStart = full.indexOf('## Important Rules', restoreStart);
+    const restoreStart = full.indexOf('## 復元の流れ');
+    const importantStart = full.indexOf('## 重要なルール', restoreStart);
     const restoreSection = full.slice(restoreStart, importantStart > restoreStart ? importantStart : undefined);
 
     const result = await runSkillTest({

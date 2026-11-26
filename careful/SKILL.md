@@ -1,7 +1,7 @@
 ---
 name: careful
 version: 0.1.0
-description: Safety guardrails for destructive commands. (gstack)
+description: 破壊的なコマンドに対する安全ガードレール。 (gstack)
 triggers:
   - be careful
   - warn before destructive
@@ -15,21 +15,19 @@ hooks:
       hooks:
         - type: command
           command: 'bash -c "exec bash \"$HOME/.claude/skills/gstack/careful/bin/check-careful.sh\""'
-          statusMessage: "Checking for destructive commands..."
+          statusMessage: "破壊的なコマンドを確認しています..."
     - matcher: "PowerShell"
       hooks:
         - type: command
           command: 'bash -c "exec bash \"$HOME/.claude/skills/gstack/careful/bin/check-careful.sh\""'
-          statusMessage: "Checking for destructive commands..."
+          statusMessage: "破壊的なコマンドを確認しています..."
 ---
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
 
-# /careful — Destructive Command Guardrails
+# /careful — 破壊的なコマンドのガードレール
 
-Safety mode is now **active**. Every Bash and PowerShell command will be checked
-for destructive patterns before running. If a destructive command is detected, you'll be warned
-and can choose to proceed or cancel.
+安全モードが**有効**になりました。Bash と PowerShell のすべてのコマンドは、実行前に破壊的なパターンがないか確認されます。破壊的なコマンドが検出された場合は警告が出ます。そのうえで、実行を続けるかキャンセルするかを選べます。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -37,67 +35,47 @@ mkdir -p "$GSTACK_STATE_ROOT"/analytics
 echo '{"skill":"careful","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> "$GSTACK_STATE_ROOT"/analytics/skill-usage.jsonl 2>/dev/null || true
 ```
 
-## What's protected
+## 保護の対象
 
-| Pattern | Example | Risk |
+| パターン | 例 | リスク |
 |---------|---------|------|
-| `rm -rf` / `rm -r` / `rm --recursive` | `rm -rf /var/data` | Recursive delete |
-| `DROP TABLE` / `DROP DATABASE` | `DROP TABLE users;` | Data loss |
-| `TRUNCATE` | `TRUNCATE orders;` | Data loss |
-| `git push --force` / `-f` | `git push -f origin main` | History rewrite |
-| `git reset --hard` | `git reset --hard HEAD~3` | Uncommitted work loss |
-| `git checkout .` / `git restore .` | `git checkout .` | Uncommitted work loss |
-| `kubectl delete` | `kubectl delete pod` | Production impact |
-| `docker rm -f` / `docker system prune` | `docker system prune -a` | Container/image loss |
+| `rm -rf` / `rm -r` / `rm --recursive` | `rm -rf /var/data` | 再帰的な削除 |
+| `DROP TABLE` / `DROP DATABASE` | `DROP TABLE users;` | データの消失 |
+| `TRUNCATE` | `TRUNCATE orders;` | データの消失 |
+| `git push --force` / `-f` | `git push -f origin main` | 履歴の書き換え |
+| `git reset --hard` | `git reset --hard HEAD~3` | コミットされていない作業の消失 |
+| `git checkout .` / `git restore .` | `git checkout .` | コミットされていない作業の消失 |
+| `kubectl delete` | `kubectl delete pod` | 本番環境への影響 |
+| `docker rm -f` / `docker system prune` | `docker system prune -a` | コンテナやイメージの消失 |
 
-## PowerShell and cmd (Windows)
+## PowerShell と cmd(Windows)
 
-The hook also checks the PowerShell tool (Claude Code's main Windows shell)
-and any `pwsh`/`powershell`/`cmd` launched from Bash. Matching ignores case,
-covers aliases in command position, accepts parameter prefixes (`-r`, `-fo`)
-and strips cmd `^` escapes. All rows above apply there too.
+このフックは、Claude Code の主要な Windows シェルである PowerShell ツールに加えて、Bash から起動された `pwsh`/`powershell`/`cmd` も確認します。マッチングは大文字小文字を区別せず、コマンドの位置にあるエイリアスを対象とし、パラメータの省略形(`-r`、`-fo`)も受け付け、cmd の `^` エスケープを取り除きます。上の表のすべての行がここにも適用されます。
 
-| Pattern | Example |
+| パターン | 例 |
 |---------|---------|
-| `Remove-Item`/`rm`/`ri`/`del`/`erase`/`rd`/`rmdir` + `-Recurse` or `-Force` | `gci \| ri -r -fo` |
-| cmd `rd /s`, `rmdir /s`, `del /s`, `erase /s` | `cmd /c rd /s /q C:\proj` |
-| `Format-Volume`, `Clear-Disk`, `Clear-Content`, `[IO.Directory]::Delete`, `[IO.File]::Delete` | `Clear-Disk -Number 1` |
-| `-EncodedCommand`, `iex`, `Start-Process` of a shell, `& $cmd` (can't be inspected) | `irm $url \| iex` |
+| `Remove-Item`/`rm`/`ri`/`del`/`erase`/`rd`/`rmdir` + `-Recurse` または `-Force` | `gci \| ri -r -fo` |
+| cmd の `rd /s`、`rmdir /s`、`del /s`、`erase /s` | `cmd /c rd /s /q C:\proj` |
+| `Format-Volume`、`Clear-Disk`、`Clear-Content`、`[IO.Directory]::Delete`、`[IO.File]::Delete` | `Clear-Disk -Number 1` |
+| `-EncodedCommand`、`iex`、シェルの `Start-Process`、`& $cmd`(中身を検査できない) | `irm $url \| iex` |
 
-**Best-effort on PowerShell.** String matching can't see a command built at
-runtime. For a hard stop, add Claude Code permission deny rules, which parse
-PowerShell and its aliases: `"deny": ["PowerShell(Remove-Item *)"]` in
-`.claude/settings.json`. The hook runs through `bash`, so Windows needs Git Bash.
+**PowerShell はベストエフォートです。** 文字列マッチングでは、実行時に組み立てられるコマンドは見えません。確実に止めたい場合は、Claude Code のパーミッションの拒否ルールを追加してください。このルールは PowerShell とそのエイリアスを解析します。`.claude/settings.json` に `"deny": ["PowerShell(Remove-Item *)"]` と書きます。フックは `bash` 経由で動くため、Windows では Git Bash が必要です。
 
-## Safe exceptions
+## 安全な例外
 
-These patterns are allowed without warning:
+次のパターンは、警告なしで許可されます:
 - `rm -rf node_modules` / `.next` / `dist` / `__pycache__` / `.cache` / `build` / `.turbo` / `coverage`
 
-## How it works
+## 動作の仕組み
 
-The hook reads `tool_name` and the command from the tool input JSON, checks it against the
-patterns above, and returns a `hookSpecificOutput` payload with
-`permissionDecision: "ask"` and a warning reason if a match is found (the
-decision must be nested under `hookSpecificOutput` — Claude Code ignores a
-top-level `permissionDecision`). You can always override a MEDIUM warning and
-proceed.
+フックは、ツールの入力 JSON から `tool_name` とコマンドを読み取り、上のパターンと照合します。一致した場合は、`hookSpecificOutput` のペイロードを返します。その中には `permissionDecision: "ask"` と警告の理由が入ります(判定は必ず `hookSpecificOutput` の内側に入れる必要があります。トップレベルの `permissionDecision` は Claude Code が無視します)。MEDIUM の警告は、いつでも上書きして実行を続けられます。
 
-## HIGH tier (hard deny)
+## HIGH 段階(強制拒否)
 
-Two catastrophic shapes are **denied**, not asked: `rm -r`/`-R` of exactly
-`/`, `~`, or `$HOME`, and force-push to the repo's **default branch**. SIMPLE
-commands only (no `;`, `&&`, `||`, `|`, newline) — compound shapes fall
-through to the MEDIUM ask; `--force-with-lease` is never HIGH. A best-effort
-advisory hard-stop, not a policy boundary: the escape hatch is ending the
-opt-in, session-scoped /careful session.
+次の 2 つの致命的なパターンは、確認ではなく**拒否**されます。`/`、`~`、`$HOME` のいずれかをそのまま対象にした `rm -r`/`-R`、そしてリポジトリの**既定のブランチ**への force-push です。対象は単純なコマンドだけです(`;`、`&&`、`||`、`|`、改行を含まないもの)。複合的な形のコマンドは MEDIUM の確認に回されます。`--force-with-lease` は HIGH になることはありません。これはベストエフォートの助言的な停止であり、ポリシーの境界ではありません。回避する方法は、自分でオプトインしたセッション限定の /careful を終了することです。
 
-## Project patterns (additive only)
+## プロジェクト固有のパターン(追加のみ)
 
-Add warn rules — one POSIX ERE per line, `#` comments OK — in
-`~/.gstack/careful-patterns.txt` (global) or
-`~/.gstack/projects/<slug>/careful-patterns.txt` (per-project). Consulted
-after the built-in families, so config can only ADD rules, never suppress a
-baseline warning. Invalid regex lines are skipped.
+警告ルールを追加できます。1 行に 1 つの POSIX ERE を書き、`#` によるコメントも使えます。ファイルは `~/.gstack/careful-patterns.txt`(グローバル)または `~/.gstack/projects/<slug>/careful-patterns.txt`(プロジェクトごと)です。組み込みのパターンファミリーの後に参照されるため、設定でできるのはルールの追加だけで、組み込みの警告を抑制することはできません。不正な正規表現の行はスキップされます。
 
-To deactivate, end the conversation or start a new one. Hooks are session-scoped.
+無効にするには、会話を終了するか、新しい会話を始めてください。フックはセッション単位で動作します。

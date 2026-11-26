@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { expectMentions, expectOrdered, expectTokens } from './helpers/prompt-structure';
 import { buildCookieWorkflowJudgeInput, COOKIE_WORKFLOW_JUDGE } from './helpers/cookie-workflow-judge-input';
 import { buildWorkflowJudgePrompt, readWorkflowJudgeInput, WORKFLOW_JUDGE_RESPONSE_SCHEMA } from './helpers/workflow-judge-input';
 import { prepareWorkflowJudgeCache, validWorkflowJudgeScore, type WorkflowCacheOptions } from './helpers/workflow-judge-cache';
@@ -205,13 +206,16 @@ describe('cookie workflow judge input', () => {
     const input = buildCookieWorkflowJudgeInput(ROOT);
     const entry = readFileSync(join(ROOT, 'setup-browser-cookies/SKILL.md'), 'utf8');
     const reference = readFileSync(join(ROOT, 'BROWSER.md'), 'utf8');
-    expect(input.files[0].content).toBe(entry.slice(entry.indexOf('# Setup Browser Cookies')));
-    expect(input.files[1].content).toBe(reference.slice(reference.indexOf('#### Choosing a source and checking sign-in'), reference.indexOf('### Tabs + frames')));
+    const at = (text: string, markers: string[]) => Math.min(...markers.map(marker => text.indexOf(marker)).filter(index => index >= 0));
+    expect(input.files[0].content).toBe(entry.slice(at(entry, ['# Setup Browser Cookies', '# ブラウザ Cookie のセットアップ'])));
+    expect(input.files[1].content).toBe(reference.slice(
+      at(reference, ['#### Choosing a source and checking sign-in', '#### 取り込み元の選択とサインインの確認']),
+      at(reference, ['### Tabs + frames', '### タブとフレーム'])));
     expect(input.files[0].content.length).toBeGreaterThan(500);
     expect(input.files[1].content.length).toBeGreaterThan(500);
     expect(input.prompt).toContain('GSTACK_COOKIE_AUTH_EXPECTED_IDENTITY');
-    expect(input.prompt).toContain('isolated world');
-    expect(input.prompt).not.toContain('### Tabs + frames');
+    expect(input.prompt).toContain('--clear-storage');
+    expect(input.prompt).not.toMatch(/^### (Tabs \+ frames|タブとフレーム)$/m);
   });
 
   test('fails closed when either source file is absent', () => {
@@ -240,17 +244,20 @@ describe('cookie workflow judge input', () => {
   test('generated host workflows resolve shared references from the installation root and check Aside first', () => {
     for (const file of ['setup-browser-cookies/SKILL.md', '.agents/skills/gstack-setup-browser-cookies/SKILL.md']) {
       const source = readFileSync(join(ROOT, file), 'utf8');
-      const body = source.slice(source.indexOf('# Setup Browser Cookies'));
-      expect(body).toContain('Use this checkout as the gstack root if it contains `BROWSER.md` and `browse/SKILL.md`');
-      expect(body).toContain('the installed root containing `bin/gstack-skill-start`, never a generated host stub');
-      expect(body).toContain("Read that root's `browse/SKILL.md`");
-      expect(body).toContain('**Aside probe prints `READY`:** no import is needed');
-      expect(body.indexOf('**BROWSER SETUP**')).toBeLessThan(body.indexOf('**Browser fallback**'));
-      expect(body).toContain("Read that same root's `BROWSER.md`, **Choosing a source and checking sign-in**");
+      const body = source.slice(source.search(/^# (Setup Browser Cookies|ブラウザ Cookie のセットアップ)$/m));
+      expectMentions(body, [
+        ['`BROWSER.md`', '`browse/SKILL.md`', 'gstack'],
+        ['`bin/gstack-skill-start`', 'インストール済み'],
+        ['生成された', 'スタブ', '使わない'],
+        ['`browse/SKILL.md`', '**BROWSER SETUP**', 'Aside'],
+        ['`READY`', 'Aside', '取り込みは不要'],
+      ]);
+      expectOrdered(body, ['**BROWSER SETUP**', '**Browser fallback**']);
+      expectTokens(body, ['`BROWSER.md`', '**取り込み元の選択とサインインの確認**']);
       expect(body).not.toContain('../BROWSER.md');
     }
     expect(readFileSync(join(ROOT, 'browse/SKILL.md'), 'utf8')).toContain('## BROWSER SETUP (Aside');
-    expect(readFileSync(join(ROOT, 'BROWSER.md'), 'utf8')).toContain('#### Choosing a source and checking sign-in');
+    expect(readFileSync(join(ROOT, 'BROWSER.md'), 'utf8')).toMatch(/^#### (Choosing a source and checking sign-in|取り込み元の選択とサインインの確認)$/m);
   });
 
   test('each owned dependency selects this judge in the fast PR profile', () => {

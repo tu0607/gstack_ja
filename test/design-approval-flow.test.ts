@@ -23,7 +23,7 @@ function bashBlockAfter(marker: string): string {
 
 const BOARD = bashBlockAfter('<!-- design:board -->');
 // The save block follows the feedback-file block.
-const APPROVAL = SKILL.slice(SKILL.indexOf('**Save the approved choice.**')).match(/```bash\n(_IMG=[\s\S]*?)```/)![1];
+const APPROVAL = SKILL.slice(SKILL.indexOf('**承認された選択を保存します。**')).match(/```bash\n(_IMG=[\s\S]*?)```/)![1];
 
 let dir: string;
 let designDir: string;

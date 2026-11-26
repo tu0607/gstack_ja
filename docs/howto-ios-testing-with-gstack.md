@@ -1,20 +1,20 @@
-# How to test iOS apps with GStack iOS
+# gstack iOS で iOS アプリをテストする方法
 
-This is the end-to-end walkthrough for the iOS QA capability that ships with gstack: install the canonical Swift templates into your app, connect a real iPhone over USB, and drive it from any agent (Claude Code locally, or any HTTP-capable agent over Tailscale). No simulators, no XCTest harness, no WebDriverAgent.
+これは、gstack に付属する iOS の QA 機能をエンドツーエンドで説明するガイドです。正規の Swift テンプレートをアプリにインストールし、実機の iPhone を USB で接続して、どのエージェントからでも操作します(ローカルの Claude Code、または Tailscale 経由で HTTP に対応した任意のエージェント)。シミュレーターも、XCTest のハーネスも、WebDriverAgent も使いません。
 
-Everything below has been verified end-to-end on a real iPhone 17 Pro Max running iOS 26.5. The same flow works on any iOS 16+ device.
+以下のすべては、実機の iPhone 17 Pro Max(iOS 26.5)でエンドツーエンドに検証済みです。同じ手順は iOS 16 以降の任意のデバイスで動作します。
 
-## What you'll need
+## 必要なもの
 
-- macOS with Xcode 16.0+ installed (`xcrun devicectl --version` must succeed). Xcode 16 ships the CoreDevice tunnel `devicectl` uses to reach the device over USB.
-- A real iPhone or iPad running iOS/iPadOS 16 or later (iPad Stage Manager and multi-window layouts are not device-verified yet). Unlocked, paired with your Mac, with **Developer Mode** enabled in Settings → Privacy & Security.
-- An Apple developer team — the free personal team works fine for live-device debug deploys. You'll need the team ID (e.g. `623FYQ2M88`), not the certificate ID. Find it in Xcode → Settings → Accounts → your Apple ID → team list. The setup signs the app for your device on first deploy via `-allowProvisioningUpdates -allowProvisioningDeviceRegistration`.
-- gstack installed (`./setup` complete; `gstack-ios-qa-regen` and `gstack-ios-qa-daemon` must be on PATH).
-- Bun runtime on PATH (`bun --version`). The Mac-side daemon is a bun process.
+- Xcode 16.0 以降がインストールされた macOS(`xcrun devicectl --version` が成功すること)。Xcode 16 には、`devicectl` が USB 経由でデバイスに到達するために使う CoreDevice トンネルが含まれています。
+- iOS/iPadOS 16 以降の実機の iPhone または iPad(iPad の Stage Manager やマルチウィンドウのレイアウトは、まだ実機での検証をしていません)。ロックを解除し、Mac とペアリングされていて、設定 → プライバシーとセキュリティで **デベロッパモード** が有効になっていること。
+- Apple の開発者チーム。無料の個人チームで、実機へのデバッグ用デプロイには十分です。必要なのはチーム ID(例: `623FYQ2M88`)で、証明書の ID ではありません。Xcode → 設定 → アカウント → 自分の Apple ID → チームの一覧で確認できます。セットアップは、最初のデプロイ時に `-allowProvisioningUpdates -allowProvisioningDeviceRegistration` を使って、アプリをデバイス向けに署名します。
+- gstack がインストール済みであること(`./setup` が完了していて、`gstack-ios-qa-regen` と `gstack-ios-qa-daemon` が PATH にあること)。
+- PATH 上の Bun ランタイム(`bun --version`)。Mac 側のデーモンは bun のプロセスです。
 
-For the optional remote-agent (Tailscale) mode, you'll additionally need Tailscale installed on the Mac with `/var/run/tailscale.sock` readable.
+任意のリモートエージェント(Tailscale)モードでは、さらに、Mac に Tailscale がインストールされていて、`/var/run/tailscale.sock` が読み取り可能である必要があります。
 
-## Architecture in one breath
+## アーキテクチャを一言で
 
 ```
 ┌─────────────────┐   tailnet (opt)    ┌──────────────────────┐   USB CoreDevice    ┌─────────────────────┐
@@ -24,15 +24,15 @@ For the optional remote-agent (Tailscale) mode, you'll additionally need Tailsca
 └─────────────────┘                    └──────────────────────┘                     └─────────────────────┘
 ```
 
-- iOS app embeds a `StateServer` (`DebugBridge` SPM library, `#if DEBUG` only) listening on `::1` + `127.0.0.1` port 9999. Bearer-token gated. The one-use boot token lives in a 0600 file in the app's `tmp/` (never `os_log`); the daemon copies it out and rotates it within ~5 seconds, which deletes the file, so a later copy is a dead credential. If the app cannot write the file, it logs `NOT READY` and `/healthz` carries `boot_token_error`.
-- Mac daemon brokers traffic over the CoreDevice IPv6 tunnel that `xcrun devicectl` opens automatically when a paired device is connected.
-- In Tailscale mode, the daemon exposes a separate listener bound to your tailnet IP, with capability tiers (observe / interact / mutate / restore) enforced per session token. Tokens are minted explicitly by the Mac owner via `gstack-ios-qa-mint`; remote callers never auto-allowlist.
+- iOS アプリには、`StateServer`(`DebugBridge` の SPM ライブラリ、`#if DEBUG` のみ)が組み込まれ、`::1` と `127.0.0.1` のポート 9999 で待ち受けます。bearer トークンで保護されています。使い捨ての起動トークンは、アプリの `tmp/` にある 0600 のファイルに置かれます(`os_log` には出しません)。デーモンがそれをコピーし、約5秒以内にローテーションします。そのときファイルは削除されるので、後からコピーしても無効な認証情報です。アプリがファイルを書けなかった場合は `NOT READY` をログに出し、`/healthz` には `boot_token_error` が入ります。
+- Mac のデーモンは、デバイスが接続されると `xcrun devicectl` が自動的に開く CoreDevice の IPv6 トンネル経由で、トラフィックを中継します。
+- Tailscale モードでは、デーモンはテールネットの IP にバインドされた別のリスナーを公開します。セッショントークンごとに、observe / interact / mutate / restore の権限レベルが強制されます。トークンは、Mac の所有者が `gstack-ios-qa-mint` で明示的に発行します。リモートの呼び出し元が自動で許可リストに入ることはありません。
 
-The iOS `StateServer` is loopback-only **always**, even in remote mode. Identity validation happens Mac-side because the iPhone has no way to validate a Tailscale identity.
+iOS の `StateServer` は、リモートモードでも**常に**ループバックのみです。iPhone には Tailscale の ID を検証する手段がないので、ID の検証は Mac 側で行われます。
 
-## Step 1: Generate the DebugBridge package
+## 手順 1: DebugBridge パッケージを生成する
 
-Run `/ios-qa` from the app root, or invoke the same deterministic regenerator directly:
+アプリのルートで `/ios-qa` を実行するか、同じ決定的な再生成ツールを直接呼び出してください。
 
 ```bash
 gstack-ios-qa-regen \
@@ -40,21 +40,11 @@ gstack-ios-qa-regen \
   --bridge-dir "$PWD/DebugBridge"
 ```
 
-The command copies an explicit allowlist of canonical templates into the local
-`DebugBridge/` Swift package, generates
-`DebugBridgeGenerated/StateAccessor.swift`, and writes the installed version to
-`DebugBridgeGenerated/.gstack-version`. It excludes generated output from its
-own schema hash, so rerunning it with unchanged source is a fast, byte-stable
-cache hit. It also removes the explicit legacy generated-file set from older
-flat harness layouts so stale bridge sources cannot shadow the package.
+このコマンドは、正規のテンプレートの明示的な許可リストを、ローカルの `DebugBridge/` Swift パッケージにコピーし、`DebugBridgeGenerated/StateAccessor.swift` を生成し、インストールされたバージョンを `DebugBridgeGenerated/.gstack-version` に書き込みます。生成された出力はそれ自身のスキーマのハッシュから除外されるので、ソースが変わらないまま再実行すると、高速でバイト単位で安定したキャッシュヒットになります。また、古いフラットなハーネスのレイアウトから残っている、明示的な古い生成ファイルのセットも削除します。これにより、古いブリッジのソースが、パッケージの代わりに読み込まれることを防ぎます。
 
-1. Add `DebugBridge/` as a local package dependency. Depend on the
-   `DebugBridgeUI` product only in Debug configuration; `DebugBridgeCore` and
-   `DebugBridgeTouch` come in transitively.
-2. Add `DebugBridgeGenerated/StateAccessor.swift` to the app target.
-3. In your `@main` App init, install the UIKit resolvers before starting the
-   server, then register the generated accessor. Replace the example
-   state/accessor names with the type the generator found:
+1. `DebugBridge/` をローカルのパッケージの依存関係として追加します。`DebugBridgeUI` プロダクトに依存するのは Debug 構成のときだけにしてください。`DebugBridgeCore` と `DebugBridgeTouch` は推移的に入ってきます。
+2. `DebugBridgeGenerated/StateAccessor.swift` をアプリのターゲットに追加します。
+3. `@main` の App の init で、サーバーを開始する前に UIKit のリゾルバをインストールし、生成されたアクセサを登録します。例の状態名やアクセサ名は、生成ツールが見つけた型に置き換えてください。
 
    ```swift
    #if DEBUG
@@ -76,13 +66,13 @@ flat harness layouts so stale bridge sources cannot shadow the package.
    #endif
    ```
 
-The three SwiftPM targets split as: `DebugBridgeCore` is cross-platform (so `swift build` on a CI Mac host can validate the bulk of the code without UIKit), `DebugBridgeUI` and `DebugBridgeTouch` are iOS-only (they link UIKit). `DebugBridgeTouch` is Objective-C — it carries the KIF-derived UITouch synthesis with the iOS 18+ `_UIHitTestContext` fix that makes SwiftUI Button taps actually fire.
+3 つの SwiftPM ターゲットの分担は次のとおりです。`DebugBridgeCore` はクロスプラットフォームなので、CI の Mac ホストでの `swift build` で、UIKit なしにコードの大部分を検証できます。`DebugBridgeUI` と `DebugBridgeTouch` は iOS 専用で、UIKit にリンクします。`DebugBridgeTouch` は Objective-C です。KIF 由来の UITouch 合成を含み、iOS 18 以降の `_UIHitTestContext` の修正が入っているため、SwiftUI の Button のタップが実際に発火します。
 
-The structural Release-build guard is layered. The `.when(configuration: .debug)` clause in `Package.swift` means SwiftPM refuses to link any `DebugBridge*` target in a Release build, so the bridge cannot ship to TestFlight even if you forget to clean up. On top of that, `DebugBridgeTouch.m`'s private-API touch synthesis is compiled behind `#if TARGET_OS_IOS && DEBUG` (with `DEBUG` defined for that target only in the debug configuration via `cSettings` in `Package.swift`), so a Release compile of the touch bridge emits an empty translation unit — zero private symbols in the binary even if the linker guard were bypassed.
+Release ビルドを防ぐ構造的なガードは、何層かに分かれています。`Package.swift` の `.when(configuration: .debug)` の句により、SwiftPM は Release ビルドでどの `DebugBridge*` ターゲットのリンクも拒否します。そのため、後片付けを忘れても、ブリッジが TestFlight に出ることはありません。さらにその上で、`DebugBridgeTouch.m` のプライベート API のタッチ合成は `#if TARGET_OS_IOS && DEBUG` の内側でコンパイルされます(`Package.swift` の `cSettings` により、そのターゲットでは Debug 構成のときだけ `DEBUG` が定義されます)。そのため、Release のコンパイルではタッチブリッジは空の変換単位を出力します。リンカのガードを回避されたとしても、バイナリにプライベートのシンボルは一つもありません。
 
-## Step 2: Build + install to the device
+## 手順 2: ビルドしてデバイスにインストールする
 
-From the app's project directory:
+アプリのプロジェクトディレクトリから:
 
 ```
 xcodebuild \
@@ -96,7 +86,7 @@ xcodebuild \
   build
 ```
 
-Then install + launch:
+そのあと、インストールして起動します。
 
 ```
 UDID=$(xcrun devicectl list devices 2>/dev/null | awk 'NR>2 && $0!="" {print $(NF-2); exit}')
@@ -104,25 +94,25 @@ xcrun devicectl device install app --device "$UDID" /tmp/build/Build/Products/De
 xcrun devicectl device process launch --device "$UDID" --terminate-existing your.bundle.id
 ```
 
-If the phone is locked you'll get `FBSOpenApplicationServiceErrorDomain error 1 — Locked`. Unlock and retry. First-time installs surface a Trust dialog on the phone; tap Trust, then re-run.
+電話がロックされていると、`FBSOpenApplicationServiceErrorDomain error 1 — Locked` が出ます。ロックを解除してから再試行してください。初めてインストールするときは、電話に「信頼」のダイアログが出ます。「信頼」をタップしてから、再実行してください。
 
-## Step 3: Start the Mac-side daemon
+## 手順 3: Mac 側のデーモンを起動する
 
-Two options.
+方法は2つあります。
 
-**Option A — let the skill spawn it.** Run `/ios-qa` in Claude Code from anywhere; the skill spawns the daemon on demand, bootstraps the tunnel, rotates the boot token, and exposes the device through the proxy. Cleanest path for local-USB use.
+**オプション A — スキルに起動させる。** どこからでも Claude Code で `/ios-qa` を実行してください。スキルがオンデマンドでデーモンを起動し、トンネルを立ち上げ、起動トークンをローテーションして、プロキシ経由でデバイスを公開します。ローカルの USB で使うには、最も簡単な方法です。
 
-**Option B — start it yourself.** Run:
+**オプション B — 自分で起動する。** 次を実行します。
 
 ```
 gstack-ios-qa-daemon
 ```
 
-The daemon prints `READY: port=<n> pid=<pid>` once both loopback listeners are bound. The default port is 9099. Spawners can read that line with a ~5 second timeout to confirm readiness; you can also point `curl` at the printed port.
+デーモンは、両方のループバックリスナーがバインドされると `READY: port=<n> pid=<pid>` を表示します。デフォルトのポートは 9099 です。起動するプロセスは、この行を約5秒のタイムアウトで読み取って準備完了を確認できます。表示されたポートに `curl` を向けることもできます。
 
-Either way the daemon takes an exclusive flock on `~/.gstack/ios-qa-daemon.pid` — running it twice from two Claude Code sessions is safe; the second invocation discovers the running daemon's port and joins.
+どちらの場合も、デーモンは `~/.gstack/ios-qa-daemon.pid` に排他的な flock を取ります。2つの Claude Code セッションから2回実行しても安全です。2回目の呼び出しは、実行中のデーモンのポートを見つけて、それに参加します。
 
-Set these env vars to target a specific device or bundle:
+特定のデバイスやバンドルを対象にするには、次の環境変数を設定します。
 
 ```
 GSTACK_IOS_TARGET_UDID=248C3A58-B843-5BDB-8F5D-89ADB7D7BF6A
@@ -131,56 +121,33 @@ GSTACK_IOS_DAEMON_PORT=9099       # loopback listener port; default 9099
 GSTACK_IOS_LAUNCH_ENV='{"DEBUG_BRIDGE":"1"}'   # optional: env for the app when the daemon launches it
 ```
 
-`GSTACK_IOS_LAUNCH_ENV` is for apps whose debug bridge (or anything else) is
-gated on an environment variable. It is a JSON object of string to string, and
-the daemon passes it to `xcrun devicectl device process launch
---environment-variables` on every launch it performs, including the one forced
-relaunch below. It only takes effect when the daemon launches the app; an app
-that is already running keeps the environment it started with. Invalid JSON, a
-non-string value, or a `GSTACK_` key (reserved for the debug bridge) refuses the
-launch with `IOS_LAUNCH_ENV_INVALID` instead of starting the app without it.
+`GSTACK_IOS_LAUNCH_ENV` は、デバッグブリッジ(またはそのほかのもの)が環境変数でゲートされているアプリのためのものです。文字列から文字列へのマップの JSON オブジェクトで、デーモンはこれを、デーモンが実行するすべての起動に `xcrun devicectl device process launch --environment-variables` として渡します。下記の強制再起動も含みます。効果があるのは、デーモンがアプリを起動したときだけです。すでに実行中のアプリは、起動時の環境をそのまま保持します。不正な JSON、文字列でない値、`GSTACK_` のキー(デバッグブリッジ用に予約されています)があると、環境変数なしでアプリを起動するのではなく、`IOS_LAUNCH_ENV_INVALID` で起動を拒否します。
 
-If `GSTACK_IOS_TARGET_UDID` is unset, the daemon picks the best paired,
-available iPhone or iPad, preferring a wired device. When two devices tie (an
-iPhone and an iPad both on USB), it refuses to guess: the bootstrap error lists
-each device with its UDID and prints a ready
-`export GSTACK_IOS_TARGET_UDID=<udid>` line.
-The daemon keeps a healthy rotated tunnel for its lifetime. When the CoreDevice
-route drops (`503 device_disconnected` / `504 upstream_timeout`), it re-resolves
-the tunnel address for the same UDID and probes the running app with the bearer
-it already holds, so the app keeps its state. It bootstraps again only when the
-app rejects that bearer (401, the app was relaunched), the app is not running
-(one normal launch), or a different device is now selected; the old bearer is
-never sent to another device. A tap or other mutation whose response was lost
-is never replayed.
-If a newly started daemon reaches an already-running target whose one-use boot
-token was consumed by an earlier daemon, it verifies the bundle owner, force
-relaunches that target once, waits for a fresh token, verifies ownership again,
-and rotates normally.
+`GSTACK_IOS_TARGET_UDID` が未設定の場合、デーモンはペアリング済みで利用可能な最適な iPhone または iPad を選びます。有線接続のデバイスを優先します。2台が同順位になった場合(USB 接続の iPhone と iPad の両方など)は、推測することを拒否します。ブートストラップのエラーには、デバイスごとに UDID が表示され、すぐに使える `export GSTACK_IOS_TARGET_UDID=<udid>` の行が出ます。
+デーモンは、稼働中はトンネルが健全であればローテーション済みのトンネルを保持します。CoreDevice の経路が切れた(`503 device_disconnected` / `504 upstream_timeout`)場合は、同じ UDID のトンネルアドレスを再解決し、保持している bearer で実行中のアプリをプローブします。そのためアプリは状態を保ったままになります。再ブートストラップするのは、アプリがその bearer を拒否したとき(401、アプリが再起動された)、アプリが実行されていないとき(通常の起動が1回)、または別のデバイスが選択されたときだけです。古い bearer が別のデバイスに送られることは決してありません。応答が失われたタップやそのほかの変更は、再送されることは決してありません。
+新しく起動したデーモンが、以前のデーモンが1回限りの起動トークンを消費した、すでに実行中のターゲットに到達した場合は、バンドルの所有者を検証し、そのターゲットを1回だけ強制的に再起動し、新しいトークンを待ち、所有権を再度検証してから、通常どおりローテーションします。
 
-## Step 4: Drive the device
+## 手順 4: デバイスを操作する
 
-Once the daemon is running, you have an HTTP surface at `http://127.0.0.1:9099` (or `[::1]:9099`). The skill flow does this for you, but the raw endpoints are:
+デーモンが実行されると、`http://127.0.0.1:9099`(または `[::1]:9099`)で HTTP のサーフェスが使えます。スキルのフローがこれを代わりに行いますが、生のエンドポイントは次のとおりです。
 
-| Endpoint | What it does | Auth |
+| エンドポイント | 役割 | 認証 |
 |---|---|---|
-| `GET /healthz` | Version probe. | none (loopback) |
-| `POST /auth/rotate` | Daemon-only; rotates the boot token to an in-memory-only value. | boot token |
-| `POST /session/acquire` | Acquire the per-device session lock. Returns `{session_id, ttl_seconds}`. | bearer |
-| `POST /session/release` | Release the lock. | bearer + session |
-| `GET /screenshot` | Capture a PNG of the active window. Returns `{png_base64: "..."}`. | bearer |
-| `GET /elements` | Accessibility-tree snapshot. | bearer |
-| `GET /state/snapshot` | Dump every `// @Snapshotable` field as JSON. | bearer |
-| `POST /state/restore` | Validate the full snapshot, then restore it on MainActor. | bearer + session, mutate tier |
-| `POST /tap` `{x,y}` | Synthesize a real UITouch at window coordinates. SwiftUI Buttons fire. | bearer + session, interact tier |
-| `POST /swipe` `{from_x,from_y,to_x,to_y}` | Scroll the nearest enclosing UIScrollView. | bearer + session, interact tier |
-| `POST /type` `{text}` | Set text on the current first responder. | bearer + session, interact tier |
+| `GET /healthz` | バージョンの確認。 | なし(ループバック) |
+| `POST /auth/rotate` | デーモン専用。起動トークンを、メモリ上のみの値にローテーションする。 | 起動トークン |
+| `POST /session/acquire` | デバイスごとのセッションロックを取得する。`{session_id, ttl_seconds}` を返す。 | bearer |
+| `POST /session/release` | ロックを解放する。 | bearer + セッション |
+| `GET /screenshot` | アクティブなウィンドウの PNG をキャプチャする。`{png_base64: "..."}` を返す。 | bearer |
+| `GET /elements` | アクセシビリティツリーのスナップショット。 | bearer |
+| `GET /state/snapshot` | `// @Snapshotable` が付いたすべてのフィールドを JSON としてダンプする。 | bearer |
+| `POST /state/restore` | スナップショット全体を検証してから、MainActor で復元する。 | bearer + セッション、mutate 権限 |
+| `POST /tap` `{x,y}` | ウィンドウ座標で、実際の UITouch を合成する。SwiftUI の Button が発火する。 | bearer + セッション、interact 権限 |
+| `POST /swipe` `{from_x,from_y,to_x,to_y}` | 最も近い外側の UIScrollView をスクロールする。 | bearer + セッション、interact 権限 |
+| `POST /type` `{text}` | 現在の first responder にテキストを設定する。 | bearer + セッション、interact 権限 |
 
-Mutating requests require both an `Authorization: Bearer <token>` header AND an `X-Session-Id` header. Read endpoints (`/screenshot`, `/elements`, `GET /state/*`) only need the bearer.
+変更を伴うリクエストには、`Authorization: Bearer <token>` ヘッダーと `X-Session-Id` ヘッダーの両方が必要です。読み取り専用のエンドポイント(`/screenshot`、`/elements`、`GET /state/*`)は bearer だけが必要です。
 
-The state snapshot is opt-in per field via a standalone generator marker
-comment immediately above a property. It is intentionally not a property
-wrapper, so it compiles cleanly with Observation:
+状態のスナップショットは、プロパティの直前に置かれたスタンドアロンのジェネレータ・マーカーコメントによって、フィールドごとにオプトインします。これは意図的にプロパティラッパーではないので、Observation と問題なくコンパイルできます。
 
 ```swift
 @Observable
@@ -192,29 +159,19 @@ final class AppState {
 }
 ```
 
-Unmarked fields never appear in the snapshot, which keeps tokens, PII, and
-auth state out of recorded fixtures by default. A marked field must be a
-writable instance `var` on a file-scope observable class, with an explicit type
-and an internal or public setter. Supported snapshot types are JSON-native
-scalars (`String`, `Bool`, signed/unsigned integer widths, `Float`, `Double`,
-`CGFloat`), arrays, String-keyed dictionaries, and Optional compositions of
-those types. Snapshot keys must be unique across observable classes. The
-generator reports and stops on invalid declarations, custom values, implicitly
-unwrapped Optionals, nested observable classes, or duplicate keys instead of
-emitting broken or lossy Swift. Restore uses two phases: every model validates
-the complete input first, and only then are assignments applied on MainActor.
+マーカーの付いていないフィールドは、スナップショットに決して現れません。これにより、トークン、個人情報、認証の状態が、デフォルトで記録されたフィクスチャに入らなくなります。マーカーの付いたフィールドは、ファイルスコープの observable クラスの、書き込み可能なインスタンスの `var` で、明示的な型を持ち、内部または公開のセッターでなければなりません。サポートされるスナップショットの型は、JSON ネイティブのスカラー(`String`、`Bool`、符号付き/符号なし整数の各幅、`Float`、`Double`、`CGFloat`)、配列、String をキーとする辞書、およびそれらの Optional の組み合わせです。スナップショットのキーは、observable クラスをまたいでユニークでなければなりません。ジェネレータは、無効な宣言、カスタムの値、暗黙的に非ラップの Optional、ネストした observable クラス、重複するキーに遭遇すると、壊れた、または情報を欠いた Swift を出力する代わりに、報告して停止します。復元は2段階で行われます。すべてのモデルがまず入力全体を検証し、そのあとで初めて MainActor で代入が適用されます。
 
-## Step 5: Make remote agents work (optional)
+## 手順 5: リモートのエージェントを動かす(任意)
 
-To let an agent on another machine drive the device, run the daemon with `--tailnet`:
+別のマシン上のエージェントにデバイスを操作させたい場合は、`--tailnet` を付けてデーモンを起動してください。
 
 ```
 gstack-ios-qa-daemon --tailnet
 ```
 
-The daemon probes `/var/run/tailscale.sock` first; if the socket is missing or unreadable, it refuses to open the tailnet listener at all (loopback still runs). Remote mode never half-starts.
+デーモンはまず `/var/run/tailscale.sock` を調べます。ソケットがないか読み取れない場合は、テールネットのリスナーをまったく開きません(ループバックは引き続き動きます)。リモートモードが中途半端に起動することはありません。
 
-Then mint a session token for the identity that should be able to connect:
+次に、接続させたい ID のためのセッショントークンを発行します。
 
 ```
 gstack-ios-qa-mint grant --remote 'alice@example.com' --capability interact
@@ -222,34 +179,34 @@ gstack-ios-qa-mint grant --remote 'tag:ci' --capability mutate --ttl 86400 --not
 gstack-ios-qa-mint list
 ```
 
-Capability tiers are nested: `observe` (read endpoints only) ⊂ `interact` (taps, swipes, type) ⊂ `mutate` (`POST /state/*`) ⊂ `restore` (`POST /state/restore`). Pick the smallest tier that does the job. The allowlist file is at `~/.gstack/ios-qa-allowlist.json` (mode 0600) — the daemon reads it on every `/auth/mint` request, so changes take effect immediately without restarting.
+権限のレベルは入れ子になっています。`observe`(読み取りのエンドポイントのみ)⊂ `interact`(タップ、スワイプ、入力)⊂ `mutate`(`POST /state/*`)⊂ `restore`(`POST /state/restore`)。仕事を果たせる最小のレベルを選んでください。許可リストのファイルは `~/.gstack/ios-qa-allowlist.json`(モード 0600)にあります。デーモンは `/auth/mint` のリクエストごとにこれを読み込むので、変更は再起動なしで即座に反映されます。
 
-The remote agent then hits `POST /auth/mint` against the daemon's tailnet listener. The daemon canonicalizes the caller's identity via tailscaled's WhoIs endpoint, checks the allowlist, and returns a short-lived session token (1 hour default, 24 hour cap). Every authenticated mutating request lands in `~/.gstack/security/ios-qa-audit.jsonl`; rejected requests land in `~/.gstack/security/attempts.jsonl`.
+リモートのエージェントは、デーモンのテールネットのリスナーに対して `POST /auth/mint` を呼び出します。デーモンは、tailscaled の WhoIs エンドポイント経由で呼び出し元の ID を正規化し、許可リストを確認して、短命のセッショントークン(デフォルト 1 時間、上限 24 時間)を返します。認証された変更リクエストはすべて `~/.gstack/security/ios-qa-audit.jsonl` に記録されます。拒否されたリクエストは `~/.gstack/security/attempts.jsonl` に記録されます。
 
-## Step 6: Ship a release build
+## 手順 6: リリース用ビルドを出荷する
 
-Before you ship to TestFlight or the App Store, run `/ios-clean`. It removes the `DebugBridge` SPM dependency and strips the `#if DEBUG` wiring from your `@main` App. The structural guard in `Package.swift` (`condition: .when(configuration: .debug)`) means a Release build wouldn't link the bridge even if you forgot to clean up, but `/ios-clean` gives you a tidy diff to review and ship.
+TestFlight や App Store に出す前に、`/ios-clean` を実行してください。`DebugBridge` の SPM 依存関係を削除し、`@main` の App から `#if DEBUG` の配線を取り除きます。`Package.swift` の構造的なガード(`condition: .when(configuration: .debug)`)により、後片付けを忘れても Release ビルドはブリッジをリンクしませんが、`/ios-clean` はレビューしやすい、整った差分を提供します。
 
-## Common failures
+## よくある失敗
 
-| Symptom | What broke |
+| 症状 | 壊れている箇所 |
 |---|---|
-| `xcodebuild` fails with `Could not locate device support files for iOS X.Y` | Run `xcodebuild -downloadPlatform iOS` to fetch the device support package for your iPhone's iOS version (~8GB). |
-| Install succeeds, `process launch` fails with `Locked` | The phone is locked. Unlock and retry. |
-| First install on a paired device fails with no clear error | The phone needs to Trust the Mac. Open Settings → General → VPN & Device Management on the phone and confirm. |
-| `Developer Mode` toggle missing from Settings → Privacy | Connect the device to Xcode → Window → Devices and Simulators once, or try any `devicectl device install` against it. iOS will surface the toggle after the first attempt. |
-| `xcrun devicectl device copy from` returns ERROR 7000 | The source path is wrong — boot token lives at `tmp/gstack-ios-qa.token` inside the app's data container (NSTemporaryDirectory), not at the path's root. |
-| Bootstrap fails with `multiple_devices` | More than one iPhone/iPad is connected. Run the printed `export GSTACK_IOS_TARGET_UDID=<udid>` and restart the daemon. |
-| Launch refused with `(IOS_LAUNCH_ENV_INVALID)` | `GSTACK_IOS_LAUNCH_ENV` is not a JSON object of string to string, or sets a `GSTACK_` key. Fix or unset it and restart the daemon; see [troubleshooting](troubleshooting.md#ios-launch-env-invalid). |
-| `boot_token_unavailable ... could not write tmp/gstack-ios-qa.token` | The app could not write its boot-token file. Fix the app's `tmp/` directory and relaunch the app. |
-| A SwiftUI `DragGesture` or `Canvas` ignores taps and swipes on iOS 26 | Synthesized in-process touches do not reach SwiftUI gesture recognizers on iOS 26, and `/swipe` only scrolls a `UIScrollView`. See "Known limits" in the `/ios-qa` skill for the input-routing workaround. |
-| `/healthz` returns 200 but `/tap` returns ok:true with no UI change | The phone is paired but the StateServer port may have changed across launches. Re-resolve the CoreDevice IPv6 (`dscacheutil -q host -a name '<DeviceName>.coredevice.local'`). |
-| `403 identity_not_allowed` from `/auth/mint` | The remote caller's identity isn't on the Mac's allowlist. Run `gstack-ios-qa-mint grant --remote <identity> --capability interact` on the Mac. |
-| Daemon won't open the tailnet listener | Tailscale isn't installed, or `/var/run/tailscale.sock` is unreadable. Fix Tailscale, then restart the daemon. Loopback still runs in the meantime. |
-| SwiftUI Button tap returns `ok:true` but the action never fires | You're on iOS 17 or older where `_UIHitTestContext` doesn't exist. The DebugBridgeTouch implementation falls back to plain `hitTest:` which doesn't resolve into SwiftUI's gesture container. Update to iOS 18+ on the device, or tap a UIKit control instead. |
+| `xcodebuild` が `Could not locate device support files for iOS X.Y` で失敗する | `xcodebuild -downloadPlatform iOS` を実行して、iPhone の iOS バージョン用のデバイスサポートパッケージを取得する(約 8GB)。 |
+| インストールは成功するが、`process launch` が `Locked` で失敗する | 電話がロックされている。ロックを解除して再試行する。 |
+| ペアリング済みデバイスへの初回インストールが、わかりやすいエラーなしに失敗する | 電話が Mac を信頼する必要がある。電話の設定 → 一般 → VPN とデバイス管理を開き、確認する。 |
+| 設定 → プライバシーに「デベロッパモード」のスイッチが見当たらない | デバイスを一度 Xcode → Window → Devices and Simulators に接続するか、そのデバイスに対して任意の `devicectl device install` を試す。最初の試行の後で、iOS がスイッチを表示します。 |
+| `xcrun devicectl device copy from` が ERROR 7000 を返す | 元のパスが間違っている。起動トークンは、パスのルートではなく、アプリのデータコンテナ(NSTemporaryDirectory)内の `tmp/gstack-ios-qa.token` にある。 |
+| ブートストラップが `multiple_devices` で失敗する | iPhone/iPad が2台以上接続されている。表示された `export GSTACK_IOS_TARGET_UDID=<udid>` を実行し、デーモンを再起動する。 |
+| `(IOS_LAUNCH_ENV_INVALID)` で起動が拒否される | `GSTACK_IOS_LAUNCH_ENV` が、文字列から文字列へのマップの JSON オブジェクトではないか、`GSTACK_` のキーを設定している。修正するか未設定にして、デーモンを再起動する。詳しくは [troubleshooting](troubleshooting.md#ios-launch-env-invalid) を参照。 |
+| `boot_token_unavailable ... could not write tmp/gstack-ios-qa.token` | アプリが起動トークンのファイルを書けなかった。アプリの `tmp/` ディレクトリを直し、アプリを再起動する。 |
+| iOS 26 で SwiftUI の `DragGesture` や `Canvas` がタップやスワイプを無視する | 合成されたプロセス内のタッチは、iOS 26 では SwiftUI のジェスチャ認識器に届きません。また `/swipe` は `UIScrollView` しかスクロールしません。入力のルーティングの回避策は、`/ios-qa` スキルの「Known limits」を参照してください。 |
+| `/healthz` は 200 を返すが、`/tap` は ok:true を返し、UI が変わらない | 電話はペアリングされているが、アプリの起動をまたいで StateServer のポートが変わった可能性がある。CoreDevice の IPv6 を再解決する(`dscacheutil -q host -a name '<DeviceName>.coredevice.local'`)。 |
+| `/auth/mint` が `403 identity_not_allowed` を返す | リモートの呼び出し元の ID が、Mac の許可リストにない。Mac で `gstack-ios-qa-mint grant --remote <identity> --capability interact` を実行する。 |
+| デーモンがテールネットのリスナーを開けない | Tailscale がインストールされていないか、`/var/run/tailscale.sock` が読み取れない。Tailscale を直してから、デーモンを再起動する。その間もループバックは動いている。 |
+| SwiftUI の Button のタップは `ok:true` を返すが、アクションが発火しない | iOS 17 以前を使っている。その場合 `_UIHitTestContext` が存在しない。DebugBridgeTouch の実装は、SwiftUI のジェスチャコンテナに解決されないプレーンな `hitTest:` にフォールバックする。デバイスを iOS 18 以降に更新するか、代わりに UIKit のコントロールをタップする。 |
 
-## What this gets you
+## これで得られるもの
 
-You can write an agent loop in any language that speaks HTTP. Take a screenshot, ask a model what to do, send a tap. Capture state snapshots before and after to record deterministic fixtures for `/ios-fix` regression tests. Add a colleague to the allowlist and they drive your iPhone from their laptop over Tailscale without ever touching the hardware. Plug the same daemon into CI by minting a `tag:ci` session token with mutate-tier capability and a 24-hour TTL.
+HTTP を話せる任意の言語で、エージェントのループを書けます。スクリーンショットを撮り、モデルに次に何をすべきか尋ね、タップを送る。ステートのスナップショットを前後で撮って、`/ios-fix` の回帰テストのための決定的なフィクスチャを記録できます。同僚を許可リストに加えれば、ハードウェアに触れることなく、Tailscale 経由でノートパソコンから iPhone を操作できます。`tag:ci` のセッショントークンを、mutate 権限と 24 時間の TTL で発行すれば、同じデーモンを CI に組み込むこともできます。
 
-The whole stack is a Mac you already own, an iPhone you already own, a free Apple developer account, and gstack. No paid testing service. No simulator drift. The thing the user sees is what the agent drives.
+全体は、あなたがすでに持っている Mac、すでに持っている iPhone、無料の Apple 開発者アカウント、そして gstack があれば成り立ちます。有料のテストサービスは不要です。シミュレーターのずれもありません。ユーザーが見ているものが、エージェントが操作しているものです。

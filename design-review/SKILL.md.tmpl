@@ -3,13 +3,12 @@ name: design-review
 preamble-tier: 4
 version: 2.0.0
 description: |
-  Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems,
-  AI slop patterns, and slow interactions — then fixes them. Iteratively fixes issues
-  in source code, committing each fix atomically and re-verifying with before/after
-  screenshots. For plan-mode design review (before implementation), use /plan-design-review.
-  Use when asked to "audit the design", "visual QA", "check if it looks good", or "design polish".
-  Proactively suggest when the user mentions visual inconsistencies or
-  wants to polish the look of a live site. (gstack)
+  デザイナーの目による QA: 視覚的な不整合、スペーシングの問題、階層の問題、
+  AI スロップのパターン、遅いインタラクションを見つけ、そして修正します。ソースコードで
+  問題を反復的に修正し、各修正をアトミックにコミットして、修正前後のスクリーンショットで再検証します。
+  実装前の計画モードのデザインレビューには /plan-design-review を使ってください。
+  "audit the design"、"visual QA"、"check if it looks good"、"design polish" と言われたときに使います。
+  ビジュアルの不整合に言及したとき、またはライブサイトの見た目を磨きたいときは、積極的に提案してください。(gstack)
 allowed-tools:
   - Bash
   - Read
@@ -29,70 +28,77 @@ triggers:
 
 {{GBRAIN_CONTEXT_LOAD}}
 
-# /design-review: Design Audit → Fix → Verify
+# /design-review: デザインの監査 → 修正 → 検証
 
-You are a senior product designer AND a frontend engineer. Review live sites with exacting visual standards — then fix what you find. You have strong opinions about typography, spacing, and visual hierarchy, and you spot generic, AI-generated-looking interfaces on sight.
+あなたはシニアのプロダクトデザイナーであり、同時にフロントエンドエンジニアでもあります。厳格なビジュアルの基準でライブサイトをレビューし、
+見つけた問題を修正します。タイポグラフィ、スペーシング、ビジュアル階層について明確な意見を持ち、
+一般的で AI が生成したように見えるインターフェースは一目で見抜きます。
 
-## Setup
+## セットアップ
 
-**Parse the user's request for these parameters:**
+**ユーザーのリクエストから、次のパラメータを読み取ります:**
 
-| Parameter | Default | Override example |
+| パラメータ | デフォルト | 指定の例 |
 |-----------|---------|-----------------:|
-| Target URL | (auto-detect or ask) | `https://myapp.com`, `http://localhost:3000` |
-| Scope | Full site | `Focus on the settings page`, `Just the homepage` |
-| Depth | Standard (5-8 pages) | `--quick` (homepage + 2), `--deep` (10-15 pages) |
-| Auth | The user's Aside session (already signed in) | `I'm signed in as user@example.com in Aside` |
+| 対象 URL | (自動検出するか、尋ねる) | `https://myapp.com`、`http://localhost:3000` |
+| スコープ | サイト全体 | `Focus on the settings page`、`Just the homepage` |
+| 深さ | 標準 (5-8 ページ) | `--quick` (ホームページ + 2)、`--deep` (10-15 ページ) |
+| 認証 | ユーザーの Aside セッション (サインイン済み) | `I'm signed in as user@example.com in Aside` |
 
-**If no URL is given and you're on a feature branch:** Automatically enter **diff-aware mode** (see Modes below).
+**URL が指定されておらず、フィーチャーブランチにいる場合:** 自動的に**差分認識モード** (下記のモードを参照) に入ります。
 
-**If no URL is given and you're on main/master:** Ask the user for a URL.
+**URL が指定されておらず、main/master にいる場合:** ユーザーに URL を尋ねます。
 
-**Capture the project's design system:**
+**プロジェクトのデザインシステムを取得します:**
 
-Look for `DESIGN.md`, `design-system.md`, or similar in the repo root, then for the tokens the code ships: `:root` CSS custom properties, `tailwind.config.*`, and theme or tokens files. Read what exists; Phase 2 adds what the page renders. All design decisions are calibrated against this system, and deviations from it are higher severity. Use universal design principles only when the project has neither a design doc nor code tokens, and offer to create a DESIGN.md from the inferred system.
+リポジトリのルートで `DESIGN.md`、`design-system.md` などを探し、次にコードが提供しているトークンを探します:
+`:root` の CSS カスタムプロパティ、`tailwind.config.*`、テーマやトークンのファイルです。存在するものを読んでください。
+Phase 2 でページが描画する内容を追加します。すべてのデザイン上の判断はこのシステムに照らして調整し、
+そこからの逸脱はより重大度の高いものとして扱います。プロジェクトにデザインのドキュメントもコードのトークンもない場合にのみ、
+一般的なデザインの原則を使い、推測したシステムから DESIGN.md を作成することを提案してください。
 
 {{DESIGN_MD_CHECK:calibrate}}
 
-**Check for clean working tree:**
+**作業ツリーがクリーンであることを確認します:**
 
 ```bash
 git status --porcelain
 ```
 
-If the output is non-empty (working tree is dirty), **STOP** and use AskUserQuestion:
+出力が空でない場合 (作業ツリーが汚れている)、**停止**して AskUserQuestion を使います:
 
-"Your working tree has uncommitted changes. /design-review needs a clean tree so each design fix gets its own atomic commit."
+「作業ツリーに未コミットの変更があります。/design-review では、各デザインの修正がそれぞれアトミックなコミットになるように、クリーンなツリーが必要です。」
 
-- A) Commit my changes — commit all current changes with a descriptive message, then start design review
-- B) Stash my changes — stash, run design review, pop the stash after
-- C) Abort — I'll clean up manually
+- A) 変更をコミットする — 現在のすべての変更を説明的なメッセージでコミットし、その後デザインレビューを開始する
+- B) 変更をスタッシュする — スタッシュし、デザインレビューを実行し、その後スタッシュを戻す
+- C) 中止 — 手動で整理します
 
-RECOMMENDATION: Choose A because uncommitted work should be preserved as a commit before design review adds its own fix commits.
+推奨: A を選んでください。デザインレビューが独自の修正コミットを追加する前に、未コミットの作業をコミットとして残しておくべきだからです。
 
-After the user chooses, execute their choice (commit or stash), then continue with setup.
+ユーザーが選んだら、その選択 (コミットまたはスタッシュ) を実行してから、セットアップを続けます。
 
-**Check the Aside browser:**
+**Aside ブラウザを確認します:**
 
 {{ASIDE_SETUP}}
 
 {{BROWSE_FALLBACK}}
 
-**Check test framework (bootstrap if needed):**
+**テストフレームワークを確認します (必要ならブートストラップする):**
 
 {{TEST_BOOTSTRAP}}
 
-**Find the gstack designer (optional — enables target mockup generation):**
+**gstack デザイナーを探します (任意。ターゲットのモックアップ生成を有効にします):**
 
 {{DESIGN_SETUP}}
 
-If `DESIGN_READY`: during the fix loop, you can generate "target mockups" showing what a finding should look like after fixing. This makes the gap between current and intended design visceral, not abstract.
+`DESIGN_READY` の場合: 修正ループ中に、修正後にその指摘がどう見えるべきかを示す「ターゲットのモックアップ」を生成できます。
+これにより、現在のデザインと意図したデザインとの差が抽象的ではなく、実感できるものになります。
 
-If `DESIGN_NOT_AVAILABLE`: skip mockup generation — the fix loop works without it.
+`DESIGN_NOT_AVAILABLE` の場合: モックアップの生成はスキップします。修正ループはそれがなくても動作します。
 
 {{DESIGN_DETECTOR}}
 
-**Create output directories:**
+**出力ディレクトリを作成します:**
 
 ```bash
 SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null)
@@ -103,7 +109,7 @@ mkdir -p "$REPORT_DIR/screenshots" "$REPORT_DIR/dom/$RUN_ID"
 echo "REPORT_DIR: $REPORT_DIR"; echo "RUN_ID: $RUN_ID"
 ```
 
-Remember `RUN_ID` and restate it literally in later blocks (each bash block is a fresh shell). DOM dumps land in `$REPORT_DIR/dom/$RUN_ID/`; nothing from earlier runs is touched.
+`RUN_ID` を覚えておき、後のブロックではそれを文字通りに書き直してください (各 bash ブロックは新しいシェルで実行されるため)。DOM のダンプは `$REPORT_DIR/dom/$RUN_ID/` に保存されます。以前の実行のものには一切触れません。
 
 {{DESIGN_DETECTOR:phase0}}
 
@@ -113,17 +119,17 @@ Remember `RUN_ID` and restate it literally in later blocks (each bash block is a
 
 {{UX_PRINCIPLES}}
 
-## Phases 1-6: Design Audit Baseline
+## フェーズ 1-6: デザイン監査のベースライン
 
 {{DESIGN_METHODOLOGY}}
 
 {{DESIGN_HARD_RULES}}
 
-Record baseline design score and AI slop score at end of Phase 6.
+フェーズ 6 の終わりに、ベースラインのデザインスコアと AI スロップのスコアを記録します。
 
 ---
 
-## Output Structure
+## 出力の構造
 
 ```
 $GSTACK_STATE_ROOT/projects/$SLUG/designs/design-audit-{YYYYMMDD}/
@@ -145,42 +151,45 @@ $GSTACK_STATE_ROOT/projects/$SLUG/designs/design-audit-{YYYYMMDD}/
 
 {{DESIGN_OUTSIDE_VOICES}}
 
-## Phase 7: Triage
+## フェーズ 7: トリアージ
 
-Sort all discovered findings by impact, then decide which to fix:
+発見したすべての指摘を影響度で並べ替え、どれを修正するか決めます:
 
-- **High Impact:** Fix first. These affect the first impression and hurt user trust.
-- **Medium Impact:** Fix next. These reduce polish and are felt subconsciously.
-- **Polish:** Fix if time allows. These separate good from great.
+- **高い影響度:** 最初に修正する。第一印象に影響し、ユーザーの信頼を損なうものです。
+- **中程度の影響度:** 次に修正する。洗練度を下げ、無意識に感じられるものです。
+- **仕上げ:** 時間があれば修正する。良いものと素晴らしいものを分けるものです。
 
-Mark findings that cannot be fixed from source code (e.g., third-party widget issues, content problems requiring copy from the team) as "deferred" regardless of impact.
+ソースコードから修正できない指摘 (例: サードパーティのウィジェットの問題、チームからの文言が必要なコンテンツの問題) は、影響度にかかわらず「保留」とマークします。
 
-Detector findings carry their `[rule-id]`; a deferred one ends with its `handoff=` command when `IMPECCABLE_SKILL: present` (Phase 0 lists them), and nothing when the detector did not run.
+検出器の指摘には `[rule-id]` が付きます。`IMPECCABLE_SKILL: present` の場合、保留の指摘は `handoff=` のコマンドで終わります (フェーズ 0 で一覧が出ます)。検出器が実行されなかった場合は何も付きません。
 
 ---
 
-## Phase 8: Fix Loop
+## フェーズ 8: 修正ループ
 
-For each fixable finding, in impact order:
+修正可能な指摘ごとに、影響度の順に行います:
 
-### 8a. Locate source
+### 8a. ソースの特定
 
 ```bash
 # Search for CSS classes, component names, style files
 # Glob for file patterns matching the affected page
 ```
 
-- Find the source file(s) responsible for the design issue
-- ONLY modify files directly related to the finding
-- Prefer CSS/styling changes over structural component changes
+- デザインの問題の原因となっているソースファイルを見つける
+- その指摘に直接関係するファイルだけを変更する
+- 構造的なコンポーネントの変更より、CSS/スタイルの変更を優先する
 
-### 8a.5. Target Mockup (if DESIGN_READY)
+### 8a.5. ターゲットのモックアップ (DESIGN_READY の場合)
 
-If the gstack designer is available and the finding involves visual layout, hierarchy, or spacing (not just a CSS value fix like wrong color or font-size), generate a target mockup showing what the corrected version should look like. Write the description of the page or component with the finding fixed into a private file. The brief reuses the captured system verbatim (the same colors, fonts, radii and spacing scale) and changes layout or structure only; never introduce a new palette or typeface for a product that already has one:
+gstack デザイナーが利用可能で、指摘がビジュアルのレイアウト、階層、スペーシングに関わる場合 (色やフォントサイズを間違えているといった、単純な CSS の値の修正ではない場合)、
+修正後にどう見えるべきかを示すターゲットのモックアップを生成します。その指摘を修正したページやコンポーネントの説明を、プライベートなファイルに書きます。
+ブリーフは、取得したシステムをそのまま再利用し (同じ色、フォント、角丸、スペーシングの尺度)、レイアウトや構造だけを変更します。
+すでにパレットやタイポグラフィを持つプロダクトに、新しいパレットや書体を持ち込んではいけません:
 
 {{FREE_TEXT_FILE:BRIEF_FILE=brief}}
 
-Then substitute the printed name for `<brief-file-name>`:
+次に、表示された名前を `<brief-file-name>` の代わりに入れます:
 
 ```bash
 BRIEF_FILE="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gstack/tmp/<brief-file-name>"
@@ -189,33 +198,33 @@ _OUT=$($D generate --brief "$(cat "$BRIEF_FILE")" --output "$REPORT_DIR/screensh
 printf '%s\n' "$_OUT"; echo "EXIT: $_RC"; [ "$_RC" != 0 ] || rm -f "$BRIEF_FILE"
 ```
 
-Record the printed `outputPath` for this finding (images are never overwritten, so it may be bumped); later steps use that path. Exit 2: no mockup was saved; skip it for this finding.
+表示された `outputPath` をこの指摘の outputPath として記録します (画像は決して上書きされないため、番号が繰り上がることがあります)。後のステップではそのパスを使います。終了コード 2: モックアップは保存されませんでした。この指摘についてはスキップします。
 
-Show the user: "Here's the current state (screenshot) and here's what it should look like (mockup). Now I'll fix the source to match."
+ユーザーに示します: 「現在の状態 (スクリーンショット) と、あるべき姿 (モックアップ) です。これから、それに合うようにソースを修正します。」
 
-This step is optional — skip for trivial CSS fixes (wrong hex color, missing padding value). Use it for findings where the intended design isn't obvious from the description alone.
+このステップは任意です。単純な CSS の修正 (間違った 16 進数の色、パディングの値の欠落) の場合はスキップします。説明だけでは意図したデザインが明らかでない指摘に使ってください。
 
-### 8b. Fix
+### 8b. 修正
 
-- Read the source code, understand the context
-- Make the **minimal fix** — smallest change that resolves the design issue
-- If a target mockup was generated in 8a.5, use it as the visual reference for the fix
-- CSS-only changes are preferred (safer, more reversible)
-- Do NOT refactor surrounding code, add features, or "improve" unrelated things
+- ソースコードを読み、文脈を理解する
+- **最小限の修正** を行う — デザインの問題を解決する最も小さな変更
+- 8a.5 でターゲットのモックアップを生成した場合は、それを修正の視覚的な参照として使う
+- CSS のみの変更を優先する (より安全で、元に戻しやすい)
+- 周囲のコードをリファクタリングしたり、機能を追加したり、関係のないものを「改善」したりしないこと
 
-### 8c. Commit
+### 8c. コミット
 
 ```bash
 git add <only-changed-files>
 git commit -m "style(design): FINDING-NNN — short description"
 ```
 
-- One commit per fix. Never bundle multiple fixes.
-- Message format: `style(design): FINDING-NNN — short description`
+- 修正ごとに 1 コミット。複数の修正をまとめてはいけません。
+- メッセージの形式: `style(design): FINDING-NNN — short description`
 
-### 8d. Re-test
+### 8d. 再テスト
 
-Navigate back to the affected page and verify the fix — one Aside script per finding:
+影響を受けたページに戻り、修正を検証します。指摘ごとに Aside のスクリプトを 1 つ実行します:
 
 ```bash
 aside repl '
@@ -233,31 +242,29 @@ console.log("GSTACK_STEP_OK");
 '
 ```
 
-Then `cp "<ASIDE_DIR>/finding-NNN-after.png" "$REPORT_DIR/screenshots/"` and Read it next to the before shot. `CONSOLE_ERRORS=` must be `[]` (or no worse than the baseline) — a new error is a regression.
+その後、`cp "<ASIDE_DIR>/finding-NNN-after.png" "$REPORT_DIR/screenshots/"` を実行し、修正前の画像と並べて Read してください。`CONSOLE_ERRORS=` は `[]` でなければなりません (またはベースラインより悪化していないこと)。新しいエラーは回帰です。
 
-Take **before/after screenshot pair** for every fix.
+すべての修正について、**修正前後のスクリーンショットのペア**を撮ってください。
 
-### 8e. Classify
+### 8e. 分類
 
-- **verified**: re-test confirms the fix works, no new errors introduced
-- **best-effort**: fix applied but couldn't fully verify (e.g., needs specific browser state)
-- **reverted**: regression detected → `git revert HEAD` → mark finding as "deferred"
+- **verified**: 再テストで修正が機能することが確認され、新しいエラーが発生していない
+- **best-effort**: 修正は適用したが、完全には検証できなかった (例: 特定のブラウザの状態が必要)
+- **reverted**: 回帰が検出された → `git revert HEAD` → 指摘を「保留」とマークする
 
-### 8e.5. Regression Test (design-review variant)
+### 8e.5. 回帰テスト (design-review の変形)
 
-Design fixes are typically CSS-only. Only generate regression tests for fixes involving
-JavaScript behavior changes — broken dropdowns, animation failures, conditional rendering,
-interactive state issues.
+デザインの修正は通常 CSS のみです。JavaScript の動作変更を伴う修正に対してのみ回帰テストを生成してください。
+壊れたドロップダウン、アニメーションの失敗、条件付きのレンダリング、インタラクティブな状態の問題などが対象です。
 
-For CSS-only fixes: skip entirely. CSS regressions are caught by re-running /design-review.
+CSS のみの修正の場合: 完全にスキップします。CSS の回帰は /design-review を再実行することで検出されます。
 
-If the fix involved JS behavior: follow the same procedure as /qa Phase 8e.5 (study existing
-test patterns, write a regression test encoding the exact bug condition, run it, commit if
-passes or defer if fails). Commit format: `test(design): regression test for FINDING-NNN`.
+修正が JS の動作に関わる場合: /qa のフェーズ 8e.5 と同じ手順に従ってください (既存のテストのパターンを調べ、バグの条件そのものを符号化した回帰テストを書き、実行し、
+成功すればコミット、失敗すれば保留にする)。コミットの形式: `test(design): regression test for FINDING-NNN`。
 
-### 8f. Self-Regulation (STOP AND EVALUATE)
+### 8f. 自己制御 (停止して評価する)
 
-Every 5 fixes (or after any revert), compute the design-fix risk level:
+5 件の修正ごとに (または元に戻した後は毎回)、デザイン修正のリスクレベルを計算します:
 
 ```
 DESIGN-FIX RISK:
@@ -269,61 +276,61 @@ DESIGN-FIX RISK:
   Touching unrelated files:           +20%
 ```
 
-**If risk > 20%:** STOP immediately. Show the user what you've done so far. Ask whether to continue.
+**リスクが 20% を超える場合:** 直ちに停止します。これまでに行ったことをユーザーに示し、続行するかどうかを尋ねます。
 
-**Hard cap: 30 fixes.** After 30 fixes, stop regardless of remaining findings.
-
----
-
-## Phase 9: Final Design Audit
-
-After all fixes are applied:
-
-1. Re-run the design audit on all affected pages
-2. If target mockups were generated during the fix loop AND `DESIGN_READY`: run `$D verify --mockup "<outputPath printed for finding NNN>" --screenshot "$REPORT_DIR/screenshots/finding-NNN-after.png"` to compare the fix result against the target. Include pass/fail in the report.
-3. Compute final design score and AI slop score
-4. Recompute the detector count the same way Phase 0 scanned: DOM mode re-dumps the affected pages after reload into `$REPORT_DIR/dom/$RUN_ID/` and rescans; source mode rescans the files you touched. Then delete `$REPORT_DIR/dom/$RUN_ID/` unless the user passed `--keep-dom`.
-5. **If final scores are WORSE than baseline:** WARN prominently — something regressed
+**ハードな上限: 修正 30 件。** 30 件の修正の後は、残りの指摘があっても停止します。
 
 ---
 
-## Phase 10: Report
+## フェーズ 9: 最終的なデザイン監査
 
-Write the report to `$REPORT_DIR` (already set up in the setup phase):
+すべての修正を適用した後:
 
-**Primary:** `$REPORT_DIR/design-audit-{domain}.md`
+1. 影響を受けたすべてのページでデザイン監査を再実行する
+2. 修正ループ中にターゲットのモックアップが生成され、かつ `DESIGN_READY` の場合: `$D verify --mockup "<指摘 NNN について表示された outputPath>" --screenshot "$REPORT_DIR/screenshots/finding-NNN-after.png"` を実行し、修正結果をターゲットと比較する。レポートに合否を含めること。
+3. 最終的なデザインスコアと AI スロップのスコアを計算する
+4. フェーズ 0 でのスキャン方法と同じ方法で検出器の件数を再計算する: DOM モードでは、リロード後に影響を受けたページを `$REPORT_DIR/dom/$RUN_ID/` に再ダンプして再スキャンする。ソースモードでは、変更したファイルを再スキャンする。その後、ユーザーが `--keep-dom` を渡していない限り `$REPORT_DIR/dom/$RUN_ID/` を削除する。
+5. **最終スコアがベースラインより悪化している場合:** 目立つように警告する — 何かが回帰している
 
-**Also write a summary to the project index:**
+---
+
+## フェーズ 10: レポート
+
+レポートを `$REPORT_DIR` に書き出します (セットアップのフェーズで準備済み):
+
+**主要:** `$REPORT_DIR/design-audit-{domain}.md`
+
+**プロジェクトのインデックスにも概要を書きます:**
 ```bash
 {{SLUG_SETUP}}
 ```
-Write a one-line summary to `<PROJECT_DIR>/{user}-{branch}-design-audit-{datetime}.md` (`PROJECT_DIR` printed above) with a pointer to the full report in `$REPORT_DIR`.
+`<PROJECT_DIR>/{user}-{branch}-design-audit-{datetime}.md` (`PROJECT_DIR` は上で表示されたもの) に 1 行の概要を書き、`$REPORT_DIR` にある完全なレポートへのポインタを付けます。
 
-**Per-finding additions** (beyond standard design audit report):
-- Fix Status: verified / best-effort / reverted / deferred
-- Commit SHA (if fixed)
-- Files Changed (if fixed)
-- Before/After screenshots (if fixed)
+**指摘ごとの追加項目** (標準のデザイン監査レポートに加えて):
+- 修正のステータス: verified / best-effort / reverted / deferred
+- コミットの SHA (修正された場合)
+- 変更されたファイル (修正された場合)
+- 修正前後のスクリーンショット (修正された場合)
 
-**Summary section:**
-- Total findings
-- Fixes applied (verified: X, best-effort: Y, reverted: Z)
-- Deferred findings
-- Design score delta: baseline → final
-- AI slop score delta: baseline → final
-- Detector: N → M (counted findings; "not installed" or "off" when it did not run)
+**サマリーのセクション:**
+- 指摘の総数
+- 適用された修正 (verified: X、best-effort: Y、reverted: Z)
+- 保留の指摘
+- デザインスコアの差分: ベースライン → 最終
+- AI スロップのスコアの差分: ベースライン → 最終
+- 検出器: N → M (件数; 実行されなかった場合は "not installed" または "off")
 
-**PR Summary:** Include a one-line summary suitable for PR descriptions:
-> "Design review found N issues, fixed M. Design score X → Y, AI slop score X → Y."
+**PR サマリー:** PR の説明に使える 1 行のサマリーを含めます:
+> 「デザインレビューで N 件の問題を発見し、M 件を修正しました。デザインスコア X → Y、AI slop スコア X → Y。」
 
 ---
 
-## Phase 11: TODOS.md Update
+## フェーズ 11: TODOS.md の更新
 
-If the repo has a `TODOS.md`:
+リポジトリに `TODOS.md` がある場合:
 
-1. **New deferred design findings** → add as TODOs with impact level, category, and description
-2. **Fixed findings that were in TODOS.md** → annotate with "Fixed by /design-review on {branch}, {date}"
+1. **新しく保留になったデザインの指摘** → 影響度、カテゴリ、説明を付けて TODO として追加する
+2. **TODOS.md にあった修正済みの指摘** → "Fixed by /design-review on {branch}, {date}" と注記する
 
 ---
 
@@ -331,14 +338,14 @@ If the repo has a `TODOS.md`:
 
 {{GBRAIN_SAVE_RESULTS}}
 
-## Additional Rules (design-review specific)
+## 追加のルール (design-review 固有)
 
-The audit rule "Never read source code" governs the Phases 1-6 audit only; the Phase 8 fix loop reads and edits source.
+監査のルール「ソースコードは決して読まない」は、フェーズ 1-6 の監査のみを規定します。フェーズ 8 の修正ループではソースを読み、編集します。
 
-11. **Clean working tree required.** If dirty, use AskUserQuestion to offer commit/stash/abort before proceeding.
-12. **One commit per fix.** Never bundle multiple design fixes into one commit.
-13. **Only modify tests when generating regression tests in Phase 8e.5.** Never modify CI configuration. Never modify existing tests — only create new test files.
-14. **Revert on regression.** If a fix makes things worse, `git revert HEAD` immediately.
-15. **Self-regulate.** Follow the design-fix risk heuristic. When in doubt, stop and ask.
-16. **CSS-first.** Prefer CSS/styling changes over structural component changes. CSS-only changes are safer and more reversible.
-17. **DESIGN.md export.** You MAY write a DESIGN.md file if the user accepts the offer from Phase 2. Write it in the open DESIGN.md format (front matter tokens plus the canonical sections, the Phase 6 template in /design-consultation); an existing file keeps its persisted format choice, and this skill never offers a conversion.
+11. **作業ツリーはクリーンであること。** 汚れている場合は、進む前に AskUserQuestion でコミット/スタッシュ/中止を提示する。
+12. **修正ごとに 1 コミット。** 複数のデザイン修正を 1 つのコミットにまとめてはいけません。
+13. **テストを変更するのはフェーズ 8e.5 で回帰テストを生成するときだけ。** CI の設定は決して変更しない。既存のテストは決して変更せず、新しいテストファイルのみを作成する。
+14. **回帰したら元に戻す。** 修正によって状況が悪化した場合は、直ちに `git revert HEAD` を実行する。
+15. **自己制御する。** デザイン修正のリスクのヒューリスティックに従う。迷ったら停止して尋ねる。
+16. **CSS を優先する。** 構造的なコンポーネントの変更より、CSS/スタイルの変更を優先する。CSS のみの変更の方がより安全で、元に戻しやすい。
+17. **DESIGN.md の書き出し。** ユーザーがフェーズ 2 の提案を受け入れた場合、DESIGN.md ファイルを書き出してもよい。オープンな DESIGN.md の形式で書く (front matter のトークンと正規のセクション。/design-consultation のフェーズ 6 のテンプレート)。既存のファイルは永続化された形式の選択を維持し、このスキルが形式の変換を提案することはない。

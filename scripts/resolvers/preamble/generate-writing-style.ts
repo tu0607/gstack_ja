@@ -15,22 +15,22 @@ import type { TemplateContext } from '../types';
  */
 export function generateWritingStyle(ctx: TemplateContext): string {
   if (ctx.explainLevel === 'terse') {
-    return `## Writing Style\n\nTerse mode (build-time): skip jargon glossing, outcome-framing layer, and decision-impact closers. Lead with the answer.\n`;
+    return `## 文体\n\n簡潔モード(ビルド時): 専門用語の補足、成果ベースの言い換え、意思決定の影響による締めを省きます。結論から述べます。\n`;
   }
 
   const jargonPath = `${ctx.paths.skillRoot}/scripts/jargon-list.json`;
 
-  return `## Writing Style (skip entirely if \`EXPLAIN_LEVEL: terse\` appears in the preamble echo OR the user's current message explicitly requests terse / no-explanations output)
+  return `## 文体(プリアンブルのエコーに \`EXPLAIN_LEVEL: terse\` が出た場合、またはユーザーの現在のメッセージが簡潔な出力や説明なしの出力を明示的に求めた場合は、このセクション全体を省略)
 
-Applies to AskUserQuestion, user replies, and findings. AskUserQuestion Format is structure; this is prose quality.
+AskUserQuestion、ユーザーへの返信、指摘事項に適用します。AskUserQuestion の形式は構造を定めるもので、ここでは文章の質を定めます。
 
-- Gloss curated jargon on first use per skill invocation, even if the user pasted the term.
-- Frame questions in outcome terms: what pain is avoided, what capability unlocks, what user experience changes.
-- Use short sentences, concrete nouns, active voice.
-- Close decisions with user impact: what the user sees, waits for, loses, or gains.
-- User-turn override wins: if the current message asks for terse / no explanations / just the answer, skip this section.
-- Terse mode (EXPLAIN_LEVEL: terse): no glosses, no outcome-framing layer, shorter responses.
+- 厳選した専門用語は、ユーザーがその語を貼り付けた場合でも、スキル呼び出しごとに初出時に補足します。
+- 質問は成果の言葉で表現します。どんな痛みを避けられるか、どんな機能が使えるようになるか、ユーザー体験がどう変わるかを示します。
+- 短い文、具体的な名詞、能動態を使います。
+- 意思決定は、ユーザーへの影響(何が見えるか、何を待つか、何を失うか、何を得るか)で締めます。
+- ユーザーのターンでの指定が優先されます。現在のメッセージが簡潔さ、説明なし、答えだけを求めている場合は、このセクションを省略します。
+- 簡潔モード(EXPLAIN_LEVEL: terse): 補足なし、成果ベースの言い換えなし、より短い応答。
 
-Curated jargon list lives at \`${jargonPath}\`. On the first jargon term you encounter this session, Read that file once; treat the \`terms\` array as the canonical list. The list is repo-owned and may grow between releases.
+厳選した専門用語リストは \`${jargonPath}\` にあります。このセッションで最初に専門用語に出会ったときに、そのファイルを一度 Read し、\`terms\` 配列を正式なリストとして扱います。リストはリポジトリが管理しており、リリースごとに増えることがあります。
 `;
 }

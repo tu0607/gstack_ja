@@ -16,24 +16,24 @@ export const AI_SLOP_BLACKLIST: string[] = DESIGN_SLOP_CATALOG
 
 /** OpenAI hard rejection criteria (from "Designing Delightful Frontends with GPT-5.4", Mar 2026) */
 export const OPENAI_HARD_REJECTIONS = [
-  'Generic SaaS card grid as first impression',
-  'Beautiful image with weak brand',
-  'Strong headline with no clear action',
-  'Busy imagery behind text',
-  'Sections repeating same mood statement',
-  'Carousel with no narrative purpose',
-  'App UI made of stacked cards instead of layout',
+  'ありきたりな SaaS のカードグリッドが第一印象になっている',
+  '美しい画像だが、ブランドが弱い',
+  '強い見出しだが、明確なアクションがない',
+  'テキストの背後に雑多な画像がある',
+  '複数のセクションが同じムードの訴えを繰り返している',
+  '物語上の目的のないカルーセル',
+  'レイアウトではなく、積み重ねたカードで作られたアプリ UI',
 ];
 
 /** OpenAI litmus checks — 7 yes/no tests for cross-model consensus scoring */
 export const OPENAI_LITMUS_CHECKS = [
-  'Brand/product unmistakable in first screen?',
-  'One strong visual anchor present?',
-  'Page understandable by scanning headlines only?',
-  'Each section has one job?',
-  'Are cards actually necessary?',
-  'Does motion improve hierarchy or atmosphere?',
-  'Would design feel premium with all decorative shadows removed?',
+  '最初の画面で、ブランドやプロダクトがはっきり分かるか。',
+  '強い視覚的なアンカーが 1 つあるか。',
+  '見出しをざっと読むだけでページが理解できるか。',
+  '各セクションの役割は 1 つか。',
+  'カードは本当に必要か。',
+  'モーションは階層構造や雰囲気を改善しているか。',
+  '装飾的なシャドウをすべて取り除いても、デザインは上質に感じられるか。',
 ];
 
 /**
@@ -114,11 +114,11 @@ _CODEX_SANDBOX_MODE=$(echo "$_CODEX_OUT" | sed -n 's/^CODEX_SANDBOX: //p')`;
  * DESIGN_OUTSIDE_VOICES, DESIGN_REVIEW_LITE, DESIGN_SKETCH.
  */
 export function codexErrorHandling(feature: string): string {
-  return `**Error handling:** All errors are non-blocking — the ${feature} is informational.
-- Auth failure (stderr contains "auth", "login", "unauthorized"): note and skip
-- Timeout: note timeout duration and skip
-- Empty response: note and skip
-On any error: continue — ${feature} is informational, not a gate.`;
+  return `**エラー処理:** すべてのエラーはブロッキングではありません。${feature} は参考情報です。
+- 認証の失敗(stderr に "auth"、"login"、"unauthorized" が含まれる): 記録してスキップする
+- タイムアウト: タイムアウトの時間を記録してスキップする
+- 空の応答: 記録してスキップする
+どのエラーでも続行します。${feature} は参考情報であり、ゲートではありません。`;
 }
 
 /**
@@ -158,11 +158,11 @@ On any error: continue — ${feature} is informational, not a gate.`;
 export function codexPreflight(opts: { modeVar?: string; disabledBehavior: 'skip-all' | 'codex-only'; nativeReview?: boolean; role?: boolean }): string {
   const m = opts.modeVar ?? '_CODEX_MODE';
   const disabledLine = opts.disabledBehavior === 'codex-only'
-    ? 'Skip the Codex passes only; the Claude adversarial subagent below STILL runs (it is free and fast). Print: "Codex passes skipped (codex_reviews disabled) — running Claude adversarial only."'
-    : 'Skip this section entirely; do NOT fall back to a Claude subagent — disabled means no extra review step. Print: "Codex review skipped (codex_reviews disabled). Re-enable: `gstack-config set codex_reviews enabled`."';
+    ? 'Codex のパスだけをスキップします。下の Claude の敵対的サブエージェントは**引き続き**実行します(無料で高速です)。次を表示します: "Codex passes skipped (codex_reviews disabled) — running Claude adversarial only."'
+    : 'このセクション全体をスキップします。Claude のサブエージェントにはフォールバック**しません**。disabled は追加のレビューステップがないことを意味します。次を表示します: "Codex review skipped (codex_reviews disabled). Re-enable: `gstack-config set codex_reviews enabled`."';
   const nativeRoute = opts.disabledBehavior === 'codex-only'
-    ? 'Keep the required Claude adversarial pass; do not dispatch a duplicate.'
-    : 'Fall back to the Claude subagent path.';
+    ? '必須の Claude の敵対的パスは維持し、重複してディスパッチしません。'
+    : 'Claude のサブエージェント経路にフォールバックします。';
   return `\`\`\`bash
 # Codex preflight: the probe runs as a command, so any shell works.
 _CODEX_PROBE=${CODEX_PROBE_PATH}
@@ -209,18 +209,18 @@ fi
 echo "CODEX_MODE: $${m}"
 \`\`\`
 
-Branch on the echoed \`CODEX_MODE\`:
-- **\`disabled\`** (or a send's \`consent_missing\` line) — \`codex_reviews\` is off or unreadable. ${disabledLine}
-- **\`helper_unavailable\`** — the probe is missing or not executable; relay the line above (cause and fix). ${nativeRoute}
-- **\`not_installed\`** — Codex CLI absent. Print: "Codex not installed; outside coverage unavailable. Install: \`npm install -g @openai/codex\`." ${nativeRoute}
-- **\`under_codex\`** — stale artifact selected its own harness. Print: "Codex outside review unavailable: harness mismatch; no outside process started. Missing coverage. Repair: setup --host codex." Skip the outside invocation and follow the workflow's native-review instructions below. Conflicting inherited harness markers are not grounds to guess another provider.
-- **\`not_authed\`** — installed but no credentials. Print: "Codex not authenticated; outside coverage unavailable. Run \`codex login\` or set \`$CODEX_API_KEY\`." ${nativeRoute}
-- **\`broken_install\`** — the CLI is on PATH but cannot execute (spawn ENOENT, non-executable binary, missing vendor payload). Print: "Codex is installed but its binary cannot run — Codex passes skipped. Reinstall: \`npm install -g @openai/codex\`." Relay the probe's HINT lines. ${nativeRoute}
-- **\`model_unusable\`** — ${opts.role ? 'the role invocation rejected policy, auth or model selection. Relay its reason and source-specific Repair/HINT lines, not a lower-priority setting. `AUTH_FAILED` needs `codex login`; never substitute a model.' : "the selected model (see `CODEX_MODEL:`) is invalid or unavailable to the account (HTTP 400 on every call). Relay the probe's HINT lines and the fix (`GSTACK_CODEX_MODEL=<supported-model>` or config.toml `model`); never substitute a model."} ${nativeRoute}${opts.role ? '' : ' The ~10s round trip is cached for 1h.'}
-- **\`quota_exhausted\`** — Codex usage limit: relay the probe's lines verbatim (reset time, retry); no more Codex calls this run. ${nativeRoute}
-- **\`sandbox_unavailable\`** — Codex's sandbox cannot start here (containers without user namespaces); the probe printed the reason and fix. No paid call ran; outside coverage is unavailable. ${nativeRoute}
-- **\`ready\`** or **\`unverified\`** — run the Codex pass below. \`unverified\` means the model check timed out or, with \`(rate_limited)\`, hit a 429; say so, and let the pass's own verdict decide.${opts.role ? `
-Plan-review readiness probes the [policy](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md) model. Relay its diagnostics; never infer quota from the review block's exit status.` : ''}`;
+エコーされた \`CODEX_MODE\` で分岐します。
+- **\`disabled\`** (または送信の \`consent_missing\` 行) — \`codex_reviews\` がオフか、読み取れません。${disabledLine}
+- **\`helper_unavailable\`** — プローブが存在しないか、実行可能ではありません。上の行(原因と対処)を伝えます。${nativeRoute}
+- **\`not_installed\`** — Codex CLI がありません。次を表示します: "Codex not installed; outside coverage unavailable. Install: \`npm install -g @openai/codex\`." ${nativeRoute}
+- **\`under_codex\`** — 古い成果物が自分自身のハーネスを選択しました。次を表示します: "Codex outside review unavailable: harness mismatch; no outside process started. Missing coverage. Repair: setup --host codex." 外部の呼び出しはスキップし、下のワークフローのネイティブレビューの指示に従います。継承されたハーネスのマーカーが矛盾していても、別のプロバイダーを推測する根拠にはなりません。
+- **\`not_authed\`** — インストールされていますが、認証情報がありません。次を表示します: "Codex not authenticated; outside coverage unavailable. Run \`codex login\` or set \`$CODEX_API_KEY\`." ${nativeRoute}
+- **\`broken_install\`** — CLI は PATH 上にありますが、実行できません(spawn ENOENT、実行不可のバイナリ、ベンダーのペイロード欠落)。次を表示します: "Codex is installed but its binary cannot run — Codex passes skipped. Reinstall: \`npm install -g @openai/codex\`." プローブの HINT 行を伝えます。${nativeRoute}
+- **\`model_unusable\`** — ${opts.role ? 'ロールの呼び出しが、ポリシー、認証、またはモデルの選択を拒否しました。優先度の低い設定ではなく、その理由と、ソース固有の Repair/HINT 行を伝えます。`AUTH_FAILED` には `codex login` が必要です。モデルを勝手に差し替えてはいけません。' : "選択されたモデル(`CODEX_MODEL:` を参照)が無効、またはアカウントで利用できません(すべての呼び出しで HTTP 400)。プローブの HINT 行と対処(`GSTACK_CODEX_MODEL=<supported-model>` または config.toml の `model`)を伝えます。モデルを勝手に差し替えてはいけません。"} ${nativeRoute}${opts.role ? '' : ' 約 10 秒の往復の結果は 1 時間キャッシュされます。'}
+- **\`quota_exhausted\`** — Codex の利用上限です。プローブの出力行(リセット時刻、再試行)をそのまま伝えます。この実行では、これ以上 Codex を呼びません。${nativeRoute}
+- **\`sandbox_unavailable\`** — ここでは Codex のサンドボックスを起動できません(ユーザー名前空間のないコンテナ)。プローブが理由と対処を表示しています。有料の呼び出しは行われておらず、外部カバレッジは利用できません。${nativeRoute}
+- **\`ready\`** or **\`unverified\`** — 下の Codex パスを実行します。\`unverified\` は、モデルのチェックがタイムアウトした、または \`(rate_limited)\` 付きの場合は 429 に当たったことを意味します。その旨を伝え、パス自身の評価に判断を委ねます。${opts.role ? `
+プランレビューの準備確認は、[ポリシー](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md)のモデルを確認します。その診断結果を伝えます。レビューブロックの終了ステータスから、クォータを推測してはいけません。` : ''}`;
 }
 
 /**
@@ -234,9 +234,9 @@ Plan-review readiness probes the [policy](https://github.com/garrytan/gstack/blo
 /** The Claude Code release that flipped Agent-tool subagents to background-by-default (#497/#2440 class). Interpolated at every RESOLVER site — grep 'Claude Code v2.1' when bumping. */
 export const CC_BACKGROUND_DEFAULT_SINCE = 'Claude Code v2.1.198';
 /** Claude Code's fork-subagent schema has no run_in_background, so every foreground request is conditional (CEO-20). */
-export const FOREGROUND_IF_AVAILABLE = '`run_in_background: false` when available';
+export const FOREGROUND_IF_AVAILABLE = '`run_in_background: false`(利用可能な場合)';
 /** The recovery when a requested foreground dispatch still ran in the background. */
-export const BACKGROUND_RECOVERY = 'A launch receipt means it went background: await its completion notice.';
+export const BACKGROUND_RECOVERY = '起動レシートが返った場合は、バックグラウンドで実行されています。その完了通知を待ちます。';
 
 export const FOREGROUND_DISPATCH_NOTE =
-  `**Foreground required:** pass ${FOREGROUND_IF_AVAILABLE} on the Agent call — subagents run in the background by default since ${CC_BACKGROUND_DEFAULT_SINCE}, so omitting an available flag gives a background run. ${BACKGROUND_RECOVERY} Dispatch through the Agent tool only: invoking the target as a Skill, or executing its workflow inline in your own context, forfeits the fresh-context isolation this dispatch exists for, even though the skill may appear in your available-skills list. (Where a step defines an inline fallback, it applies only after a dispatched subagent has failed.)`;
+  `**フォアグラウンド必須:** Agent の呼び出しで ${FOREGROUND_IF_AVAILABLE} を渡します。サブエージェントは ${CC_BACKGROUND_DEFAULT_SINCE} 以降、デフォルトでバックグラウンド実行されるため、使えるフラグを省略するとバックグラウンド実行になります。${BACKGROUND_RECOVERY} ディスパッチは Agent ツールだけで行います。対象を Skill として呼び出したり、そのワークフローを自分のコンテキストでインライン実行したりすると、このディスパッチが存在する理由である新しいコンテキストによる分離が失われます。たとえそのスキルが利用可能なスキルの一覧に載っていてもです。(ステップにインラインのフォールバックが定義されている場合、それが適用されるのは、ディスパッチしたサブエージェントが失敗した後だけです。)`;

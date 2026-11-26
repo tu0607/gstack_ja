@@ -3,12 +3,11 @@ name: benchmark-models
 preamble-tier: 1
 version: 1.0.0
 description: |
-  Cross-model benchmark for gstack skills. Runs the same prompt through Claude,
-  GPT (via Codex CLI), and Gemini side-by-side — compares latency, tokens, cost,
-  and optionally quality via LLM judge. Answers "which model is actually best
-  for this skill?" with data instead of vibes. Separate from /benchmark, which
-  measures web page performance. Use when: "benchmark models", "compare models",
-  "which model is best for X", "cross-model comparison", "model shootout". (gstack)
+  gstack スキル向けのクロスモデルベンチマークです。同じプロンプトを Claude、
+  GPT (Codex CLI 経由)、Gemini に並べて実行し、速度、トークン、コストを比較します。
+  必要に応じて LLM ジャッジによる品質も比較します。「このスキルには結局どのモデルが最適か?」という問いに、
+  雰囲気ではなくデータで答えます。ウェブページのパフォーマンスを測る /benchmark とは別物です。
+  次のような場合に使用します: 「benchmark models」「compare models」「which model is best for X」「cross-model comparison」「model shootout」。(gstack)
 voice-triggers:
   - "compare models"
   - "model shootout"
@@ -26,15 +25,15 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# /benchmark-models — Cross-Model Skill Benchmark
+# /benchmark-models — クロスモデルのスキルベンチマーク
 
-You are running the `/benchmark-models` workflow. Wraps the `gstack-model-benchmark` binary with an interactive flow that picks a prompt, confirms providers, previews auth, and runs the benchmark.
+`/benchmark-models` のワークフローを実行しています。`gstack-model-benchmark` バイナリを、プロンプトを選び、プロバイダーを確認し、認証状態をプレビューし、ベンチマークを実行する対話型のフローで包みます。
 
-Different from `/benchmark` — that skill measures web page performance (Core Web Vitals, load times). This skill measures AI model performance on gstack skills or arbitrary prompts.
+`/benchmark` とは異なります。あちらはウェブページのパフォーマンス(Core Web Vitals、読み込み時間)を測ります。このスキルは、gstack のスキルや任意のプロンプトに対する AI モデルの性能を測ります。
 
 ---
 
-## Step 0: Locate the binary
+## 手順 0: バイナリを探す
 
 ```bash
 BIN="{{RUNTIME_ROOT}}/bin/gstack-model-benchmark"
@@ -43,71 +42,71 @@ BIN="{{RUNTIME_ROOT}}/bin/gstack-model-benchmark"
 echo "BIN: $BIN"
 ```
 
-If not found, stop and tell the user to reinstall gstack.
+見つからない場合は、停止して gstack を再インストールするようユーザーに伝えてください。
 
 ---
 
-## Step 1: Choose a prompt
+## 手順 1: プロンプトを選ぶ
 
-Use AskUserQuestion with the preamble format:
-- **Re-ground:** current project + branch.
-- **Simplify:** "A cross-model benchmark runs the same prompt through 2-3 AI models and shows you how they compare on speed, cost, and output quality. What prompt should we use?"
-- **RECOMMENDATION:** A because benchmarking against a real skill exposes tool-use differences, not just raw generation.
-- **Options:**
-  - A) Benchmark one of my gstack skills (we'll pick which skill next). Completeness: 10/10.
-  - B) Use an inline prompt — type it on the next turn. Completeness: 8/10.
-  - C) Point at a prompt file on disk — specify path on the next turn. Completeness: 8/10.
+プリアンブルの形式で AskUserQuestion を使います:
+- **前提の再確認:** 現在のプロジェクトとブランチ。
+- **簡潔に:** 「クロスモデルのベンチマークは、同じプロンプトを 2〜3 個の AI モデルに実行させ、速度、コスト、出力の品質でどう比べられるかを示します。どのプロンプトを使いますか?」
+- **推奨:** A。実際のスキルに対してベンチマークすると、生成能力の差だけでなく、ツール利用の違いも見えるためです。
+- **選択肢:**
+  - A) gstack のスキルの一つをベンチマークする(次にどのスキルかを選びます)。完全性: 10/10。
+  - B) インラインのプロンプトを使う — 次のターンで入力します。完全性: 8/10。
+  - C) ディスク上のプロンプトファイルを指定する — 次のターンでパスを指定します。完全性: 8/10。
 
-If A: list top-level gstack skills that have SKILL.md files (from `find . -maxdepth 2 -name SKILL.md -not -path './.*'`), ask the user to pick one via a second AskUserQuestion. Use the picked SKILL.md path as the prompt file.
+A の場合: SKILL.md ファイルを持つ、トップレベルの gstack スキルを一覧にします(`find . -maxdepth 2 -name SKILL.md -not -path './.*'` を使います)。2 つ目の AskUserQuestion で一つを選んでもらいます。選ばれた SKILL.md のパスをプロンプトファイルとして使います。
 
-If B: ask the user for the inline prompt. It never goes into a shell command: create a prompt file and write the prompt into it verbatim, then use the printed path as the prompt file.
+B の場合: インラインのプロンプトを尋ねます。それはシェルコマンドには決して入れないでください。プロンプトファイルを作成し、プロンプトをそのまま書き込みます。その後、表示されたパスをプロンプトファイルとして使います。
 
 {{FREE_TEXT_FILE:PROMPT_FILE=benchmark-prompt}}
 
-If C: ask for the path. Verify it exists. Use as positional argument.
+C の場合: パスを尋ねます。存在を確認します。位置引数として使います。
 
 ---
 
-## Step 2: Choose providers
+## 手順 2: プロバイダーを選ぶ
 
 ```bash
 "$BIN" --prompt "unused, dry-run" --models claude,gpt,gemini --dry-run
 ```
 
-Show the dry-run output. The "Adapter availability" section tells the user which providers will actually run (OK) vs skip (NOT READY — remediation hint included).
+ドライランの出力を表示します。「Adapter availability」のセクションで、実際に実行されるプロバイダー(OK)と、スキップされるもの(NOT READY — 修復のヒントを含む)をユーザーに示します。
 
-If ALL three show NOT READY: stop with a clear message — benchmark can't run without at least one authed provider. Suggest `claude login`, `codex login`, or `gemini login` / `export GOOGLE_API_KEY`.
+3 つすべてが NOT READY の場合: 明確なメッセージで停止します。少なくとも 1 つの認証済みプロバイダーがなければ、ベンチマークは実行できません。`claude login`、`codex login`、または `gemini login` / `export GOOGLE_API_KEY` を提案してください。
 
-If at least one is OK: AskUserQuestion:
-- **Simplify:** "Which models should we include? The dry-run above showed which are authed. Unauthed ones will be skipped cleanly — they won't abort the batch."
-- **RECOMMENDATION:** A (all authed providers) because running as many as possible gives the richest comparison.
-- **Options:**
-  - A) All authed providers. Completeness: 10/10.
-  - B) Only Claude. Completeness: 6/10 (no cross-model signal — use /ship's review for solo claude benchmarks instead).
-  - C) Pick two — specify on next turn. Completeness: 8/10.
+少なくとも 1 つが OK の場合: AskUserQuestion を使います:
+- **簡潔に:** 「どのモデルを含めますか? 上のドライランで、どれが認証済みかが分かりました。未認証のものは、バッチを中断させずに、きれいにスキップされます。」
+- **推奨:** A(認証済みのすべてのプロバイダー)。できるだけ多く実行するほど、比較が豊かになるためです。
+- **選択肢:**
+  - A) 認証済みのすべてのプロバイダー。完全性: 10/10。
+  - B) Claude のみ。完全性: 6/10(モデル間の比較の情報はありません。単独の Claude のベンチマークには、代わりに /ship のレビューを使ってください)。
+  - C) 2 つ選ぶ — 次のターンで指定します。完全性: 8/10。
 
 ---
 
-## Step 3: Decide on judge
+## 手順 3: ジャッジを使うか決める
 
 ```bash
 [ -n "$ANTHROPIC_API_KEY" ] || grep -q 'ANTHROPIC' "$HOME/.claude/.credentials.json" 2>/dev/null && echo "JUDGE_AVAILABLE" || echo "JUDGE_UNAVAILABLE"
 ```
 
-If judge is available, AskUserQuestion:
-- **Simplify:** "The quality judge scores each model's output on a 0-10 scale using Anthropic's Claude as a tiebreaker. Adds about USD 0.05/run. Recommended if you care about output quality, not just latency and cost."
-- **RECOMMENDATION:** A — the whole point is comparing quality, not just speed.
-- **Options:**
-  - A) Enable judge (adds about USD 0.05). Completeness: 10/10.
-  - B) Skip judge — speed/cost/tokens only. Completeness: 7/10.
+ジャッジが利用可能な場合は、AskUserQuestion を使います:
+- **簡潔に:** 「品質ジャッジは、Anthropic の Claude を同点決定役として使い、各モデルの出力を 0〜10 のスケールで採点します。1 回の実行あたり約 USD 0.05 かかります。速度やコストだけでなく、出力の品質も重視する場合に推奨します。」
+- **推奨:** A — 目的は速度だけでなく品質を比べることだからです。
+- **選択肢:**
+  - A) ジャッジを有効にする(約 USD 0.05 かかります)。完全性: 10/10。
+  - B) ジャッジをスキップする — 速度/コスト/トークンのみ。完全性: 7/10。
 
-If judge is NOT available, skip this question and omit the `--judge` flag.
+ジャッジが利用できない場合は、この質問をスキップし、`--judge` フラグを省略します。
 
 ---
 
-## Step 4: Run the benchmark
+## 手順 4: ベンチマークを実行する
 
-Construct the command from Step 1, 2, 3 decisions:
+手順 1、2、3 の判断からコマンドを組み立てます:
 
 ```bash
 PROMPT_PATH="<prompt-path>"
@@ -115,41 +114,41 @@ PROMPT_PATH="<prompt-path>"
 "$BIN" --models <picked-models> [--judge] --output table -- "$PROMPT_PATH"
 ```
 
-`<prompt-path>` is the prompt file from Step 1 (the SKILL.md path, the printed prompt file, or the user's path) and `<picked-models>` is the comma-separated list from Step 2. Use a path only if it has no `'`, `"`, backtick, `$` or `\`; otherwise copy the file into a new Step 1B prompt file and use that.
+`<prompt-path>` は手順 1 のプロンプトファイルです(SKILL.md のパス、表示されたプロンプトファイル、またはユーザーのパスのいずれか)。`<picked-models>` は手順 2 のカンマ区切りのリストです。パスに `'`、`"`、バッククォート、`$`、`\` が含まれない場合のみそのまま使います。含まれる場合は、ファイルを新しい手順 1B のプロンプトファイルにコピーし、それを使ってください。
 
-Stream the output as it arrives. This is slow — each provider runs the prompt fully. Expect 30s-5min depending on prompt complexity and whether `--judge` is on.
-
----
-
-## Step 5: Interpret results
-
-After the table prints, summarize for the user:
-- **Fastest** — provider with lowest latency.
-- **Cheapest** — provider with lowest cost.
-- **Highest quality** (if `--judge` ran) — provider with highest score.
-- **Best overall** — use judgment. If judge ran: quality-weighted. Otherwise: note the tradeoff the user needs to make.
-
-If any provider hit an error (auth/timeout/rate_limit), call it out with the remediation path.
+出力は届き次第ストリーミングで表示します。これは時間がかかります。各プロバイダーがプロンプトを最後まで実行するためです。プロンプトの複雑さや `--judge` の有無によって、30 秒〜5 分程度かかると見込んでください。
 
 ---
 
-## Step 6: Offer to save results
+## 手順 5: 結果を解釈する
 
-AskUserQuestion:
-- **Simplify:** "Save this benchmark as JSON so you can compare future runs against it?"
-- **RECOMMENDATION:** A — skill performance drifts as providers update their models; a saved baseline catches quality regressions.
-- **Options:**
-  - A) Save to `~/.gstack/benchmarks/<date>-<skill-or-prompt-slug>.json`. Completeness: 10/10.
-  - B) Just print, don't save. Completeness: 5/10 (loses trend data).
+表が表示された後、ユーザーに次のとおり要約します:
+- **最速** — 最も遅延の少ないプロバイダー。
+- **最安** — 最もコストの低いプロバイダー。
+- **最高品質**(`--judge` を実行した場合) — 最も高いスコアのプロバイダー。
+- **総合的に最良** — 判断を使ってください。ジャッジを実行した場合: 品質を重み付けします。そうでなければ: ユーザーが下す必要があるトレードオフを明記します。
 
-If A: re-run with `--output json` and tee to the dated file. Print the path so the user can diff future runs against it.
+いずれかのプロバイダーでエラー(auth/timeout/rate_limit)が発生した場合は、修復の手順とともに明示してください。
 
 ---
 
-## Important Rules
+## 手順 6: 結果の保存を提案する
 
-- **Never run a real benchmark without Step 2's dry-run first.** Users need to see auth status before spending API calls.
-- **Never hardcode model names.** Always pass providers from user's Step 2 choice — the binary handles the rest.
-- **Never auto-include `--judge`.** It adds real cost; user must opt in.
-- **If zero providers are authed, STOP.** Don't attempt the benchmark — it produces no useful output.
-- **Cost is visible.** Every run shows per-provider cost in the table. Users should see it before the next run.
+AskUserQuestion を使います:
+- **簡潔に:** 「今後の実行と比較できるように、このベンチマークを JSON で保存しますか?」
+- **推奨:** A — プロバイダーがモデルを更新するとスキルの性能は変化します。保存したベースラインで、品質の低下を検出できます。
+- **選択肢:**
+  - A) `~/.gstack/benchmarks/<date>-<skill-or-prompt-slug>.json` に保存する。完全性: 10/10。
+  - B) 表示するだけで、保存しない。完全性: 5/10(傾向のデータが失われます)。
+
+A の場合: `--output json` を付けて再実行し、日付入りのファイルに tee で出力します。今後の実行との差分を取れるように、パスを表示してください。
+
+---
+
+## 重要なルール
+
+- **手順 2 のドライランを先に行わずに、本番のベンチマークを決して実行しないでください。** API の呼び出しにお金を使う前に、ユーザーは認証状態を確認する必要があります。
+- **モデル名を決してハードコードしないでください。** 常にユーザーの手順 2 の選択からプロバイダーを渡してください。残りはバイナリが処理します。
+- **`--judge` を自動で含めないでください。** 実際のコストがかかるため、ユーザーがオプトインする必要があります。
+- **認証済みのプロバイダーがゼロの場合は、停止してください。** ベンチマークを試みないでください。有用な出力は得られないためです。
+- **コストは見えるようにしてください。** 実行のたびに、表にプロバイダーごとのコストが表示されます。次の実行の前に、ユーザーがそれを見られるようにしてください。

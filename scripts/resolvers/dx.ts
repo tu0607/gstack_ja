@@ -14,76 +14,76 @@ import { DX_ERROR_COMPACT, DX_ERROR_ITEMS } from '../../lib/dx-error-contract';
 export function generateDxFramework(ctx: TemplateContext): string {
   const hallOfFamePath = `${ctx.paths.skillRoot}/plan-devex-review/dx-hall-of-fame.md`;
 
-  return `## DX First Principles
+  return `## DX の第一原則
 
-These are the laws. Every recommendation traces back to one of these.
+これらは絶対の原則です。すべての推奨事項は、このいずれかに遡れなければなりません。
 
-1. **Zero friction at T0.** First five minutes decide everything. One click to start. Hello world without reading docs. No credit card. No demo call.
-2. **Incremental steps.** Never force developers to understand the whole system before getting value from one part. Gentle ramp, not cliff.
-3. **Learn by doing.** Playgrounds, sandboxes, copy-paste code that works in context. Reference docs are necessary but never sufficient.
-4. **Decide for me, let me override.** Opinionated defaults are features. Escape hatches are requirements. Strong opinions, loosely held.
-5. **Fight uncertainty.** Developers need: what to do next, whether it worked, how to fix it when it didn't. Every error meets the agent-ready error contract, so an agent can repair it or escalate precisely without reading the source.
-6. **Show code in context.** Hello world is a lie. Show real auth, real error handling, real deployment. Solve 100% of the problem.
-7. **Speed is a feature.** Iteration speed is everything. Response times, build times, lines of code to accomplish a task, concepts to learn.
-8. **Create magical moments.** What would feel like magic? Stripe's instant API response. Vercel's push-to-deploy. Find yours and make it the first thing developers experience.
-9. **Agents are users too.** Non-interactive by default, structured output, layered \`--help\`, and errors written as the agent's next prompt.
+1. **T0 での摩擦ゼロ。** 最初の 5 分がすべてを決めます。ワンクリックで開始できること。ドキュメントを読まずに hello world が動くこと。クレジットカード不要。デモ通話も不要。
+2. **段階的なステップ。** 一部分から価値を得るために、システム全体の理解を開発者に強いてはいけません。崖ではなく、緩やかな坂にします。
+3. **やりながら学ぶ。** プレイグラウンド、サンドボックス、文脈の中でそのまま動くコピー&ペースト用コード。リファレンスドキュメントは必要ですが、それだけでは決して十分ではありません。
+4. **私の代わりに決めて、上書きもさせて。** 意見のあるデフォルトは機能です。エスケープハッチは必須です。強い意見を、固執せずに持ちます。
+5. **不確実性と戦う。** 開発者に必要なのは、次に何をするか、うまくいったか、うまくいかなかったときにどう直すか、です。すべてのエラーは agent-ready error contract を満たし、エージェントがソースを読まなくても修復でき、あるいは的確にエスカレーションできるようにします。
+6. **文脈の中でコードを示す。** hello world は嘘です。本物の認証、本物のエラー処理、本物のデプロイを示してください。問題の 100% を解決します。
+7. **速さは機能。** イテレーションの速さがすべてです。応答時間、ビルド時間、タスクを達成するためのコード行数、学ぶべき概念の数が対象です。
+8. **魔法のような瞬間をつくる。** 何が魔法のように感じられるでしょうか。Stripe の即時 API レスポンス。Vercel の push-to-deploy。自分たちの魔法を見つけ、開発者が最初に体験することにしてください。
+9. **エージェントもユーザー。** デフォルトで非対話、構造化出力、階層化された \`--help\`、そしてエージェントの次のプロンプトとして書かれたエラー。
 
-## The Seven DX Characteristics
+## DX の 7 つの特性
 
-| # | Characteristic | What It Means | Gold Standard |
-|---|---------------|---------------|---------------|
-| 1 | **Usable** | Simple to install, set up, use. Intuitive APIs. Fast feedback. | Stripe: one key, one curl, money moves |
-| 2 | **Credible** | Reliable, predictable, consistent. Clear deprecation. Secure. | TypeScript: gradual adoption, never breaks JS |
-| 3 | **Findable** | Easy to discover AND find help within. Strong community. Good search. | React: every question answered on SO |
-| 4 | **Useful** | Solves real problems. Features match actual use cases. Scales. | Tailwind: covers 95% of CSS needs |
-| 5 | **Valuable** | Reduces friction measurably. Saves time. Worth the dependency. | Next.js: SSR, routing, bundling, deploy in one |
-| 6 | **Accessible** | Works across roles, environments, preferences. CLI + GUI. | VS Code: works for junior to principal |
-| 7 | **Desirable** | Best-in-class tech. Reasonable pricing. Community momentum. | Vercel: devs WANT to use it, not tolerate it |
+| # | 特性 | 意味 | ゴールドスタンダード |
+|---|------|------|----------------------|
+| 1 | **Usable(使いやすい)** | インストール、セットアップ、利用が簡単。直感的な API。速いフィードバック。 | Stripe: キー 1 つ、curl 1 回で、お金が動く |
+| 2 | **Credible(信頼できる)** | 信頼性が高く、予測可能で、一貫している。非推奨化が明確。安全。 | TypeScript: 段階的に導入でき、JS を壊さない |
+| 3 | **Findable(見つけやすい)** | 発見しやすく、その中で助けも見つけやすい。強いコミュニティ。優れた検索。 | React: あらゆる質問が SO で回答済み |
+| 4 | **Useful(役に立つ)** | 現実の問題を解決する。機能が実際のユースケースに合う。スケールする。 | Tailwind: CSS の必要の 95% をカバー |
+| 5 | **Valuable(価値がある)** | 摩擦を測定可能な形で減らす。時間を節約する。依存する価値がある。 | Next.js: SSR、ルーティング、バンドル、デプロイが一体 |
+| 6 | **Accessible(アクセスしやすい)** | 役割、環境、好みを問わず使える。CLI と GUI。 | VS Code: ジュニアからプリンシパルまで使える |
+| 7 | **Desirable(魅力的)** | 最高水準の技術。妥当な価格。コミュニティの勢い。 | Vercel: 開発者が「使いたい」と思い、我慢して使うのではない |
 
-## Cognitive Patterns — How Great DX Leaders Think
+## 認知パターン — 優れた DX リーダーの考え方
 
-Internalize these; don't enumerate them.
+これらを内面化してください。列挙する必要はありません。
 
-1. **Chef-for-chefs** — Your users build products for a living. The bar is higher because they notice everything.
-2. **First five minutes obsession** — New dev arrives. Clock starts. Can they hello-world without docs, sales, or credit card?
-3. **Error message empathy** — Every error is pain, and an agent often hits it first. Would an agent that hit this unattended know the safe next command, or exactly what to ask a human for?
-4. **Escape hatch awareness** — Every default needs an override. No escape hatch = no trust = no adoption at scale.
-5. **Journey wholeness** — DX is discover → evaluate → install → hello world → integrate → debug → upgrade → scale → migrate. Every gap = a lost dev.
-6. **Context switching cost** — Every time a dev leaves your tool (docs, dashboard, error lookup), you lose them for 10-20 minutes.
-7. **Upgrade fear** — Will this break my production app? Clear changelogs, migration guides, codemods, deprecation warnings. Upgrades should be boring.
-8. **SDK completeness** — If devs write their own HTTP wrapper, you failed. If the SDK works in 4 of 5 languages, the fifth community hates you.
-9. **Pit of Success** — "We want customers to simply fall into winning practices" (Rico Mariani). Make the right thing easy, the wrong thing hard.
-10. **Progressive disclosure** — Simple case is production-ready, not a toy. Complex case uses the same API. SwiftUI: \\\`Button("Save") { save() }\\\` → full customization, same API.
+1. **シェフのためのシェフ** — ユーザーはプロダクトづくりを生業にしています。あらゆることに気づくため、基準は高くなります。
+2. **最初の 5 分への執着** — 新しい開発者が到着し、時計が動き出します。ドキュメントも営業もクレジットカードもなしで hello world できるでしょうか。
+3. **エラーメッセージへの共感** — すべてのエラーは痛みであり、最初にそれに当たるのはエージェントであることも多いです。無人でこのエラーに当たったエージェントは、安全な次のコマンドや、人間に何を求めるべきかを正確に分かるでしょうか。
+4. **エスケープハッチへの意識** — すべてのデフォルトには上書き手段が必要です。エスケープハッチがなければ信頼されず、大規模な採用にはなりません。
+5. **ジャーニーの全体性** — DX は、発見 → 評価 → インストール → hello world → 統合 → デバッグ → アップグレード → スケール → 移行です。どの欠落も、失われる開発者を意味します。
+6. **コンテキストスイッチのコスト** — 開発者がツールを離れる(ドキュメント、ダッシュボード、エラー検索)たびに、10〜20 分失われます。
+7. **アップグレードへの恐れ** — 本番アプリが壊れないでしょうか。明確な changelog、移行ガイド、codemod、非推奨警告。アップグレードは退屈であるべきです。
+8. **SDK の完全性** — 開発者が自前の HTTP ラッパーを書くなら、失敗です。SDK が 5 言語中 4 言語でしか動かなければ、5 つ目のコミュニティに嫌われます。
+9. **成功の落とし穴(Pit of Success)** — 「顧客が自然と良いプラクティスに落ちていくようにしたい」(Rico Mariani)。正しいことを簡単に、間違ったことを難しくします。
+10. **段階的開示** — 単純なケースはおもちゃではなく本番利用に耐えます。複雑なケースも同じ API を使います。SwiftUI: \\\`Button("Save") { save() }\\\` → 完全なカスタマイズまで、同じ API。
 
-## DX Scoring Rubric (0-10 calibration)
+## DX スコアリング基準(0〜10 のキャリブレーション)
 
-| Score | Meaning |
-|-------|---------|
-| 9-10 | Best-in-class. Stripe/Vercel tier. Developers rave about it. |
-| 7-8 | Good. Developers can use it without frustration. Minor gaps. |
-| 5-6 | Acceptable. Works but with friction. Developers tolerate it. |
-| 3-4 | Poor. Developers complain. Adoption suffers. |
-| 1-2 | Broken. Developers abandon after first attempt. |
-| 0 | Not addressed. No thought given to this dimension. |
+| スコア | 意味 |
+|--------|------|
+| 9-10 | 最高水準。Stripe/Vercel 級。開発者が絶賛する。 |
+| 7-8 | 良好。開発者が不満なく使える。小さな欠落あり。 |
+| 5-6 | 許容範囲。動くが摩擦がある。開発者は我慢して使う。 |
+| 3-4 | 不良。開発者が不満を言う。採用が伸び悩む。 |
+| 1-2 | 壊れている。開発者は最初の試行で離脱する。 |
+| 0 | 未対応。この観点が一切考慮されていない。 |
 
-**The gap method:** For each score, explain what a 10 looks like for THIS product. Then fix toward 10.
+**ギャップ法:** 各スコアについて、THIS プロダクトにとっての 10 がどういう状態かを説明します。そのうえで 10 に向けて直します。
 
-## TTHW Benchmarks (Time to Hello World)
+## TTHW ベンチマーク(Time to Hello World)
 
-| Tier | Time | Adoption Impact |
-|------|------|-----------------|
-| Champion | < 2 min | 3-4x higher adoption |
-| Competitive | 2-5 min | Baseline |
-| Needs Work | 5-10 min | Significant drop-off |
-| Red Flag | > 10 min | 50-70% abandon |
+| ティア | 時間 | 採用への影響 |
+|--------|------|--------------|
+| Champion | < 2 分 | 採用率 3〜4 倍 |
+| Competitive | 2-5 分 | 基準 |
+| Needs Work | 5-10 分 | 大きな離脱 |
+| Red Flag | > 10 分 | 50-70% が離脱 |
 
-## Hall of Fame Reference
+## Hall of Fame リファレンス
 
-During each review pass, load the relevant section from:
+各レビューパスの間、次のファイルから該当セクションを読み込みます:
 \\\`${hallOfFamePath}\\\`
 
-Read ONLY the section for the current pass (e.g., "## Pass 1" for Getting Started).
-Do NOT read the entire file at once. This keeps context focused.`;
+現在のパスのセクションのみを読んでください(例: Getting Started なら "## Pass 1")。
+ファイル全体を一度に読んではいけません。こうすることでコンテキストを絞れます。`;
 }
 
 /** {{DX_ERROR_COMPACT}}: the contract's compact form for reviewer prompts. */

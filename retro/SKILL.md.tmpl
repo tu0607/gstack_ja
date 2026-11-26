@@ -3,11 +3,10 @@ name: retro
 preamble-tier: 2
 version: 2.0.0
 description: |
-  Weekly engineering retrospective. Analyzes commit history, work patterns,
-  and code quality metrics with persistent history and trend tracking.
-  Team-aware: breaks down per-person contributions with praise and growth areas.
-  Use when asked to "weekly retro", "what did we ship", or "engineering retrospective".
-  Proactively suggest at the end of a work week or sprint. (gstack)
+  週次のエンジニアリング振り返り。コミット履歴、作業パターン、コード品質の指標を分析し、
+  過去の履歴と傾向の追跡を行います。チーム対応: 担当者ごとの貢献を、称賛と成長の機会とともに
+  内訳として示します。「weekly retro」「what did we ship」「engineering retrospective」と
+  頼まれたときに使います。週やスプリントの終わりには積極的に提案してください。(gstack)
 allowed-tools:
   - Bash
   - Read
@@ -23,55 +22,55 @@ gbrain:
   context_queries:
     - id: prior-retros
       kind: filesystem
-      # /retro writes .context/retros/*.json (repo-local; see Step 13).
+      # /retro は .context/retros/*.json に書き出します(リポジトリ内。Step 13 を参照)。
       glob: ".context/retros/*.json"
       sort: mtime_desc
       limit: 5
-      render_as: "## Prior retros for this project"
+      render_as: "## このプロジェクトの過去のレトロ"
     - id: recent-timeline
       kind: filesystem
       glob: "{gstack_state_root}/projects/{repo_slug}/timeline.jsonl"
       tail: 30
-      render_as: "## Recent timeline events"
+      render_as: "## 最近のタイムラインイベント"
     - id: recent-learnings
       kind: filesystem
       glob: "{gstack_state_root}/projects/{repo_slug}/learnings.jsonl"
       tail: 10
-      render_as: "## Recent learnings"
+      render_as: "## 最近の学び"
 ---
 
 {{PREAMBLE}}
 
 {{BASE_BRANCH_DETECT}}
 
-# /retro — Weekly Engineering Retrospective
+# /retro — 週次エンジニアリング振り返り
 
-Analyze commit history, work patterns, and code quality for the current user and every contributor, with evidence-backed praise and growth opportunities.
+現在のユーザーとすべてのコントリビューターについて、コミット履歴、作業パターン、コード品質を分析し、根拠のある称賛と成長の機会を示します。
 
-## User-invocable
-When the user types `/retro`, run this skill.
+## ユーザー呼び出し
+ユーザーが `/retro` と入力したら、このスキルを実行します。
 
-## Arguments
-- `/retro` — default: last 7 days
-- `/retro 24h` — last 24 hours
-- `/retro 14d` — last 14 days
-- `/retro 30d` — last 30 days
-- `/retro compare` — compare current window vs prior same-length window
-- `/retro compare 14d` — compare with explicit window
-- `/retro global` — cross-project retro across all AI coding tools (7d default)
-- `/retro global 14d` — cross-project retro with explicit window
+## 引数
+- `/retro` — 既定: 過去 7 日間
+- `/retro 24h` — 過去 24 時間
+- `/retro 14d` — 過去 14 日間
+- `/retro 30d` — 過去 30 日間
+- `/retro compare` — 現在の期間と、同じ長さの直前の期間を比較
+- `/retro compare 14d` — 期間を明示して比較
+- `/retro global` — 全 AI コーディングツールを対象とした、プロジェクト横断の振り返り(既定 7d)
+- `/retro global 14d` — 期間を明示したプロジェクト横断の振り返り
 
 {{GBRAIN_CONTEXT_LOAD}}
 
 {{SECTION_INDEX:retro}}
 
-## Instructions
+## 手順
 
-Parse the argument to determine the time window. Default to 7 days if no argument given. All times should be reported in the user's **local timezone** (use the system default — do NOT set `TZ`).
+引数から時間枠を決めます。引数がなければ 7 日間とします。すべての時刻は**ユーザーのローカルタイムゾーン**で報告してください(システムの既定値を使い、`TZ` は設定しないこと)。
 
-**Midnight-aligned windows:** For day (`d`) and week (`w`) units, compute an absolute start date at local midnight, not a relative string. For example, if today is 2026-03-18 and the window is 7 days: the start date is 2026-03-11. Use `--since "2026-03-11T00:00:00"` — the explicit `T00:00:00` suffix ensures git starts from midnight. Without it, git uses the current wall-clock time (e.g., `--since "2026-03-11"` at 11pm means 11pm, not midnight). For week units, multiply by 7 to get days (e.g., `2w` = 14 days back). For hour (`h`) units, use `--since "N hours ago"` since midnight alignment does not apply to sub-day windows. Compute "today" from the user-visible `## currentDate` tag in the session reminder — NEVER from `date` (the system clock can be hours off in containerized harnesses). If you cannot reliably compute "today", stop and ask the user via AskUserQuestion rather than proceeding.
+**深夜に揃えた時間枠:** 日(`d`)と週(`w`)の単位では、相対文字列ではなく、ローカルの深夜 0 時を基準にした絶対的な開始日を計算します。例えば今日が 2026-03-18 で時間枠が 7 日なら、開始日は 2026-03-11 です。`--since "2026-03-11T00:00:00"` を使ってください。明示的な `T00:00:00` を付けることで、git が深夜 0 時から開始します。付けないと、git は現在の時刻を基準にします(例: 23 時に `--since "2026-03-11"` と指定すると、深夜 0 時ではなく 23 時になります)。週の単位では、日数に直すため 7 を掛けます(例: `2w` は 14 日前)。時(`h`)の単位では、深夜揃えは日単位より短い期間には適用されないため、`--since "N hours ago"` を使ってください。「今日」は、セッションのリマインダーにあるユーザーに見える `## currentDate` タグから計算します。`date` コマンドからは決して計算しないでください(コンテナ化されたハーネスではシステム時計が数時間ずれることがあります)。今日の日付を確実に計算できない場合は、進めずに AskUserQuestion でユーザーに確認してください。
 
-**Argument validation:** If the argument doesn't match a number followed by `d`, `h`, or `w`, the word `compare` (optionally followed by a window), or the word `global` (optionally followed by a window), show this usage and stop:
+**引数の検証:** 引数が「数字 + `d`、`h`、`w`」の形式、単語 `compare`(任意で時間枠を続けられる)、または単語 `global`(任意で時間枠を続けられる)のいずれにも当てはまらない場合は、次の使い方を表示して停止します:
 ```
 Usage: /retro [window | compare | global]
   /retro              — last 7 days (default)
@@ -84,26 +83,26 @@ Usage: /retro [window | compare | global]
   /retro global 14d   — cross-project retro with explicit window
 ```
 
-**Routing:** `global` skips all repo-scoped steps, including Prior Learnings, Step 0.5, and post-report capture; follow **Global Retrospective Mode** (no git repo required). `compare` follows **Compare Mode**. Both accept an optional window (default 7d). Otherwise run the repo-scoped flow below.
+**ルーティング:** `global` は、Prior Learnings、Step 0.5、および報告後の記録を含め、リポジトリ単位のすべての手順をスキップします。**Global Retrospective Mode**(git リポジトリは不要)に従ってください。`compare` は **Compare Mode** に従います。どちらも任意の時間枠を受け付けます(既定は 7d)。それ以外は、以下のリポジトリ単位のフローを実行します。
 
-`<default>` is the base branch from the preceding **Step 0: Detect platform and base branch**. `<today>` is the session-reminder date; reuse it in all snapshot filenames, never re-read the clock.
+`<default>` は、前段の **Step 0: Detect platform and base branch** で検出したベースブランチです。`<today>` はセッションのリマインダーの日付です。すべてのスナップショットのファイル名でこれを再利用し、時計を読み直さないでください。
 
 {{LEARNINGS_SEARCH}}
 
-### Step 0.5: Freshness pre-flight (fetch)
+### Step 0.5: 鮮度の事前確認(fetch)
 
-Refresh `origin/<default>` so the retro doesn't misreport against a stale local ref. If the repo has no `origin` remote this fails harmlessly — the metrics script (Step 1) falls back to the local branch and its guard lines disclose it:
+`origin/<default>` を更新し、古いローカルの ref に対して振り返りが誤った報告をしないようにします。リポジトリに `origin` リモートがなくても、この処理は無害に失敗します。その場合、メトリクススクリプト(Step 1)はローカルブランチにフォールバックし、そのガード行でその旨を明示します:
 
 ```bash
 git fetch origin <default> --quiet 2>/dev/null \
   || echo "RETRO_FETCH: failed (offline or no remote) — proceeding against last-known refs"
 ```
 
-Remember whether the fetch succeeded — the stale-base guard in Step 1 only BLOCKs when it did.
+fetch が成功したかどうかを覚えておいてください。Step 1 の古いベースのガードは、fetch が成功していた場合にのみブロックします。
 
-### Step 1: Gather Metrics (one command)
+### Step 1: メトリクスの収集(コマンド 1 回)
 
-Run `gstack-retro-metrics` with the detected base branch and computed start:
+検出したベースブランチと計算した開始日を指定して `gstack-retro-metrics` を実行します:
 
 ```bash
 _RM="{{RUNTIME_ROOT}}/bin/gstack-retro-metrics"
@@ -112,88 +111,87 @@ _RM="{{RUNTIME_ROOT}}/bin/gstack-retro-metrics"
   || echo "RETRO_METRICS: unavailable — stale install (read the helper source for manual computation)"
 ```
 
-Read the `METRIC_NAME: value` lines. **Degraded mode:** without `RETRO_METRICS_PROTO: 1`, reproduce computations from the installed `bin/gstack-retro-metrics` source, not the presentation steps below. If source or metrics are unavailable, say so; never invent values. Suggest `/gstack-upgrade` to restore the helper.
+`METRIC_NAME: value` の行を読んでください。**縮退モード:** `RETRO_METRICS_PROTO: 1` がない場合は、以下の報告手順ではなく、インストール済みの `bin/gstack-retro-metrics` のソースから計算を再現してください。ソースやメトリクスが利用できない場合はその旨を伝え、値を捏造しないでください。ヘルパーを復旧するには `/gstack-upgrade` を案内してください。
 
-**Identity:** `USER_NAME` is **"you"** — the person reading this retro. All other authors are teammates. Orient the narrative around this: "your" commits vs teammate contributions.
+**担当者:** `USER_NAME` は **"you"** です。この振り返りを読んでいる本人を指します。それ以外の作成者はすべてチームメンバーです。この前提で話を組み立ててください。「あなたの」コミットとチームメンバーの貢献を区別します。
 
-**Stale-base + bad-today-anchor guard.** `GUARD_LATEST_COMMIT: <DATE>` is the newest commit on the analyzed ref. A wrong "today" or stale ref can produce an empty window. Evaluate in order:
+**古いベース + 不正な今日の基準のガード。** `GUARD_LATEST_COMMIT: <DATE>` は、分析対象の ref 上で最新のコミットです。「今日」が誤っていたり ref が古かったりすると、時間枠が空になることがあります。次の順に評価してください:
 
-1. If `GUARD_REMOTE: none` or `GUARD_HEAD: detached` or the Step 0.5 fetch failed: proceed, but carry the disclosure into the narrative ("offline run, window not freshness-verified") rather than silently misreporting.
-2. If the Step 0.5 fetch succeeded AND the `GUARD_LATEST_COMMIT` date is **older than (today − window-days)**: BLOCK with: "Retro window is stale. Latest commit on `origin/<default>` was `<DATE>`, but the window covers `<since>` to `<today>`. This usually means either (a) today's date is wrong in this session or (b) `origin/<default>` is materially behind the remote. Confirm today's date via the session reminder; if today is correct, run `git fetch origin <default>` manually and re-run /retro." Stop the skill until the user resolves.
-3. Otherwise, write: "RETRO_GUARD: latest commit `<DATE>` within window — proceeding."
+1. `GUARD_REMOTE: none` または `GUARD_HEAD: detached` の場合、または Step 0.5 の fetch が失敗していた場合: 続行しますが、黙って誤った報告をするのではなく、「オフラインでの実行、時間枠の鮮度は未検証」という注記を物語に含めてください。
+2. Step 0.5 の fetch が成功しており、かつ `GUARD_LATEST_COMMIT` の日付が**(今日 − 時間枠の日数)より古い**場合: 次の文言でブロックしてください: 「振り返りの時間枠が古くなっています。`origin/<default>` 上の最新コミットは `<DATE>` ですが、時間枠は `<since>` から `<today>` までを対象としています。通常は (a) このセッションの今日の日付が誤っている、または (b) `origin/<default>` がリモートに比べて大幅に遅れている、のいずれかが原因です。セッションのリマインダーで今日の日付を確認してください。今日が正しければ、`git fetch origin <default>` を手動で実行してから /retro を再実行してください。」 ユーザーが解決するまで、スキルを停止します。
+3. それ以外: 「RETRO_GUARD: latest commit `<DATE>` within window — proceeding.」と書いてください。
 
-Also check `RETRO_REF`: if it is not `origin/<default>` (local-only repo, missing remote branch), disclose which ref the retro analyzed.
+`RETRO_REF` も確認します。`origin/<default>` 以外の場合(ローカルだけのリポジトリ、リモートブランチがない場合)は、振り返りがどの ref を分析したかを明示してください。
 
-**Metric line reference** (what the script emits):
+**メトリクス行のリファレンス**(スクリプトが出力する内容):
 
-| Line | Meaning |
+| 行 | 意味 |
 |------|---------|
-| `COMMIT: hash\|author\|datetime\|+ins/-del\|subject` | One per commit, newest first (capped at 300) — the raw material for narrative anchoring |
-| `COMMITS` / `MERGE_COMMITS` / `CONTRIBUTORS` | Window totals on the analyzed ref |
-| `INSERTIONS` / `DELETIONS` / `NET_LOC` | Raw LOC |
-| `LOGICAL_SLOC_ADDED` | Non-blank, non-comment added lines — the primary code-volume metric |
-| `TEST_INSERTIONS` / `TEST_RATIO` | Test LOC (test/spec paths + .test./.spec. suffixes) and its share of insertions |
-| `WEIGHTED_COMMITS` | Commits × files-touched, capped at 20 per commit |
-| `ACTIVE_DAYS` | Distinct local dates with commits |
-| `SESSIONS` / `DEEP_SESSIONS` / `MEDIUM_SESSIONS` / `MICRO_SESSIONS` | 45-minute-gap session detection: deep 50+ min, medium 20-50, micro <20 |
-| `TOTAL_ACTIVE_MINUTES` / `AVG_SESSION_MINUTES` / `LOC_PER_SESSION_HOUR` | Session time aggregates (LOC/hour pre-rounded to nearest 50) |
-| `COMMIT_TYPES` / `FIX_RATIO` | Conventional-commit prefix mix |
-| `COMMIT_SIZE_BUCKETS` | small <100 / medium 100-500 / large 500-1500 / xl 1500+ LOC per commit |
-| `HOURS` / `PEAK_HOUR` | Hourly commit histogram (local time), nonzero hours only |
-| `FOCUS_SCORE` | % of file changes in the single busiest top-level directory |
-| `BIGGEST_COMMIT` | Highest-LOC commit in the window (ship-of-the-week candidate) |
-| `HOTSPOT: count file` | Top 10 most-changed files |
-| `AUTHOR: name\|commits\|ins\|del\|test_ratio\|top_areas\|types\|peak_hour` | Per-contributor rollup, sorted by commits desc |
-| `AUTHOR_BIGGEST: name\|hash\|loc\|subject` | Each contributor's biggest ship |
-| `COAUTHOR: hash\|name` / `AI_ASSISTED_COMMITS` | Human co-author credit lines; count of commits with AI trailers |
-| `WEEK: wN\|commits\|ins\|del\|test_ratio` | Weekly buckets, w0 = newest (for Step 10 trends) |
-| `PR_REFS` / `PRS_REFERENCED` | PR/MR numbers from commit subjects (GitHub #NNN, GitLab !NNN) |
-| `TEST_FILES_TOTAL` / `TEST_FILES_CHANGED` / `REGRESSION_TEST_COMMITS` / `REGRESSION_COMMIT` | Test health: repo-wide test file count, test files changed in window, `test(qa):` / `test(design):` / `test: coverage` commits |
-| `VERSION_RANGE` | First → last VERSION file value in the window (when tracked) |
-| `TEAM_STREAK` / `USER_STREAK` | Consecutive commit days with anchor date (Step 11) |
-| `RETRO_CONTEXT` / `GREPTILE_HISTORY` / `TODOS_FILE` / `SKILL_USAGE_LOG` / `EUREKA_LOG` | Presence of optional inputs — Read the ones marked present |
+| `COMMIT: hash\|author\|datetime\|+ins/-del\|subject` | コミットごとに 1 行、新しい順(最大 300 件)。物語の根拠となる生データ |
+| `COMMITS` / `MERGE_COMMITS` / `CONTRIBUTORS` | 分析対象 ref における時間枠の合計 |
+| `INSERTIONS` / `DELETIONS` / `NET_LOC` | 生の LOC |
+| `LOGICAL_SLOC_ADDED` | 追加された非空白・非コメント行。主要なコード量の指標 |
+| `TEST_INSERTIONS` / `TEST_RATIO` | テストの LOC(test/spec のパスと .test./.spec. の接尾辞)と、追加行に占める割合 |
+| `WEIGHTED_COMMITS` | コミット数 × 変更ファイル数。コミットごとに上限 20 |
+| `ACTIVE_DAYS` | コミットがあったローカルの日付の数 |
+| `SESSIONS` / `DEEP_SESSIONS` / `MEDIUM_SESSIONS` / `MICRO_SESSIONS` | 45 分の間隔でセッションを検出: deep は 50 分以上、medium は 20〜50 分、micro は 20 分未満 |
+| `TOTAL_ACTIVE_MINUTES` / `AVG_SESSION_MINUTES` / `LOC_PER_SESSION_HOUR` | セッション時間の集計(LOC/時間は最も近い 50 に丸め済み) |
+| `COMMIT_TYPES` / `FIX_RATIO` | Conventional Commits の接頭辞の内訳 |
+| `COMMIT_SIZE_BUCKETS` | small は 100 LOC 未満 / medium は 100〜500 / large は 500〜1500 / xl は 1500 以上(コミットごと) |
+| `HOURS` / `PEAK_HOUR` | 時間帯ごとのコミットのヒストグラム(ローカル時間)。0 以外の時間のみ |
+| `FOCUS_SCORE` | 最も変更が多いトップレベルディレクトリに含まれる、ファイル変更の割合 |
+| `BIGGEST_COMMIT` | 時間枠内で最も LOC が多いコミット(今週のシップ候補) |
+| `HOTSPOT: count file` | 最も変更の多いファイル上位 10 件 |
+| `AUTHOR: name\|commits\|ins\|del\|test_ratio\|top_areas\|types\|peak_hour` | コントリビューターごとの集計。コミット数の降順 |
+| `AUTHOR_BIGGEST: name\|hash\|loc\|subject` | コントリビューターごとの最大のシップ |
+| `COAUTHOR: hash\|name` / `AI_ASSISTED_COMMITS` | 人間の共同作成者のクレジット行。AI のトレーラーを持つコミットの数 |
+| `WEEK: wN\|commits\|ins\|del\|test_ratio` | 週ごとのバケット。w0 が最新(Step 10 の傾向用) |
+| `PR_REFS` / `PRS_REFERENCED` | コミットのタイトルから抽出した PR/MR の番号(GitHub #NNN、GitLab !NNN) |
+| `TEST_FILES_TOTAL` / `TEST_FILES_CHANGED` / `REGRESSION_TEST_COMMITS` / `REGRESSION_COMMIT` | テストの健全性: リポジトリ全体のテストファイル数、時間枠内で変更されたテストファイル数、`test(qa):` / `test(design):` / `test: coverage` のコミット |
+| `VERSION_RANGE` | 時間枠内の VERSION ファイルの値の最初から最後まで(追跡されている場合) |
+| `TEAM_STREAK` / `USER_STREAK` | 基準日からの連続コミット日数(Step 11) |
+| `RETRO_CONTEXT` / `GREPTILE_HISTORY` / `TODOS_FILE` / `SKILL_USAGE_LOG` / `EUREKA_LOG` | 任意の入力の有無。present と印が付いたものを読んでください |
 
-**Optional inputs** (Read each file the script marks `present`):
+**任意の入力**(スクリプトが `present` と示したファイルをそれぞれ読んでください):
 
-- `RETRO_CONTEXT: present` → Read the `retro-context.md` path that line printed. It is user-authored and may contain meeting notes, calendar events, decisions, and other context that doesn't appear in git history. Incorporate it into the retro narrative where relevant.
-- `GREPTILE_HISTORY: present` → Read the `greptile-history.md` path that line printed. Filter entries to the retro window by date. Count by type: `fix`, `fp`, `already-fixed`. Signal ratio = `(fix + already-fixed) / (fix + already-fixed + fp)`. Skip unparseable lines silently; if no entries fall in the window, skip the Greptile metric row.
-- `TODOS_FILE: present` → Read `TODOS.md`. Compute: total open TODOs (exclude the `## Completed` section), P0/P1 count, P2 count, items completed this period (Completed entries dated within the window), items added this period (cross-reference `COMMIT:` lines that touched TODOS.md).
-- `SKILL_USAGE_LOG: present` → Read the path it prints (`$GSTACK_STATE_ROOT/analytics/skill-usage.jsonl`). Filter to the window by `ts`. Separate skill activations (no `event` field) from hook fires (`event: "hook_fire"`). Aggregate by skill name.
-- `EUREKA_LOG: present` → Read the path it prints (`$GSTACK_STATE_ROOT/analytics/eureka.jsonl`). Filter to the window by `ts`. For each eureka moment note the skill that flagged it, the branch, and a one-line summary of the insight.
+- `RETRO_CONTEXT: present` → 出力された `retro-context.md` のパスを読みます。これはユーザーが作成したファイルで、議事録、カレンダーの予定、決定事項など、git の履歴には現れない文脈が含まれることがあります。関連する箇所で振り返りの物語に取り込んでください。
+- `GREPTILE_HISTORY: present` → 出力された `greptile-history.md` のパスを読みます。日付で振り返りの時間枠に絞り込みます。種類ごとに数えます: `fix`、`fp`、`already-fixed`。シグナル比率 = `(fix + already-fixed) / (fix + already-fixed + fp)`。解析できない行は黙ってスキップします。時間枠内に該当するエントリがなければ、Greptile のメトリクス行を省略します。
+- `TODOS_FILE: present` → `TODOS.md` を読みます。計算: 未完了の TODO の総数(`## Completed` セクションを除く)、P0/P1 の数、P2 の数、この期間に完了した項目(時間枠内の Completed の項目)、この期間に追加された項目(`TODOS.md` に触れた `COMMIT:` 行と照合)。
+- `SKILL_USAGE_LOG: present` → 出力されたパス(`$GSTACK_STATE_ROOT/analytics/skill-usage.jsonl`)を読みます。`ts` で時間枠に絞り込みます。スキルの起動(`event` フィールドなし)とフックの発火(`event: "hook_fire"`)を分けます。スキル名ごとに集計してください。
+- `EUREKA_LOG: present` → 出力されたパス(`$GSTACK_STATE_ROOT/analytics/eureka.jsonl`)を読みます。`ts` で時間枠に絞り込みます。エウレカの瞬間ごとに、それを指摘したスキル、ブランチ、洞察の一行要約を書きます。
 
-### Step 2: Compute Metrics
+### Step 2: メトリクスの計算
 
-Most rows come directly from the metric lines. Gather the two shipping outcomes separately before building the table:
+ほとんどの行はメトリクス行から直接得られます。指標表を作る前に、2 つの出荷の成果を別々に集めてください:
 
-- **Merged PRs:** On GitHub, run `gh pr list --state merged --base "<default>" --search "merged:>=<start-date>" --limit 1000 --json number,title,mergedAt`. Filter `mergedAt` to the exact requested window, including its upper bound in compare mode. If the result hits the limit, paginate via the hosting API or label the count partial. On GitLab use the equivalent merged-MR listing. If hosting data is unavailable, show **PRs referenced** = `PRS_REFERENCED` instead; these are not verified merges. Save `prs_merged: null` in that case.
-- **Features shipped:** Read CHANGELOG changes on `RETRO_REF` in the same window (`git log <ref> --since "<since>" -p -- CHANGELOG.md`, adding `--until` for the prior window). Combine newly added user-visible capabilities with verified merged PR titles. Deduplicate entries referring to the same capability, excluding fixes, chores, and reverted work. Keep a short list of feature names with their source commit/PR beside the count. If neither source is available, show unavailable, not zero. This is an evidence-backed classification, not a metric-script line.
+- **マージ済み PR:** GitHub の場合、`gh pr list --state merged --base "<default>" --search "merged:>=<start-date>" --limit 1000 --json number,title,mergedAt` を実行します。`mergedAt` を、要求された時間枠の範囲に正確に絞り込みます(compare モードでは上限も含む)。結果が上限に達した場合は、ホスティング API でページネーションするか、件数が部分的であることを明示してください。GitLab では同等のマージ済み MR の一覧を使ってください。ホスティングのデータが利用できない場合は、代わりに **PRs referenced** = `PRS_REFERENCED` を表示します。これは検証済みのマージではありません。その場合は `prs_merged: null` と保存してください。
+- **リリースした機能:** 同じ時間枠の `RETRO_REF` 上の CHANGELOG の変更を読みます(`git log <ref> --since "<since>" -p -- CHANGELOG.md`。直前の期間では `--until` を追加)。新たに追加されたユーザーに見える機能と、検証済みのマージ済み PR のタイトルを組み合わせます。同じ機能を指す項目は重複排除し、修正、chore、取り消された作業は除外します。件数の横に、機能名とその出典のコミット/PR の短いリストを残してください。どちらのソースも利用できない場合は、0 ではなく「利用不可」と表示します。これは根拠に基づく分類であり、メトリクススクリプトの行ではありません。
 
-Use the analyzed ref in the commit-count label (not always `main`). Test health counts **files changed**, not tests added or test cases; use `TEST_FILES_TOTAL`, `TEST_FILES_CHANGED`, and `REGRESSION_TEST_COMMITS` respectively.
+コミット数のラベルには分析対象の ref を使ってください(必ずしも `main` ではありません)。テストの健全性は、テストの追加数やテストケースの数ではなく**変更されたファイル数**を数えます。それぞれ `TEST_FILES_TOTAL`、`TEST_FILES_CHANGED`、`REGRESSION_TEST_COMMITS` を使ってください。
 
-| Metric | Value |
+| 指標 | 値 |
 |--------|-------|
-| **Features shipped** (from CHANGELOG + merged PR titles) | N |
-| Commits to analyzed ref | N |
-| Weighted commits (`WEIGHTED_COMMITS`) | N |
-| Contributors | N |
-| PRs merged | N |
-| **Logical SLOC added** (`LOGICAL_SLOC_ADDED` — primary code-volume metric) | N |
-| Raw LOC: insertions | N |
-| Raw LOC: deletions | N |
-| Raw LOC: net | N |
-| Test LOC (insertions) | N |
-| Test LOC ratio | N% |
-| Version range | vX.Y.Z.W → vX.Y.Z.W |
-| Active days | N |
-| Detected sessions | N |
-| Avg raw LOC/session-hour | N |
-| Greptile signal | N% (Y catches, Z FPs) |
-| Test Health | N test files · M changed this period · K regression test commits |
+| **リリースした機能**(CHANGELOG + マージ済み PR のタイトルから) | N |
+| 分析対象 ref へのコミット数 | N |
+| 重み付きコミット数(`WEIGHTED_COMMITS`) | N |
+| コントリビューター数 | N |
+| マージ済み PR 数 | N |
+| **追加された論理 SLOC**(`LOGICAL_SLOC_ADDED` — 主要なコード量の指標) | N |
+| 生の LOC: 追加 | N |
+| 生の LOC: 削除 | N |
+| 生の LOC: 差し引き | N |
+| テストの LOC(追加) | N |
+| テストの LOC 比率 | N% |
+| バージョン範囲 | vX.Y.Z.W → vX.Y.Z.W |
+| 活動日数 | N |
+| 検出されたセッション数 | N |
+| 平均の生 LOC/セッション時間 | N |
+| Greptile のシグナル | N%(Y 件の検出、Z 件の誤検知) |
+| テストの健全性 | N テストファイル · この期間に M 件変更 · K 件のリグレッションテストのコミット |
 
-Lead with user-visible features, then commit and logical-SLOC metrics; raw LOC
-is only context, not impact.
+ユーザーに見える機能を先頭に書き、その後にコミット数と論理 SLOC の指標を書いてください。生の LOC は文脈に過ぎず、影響の指標ではありません。
 
-Then show a **per-author leaderboard** immediately below, from the `AUTHOR:` lines:
+続けて、`AUTHOR:` 行から**コントリビューターごとのリーダーボード**をすぐ下に表示します:
 
 ```
 Contributor         Commits   +/-          Top area
@@ -202,9 +200,9 @@ alice                    12   +800/-150    app/services/
 bob                       3   +120/-40     tests/
 ```
 
-Sort by commits descending. The current user (`USER_NAME`) always appears first, labeled "You (name)".
+コミット数の降順に並べます。現在のユーザー(`USER_NAME`)は常に先頭に、「You (name)」というラベルで表示します。
 
-Conditional rows (skip each when its input is absent or empty in the window):
+条件付きの行(その時間枠で入力が存在しない、または空の場合は各行を省略):
 
 ```
 | Backlog Health | N open (X P0/P1, Y P2) · Z completed this period |
@@ -212,15 +210,15 @@ Conditional rows (skip each when its input is absent or empty in the window):
 | Eureka Moments | 2 this period |
 ```
 
-If eureka moments exist, list them:
+エウレカの瞬間がある場合は、それを列挙します:
 ```
   EUREKA /office-hours (branch: garrytan/auth-rethink): "Session tokens don't need server storage — browser crypto API makes client-side JWT validation viable"
   EUREKA /plan-eng-review (branch: garrytan/cache-layer): "Redis isn't needed here — Bun's built-in LRU cache handles this workload"
 ```
 
-### Step 3: Commit Time Distribution
+### Step 3: コミット時間の分布
 
-Render the `HOURS` line as an hourly histogram in local time:
+`HOURS` の行を、ローカル時間の時間ごとのヒストグラムとして描画します:
 
 ```
 Hour  Commits  ████████████████
@@ -229,22 +227,22 @@ Hour  Commits  ████████████████
  ...
 ```
 
-Identify and call out:
-- Peak hours
-- Dead zones
-- Whether pattern is bimodal (morning/evening) or continuous
-- Late-night coding clusters (after 10pm)
+次の点を特定して指摘してください:
+- ピークの時間帯
+- 空白の時間帯
+- パターンが二峰性(朝と夕方)か、連続的か
+- 深夜のコーディングの集中(22 時以降)
 
-### Step 4: Work Session Detection
+### Step 4: 作業セッションの検出
 
-Sessions are pre-computed with a **45-minute gap** threshold between consecutive commits (`SESSIONS`, `DEEP_SESSIONS` 50+ min, `MEDIUM_SESSIONS` 20-50 min, `MICRO_SESSIONS` <20 min — typically single-commit fire-and-forget). Report:
-- Session count and the deep/medium/micro split
-- Total active coding time (`TOTAL_ACTIVE_MINUTES`) and average session length
-- LOC per hour of active time (`LOC_PER_SESSION_HOUR`)
+セッションは、連続するコミット間の **45 分の間隔**を閾値として事前に計算されています(`SESSIONS`、`DEEP_SESSIONS` は 50 分以上、`MEDIUM_SESSIONS` は 20〜50 分、`MICRO_SESSIONS` は 20 分未満 — 通常はコミット 1 件だけの「投げっぱなし」)。次を報告してください:
+- セッション数と deep/medium/micro の内訳
+- 合計のアクティブなコーディング時間(`TOTAL_ACTIVE_MINUTES`)と平均のセッション長
+- アクティブ時間 1 時間あたりの LOC(`LOC_PER_SESSION_HOUR`)
 
-### Step 5: Commit Type Breakdown
+### Step 5: コミット種別の内訳
 
-Render `COMMIT_TYPES` (feat/fix/refactor/test/chore/docs) as a percentage bar:
+`COMMIT_TYPES`(feat/fix/refactor/test/chore/docs)を、割合のバーとして描画します:
 
 ```
 feat:     20  (40%)  ████████████████████
@@ -252,66 +250,64 @@ fix:      27  (54%)  ███████████████████�
 refactor:  2  ( 4%)  ██
 ```
 
-Flag if `FIX_RATIO` exceeds 50% — this signals a "ship fast, fix fast" pattern that may indicate review gaps.
+`FIX_RATIO` が 50% を超えたら指摘してください。これは「速く出して速く直す」パターンを示し、レビューの抜けを示唆する可能性があります。
 
-### Step 6: Hotspot Analysis
+### Step 6: ホットスポット分析
 
-Show the `HOTSPOT` lines (top 10 most-changed files). Flag:
-- Files changed 5+ times (churn hotspots)
-- Test files vs production files in the hotspot list
-- VERSION/CHANGELOG frequency (version discipline indicator)
+`HOTSPOT` の行(最も変更の多いファイル上位 10 件)を表示します。次を指摘してください:
+- 5 回以上変更されたファイル(変更が集中するホットスポット)
+- ホットスポットのリストにあるテストファイルと本番ファイル
+- VERSION/CHANGELOG の変更頻度(バージョン管理の規律の指標)
 
-### Step 7: PR Size Distribution
+### Step 7: PR サイズの分布
 
-Report `COMMIT_SIZE_BUCKETS`:
-- **Small** (<100 LOC)
-- **Medium** (100-500 LOC)
-- **Large** (500-1500 LOC)
-- **XL** (1500+ LOC)
+`COMMIT_SIZE_BUCKETS` を報告します:
+- **Small**(100 LOC 未満)
+- **Medium**(100〜500 LOC)
+- **Large**(500〜1500 LOC)
+- **XL**(1500 LOC 以上)
 
-### Step 8: Focus Score + Ship of the Week
+### Step 8: フォーカススコアと今週のシップ
 
-**Focus score:** `FOCUS_SCORE` is the percentage of file changes touching the single most-changed top-level directory (e.g., `app/services/`). Higher score = deeper focused work. Lower score = scattered context-switching. Report as: "Focus score: 62% (app/services/)"
+**フォーカススコア:** `FOCUS_SCORE` は、最も変更の多いトップレベルディレクトリ(例: `app/services/`)に触れたファイル変更の割合です。スコアが高いほど集中した作業、低いほど作業が分散して文脈を切り替えていることを示します。次の形式で報告してください: 「Focus score: 62% (app/services/)」
 
-**Ship of the week:** `BIGGEST_COMMIT` is the highest-LOC change in the window. Highlight it:
-- PR number (match against `PR_REFS` / the subject) and title
-- LOC changed
-- Why it matters (infer from commit messages and files touched)
+**今週のシップ:** `BIGGEST_COMMIT` は、時間枠内で最も LOC が多い変更です。次を強調します:
+- PR の番号(`PR_REFS` / 件名と照合)とタイトル
+- 変更された LOC
+- なぜ重要か(コミットメッセージと変更されたファイルから推測)
 
-### Step 9: Team Member Analysis
+### Step 9: チームメンバーの分析
 
-For each contributor (including the current user), the `AUTHOR:` line carries commits, insertions, deletions, test ratio, top areas, commit type mix, and peak hour; `AUTHOR_BIGGEST:` carries their single highest-impact commit. Use the `COMMIT:` lines to anchor everything in actual work.
+コントリビューターごと(現在のユーザーを含む)に、`AUTHOR:` の行がコミット数、追加/削除、テスト比率、主な領域、コミット種別の内訳、ピークの時間帯を持ちます。`AUTHOR_BIGGEST:` の行は、その人の最も影響の大きいコミットを持ちます。`COMMIT:` の行を使い、すべてを実際の作業に結び付けてください。
 
-**For the current user ("You"):** Include session analysis, time patterns, and focus score: "Your peak hours...", "Your biggest ship..."
+**現在のユーザー(「You」)について:** セッションの分析、時間帯のパターン、フォーカススコアを含めます: 「あなたのピークの時間帯は…」「あなたの最大のシップは…」
 
-**For each teammate:** Write 2-3 sentences covering what they worked on and their pattern. Then:
+**チームメンバーそれぞれについて:** 何に取り組み、どのようなパターンだったかを 2〜3 文で書きます。その後:
 
-- **Praise** (1-2 specifics): cite commits and what was good, not generic praise.
-- **Opportunity for growth** (1 specific): tie an actionable suggestion to data, not criticism. Step 14 supplies examples.
+- **称賛**(1〜2 点の具体例): 一般的な褒め言葉ではなく、コミットと何が良かったかを挙げます。
+- **成長の機会**(1 点の具体例): 批判ではなく、データに基づいた実行可能な提案を結び付けます。例は Step 14 に示してあります。
 
-**If only one contributor (solo repo):** Skip the team breakdown — the retro is personal.
+**単独のリポジトリ(ソロ)の場合:** チームの内訳は省略します。この振り返りは個人のものです。
 
-**Co-author credit:** `COAUTHOR:` lines carry human `Co-Authored-By:` trailers — credit those authors for the commit alongside the primary author. AI co-authors (e.g., `noreply@anthropic.com`) are counted in `AI_ASSISTED_COMMITS` instead — track "AI-assisted commits" as a separate metric, never as a team member.
+**共同作成者のクレジット:** `COAUTHOR:` の行は、人間の `Co-Authored-By:` トレーラーを持ちます。主たる作成者と並べて、そのコミットの作成者にもクレジットしてください。AI の共同作成者(例: `noreply@anthropic.com`)は代わりに `AI_ASSISTED_COMMITS` に数えます。「AI の支援があったコミット」を別の指標として追跡し、チームメンバーとしては決して数えないでください。
 
-### Step 10: Week-over-Week Trends (if window >= 14d)
+### Step 10: 週次の推移(時間枠が 14 日以上の場合)
 
-If the time window is 14 days or more, use the `WEEK:` lines (w0 = the week containing the newest commit) to show trends:
-- Commits per week (total; per-author from the `COMMIT:` lines)
-- LOC per week
-- Test ratio per week
-- Fix ratio per week
+時間枠が 14 日以上の場合は、`WEEK:` の行(w0 は最新コミットを含む週)を使って傾向を示します:
+- 週ごとのコミット数(合計。作成者ごとは `COMMIT:` の行から)
+- 週ごとの LOC
+- 週ごとのテスト比率
+- 週ごとの修正比率
 
-### Step 11: Streak Tracking
+### Step 11: 連続記録の追跡
 
-`TEAM_STREAK` and `USER_STREAK` count consecutive days with at least 1 commit (full history, no cutoff), anchored at the **newest commit date** — not at today, because the script never trusts the system clock. Interpret against today from the session reminder:
-- If the anchor date is today or yesterday, the streak is live: "Team shipping streak: 47 consecutive days" / "Your shipping streak: 32 consecutive days"
-- If the anchor is older, the streak is broken: report 0 days and note the last shipping day.
+`TEAM_STREAK` と `USER_STREAK` は、少なくとも 1 件のコミットがある連続日数を数えます(全履歴、カットオフなし)。基準は**最新コミットの日付**であり、今日ではありません。スクリプトはシステム時計を信用しないためです。セッションのリマインダーの今日と照らし合わせて解釈します:
+- 基準日が今日または昨日であれば、連続記録は継続中です: 「Team shipping streak: 47 consecutive days」/「Your shipping streak: 32 consecutive days」
+- 基準日がそれより古ければ、連続記録は途切れています: 0 日と報告し、最後に出荷した日を明記してください。
 
-### Step 11.5: Shortcut Debt Ledger
+### Step 11.5: ショートカット負債の台帳
 
-Harvest deliberate `gstack-shortcut(...)` markers — the trail left when the user
-accepted a Completeness ≤ 7 option (see the AskUserQuestion Format section). Zero
-matches is the healthy case, not a failure:
+ユーザーが Completeness ≤ 7 の選択肢を受け入れたときに残される、意図的な `gstack-shortcut(...)` マーカーを収集します(AskUserQuestion の形式のセクションを参照)。ゼロ件は正常な状態であり、失敗ではありません:
 
 ```bash
 grep -rn "gstack-shortcut(" . \
@@ -321,29 +317,25 @@ grep -rn "gstack-shortcut(" . \
   | grep -vE "gstack-shortcut\(dec-(<|\*)" || true
 ```
 
-Discard remaining hits that only document or test the convention (checklists,
-resolver examples, tests). Count only real shortcuts in this repo's code.
+この規約を説明またはテストしているだけの残りのヒット(チェックリスト、リゾルバーの例、テスト)は破棄します。このリポジトリのコード内にある実際のショートカットのみを数えてください。
 
-For each hit, one ledger row: `<file>:<line>, <what was simplified>. ceiling: <X>. upgrade: <Y>.`
-- Markers carry a decision id (`dec-<id>`): join against `gstack-decision-search`
-  output — the ledger entry is the source of truth; never double-count a marker
-  against its resurfaced decision.
-- Markers WITHOUT an id: tag `unlinked`.
-- Markers naming no upgrade trigger: tag `no-trigger` — those are the ones that
-  silently rot.
+ヒットごとに台帳の行を 1 つ書きます: `<file>:<line>, <what was simplified>. ceiling: <X>. upgrade: <Y>.`
+- マーカーは決定 ID(`dec-<id>`)を持ちます。`gstack-decision-search` の出力と照合してください。台帳のエントリが正です。再浮上した決定と同じマーカーを二重に数えないでください。
+- ID のないマーカーには `unlinked` のタグを付けます。
+- アップグレードのトリガーを示していないマーカーには `no-trigger` のタグを付けます。これらこそ、静かに腐っていくものです。
 
-End the section with: `N markers, M with no trigger.` If none: `No shortcut debt. Clean ledger.`
+セクションの最後は次の一文で締めくくります: `N markers, M with no trigger.` 0 件の場合は: `No shortcut debt. Clean ledger.`
 
-### Step 12: Load History & Compare
+### Step 12: 履歴の読み込みと比較
 
-Before saving the new snapshot, check for prior retro history:
+新しいスナップショットを保存する前に、過去の振り返りの履歴を確認します:
 
 ```bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
 ls -t .context/retros/*.json 2>/dev/null
 ```
 
-**If prior retros exist:** Load the most recent one with the same `window` using the Read tool; if none matches, disclose that and skip historical deltas. Calculate deltas for available key metrics and include a **Trends vs Last Retro** section (in `compare` mode use the freshly computed prior period instead):
+**過去の振り返りがある場合:** 同じ `window` を持つ最新のものを Read ツールで読み込みます。一致するものがなければ、その旨を明示して過去との差分は省略します。利用可能な主要指標の差分を計算し、**前回の振り返りとの推移** のセクションに含めます(`compare` モードでは、代わりに新たに計算した直前の期間を使います):
 ```
                     Last        Now         Delta
 Test ratio:         22%    →    41%         ↑19pp
@@ -354,19 +346,19 @@ Commits:            32     →    47          ↑47%
 Deep sessions:      3      →    5           ↑2
 ```
 
-**Recommendation follow-through:** If that matching-window snapshot has a `recommendations` key, score each prior recommendation as `addressed`, `partial` or `open` against this window's commits, changed files and metrics, citing the evidence. Render a **Recommendation follow-through** line in the report (for example "2 of 3 prior recommendations addressed"), then one line per item with its verdict. If the snapshot has no `recommendations` key, skip this silently.
+**推奨事項のフォロースルー:** 一致する時間枠のスナップショットに `recommendations` キーがあれば、過去の各推奨事項を、この時間枠のコミット、変更されたファイル、指標と照らし合わせて `addressed`(対応済み)、`partial`(一部対応)、`open`(未対応)のいずれかで評価し、根拠を示してください。報告に **Recommendation follow-through** の行を表示します(例: 「過去の推奨事項 3 件のうち 2 件に対応」)。続けて、項目ごとに判定を 1 行ずつ示します。スナップショットに `recommendations` キーがなければ、黙って省略してください。
 
-**If no prior retros exist:** Skip the comparison section and append: "First retro recorded — run again next week to see trends."
+**過去の振り返りがない場合:** 比較のセクションを省略し、「First retro recorded — run again next week to see trends.」を追記します。
 
-### Step 13: Save Retro History
+### Step 13: 振り返り履歴の保存
 
-After computing all metrics (including streak) and loading any prior history for comparison, draft the tweetable summary and the "3 Things to Improve" items using the format in Step 14, then save a JSON snapshot. The Step 14 narrative must reuse this exact summary and these exact items. `streak_days` is the live **team** streak from Step 11 (0 when broken); put the personal streak in `user_streak_days`.
+すべての指標(連続記録を含む)を計算し、比較のために過去の履歴を読み込んだ後、Step 14 の形式を使って共有用の一行サマリーと「改善すべき 3 点」を作成し、その後 JSON のスナップショットを保存します。Step 14 の物語では、このサマリーと項目をそのまま再利用してください。`streak_days` は Step 11 のライブの**チーム**の連続記録です(途切れている場合は 0)。個人の連続記録は `user_streak_days` に入れます。
 
 ```bash
 mkdir -p .context/retros
 ```
 
-Determine the next unused sequence number for today (substitute the session-reminder date for `<today>`):
+今日の未使用の連番を決めます(`<today>` にはセッションのリマインダーの日付を入れます):
 ```bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
 today="<today>"
@@ -375,7 +367,7 @@ while [ -e ".context/retros/${today}-${next}.json" ]; do next=$((next + 1)); don
 # Save as .context/retros/${today}-${next}.json
 ```
 
-Use the Write tool to save the JSON file with this schema:
+次のスキーマで JSON ファイルを Write ツールで保存します:
 ```json
 {
   "date": "2026-03-08",
@@ -419,11 +411,11 @@ Use the Write tool to save the JSON file with this schema:
 }
 ```
 
-**Always include `recommendations`:** one object per "3 Things to Improve" item, with a one-word lowercase `category` and the item's text verbatim. Write `[]` when there are none; never pad.
+**`recommendations` は常に含めてください:** 「改善すべき 3 点」の項目ごとに 1 つのオブジェクトを作り、`category` は小文字の一語、`text` は項目の文言をそのまま入れます。該当がなければ `[]` と書きます。水増ししないでください。
 
-**Note:** Only include the `greptile` field if `greptile-history.md` (the path `GREPTILE_HISTORY` printed) exists and has entries within the time window. Only include the `backlog` field if `TODOS.md` exists. Only include the `test_health` field if test files were found (`TEST_FILES_TOTAL` > 0). If any has no data, omit the field entirely.
+**注意:** `greptile` フィールドは、`greptile-history.md`(`GREPTILE_HISTORY` が出力したパス)が存在し、時間枠内にエントリがある場合にのみ含めてください。`backlog` フィールドは `TODOS.md` が存在する場合にのみ含めてください。`test_health` フィールドは、テストファイルが見つかった場合(`TEST_FILES_TOTAL` > 0)にのみ含めてください。データがない項目は、フィールドごと省略してください。
 
-Include test health data in the JSON when test files exist:
+テストファイルが存在する場合は、JSON にテストの健全性のデータを含めてください:
 ```json
   "test_health": {
     "total_test_files": 47,
@@ -432,7 +424,7 @@ Include test health data in the JSON when test files exist:
   }
 ```
 
-Include backlog data in the JSON when TODOS.md exists:
+TODOS.md が存在する場合は、JSON にバックログのデータを含めてください:
 ```json
   "backlog": {
     "total_open": 28,
@@ -443,11 +435,11 @@ Include backlog data in the JSON when TODOS.md exists:
   }
 ```
 
-### Step 14: Write the Narrative
+### Step 14: 物語を書く
 
 {{SECTION:report-format}}
 
-After delivering the repo-scoped report, run the following learning capture and result-save steps, then stop. Do not fall through into Global Retrospective Mode.
+リポジトリ単位の報告を提示した後、以下の学びの記録と結果の保存の手順を実行してから停止してください。Global Retrospective Mode には進まないでください。
 
 {{LEARNINGS_LOG}}
 
@@ -455,17 +447,17 @@ After delivering the repo-scoped report, run the following learning capture and 
 
 ---
 
-## Global Retrospective Mode
+## Global Retrospective Mode(グローバルな振り返りモード)
 
-`/retro global [window]` follows only this flow and works outside a git repo.
+`/retro global [window]` は、次のフローだけに従います。git リポジトリの外でも動作します。
 
-### Global Step 1: Compute time window
+### Global Step 1: 時間枠の計算
 
-Same midnight-aligned logic as the regular retro. Default 7d. The second argument after `global` is the window (e.g., `14d`, `30d`, `24h`).
+通常の振り返りと同じ、深夜に揃えるロジックを使います。既定は 7d です。`global` の後ろの 2 つ目の引数が時間枠です(例: `14d`、`30d`、`24h`)。
 
-### Global Step 2: Run discovery
+### Global Step 2: 探索の実行
 
-Locate and run the discovery script using this fallback chain:
+次のフォールバックの連鎖で、探索スクリプトを見つけて実行します:
 
 ```bash
 DISCOVER_BIN=""
@@ -476,30 +468,30 @@ DISCOVER_BIN=""
 echo "DISCOVER_BIN: $DISCOVER_BIN"
 ```
 
-If no binary is found, tell the user: "Discovery script not found. Run `bun run build` in the gstack directory to compile it." and stop.
+バイナリが見つからない場合は、ユーザーに次のように伝えて停止します: 「Discovery script not found. Run `bun run build` in the gstack directory to compile it.」
 
-Run the discovery:
+探索を実行します:
 ```bash
 $DISCOVER_BIN --since "<window>" --format json 2>/tmp/gstack-discover-stderr
 ```
 
-Read the stderr output from `/tmp/gstack-discover-stderr` for diagnostic info. Parse the JSON output from stdout.
+診断情報については `/tmp/gstack-discover-stderr` の標準エラー出力を読みます。標準出力の JSON を解析してください。
 
-If `total_sessions` is 0, say: "No AI coding sessions found in the last <window>. Try a longer window: `/retro global 30d`" and stop.
+`total_sessions` が 0 の場合は、「No AI coding sessions found in the last <window>. Try a longer window: `/retro global 30d`」と伝えて停止します。
 
-### Global Step 3: Run git log on each discovered repo
+### Global Step 3: 発見したリポジトリごとに git log を実行
 
-For each repo in the discovery JSON's `repos` array, find the first valid path in `paths[]` (directory exists with `.git/`). If no valid path exists, skip the repo and note it.
+探索 JSON の `repos` 配列の各リポジトリについて、`paths[]` の中で最初の有効なパス(ディレクトリが存在し `.git/` を持つもの)を見つけます。有効なパスがなければ、そのリポジトリはスキップし、その旨を記録します。
 
-**For local-only repos** (where `remote` starts with `local:`): skip `git fetch` and use the local default branch. Use `git log HEAD` instead of `git log origin/$DEFAULT`.
+**ローカルだけのリポジトリ**(`remote` が `local:` で始まる場合): `git fetch` はスキップし、ローカルの既定ブランチを使います。`origin/$DEFAULT` の代わりに `git log HEAD` を使います。
 
-**For repos with remotes:**
+**リモートがあるリポジトリ:**
 
 ```bash
 git -C <path> fetch origin --quiet 2>/dev/null
 ```
 
-Detect the default branch for each repo: first try `git symbolic-ref refs/remotes/origin/HEAD`, then check common branch names (`main`, `master`), then fall back to `git rev-parse --abbrev-ref HEAD`. Use the detected branch as `<default>` in the commands below.
+リポジトリごとに既定ブランチを検出します。まず `git symbolic-ref refs/remotes/origin/HEAD` を試し、次に一般的なブランチ名(`main`、`master`)を確認し、最後に `git rev-parse --abbrev-ref HEAD` にフォールバックします。検出したブランチを、以下のコマンドの `<default>` として使ってください。
 
 ```bash
 # Commits with stats
@@ -515,50 +507,50 @@ git -C <path> shortlog origin/$DEFAULT --since="<start_date>T00:00:00" -sn --no-
 git -C <path> log origin/$DEFAULT --since="<start_date>T00:00:00" --format="%s" | grep -oE '[#!][0-9]+' | sort -t'#' -k1 | uniq
 ```
 
-For repos that fail (deleted paths, network errors): skip and note "N repos could not be reached."
+失敗したリポジトリ(削除されたパス、ネットワークエラー)は、スキップして「N repos could not be reached.」と記録します。
 
-### Global Step 4: Compute global shipping streak
+### Global Step 4: グローバルな出荷の連続記録を計算
 
-For each repo, get commit dates (capped at 365 days):
+リポジトリごとに、コミットの日付を取得します(365 日を上限とします):
 
 ```bash
 git -C <path> log origin/$DEFAULT --since="365 days ago" --format="%ad" --date=format:"%Y-%m-%d" | sort -u
 ```
 
-Union all dates across all repos. Count backward from today — how many consecutive days have at least one commit to ANY repo? If the streak hits 365 days, display as "365+ days".
+すべてのリポジトリの日付を統合します。今日から遡り、どれか 1 つのリポジトリにコミットがあった連続日数を数えてください。連続記録が 365 日に達したら、「365+ days」と表示します。
 
-### Global Step 5: Compute context switching metric
+### Global Step 5: コンテキスト切り替えの指標を計算
 
-From the commit timestamps gathered in Step 3, group by date. For each date, count how many distinct repos had commits that day. Report:
-- Average repos/day
-- Maximum repos/day
-- Which days were focused (1 repo) vs. fragmented (3+ repos)
+Global Step 3 で集めたコミットのタイムスタンプを、日付ごとにまとめます。各日について、その日にコミットがあった相異なるリポジトリの数を数えます。次を報告してください:
+- 1 日あたりのリポジトリ数の平均
+- 1 日あたりのリポジトリ数の最大
+- どの日が集中していた(1 リポジトリ)か、分散していた(3 リポジトリ以上)か
 
-### Global Step 6: Per-tool productivity patterns
+### Global Step 6: ツールごとの生産性パターン
 
-From the discovery JSON, analyze tool usage patterns:
-- Which AI tool is used for which repos (exclusive vs. shared)
-- Session count per tool
-- Behavioral patterns (e.g., "Codex used exclusively for myapp, Claude Code for everything else")
+探索 JSON から、ツールの利用パターンを分析します:
+- どの AI ツールをどのリポジトリに使っているか(専用か共有か)
+- ツールごとのセッション数
+- 行動パターン(例: 「Codex は myapp だけに使用、Claude Code はそれ以外すべて」)
 
-### Global Step 7: Aggregate and draft narrative
+### Global Step 7: 集計と物語の下書き
 
-Draft the report below without publishing it yet. Load history in Global Step 8, insert its trends table after **All Projects Overview**, then save the completed snapshot in Global Step 9 and deliver the report. Reuse the drafted tweetable summary in the snapshot.
+以下の報告を、まだ公開せずに下書きします。Global Step 8 で履歴を読み込み、その推移の表を **全プロジェクトの概要** の後ろに挿入します。そのうえで Global Step 9 で完成したスナップショットを保存し、報告を提示します。下書きした一行サマリーはスナップショットで再利用してください。
 
-Output the screenshot-friendly **personal card first**, then the team/project breakdown.
+個人のカードを先に、その後にチーム/プロジェクトの内訳を出力します。見せやすい形にしてください。
 
 ---
 
-**Tweetable summary** (first line, before everything else):
+**一行サマリー**(最初の行、他のすべての前):
 ```
 Week of Mar 14: 5 projects, 138 commits, 250k LOC across 5 repos | 48 AI sessions | Streak: 52d 🔥
 ```
 
-## 🚀 Your Week: [user name] — [date range]
+## 🚀 Your Week: [ユーザー名] — [日付範囲]
 
-Filter per-repo data by `git config user.name` and aggregate personal totals.
-The card contains only this user's stats, not team totals. Use a left border only;
-pad names to the longest name and never truncate them.
+探索したリポジトリごとのデータを `git config user.name` で絞り込み、個人の合計を集計します。
+カードには、このユーザーの統計だけを載せます。チーム全体の合計は含めません。左側の罫線だけを使い、
+名前は最も長い名前に揃えて、決して切り詰めないでください。
 
 ```
 ╔═══════════════════════════════════════════════════════════════
@@ -588,57 +580,56 @@ pad names to the longest name and never truncate them.
 ╚═══════════════════════════════════════════════════════════════
 ```
 
-**Rules for the personal card:**
-- Only show repos where the user has commits. Skip repos with 0 commits.
-- Sort repos by user's commit count descending.
-- Widen the card to fit full repo names; align columns.
-- For LOC, use "k" formatting for thousands (e.g., "+64.0k" not "+64010").
-- Role: "solo" if user is the only contributor, "team" if others contributed.
-- Ship of the Week: the user's single highest-LOC PR across ALL repos.
-- Top Work: 3 themes synthesized from commit messages, not a list of commits.
-- The card must explain the user's week without surrounding context.
-- Do NOT include team members, project totals, or context switching data here.
+**個人カードのルール:**
+- ユーザーがコミットしているリポジトリのみ表示します。コミットが 0 のリポジトリは省きます。
+- リポジトリは、ユーザーのコミット数の降順に並べます。
+- リポジトリの完全な名前が収まるようにカードの幅を広げ、列を揃えます。
+- LOC は千単位に「k」を使います(例: "+64010" ではなく "+64.0k")。
+- 役割: ユーザーだけが貢献者なら "solo"、他の人も貢献していれば "team"。
+- Ship of the Week: すべてのリポジトリを通じて、ユーザーの単一で最大の LOC の PR。
+- Top Work: コミットの一覧ではなく、コミットメッセージから統合した 3 つのテーマ。
+- カードは、周囲の文脈がなくてもユーザーの一週間を説明できなければなりません。
+- ここにはチームメンバー、プロジェクトの合計、文脈切り替えのデータを含めないでください。
 
-**Personal streak:** Use the user's own commits across all repos (filtered by
-`--author`) to compute a personal streak, separate from the team streak.
+**個人の連続記録:** ユーザー自身のコミットをすべてのリポジトリで使い(`--author` で絞り込み)、チームの連続記録とは別に個人の連続記録を計算します。
 
 ---
 
-## Global Engineering Retro: [date range]
+## Global Engineering Retro: [日付範囲]
 
-Full team/project analysis follows the personal card.
+個人カードの後に、チーム/プロジェクトの完全な分析が続きます。
 
-### All Projects Overview
-| Metric | Value |
+### 全プロジェクトの概要
+| 指標 | 値 |
 |--------|-------|
-| Projects active | N |
-| Total commits (all repos, all contributors) | N |
-| Total LOC | +N / -N |
-| AI coding sessions | N (CC: X, Codex: Y, Gemini: Z) |
-| Active days | N |
-| Global shipping streak (any contributor, any repo) | N consecutive days |
-| Context switches/day | N avg (max: M) |
+| 活動中のプロジェクト | N |
+| 総コミット数(全リポジトリ、全コントリビューター) | N |
+| 総 LOC | +N / -N |
+| AI コーディングのセッション | N (CC: X, Codex: Y, Gemini: Z) |
+| 活動日数 | N |
+| グローバルな出荷の連続記録(任意の貢献者、任意のリポジトリ) | 連続 N 日 |
+| コンテキスト切り替え/日 | 平均 N(最大: M) |
 
-### Per-Project Breakdown
-For each repo (sorted by commits descending):
-- Repo name (with % of total commits)
-- Commits, LOC, PRs merged, top contributor
-- Key work (inferred from commit messages)
-- AI sessions by tool
+### プロジェクト別の内訳
+リポジトリごと(コミット数の降順):
+- リポジトリ名(全コミットに占める割合 %)
+- コミット数、LOC、マージ済み PR 数、主なコントリビューター
+- 主な作業(コミットメッセージから推測)
+- ツール別の AI セッション
 
-**Your Contributions** (sub-section within each project):
-For each project, filter by `git config user.name` and include:
-- Your commits / total commits (with %)
-- Your LOC (+insertions / -deletions)
-- Your key work (inferred from YOUR commit messages only)
-- Your commit type mix (feat/fix/refactor/chore/docs breakdown)
-- Your biggest ship in this repo (highest-LOC commit or PR)
+**あなたの貢献**(各プロジェクト内のサブセクション):
+各プロジェクトについて、`git config user.name` で絞り込み、次を含めます:
+- あなたのコミット数 / 全コミット数(割合付き)
+- あなたの LOC(+追加 / -削除)
+- あなたの主な作業(あなたのコミットメッセージだけから推測)
+- あなたのコミット種別の内訳(feat/fix/refactor/chore/docs)
+- そのリポジトリでのあなたの最大のシップ(最も LOC が多いコミットまたは PR)
 
-If the user is the only contributor, say "Solo project — all commits are yours."
-If the user has 0 commits in a repo (team project they didn't touch this period),
-say "No commits this period — [N] AI sessions only." and skip the breakdown.
+ユーザーが唯一の貢献者なら、「Solo project — all commits are yours.」と書きます。
+ユーザーがあるリポジトリで 0 コミットなら(触れていないチームのプロジェクト)、
+「No commits this period — [N] AI sessions only.」と書き、内訳は省略します。
 
-Format:
+形式:
 ```
 **Your contributions:** 47/244 commits (19%), +4.2k/-0.3k LOC
   Key work: Writer Chat, email blocking, security hardening
@@ -646,30 +637,30 @@ Format:
   Mix: feat(3) fix(2) chore(1)
 ```
 
-### Cross-Project Patterns
-- Time allocation across projects (% breakdown, use YOUR commits not total)
-- Peak productivity hours aggregated across all repos
-- Focused vs. fragmented days
-- Context switching trends
+### プロジェクト横断のパターン
+- プロジェクト間の時間配分(割合の内訳。全体ではなく**あなたの**コミットを使う)
+- 全リポジトリを集計したピークの生産性の時間帯
+- 集中した日と分散した日
+- コンテキスト切り替えの傾向
 
-### Tool Usage Analysis
-Per-tool breakdown with behavioral patterns:
-- Claude Code: N sessions across M repos — patterns observed
-- Codex: N sessions across M repos — patterns observed
-- Gemini: N sessions across M repos — patterns observed
+### ツール利用の分析
+ツールごとの内訳と行動パターン:
+- Claude Code: N sessions across M repos — 観察されたパターン
+- Codex: N sessions across M repos — 観察されたパターン
+- Gemini: N sessions across M repos — 観察されたパターン
 
-### Ship of the Week (Global)
-Highest-impact PR across ALL projects. Identify by LOC and commit messages.
+### 今週の出荷(グローバル)
+すべてのプロジェクトを通じて最も影響の大きい PR。LOC とコミットメッセージから特定します。
 
-### 3 Cross-Project Insights
-What the global view reveals that no single-repo retro could show.
+### プロジェクト横断の 3 つの洞察
+単一リポジトリの振り返りでは見えなかった、グローバルな視点が示すこと。
 
-### 3 Habits for Next Week
-Considering the full cross-project picture.
+### 来週の 3 つの習慣
+リポジトリ横断の全体像を踏まえた、次週の習慣。
 
 ---
 
-### Global Step 8: Load history & compare
+### Global Step 8: 履歴の読み込みと比較
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -677,20 +668,20 @@ setopt +o nomatch 2>/dev/null || true  # zsh compat
 ls -t "$GSTACK_STATE_ROOT"/retros/global-*.json 2>/dev/null | head -5
 ```
 
-**Only compare against a prior retro with the same `window` value** (e.g., 7d vs 7d). If the most recent prior retro has a different window, skip comparison and note: "Prior global retro used a different window — skipping comparison."
+**比較は、`window` の値が同じ過去の振り返りとだけ行ってください**(例: 7d と 7d)。直近の過去の振り返りの時間枠が異なる場合は、比較を省略し、「Prior global retro used a different window — skipping comparison.」と記録します。
 
-If a matching prior retro exists, load it with the Read tool. Show a **Trends vs Last Global Retro** table with deltas for key metrics: total commits, LOC, sessions, streak, context switches/day.
+一致する過去の振り返りがあれば、Read ツールで読み込みます。主要な指標(コミット総数、LOC、セッション数、連続記録、1 日あたりのコンテキスト切り替え)の差分を示す **Trends vs Last Global Retro** の表を表示します。
 
-If no prior global retros exist, append: "First global retro recorded — run again next week to see trends."
+過去のグローバルな振り返りがなければ、「First global retro recorded — run again next week to see trends.」を追記します。
 
-### Global Step 9: Save snapshot
+### Global Step 9: スナップショットの保存
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
 mkdir -p "$GSTACK_STATE_ROOT"/retros
 ```
 
-Determine the next unused sequence number for today, using the same session-reminder date as Global Step 1:
+Global Step 1 と同じセッションのリマインダーの日付を使い、今日の未使用の連番を決めます:
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
 setopt +o nomatch 2>/dev/null || true  # zsh compat
@@ -700,7 +691,7 @@ while [ -e "$GSTACK_STATE_ROOT/retros/global-${today}-${next}.json" ]; do next=$
 echo "RETRO_FILE: $GSTACK_STATE_ROOT/retros/global-${today}-${next}.json"
 ```
 
-Use the Write tool to save JSON to the printed `RETRO_FILE`:
+Write ツールで、出力された `RETRO_FILE` に JSON を保存します:
 
 ```json
 {
@@ -733,37 +724,37 @@ Use the Write tool to save JSON to the printed `RETRO_FILE`:
 
 ---
 
-## Compare Mode
+## Compare Mode(比較モード)
 
-When the user runs `/retro compare` (or `/retro compare 14d`):
+ユーザーが `/retro compare`(または `/retro compare 14d`)を実行したとき:
 
-1. Run Steps 0.5-1 for the current window (default 7d) using the midnight-aligned start date (same logic as the main retro — e.g., if today is 2026-03-18 and window is 7d, `--since "2026-03-11T00:00:00"`)
-2. Run `gstack-retro-metrics` a second time for the immediately prior same-length window, using both `--since` and `--until` (e.g., for a 7d window starting 2026-03-11: `--since "2026-03-04T00:00:00" --until "2026-03-10T23:59:59"`)
-3. Compute the windowed metrics in Steps 2-10 for each dataset, keeping current and prior values separate. Run Steps 11-11.5 only for the current report: streaks use full history and the shortcut ledger scans the current tree, so neither is a prior-window metric. Apply the freshness guard only to the current window; an inactive prior window is valid comparison data. For hour windows, capture one explicit end timestamp, then subtract the requested hours twice for the two starts. Git includes `--until`, so use one second before the current start for the prior end to avoid counting the boundary commit twice.
-4. In place of Step 12's saved-history comparison, show a **Current vs Prior Period** table for commits, logical SLOC, test ratio, sessions, and fix ratio. Show absolute deltas and percentage changes (ratio changes in percentage points); if the prior value is zero, report absolute change and percentage change as N/A. Highlight the biggest improvements and regressions in the Step 14 narrative.
-5. Run Steps 13-14 and the post-report capture for the current window only; do **not** persist the prior-window metrics. This comparison works on the first run and does not require saved history.
+1. 現在の時間枠(既定は 7d)について、深夜に揃えた開始日を使って Step 0.5〜1 を実行します(通常の振り返りと同じロジック。例: 今日が 2026-03-18 で時間枠が 7d なら `--since "2026-03-11T00:00:00"`)。
+2. 直前の同じ長さの時間枠について、`gstack-retro-metrics` をもう一度実行します。`--since` と `--until` の両方を使います(例: 2026-03-11 から始まる 7d の時間枠なら `--since "2026-03-04T00:00:00" --until "2026-03-10T23:59:59"`)。
+3. 2 つのデータセットそれぞれについて Step 2〜10 の期間別の指標を計算し、現在の値と過去の値を別々に保持します。Step 11〜11.5 は現在の報告についてのみ実行します。連続記録は全履歴を使い、ショートカットの台帳は現在のツリーを走査するため、どちらも直前の期間の指標ではありません。鮮度のガードは現在の時間枠にのみ適用します。活動のない直前の期間も有効な比較データです。時間単位の時間枠では、終了のタイムスタンプを 1 つ明示的に取り、要求された時間数を 2 回引いて 2 つの開始時刻を求めます。git は `--until` を含むため、直前の期間の終了は現在の開始の 1 秒前にし、境界のコミットを二重に数えないようにしてください。
+4. Step 12 の保存済み履歴との比較の代わりに、コミット、論理 SLOC、テスト比率、セッション、修正比率について **Current vs Prior Period** の表を表示します。絶対値の差分と変化率を示します(比率の変化はパーセントポイント)。直前の値が 0 の場合は、絶対変化と変化率を N/A とします。最も大きな改善と後退を Step 14 の物語で強調してください。
+5. Step 13〜14 と報告後の記録は、現在の時間枠についてのみ実行します。直前の期間の指標は**保存しないでください**。この比較は初回の実行でも動作し、保存済みの履歴を必要としません。
 
-## Tone
+## Tone(トーン)
 
-- Encouraging but candid, no coddling
-- Specific and concrete — always anchor in actual commits/code
-- Skip generic praise ("great job!") — say exactly what was good and why
-- Frame improvements as leveling up, not criticism
-- **Praise should feel like something you'd actually say in a 1:1** — specific, earned, genuine
-- **Growth suggestions should feel like investment advice** — "this is worth your time because..." not "you failed at..."
-- Never compare teammates against each other negatively. Each person's section stands on its own.
-- Size the report to the window and the team: every section carries specific evidence, and a section with nothing to say is cut, not padded
-- Use markdown tables and code blocks for data, prose for narrative
-- Output the narrative directly to the conversation; the only report file is the JSON snapshot (`.context/retros/` for repo retros, `$GSTACK_STATE_ROOT/retros/` for global)
+- 励ましつつも率直に。甘やかさない
+- 具体的で明確に。常に実際のコミット/コードに基づく
+- 一般的な褒め言葉(「素晴らしい!」)は省く。何が良く、なぜ良かったかを正確に言う
+- 改善は批判ではなく、レベルアップとして伝える
+- **称賛は 1 対 1 の面談で実際に言うような内容であるべき** — 具体的で、そのにふさわしく、誠実に
+- **成長の提案は投資の助言のように感じられるべき** — 「あなたは失敗した」ではなく「これは時間を使う価値がある、なぜなら…」
+- チームメンバーを互いに否定的に比べないこと。各人のセクションはそれ自体で成立させる
+- 報告の規模は時間枠とチームに合わせる: すべてのセクションに具体的な根拠を持たせ、言うことがないセクションは水増しせず削る
+- データには Markdown の表とコードブロック、物語には散文を使う
+- 物語は会話に直接出力する。唯一の報告ファイルは JSON のスナップショット(リポジトリの振り返りは `.context/retros/`、グローバルは `$GSTACK_STATE_ROOT/retros/`)
 
-## Important Rules
+## Important Rules(重要なルール)
 
-- ALL narrative output goes directly to the user in the conversation. Besides the JSON snapshot, only the learnings and gbrain capture steps write anything.
-- The metrics script analyzes `origin/<default>` (not local main which may be stale); when `RETRO_REF` says otherwise, disclose it
-- Display all timestamps in the user's local timezone (do not override `TZ`)
-- If `COMMITS: 0`, say so and suggest a different window
-- Round LOC/hour to nearest 50 (the script pre-rounds `LOC_PER_SESSION_HOUR`)
-- Treat merge commits as PR boundaries
-- Do not read CLAUDE.md or unrelated docs — this skill is self-contained; the CHANGELOG and optional inputs explicitly named above are exceptions
-- On first run (no prior retros), skip saved-history comparisons gracefully; explicit `compare` mode still computes its prior window
-- **Global mode:** Does NOT require being inside a git repo. Saves snapshots to `~/.gstack/retros/` (not `.context/retros/`). Gracefully skip AI tools that aren't installed. Only compare against prior global retros with the same window value. If streak hits 365d cap, display as "365+ days".
+- すべての物語の出力は、会話でユーザーに直接届けます。JSON のスナップショットのほかに書き込むのは、学びと gbrain の記録の手順だけです。
+- メトリクススクリプトは `origin/<default>` を分析します(古くなっている可能性のあるローカルの main ではありません)。`RETRO_REF` が別のものを示す場合は、その旨を明示します。
+- すべてのタイムスタンプをユーザーのローカルタイムゾーンで表示します(`TZ` は上書きしないこと)
+- `COMMITS: 0` の場合は、その旨を伝え、別の時間枠を提案します
+- LOC/時間は最も近い 50 に丸めます(スクリプトが `LOC_PER_SESSION_HOUR` を事前に丸めています)
+- マージコミットは PR の境界として扱います
+- CLAUDE.md や無関係なドキュメントは読まないこと — このスキルは自己完結しています。ただし、上で明示した CHANGELOG と任意の入力は例外です
+- 初回の実行時(過去の振り返りがない場合)は、保存済み履歴との比較を穏やかに省略します。明示的な `compare` モードは、直前の期間を引き続き計算します
+- **Global モード:** git リポジトリの中である必要はありません。スナップショットは `~/.gstack/retros/` に保存します(`.context/retros/` ではありません)。インストールされていない AI ツールは穏やかにスキップします。同じ window の値を持つ過去のグローバルな振り返りとだけ比較します。連続記録が 365 日の上限に達したら、「365+ days」と表示します。

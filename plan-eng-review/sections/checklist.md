@@ -1,34 +1,30 @@
 <!-- AUTO-GENERATED from checklist.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Checklist (runner profile)
+## チェックリスト(ランナープロファイル)
 
-Eng phase steps and required outputs for `bin/gstack-autoplan` (unattended or
-`light` runs); interactive runs read `sections/review-sections.md` in full.
+`bin/gstack-autoplan`(無人または `light` 実行)のエンジニアリングフェーズのステップと必須出力です。対話型の実行では、`sections/review-sections.md` を全体読み込みします。
 
-### Steps
-1. Scope Challenge (A assess, B selectors, C findings) with the decision
-   procedure; every prior-phase consensus is in the prompt before review.
-   A ends with the reality rows: one `REALITY:` line per applicable row
-   (`gstack-plan-reality rows --phase eng`), each with a file:line receipt.
-2. Sections 1–4 in order: architecture, code quality, test, performance
-   (`perf` scope). Continue after the outside voice.
-3. Final planning decisions, then the finish sequence below in order.
+### ステップ
+1. 決定手順に従って Scope Challenge(A 評価、B セレクター、C 指摘)を行う。レビュー前に、前フェーズのすべての合意事項をプロンプトに含めておく。
+   A は現実性の行で終える。該当する行ごとに 1 行の `REALITY:` を書く(`gstack-plan-reality rows --phase eng`)。各行にはファイル:行番号の根拠を付ける。
+2. セクション 1〜4 を順番に実施する: アーキテクチャ、コード品質、テスト、パフォーマンス(`perf` スコープ)。外部の意見の後に続ける。
+3. 最終的な計画上の決定を行い、その後、以下の完了シーケンスを順番に実行する。
 
-### Required outputs → producing section
+### 必須出力 → 生成するセクション
 
-| Output | Produced by | Scope |
+| 出力 | 生成元 | スコープ |
 |---|---|---|
-| Review body | Output reference — review body | always |
-| Reality rows (`REALITY:` lines, `PLAN_REALITY` check) | Reality rows (why each exists) | always |
-| NOT in scope | "NOT in scope" section | always |
-| What already exists | "What already exists" section | always |
-| Diagrams | Diagrams | always |
-| Failure modes | Failure modes | always |
-| Worktree parallelization strategy | Worktree parallelization strategy | always |
-| Test Plan | 3. Test review | always |
-| Performance findings | 4. Performance review | perf |
-| Unresolved decisions | Unresolved decisions | always |
-| Completion summary | Completion summary | always |
-| Review log row | Review Log | always |
-| Next-skill handoff | Next Steps — Review Chaining | always |
-| Learnings | Learning hooks | always |
+| レビュー本文 | 出力リファレンス — レビュー本文 | 常に |
+| 現実の確認行(`REALITY:` 行、`PLAN_REALITY` チェック) | Reality rows(各行が存在する理由) | 常に |
+| NOT in scope | 「スコープ外」セクション | 常に |
+| What already exists | 「既存のもの」セクション | 常に |
+| 図 | 図 | 常に |
+| 障害モード | 障害モード | 常に |
+| ワークツリーの並列化戦略 | ワークツリーの並列化戦略 | 常に |
+| テスト計画 | 3. テストのレビュー | 常に |
+| パフォーマンスの指摘 | 4. パフォーマンスのレビュー | perf |
+| 未解決の決定事項 | 未解決の決定事項 | 常に |
+| 完了サマリー | Completion summary | 常に |
+| レビューログの行 | レビューログ | 常に |
+| 次のスキルへの引き継ぎ | 次のステップ — レビューの連鎖 | 常に |
+| 学習事項 | Learning hooks | 常に |

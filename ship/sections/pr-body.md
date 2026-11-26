@@ -1,8 +1,8 @@
 <!-- AUTO-GENERATED from pr-body.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-### Prepare the title (Step 18)
+### タイトルを用意する (Step 18)
 
-Prepare the title in a private file; Step 19 posts that file, never a shell string:
+タイトルは非公開のファイルに用意します。Step 19 では、シェル文字列ではなくそのファイルを投稿します:
 
 ```bash
 _GT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gstack/tmp"
@@ -11,66 +11,48 @@ _EX=$(git rev-parse --git-path info/exclude 2>/dev/null) && mkdir -p "$(dirname 
 TITLE_FILE=$(mktemp "${_GT:?}/pr-title.XXXXXX") || { echo "Not sent: mktemp failed in $_GT." >&2; exit 1; }; echo "TITLE_FILE: $TITLE_FILE (name: ${TITLE_FILE##*/})"
 ```
 
-Write the text into each printed file with your file-write tool (Claude Code's Write tool needs a Read of the empty file first), exactly as it should appear. The text never goes into a shell command, heredoc or quoted argument. If a write fails or is refused, do not send: print the cause, the file path and the command below for sending by hand.
+出力された各ファイルに、ファイル書き込みツール(Claude Code の Write ツールは、先に空ファイルを Read する必要があります)で、そのまま表示されるべき内容を書き込みます。テキストをシェルコマンド、ヒアドキュメント、引用符付き引数に入れてはいけません。書き込みが失敗または拒否された場合は送信せず、原因、ファイルパス、手動送信用の下記コマンドを表示します。
 
-1. For an existing open PR/MR (not Step 6.5's early PR, which takes item 2), fill the file from the platform, substituting the
-   printed name, the matched number and `NEW_VERSION`; no title text passes through you:
+1. 既存の open な PR/MR の場合 (Step 6.5 の早期 PR は項目 2 を使う)、プラットフォームからファイルを埋めます。表示された名前、一致した番号、`NEW_VERSION` を置き換えてください。タイトル文字列はあなたを経由しません:
    ```bash
    TITLE_FILE="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gstack/tmp/<title-file-name>"
    gh pr view <pr-number> --json title -q .title | ~/.claude/skills/gstack/bin/gstack-pr-title-rewrite.sh <new-version> --stdin > "$TITLE_FILE" || exit 1
    ```
-   GitLab reads `glab mr view <pr-number> --output json | jq -r .title` into the same pipe.
-2. For a new PR/MR, write `v<NEW_VERSION> <type>: <summary>` into the file with your file-write tool.
-3. Every created or updated title MUST start with `v$NEW_VERSION `; check the file with
-   `grep -Eq '^v<new-version>( |$)' "$TITLE_FILE"` and never publish an unprefixed title.
-4. **NO_VERSION:** replaces items 1-3: keep an existing title (the platform title
-   piped straight into the file), or write `<type>: <summary>`; no version prefix.
+   GitLab では、`glab mr view <pr-number> --output json | jq -r .title` の出力を同じパイプに流します。
+2. 新しい PR/MR の場合は、ファイル書き込みツールを使って `v<NEW_VERSION> <type>: <summary>` をファイルに書き込みます。
+3. 作成または更新するタイトルは必ず `v$NEW_VERSION ` で始めること。`grep -Eq '^v<new-version>( |$)' "$TITLE_FILE"` でファイルを確認し、バージョン接頭辞のないタイトルは決して公開しないでください。
+4. **NO_VERSION:** 項目 1-3 の代わりにこちらを使います。既存のタイトルを残す (プラットフォームのタイトルをそのままファイルにパイプする)、または `<type>: <summary>` と書きます。バージョン接頭辞は付けません。
 
-Save the title file name for Step 19.
+タイトルファイル名は Step 19 のために保存しておきます。
 
 ---
 
-## Step 19: Create PR/MR
+## Step 19: PR/MR を作成する
 
-Recheck Step 18's PR/MR lookup and record it. Errors or ambiguous matches STOP publication.
-If the open PR/MR or title changed, repeat Step 18's identity/title preparation,
-then return here for a new lookup and a fresh body before publishing.
+Step 18 の PR/MR 検索を再確認して記録します。エラーや曖昧な一致があれば公開を停止します。
+open な PR/MR またはタイトルが変わっていた場合は、Step 18 の識別とタイトルの準備を繰り返し、新しい検索を行ってから、公開前に新しい本文を作ってここに戻ってください。
 
-### Resolve Linked Spec before composing the body
+### 本文を作成する前にリンク先の Spec を解決する
 
-1. Resolve the archive directory and branch:
+1. アーカイブのディレクトリとブランチを解決します:
    ```bash
    GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
    SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG)
    CURRENT_BRANCH=$(git branch --show-current)
    SPEC_ARCHIVES="$GSTACK_STATE_ROOT/projects/$SLUG/specs"
    ```
-2. Read archive frontmatter as data, never shell source. Select an exact
-   `spec_branch` match to `CURRENT_BRANCH`; among matches use the newest
-   `spec_filed_at`. Never infer an issue number from a branch name. If no readable
-   match or positive integer `spec_issue_number`, omit only `## Linked Spec` and
-   continue composing the PR. Resolve ambiguous matches before linking an issue.
-3. Compare that spec's acceptance criteria with Step 8's results. Only fully
-   completed Step 8 plan scope permits `Closes #N`, with every spec criterion
-   verified. Partial, deferred, failed, dropped or unverified scope uses `Linked to #N`
-   and names the remaining work; never auto-close it. Include the archive filename
-   and `spec_filed_at`, not a private absolute path; `gstack-post` scans them with the body.
+2. アーカイブの frontmatter はシェルのソースとしてではなく、データとして読みます。`spec_branch` が `CURRENT_BRANCH` と完全一致するものを選び、複数ある場合は最新の `spec_filed_at` を使います。ブランチ名から issue 番号を推測しないこと。読み取り可能な一致がなく、正の整数の `spec_issue_number` もない場合は、`## Linked Spec` のみを省略して PR の作成を続けます。issue をリンクする前に、曖昧な一致は解決してください。
+3. その spec の受け入れ基準と Step 8 の結果を比べます。Step 8 の計画範囲が完全に完了し、spec の基準がすべて検証済みである場合に限り `Closes #N` を使えます。範囲が部分的、延期、失敗、破棄、または未検証の場合は `Linked to #N` を使い、残りの作業を明記してください。自動でクローズしないこと。本文にはアーカイブのファイル名と `spec_filed_at` を含め、非公開の絶対パスは含めないでください。`gstack-post` が本文と一緒にそれらをスキャンします。
 
-### Issue links
+### Issue のリンク
 
-Run `~/.claude/skills/gstack/bin/gstack-issue-links --base <base> --out .gstack/tmp/issues.json`, adding
-`--issue <n>` per issue the user named as fixed and `--ci-run <id>` per failing CI run. Interactive:
-ask once about its `(promote: fix #N)` references (each `fix #<n>` reply adds `--issue <n>`), and add
-`--supersedes <n>`/`--credit <n>` for a `Related:` PR only when the owner confirms; rerun after any change.
-The completion message lists unpromoted candidates, `Related:` lines and any `ISSUE_LOOKUP_FAILED`.
+`~/.claude/skills/gstack/bin/gstack-issue-links --base <base> --out .gstack/tmp/issues.json` を実行します。ユーザーが修正済みとして挙げた issue ごとに `--issue <n>` を、失敗した CI 実行ごとに `--ci-run <id>` を追加してください。対話モードでは、`(promote: fix #N)` の参照について一度だけ確認します (`fix #<n>` と返信されるたびに `--issue <n>` を追加)。`Related:` の PR については、オーナーが確認した場合に限り `--supersedes <n>`/`--credit <n>` を追加します。変更があるたびに再実行してください。完了メッセージには、未昇格の候補、`Related:` の行、`ISSUE_LOOKUP_FAILED` が表示されます。
 
 ### Capy
 
-Run `[ "${GSTACK_CAPY:-}" = 1 ] && echo 'CAPY_PR: on' || echo 'CAPY_PR: off'`. On `CAPY_PR: on`, read
-`~/.claude/skills/gstack/ship/sections/capy-pr.md` now: the body opens with its `## What changed`,
-`## Why` and `## Approvals` before the sections below. On `CAPY_PR: off`, skip it.
+`[ "${GSTACK_CAPY:-}" = 1 ] && echo 'CAPY_PR: on' || echo 'CAPY_PR: off'` を実行します。`CAPY_PR: on` の場合は、今すぐ `~/.claude/skills/gstack/ship/sections/capy-pr.md` を読んでください。本文は、以下のセクションより前に、その `## What changed`、`## Why`、`## Approvals` で始まります。`CAPY_PR: off` の場合は読み飛ばします。
 
-The PR/MR body should contain these sections (never reuse a prior run's body):
+PR/MR の本文には次のセクションを含めます (前回の実行の本文を再利用しないこと):
 
 ```
 ## Summary
@@ -159,17 +141,11 @@ and its `cat -- "$DOCS_SECTION_FILE" && echo &&` step.>
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
-#### Compose the body, then publish through gstack-post
+#### 本文を作成し、gstack-post で公開する
 
-The PR body is world-readable on a public repo. `gstack-post` scans the exact title
-and body bytes it sends and passes them to `gh`/`glab` as arguments, so there is no
-separate scan here. Wrap any Codex / Greptile / eval output sections in
-tool-attributed fences (` ```codex-review ` / ` ```greptile `) so the scanner
-WARN-degrades the example credentials those tools quote instead of blocking the PR
-(a live-format credential inside the fence still blocks).
+PR 本文は公開リポジトリでは誰でも読めます。`gstack-post` は送信するタイトルと本文の正確なバイト列をスキャンし、`gh`/`glab` に引数として渡します。そのため、ここで別途スキャンは行いません。Codex / Greptile / eval の出力セクションは、ツール名付きのフェンス (` ```codex-review ` / ` ```greptile `) で囲んでください。そうすると、スキャナーはツールが引用した例の認証情報を WARN に格下げします。BLOCK にはなりません (フェンス内でも実際の形式の認証情報はブロックされます)。
 
-Write the body from above into two private files: the first through the
-`## Documentation` heading line, the second from `## Test plan` on.
+上記の本文を 2 つの非公開ファイルに書き出します。1 つ目は `## Documentation` の見出し行まで、2 つ目は `## Test plan` から末尾までです。
 
 ```bash
 _GT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gstack/tmp"
@@ -179,11 +155,9 @@ BODY_TOP_FILE=$(mktemp "${_GT:?}/pr-body-top.XXXXXX") || { echo "Not sent: mktem
 BODY_REST_FILE=$(mktemp "${_GT:?}/pr-body-rest.XXXXXX") || { echo "Not sent: mktemp failed in $_GT." >&2; exit 1; }; echo "BODY_REST_FILE: $BODY_REST_FILE (name: ${BODY_REST_FILE##*/})"
 ```
 
-Write the text into each printed file with your file-write tool (Claude Code's Write tool needs a Read of the empty file first), exactly as it should appear. The text never goes into a shell command, heredoc or quoted argument. If a write fails or is refused, do not send: print the cause, the file path and the command below for sending by hand.
+出力された各ファイルに、ファイル書き込みツール(Claude Code の Write ツールは、先に空ファイルを Read する必要があります)で、そのまま表示されるべき内容を書き込みます。テキストをシェルコマンド、ヒアドキュメント、引用符付き引数に入れてはいけません。書き込みが失敗または拒否された場合は送信せず、原因、ファイルパス、手動送信用の下記コマンドを表示します。
 
-In a new shell, restore Step 14.5's saved section file path as `DOCS_SECTION_FILE`
-and substitute the printed names. The block deletes both drafts; to change the body,
-write fresh ones.
+新しいシェルで、Step 14.5 で保存したセクションファイルのパスを `DOCS_SECTION_FILE` として復元し、表示された名前に置き換えてください。このブロックは両方の下書きを削除します。本文を変更する場合は、新しい下書きを書き直してください。
 
 ```bash
 : "${DOCS_SECTION_FILE:?Restore the saved Step 14.5 section file path before composing}"
@@ -196,28 +170,19 @@ rm -f "$BODY_TOP_FILE" "$BODY_REST_FILE"
 echo "PR_BODY_FILE: $PR_BODY_FILE"
 ```
 
-Handoff record first (identifiers survive truncation). Write Step 16 stage 4's
-per-lane counts (`{"<lane>":{"pass":N,"fail":N,"skip":N}}`) to
-`.gstack/tmp/ship-gate.json` with your file-write tool, then:
+まず引き継ぎ記録を書きます (識別子は切り詰めても残ります)。Step 16 の段階 4 にあるレーンごとの件数 (`{"<lane>":{"pass":N,"fail":N,"skip":N}}`) を、ファイル書き込みツールで `.gstack/tmp/ship-gate.json` に書き込み、そのうえで次を実行します:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-ship-receipt write --pr <pr-number> --base <base> --gate @.gstack/tmp/ship-gate.json --pregate .gstack/tmp/pregate.json --issues @.gstack/tmp/issues.json --body "$PR_BODY_FILE"
 ```
 
-Add `--receipt .gstack/tmp/tree-receipt.json` only when Step 16 wrote it (gate-ahead).
-New PR/MR: omit `--pr`, then rerun with the number after creation and repost the body.
-Its `SHIP_RECEIPT:` line opens the completion message. `RECEIPT_INVALID` names the bad
-field: fix that input file and rerun; nothing was written. `ISSUE_LINKS_MISSING`: add
-the named line under `## Issues` and rerun. `PREGATE_STALE` means rerun
-`gstack-pregate` on the stamped tree; `PREGATE_REMOTE_UNCLEARED` needs
-`gstack-pregate clear` with the run URL. Both stop publication.
+`--receipt .gstack/tmp/tree-receipt.json` は、Step 16 がそれを書いた場合 (gate-ahead) にのみ追加します。
+新しい PR/MR の場合は `--pr` を省略し、作成後に番号を付けて再実行し、本文を投稿し直してください。
+その `SHIP_RECEIPT:` の行が完了メッセージの先頭になります。`RECEIPT_INVALID` は不正なフィールドを示すので、その入力ファイルを直してから再実行してください。何も書き込まれていません。`ISSUE_LINKS_MISSING` は、指定された行を `## Issues` の下に追加してから再実行します。`PREGATE_STALE` は、スタンプされたツリーで `gstack-pregate` を再実行することを意味します。`PREGATE_REMOTE_UNCLEARED` は、実行 URL を添えて `gstack-pregate clear` が必要であることを意味します。どちらも公開を止めます。
 
-In each block below, restore the literal `PR_BODY_FILE` path and substitute Step 18's
-title file name; `gstack-post` detects GitHub or GitLab from the remote and the repo's
-visibility (an unavailable lookup, including on GitLab, uses the scanner's
-public-strict policy). Never re-render the body: every retry sends the same files.
+以下の各ブロックでは、`PR_BODY_FILE` のリテラルのパスを復元し、Step 18 のタイトルファイル名に置き換えてください。`gstack-post` はリモートとリポジトリの公開範囲から GitHub か GitLab かを判断します (GitLab を含め、検索できない場合はスキャナーの public-strict ポリシーを使います)。本文は決して再生成しないでください。再試行のたびに同じファイルを送ります。
 
-**Existing open PR/MR** (`<pr-number>` from the recheck):
+**既存の open な PR/MR** (`<pr-number>` は再確認で得た番号):
 
 ```bash
 TITLE_FILE="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gstack/tmp/<title-file-name>"
@@ -225,47 +190,30 @@ TITLE_FILE="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gstack/tmp/<tit
 ~/.claude/skills/gstack/bin/gstack-post pr-title <pr-number> --title-file "$TITLE_FILE"
 ```
 
-It updates the body, then the title, retries a retired-GraphQL edit through REST and
-reads the title back. Then resolve the draft state from Step 9's gate findings:
+本文を更新し、次にタイトルを更新します。引退した GraphQL の編集は REST で再試行し、タイトルを読み戻して確認します。その後、Step 9 のゲートの指摘事項から下書きの状態を判断します:
 
-1. Step 6.5 opened this PR as an early draft, the user did not ask for a draft, and no
-   gate finding is `open`: mark it ready now with `gh pr ready <pr-number>`.
-2. Step 6.5 opened it as an early draft and any gate finding is `open`: leave it a
-   draft; print `Draft kept: Gate edits: N open` and the open findings' `gate` and path.
-3. The PR was already ready (not a draft) and any gate finding is `open`: publish only
-   under Step 17's recorded human authorisation (option B there); the body already
-   carries the `Gate edits: N open` banner. Without that record, STOP here and report.
+1. Step 6.5 でこの PR を早期の下書きとして開いており、ユーザーが下書きを求めておらず、ゲートの指摘事項に `open` のものがない場合: `gh pr ready <pr-number>` で今すぐ ready にします。
+2. Step 6.5 で早期の下書きとして開いており、ゲートの指摘事項に `open` のものがある場合: 下書きのままにします。`Draft kept: Gate edits: N open` と、open な指摘事項の `gate` とパスを表示してください。
+3. PR がすでに ready (下書きではない) で、ゲートの指摘事項に `open` のものがある場合: Step 17 で記録された人間の承認 (そこでの選択肢 B) がある場合に限り公開します。本文にはすでに `Gate edits: N open` のバナーが付いています。その記録がない場合は、ここで停止して報告してください。
 
-Print the existing URL and continue to Step 20; do not run the create command below.
+既存の PR/MR の URL を表示し、Step 20 に進みます。下の作成コマンドは実行しないでください。
 
-**No open PR/MR:** add `--draft` when any gate finding is `open` (a later agent never
-infers approval from the PR existing; the human marks it ready after dispositioning
-the open items). Otherwise create it ready:
+**open な PR/MR がない場合:** いずれかのゲートの指摘事項が `open` の場合は `--draft` を追加します (後のエージェントは、PR が存在することから承認を推測してはなりません。人間が open な項目を処理してから ready にします)。それ以外の場合は ready の状態で作成します:
 
 ```bash
 TITLE_FILE="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gstack/tmp/<title-file-name>"
 ~/.claude/skills/gstack/bin/gstack-post pr-create --base <base> --title-file "$TITLE_FILE" --body-file "${PR_BODY_FILE:?restore the composed body path}"
 ```
 
-With open gate findings the same command carries `--draft` before `--title-file`.
+ゲートの open な指摘事項がある場合は、同じコマンドの `--title-file` の前に `--draft` を付けます。
 
-Branch on the exit code of either block:
-- **0** posted. Remove `$PR_BODY_FILE` and the title file.
-- **1** HIGH finding: BLOCKED — do not publish. Rotate and redact at the source, then
-  compose fresh files.
-- **2** MEDIUM findings, printed as `RULE:` lines with a `TOKEN:`. AskUserQuestion per
-  finding (sterner on public repos, no batch acknowledge). PII offers auto-redact:
-  write `~/.claude/skills/gstack/bin/gstack-redact --from-file "$PR_BODY_FILE" --auto-redact <ids>`
-  output back into the body file and rerun the block, which scans again. Only when the
-  user accepts the findings as they are, rerun the same block with
-  `--confirm <confirm-token>` added to the command that printed it; any edit needs a new token.
-- **3** `gh`/`glab` failed, or **64** no usable remote or CLI: print the error, the
-  branch name, the remote URL and the block for posting by hand. Do not stop — the code
-  is pushed — but never report a PR that was not created. With open gate findings,
-  also say the gate edits were not disclosed and leave the Step 16 open-items report
-  in the invocation record; never report the disclosure as done.
-- Any other exit is an error that blocks publication until its cause is fixed.
+どちらのブロックでも、終了コードに応じて次のように分岐します:
+- **0** 投稿済み。`$PR_BODY_FILE` とタイトルファイルを削除します。
+- **1** HIGH の指摘事項: ブロック — 公開しないこと。発生源で認証情報をローテーションし、マスクしてから、新しいファイルを作り直してください。
+- **2** MEDIUM の指摘事項。`TOKEN:` を伴う `RULE:` の行として表示されます。指摘事項ごとに AskUserQuestion で確認します (公開リポジトリでは厳しく、一括承認はなし)。PII には自動マスキングの選択肢があります: `~/.claude/skills/gstack/bin/gstack-redact --from-file "$PR_BODY_FILE" --auto-redact <ids>` の出力を本文ファイルに書き戻し、ブロックを再実行します。再実行時にはスキャンが再び行われます。ユーザーが指摘事項をそのまま受け入れた場合に限り、表示された確認トークンを `--confirm <confirm-token>` として、そのコマンドに追加して同じブロックを再実行します。内容を編集した場合は新しいトークンが必要です。
+- **3** `gh`/`glab` が失敗した場合、または **64** 利用可能なリモートや CLI がない場合: エラー、ブランチ名、リモートの URL、手動投稿用のブロックを表示します。コードはプッシュ済みなので停止はしませんが、作成されていない PR を作成済みと報告しないでください。ゲートの open な指摘事項がある場合は、ゲートの編集を開示していないことも伝え、Step 16 の open 項目の報告を実行記録に残します。開示が完了したと報告しないでください。
+- そのほかの終了コードは、原因が解消されるまで公開をブロックするエラーです。
 
-**Output the PR/MR URL** — then proceed to Step 20.
+**PR/MR の URL を出力する** — その後 Step 20 に進みます。
 
 ---

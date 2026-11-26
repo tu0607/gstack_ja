@@ -11,7 +11,7 @@ export interface QaProbeNames {
 }
 
 export function qaProbeNames(text: string): QaProbeNames {
-  const start = text.indexOf('Names used below');
+  const start = Math.max(text.indexOf('Names used below'), text.indexOf('以下で使う名前'));
   if (start < 0) throw new Error('QA exploratory text has no "Names used below" list');
   const block = text.slice(start, text.indexOf('\n\n', start));
   const bound = (pattern: RegExp, what: string) => {
@@ -19,7 +19,7 @@ export function qaProbeNames(text: string): QaProbeNames {
     if (!match) throw new Error(`QA probe names: no ${what} binding in:\n${block}`);
     return match[1]!;
   };
-  const dir = bound(/^- ([A-Z][A-Z_]+): [^\n]*probe directory/m, 'probe directory');
+  const dir = bound(/^- ([A-Z][A-Z_]+): [^\n]*(?:probe directory|プローブ用ディレクトリ)/m, 'probe directory');
   const names = {
     dir,
     deadline: bound(new RegExp(`([A-Z][A-Z_]+): \`${dir}/deadline\\.json\``), 'deadline file'),

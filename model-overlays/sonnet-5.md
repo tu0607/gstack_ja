@@ -1,17 +1,7 @@
 {{INHERIT:claude}}
 
-**Instructions are read literally.** Sonnet 5 does not silently generalize an
-instruction from one item to the next, and it does not infer requests you didn't
-make. When something should apply broadly, say so ("apply this to every section,
-not just the first"). Re-baseline holdover style directives — they now land at
-face value.
+**指示は文字どおりに読まれます。** Sonnet 5 は、ある項目への指示を次の項目へ黙って一般化することはなく、依頼されていない要求を推測することもありません。ある指示を広く適用すべき場合は、そう明記してください(「最初のセクションだけでなく、すべてのセクションに適用して」など)。以前の文体の指示は、そのままの意味で扱われるため、改めて確認してください。
 
-**Scope work to the request.** At lower effort especially, Sonnet 5 scopes to
-exactly what was asked rather than going above and beyond. If reasoning looks
-shallow on a genuinely complex task, that is an effort signal: raise effort rather
-than adding prose guardrails.
+**作業は依頼の範囲に合わせます。** 特に工数が低い場合、Sonnet 5 は依頼されたことにちょうど合わせ、必要以上に踏み込みません。複雑な作業で推論が浅く見える場合は、工数を上げるべきという信号です。文章で注意書きを重ねるのではなく、工数を上げてください。
 
-**Verbosity tracks task complexity.** Responses calibrate length to how complex
-the task looks — shorter on lookups, longer on open-ended analysis. If you need a
-specific length or format, state it; a positive example of the target beats a
-"don't be verbose" instruction.
+**応答の長さは作業の複雑さに合わせて決まります。** 応答の長さは、作業がどれだけ複雑に見えるかに応じて変わります。調べ物では短く、自由形式の分析では長くなります。特定の長さや形式が必要な場合は、それを明示してください。「冗長にしないで」という指示よりも、望ましい例を一つ示すほうが効果的です。

@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { expectMentions, expectTokens } from './helpers/prompt-structure';
 
 const BIN = path.resolve(import.meta.dir, '..', 'bin', 'gstack-docs-candidate');
 const roots: string[] = [];
@@ -148,8 +149,9 @@ describe('gstack-docs-candidate', () => {
     // ci-37198445662 gate-census-2: ship-docsync-completion/-store parents spent 45-78 s of model time
     // retyping hash maps, child output and records into several artifacts after the child returned.
     const gate = fs.readFileSync(path.resolve(import.meta.dir, '..', 'ship/sections/documentation.md.tmpl'), 'utf8').replace(/\s+/g, ' ');
-    expect(gate).toContain('post-child hashes (rerun the Prepare `snapshot` with only `--out <audit-id>-post.json` changed; Step 16 `compare`s it; never type hashes)');
-    expect(gate).toContain('Save records once; cite files by path, never copying their content.');
+    expectTokens(gate, ['`snapshot`', '`--out <audit-id>-post.json`', 'Step 16', '`compare`']);
+    expectMentions(gate, [['子プロセス後のハッシュ', '--out <audit-id>-post.json'], ['Step 16', 'compare'], ['ハッシュ', '手で入力しない']], 'ship documentation gate post-child hashes');
+    expectMentions(gate, [['記録は一度だけ保存', 'パスで引用'], ['内容をコピーしない']], 'ship documentation gate record reuse');
     const { dir, root, record } = repo();
     const args = ['--audit-id', 'a1', '--mode', 'edit', '--base', 'main', '--docs', 'handbook'];
     expect(run(dir, 'snapshot', '--out', record, ...args).status).toBe(0);

@@ -4,19 +4,16 @@
 
 {{GBRAIN_SAVE_RESULTS}}
 
-### Refresh learnings for the headline feature on this branch
+### このブランチの目玉機能について学習内容を更新する
 
-Step 8 used broad release terms. Before VERSION/CHANGELOG, search for versioning
-or changelog pitfalls tied to this branch's headline feature.
+Step 8 では広範なリリース用語を使いました。VERSION/CHANGELOG の前に、このブランチの目玉機能に関連する
+バージョニングや CHANGELOG の落とし穴を検索してください。
 
-Use ONE noun naming the skill, module, feature or changed binary. The keyword must
-be alphanumeric or hyphen only; simplify other characters. For example, use
-`token-or-search`, not `feat: token-or search`.
+スキル、モジュール、機能、または変更されたバイナリを指す名詞を 1 つだけ使います。キーワードは英数字とハイフンのみにしてください。それ以外の文字は簡略化します。例えば、`feat: token-or search` ではなく `token-or-search` を使います。
 
 ```bash
 { _LE=$(~/.claude/skills/gstack/bin/gstack-learnings-search --query "<your-keyword>" --limit 5 2>&1 >&3 3>&-); _LR=$?; } 3>&1
 [ "$_LR" = 0 ] || { _LE=${_LE%%$'\n'*}; echo "LEARNINGS: unavailable (${_LE:-exit $_LR})"; }
 ```
 
-Name an applicable learning and its effect on the version bump or CHANGELOG in
-one sentence. If none applies, continue without a reference.
+該当する学習内容を 1 つ選び、それがバージョン更新や CHANGELOG に与える影響を 1 文で述べてください。該当するものがなければ、参照なしで続行します。

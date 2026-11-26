@@ -1,81 +1,44 @@
-# The repo ship policy: `.gstack/ship-policy.json`
+# リポジトリの ship ポリシー: `.gstack/ship-policy.json`
 
-`/ship` reads one machine-readable file per repository that says how releases
-are stamped and merged: the bump level, the queue mode, the repo's own release
-tool, the paths where version mentions are rewritten, the CHANGELOG, a paired
-mirror, the history policy and the preregistered evals. Without the file
-nothing changes: every key has a default that reproduces today's behavior.
+`/ship` は、リポジトリごとに一つの機械可読なファイルを読みます。そこには、リリースのスタンプの付け方とマージの方法が書かれています。バンプのレベル、キューのモード、リポジトリ独自のリリースツール、バージョンへの言及を書き換える場所、CHANGELOG、対になるミラー、履歴のポリシー、事前登録された評価が含まれます。このファイルがなければ何も変わりません。すべてのキーには、今日の動作を再現する既定値があります。
 
-The file is **read from the committed copy on the base branch**
-(`origin/<base>`), never from the PR's working tree, so a PR cannot smuggle a
-command into its own gate. **File presence never authorizes execution:**
-`gstack-restamp` runs `release_tool` only under `/ship` or with
-`--allow-repo-commands`; standalone it lists the commands and exits 3 with
-`repo commands not executed (pass --allow-repo-commands)`. A PR that
-introduces or changes the policy runs under the reviewed bootstrap path
-(`--policy-from head --allow-repo-commands`) and its receipt says
-`policy: head (unreviewed)`.
+このファイルは、**ベースブランチにコミットされた版**(`origin/<base>`)から読まれ、PR の作業ツリーからは読まれません。そのため、PR が自分自身のゲートにコマンドを忍び込ませることはできません。**ファイルがあるだけでは実行は許可されません。** `gstack-restamp` は、`/ship` の下でのみ、または `--allow-repo-commands` を付けた場合にのみ `release_tool` を実行します。単独で実行した場合は、コマンドを一覧表示して、`repo commands not executed (pass --allow-repo-commands)` と表示し、終了コード 3 で終わります。ポリシーを導入または変更する PR は、レビュー済みのブートストラップ経路(`--policy-from head --allow-repo-commands`)の下で実行され、その受領書には `policy: head (unreviewed)` と書かれます。
 
-Tools: `gstack-ship-policy init|validate|show-effective|check-history`,
-`gstack-restamp`, `gstack-tree-receipt`, `gstack-ship-receipt`,
-`gstack-ship-queue` ([shared merge queue](#run-a-shared-merge-queue), [merge trains](#run-a-merge-train)),
-`gstack-evidence bundle|ancestor`. They share the exit table (`0` ok, `1`
-fail, `2` usage, `3` refused or needs a flag) and end every error line with a
-code from [troubleshooting.md](troubleshooting.md#queue-aware-ship-policy-restamp-tree-receipt-ship-receipt).
+ツール: `gstack-ship-policy init|validate|show-effective|check-history`、`gstack-restamp`、`gstack-tree-receipt`、`gstack-ship-receipt`、`gstack-ship-queue`([共有マージキュー](#run-a-shared-merge-queue)、[マージトレイン](#run-a-merge-train))、`gstack-evidence bundle|ancestor`。これらは終了コードの表を共有します(`0` 成功、`1` 失敗、`2` 使い方の誤り、`3` 拒否またはフラグが必要)。すべてのエラー行は、[troubleshooting.md](troubleshooting.md#queue-aware-ship-policy-restamp-tree-receipt-ship-receipt) のコードで終わります。
 
 <a id="schema-v1"></a>
-## Schema v1
+## スキーマ v1
 
-`gstack-ship-policy init` writes every key at its default; `init --explain`
-prints this table. JSON carries no comments, so examples live in
-`.gstack/ship-policy.example.json`. Unknown keys are errors, and there is no
-extension mechanism: a key from a newer gstack, or a misspelled one, fails
-closed (`POLICY_INVALID`) instead of being ignored. Every key has an
-introducing version (`init --explain` and `validate` print it). A key newer
-than 1.91.98.0 set to a non-default value requires `min_gstack_version` at
-least at its introducing version, and a gstack older than `min_gstack_version`
-refuses the file (`POLICY_GSTACK_TOO_OLD`). `validate` ends with
-`MIN_READER: gstack <version>`, the floor every lane reading the policy needs.
+`gstack-ship-policy init` は、すべてのキーを既定値で書き出します。`init --explain` は、この表を表示します。JSON にはコメントを書けないため、例は `.gstack/ship-policy.example.json` にあります。未知のキーはエラーになります。拡張の仕組みはありません。新しい gstack のキー、または綴りを間違えたキーは、無視されるのではなく、安全側に倒れて失敗します(`POLICY_INVALID`)。すべてのキーには導入されたバージョンがあります(`init --explain` と `validate` が表示します)。1.91.98.0 より新しいキーを既定以外の値に設定する場合は、少なくともそのキーの導入バージョン以上の `min_gstack_version` が必要です。`min_gstack_version` より古い gstack は、そのファイルを拒否します(`POLICY_GSTACK_TOO_OLD`)。`validate` は最後に `MIN_READER: gstack <version>` を表示します。これは、そのポリシーを読むすべてのレーンが必要とする最低バージョンです。
 
-| Key | Values | Default | Meaning |
-|---|---|---|---|
-| `bump` | `patch` \| `ask` | `ask` | `patch` skips the MINOR/MAJOR prompt in `/ship` Step 12 and `gstack-restamp --next` bumps PATCH; `ask` keeps the prompt. |
-| `queue_mode` | `claim-at-open` \| `stamp-at-merge` | `claim-at-open` | See [stamp-at-merge](#stamp-at-merge). `claim-at-open` is today's queue (`gstack-next-version` claims a slot when the PR opens). |
-| `release_tool` | command or `null` | `null` | The repo's own release command (`bun run release:restamp`). Runs in an isolated staging worktree under the [release-tool contract](#release-tool-contract). |
-| `release_outputs` | globs | `[]` | Paths the release tool may write beyond the version files, lockfiles, CHANGELOG and `stamp_paths`. Anything else is `RESTAMP_OUTPUT_OUTSIDE_ALLOWED`. |
-| `stamp_paths` | globs | `[]` | Where exact `(was X)`, `since: X` and `vX` mentions of the branch's tentative version are rewritten on a restamp. |
-| `changelog` | path or `null` | `CHANGELOG.md` | Re-headed on a restamp: the PR's `## [Unreleased]` (or old-version) section moves to the top as `## [<version>] - <date>`. |
-| `mirror` | relative path or `null` | `null` | A paired checkout to restamp identically (tier 2: validated and confined today, not yet run). |
-| `history` | `merge-only` \| `squash-ok` | `squash-ok` | `merge-only` makes `/ship` refuse a squash or rebase plan; `gstack-ship-policy check-history` reports a rewritten branch (`HISTORY_POLICY_VIOLATION`). |
-| `preregistration_shas` | commit ids | `[]` | Each must be an ancestor of HEAD before push: `gstack-evidence ancestor --from-policy`; the ship receipt records the result. |
-| `stamp_sensitive_gates` | evidence labels | `[]` | Gates that read VERSION or generated bytes (gstack's own `tests` lane does, through the agents-digest freshness test). The tree receipt never marks them reusable. |
-| `pr_count` | `{ default_pr_count, split_requires_owner }` | `{1, true}` | The PR-count row in plan reviews. |
-| `maintainers` | GitHub logins | `[]` | Maintainer set for `/review` contributor mode; empty means repository push permission. |
-| `stamp_files` | globs | `[]` | The repo's stamp rule: when set, only these files may differ by a stamp (list the version file, manifests, plugin trees and the files holding the PR's own `since:` rows). It applies before every other stamp rule, so a doc `vX` mention outside it is a difference. |
-| `stamp_patterns` | literal templates | `[]` | At most 16 templates of at most 128 characters, each with exactly one `{version}` slot (`"version": "{version}"`, `since: '{version}'`, `<!-- x-stamp: {version} -->`); matched literally at a version boundary, never as a regex. The restamp writer and the tree receipt use them beside the built-in forms. |
-| `restamp_command` | command or `null` | `null` | The repo's own restamp, run first in the staging worktree; see [restamp_command](#restamp-command). |
-| `migrations` | `{ dir, id }` or `null` | `null` | The migration directory and a regex with exactly one capture group for the number in a file name (`"^v(\\d+)-"`); `gstack-pregate regate` reports `MIGRATION_COLLISION`. |
-| `gate_command` | command or `null` | `null` | The repo's full pre-merge gate. `gstack-ship-queue gate-ahead` and `ready` print it for the caller to run (in the background or in CI); gstack never executes it. Needs `min_gstack_version`. |
-| `full_e2e` | `true` \| `false` | `false` | `true`: every merge needs a passing full-gate result bound to a tree equal to the merging one modulo stamps; `gstack-ship-queue ready`, `stamp` and `verify` refuse without one (`QUEUE_GATE_MISSING`): a gate-ahead record, or the lane's `--gate-exit 0 --gate-log <file>` from its run on the gated head. Needs `min_gstack_version`. |
-| `min_gstack_version` | version or `null` | `null` | The oldest gstack that may read the file; see the compatibility rule above. |
-| `train` | `{ gate_workflow, free_workflow, full_gate_check, record_artifact, max_size, fill_hours, screen_selection, trial_reservation_usd }` or `null` | `null` | Turns on [merge trains](#run-a-merge-train), read from the base revision only. Every field is required and an unknown field is `POLICY_INVALID`: `max_size` 1 to 6, `fill_hours` above 0 and at most 24, `screen_selection` `gstack-paid` \| `none`, `trial_reservation_usd` above 0 and at most 100. `null` keeps the per-PR queue exactly as it is. Needs `min_gstack_version`. |
+| キー | 値 | 既定値 | 意味 |
+| --- | --- | --- | --- |
+| `bump` | `patch` \| `ask` | `ask` | `patch` は `/ship` のステップ12の MINOR/MAJOR の確認を省略し、`gstack-restamp --next` は PATCH を上げます。`ask` は確認を残します。 |
+| `queue_mode` | `claim-at-open` \| `stamp-at-merge` | `claim-at-open` | [stamp-at-merge](#stamp-at-merge) を参照してください。`claim-at-open` は今日のキューです(`gstack-next-version` は PR を開いたときに枠を確保します)。 |
+| `release_tool` | コマンドまたは `null` | `null` | リポジトリ独自のリリースコマンド(`bun run release:restamp`)。[リリースツールの契約](#release-tool-contract) の下で、分離されたステージング用の worktree で実行されます。 |
+| `release_outputs` | グロブ | `[]` | バージョンのファイル、ロックファイル、CHANGELOG、`stamp_paths` 以外に、リリースツールが書き込んでよいパス。それ以外は `RESTAMP_OUTPUT_OUTSIDE_ALLOWED` になります。 |
+| `stamp_paths` | グロブ | `[]` | 再スタンプの際に、ブランチの暫定バージョンに対する、正確な `(was X)`、`since: X`、`vX` の言及を書き換える場所。 |
+| `changelog` | パスまたは `null` | `CHANGELOG.md` | 再スタンプの際に見出しを付け直します。PR の `## [Unreleased]`(または古いバージョン)のセクションが、`## [<version>] - <date>` として先頭に移動します。 |
+| `mirror` | 相対パスまたは `null` | `null` | 同じ方法で再スタンプされる、対になったチェックアウト(第2階層: 現状は検証と閉じ込めのみ、まだ実行されません)。 |
+| `history` | `merge-only` \| `squash-ok` | `squash-ok` | `merge-only` は、`/ship` が squash や rebase の計画を拒否するようにします。`gstack-ship-policy check-history` は、書き換えられたブランチを報告します(`HISTORY_POLICY_VIOLATION`)。 |
+| `preregistration_shas` | コミット ID | `[]` | プッシュの前に、それぞれが HEAD の祖先でなければなりません: `gstack-evidence ancestor --from-policy`。ship の受領書にその結果が記録されます。 |
+| `stamp_sensitive_gates` | 証拠のラベル | `[]` | VERSION または生成されたバイト列を読むゲート(gstack の `tests` レーンは、agents-digest の鮮度テストを通してこれを読みます)。ツリーの受領書がこれを再利用可能とマークすることはありません。 |
+| `pr_count` | `{ default_pr_count, split_requires_owner }` | `{1, true}` | 計画レビューの PR 数の行。 |
+| `maintainers` | GitHub のログイン名 | `[]` | `/review` のコントリビューターモードのためのメンテナーの集合。空の場合は、リポジトリへのプッシュ権限を持つ人を指します。 |
+| `stamp_files` | グロブ | `[]` | リポジトリのスタンプのルール。設定されている場合、スタンプによって違いが生じてよいのは、これらのファイルだけです(バージョンのファイル、マニフェスト、プラグインツリー、PR 自身の `since:` の行を保持するファイルを列挙します)。これは他のすべてのスタンプのルールより前に適用されるため、その外側にある文書の `vX` の言及は違いになります。 |
+| `stamp_patterns` | 文字通りのテンプレート | `[]` | 最大16個のテンプレートで、それぞれ最大128文字。`{version}` のスロットをちょうど一つ持ちます(`"version": "{version}"`、`since: '{version}'`、`<!-- x-stamp: {version} -->`)。バージョンの境界で文字通りに一致し、正規表現としては扱いません。再スタンプの書き込み処理とツリーの受領書は、組み込みの形式と並べてこれを使います。 |
+| `restamp_command` | コマンドまたは `null` | `null` | リポジトリ独自の再スタンプ。ステージング用の worktree で最初に実行されます。[restamp_command](#restamp-command) を参照してください。 |
+| `migrations` | `{ dir, id }` または `null` | `null` | マイグレーションのディレクトリと、ファイル名の中の番号を取り出すための、キャプチャグループをちょうど一つ持つ正規表現(`"^v(\\d+)-"`)。`gstack-pregate regate` は `MIGRATION_COLLISION` を報告します。 |
+| `gate_command` | コマンドまたは `null` | `null` | リポジトリの完全なマージ前ゲート。`gstack-ship-queue gate-ahead` と `ready` は、呼び出し元が実行できるようにこれを表示します(バックグラウンドまたは CI で)。gstack がこれを実行することはありません。`min_gstack_version` が必要です。 |
+| `full_e2e` | `true` \| `false` | `false` | `true` の場合、すべてのマージには、マージ対象のツリーと、スタンプを除いて等しいツリーに紐付いた、完全ゲートの合格結果が必要です。`gstack-ship-queue ready`、`stamp`、`verify` は、それがなければ拒否します(`QUEUE_GATE_MISSING`)。必要なものは、gate-ahead の記録、またはゲートされた head でのレーンの実行結果である `--gate-exit 0 --gate-log <file>` です。`min_gstack_version` が必要です。 |
+| `min_gstack_version` | バージョンまたは `null` | `null` | このファイルを読んでもよい最も古い gstack。上の互換性のルールを参照してください。 |
+| `train` | `{ gate_workflow, free_workflow, full_gate_check, record_artifact, max_size, fill_hours, screen_selection, trial_reservation_usd }` または `null` | `null` | [マージトレイン](#run-a-merge-train) を有効にします。ベースのリビジョンからのみ読まれます。すべてのフィールドが必須で、未知のフィールドは `POLICY_INVALID` になります。`max_size` は 1〜6、`fill_hours` は 0 より大きく最大24、`screen_selection` は `gstack-paid` \| `none`、`trial_reservation_usd` は 0 より大きく最大100です。`null` の場合は、PR ごとのキューがそのまま保たれます。`min_gstack_version` が必要です。 |
 
-Containment, checked by `validate` and again at write time: paths and globs are
-repo-relative with no `..` segment, under 256 characters, at most 64 per list,
-and a glob's regex expansion under 512 characters; `release_tool` is under 512
-characters with no newline; a matched file that resolves through a symlink to
-outside the repository is refused (`POLICY_CONTAINMENT`). A mirror may start
-with `..` (a sibling checkout) but has no interior `..`; mirror writes are
-confined to that directory.
+封じ込め。`validate` と、書き込み時にもう一度確認されます。パスとグロブは、リポジトリからの相対パスで、`..` のセグメントを含まず、256文字未満でなければなりません。リストごとに最大64個で、グロブの正規表現展開は512文字未満です。`release_tool` は512文字未満で、改行を含みません。シンボリックリンクを通してリポジトリの外側に解決される、一致したファイルは拒否されます(`POLICY_CONTAINMENT`)。ミラーは `..` から始まっても構いません(隣接するチェックアウト)が、途中に `..` を含むことはできません。ミラーへの書き込みは、そのディレクトリに限定されます。
 
-## gstack's own files
+## gstack 自身のファイル
 
-gstack's policy (`.gstack/ship-policy.json`, tracked beside `generated.json`
-and `pregate.json` under the otherwise ignored `.gstack/`) runs the repo on
-stamp-at-merge: the version is allocated once, when the PR is next in the queue,
-every bump is PATCH, and `/review` reads the maintainer set from the file. It
-names the one release tool `gstack-version-bump --regen-digest` used to
-hard-code:
+gstack のポリシー(`.gstack/ship-policy.json`。`generated.json` と `pregate.json` と並んで、無視されている `.gstack/` の下で追跡されます)は、リポジトリを stamp-at-merge で運用します。バージョンは一度だけ割り当てられます。それは、PR がキューの次になったときに、ベースブランチのその時点のバージョンから決まります。すべてのバンプは PATCH です。`/review` は、ポリシーのファイルからメンテナーの集合を読みます。このポリシーには、以前 `gstack-version-bump --regen-digest` がハードコードしていた、リリースツールの名前が書かれています。
 
 ```json
 {
@@ -90,65 +53,26 @@ hard-code:
 }
 ```
 
-`.gstack/ship-policy.example.json` shows every key set the way a serial-merge
-repo with a release script, docs mentions and a mirror would set them.
+`.gstack/ship-policy.example.json` は、直列にマージするリポジトリで、リリーススクリプト、ドキュメントの言及、ミラーを持つ場合に、すべてのキーをどう設定するかを示しています。
 
-### Queue-side procedure for gstack
+### gstack のためのキュー側の手順
 
-Who does what under `stamp-at-merge`, for the PR author and for the thread
-running the merge queue:
+stamp-at-merge の下で、PR の作成者と、マージキューを実行するスレッドが、それぞれ何をするか。
 
-1. **Open.** The branch carries a tentative stamp of the base's version plus
-   PATCH (`gstack-version-bump write --version <base+patch> --regen-digest`)
-   and its CHANGELOG section headed with that version directly under
-   `# Changelog`; `## [Unreleased]` is also accepted. Nothing is claimed and
-   `gstack-next-version` is not consulted; the tentative version is only the
-   guess that makes the common case free. CI runs on this head as usual.
-2. **Register.** The queue records the PR and its intended order.
-3. **Stamp when next.** With every check green on the current head and
-   `origin/main` at the SHA the queue assumed, the PR owner (never the queue)
-   runs on the branch:
-   `gstack-restamp --next --base main --allow-repo-commands --pr <n> --expect-base <main-sha> --expect-order <pr,...>`.
-   When the base has not moved past the tentative stamp it prints
-   `RESTAMP: X -> X (noop)` and `FILES: (none)`, and the green head is the
-   merge candidate with no further CI. When the base moved, it stamps base +
-   PATCH, re-heads the CHANGELOG above the base's top entry, reruns the
-   release tool, prints `STAMP_VERSION: <X>` and the stamp diff, and refuses
-   with `QUEUE_STALE` (nothing written) when the base or order moved after
-   `--expect-base` was read. The owner commits and pushes the stamp commit,
-   lets CI run on it, and reports `READY #<n> <sha> STAMP_VERSION=<X>`.
-4. **Merge.** The queue verifies on that exact SHA: `VERSION` equals
-   `STAMP_VERSION`, the CHANGELOG's top heading is `[<X>]` and the heading
-   below it is the base's current version, every check is green on that SHA,
-   and, when a stamp commit was pushed, it changed only `VERSION`,
-   `package.json`, `CHANGELOG.md` and the release outputs
-   (`gstack-tree-receipt --gated <green-head> --current <sha>` prints the
-   per-file verdict). It then squash-merges with the merge API's expected-head
-   `sha` set to that SHA, so a late push is rejected by the server. "VERSION
-   above main" is replaced by "VERSION equals the restamp's STAMP_VERSION on
-   the SHA being merged, and that version is base + PATCH at merge time".
-5. **Not next.** A PR waiting behind another may gate ahead locally with
-   `gstack-restamp --after <predecessor-pr>`; it pushes nothing. When the
-   predecessor lands, the waiting PR merges `origin/main` in (never a rebase),
-   keeping its own CHANGELOG section above the newly merged one, and step 3
-   runs.
+1. **開く。** ブランチには、ベースのバージョンに PATCH を加えた暫定のスタンプが付いています(`gstack-version-bump write --version <base+patch> --regen-digest`)。また、その CHANGELOG のセクションは、そのバージョンの見出しで `# Changelog` の直下に置かれます。`## [Unreleased]` も受け付けられます。何も確保されず、`gstack-next-version` は参照されません。暫定のバージョンは、一般的なケースを無料にするための推測にすぎません。CI は、通常どおりこの head で実行されます。
+2. **登録する。** キューは PR と、意図された順序を記録します。
+3. **次になったらスタンプする。** 現在の head ですべてのチェックが緑で、`origin/main` がキューの想定した SHA にあるとき、PR の所有者(キューではない)がブランチ上で次を実行します: `gstack-restamp --next --base main --allow-repo-commands --pr <n> --expect-base <main-sha> --expect-order <pr,...>`。ベースが暫定のスタンプを越えて動いていない場合は、`RESTAMP: X -> X (noop)` と `FILES: (none)` を表示します。このとき、緑の head がマージ候補になり、それ以上の CI は不要です。ベースが動いていた場合は、ベース + PATCH をスタンプし、CHANGELOG をベースの最上位のエントリより上に付け直し、リリースツールを再実行して、`STAMP_VERSION: <X>` とスタンプの差分を表示します。`--expect-base` が読まれた後に、ベースまたは順序が動いていた場合は、何も書き込まずに `QUEUE_STALE` で拒否します。所有者はスタンプのコミットをプッシュし、その上で CI を実行させ、`READY #<n> <sha> STAMP_VERSION=<X>` を報告します。
+4. **マージ。** キューは、その正確な SHA で検証します。`VERSION` が `STAMP_VERSION` と等しいこと。CHANGELOG の最上位の見出しが `[<X>]` で、その直下の見出しがベースの現在のバージョンであること。その SHA上のすべてのチェックが緑であること。そして、スタンプのコミットがプッシュされた場合、それが変更したのは `VERSION`、`package.json`、`CHANGELOG.md`、およびリリースの出力だけであること(`gstack-tree-receipt --gated <green-head> --current <sha>` がファイルごとの判定を表示します)。その後、マージ API の期待される head の `sha` をその SHA に設定して、squash でマージします。そのため、遅れたプッシュはサーバーによって拒否されます。「VERSION が main より上」は、「マージされる SHA の上で VERSION が再スタンプの STAMP_VERSION と等しく、そのバージョンがマージ時点でベース + PATCH であること」に置き換えられます。
+5. **次ではない。** 別の PR の後ろで待っている PR は、`gstack-restamp --after <predecessor-pr>` でローカルにゲートを先行させることができます。何もプッシュしません。前の PR が着地したら、待っていた PR は `origin/main` をマージして取り込みます(リベースはしません)。自分の CHANGELOG のセクションは、新しくマージされたセクションの上に残します。その後、ステップ3が実行されます。
 
-Until this policy is on `origin/main`, `gstack-restamp --next` reads the base's
-`bump: ask` and falls back to a MICRO bump; pass `--bump patch` on the first
-PR stamped after the flip if its base predates it.
+このポリシーが `origin/main` に入るまでは、`gstack-restamp --next` はベースの `bump: ask` を読み、MICRO のバンプにフォールバックします。ベースがそれ以前のものである場合は、ポリシーが切り替わった後にスタンプされる最初の PR で `--bump patch` を渡してください。
 
 <a id="run-a-shared-merge-queue"></a>
-## Run a shared merge queue
+## 共有マージキューを運用する
 
-`gstack-ship-queue` strings `gstack-restamp`, `gstack-tree-receipt` and the
-ship receipt into the coordinator protocol, so nobody proves a stamp diff by
-hand. Lanes own their PRs and never merge; the coordinator owns the order and
-every merge. Each step ends in a line the other side acts on, then
-`GSTACK_RESULT: skill=ship-queue status=complete|refused run=<path>`. Nothing
-here pushes.
+`gstack-ship-queue` は、`gstack-restamp`、`gstack-tree-receipt`、ship の受領書を、コーディネーターのプロトコルにまとめます。そのため、スタンプの差分を手で証明する人はいません。レーンは自分の PR を所有し、決してマージしません。コーディネーターは順序とすべてのマージを所有します。各ステップは、相手が動くための行で終わり、その後に `GSTACK_RESULT: skill=ship-queue status=complete|refused run=<path>` が続きます。ここでは何もプッシュしません。
 
-**1. Lane: report ready (unstamped).** After the gate and pregate pass on the
-pushed head:
+**1. レーン: 準備完了を報告する(未スタンプ)。** ゲートと pregate がプッシュされた head で通った後:
 
 ```bash
 gstack-pregate run --allow-repo-commands
@@ -168,108 +92,58 @@ gate: command="<gate_command>" full_e2e=no gate-ahead=none
 SHIP_RECEIPT: pr=42 head=<head12> …
 ```
 
-It refuses (`QUEUE_NOT_READY`) when the working tree has tracked edits, HEAD
-is not the PR's pushed head, CI at that exact head is not green, or the pregate
-result is not a current pass. Send the block as printed.
+次の場合は拒否します(`QUEUE_NOT_READY`)。作業ツリーに追跡されている編集がある場合、HEAD が PR のプッシュされた head ではない場合、その正確な head での CI が緑ではない場合、または pregate の結果が現在の合格ではない場合です。表示されたブロックは、そのまま送ってください。
 
-**2. Lane behind another PR: gate ahead.** Gate the tree the queue will have
-once the predecessor lands, while it is still open:
+**2. 別の PR の後ろにいるレーン: ゲートを先行させる。** 前の PR がまだ開いている間に、前の PR が着地した後のキューのツリーをゲートします。
 
 ```bash
 git fetch origin pull/41/head
 gstack-ship-queue gate-ahead --after 41 --pr 42 --predecessor-ref FETCH_HEAD --allow-repo-commands
 ```
 
-prints `GATE_AHEAD: pr=42 attempt=<id> gated=<sha> tree=<tree> merge_tree=<tree>
-predecessor=#41@<sha12> version=<N+1>`, the attempt's own `worktree:`, its
-`record:` file, `GATE_COMMAND:` (the policy's `gate_command`) and the exact
-`next:` line. Run the gate there, in the background or in CI, then bind it:
+次の行を表示します。`GATE_AHEAD: pr=42 attempt=<id> gated=<sha> tree=<tree> merge_tree=<tree> predecessor=#41@<sha12> version=<N+1>`。さらに、その試行専用の `worktree:`、その `record:` ファイル、`GATE_COMMAND:`(ポリシーの `gate_command`)、そして正確な `next:` の行を表示します。そこでゲートを実行し(バックグラウンドまたは CI で)、その後に結果を結び付けます。
 
 ```bash
 (cd <worktree> && <gate command>) > gate.log 2>&1
 gstack-ship-queue gate-ahead --record --pr 42 --attempt <id> --exit $? --log gate.log
 ```
 
-`GATE_RECORD: pr=42 attempt=<id> exit=0 gated_tree=<tree> log_sha256=<sha256>
-current=yes`. The record keeps the log and removes only that attempt's
-worktree, and refuses (`GATE_AHEAD_ATTEMPT_INVALID`) when the worktree no
-longer holds the gated commit. If the predecessor moves, prepare a new
-attempt; attempts never share a worktree, the newest is current, and
-recording an older one later prints `current=no (superseded by <id>)`.
-`gate-ahead --list --pr 42` shows them all. Send the record file with READY.
+`GATE_RECORD: pr=42 attempt=<id> exit=0 gated_tree=<tree> log_sha256=<sha256> current=yes`。記録はログを保持し、その試行の worktree だけを削除します。ただし、worktree がゲートされた commit を保持していなければ、拒否します(`GATE_AHEAD_ATTEMPT_INVALID`)。前の PR が動いた場合は、新しい試行を準備してください。試行どうしは worktree を共有せず、最新のものが現在の試行です。古いものを後から記録すると、`current=no (superseded by <id>)` と表示されます。`gate-ahead --list --pr 42` で、すべての試行を表示できます。記録ファイルは READY と一緒に送ってください。
 
-**3. Coordinator: call the slot.** Name the version, the base sha and the
-order: "#42 next at 1.2.7.0, base `<sha>`, order 41,42".
+**3. コーディネーター: 枠を指定する。** バージョン、ベースの sha、順序を指定します: 「#42 は 1.2.7.0 で次、ベース `<sha>`、順序 41,42」。
 
-**4. Lane: stamp.** A gate-ahead lane first merges `origin/main` (with the
-predecessor in it) into its branch, never a rebase. Then:
+**4. レーン: スタンプする。** ゲート先行のレーンは、まず `origin/main`(前の PR を含む)を自分のブランチにマージします(リベースはしません)。その後、次を実行します。
 
 ```bash
 gstack-ship-queue stamp --pr 42 --version 1.2.7.0 --expect-gated <gated> \
   --expect-base <sha> --expect-order 41,42 --allow-repo-commands
 ```
 
-`<gated>` is the head the gate ran on: the pushed head the lane gated, or the
-record's `gated=` after a gate-ahead. The preflight refuses before anything is
-written unless the tree to stamp equals the gated one modulo stamps, the base
-is `<sha>` and, under `full_e2e`, a passing gate result is bound to the gated
-head. Then it runs the restamp, commits, reruns the tree receipt and prints
+`<gated>` は、ゲートが実行された head です。レーンがゲートしたプッシュ済みの head、またはゲート先行の後の記録の `gated=` です。事前チェックは、スタンプするツリーがゲートされたものとスタンプを除いて等しいこと、ベースが `<sha>` であること、そして `full_e2e` の下では、ゲートされた head に紐付いた合格のゲート結果があることを確認できない限り、何も書き込まずに拒否します。その後、再スタンプを実行し、コミットし、ツリーの受領書を再実行して、次を表示します。
 
 ```
 QUEUE_STAMP: 42 1.2.7.0 head=<sha> gated=<sha> tree=same-modulo-stamps receipt=<sha256>
 ```
 
-Each stage is journaled in `.gstack/tmp/ship-queue/stamp-42.json`; the
-identical command resumes at the first unfinished stage, or returns the stored
-`QUEUE_STAMP` when it already finished. A refusal prints
-`QUEUE_STAMP_REFUSED: 42 head=<sha> committed=no|yes <sha> stage=<stage>`
-and the coded line (`QUEUE_STALE` carries a `recompute:` command). Push the
-stamp commit, wait for CI on it, run `ready` again
-(`READY #42 <head> STAMP_VERSION=1.2.7.0`) and send it with the
-`QUEUE_STAMP` line.
+各ステージは `.gstack/tmp/ship-queue/stamp-42.json` に記録されます。同じコマンドを再実行すると、最初の未完了のステージから再開するか、すでに完了している場合は保存された `QUEUE_STAMP` を返します。拒否された場合は `QUEUE_STAMP_REFUSED: 42 head=<sha> committed=no|yes <sha> stage=<stage>` と、コード付きの行を表示します(`QUEUE_STALE` は `recompute:` コマンドを伴います)。スタンプのコミットをプッシュし、その上の CI を待ち、再度 `ready` を実行します(`READY #42 <head> STAMP_VERSION=1.2.7.0`)。そして `QUEUE_STAMP` の行と一緒に送ります。
 
-**5. Coordinator: verify, then merge.** From the coordinator's own clone:
+**5. コーディネーター: 検証してからマージする。** コーディネーター自身のクローンから:
 
 ```bash
 gstack-ship-queue verify --pr 42 --gated <gated> --receipt <sha256> --expect-head <head> [--gate-exit 0 --gate-log <file>]
 gstack-ship-queue verify --pr 42 --record <gate-ahead record> --receipt <sha256> --expect-head <head>
 ```
 
-It fetches `refs/pull/42/head` and reruns the tree receipt there, so
-`QUEUE_STAMP` is never a pasted claim: `VERIFY: 42 1.2.7.0 head=<sha>
-gated=<sha> tree=same-modulo-stamps receipt=<same sha256>`. Under `full_e2e`,
-`--gated` also needs the lane's passing gate log from its run on that head
-(`--gate-exit 0 --gate-log <file>`), else `QUEUE_GATE_MISSING`. With a gate-ahead
-record, whose gated commit never left the lane's machine, it first recomputes
-the merge with `git merge-tree --write-tree <branch head> <predecessor head>`
-and compares it with the recorded merge tree, rebuilds the gated tree from
-the recorded stamp patch and compares it with the recorded `gated_tree`,
-proves that patch is stamps only, checks the predecessor did not move, and
-prints `merge_tree:`, `gated_tree:` and `gate:` lines. The last line is
-`MERGE_CONDITION: sha=<head>`: merge with that expected head. Any
-`QUEUE_VERIFY_MISMATCH` means do not merge.
+`refs/pull/42/head` を取得し、そこでツリーの受領書を再実行します。そのため、`QUEUE_STAMP` は貼り付けられた主張として扱われることはありません。結果は `VERIFY: 42 1.2.7.0 head=<sha> gated=<sha> tree=same-modulo-stamps receipt=<same sha256>` です。`full_e2e` の下では、`--gated` はそのレーンの、その head での合格のゲートログも必要です(`--gate-exit 0 --gate-log <file>`)。ない場合は `QUEUE_GATE_MISSING` になります。ゲート先行の記録がある場合、ゲートされた commit はレーンのマシンを離れていないため、まず `git merge-tree --write-tree <branch head> <predecessor head>` でマージを再計算し、記録されたマージのツリーと比較します。記録されたスタンプのパッチからゲートされたツリーを再構築し、記録された `gated_tree` と比較します。そのパッチがスタンプのみであることを証明し、前の PR が動いていないことを確認して、`merge_tree:`、`gated_tree:`、`gate:` の行を表示します。最後の行は `MERGE_CONDITION: sha=<head>` で、この期待される head でマージします。`QUEUE_VERIFY_MISMATCH` が出た場合は、マージしてはいけません。
 
-**Rolling out `gate_command` and `full_e2e`.** Commit them (with
-`min_gstack_version` at their introducing version, which `init --explain`
-prints) only after every lane's gstack is at least that version, the crew's
-install floor (`GSTACK_MIN_REVISION`). A lane on an older gstack refuses the
-policy by name rather than reading it differently.
+**`gate_command` と `full_e2e` の段階的な導入。** それらを(`min_gstack_version` を、`init --explain` が表示する導入バージョンに設定して)コミットするのは、すべてのレーンの gstack が少なくともそのバージョンになってからにしてください。これはクルーのインストールの下限(`GSTACK_MIN_REVISION`)です。古い gstack のレーンは、ポリシーを読み違えるのではなく、名前を挙げてそのポリシーを拒否します。
 
 <a id="run-a-merge-train"></a>
-## Run a merge train
+## マージトレインを運用する
 
-A merge train gates several READY PRs with one full gate instead of one gate
-each. The coordinator merges the pinned, unstamped PR heads in slot order onto
-main in a scratch worktree, records each prefix tree (T0 is main, Tk is the
-train head), runs the free tests and then one full gate on the train head, and
-merges the PRs one at a time, each only while main's tree equals the prefix
-the gate covered modulo stamps. A red train is bisected on its red cases only.
+マージトレインは、複数の READY の PR を、それぞれにゲートをかけるのではなく、一回の完全なゲートでまとめてゲートします。コーディネーターは、固定された未スタンプの PR の head を、スロットの順序で一時的な worktree の main にマージし、各プレフィックスのツリー(T0 が main、Tk がトレインの head)を記録します。そして、無料のテストを実行してから、トレインの head に対して完全ゲートを一回実行します。PR は一つずつマージされ、main のツリーがゲートされたプレフィックスとスタンプを除いて等しい場合にだけ、そのマージが進みます。赤いトレインは、赤いケースだけを対象に二分探索されます。
 
-The surface is off unless the base revision's `.gstack/ship-policy.json`
-declares a `train` block. Without one, `train …` and `verify --train` refuse
-with `QUEUE_TRAIN_OFF`, and `ready --pr <n>` prints exactly the per-PR READY
-block above (`--screen`, `--no-screen` and `--broad` are ignored with a
-warning on stderr). A block for gstack itself would read:
+この機能は、ベースのリビジョンの `.gstack/ship-policy.json` が `train` ブロックを宣言していない限り無効です。ブロックがない場合、`train …` と `verify --train` は `QUEUE_TRAIN_OFF` で拒否されます。`ready --pr <n>` は、上の PR ごとの READY ブロックをそのまま表示します(`--screen`、`--no-screen`、`--broad` は、stderr に警告を出して無視されます)。gstack 自身のポリシーでは、次のように書かれます。
 
 ```json
 "train": {
@@ -281,31 +155,11 @@ warning on stderr). A block for gstack itself would read:
 "min_gstack_version": "<the version that introduced train>"
 ```
 
-gstack's own policy carries this block. It went live after the workflow side
-(the train-nonce record, the `cases` and `prefix_shas` inputs, the dispatched
-screen) merged and one dry-run train passed: two unstamped scratch docs PRs on
-a scratch base whose `route` step read the policy from that base instead of
-the default branch. `gate_workflow` is dispatched with
-`evals_all`, `expected_sha` and `nonce` (bisects add `cases` and
-`prefix_shas`, screens add `screen_pr`, `screen_merge_sha` and
-`screen_policy`). That run publishes `full_gate_check` as a check run on the
-train head and the train record as the `record_artifact` artifact only when
-its census is complete and green; gstack reads both and never writes a
-check. `screen_selection: gstack-paid` computes gstack's paid case selection
-for the screen recommendation; `none` leaves the choice to the lane.
-`trial_reservation_usd` is what the bisect reserves for a trial without cost
-data.
+gstack 自身のポリシーにはこのブロックがあります。これが有効になったのは、ワークフロー側(train-nonce の記録、`cases` と `prefix_shas` の入力、dispatch されるスクリーン)がマージされ、ドライランのトレインが一度成功した後です。そのドライランは、スクラッチのベースの上の、スクラッチの未スタンプの docs の PR 2 つで行われました。そのベースの `route` ステップは、既定のブランチではなく、そのベースからポリシーを読みました。`gate_workflow` は `evals_all`、`expected_sha`、`nonce` を付けて dispatch されます(二分探索では `cases` と `prefix_shas` を追加し、スクリーンでは `screen_pr`、`screen_merge_sha`、`screen_policy` を追加します)。その実行は、完全性の集計(census)が完全で緑の場合にのみ、トレインの head にチェックの実行として `full_gate_check` を公開し、トレインの記録を `record_artifact` のアーティファクトとして公開します。gstack はその両方を読みますが、チェックを書くことはありません。`screen_selection: gstack-paid` は、スクリーンの推奨のために gstack の有料ケースの選択を計算します。`none` の場合は、選択をレーンに任せます。`trial_reservation_usd` は、コストのデータがない試行のために、二分探索が予約する額です。
 
-Every command prints its lines, the coded error line on stderr, then
-`NEXT: <command>` and `GSTACK_RESULT: skill=ship-queue status=… run=<record>`.
-Records live under `$GSTACK_STATE_ROOT/ship-queue/` (`trains/<nonce>/train.json`
-with one attempt record per dispatch, `ready/` receipts and `freeze/`) and
-are mirrored to origin as git notes on `refs/notes/gstack-trains` before any
-remote effect, so a lost machine loses nothing: `train status` on a clean
-state root rebuilds them. `GSTACK_SHIP_QUEUE_NOW` pins the clock for tests.
+すべてのコマンドは、その行を表示し、stderr にコード付きのエラー行を出し、その後に `NEXT: <command>` と `GSTACK_RESULT: skill=ship-queue status=… run=<record>` を表示します。記録は `$GSTACK_STATE_ROOT/ship-queue/` の下にあります(`trains/<nonce>/train.json` には、dispatch ごとに一つの試行記録があり、`ready/` には受領書、`freeze/` にはフリーズの記録があります)。それらは、リモートへの作用の前に、git notes として `refs/notes/gstack-trains` に origin へミラーされます。そのため、マシンを失っても何も失われず、クリーンなステートルートでの `train status` が記録を再構築します。`GSTACK_SHIP_QUEUE_NOW` は、テストのためにクロックを固定します。
 
-**1. Lane: READY with a screen choice.** Under a train policy READY needs an
-explicit choice:
+**1. レーン: スクリーンの選択を付けて READY にする。** トレインのポリシーの下では、READY には明示的な選択が必要です。
 
 ```bash
 gstack-ship-queue ready --pr 42                    # prints SCREEN: lines and the recommendation, refuses
@@ -313,69 +167,27 @@ gstack-ship-queue ready --pr 42 --no-screen        # READY receipt; the PR rides
 gstack-ship-queue ready --pr 42 --screen [--broad] # dispatches one paid screen on the PR's merge SHA
 ```
 
-Without a choice it prints the `SCREEN:` selection (with
-`screen_selection: gstack-paid`, the skill's own cases and `recommend
---screen` or `--no-screen`: `--screen` when the screen selects a skill's own
-cases) and refuses with `READY_SCREEN_CHOICE_REQUIRED`. The price line says
-the dollar figure is pending the cost replay; until it lands, `SCREEN:` shows
-case counts and the recommendation only. A lane that already ran focused
-local cases says so in the READY block and may pass `--no-screen`. `--screen`
-dispatches `gate_workflow` with `screen_pr`, `screen_merge_sha` (the
-`refs/pull/<n>/merge` SHA) and `screen_policy` (`narrow`, or `broad` with
-`--broad`, today's full PR selection). The nonce key carries the purpose and
-the policy, so a repeat follows the same run and a broad screen never adopts
-a narrow one. The READY block gains `screen: …`, and the receipt is written
-locally and to the notes ref. `--dry-run` prints the dispatch without sending
-it.
+選択がない場合は、`SCREEN:` の選択(`screen_selection: gstack-paid` の場合、スキル自身のケースと、スクリーンがスキル自身のケースを選ぶときの `recommend --screen` または `--no-screen`)を表示し、`READY_SCREEN_CHOICE_REQUIRED` で拒否します。価格の行は、ドル額がコストの再生を待っていることを示します。再生が完了するまで、`SCREEN:` はケースの数と推奨だけを表示します。ローカルで集中したケースを実行したレーンは、それを READY のブロックに記し、`--no-screen` を渡してもかまいません。`--screen` は、`gate_workflow` を `screen_pr`、`screen_merge_sha`(`refs/pull/<n>/merge` の SHA)、`screen_policy`(`narrow`、または `--broad` を指定した場合の `broad`。今日の PR の完全な選択です)付きで dispatch します。nonce のキーには目的とポリシーが含まれるため、繰り返しは同じ実行に従い、broad のスクリーンが narrow の実行を採用することはありません。READY のブロックには `screen: …` が追加され、受領書はローカルと notes の ref の両方に書かれます。`--dry-run` は、送信せずに dispatch を表示します。
 
-**2. Coordinator: build.** Name the pins exactly as READY reported them:
+**2. コーディネーター: 組み立てる。** 名前はすべて、READY が報告したとおりの固定値で指定します。
 
 ```bash
 gstack-ship-queue train build --prs 41@<sha>,42@<sha>,43@<sha> --dry-run
 gstack-ship-queue train build --prs 41@<sha>,42@<sha>,43@<sha>
 ```
 
-It prints `ORDER:` (the slot order to announce: screened PRs first in READY
-order, then unscreened; when `max_size` or more unscreened PRs wait they form
-their own train and `HELD:` lists them), one `PREFIX: T<i> <commit>
-tree=<tree>` per prefix and one `SLOT:` per PR. `--dry-run` adds the
-`ESTIMATE:` line and writes, pushes and dispatches nothing. Otherwise it
-writes `train.json`, pushes `train/<nonce>`, dispatches `free_workflow` there
-and waits (`--free-timeout <s>`, default 2700) for a green
-`workflow_dispatch` run on that exact SHA, then dispatches the full gate
-through eval-bg's nonce. A train under `max_size` waits until its oldest READY
-has waited `fill_hours` (`QUEUE_TRAIN_WAITING`); `--urgent` dispatches a
-one-PR train at once. The same pins on the same base return the live train
-instead of a second one; `train build --train <nonce>` resumes a train from
-its record. Refusals, all before any spend: `QUEUE_TRAIN_UNTRUSTED` (a fork
-head), `QUEUE_TRAIN_MOVED` (a head moved from its pin), `QUEUE_NOT_READY` (no
-READY receipt at that head), `QUEUE_TRAIN_CONFLICT` (the printed
-`QUEUE_TRAIN_CONFLICT: train <id> stopped at #<pr> (conflicts: <files>) after
-merging #<a>,#<b>; nothing dispatched, no branch pushed; fix: …` line names
-the build without that PR) and `QUEUE_TRAIN_FREE_RED` (free tests red,
-missing, cancelled or on another SHA). In a merge, version files take the
-prefix's side and the CHANGELOG merges by section, since the stamp at merge
-rewrites both.
+`ORDER:`(告知するスロットの順序。スクリーンされた PR を READY の順序で先に並べ、その後にスクリーンされていないものを並べます。`max_size` 以上のスクリーンされていない PR が待っている場合は、それらが独自のトレインになり、`HELD:` にそれらが一覧表示されます)、プレフィックスごとの `PREFIX: T<i> <commit> tree=<tree>`、PR ごとの `SLOT:` を表示します。`--dry-run` は `ESTIMATE:` の行を追加し、何も書き込まず、プッシュせず、dispatch もしません。それ以外の場合は、`train.json` を書き込み、`train/<nonce>` をプッシュし、そこで `free_workflow` を dispatch して、その正確な SHA 上の緑の `workflow_dispatch` の実行を待ちます(`--free-timeout <s>`、デフォルトは2700)。その後、eval-bg の nonce を通して完全ゲートを dispatch します。`max_size` を下回るトレインは、最も古い READY が `fill_hours` 待つ(`QUEUE_TRAIN_WAITING`)まで待ちます。`--urgent` は、一つの PR だけのトレインを直ちに dispatch します。同じベース上の同じ固定値は、二つ目を作る代わりに生きているトレインを返します。`train build --train <nonce>` は、その記録からトレインを再開します。事前の拒否は、いずれも支出の前に行われます。`QUEUE_TRAIN_UNTRUSTED`(フォークの head)、`QUEUE_TRAIN_MOVED`(head が固定値から動いた)、`QUEUE_NOT_READY`(その head の READY の受領書がない)、`QUEUE_TRAIN_CONFLICT`(表示された `QUEUE_TRAIN_CONFLICT: train <id> stopped at #<pr> (conflicts: <files>) after merging #<a>,#<b>; nothing dispatched, no branch pushed; fix: …` の行が、その PR を除いた組み立てを名指しします)、`QUEUE_TRAIN_FREE_RED`(無料のテストが赤、欠落、キャンセル、または別の SHA 上にある)。マージでは、バージョンのファイルはプレフィックスの側を取り、CHANGELOG はセクションごとにマージされます。マージ時のスタンプが両方を書き換えるためです。
 
-**3. Coordinator: status and verdict.**
+**3. コーディネーター: 状態と判定。**
 
 ```bash
 gstack-ship-queue train status [--train <nonce>]
 gstack-ship-queue train verdict --train <nonce>
 ```
 
-`status` never spends. When a dispatch was attempted but its run never showed
-up (`QUEUE_TRAIN_DISPATCH_UNKNOWN`), it lists the workflow's dispatch runs and
-either adopts the run carrying the nonce or marks the dispatch `absent`; only
-an absent dispatch is sent again, by `train build --train <nonce>`, under the
-same nonce. `verdict` reads the run, its record and the `full_gate_check`
-check: `GREEN` only for a complete census bound to the train nonce, head and
-tree; `QUEUE_TRAIN_PENDING` while it runs; `QUEUE_TRAIN_INCOMPLETE` for INFRA
-or INCOMPLETE panels, unbound, partial or cancelled shards, a slice killed
-before upload, or no record (never green); `QUEUE_TRAIN_RED` with the red
-cases.
+`status` は決して支出しません。dispatch が試みられたのに実行が現れなかった場合(`QUEUE_TRAIN_DISPATCH_UNKNOWN`)、ワークフローの dispatch の実行を一覧表示し、nonce を持つ実行を採用するか、dispatch を `absent` とマークします。`absent` の dispatch だけが、同じ nonce の下で `train build --train <nonce>` により再送されます。`verdict` は、実行、その記録、`full_gate_check` のチェックを読みます。`GREEN` は、nonce、head、ツリーに紐付いた完全性の集計の場合のみです。実行中は `QUEUE_TRAIN_PENDING`、INFRA または INCOMPLETE のパネル、紐付いていない、部分的、またはキャンセルされたシャード、アップロード前に殺されたスライス、または記録がない場合は `QUEUE_TRAIN_INCOMPLETE`(決して緑にはなりません)、赤いケースを伴う `QUEUE_TRAIN_RED` です。
 
-**4. A red train: bisect, then at most one rebuild.**
+**4. 赤いトレイン: 二分探索し、再構築は最大一回。**
 
 ```bash
 gstack-ship-queue train bisect --train <nonce> --spend-cap 5 --dry-run
@@ -383,25 +195,9 @@ gstack-ship-queue train bisect --train <nonce> --spend-cap 5
 gstack-ship-queue train rebuild --train <nonce>
 ```
 
-The bisect dispatches the red cases (`cases`) on every prefix T0..Tk
-(`prefix_shas`), one trial each, after checking every prefix is an ancestor
-of `train/<nonce>` (`QUEUE_TRAIN_PREFIX_INVALID`). It reserves every
-case×prefix trial (unknown costs at `trial_reservation_usd`) and launches only
-the prefixes that fit the cap (`QUEUE_TRAIN_BISECT_CAPPED`; completed prefixes
-are kept and a rerun with a higher cap runs only the rest). Rerun it to read
-the results. The pattern decides: `ATTRIBUTED #<pr>` only when monotone
-(green before, red from that PR on), and `NEXT:` builds the train without it;
-red on every prefix with T0 included is `QUEUE_TRAIN_RED_ON_MAIN` (fix forward
-on main first); anything else is `QUEUE_TRAIN_UNATTRIBUTED`. An all-green
-bisect earns exactly one unchanged rebuild (`train rebuild`, reporting both
-runs); a non-monotone pattern earns none and goes to a repair lane. Every
-other rebuild is `QUEUE_TRAIN_REBUILD_REFUSED`, and a second red stays red.
-An INFRA/INCOMPLETE-only census earns the single re-dispatch
-EVAL_POLICY.infraRedispatch allows: `train rebuild --train <nonce> --infra`.
-The rebuild-once rule lives in the train module beside that constant until
-EVAL_POLICY records it. Bisect results never turn a train green.
+二分探索は、赤いケース(`cases`)を、すべてのプレフィックス T0..Tk(`prefix_shas`)に対して dispatch し、プレフィックスごとに一回の試行を行います。その前に、すべてのプレフィックスが `train/<nonce>` の祖先であることを確認します(`QUEUE_TRAIN_PREFIX_INVALID`)。すべてのケース×プレフィックスの試行を予約します(コストが不明なものは `trial_reservation_usd` で)。そして、上限に収まるプレフィックスだけを起動します(`QUEUE_TRAIN_BISECT_CAPPED`。完了したプレフィックスは保持され、より高い上限で再実行すると残りだけが実行されます)。結果を読むには再実行します。パターンが判定を下します。`ATTRIBUTED #<pr>` は単調な場合(その PR より前は緑、そこから赤)だけで、`NEXT:` はそれを除いたトレインを組み立てます。T0 を含むすべてのプレフィックスで赤なら `QUEUE_TRAIN_RED_ON_MAIN`(まず main を前進修正する)。それ以外は `QUEUE_TRAIN_UNATTRIBUTED` です。すべて緑だった二分探索は、変更のない再構築を一回だけ許可します(`train rebuild`。両方の実行を報告します)。単調でないパターンでは再構築は認められず、修復のレーンに回されます。その他の再構築はすべて `QUEUE_TRAIN_REBUILD_REFUSED` で、二回目の赤は赤のままです。INFRA/INCOMPLETE のみの完全性の集計は、EVAL_POLICY.infraRedispatch が許可する一回の再 dispatch を受けられます(`train rebuild --train <nonce> --infra`)。一回だけ再構築するルールは、EVAL_POLICY に記録されるまで、その定数の横にあるトレインのモジュールにあります。二分探索の結果が、トレインを緑にすることはありません。
 
-**Stamping a slot.** When the slot is called, the lane stamps it at main plus PATCH. Slot 1's pin applies cleanly to main. From slot 2 on, main already carries the earlier slots' stamps, so the pin conflicts on CHANGELOG.md and GitHub can't merge it. The lane merges main into the pin first, then stamps:
+**スロットをスタンプする。** スロットが呼ばれたら、レーンは main に PATCH を加えた版でスタンプします。スロット1のピンは main にきれいに適用されます。スロット2以降では、main にはすでに前のスロットのスタンプが入っているため、ピンは CHANGELOG.md で競合し、GitHub はそれをマージできません。レーンは、まず main をピンにマージしてから、スタンプします。
 
 ```bash
 git fetch origin main
@@ -412,9 +208,9 @@ gstack-restamp --next --base main --pr 42 --expect-base <main sha> --expect-orde
 git add CHANGELOG.md VERSION package.json <release outputs> && git commit -m "v<X> stamp" && git push
 ```
 
-A conflict in any file other than CHANGELOG.md means the merge isn't the train's prefix. Stop and report it. `verify` accepts the resulting head because its tree equals T<i> modulo stamps; the `head:` line says "T<i> with main merged in".
+CHANGELOG.md 以外のファイルでの競合は、そのマージがトレインのプレフィックスではないことを意味します。停止して報告してください。`verify` は、結果の head を、ツリーが T<i> とスタンプを除いて等しい限り受け付けます。`head:` の行には「main をマージした T<i>」と表示されます。
 
-**5. Coordinator: verify, merge, verify again.** For each slot in order:
+**5. コーディネーター: 検証、マージ、再検証。** スロットごとに、順番に:
 
 ```bash
 gstack-ship-queue verify --pr 41 --train <nonce>   # MERGE_CONDITION: sha=<head>
@@ -422,175 +218,88 @@ gstack-ship-queue verify --pr 41 --train <nonce>   # MERGE_CONDITION: sha=<head>
 gstack-ship-queue verify --pr 41 --train <nonce>   # VERIFY_TRAIN: #41 merged; main's tree is T1 …
 ```
 
-Before a merge, main's tree must equal the prefix before the PR modulo stamps
-and the PR must be at its pin (stamps aside) or at T<i> modulo stamps (its pin
-with main merged in); after it, main's tree
-must equal the prefix after it. Anything else is `QUEUE_TRAIN_TREE_MISMATCH`
-(or `QUEUE_TRAIN_MOVED`). When nothing of the train has merged, that is a plain
-refusal: build a new train on current main. When earlier slots already
-merged, main holds a prefix no gate covered on its own, so verify freezes the
-queue: the freeze goes to local state and the notes ref first, then the full
-gate is dispatched on main's SHA at once (the backstop), and the
-`QUEUE_TRAIN_FROZEN:` line lists the merged PRs, main's tree and the backstop
-run. While frozen, ordinary trains and other trains' merges are refused
-(`QUEUE_TRAIN_FROZEN`). Admit one repair PR at its exact head:
+マージの前に、main のツリーはスタンプを除いて、その PR の前のプレフィックスと等しくなければなりません。また、PR は固定値(スタンプを除く)にあるか、スタンプを除いて T<i>(main をマージした固定値)になければなりません。マージの後には、main のツリーはその後のプレフィックスと等しくなければなりません。それ以外は `QUEUE_TRAIN_TREE_MISMATCH`(または `QUEUE_TRAIN_MOVED`)です。トレインの何もまだマージされていない場合は、単純な拒否です。現在の main の上に新しいトレインを組み立ててください。すでに前のスロットがマージされている場合、main には、どのゲートも単独ではカバーしていないプレフィックスがあるため、verify はキューをフリーズします。フリーズは、まずローカルの状態と notes の ref に書かれ、その後、main の SHA で完全ゲートがすぐに dispatch されます(バックストップ)。`QUEUE_TRAIN_FROZEN:` の行は、マージされた PR、main のツリー、バックストップの実行を一覧表示します。フリーズ中は、通常のトレインと他のトレインのマージは拒否されます(`QUEUE_TRAIN_FROZEN`)。修復用の PR を、その正確な head で一つだけ受け入れます。
 
 ```bash
 gstack-ship-queue train build --repair --prs 44@<sha>
 ```
 
-It runs the normal free tests, full gate and verification on main plus the
-repair. When verify confirms the repair merged, it prints `FREEZE: cleared`
-and `NEXT:` builds a train of the PRs still unmerged.
+これは、main と修復の上で、通常の無料テスト、完全ゲート、検証を実行します。verify が修復のマージを確認すると、`FREEZE: cleared` を表示し、`NEXT:` はまだマージされていない PR のトレインを組み立てます。
 
-**6. Clean up.** `gstack-ship-queue train prune [--train <nonce>] [--dry-run]`
-deletes the `train/<nonce>` branches of merged, superseded and dropped trains
-(`WOULD-DELETE:`, `DELETED:`, `GONE:`).
+**6. 後片付け。** `gstack-ship-queue train prune [--train <nonce>] [--dry-run]` は、マージ済み、置き換え済み、破棄されたトレインの `train/<nonce>` ブランチを削除します(`WOULD-DELETE:`、`DELETED:`、`GONE:`)。
 
-**Escape hatches.** Remove the `train` block on the base branch to return
-every lane to the per-PR queue at once. `--urgent` ships one PR alone,
-`--no-screen` skips the paid screen, `--broad` widens it to today's selection,
-and `train build --prs <list without it>` drops a PR at any step.
+**脱出口。** ベースブランチの `train` ブロックを削除すると、すべてのレーンが一度に PR ごとのキューに戻ります。`--urgent` は一つの PR を単独で出荷します。`--no-screen` は有料スクリーンを省略します。`--broad` はそれを今日の選択まで広げます。`train build --prs <list without it>` は、どの段階でも PR を除外します。
 
 <a id="ship"></a>
-## What `/ship` reads from it
+## `/ship` がこれから読むもの
 
-`/ship` Step 3 runs `show-effective --base <base>` and follows its `ship:` lines,
-which carry the workflow consequences the skill prose would otherwise spell out:
+`/ship` のステップ3は `show-effective --base <base>` を実行し、その `ship:` の行に従います。これらの行は、スキルの説明文が別途書くはずだったワークフロー上の影響を伝えます。
 
-| Line | Effect |
+| 行 | 効果 |
 |---|---|
-| `ship: history merge-only: …` | never rebase, squash or force-push; `check-history --plan <merge\|squash\|rebase>` refuses a rewrite plan (`HISTORY_POLICY_VIOLATION`, exit 3) |
-| `ship: queue_mode stamp-at-merge: …` | Step 12 items 1–4 are replaced by `gstack-restamp --next --base <base> --pr <n> --expect-base <sha>` when the PR is next, `--after <predecessor-pr>` when it is not; the restamp's own `next:` line says what follows (NEW_VERSION, CHANGELOG entry text only, the merge's expected head) |
-| `ship: shared merge queue: …` | in a coordinator-run queue, `gstack-ship-queue ready`, `gate-ahead` and `stamp` replace the restamp calls; see [Run a shared merge queue](#run-a-shared-merge-queue) |
-| `ship: gate-ahead: …` | with `.gstack/tmp/gate-ahead.json` present, Step 16 reuses only the lanes `gstack-tree-receipt … --json > .gstack/tmp/tree-receipt.json` marks reusable; stamp-sensitive and not-eligible lanes run live; `--force-gate <reason>` is the coordinator's call |
-| `ship: bump patch: …` | Step 12 never asks for MINOR or MAJOR; PATCH or MICRO by size |
-| `ship: preregistration: …` | `gstack-evidence ancestor --from-policy --base <base>` must print only `ANCESTOR: ok` before push |
-| `ship: release_tool: …` | the command runs only inside `gstack-restamp` (staging worktree, outputs confined to `release_outputs`) |
+| `ship: history merge-only: …` | 決してリベース、squash、強制プッシュしない。`check-history --plan <merge\|squash\|rebase>` は、書き換えの計画を拒否します(`HISTORY_POLICY_VIOLATION`、終了コード 3) |
+| `ship: queue_mode stamp-at-merge: …` | PR が次のときは、ステップ12の項目1〜4が `gstack-restamp --next --base <base> --pr <n> --expect-base <sha>` に置き換えられます。次でないときは `--after <predecessor-pr>` です。再スタンプ自身の `next:` の行が、その後に続くものを示します(NEW_VERSION、CHANGELOG のエントリのテキストだけ、マージの期待される head) |
+| `ship: shared merge queue: …` | コーディネーターが実行するキューでは、`gstack-ship-queue ready`、`gate-ahead`、`stamp` が、再スタンプの呼び出しに置き換わります。[共有マージキューを運用する](#run-a-shared-merge-queue) を参照してください |
+| `ship: gate-ahead: …` | `.gstack/tmp/gate-ahead.json` があると、ステップ16は、`gstack-tree-receipt … --json > .gstack/tmp/tree-receipt.json` が再利用可能とマークしたレーンだけを再利用します。スタンプに敏感なレーンと、対象外のレーンはライブで実行されます。`--force-gate <reason>` は、コーディネーターの判断です |
+| `ship: bump patch: …` | ステップ12は、MINOR や MAJOR を決して尋ねません。サイズに応じて PATCH または MICRO を使います |
+| `ship: preregistration: …` | プッシュの前に、`gstack-evidence ancestor --from-policy --base <base>` が `ANCESTOR: ok` だけを出力しなければなりません |
+| `ship: release_tool: …` | このコマンドは `gstack-restamp` の内側でだけ実行されます(ステージング用の worktree、出力は `release_outputs` に限定) |
 
-The PR body's first section is the ship receipt (`gstack-ship-receipt write … --body`),
-written by the pr-body section of `/ship` after the body is composed.
+PR 本文の最初のセクションは ship の受領書です(`gstack-ship-receipt write … --body`)。これは、本文が作成された後に、`/ship` の pr-body セクションによって書かれます。
 
 <a id="stamp-at-merge"></a>
 ## `queue_mode: stamp-at-merge`
 
-Under `stamp-at-merge` nothing is claimed when a PR opens. The stamp happens
-when the PR is next, from the base branch's version at that moment, through
-the repo's own release tool, across every stamp location at once:
+stamp-at-merge の下では、PR を開いたときには何も確保されません。スタンプは、PR が次になったときに、その時点のベースブランチのバージョンから、リポジトリ自身のリリースツールを通して、すべてのスタンプの場所に同時に行われます。
 
 ```bash
 gstack-restamp --next --base main --allow-repo-commands --pr 42 \
   --expect-base <sha of origin/main the queue assumed> --expect-order 40,41,42
 ```
 
-prints `ship, next in queue at <version>`, `STAMP_VERSION: <version>`, one
-line per stage, the diff limited to stamp files, `MERGE_CONDITION: sha=<head>`
-(pass it to the merge API's expected-head `sha` so a check-to-merge race is
-rejected by the server) and the `GSTACK_RESULT:` line. `claims: ignored
-(stamp-at-merge)` says the legacy claim reader was not consulted. When the base
-or the order moved, the result is `QUEUE_STALE` (exit 3) with the exact
-`recompute` command; nothing is written.
+この結果は `ship, next in queue at <version>`、`STAMP_VERSION: <version>`、ステージごとの一行、スタンプのファイルに限定された差分、`MERGE_CONDITION: sha=<head>`(マージ API の期待される head の `sha` に渡し、チェックからマージまでの競合をサーバーが拒否できるようにします)、そして `GSTACK_RESULT:` の行を表示します。`claims: ignored (stamp-at-merge)` は、従来の確保の読み取りが参照されなかったことを示します。ベースまたは順序が動いていた場合は、正確な `recompute` コマンドとともに `QUEUE_STALE`(終了コード 3)を返します。何も書き込まれません。
 
-Stages, each journaled in `.gstack/tmp/restamp-journal.json`:
+ステージ。それぞれ `.gstack/tmp/restamp-journal.json` に記録されます。
 
-0. **restamp_command** (only when the policy sets it): the repo's own restamp, see [restamp_command](#restamp-command).
-1. **version**: `gstack-version-bump write --version <X>` in the staging worktree (VERSION, the manifest, npm lockfiles); skipped when `restamp_command` owns the version.
-2. **release_tool**: the policy command, under the contract below.
-3. **changelog**: the PR's `[Unreleased]` or old-version section moves to the top under `<X>`, above its predecessor's entry. Duplicate headings (`CHANGELOG_DUPLICATE_HEADING`) and a top entry that is not `<X>` (`CHANGELOG_TOP_MISMATCH`) are errors.
-4. **stamp_paths**: exact `(was X)`, `since: X` and `vX` rewrites, plus every `stamp_patterns` template, within `stamp_paths` and `stamp_files`. `X` is the branch's own tentative stamp (its VERSION when it moved past base), else `--was <X>`, else the version an unstamped branch would have taken next (`base + bump`); mentions of a version the base never released (not a CHANGELOG heading at base, not a tag) are rewritten too, so a queue reorder that moves the base under a branch still finds its `since:` fields. Only the repo's own version width counts, so a 3-digit dependency pin in a 4-digit repo is never a candidate.
-5. **mirror**: tier 2; declared and validated, reported as not run.
-6. **apply**: every changed file is written to the branch only after all stages validated, each against the fingerprinted preimage; a file edited meanwhile is `RESTAMP_CONFLICT` and the applied writes roll back (rollback refuses to overwrite a file whose bytes differ from the recorded postimage).
+0. **restamp_command**(ポリシーがそれを設定している場合のみ): リポジトリ自身の再スタンプ。[restamp_command](#restamp-command) を参照してください。
+1. **version**: ステージング用の worktree での `gstack-version-bump write --version <X>`(VERSION、マニフェスト、npm のロックファイル)。`restamp_command` がバージョンを管理している場合は省略されます。
+2. **release_tool**: 以下の契約の下で、ポリシーのコマンドを実行します。
+3. **changelog**: PR の `[Unreleased]` または古いバージョンのセクションが、`<X>` の下で先頭に移動します。その前任者のエントリの上に置かれます。見出しの重複(`CHANGELOG_DUPLICATE_HEADING`)と、最上位のエントリが `<X>` でない場合(`CHANGELOG_TOP_MISMATCH`)はエラーです。
+4. **stamp_paths**: 正確な `(was X)`、`since: X`、`vX` の書き換えと、`stamp_paths` と `stamp_files` の範囲内にあるすべての `stamp_patterns` のテンプレート。`X` はブランチ自身の暫定スタンプです(その VERSION が base を越えて動いている場合)。そうでなければ `--was <X>`、それもなければ、スタンプのないブランチが次に取るはずのバージョン(`base + bump`)です。ベースが一度もリリースしていないバージョンへの言及(ベースの CHANGELOG の見出しでもタグでもないもの)も書き換えられます。そのため、キューの並べ替えでベースが動いても、ブランチの `since:` のフィールドは見つかります。リポジトリ自身のバージョンの幅だけが対象になるので、4桁のリポジトリにある3桁の依存関係の固定は、決して候補にはなりません。
+5. **mirror**: 第2階層。宣言され、検証されていますが、実行されたとは報告されません。
+6. **apply**: すべてのステージが、各々の既知のプリイメージに対して検証された後に限り、変更されたファイルがブランチに書き込まれます。その間にファイルが編集されていれば `RESTAMP_CONFLICT` となり、適用された書き込みはロールバックされます(ロールバックは、記録されたポストイメージとバイト列が異なるファイルを上書きしません)。
 
-Idempotent: a second run with the same version is `noop`. `--dry-run` prints
-the full diff and writes nothing (not even the journal). `--version <X>` stamps
-exactly X; `--bump` overrides the level; `--queue-mode` overrides the policy.
+冪等です。同じバージョンで二回目を実行すると `noop` になります。`--dry-run` は、完全な差分を表示し、何も書き込みません(ジャーナルも含めて)。`--version <X>` は正確に X をスタンプします。`--bump` はレベルを上書きします。`--queue-mode` はポリシーを上書きします。
 
-### Gate-ahead: `--after <pr>`
+### ゲート先行: `--after <pr>`
 
-A reorder is cheap only when the gate can run before the predecessor merges.
-`gstack-restamp --after <pr> --predecessor-ref <ref>` merges HEAD and the
-predecessor's head in a throwaway worktree (`.gstack/tmp/gate-ahead-worktree`),
-resolving only version-file and CHANGELOG-ordering conflicts, stamps N+1
-relative to the predecessor's version there, commits, and records
-`.gstack/tmp/gate-ahead.json` (`predecessor_head`, `branch_head`,
-`gated_head`, `gated_tree`, `version`, `evidence_branch_key`). The PR branch's
-history is never touched, so squash-history PRs stay clean. The gate runs in
-that worktree; `gstack-evidence bundle` there exports the evidence.
+並べ替えは、前任者がマージされる前にゲートを実行できる場合にだけ安く済みます。`gstack-restamp --after <pr> --predecessor-ref <ref>` は、一時的な worktree(`.gstack/tmp/gate-ahead-worktree`)で HEAD と前任者の head をマージします。解決するのは、バージョンのファイルと CHANGELOG の順序の競合だけです。そこで、前任者のバージョンに対して N+1 をスタンプし、commit し、`.gstack/tmp/gate-ahead.json`(`predecessor_head`、`branch_head`、`gated_head`、`gated_tree`、`version`、`evidence_branch_key`)を記録します。PR のブランチの履歴には決して触れないため、squash 履歴の PR もきれいなままです。ゲートはその worktree で実行されます。そこで `gstack-evidence bundle` が証拠をエクスポートします。
 
 <a id="release-tool-contract"></a>
-### The release-tool contract
+### リリースツールの契約
 
-The release tool runs in an isolated staging worktree seeded from the working
-tree's content fingerprint (`gstack-wtree`), with the repo's ignored
-`node_modules` linked in. Its outputs are enumerated: the version files,
-lockfiles, the CHANGELOG, `stamp_paths` and `release_outputs`. A write outside
-that set refuses the whole restamp before anything reaches the branch
-(`RESTAMP_OUTPUT_OUTSIDE_ALLOWED`); a non-zero exit is
-`RESTAMP_RELEASE_TOOL_FAILED`. Preimages and postimages of every write are
-recorded in the journal. Pinning the command string does not freeze its
-implementation (`bun run release:restamp` still runs the PR's package script),
-so the receipt names the policy revision, the command, its working directory
-and the trust scope (`policy: base origin/main@<sha>` or `head (unreviewed)`).
+リリースツールは、作業ツリーのコンテンツのフィンガープリント(`gstack-wtree`)から種付けされた、分離されたステージング用の worktree で実行されます。リポジトリの無視されている `node_modules` がリンクされます。その出力は列挙されています。バージョンのファイル、ロックファイル、CHANGELOG、`stamp_paths`、`release_outputs` です。その集合の外への書き込みは、再スタンプ全体を、ブランチに何も届く前に拒否します(`RESTAMP_OUTPUT_OUTSIDE_ALLOWED`)。非ゼロの終了は `RESTAMP_RELEASE_TOOL_FAILED` です。すべての書き込みのプリイメージとポストイメージはジャーナルに記録されます。コマンドの文字列を固定しても、その実装は固定されません(`bun run release:restamp` は、PR のパッケージスクリプトをそのまま実行します)。そのため、受領書にはポリシーのリビジョン、コマンド、その作業ディレクトリ、信頼の範囲(`policy: base origin/main@<sha>` または `head (unreviewed)`)が記されます。
 
 <a id="restamp-command"></a>
-### `restamp_command`: the repo owns the stamp
+### `restamp_command`: リポジトリがスタンプを所有する
 
-A repo whose own tool knows its stamp locations sets `restamp_command`.
-`gstack-restamp` runs it as the first stage inside its staging worktree, a
-clean checkout of HEAD, with the allocated version as the last argument and in
-`GSTACK_RESTAMP_VERSION`. The caller's HEAD, index and worktree must be clean
-first (`RESTAMP_CONFLICT`, nothing written); the generic path keeps its
-working-tree fingerprint seed. Anything the command stages or commits in the
-staging worktree is folded back into plain edits; then output confinement
-applies as for the release tool (`RESTAMP_OUTPUT_OUTSIDE_ALLOWED`), the
-version file must hold the target version (`RESTAMP_VERSION_SOURCE`), and a
-non-zero exit is `RESTAMP_RELEASE_TOOL_FAILED`. In every failure nothing
-reaches the branch. gstack's version writer is skipped; the CHANGELOG and
-`stamp_paths` stages still run (a no-op when the tool already did the work).
-Read from the base branch and run only with `--allow-repo-commands`, like
-`release_tool`. A tool that fetches, merges the base branch or needs a version
-of its own choosing cannot run here; give it a mode that takes the version and
-writes only stamps.
+自身のツールがスタンプの場所を知っているリポジトリは、`restamp_command` を設定します。`gstack-restamp` は、それをステージング用の worktree の最初のステージとして実行します。この worktree は HEAD のクリーンなチェックアウトで、割り当てられたバージョンを最後の引数として、また `GSTACK_RESTAMP_VERSION` の中で受け取ります。呼び出し元の HEAD、インデックス、作業ツリーは、まずクリーンでなければなりません(`RESTAMP_CONFLICT`、何も書き込まれません)。一般的な経路は、作業ツリーのフィンガープリントの種付けを維持します。ステージング用の worktree でコマンドがステージングまたはコミットしたものは、通常の編集として取り込まれます。その後は、リリースツールと同様に出力の閉じ込めが適用されます(`RESTAMP_OUTPUT_OUTSIDE_ALLOWED`)。バージョンのファイルは対象のバージョンを保持していなければなりません(`RESTAMP_VERSION_SOURCE`)。非ゼロの終了は `RESTAMP_RELEASE_TOOL_FAILED` です。どの失敗でも、ブランチには何も届きません。gstack のバージョン書き込み処理は省略されます。CHANGELOG と `stamp_paths` のステージは引き続き実行されます(ツールがすでに作業を済ませていれば何もしません)。ベースブランチから読まれ、`--allow-repo-commands` を付けた場合にのみ、`release_tool` と同様に実行されます。フェッチする、ベースブランチをマージする、または独自に選んだバージョンを必要とするツールは、ここでは実行できません。バージョンを受け取り、スタンプだけを書くモードを用意してください。
 
 <a id="tree-receipt"></a>
-## The tree receipt
+## ツリーの受領書
 
 ```bash
 gstack-tree-receipt --from .gstack/tmp/gate-ahead.json --predecessor-pr 41 --bundle evidence-bundle.json
 gstack-tree-receipt --gated <sha> --current HEAD --json
 ```
 
-Compares two **committed heads** (a working-tree fingerprint can name objects
-unreachable once the gate VM is gone) and prints the gated and current heads,
-both tree ids, the version pair, the predecessor the gate assumed, the diff
-limited to stamp files, one line per file with its rule and verdict, one line
-per gate, then two verdict lines:
+二つのコミットされた head を比較します(作業ツリーのフィンガープリントは、ゲートの VM が消えると到達できなくなるオブジェクトを指すことがあるためです)。ゲートされた head と現在の head、両方のツリー ID、バージョンの組、ゲートが想定した前任者、スタンプのファイルに限定された差分、ルールと判定を伴うファイルごとの一行、ゲートごとの一行を表示し、その後に二つの判定の行を表示します。
 
 ```
 TREE: same-modulo-stamps | changed (<residual paths>)
 gate-reuse: eligible (reusable: tests; rerun: digest) | not-eligible (<what changed>) — fix: <rerun command> (GATE_REUSE_NOT_ELIGIBLE)
 ```
 
-Hunks are classified per file type: the version file (old → new only), the
-manifest (`version` key only), npm and bun lockfiles (root `version` keys
-only, where `gstack-version-bump` writes; a dependency entry is `changed`),
-the CHANGELOG (a heading move or re-heading, compared as an order-independent
-multiset of entries), `stamp_paths` and `release_outputs` (every
-removed/added pair must be an exact `(was X)` / `since: X` / `vX` rewrite with
-X the gated version and the replacement the current one, so a dependency pin
-that happens to equal the old version is `changed`; `stamp_patterns`
-templates count as stamp forms too). With `stamp_files` set, a file outside it
-is `changed (stamp_files: not in the repo's stamp_files allowlist)` whatever
-its diff. Any other byte is a change.
+変更はファイルの種類ごとに分類されます。バージョンのファイル(古い → 新しい、だけ)、マニフェスト(`version` キーだけ)、npm と bun のロックファイル(ルートの `version` キーだけ。`gstack-version-bump` が書く箇所。依存関係のエントリは `changed`)、CHANGELOG(見出しの移動や付け直し。エントリの順序に依存しない多重集合として比較)、`stamp_paths` と `release_outputs`(削除と追加の各ペアは、正確な `(was X)` / `since: X` / `vX` の書き換えでなければならず、X はゲートされたバージョン、置き換えは現在のバージョンです。そのため、古いバージョンと偶然等しい依存関係の固定は `changed` になります。`stamp_patterns` のテンプレートも、スタンプの形式として数えられます)。`stamp_files` が設定されている場合、その外側にあるファイルは、どんな差分であっても `changed (stamp_files: not in the repo's stamp_files allowlist)` になります。それ以外のバイトはすべて変更です。
 
-Equivalence is decided per gate. A lane in `stamp_sensitive_gates` always
-`rerun`s; a verified lane is `reusable` only when the tree is same-modulo-stamps
-and the execution identity in the bundle equals the current one: Bun and Node
-versions, OS and arch, every lockfile's identity (root version normalized
-away), the `.github/workflows` tree id, runtime pin files and
-`package.json#engines`, and the runner image when either side knows it. Without
-a bundle the identity is unknown and the receipt is `not-eligible`. When the
-recorded predecessor head is no longer the predecessor PR's head (checked
-through `--predecessor-ref` or `gh pr view --predecessor-pr`) the receipt
-prints `PREDECESSOR MOVED <old> -> <new> — fix: gstack-restamp --after <pr>
-again (RESTAMP_PREDECESSOR_MOVED)` and refuses `eligible`.
+同等性はゲートごとに決まります。`stamp_sensitive_gates` にあるレーンは、常に `rerun` になります。検証済みのレーンが `reusable` になるのは、ツリーがスタンプを除いて同じで、かつバンドル内の実行の識別情報が現在のものと等しい場合だけです。その識別情報とは、Bun と Node のバージョン、OS とアーキテクチャ、すべてのロックファイルの識別情報(ルートの version は正規化して除外)、`.github/workflows` のツリー ID、ランタイムの固定ファイル、`package.json#engines`、そして両側が知っている場合のランナーのイメージです。バンドルがない場合、識別情報は不明となり、受領書は `not-eligible` になります。記録された前任者の head が、もはや前任者の PR の head ではない場合(`--predecessor-ref` または `gh pr view --predecessor-pr` で確認)、受領書は `PREDECESSOR MOVED <old> -> <new> — fix: gstack-restamp --after <pr> again (RESTAMP_PREDECESSOR_MOVED)` を表示し、`eligible` は拒否します。

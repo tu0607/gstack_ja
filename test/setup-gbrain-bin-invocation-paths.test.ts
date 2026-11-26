@@ -103,7 +103,7 @@ describe('transcript consent question is gated on `gstack-config has`', () => {
       expect(hasAt).toBeGreaterThanOrEqual(0);
       expect(text.indexOf('AskUserQuestion', hasAt)).toBeGreaterThan(hasAt);
       for (const v of ['recent', 'all', 'off']) expect(text).toContain(`\`${v}\``);
-      expect(text).toMatch(/spawned[\s\S]{0,40}headless[\s\S]{0,80}do not ask/i);
+      expect(text).toMatch(/spawned[\s\S]{0,40}headless[\s\S]{0,80}(do not ask|尋ねず|質問せず)/i);
     });
   }
 });
@@ -125,17 +125,15 @@ describe('setup-gbrain/memory.md — bin invocation paths', () => {
   });
 
   test('the troubleshooting full-pass mention uses bun run + .ts (R5)', () => {
-    expect(memoryDoc).toContain('Run `bun run bin/gstack-gbrain-sync.ts --full` to do a full pass.');
+    expect(memoryDoc).toContain('`bun run bin/gstack-gbrain-sync.ts --full` を実行');
   });
 
   test('the troubleshooting incremental-reingest mention uses bun run + .ts (R5)', () => {
-    expect(memoryDoc).toContain(
-      're-run `bun run bin/gstack-gbrain-sync.ts --incremental` to re-ingest from'
-    );
+    expect(memoryDoc).toContain('`bun run bin/gstack-gbrain-sync.ts --incremental` を再実行');
   });
 
   test('the already-correct reference line at the top of the file is unchanged', () => {
-    expect(memoryDoc).toContain('bun run bin/gstack-memory-ingest.ts --probe` (which');
+    expect(memoryDoc).toContain('bun run bin/gstack-memory-ingest.ts --probe`(新規と更新の件数を表示)');
   });
 });
 

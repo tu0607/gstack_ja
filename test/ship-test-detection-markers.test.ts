@@ -20,6 +20,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { expectMentions } from './helpers/prompt-structure';
 import { generateTestBootstrap, generateTestCoverageAuditShip } from '../scripts/resolvers/testing';
 import { generateReviewArmy } from '../scripts/resolvers/review-army';
 import { HOST_PATHS } from '../scripts/resolvers/types';
@@ -134,14 +135,14 @@ describe('/ship Step 4 detection is multi-ecosystem', () => {
   });
 
   test('every ecosystem marker maps to a command to OFFER, not to run blind', () => {
-    expect(section).toContain('never a command to run blind');
+    expectMentions(section, [['証拠', '盲目的に実行するコマンドではありません']], 'section');
     for (const marker of ['manage.py', 'go.mod', 'Cargo.toml', 'pom.xml',
       'build.gradle', 'mix.exs', 'composer.json', 'Gemfile', 'pytest.ini', 'pubspec.yaml']) {
       expect(section).toContain(marker);
     }
     // The ask-and-persist contract, not a hardcoded project command.
     expect(section).toContain('AskUserQuestion');
-    expect(section).toContain('persist the answer to CLAUDE.md');
+    expectMentions(section, [['AskUserQuestion', 'CLAUDE.md', '## Testing', '保存']], 'section');
   });
 });
 

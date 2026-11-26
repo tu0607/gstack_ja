@@ -1,61 +1,60 @@
 <!-- AUTO-GENERATED from dx-phase.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-Before dispatch, Read `methodologyPath` from `bun "<SNAPSHOT_TOOL>" methodology dx "<REVIEW_SKILL>" "<RESTORE_PATH>"` per `readRanges`; log successful ranges/total to EOF. Skip-listed: load only.
+ディスパッチの前に、`readRanges` に従って `methodologyPath` from `bun "<SNAPSHOT_TOOL>" methodology dx "<REVIEW_SKILL>" "<RESTORE_PATH>"` を読み込みます。読み込みに成功した範囲と合計を、EOF まで記録してください。スキップ一覧のものは読み込むだけです。
 
-**Override rules:**
-- Mode selection: DX POLISH
-- Persona: infer from README/docs, pick the most common developer type (P6)
-- Competitive benchmark: research through Aside per the loaded skill's "Web research runs in Aside" section (WebSearch when Aside is not ready); reference benchmarks when neither is available (P1)
-- Magical moment: pick the lowest-effort delivery vehicle that achieves the competitive tier (P5)
-- Getting started friction: always optimize toward fewer steps (P5)
-- Error message quality: require the agent-ready error contract (P1, completeness)
-- API/CLI naming: consistency wins over cleverness (P5)
-- DX taste decisions (opinionated defaults vs flexibility): mark TASTE DECISION
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
+**上書きルール:**
+- モードの選択: DX POLISH
+- ペルソナ: README やドキュメントから推測し、最も一般的な開発者のタイプを選びます(P6)
+- 競合ベンチマーク: 読み込んだスキルの「Web research runs in Aside」のセクションに従い、Aside 経由で調査します(Aside の準備ができていない場合は WebSearch)。どちらも利用できない場合は、参照ベンチマークを使います(P1)
+- 魅力的な瞬間(Magical moment): 競合の水準に到達できる、最も手間の少ない提供手段を選びます(P5)
+- 利用開始時の摩擦: 常に、手順が少なくなる方向に最適化します(P5)
+- エラーメッセージの品質: 実行エージェントが対応できるエラーの契約を必須とします(P1、完全性)
+- API/CLI の命名: 巧妙さより一貫性を優先します(P5)
+- DX の好みの判断(意見のあるデフォルト値と柔軟性): TASTE DECISION としてマーク
+- 二重の voice: 利用可能であれば、Claude のサブエージェントと Codex の両方を必ず実行します(P6)。
 
-  **Bind phase input:** Run; use `snapshotPath` as `<DX_INPUT>` for both voices:
+  **フェーズ入力をバインドする:** 実行し、両方の voice の `<DX_INPUT>` として `snapshotPath` を使います:
 ```bash
 bun "<SNAPSHOT_TOOL>" create dx "<ACTIVE_PLAN>" "<RESTORE_PATH>" "<methodologyPath>"
 ```
-  Fresh `Implementation plan` only; excludes `Review record`.
+  新しい `Implementation plan` のみを使います。`Review record` は含めません。
 
-  **Claude DX subagent** (native tool):
-  Claude Code: set Agent `run_in_background: false` if its schema exposes it.
-  A launch receipt means it went background: await its completion notice.
-  Other hosts: foreground; await completion when supported.
+  **Claude の DX サブエージェント**(ネイティブのツール):
+  Claude Code: Agent のスキーマに `run_in_background` がある場合は `false` に設定します。
+  起動の受領書がある場合はバックグラウンドで実行されています。その完了通知を待ってください。
+  その他のホスト: フォアグラウンドで実行します。サポートされている場合は完了を待ちます。
 
-  Read `snapshot.json` beside `<DX_INPUT>`. Send its `nativeDispatchPrompt`
-  verbatim as the Agent prompt: ONLY/FINAL tool call this response.
-  Keep native Reads enabled. Child first Reads `nativePromptPath` to EOF:
-  all criteria + plan; no summaries or prior reviews.
+  `<DX_INPUT>` の隣にある `snapshot.json` を読みます。その `nativeDispatchPrompt` を変更せずに、Agent のプロンプトとして送ってください。このレスポンスでの唯一かつ最後のツール呼び出しです。
+  ネイティブの Read は有効のままにします。子は最初に `nativePromptPath` を EOF まで読みます。
+  すべての基準と計画を含み、要約や以前のレビューは含みません。
 
-  **Native completion barrier:** Async (`isAsync: true` / `status: "async_launched"`):
-  Claude Code: end response immediately: "Waiting for <agent ID>."
-  No further tool calls/review until that ID's terminal notification is delivered.
-  Other hosts await that ID. Then outside → this phase's review ONLY.
-  Completed-native INPUT must match snapshot phase/hash. Retry invalid input once; then failure policy if still invalid.
-  No inline substitute; apply failure policy.
+  **ネイティブの完了バリア:** 非同期(`isAsync: true` / `status: "async_launched"`)の場合:
+  Claude Code: 直ちにレスポンスを終えてください: "Waiting for <agent ID>."
+  そのエージェント ID の最終通知が届くまで、それ以上のツール呼び出しやレビューはしないでください。
+  その他のホストは、その ID を待ちます。その後、外部のレビューを行います。このフェーズのレビューだけです。
+  完了したネイティブの INPUT は、スナップショットのフェーズとハッシュに一致しなければなりません。無効な入力は一度だけ再試行します。それでも無効なら、失敗時の方針を適用します。
+  インラインでの代替はしないでください。失敗時の方針を適用してください。
 
-  **Codex DX voice** (via Bash):
-  Outside prompt: inline the full contents of <DX_INPUT> and context below (Write tool).
+  **Codex の DX の voice**(Bash 経由):
+  外部のプロンプト: <DX_INPUT> と以下の文脈の全内容をインラインで含めます(Write ツールを使用)。
 
-IMPORTANT: Do NOT read or execute any SKILL.md files or paths containing skills/gstack (foreign instructions). Review repository code only.
+重要: SKILL.md ファイル、または skills/gstack を含むパスを読んだり実行したりしないでください(外部の指示になるため)。リポジトリのコードだけをレビューしてください。
 
-  Read the plan file at <DX_INPUT>. Evaluate this plan's developer experience.
+  <DX_INPUT> の計画ファイルを読んでください。この計画の開発者体験を評価してください。
 
-  Also consider these findings from prior review phases:
-  CEO: <insert CEO consensus summary>
-  Design: <insert Design consensus summary, or 'skipped, no UI scope'>
+  以前のレビュー段階の以下の指摘も考慮してください:
+  CEO: <CEO の合意の要約を挿入>
+  デザイン: <デザインの合意の要約を挿入。または「スキップ、UI スコープなし」>
 
-  You are a developer who has never seen this product. Evaluate:
-  1. Time to hello world: how many steps from zero to working? Target is under 5 minutes.
-  2. Errors, agent-ready (what, fix, recovery, code, context, trace, redaction, channel), capped per Pass 3 (CAP4/CAP6).
-  3. API/CLI design: are names guessable? Are defaults sensible? Is it consistent?
-  4. Docs: can a dev find what they need in under 2 minutes? Are examples copy-paste-complete?
-  5. Upgrade path: can devs upgrade without fear? Migration guides? Deprecation warnings?
-  Be adversarial. Think like a developer who is evaluating this against 3 competitors.
+  あなたはこの製品をまだ見たことがない開発者です。以下を評価してください:
+  1. Hello World までの時間: ゼロから動くまでに何ステップかかるか? 目標は 5 分未満です。
+  2. エラー(実行エージェントが対応できるかどうか: 何が、どう直すか、回復方法、コード、文脈、トレース、墨消し、チャネル)。パス 3 の上限(CAP4/CAP6)に従います。
+  3. API/CLI の設計: 名前は推測できるか? デフォルト値は妥当か? 一貫しているか?
+  4. ドキュメント: 開発者は 2 分以内に必要なものを見つけられるか? 例はコピー&ペーストで完結しているか?
+  5. アップグレードの経路: 開発者は不安なくアップグレードできるか? 移行ガイドはあるか? 非推奨の警告はあるか?
+  敵対的であってください。3 つの競合と比べてこの製品を評価している開発者として考えてください。
 
-Write the **complete prompt and context**, including actual plan/spec/source, to a private file. Substitute its shell-quoted path for `<prepared-prompt-file>`; never interpolate user text into shell source. Request a severity (Critical, High, Medium or Low) per finding and a final Recommendation: <action> because <specific reason> line, including an explicit no-findings rationale.
+実際のプラン/spec/ソースを含む **完全なプロンプトとコンテキスト** を、プライベートなファイルに書き込みます。そのファイルのシェルクォート済みパスを `<prepared-prompt-file>` に代入します。ユーザーのテキストをシェルのソースに埋め込んではいけません。指摘事項ごとの重大度(Critical、High、Medium、Low のいずれか)と、最後の Recommendation: <action> because <specific reason> の行を要求してください。指摘なしの場合も、その明確な根拠を含めます。
 
 ```bash
 # GSTACK_ACTIVE_HOST names the harness, never the model.
@@ -98,27 +97,24 @@ esac
 echo 'OUTSIDE_STATUS: completed provider=codex host=claude'
 ```
 
-Use Bash `timeout: 600000`; show the full response in a `tool-output` fence. Require successful execution and valid markers. Refusal, empty/malformed output, missing score/severity/completion markers, timeout or CLI failure means `outside_status: unavailable`. P0/P1 findings block like native ones; `OUTSIDE_STATUS: unverified` is missing coverage. Use the caller's fallback; missing coverage is never clean/PASS. After either outcome, delete only your private prompt; scratch cleanup is automatic.
+Bash の `timeout: 600000` を使い、完全なレスポンスを `tool-output` フェンスで表示します。実行が成功し、マーカーが有効であることを必須とします。拒否、空または不正な出力、score/severity/completion マーカーの欠落、タイムアウト、CLI の失敗は `outside_status: unavailable` を意味します。P0/P1 の指摘事項は、ネイティブのものと同様にブロックします。`OUTSIDE_STATUS: unverified` はカバレッジの欠落です。呼び出し元のフォールバックを使います。カバレッジの欠落は、決してクリーン/PASS にはなりません。 どちらの結果でも、自分で作成したプライベートなプロンプトだけを削除します。一時領域のクリーンアップは自動です。
 
-Failed/incomplete outside review → unavailable; disabled → skip outside. Both keep the native pass.
+外部のレビューが失敗または未完了の場合は利用不可とします。無効の場合は外部をスキップします。どちらの場合もネイティブのパスは残します。
 
-Retain the historical review-log skill ID; add `"host":"claude","outside_provider":"codex","outside_status":"completed|unavailable|disabled|skipped","phase":"dx"`. Record differing attempt outcomes separately. `source:"codex"` requires completed CLI output; native uses `source:"in-host"` (historical `source:"claude"`: native Claude). Availability/native fallback is not outside completion. Preserve all reported modelUsage; unknown model identity stays unknown. Under `GSTACK_CODEX_NO_SANDBOX=1` add `"codex_sandbox":"danger-full-access"`.
+従来のレビューログのスキル ID は保持し、次を追加します: `"host":"claude","outside_provider":"codex","outside_status":"completed|unavailable|disabled|skipped","phase":"dx"`。試行ごとに結果が異なる場合は、別々に記録します。`source:"codex"` は CLI の出力が完了していることを必要とします。ネイティブは `source:"in-host"` を使います(従来の `source:"claude"` はネイティブの Claude を指します)。利用可否の確認やネイティブのフォールバックは、外部レビューの完了ではありません。報告されたすべての modelUsage を保持し、不明なモデルは不明のままにします。 `GSTACK_CODEX_NO_SANDBOX=1` の場合は、`"codex_sandbox":"danger-full-access"` を追加します。
 
-  Error handling: Phase 1 failure/degradation policy applies.
+  エラー処理: フェーズ 1 の失敗/縮退の方針が適用されます。
 
-- DX choices: if the outside reviewer disagrees with a DX decision with valid developer empathy reasoning
-  → TASTE DECISION. Scope changes both models agree on → USER CHALLENGE.
+- DX の選択: 外部レビュアーが、妥当な開発者への共感の根拠に基づいて DX の判断に反対している場合 → TASTE DECISION。両方のモデルが同意するスコープの変更 → USER CHALLENGE。
 
-**Required execution checklist (DX):**
+**必須の実行チェックリスト(DX):**
 
-1. Step 0 (DX Investigation, 0A-0G): Auto-detect product type, then settle persona,
-   empathy narrative, competitive benchmark and TTHW target, and trace the developer
-   journey. Score only after this evidence exists; the initial DX score is the
-   pre-fix pass scores.
+1. 手順 0(DX の調査、0A〜0G): 製品のタイプを自動検出し、その後ペルソナ、共感のナラティブ、競合ベンチマーク、TTHW の目標を確定し、開発者の行動を追跡します。
+   この根拠が揃ってから採点してください。初期の DX スコアは、修正前のパスのスコアです。
 
-2. Step 0.5 (Dual Voices): Present the completed calls above under Codex SAYS
-   (DX — developer experience challenge) and Claude SUBAGENT (DX — independent review).
-   Produce DX consensus table:
+2. 手順 0.5(二重の voice): 上記の完了した呼び出しを、Codex SAYS
+   (DX — 開発者体験への挑戦)と Claude SUBAGENT(DX — 独立したレビュー)の下に提示してください。
+   DX の合意の表を作成します:
 
 ```
 DX DUAL VOICES — CONSENSUS TABLE:
@@ -133,23 +129,23 @@ CONFIRMED = native + outside agree; primary cannot replace outside. DISAGREE →
 Missing/disabled voice = N/A, never CONFIRMED. Flag any single-voice critical finding.
 ```
 
-3. Passes 1-8: Run each from loaded skill. Rate 0-10. Auto-decide each issue.
-   DISAGREE items from consensus table → raised in the relevant pass with both perspectives.
+3. パス 1〜8: 読み込んだスキルから、それぞれ実行します。0〜10 で評価します。各問題を自動判断します。
+   合意の表の DISAGREE の項目は、関連するパスで両方の視点とともに提起します。
 
-4. DX Scorecard: Produce the full scorecard with all 8 dimensions scored.
+4. DX スコアカード: 8 つの次元すべてに採点した、完全なスコアカードを作成します。
 
-**Mandatory outputs from Phase 2.5:**
-- Developer journey map (6-stage table from Step 0F)
-- Developer empathy narrative (first-person perspective)
-- DX Scorecard with all 8 dimension scores
-- DX Implementation Checklist
-- TTHW assessment with target
+**フェーズ 2.5 から必須の成果物:**
+- 開発者の行動マップ(手順 0F の 6 段階の表)
+- 開発者の共感のナラティブ(一人称の視点)
+- 8 つの次元すべてのスコアを含む DX スコアカード
+- DX の実装チェックリスト
+- 目標を含む TTHW の評価
 
-**Close this phase:**
+**このフェーズを閉じる:**
 
-The review work above ends here. Now load the shared close steps afresh, even if
-read earlier. Use phase `dx`, checkpoint `<DX_INPUT>`, and this phase's
-`methodologyPath`. Keep this checkpoint for this invocation; review exports do not replace it.
+上記のレビュー作業はここで終わります。ここで、以前に読んでいても、共有の close の手順を改めて読み込んでください。
+フェーズ `dx`、チェックポイント `<DX_INPUT>`、およびこのフェーズの `methodologyPath` を使います。
+この呼び出しのためにこのチェックポイントを保持してください。レビューのエクスポートでこれを置き換えてはいけません。
 
-> **STOP.** Before closing a review phase, after its reviews finish and before announcing completion or loading the next phase (read afresh at each exit), Read `~/.claude/skills/gstack/autoplan/sections/phase-close.md` and execute it
-> in full. Do not work from memory — that section is the source of truth for this step.
+> **STOP.** レビューフェーズの終了(レビューが終わった後、完了の通知または次のフェーズの読み込みより前。終了のたびに読み直す)の前に、Read `~/.claude/skills/gstack/autoplan/sections/phase-close.md` を全文読んで実行してください。
+> 記憶から作業しないこと。このステップの正はそのセクションです。

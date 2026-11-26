@@ -1,224 +1,157 @@
-# AskUserQuestion split rule — full reference
+# AskUserQuestion 分割ルール — 完全リファレンス
 
-Inline summary lives in the canonical preamble (`scripts/resolvers/preamble/generate-ask-user-format.ts`).
-That subsection is intentionally compressed because it injects into every
-tier-2+ skill's `SKILL.md`. This file is the deep reference the inline
-guidance points to — load it when N>4 options come up and you need
-worked examples or the full Hold / dependency / final-summary semantics.
+インラインの要約は正規のプリアンブル(`scripts/resolvers/preamble/generate-ask-user-format.ts`)にあります。
+そのサブセクションは、tier-2 以上のすべてのスキルの `SKILL.md` に注入されるため、意図的に圧縮されています。
+このファイルは、インラインのガイダンスが参照する詳細リファレンスです。N>4 の選択肢が出てきて、作業例や Hold・依存関係・最終サマリの完全な意味が必要になったときに読み込んでください。
 
-## The bug this prevents
+## このルールが防ぐ不具合
 
-Pre-rule failure mode (transcript verbatim from the user complaint that
-motivated this):
+ルール導入前の失敗パターン(このルールの動機となったユーザーからの苦情の原文):
 
-> "I'm hitting Conductor's limit of 4 options in the AUQ, so I need to
-> cut one. E4 (the detect-mappings codegen) is the biggest lift and
-> probably beyond scope for v0.42 anyway — users can hand-author their
-> mapping rules for the 9 clusters. I'll drop that and keep E1, E2, E3,
-> and E5..."
+> 「AUQ では Conductor の上限である 4 件の選択肢に当たってしまうので、1 つ削る必要があります。
+> E4(detect-mappings のコード生成)は最も作業量が大きく、どのみち v0.42 のスコープを超えていそうです。
+> ユーザーは 9 つのクラスタ向けのマッピングルールを手書きできます。これを外して、E1、E2、E3、E5 を残します……」
 >
-> "Conductor caps at 4 options. Trimming: E4 (detect-mappings codegen)
-> is the largest-effort item and a natural v0.43+ follow-up — moving it
-> to TODOS.md without asking. Re-firing with 4."
+> 「Conductor の上限は 4 件です。整理します。E4(detect-mappings のコード生成)は最も工数が大きく、
+> v0.43 以降のフォローアップとして自然なので、確認せずに TODOS.md に移します。4 件で再発行します。」
 
-The agent unilaterally cut a real option without user input. The option
-set is the user's decision space; shrinking it silently is the bug.
+エージェントがユーザーの入力なしに、実在する選択肢を独断で削りました。選択肢の集合はユーザーの決定範囲であり、それを黙って縮めることがこの不具合です。
 
-## Which shape: batched vs. split
+## 一括か分割か
 
-Two compliant shapes. Pick by reading the options:
+準拠する形は 2 通りあります。選択肢を読んで決めてください。
 
-1. **Batched into ≤4-groups** — the options are coherent alternatives,
-   one will be picked. Examples: "major / minor / patch / micro" for a
-   version bump, "5 layout variants where the user picks one", "which
-   framework: rspec / minitest / cucumber / none". Batch the top 4 into
-   one AskUserQuestion; surface the 5th as a follow-up if none of the
-   first 4 fit. This is the lower-friction path when applicable.
+1. **4 件以内のグループにまとめる(一括)** — 選択肢が互いに代替関係にあり、そのうち 1 つが選ばれる場合。例: バージョン更新の 「major / minor / patch / micro」、「ユーザーが 1 つ選ぶ 5 つのレイアウト案」、「どのフレームワークか: rspec / minitest / cucumber / none」。上位 4 件を 1 回の AskUserQuestion にまとめ、最初の 4 件のどれも合わなければ 5 件目をフォローアップとして提示します。適用できる場合は、こちらの方が負担が少なくなります。
 
-2. **Split per-option** — the options are independent scope items, each
-   carrying its own include/defer/cut decision. Examples: "E1..E6, which
-   do we ship?", "5 candidate integrations for Q3", "8 TODOs surfaced by
-   the audit — which do we land?". Fire N sequential AskUserQuestion
-   calls, one per option.
+2. **選択肢ごとに分割** — 選択肢が独立したスコープ項目で、それぞれが含める・延期する・削る、の判断を個別に必要とする場合。例: 「E1..E6 のうち、どれを出荷するか」、「Q3 の候補となる 5 件の連携」、「監査で挙がった 8 件の TODO — どれを取り込むか」。N 回の AskUserQuestion を順番に発行します(選択肢 1 件につき 1 回)。
 
-**Default to split per-option when unsure.** Batching wrong options
-together — shoehorning orthogonal scope items into one question — is
-the same failure mode as dropping.
+**迷ったら選択肢ごとの分割を既定にしてください。** 独立した項目を無理に 1 つの質問にまとめるのは、選択肢を落とすのと同じ失敗パターンです。
 
-## Split per-option mechanics
+## 分割の仕組み
 
-### Before the chain
+### チェーンの前に
 
-Check for dependencies between options. If E3 requires E1, or E5
-conflicts with E2, surface that in the per-option ELI10:
+選択肢同士の依存関係を確認してください。E3 が E1 を必要とする場合や、E5 が E2 と競合する場合は、その選択肢の選択肢別 ELI10 でそれを示します:
 
-> "Cutting this orphans E3 — they're linked."
+> 「これを削ると E3 が取り残されます。両者は連動しています。」
 
-Without dependency surfacing, the chain produces incoherent picked sets
-(user picks Include for E3 + Cut for E1, ships an unbuildable scope).
+依存関係を示さないと、チェーンの結果として整合しない選択集合ができてしまいます(ユーザーが E3 を Include、E1 を Cut と選び、実装できないスコープを出荷してしまう、など)。
 
-### D-numbering
+### D 番号
 
-- Parent decision: `D<N>` where N is the global question counter.
-- Each per-option call: `D<N>.k` for k=1..K children.
-- Final summary: `D<N>.final`.
-- Single-option revise: `D<N>.revise-<k>`.
+- 親の決定: `D<N>`。N は質問の全体カウンタです。
+- 選択肢ごとの呼び出し: `D<N>.k`(k=1..K の子)。
+- 最終サマリ: `D<N>.final`。
+- 単一選択肢の再検討: `D<N>.revise-<k>`。
 
-Example chain for 5 options at parent D3:
+親 D3 での 5 件の選択肢のチェーン例:
 
 ```
 D3.1 → D3.2 → D3.3 → D3.4 → D3.5 → D3.final
 ```
 
-### Per-option call shape
+### 選択肢ごとの呼び出し形式
 
-For each option Eₖ, fire an AskUserQuestion with:
+各選択肢 Eₖ について、次の内容で AskUserQuestion を発行します:
 
-- `D<N>.k` header (e.g. D3.1, D3.2 ... D3.5)
-- ELI10 of just this option's scope, cost, and any dependency it carries
-- Recommendation: Include / Defer / Cut, with concrete reason
-- 4 buckets per option:
-  - **A) Include** in this scope (recommended/not)
-  - **B) Defer** to follow-up (TODOs / next version)
-  - **C) Cut** entirely
-  - **D) Hold** — stop the chain, discuss before deciding
-- Note: options differ in kind, not coverage — no completeness score.
-  (Include/Defer/Cut/Hold are decision actions, so the existing format
-  rule applies: omit `Completeness: N/10` and use the kind-note instead.)
+- `D<N>.k` のヘッダ(例: D3.1、D3.2 ... D3.5)
+- この選択肢のスコープ、コスト、担っている依存関係の ELI10
+- 推奨: Include / Defer / Cut のいずれかと、具体的な理由
+- 選択肢ごとの 4 つのバケット:
+  - **A) Include** このスコープに含める(推奨/非推奨)
+  - **B) Defer** フォローアップに回す(TODO / 次のバージョン)
+  - **C) Cut** 完全に削る
+  - **D) Hold** — チェーンを止めて、決定前に議論する
+- 注意: 選択肢は網羅性の違いではなく種類の違いです。完全性スコアは付けません。
+  (Include/Defer/Cut/Hold は決定のアクションなので、既存の形式ルールが適用されます。`Completeness: N/10` は省略し、種類の注記を使ってください。)
 
-### Hold means stop, not queue
+### Hold は「キューに入れる」ではなく「停止」
 
-When the user picks Hold on any per-option call, **stop the chain
-immediately**. Do not continue asking later options behind the Hold —
-the user wants to discuss the picked option first. After discussion,
-the user resumes by saying "continue" or naming the next option to ask
-about.
+ユーザーが任意の選択肢の呼び出しで Hold を選んだら、**直ちにチェーンを停止**します。Hold 以降の選択肢を続けて質問してはいけません。ユーザーはまず選んだ選択肢を議論したいのです。議論の後、ユーザーが "continue" と言うか、次に尋ねる選択肢の名前を挙げることで再開します。
 
-Wrong behavior: queue E4 and E5 behind a Hold on E3, then fire them
-later with stale context. Right behavior: stop, let the user reset the
-parent decision, resume from where they left off.
+誤った動作: E3 で Hold が出た後も E4 と E5 をキューに入れ、後で古い文脈のまま発行する。
+正しい動作: 停止し、ユーザーが親の決定をやり直せるようにして、中断したところから再開する。
 
-### Final summary
+### 最終サマリ
 
-After the chain resolves (without Hold), fire `D<N>.final` to confirm
-and validate the assembled set.
+チェーンが(Hold なしで)解決した後、`D<N>.final` を発行して、組み立てられた集合を確認・検証します。
 
-**Step 1 — validate dependencies and capacity.** If the picked set is
-incoherent (e.g. E3 is Included but its required E1 was Cut), show the
-conflict and the actual prior answers. Ask which candidate to revisit:
+**ステップ 1 — 依存関係と容量を検証する。** 選択集合が整合していない場合(例: E3 が Include なのに、必要な E1 が Cut されている)、競合と実際の過去の回答を示します。どの候補を見直すかを尋ねます:
 
-> "E3 needs E1. Your answers include E3 and cut E1. Which should we revisit?
-> A) Revisit E1
-> B) Revisit E3
-> C) Hold — leave this conflict unresolved for discussion"
+> 「E3 には E1 が必要です。あなたの回答は E3 を含めつつ E1 を削っています。どちらを見直しますか?
+> A) E1 を見直す
+> B) E3 を見直す
+> C) Hold — この競合は未解決のまま議論する」
 
-This routing answer changes no disposition. For the named candidate,
-fire one `D<N>.revise-<k>` with the standard **Include / Defer / Cut / Hold**
-menu. Hold all other candidates' prior answers fixed. Revalidate dependencies
-and capacity after the answer; never silently cut, swap or include another
-candidate to make the set fit. A Hold stops the chain: retain the actual
-prior answers and explicitly report the unresolved blocking conflict.
-Do not confirm an incoherent set as ready to implement.
+この振り分けの回答では、どの処理も変わりません。指名された候補について、標準の **Include / Defer / Cut / Hold** メニューを使って `D<N>.revise-<k>` を 1 回発行します。他の候補の過去の回答は固定したままにします。回答後に依存関係と容量を再検証してください。他の候補を黙って削ったり、入れ替えたり、含めたりして集合を合わせてはいけません。Hold はチェーンを止めます。実際の過去の回答を保持し、未解決のブロッキング競合を明示的に報告してください。整合しない集合を、実装可能として確定してはいけません。
 
-**Step 2 — confirm the assembled set.** If coherent:
+**ステップ 2 — 組み立てた集合を確認する。** 整合している場合:
 
-> "Here's the assembled set: E1, E2, E5. Ship this scope?
-> A) Ship this scope (recommended)
-> B) Revise one option (you pick which)
-> C) Cut more"
+> 「組み立てた集合はこちらです: E1、E2、E5。このスコープを出荷しますか?
+> A) このスコープを出荷する(推奨)
+> B) 選択肢を 1 つ見直す(どれかはあなたが選ぶ)
+> C) さらに削る」
 
-**Step 3 — targeted revise.** If the user picks B, ask which option to
-revise, then fire ONE per-option AskUserQuestion at `D<N>.revise-<k>`
-to update just that option. Do **not** re-run the whole chain.
+**ステップ 3 — 対象を絞った見直し。** ユーザーが B を選んだら、どの選択肢を見直すかを尋ね、`D<N>.revise-<k>` で選択肢に対する AskUserQuestion を 1 件だけ発行して、その選択肢だけを更新します。チェーン全体を**再実行してはいけません**。
 
-## Sizing rules
+## サイズの規則
 
-- **N ≤ 4**: use the normal single AskUserQuestion form. Don't split.
-- **N = 5 or 6**: split (or batch if a clean grouping exists).
-- **N > 6**: BEFORE the chain, fire a meta-AskUserQuestion at `D<N>.0`:
+- **N ≤ 4**: 通常の単一の AskUserQuestion 形式を使います。分割はしません。
+- **N = 5 または 6**: 分割します(明確なグループ分けがあれば一括にします)。
+- **N > 6**: チェーンの前に、`D<N>.0` でメタの AskUserQuestion を発行します:
 
-  > "About to ask N per-option questions. Options:
-  > A) Proceed with the full split (recommended only if every option is
-  >    independent)
-  > B) Narrow scope first — I'll propose a smaller set
-  > C) Batch into groups of 4 instead"
+  > 「選択肢ごとの質問を N 件行う予定です。選択肢:
+  > A) 全件に分割して進める(すべての選択肢が独立している場合のみ推奨)
+  > B) 先にスコープを絞る — より小さな集合を提案します
+  > C) 代わりに 4 件ずつのグループにまとめる」
 
-  This is itself an AskUserQuestion tool call, not prose — it counts as
-  the first prompt in the chain, not a violation of the "tool not prose"
-  rule.
+  これ自体が AskUserQuestion ツールの呼び出しであり、prose ではありません。チェーンの最初のプロンプトとして数え、「ツールを使い、prose は使わない」ルールへの違反にはなりません。
 
-## question_id rules for split chains
+## 分割チェーンの question_id のルール
 
-Each per-option AskUserQuestion emits a unique `question_id` of the
-form `<skill>-split-<option-slug>` where `<option-slug>` is the option's
-key kebab-cased (lowercase, hyphens, ASCII only).
+選択肢ごとの AskUserQuestion には、`<skill>-split-<option-slug>` の形式の一意な `question_id` を付けます。`<option-slug>` は選択肢のキーをケバブケースにしたものです(小文字、ハイフン、ASCII のみ)。
 
-Examples:
+例:
 - `plan-ceo-review-split-e4-detect-mappings`
 - `ship-split-rspec`
 - `plan-eng-review-split-add-coverage-test`
 
-**Collision handling.** If two options would produce the same slug,
-suffix with `-2`, `-3`, etc.
+**衝突の扱い。** 2 つの選択肢が同じスラッグになる場合は、`-2`、`-3` などを付けて区別します。
 
-**Length.** Total length must be ≤64 chars (validated by
-`bin/gstack-question-preference --write`). Truncate the option slug if
-needed, preserving the `<skill>-split-` prefix.
+**長さ。** 全体の長さは 64 文字以内でなければなりません(`bin/gstack-question-preference --write` で検証されます)。必要なら、`<skill>-split-` の接頭辞を保ったまま選択肢のスラッグを切り詰めてください。
 
-## AUTO_DECIDE behavior with split chains
+## 分割チェーンと AUTO_DECIDE の動作
 
-Two-layer defense.
+防御は 2 層です。
 
-**Layer 1 — mechanism.** Each per-option `question_id` is unique to its
-option, so preferences set on one option's id cannot leak across the
-chain. A `never-ask` on `ship-split-rspec` does not silently approve
-`ship-split-minitest`.
+**第 1 層 — 仕組み。** 選択肢ごとの `question_id` は、その選択肢ごとに一意です。ある選択肢の ID に設定した優先度が、チェーン内で漏れることはありません。`ship-split-rspec` の `never-ask` が `ship-split-minitest` を黙って承認することはありません。
 
-**Layer 2 — runtime enforcement.** `bin/gstack-question-preference
---check` detects any id matching `*-split-*` (the canonical slug pattern
-emitted by split chains) and forces `ASK_NORMALLY` even when a
-`never-ask` or `ask-only-for-one-way` preference exists for that exact
-id. The check emits an explanatory note when this override fires:
+**第 2 層 — 実行時の強制。** `bin/gstack-question-preference --check` は、`*-split-*` に一致する ID(分割チェーンが出力する正規のスラッグのパターン)を検出します。その完全一致の ID に `never-ask` や `ask-only-for-one-way` の優先度があっても、強制的に `ASK_NORMALLY` にします。この上書きが発動すると、次の説明的な注記を出します:
 
-> "split-chain per-option calls always ASK_NORMALLY; your never-ask
-> preference does not apply to options inside a sequential split."
+> 「分割チェーンの選択肢ごとの呼び出しは常に ASK_NORMALLY になります。順次分割の中の選択肢には、あなたの never-ask 設定は適用されません。」
 
-**Result.** Split-chain per-option calls are NEVER AUTO_DECIDE-eligible.
-This is a runtime contract, not just collision-resistance by id
-uniqueness. The user's option set is sacred — restoring user
-sovereignty over the decision space is the entire point of splitting.
+**結果。** 分割チェーンの選択肢ごとの呼び出しは、決して AUTO_DECIDE の対象になりません。これは ID の一意性による衝突回避だけでなく、実行時の契約です。ユーザーの選択肢の集合は侵されてはならず、分割の目的は決定範囲をユーザーの手に取り戻すことにあります。
 
-## Interaction with per-skill rules
+## スキル個別ルールとの関係
 
-This rule **overrides any per-skill "batch decisions" guidance**.
-Per-skill templates that explicitly require one-issue-per-call (e.g.
-`plan-eng-review`) are already compatible — they're a stricter special
-case of this rule.
+このルールは、スキル個別の「決定の一括化」に関するガイダンスより優先します。
+1 件ずつの質問を明示的に要求するスキルのテンプレート(例: `plan-eng-review`)は、すでにこのルールと互換です。それはこのルールのより厳格な特殊ケースだからです。
 
-## Worked example: 5 platform integrations
+## 作業例: 5 つのプラットフォーム連携
 
-Fixture used by `test/skill-e2e-plan-ceo-split-overflow.test.ts`. A plan
-has 5 independent chat-platform candidates:
+`test/skill-e2e-plan-ceo-split-overflow.test.ts` で使われるフィクスチャです。計画には、独立した 5 件のチャットプラットフォームの候補があります:
 
-- E1) Slack DM bot (~2 weeks, ~40% of asks)
-- E2) Discord guild bot (~3 weeks, ~15%)
-- E3) Microsoft Teams (~4 weeks, ~5%)
-- E4) Telegram (~1 week, ~8%)
-- E5) Mattermost (~2 weeks, ~3%)
+- E1) Slack DM ボット(約 2 週間、要望の約 40%)
+- E2) Discord ギルドボット(約 3 週間、約 15%)
+- E3) Microsoft Teams(約 4 週間、約 5%)
+- E4) Telegram(約 1 週間、約 8%)
+- E5) Mattermost(約 2 週間、約 3%)
 
-User wants individual decisions per candidate, not a bundled pick. The
-agent should:
+ユーザーは、まとめての選択ではなく候補ごとの個別の決定を望んでいます。エージェントは次のように行うべきです:
 
-1. Recognize this is a 5-option independent-scope decision → split.
-2. Check dependencies (none here — each platform is standalone).
-3. Fire `D3.1` through `D3.5`, one per platform, with Include / Defer /
-   Cut / Hold buckets and an effort+demand-grounded recommendation per
-   option.
-4. After the chain, fire `D3.final` summarizing the assembled scope
-   (e.g. "Ship E1 + E4 — Slack and Telegram pull most demand for least
-   build cost. Defer the rest. A) Ship / B) Revise / C) Cut more").
+1. これは 5 件の独立したスコープ決定だと認識し、分割する。
+2. 依存関係を確認する(ここではなし — 各プラットフォームは独立している)。
+3. `D3.1` から `D3.5` を、プラットフォームごとに 1 件ずつ、Include / Defer / Cut / Hold のバケットと、選択肢ごとの工数と需要に基づく推奨を付けて発行する。
+4. チェーンの後に `D3.final` を発行して、組み立てたスコープをまとめる(例: 「E1 と E4 を出荷 — Slack と Telegram は、最も少ない開発コストで最も多くの需要を集めています。残りは延期します。A) 出荷 / B) 見直し / C) さらに削る」)
 
-Pre-fix failure shape (the bug): agent constructs a single
-AskUserQuestion with E1..E4 as four options, drops E5 with prose like
-"E5 is the smallest revenue segment, moving to TODOs". The user never
-got to weigh in on E5. Floor-of-4 in the E2E test catches this.
+修正前の失敗パターン(不具合そのもの): エージェントが E1..E4 の 4 件を選択肢にした単一の AskUserQuestion を作り、「E5 は最も小さな収益セグメントなので TODO に移す」といった prose で E5 を落とします。ユーザーは E5 について判断する機会を得られません。E2E テストの「最低 4 件」の下限が、この失敗を検出します。

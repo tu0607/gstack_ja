@@ -23,7 +23,6 @@ const literals = {
   capture: `printf 'ERROR:typecheck CAPTURE:%s\\n' "\${1}" >&2`,
   preview: `_PORT=$(lsof -i -P -n | grep "$_SERVER_PID" | grep LISTEN | awk '{print $(9)}' | cut -d: -f2 | head -1)`,
   title: '# Bash-side title sanitize. Pass the raw title via TITLE_RAW when running this block.',
-  cost: '- A) Enable judge (adds about USD 0.05). Completeness: 10/10.',
 };
 
 beforeAll(async () => {
@@ -60,8 +59,11 @@ for (const host of ['claude', 'codex'] as const) for (const args of [[], tenArgu
       capture: skill(host, 'health').match(/printf 'ERROR:typecheck[^\n]+/)![0],
       preview: skill(host, 'design-html').match(/_PORT=\$[^\n]+/)![0],
       title: skill(host, 'context-save').match(/# Bash-side title sanitize\.[^\n]+/)![0],
-      cost: skill(host, 'benchmark-models').match(/- A\) Enable judge[^\n]+/)![0],
     };
+    // The cost option line is Japanese prose: pin only the machine-significant tokens (option label, price, score).
+    const cost = skill(host, 'benchmark-models').match(/^ *- A\) [^\n]*USD 0\.05[^\n]*$/m)![0];
+    expect(cost).toContain('完全性: 10/10');
+    expect(apply(cost)).toBe(cost);
     expect(actual).toEqual(literals);
     expect(Object.fromEntries(Object.entries(actual).map(([key, value]) => [key, apply(value)]))).toEqual(literals);
     for (const name of ['gstack-upgrade', 'health', 'design-html', 'context-save', 'benchmark-models']) {
@@ -69,7 +71,7 @@ for (const host of ['claude', 'codex'] as const) for (const args of [[], tenArgu
       expect(text.match(/\$\d+/g), name).toBeNull();
       expect(apply(text)).toBe(text);
     }
-    expect(skill(host, 'benchmark-models')).toContain('Adds about USD 0.05/run.');
+    expect(skill(host, 'benchmark-models')).toContain('USD 0.05');
   });
   for (const backslashPath of [false, true]) test(`${label}: both checksum tools ${backslashPath ? 'handle backslash paths' : 'retain the digest field'}`, () => {
     const file = backslashPath ? join(root, 'checksum\\path', 'install-script') : join(root, 'install-script');

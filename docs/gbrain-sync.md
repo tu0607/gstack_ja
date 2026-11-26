@@ -1,236 +1,162 @@
-# Cross-machine memory with GBrain sync
+# GBrain 同期によるマシン間のメモリ共有
 
-gstack writes a lot of useful state to `~/.gstack/` — learnings, retros, CEO
-plans, design docs, developer profile. By default, all of that dies when you
-switch laptops. **GBrain sync** pushes a curated subset to a private git
-repo so your memory follows you across machines and becomes indexable by
-GBrain.
+gstack は、learnings、retros、CEO のプラン、設計ドキュメント、開発者プロファイルなど、`~/.gstack/` に多くの有用な状態を書き込みます。デフォルトでは、ノートパソコンを替えるとそれらはすべて失われます。**GBrain 同期**は、その一部を非公開の git リポジトリに push するので、メモリがマシン間で引き継がれ、GBrain からインデックス検索できるようになります。
 
-## What you get
+## 得られるもの
 
-- Work on machine A, pick up seamlessly on machine B.
-- Your learnings, plans, and designs are visible in GBrain (if you use it).
-- A clean off-ramp (`gstack-brain-uninstall`) that never touches your data.
-- No daemon, no system service, no background process.
+- マシン A で作業し、マシン B でそのまま続けられる。
+- learnings、plans、designs が GBrain で見える(GBrain を使っている場合)。
+- 綺麗に抜けられる出口(`gstack-brain-uninstall`)があり、データには一切触れない。
+- デーモンなし、システムサービスなし、バックグラウンドプロセスなし。
 
-## What does NOT leave your machine
+## マシンの外に出ないもの
 
-By design, these stay local even when sync is on:
+設計上、同期を有効にしていても、次のものはローカルに留まります。
 
-- Credentials: `.auth.json`, `auth-token.json`, `sidebar-sessions/`,
-  `security/device-salt`
-- Machine-specific state: Chromium profiles, ONNX model weights,
-  caches, eval-cache, CDP-profile, one-time prompt markers
-  (`.welcome-seen`, `.telemetry-prompted`, `.vendoring-warned-*`, etc.)
-- Question-preferences: per-machine UX preferences
-  (`question-preferences.json`, `question-log.jsonl`, `question-events.jsonl`).
+- 認証情報: `.auth.json`、`auth-token.json`、`sidebar-sessions/`、`security/device-salt`
+- マシン固有の状態: Chromium のプロファイル、ONNX モデルの重み、キャッシュ、eval-cache、CDP-profile、一回限りのプロンプトのマーカー(`.welcome-seen`、`.telemetry-prompted`、`.vendoring-warned-*` など)
+- 質問の設定: マシンごとの UX 設定(`question-preferences.json`、`question-log.jsonl`、`question-events.jsonl`)。
 
-The exact allowlist lives in `~/.gstack/.brain-allowlist`. The CLI manages
-it; you can append your own entries below the marker line.
+正確な allowlist は `~/.gstack/.brain-allowlist` にあります。CLI がこれを管理しますが、マーカー行の下に自分のエントリを追加できます。
 
-## First-run setup (30–90 seconds)
+## 初回セットアップ(30〜90 秒)
 
 ```bash
 gstack-artifacts-init
 ```
 
-The command:
+このコマンドは次のことを行います。
 
-1. Turns `~/.gstack/` into a git repo.
-2. Asks for a remote URL (default: `gh repo create --private
-   gstack-artifacts-$USER`). Any git remote works — GitHub, GitLab, Gitea,
-   self-hosted.
-3. Pushes an initial commit with just the config.
-4. Writes `~/.gstack-artifacts-remote.txt` (URL-only, no secrets —
-   safe to copy to another machine).
-5. Prints the `gbrain sources add` hookup command for the brain host
-   (never auto-executed — run it yourself, or on your own machine
-   `bin/gstack-gbrain-source-wireup` does the same wiring) so
-   `gbrain search` can index your synced learnings, plans, and designs.
-   The old `gstack-brain-reader add --ingest-url ...` HTTP path was
-   removed in v1.15.1.0 — it depended on a `/ingest-repo` endpoint gbrain
-   never shipped.
+1. `~/.gstack/` を git リポジトリにする。
+2. リモート URL を尋ねる(デフォルトは `gh repo create --private gstack-artifacts-$USER`)。どの git リモートでも使えます。GitHub、GitLab、Gitea、セルフホストのものなどです。
+3. 設定だけを含む初回コミットを push する。
+4. `~/.gstack-artifacts-remote.txt` を書き出す(URL のみで、秘密情報は含まない。別のマシンにコピーしても安全)。
+5. brain ホスト用の `gbrain sources add` の接続コマンドを表示する(自動では実行されません。自分で実行するか、自分のマシンでは `bin/gstack-gbrain-source-wireup` が同じ接続を行います)。これにより `gbrain search` で、同期された learnings、plans、designs を検索できるようになります。古い `gstack-brain-reader add --ingest-url ...` による HTTP の経路は、v1.15.1.0 で削除されました。それは gbrain が一度も出荷しなかった `/ingest-repo` エンドポイントに依存していたためです。
 
-After init, the **next skill you run** will ask you ONE question about
-privacy mode:
+初期化の後、**次に実行するスキル**が、プライバシーモードについて1つだけ質問します。
 
-- **Everything allowlisted (recommended)**: learnings, reviews, plans,
-  designs, retros, timelines, and developer profile all sync.
-- **Only artifacts**: plans, designs, retros, learnings — skip
-  behavioral data (timelines, developer profile).
-- **Decline**: keep everything local. You can turn sync on later with
-  `gstack-config set artifacts_sync_mode full`.
+- **allowlist のものをすべて同期(推奨)**: learnings、reviews、plans、designs、retros、timelines、開発者プロファイルのすべてが同期されます。
+- **artifacts のみ**: plans、designs、retros、learnings のみ。振る舞いに関するデータ(timelines、開発者プロファイル)はスキップします。
+- **辞退**: すべてをローカルに保ちます。後で `gstack-config set artifacts_sync_mode full` で同期を有効にできます。
 
-Your answer is persisted. You won't be asked again.
+回答は保存され、二度と尋ねられません。
 
-## Cross-machine workflow
+## マシン間のワークフロー
 
-On machine A: run `gstack-artifacts-init` once. That's it — every skill
-invocation now drains the sync queue at its start and end boundaries
-(~200–800 ms network pause per skill).
+マシン A では、`gstack-artifacts-init` を一度実行するだけです。それ以降、スキルを実行するたびに、開始時と終了時に同期キューがドレインされます(スキルごとに約 200〜800 ミリ秒のネットワーク待ち時間が発生します)。
 
-On machine B:
+マシン B では:
 
-1. Copy `~/.gstack-artifacts-remote.txt` from machine A to machine B
-   (password manager, dotfile repo, USB stick — your call; the legacy
-   `~/.gstack-brain-remote.txt` name is still recognized).
-2. Run any gstack skill. The preamble sees the URL file and prints:
+1. マシン A の `~/.gstack-artifacts-remote.txt` を、マシン B にコピーする(パスワードマネージャー、dotfile リポジトリ、USB メモリなど、お好きな方法で。従来の `~/.gstack-brain-remote.txt` という名前も引き続き認識されます)。
+2. gstack のスキルを何か実行する。preamble が URL ファイルを見つけ、次を表示します。
    ```
    BRAIN_SYNC: brain repo detected: <url>
    BRAIN_SYNC: run 'gstack-brain-restore' to pull your cross-machine memory
    ```
-3. Run `gstack-brain-restore`. That clones the repo, rehydrates your
-   learnings/plans/retros, and re-registers the git merge drivers.
-4. Next skill: your yesterday-on-machine-A learning surfaces. That's the
-   magical moment.
+3. `gstack-brain-restore` を実行する。これでリポジトリがクローンされ、learnings、plans、retros が復元され、git のマージドライバが再登録されます。
+4. 次のスキル: マシン A で昨日書いた learning が表示されます。ここがこの仕組みの醍醐味です。
 
-## Status, health, and queue depth
+## ステータス、健全性、キューの深さ
 
 ```bash
 gstack-brain-sync --status
 ```
 
-Shows: the status (`ok`, `idle`, `held`, `collision`, `blocked`,
-`push_failed`, `error`), files held back by the secret scan with their
-fixes, files held because their path differs only by letter case from
-another path (`case_held`, `case_names`; see
-[troubleshooting](troubleshooting.md#artifact-case-collision)), the
-`drainable` count, the last sync and push times, pending queue depth, and
-the current privacy mode.
+表示される内容: ステータス(`ok`、`idle`、`held`、`collision`、`blocked`、`push_failed`、`error`)、シークレットスキャンで保留されたファイルとその対処、パスが別のパスと大文字・小文字の違いだけであるため保留されたファイル(`case_held`、`case_names`。[troubleshooting](troubleshooting.md#artifact-case-collision) を参照)、`drainable` の件数、最後の同期と push の時刻、保留中のキューの深さ、現在のプライバシーモード。
 
-Every skill run prints an `ARTIFACTS_SYNC:` line near the top of the
-preamble output. When the sync is stuck it adds an
-`ARTIFACTS_SYNC: attention:` line; the table of those lines and their fixes
-is in [gbrain-sync-errors.md](gbrain-sync-errors.md#artifacts_sync-attention--at-skill-start).
+スキルを実行するたびに、preamble の出力の上のほうに `ARTIFACTS_SYNC:` の行が表示されます。同期が止まっている場合は、`ARTIFACTS_SYNC: attention:` の行が追加されます。その行の一覧と対処は [gbrain-sync-errors.md](gbrain-sync-errors.md#artifacts_sync-attention--at-skill-start) にあります。
 
-## Privacy modes in detail
+## プライバシーモードの詳細
 
-| Mode | What syncs |
+| モード | 同期される内容 |
 |------|------------|
-| `off` | Nothing (default). |
-| `artifacts-only` | Plans, designs, retros, learnings, reviews. Skips timelines + developer-profile. |
-| `full` | Everything in the allowlist, including behavioral state. |
+| `off` | 何も同期しない(デフォルト)。 |
+| `artifacts-only` | Plans、designs、retros、learnings、reviews。timelines と開発者プロファイルはスキップします。 |
+| `full` | allowlist のすべて。振る舞いに関する状態を含みます。 |
 
-Change anytime with:
+いつでも次のコマンドで変更できます。
 ```bash
 gstack-config set artifacts_sync_mode full
 gstack-config set artifacts_sync_mode off
 ```
 
-## Removed and moved files
+## 削除・移動されたファイル
 
-By default the sync never publishes a removal: delete a synced design doc,
-or move a project directory (a project slug migration does), and the old
-path stays on the remote, where the brain keeps indexing it next to the new
-copy. To publish removals too:
+デフォルトでは、同期は削除を公開しません。同期済みの設計ドキュメントを削除したり、プロジェクトのディレクトリを移動したり(プロジェクトのスラッグ移行でも起こります)すると、古いパスはリモートに残り、brain は新しいコピーと並べてそれも索引化し続けます。削除も公開するには、次を実行します。
 
 ```bash
 gstack-config set artifacts_sync_removals on
 ```
 
-Each sync then commits the removal of synced files that are gone from disk.
-Transcript pages are left alone, and a decision log and its active snapshot
-go only together. A sync that would remove more than 20 files at once
-publishes none of them: that looks like a loss, not a cleanup. Review and
-publish those yourself, whatever the setting:
+この設定の下では、各同期で、ディスク上にもうない同期済みファイルの削除がコミットされます。トランスクリプトのページは対象外です。決定ログとそのアクティブなスナップショットは、常にセットで扱われます。一度に20件を超えるファイルを削除しようとする同期は、そのどれも公開しません。それは片付けではなく、データの消失に見えるからです。設定にかかわらず、それらは自分で確認して公開してください。
 
 ```bash
 gstack-brain-sync --publish-removals        # list them
 gstack-brain-sync --publish-removals --yes  # commit and push their removal
 ```
 
-## Secret protection
+## シークレットの保護
 
-Every commit is scanned for credential-shaped content before it leaves
-your machine. Blocked patterns include:
+すべてのコミットは、マシンを出る前に、認証情報の形をした内容がないかスキャンされます。ブロック対象のパターンには次が含まれます。
 
-- AWS access keys (`AKIA…`)
-- GitHub tokens (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`, `github_pat_`)
-- OpenAI keys (`sk-…`)
-- PEM blocks (`-----BEGIN …-----`)
-- JWTs (`eyJ…`)
-- Bearer tokens in JSON (`"authorization": "…"`, `"api_key": "…"`, etc.)
+- AWS のアクセスキー(`AKIA…`)
+- GitHub のトークン(`ghp_`、`gho_`、`ghu_`、`ghs_`、`ghr_`、`github_pat_`)
+- OpenAI のキー(`sk-…`)
+- PEM ブロック(`-----BEGIN …-----`)
+- JWT(`eyJ…`)
+- JSON 内の Bearer トークン(`"authorization": "…"`、`"api_key": "…"` など)
 
-If a scan hits, only the flagged file is held back (with any file coupled
-to it); everything else syncs. The held file stays queued and is re-scanned
-at every sync, and skill start prints:
+スキャンに引っかかった場合、旗の立ったファイル(と、それに連動するファイル)だけが保留され、残りは同期されます。保留されたファイルはキューに残り、同期のたびに再スキャンされます。スキル開始時には次のように表示されます。
 
 ```
 ARTIFACTS_SYNC: attention: status=held held=1. The secret scan is holding back 1 file(s); everything else still syncs. See which files and how to fix them: <bin> --status
 ```
 
-To remediate:
+対処方法:
 
-1. Run `gstack-brain-sync --status` (the line prints its absolute path). Each
-   entry under `held` names the file, the scanner rule and both fixes.
-2. If the match is a false positive on content you never want synced, run
-   `gstack-brain-sync --skip-file <path>` to permanently exclude that path;
-   `gstack-brain-sync --unskip-file <path>` undoes it.
-3. Otherwise, edit the file to remove the secret; the next skill run syncs it.
+1. `gstack-brain-sync --status` を実行する(その行には絶対パスが表示されます)。`held` の下の各項目には、ファイル、スキャナのルール、両方の対処が表示されます。
+2. 同期したくないコンテンツに対する誤検知であれば、`gstack-brain-sync --skip-file <path>` を実行して、そのパスを恒久的に除外する。`gstack-brain-sync --unskip-file <path>` で元に戻せます。
+3. それ以外の場合は、ファイルを編集してシークレットを取り除く。次のスキル実行で同期されます。
 
-There's a defense-in-depth hook at `~/.gstack/.git/hooks/pre-commit` that
-runs the same scan if you manually `git commit` against the repo.
+`~/.gstack/.git/hooks/pre-commit` には、多層防御のフックがあります。リポジトリに対して手動で `git commit` した場合も、同じスキャンが実行されます。
 
-Separately (v1.63.0.0+), every push writes a tamper-evident receipt to the
-egress ledger (`~/.gstack/security/egress.jsonl`) *before* anything is
-sent, fail-closed: if the receipt can't be written, the push is refused
-and the queue is preserved. Inspect the ledger with `gstack-egress list`
-and verify its hash chain with `gstack-egress verify`.
+別途(v1.63.0.0 以降)、すべての push は、何かが送信される*前に*、改ざん検知可能な受領書を egress 台帳(`~/.gstack/security/egress.jsonl`)に書き込みます。失敗時は閉じる方式です。受領書を書けなければ、push は拒否され、キューは保持されます。台帳は `gstack-egress list` で確認でき、ハッシュチェーンは `gstack-egress verify` で検証できます。
 
-## Two-machine conflicts
+## 2台のマシンでの競合
 
-If you write on machine A and machine B the same day, both will push
-append commits. Git's default would conflict at the file tail, but the
-`.jsonl` and markdown files are registered with custom merge drivers:
+マシン A とマシン B で同じ日に書き込むと、どちらも追記コミットを push します。git のデフォルトでは、ファイル末尾で競合しますが、`.jsonl` ファイルと markdown ファイルには独自のマージドライバが登録されています。
 
-- JSONL files use a sort-and-dedup driver that orders appends by ISO
-  timestamp (falls back to SHA-256 hash of each line for determinism).
-- Markdown artifacts (retros, plans, designs) use a union merge driver
-  that concatenates both sides.
+- JSONL ファイルは、ソートと重複排除のドライバを使い、ISO のタイムスタンプで追記を並べ替えます(決定的になるよう、タイムスタンプがない場合は各行の SHA-256 ハッシュにフォールバックします)。
+- Markdown の artifact(retros、plans、designs)は、両側を連結する union マージドライバを使います。
 
-You shouldn't see conflict prompts. If you do (a real semantic conflict,
-like two machines editing the same plan), git will stop and prompt.
+競合の確認を求められることはないはずです。もし求められた場合(たとえば同じプランを2台のマシンで編集したなど、実際の意味的な競合)、git は停止して確認を求めます。
 
-## Cross-machine pull cadence
+## マシン間の pull の頻度
 
-The preamble runs `git fetch` + `git merge --ff-only` once per 24 hours
-(cached via `~/.gstack/.brain-last-pull`). You don't need to think about
-this — it happens automatically at the first skill invocation each day.
+preamble は、24 時間に1回 `git fetch` と `git merge --ff-only` を実行します(`~/.gstack/.brain-last-pull` でキャッシュされます)。これを気にする必要はありません。毎日最初にスキルを呼び出すときに、自動で行われます。
 
-Historical note (#2516): that daily pull refreshed only `~/.gstack` itself —
-NOT the detached worktree at `~/.gstack-brain-worktree` that gbrain actually
-indexes, so the brain silently served stale pages until the next
-setup-gbrain/sync-gbrain run. Since this fix, the daily sync also advances
-the brain worktree (`gstack-gbrain-source-wireup --advance-only`, throttled
-via `~/.gstack/.brain-worktree-last-advance`); a failed advance warns instead
-of failing silently, and never force-resets a dirty worktree.
+歴史的な注記(#2516): 以前の毎日の pull は `~/.gstack` 自体しか更新せず、gbrain が実際にインデックス化している `~/.gstack-brain-worktree` のデタッチされたワークツリーは更新していませんでした。そのため、次の setup-gbrain/sync-gbrain が実行されるまで、brain は古いページを黙って提供し続けていました。この修正以降、毎日の同期はブレインのワークツリーも進めます(`gstack-gbrain-source-wireup --advance-only`。`~/.gstack/.brain-worktree-last-advance` でスロットルされます)。進められなかった場合は、黙って失敗するのではなく警告を出し、汚れたワークツリーを強制的にリセットすることはありません。
 
-## Uninstall
+## アンインストール
 
 ```bash
 gstack-brain-uninstall
 ```
 
-This:
+これは次のことを行います。
 
-- Removes `~/.gstack/.git/` and all `.brain-*` config files.
-- Clears `artifacts_sync_mode` in `gstack-config`.
-- Does NOT touch your learnings, plans, retros, or developer profile.
+- `~/.gstack/.git/` と、すべての `.brain-*` 設定ファイルを削除する。
+- `gstack-config` の `artifacts_sync_mode` をクリアする。
+- learnings、plans、retros、開発者プロファイルには一切触れない。
 
-Add `--delete-remote` to also delete the private GitHub repo (GitHub only,
-uses `gh repo delete`).
+非公開の GitHub リポジトリも削除する場合は、`--delete-remote` を追加してください(GitHub のみ。`gh repo delete` を使います)。
 
-Re-init anytime with `gstack-artifacts-init`.
+いつでも `gstack-artifacts-init` で再初期化できます。
 
-## Troubleshooting
+## トラブルシューティング
 
-See [gbrain-sync-errors.md](gbrain-sync-errors.md) for an index of every
-error message gstack-brain may print, with problem / cause / fix for each.
+gstack-brain が表示しうるエラーメッセージの一覧と、それぞれの問題・原因・対処は [gbrain-sync-errors.md](gbrain-sync-errors.md) を参照してください。
 
-## Under the hood
+## 内部の仕組み
 
-The architectural decisions behind this feature: allowlist over denylist
-(unknown files stay local by default), preamble-boundary sync over a daemon
-(no background process to babysit), a JSONL merge driver so concurrent
-machines union their queues instead of conflicting, and a privacy stop-gate
-that asks once before anything syncs.
+この機能の背後にある設計判断は次のとおりです。拒否リストよりも許可リスト(未知のファイルはデフォルトでローカルに留まる)、デーモンよりも preamble の境界での同期(面倒を見るべきバックグラウンドプロセスがない)、同時に動くマシンのキューを和集合にできる JSONL マージドライバ、そして何かが同期される前に一度だけ確認するプライバシーのゲートです。

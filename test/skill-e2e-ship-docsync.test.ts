@@ -23,7 +23,7 @@ async function runShipDocs(testName: string, scenario: DocsScenario) {
     const prBody = fs.readFileSync(path.join(fixture.skills, 'ship/sections/pr-body.md'), 'utf8');
     const phase = path.join(fixture.home, 'phase.md');
     const storePointer = fs.readFileSync(path.join(process.env.DOCSYNC_GENERATED_ROOT || path.resolve(import.meta.dir, '..'), 'ship/sections/apple-release.md'), 'utf8')
-      .split('\n').find(line => line.startsWith('**Documentation preflight:**'));
+      .split('\n').find(line => /^\*\*(?:Documentation preflight|ドキュメントの事前確認):\*\*/.test(line));
     if (!storePointer) throw new Error('store documentation preflight pointer moved');
     fs.writeFileSync(phase, docsShipPhase(skeleton, prBody, scenario, storePointer));
     const report = path.join(fixture.home, 'ship-report.md');

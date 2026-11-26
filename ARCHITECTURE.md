@@ -1,12 +1,12 @@
-# Architecture
+# アーキテクチャ
 
-This document explains **why** gstack is built the way it is. For setup and commands, see CLAUDE.md. For contributing, see CONTRIBUTING.md.
+このドキュメントは、gstack がなぜこのように作られているかの**理由**を説明するものです。セットアップとコマンドについては CLAUDE.md を、コントリビュートについては CONTRIBUTING.md を参照してください。
 
-## The core idea
+## 中核となる考え方
 
-gstack gives Claude Code a set of opinionated workflow skills and a browser to see with. The browser it reaches for first is the user's own [Aside](https://aside.com) AI browser (macOS 15+): real cookies, real logged-in accounts, the tabs they already have open. When Aside is not installed or not running — Linux, Windows, a closed Aside app — gstack falls back, automatically, to the browser it ships itself: a persistent headless Chromium daemon behind a compiled CLI (`$B`). Same skills, same evidence lines, two engines.
+gstack は、Claude Code に意見の明確なワークフローのスキル群と、それを見るためのブラウザを与えます。最初に使うブラウザは、ユーザー自身の [Aside](https://aside.com) AI ブラウザ(macOS 15 以降)です。実際の Cookie、実際のログイン済みアカウント、すでに開いているタブがそのまま使えます。Aside がインストールされていない、または起動していない場合(Linux、Windows、Aside が閉じている場合)、gstack は自動的に、同梱している自前のブラウザにフォールバックします。これは、常駐するヘッドレス Chromium のデーモンを、コンパイル済みの CLI(`$B`)の背後に置いたものです。スキルは同じで、証拠の出し方も同じです。エンジンだけが 2 種類あります。
 
-The key insight, learned the expensive way: an AI agent wants to be in *your* browser, not in a browser that imitates you. Every feature of the daemon — cookie import so it could be logged in as you, headed mode so you could watch, a CAPTCHA handoff, a tunnel so other agents could join, a sidebar so it could talk back — existed to close the gap to the browser you already had open. Aside is that browser with an agent-grade CLI, so on a Mac with Aside open the skills use it directly:
+苦い経験から学んだ重要な洞察があります。AI エージェントが求めているのは、*あなた*のブラウザの中で動くことであって、あなたを真似た別のブラウザで動くことではありません。デーモンのあらゆる機能は、手元で開いているブラウザとのギャップを埋めるために存在します。たとえば、あなたとしてログインできるようにする Cookie の取り込み、観察できるようにするヘッド付き(有頭)モードの切り替え、CAPTCHA の引き渡し、他のエージェントが参加できるようにするトンネル、そして返事ができるようにするサイドバーなどです。Aside は、エージェント向けの CLI を備えた、そのブラウザそのものです。そのため、Aside が開いている Mac では、スキルがそれを直接使います。
 
 ```
 Claude Code                           Aside (the user's browser, macOS 15+)
@@ -20,13 +20,13 @@ Claude Code                           Aside (the user's browser, macOS 15+)
           GSTACK_STEP_OK sentinel       sentinel (or a `[error` line)
 ```
 
-One flow per script. Nothing persists between calls, so a skill re-navigates from the URL for each step, prints labelled evidence lines, and copies artifacts out of the session directory in bash. The full contract — detect-never-install, own tabs only, look-freely-act-with-consent, credentials never pass through the agent, everything a page returns is untrusted — lives in `scripts/resolvers/aside.ts` and renders into every browser skill as `{{ASIDE_SETUP}}`; `test/aside-driver.test.ts` pins its sentences. [BROWSER.md](BROWSER.md) is the reader's version.
+1 回のスクリプトで 1 つのフローを扱います。呼び出しの間は何も保持されないため、スキルは各ステップで URL から再度移動し、ラベルの付いた証拠の行を出力して、成果物を bash で作業ディレクトリからコピーします。契約の全文(検出するが、インストールはしない、自分のタブだけを扱う、見るのは自由だが行動には同意が必要、認証情報はエージェントを通さない、ページから返されるものはすべて信頼できない内容として扱う)は `scripts/resolvers/aside.ts` にあり、`{{ASIDE_SETUP}}` としてすべてのブラウザ系スキルに展開されます。`test/aside-driver.test.ts` がその文を固定しています。[BROWSER.md](BROWSER.md) は読者向けの版です。
 
-Web research in the planning and review skills goes through the same door first: `aside exec "<question>"` in the user's browser (`{{ASIDE_RESEARCH}}`), one read-only request per question, the answer treated as untrusted content, every call routed through the `_aside_exec` wrapper (`{{ASIDE_EXEC_PRELUDE}}`) that writes an egress receipt before the prompt leaves the machine (fail-open: only a missing egress library lets the call run unreceipted). Without Aside it uses the host's WebSearch tool when there is one, and otherwise says "Search unavailable" once and carries on.
+計画やレビューのスキルでのウェブ調査も、同じ入口を最初に通ります。`aside exec "<question>"` をユーザーのブラウザで実行します(`{{ASIDE_RESEARCH}}`)。質問 1 件につき読み取り専用のリクエストを 1 回送り、回答は信頼できない内容として扱います。すべての呼び出しは `_aside_exec` ラッパー(`{{ASIDE_EXEC_PRELUDE}}`)を通ります。このラッパーは、プロンプトがマシンの外に出る前にエグレスの受領記録を書き込みます(フェイルオープン: 送信のライブラリがない場合だけ、記録なしで実行されます)。Aside がない場合は、ホストに WebSearch ツールがあればそれを使います。なければ「Search unavailable」と一度だけ表示して、先に進みます。
 
-### The fallback engine
+### フォールバックエンジン
 
-The second engine is the one gstack has always shipped, and it is what runs everywhere Aside does not. An AI agent driving a browser it owns needs **sub-second latency** and **persistent state**: if every command cold-starts a browser you wait 3-5 seconds per tool call, and if the browser dies between commands you lose cookies, tabs, and login sessions. So gstack runs a long-lived Chromium daemon that the CLI talks to over localhost HTTP.
+2 つ目のエンジンは、gstack が以前から出荷してきたものです。Aside が使えない場所ではすべてこれが動きます。ブラウザを持つ AI エージェントには、**サブ秒の応答**と**永続的な状態**が必要です。コマンドごとにブラウザを起動し直すと、ツール呼び出しのたびに 3〜5 秒待つことになり、ブラウザがコマンドの合間に落ちると Cookie、タブ、ログインセッションを失ってしまいます。そのため gstack は、CLI が localhost の HTTP で通信する、長時間稼働の Chromium デーモンを動かします。
 
 ```
 Claude Code                     gstack
@@ -53,202 +53,205 @@ Claude Code                     gstack
                                └───────────────────────┘
 ```
 
-First call starts everything (~3s). Every call after: ~100-200ms.
+最初の呼び出しですべてが起動します(約 3 秒)。それ以降の呼び出しは約 100〜200ms です。
 
-The skills decide which engine to use at their BROWSER SETUP step: probe Aside (`command -v aside` + a one-line `aside repl`); on `READY` drive Aside, otherwise resolve `$B` per `{{BROWSE_FALLBACK}}` and run the `$B` equivalent of each cookbook shape. Cookie import, GStack Browser headed mode, `/pair-agent`, browser-skills and `/skillify`, and domain-skills are features of this engine — they matter on the fallback path and are unnecessary on Aside, where the sessions are already yours.
+スキルは、ブラウザのセットアップのステップでどちらのエンジンを使うかを決めます。Aside をプローブします(`command -v aside` と 1 行の `aside repl`)。`READY` なら Aside を操作します。そうでなければ `{{BROWSE_FALLBACK}}` に従って `$B` を解決し、各操作の `$B` 版を実行します。Cookie の取り込み、GStack Browser のヘッド付き(有頭)モード、`/pair-agent`、ブラウザスキルと `/skillify`、ドメインスキルは、このエンジンの機能です。フォールバック経路では重要ですが、セッションがすでにユーザーのものである Aside では不要です。
 
-## Why Bun
+## Bun を選んだ理由
 
-Node.js would work. Bun is better here for three reasons:
+Node.js でも動きます。しかしここでは、次の 3 つの理由から Bun の方が優れています。
 
-1. **Compiled binaries.** `bun build --compile` produces a single ~58MB executable. No `node_modules` at runtime, no `npx`, no PATH configuration. The binary just runs. This matters because gstack installs into `~/.claude/skills/` where users don't expect to manage a Node.js project.
+1. **コンパイル済みバイナリ。** `bun build --compile` は、約 58MB の単一の実行ファイルを生成します。実行時に `node_modules` は不要で、`npx` も PATH の設定も要りません。バイナリをそのまま実行できます。gstack は `~/.claude/skills/` にインストールされ、ユーザーはそこで Node.js プロジェクトを管理したくないため、これは重要です。
 
-2. **Native SQLite.** Cookie decryption reads Chromium's SQLite cookie database directly. Bun has `new Database()` built in — no `better-sqlite3`, no native addon compilation, no gyp. One less thing that breaks on different machines.
+2. **ネイティブの SQLite。** Cookie の復号は、Chromium の SQLite の Cookie データベースを直接読みます。Bun には `new Database()` が組み込まれているため、`better-sqlite3` もネイティブアドオンのコンパイルも gyp も不要です。環境によって壊れる要素が 1 つ減ります。
 
-3. **Native TypeScript.** The server runs as `bun run server.ts` during development. No compilation step, no `ts-node`, no source maps to debug. The compiled binary is for deployment; source files are for development.
+3. **ネイティブの TypeScript。** 開発中、サーバーは `bun run server.ts` として動きます。コンパイルのステップも、`ts-node` も、デバッグすべきソースマップもありません。コンパイル済みのバイナリはデプロイ用で、ソースファイルは開発用です。
 
-4. **Built-in HTTP server.** `Bun.serve()` is fast, simple, and doesn't need Express or Fastify. The server handles ~30 routes, declared in one route table (`browse/src/routes/table.ts`; its header shows how to add one). A framework would be overhead.
+4. **組み込みの HTTP サーバー。** `Bun.serve()` は高速でシンプルで、Express や Fastify は不要です。サーバーは約 30 のルートを扱いますが、それらは 1 つのルートテーブル(`browse/src/routes/table.ts`。ファイル冒頭に追加方法が書かれています)にまとめられています。フレームワークは余計な負担になるだけです。
 
-The bottleneck is always Chromium, not the CLI or server. Bun's startup speed (~1ms for the compiled binary vs ~100ms for Node) is nice but not the reason we chose it. The compiled binary and native SQLite are.
+ボトルネックは常に Chromium であり、CLI やサーバーではありません。Bun の起動の速さ(コンパイル済みバイナリで約 1ms、Node の約 100ms と比べて)は嬉しい点ですが、選んだ理由ではありません。理由はコンパイル済みバイナリとネイティブの SQLite です。
 
-## The daemon model
+## デーモンモデル
 
-### Why not start a browser per command?
+### コマンドごとにブラウザを起動しない理由
 
-Playwright can launch Chromium in ~2-3 seconds. For a single screenshot, that's fine. For a QA session with 20+ commands, it's 40+ seconds of browser startup overhead. Worse: you lose all state between commands. Cookies, localStorage, login sessions, open tabs — all gone.
+Playwright は約 2〜3 秒で Chromium を起動できます。スクリーンショットが 1 枚だけならそれで十分です。しかし 20 回以上のコマンドからなる QA セッションでは、ブラウザの起動だけで 40 秒以上の負荷がかかります。さらに悪いことに、コマンドの間ですべての状態が失われます。Cookie、localStorage、ログインセッション、開いているタブがすべて消えてしまいます。
 
-The daemon model means:
+デーモンモデルがもたらすもの:
 
-- **Persistent state.** Log in once, stay logged in. Open a tab, it stays open. localStorage persists across commands.
-- **Sub-second commands.** After the first call, every command is just an HTTP POST. ~100-200ms round-trip including Chromium's work.
-- **Automatic lifecycle.** The server auto-starts on first use, auto-shuts down after 30 minutes idle. No process management needed.
+- **永続的な状態。** 一度ログインすれば、ログインしたままです。タブを開けば、開いたままになります。localStorage はコマンドをまたいで保持されます。
+- **サブ秒のコマンド。** 最初の呼び出しの後は、どのコマンドも単なる HTTP の POST です。Chromium の処理を含めても、往復は約 100〜200ms です。
+- **自動のライフサイクル。** サーバーは初回の利用時に自動で起動し、30 分のアイドル後に自動で終了します。プロセスを手で管理する必要はありません。
 
-### State file
+### 状態ファイル
 
-The server writes `.gstack/browse.json` (atomic write via tmp + rename, mode 0o600):
+サーバーは `.gstack/browse.json` を書き込みます(tmp への書き込みとリネームによるアトミックな書き込み、モードは 0o600)。
 
 ```json
 { "pid": 12345, "port": 34567, "token": "uuid-v4", "startedAt": "...", "binaryVersion": "abc123" }
 ```
 
-The CLI reads this file to find the server. If the file is missing or the daemon process is dead, the CLI spawns a new server. A process that is alive but not answering `/health` is busy, not dead: the CLI probes for a bounded ~8s, then reports busy with a nonzero exit — only an explicit `--force-restart` kills a live daemon. Process liveness uses signal-0 (`isProcessAlive`, EPERM counts as alive) on every platform, with the health check (GET /health) as the responsiveness signal. Its `status` covers the daemon and its Chromium connection only; the active tab's main thread is reported separately (`activeTab.responsive`, a probe bounded to 1s), so one page stuck in a long script never makes the CLI refuse commands. Daemon stdout/stderr persists to `<project>/.gstack/browse-daemon.log`.
+CLI は、このファイルからサーバーを探します。ファイルがない場合やデーモンのプロセスが死んでいる場合、CLI は新しいサーバーを起動します。プロセスは生きているのに `/health` に応答しない場合は、忙しいだけで死んではいません。CLI は約 8 秒の上限でプローブし、その後、終了コードが非ゼロの「busy」を報告します。生きているデーモンを終了させられるのは、明示的な `--force-restart` だけです。プロセスが生きているかどうかは、すべてのプラットフォームで signal 0(`isProcessAlive`。EPERM は生きているとみなします)で判定します。応答性の判定には、ヘルスチェック(GET /health)を使います。`status` が報告するのはデーモンと Chromium の接続だけです。アクティブなタブのメインスレッドは別に報告されます(`activeTab.responsive`。1 秒で打ち切られるプローブです)。そのため、長いスクリプトで止まっている 1 つのページが、CLI のコマンドを拒否させることはありません。デーモンの標準出力と標準エラーは `<project>/.gstack/browse-daemon.log` に保存されます。
 
-### Port selection
+### ポートの選択
 
-Random port between 10000-49151 (retry up to 5 on collision), allocated through the shared `browse/src/port-allocator.ts` so every long-lived gstack listener draws from the same range. The range ends at 49151 on purpose: 49152-65535 is the macOS ephemeral pool, and allocating inside it meant the OS could hand the same port to another process moments later. This means 10 Conductor workspaces can each run their own browse daemon with zero configuration and zero port conflicts. The old approach (scanning 9400-9409) broke constantly in multi-workspace setups.
+10000〜49151 のランダムなポートを使います(衝突した場合は最大 5 回まで再試行します)。割り当ては共有の `browse/src/port-allocator.ts` を通すので、長時間動く gstack のリスナーはすべて同じ範囲から選ばれます。範囲の上限を 49151 にしているのは意図的です。49152〜65535 は macOS の一時ポートの範囲で、その中で割り当てると、OS が直後に同じポートを別のプロセスに渡してしまうことがあったためです。そのため、10 個の Conductor ワークスペースがそれぞれ独自の browse デーモンを、設定なしでポートの衝突もなく動かせます。以前の方式(9400〜9409 をスキャンする方式)は、複数ワークスペースの構成でしょっちゅう壊れていました。
 
-### Version auto-restart
+### バージョン変更時の自動再起動
 
-The build writes `git rev-parse HEAD` to `browse/dist/.version`. On each CLI invocation, if the binary's version doesn't match the running server's `binaryVersion`, the CLI kills the old server and starts a new one. This prevents the "stale binary" class of bugs entirely — rebuild the binary, next command picks it up automatically.
+ビルドは `git rev-parse HEAD` の結果を `browse/dist/.version` に書き込みます。CLI は呼び出しのたびに、バイナリのバージョンが実行中のサーバーの `binaryVersion` と一致するかを確認します。一致しなければ、CLI は古いサーバーを終了させて新しいものを起動します。これにより「古いバイナリ」に起因するバグは根本的に防がれます。バイナリを再ビルドすれば、次のコマンドが自動でそれを使います。
 
-## Rendering local HTML
+## ローカル HTML の描画
 
-`/make-pdf`, `/diagram`, `/design-html` previews, and `/office-hours` sketches generate HTML and need a browser to print or rasterize it. That browser is Aside first, through `lib/aside-render.ts` (the TypeScript API, embedded in make-pdf) and `bin/gstack-render.ts` (the CLI skill templates call). Every fact below was verified against Aside CLI 1.26:
+`/make-pdf`、`/diagram`、`/design-html` のプレビュー、`/office-hours` のスケッチは HTML を生成するため、それを印刷またはラスタライズするためのブラウザが必要です。そのブラウザは、まず Aside を使います。`lib/aside-render.ts`(TypeScript の API。make-pdf に埋め込まれます)と、スキルのテンプレートが呼び出す `bin/gstack-render.ts`(CLI)を経由します。以下の事実はすべて Aside CLI 1.26 で検証されたものです。
 
-1. **Aside refuses `file://` URLs**, so the HTML's directory is served with `Bun.serve()` on `127.0.0.1` at an ephemeral port for the duration of one render and opened with `goto(url, { waitUntil: "load" })` — the default "interactive" readiness never fires for the 9MB diagram bundle. The URL carries a per-render secret as its first path segment (another local process gets 404 for everything), containment is checked on the real path of every request (a symlink escaping the directory is 403, malformed encoding is 400), and directories are never listed.
-2. **One `aside repl` process runs one generated script**: open, wait (`--wait-selector` / `--wait-expr`), run the steps in order (`--pdf`, `--screenshot`, `--eval … --out`), close the tab. Nothing persists between CLI calls, so a render is always a single script.
-3. **Artifacts are written inside Aside's sandbox** (the per-run session directory is the only writable place), the script prints `ASIDE_DIR=<pwd>`, and the wrapper copies them out.
-4. **PDFs go through raw CDP `Page.printToPDF`** via `page._sendToTarget`, so header/footer templates, tagged PDF, and the document outline keep working — `page.pdf()` exposes only the Playwright subset.
-5. **Sized screenshots use CDP `Emulation.setDeviceMetricsOverride`.** There is no `setViewportSize`.
-6. **The CLI exit code is 0 even when the script throws.** Truth is the `GSTACK_RENDER_OK` sentinel on stdout; a `[error` line is failure.
+1. **Aside は `file://` の URL を拒否します。** そのため、HTML のあるディレクトリを 1 回の描画の間だけ `127.0.0.1` のエフェメラルポートで `Bun.serve()` によって配信し、`goto(url, { waitUntil: "load" })` で開きます。既定の「interactive」の準備完了判定は、9MB の図のバンドルでは決して発火しないためです。URL の最初のパスセグメントには描画ごとの秘密の値が入ります。そのため、他のローカルプロセスはすべて 404 になります。すべてのリクエストについて、実際のパスを使って封じ込めを確認します(ディレクトリの外へ出るシンボリックリンクは 403、不正なエンコードは 400)。ディレクトリの一覧は決して返しません。
+2. **1 回の `aside repl` プロセスは、1 つの生成されたスクリプトを実行します。** 開く、待つ(`--wait-selector` / `--wait-expr`)、ステップを順番に実行する(`--pdf`、`--screenshot`、`--eval … --out`)、タブを閉じる、という流れです。CLI の呼び出しの間は何も保持されないため、描画は常に 1 つのスクリプトになります。
+3. **成果物は Aside のサンドボックスの中に書き込まれます**(実行ごとのセッションディレクトリが、書き込み可能な唯一の場所です)。スクリプトは `ASIDE_DIR=<pwd>` を出力し、ラッパーが成果物をそこからコピーします。
+4. **PDF は、生の CDP の `Page.printToPDF` を `page._sendToTarget` 経由で使います。** そのため、ヘッダーとフッターのテンプレート、タグ付き PDF、ドキュメントのアウトラインが動き続けます。`page.pdf()` が公開しているのは Playwright のサブセットだけです。
+5. **サイズを指定したスクリーンショットは、CDP の `Emulation.setDeviceMetricsOverride` を使います。** `setViewportSize` はありません。
+6. **スクリプトが例外を投げても、CLI の終了コードは 0 です。** 真偽の判定は標準出力の `GSTACK_RENDER_OK` の目印で行います。`[error` で始まる行は失敗です。
 
-When `probeAside()` reports `NEEDS_ASIDE` or `ASIDE_NOT_RUNNING`, the same wrappers render through the fallback engine instead — the one shared Chromium per box, no second download: the same loopback server, then one daemon call per action — `newtab --json`, `goto <loopback URL>`, `js` polling for readiness, `pdf --from-file`, `viewport` + `screenshot [--selector]`, `js --out`, and `closetab` in a finally. Same CLI flags, same `OK <path>` lines; `ENGINE=aside|browse` names the engine that actually rendered: when Aside was chosen but its CLI could not start, or its private CDP bridge (`_sendToTarget`) is gone mid-run, `render()` retries the same spec once on this path (a page failure, or a timeout of a script that was already running, is never retried). The CLI fences its `EVAL` / `PAGE_ERRORS` lines as untrusted web content because they are page-controlled text. Not mirrored on the fallback: sized screenshots come out at 1x (Aside defaults to 2x), JPEG `--quality` and `pageRanges`/`scale` are Aside-only, `--landscape` is emulated by swapping the paper dimensions, and `--wait-pagedjs` maps to the daemon's `toc` wait. The renderer serves a local directory and nothing else on either path; pointing it at a website is site work and belongs to the driver contract.
+`probeAside()` が `NEEDS_ASIDE` または `ASIDE_NOT_RUNNING` を報告した場合、同じラッパーがフォールバックエンジンで描画します。マシンごとに共有の Chromium を 1 つ使い、二重にダウンロードはしません。同じループバックのサーバーを使い、アクションごとにデーモンを 1 回呼び出します。`newtab --json`、`goto <loopback URL>`、準備完了を待つ `js` のポーリング、`pdf --from-file`、`viewport` と `screenshot [--selector]`、`js --out`、そして `closetab` を finally で実行します。CLI のフラグは同じで、`OK <path>` の行も同じです。`ENGINE=aside|browse` は、実際に描画したエンジンを示します。Aside が選ばれたのに CLI が起動できなかった場合、または実行中に CDP のブリッジ(`_sendToTarget`)が失われた場合、`render()` は同じ仕様を、この経路で 1 回だけ再試行します(ページの失敗や、すでに実行中だったスクリプトのタイムアウトは再試行しません)。CLI は `EVAL` と `PAGE_ERRORS` の行を、信頼できないウェブのコンテンツとして囲みます。これらはページが制御するテキストだからです。フォールバック側では、次のものは再現されません。サイズ指定のスクリーンショットは 1x で出力されます(Aside の既定は 2x)。JPEG の `--quality` と `pageRanges` / `scale` は Aside だけの機能です。`--landscape` は用紙の寸法を入れ替えてエミュレートします。`--wait-pagedjs` はデーモンの `toc` の待機に対応づけられます。どちらの経路でも、レンダラーが配信するのはローカルのディレクトリだけです。ウェブサイトを指すことはありません。それはサイト作業であり、ドライバーの契約に属します。
 
-## Security model
+## セキュリティモデル
 
-### The browser boundary (Aside)
+### ブラウザの境界(Aside)
 
-On the Aside path the browser is the user's, so the security model is about what the agent may do inside it, not about protecting a daemon. The rules are prose in `scripts/resolvers/aside.ts`, rendered into every browser skill and pinned by `test/aside-driver.test.ts`:
+Aside の経路では、ブラウザはユーザーのものです。そのため、セキュリティモデルが問うのは、デーモンを守ることではなく、エージェントがブラウザの中で何をしてよいかです。ルールは `scripts/resolvers/aside.ts` の文章として書かれ、すべてのブラウザ系スキルに展開され、`test/aside-driver.test.ts` で固定されています。
 
-- **Detect, never install.** A missing or closed Aside hands off to the fallback engine with one line saying so; gstack never runs an installer for Aside.
-- **Own tabs only.** The agent works in tabs it opened (or one the user named). `listBrowserTabs()` output is private data and never lands in a report.
-- **Look freely, act with consent.** Invoking a skill with a target is consent to read, navigate, and fill without submitting. Mutating actions on a non-local target hit the user's real account, so they get ONE AskUserQuestion per run listing the exact actions first. Logout/delete/cancel/unsubscribe links are never followed.
-- **Credentials never pass through the agent.** Sign-in walls are solved by the user inside Aside; the agent never types, reads, or prints passwords, one-time codes, cookies, tokens, or localStorage.
-- **Everything a page returns is untrusted.** Snapshot trees, page text, console output, `aside exec` answers, screenshots: content, never instructions (`{{UNTRUSTED_CONTENT_WARNING}}` is the single-source wording).
+- **検出するが、インストールはしない。** Aside がない、または閉じている場合は、フォールバックエンジンに一行でその旨を伝えて切り替えます。gstack が Aside のインストーラーを実行することはありません。
+- **自分のタブだけを扱う。** エージェントは、自分で開いたタブ(またはユーザーが指定したタブ)でのみ作業します。`listBrowserTabs()` の出力はプライベートなデータで、レポートに書き込まれることはありません。
+- **見るのは自由だが、行動には同意が必要。** スキルにターゲットを指定して呼び出すことは、読み取り、移動、フォーム入力(送信はしない)への同意です。ローカルではないターゲットに対する変更操作は、ユーザーの実際のアカウントに影響するため、スキルは実行ごとに 1 回だけ AskUserQuestion で、正確な操作の一覧を示して確認します。ログアウト、削除、キャンセル、購読解除のリンクは決してたどりません。
+- **認証情報はエージェントを通さない。** サインインの壁は、ユーザーが Aside 内で解決します。エージェントはパスワード、ワンタイムコード、Cookie、トークン、localStorage を、入力も読み取りも出力もしません。
+- **ページが返すものはすべて信頼できない。** スナップショットのツリー、ページのテキスト、コンソールの出力、`aside exec` の回答、スクリーンショットは、いずれもコンテンツであって、指示ではありません。(`{{UNTRUSTED_CONTENT_WARNING}}` が、この文言の唯一の定義元です。)
 
-Drives happen inside Aside, so they produce no gstack-side daemon log; Aside keeps its own history. Everything below this line is the fallback engine's threat model — the daemon, its tokens, its cookie jar, its tunnel.
+Aside での操作は、gstack 側のデーモンのログを生成しません。Aside が独自の履歴を保持します。以下はすべて、フォールバックエンジンの脅威モデルです。デーモン、そのトークン、Cookie の保管庫、トンネルが対象です。
 
-### Localhost only
+### ローカルホストのみ
 
-The HTTP server binds to `127.0.0.1`, not `0.0.0.0`. It's not reachable from the network.
+HTTP サーバーは `0.0.0.0` ではなく `127.0.0.1` にバインドします。ネットワークからは到達できません。
 
-### Dual-listener tunnel architecture (v1.6.0.0)
+<a id="dual-listener-tunnel-architecture-v1600"></a>
+### デュアルリスナーのトンネル構成(v1.6.0.0)
 
-When a user runs `pair-agent --client`, the daemon starts an ngrok tunnel so a remote paired agent can drive the browser. Exposing the full daemon surface to the internet (even behind a random ngrok subdomain) meant `/health` leaked the root token on any Origin spoof, and `/cookie-picker` embedded the token into HTML that any caller could fetch.
+ユーザーが `pair-agent --client` を実行すると、デーモンは ngrok のトンネルを開始します。これにより、リモートのペアリングされたエージェントがブラウザを操作できます。デーモンの全体のサーフェスをインターネットに公開すると(たとえランダムな ngrok のサブドメインの裏であっても)、Origin を偽装された場合に `/health` がルートトークンを漏らし、`/cookie-picker` がトークンを HTML に埋め込んで、それを誰でも取得できてしまいました。
 
-The fix is **two HTTP listeners**, not one:
+修正は、1 つではなく **2 つの HTTP リスナー**を使うことです。
 
-- **Local listener** (`127.0.0.1:LOCAL_PORT`) — always bound. Serves token bootstrap (`POST /extension-token`, released only to the pinned extension identity), `/health` (liveness/status only — never a token), `/cookie-picker`, `/inspector/*`, `/welcome`, `/refs`, the sidebar-agent API, and the full command surface. Never forwarded.
-- **Tunnel listener** (`127.0.0.1:TUNNEL_PORT`) — bound lazily on `/tunnel/start`, torn down on `/tunnel/stop`. Serves a locked allowlist: `/connect` (pairing ceremony, unauth + rate-limited) and `/command` (scoped tokens only, further restricted to a browser-driving command allowlist). Everything else 404s.
+- **ローカルリスナー**(`127.0.0.1:LOCAL_PORT`)。常にバインドされています。トークンのブートストラップ(`POST /extension-token`。固定された拡張機能の ID にのみ渡されます)、`/health`(生存と状態のみ。トークンは決して返しません)、`/cookie-picker`、`/inspector/*`、`/welcome`、`/refs`、サイドバーエージェントの API、コマンドのサーフェス全体を提供します。トンネルへは決して転送しません。
+- **トンネルリスナー**(`127.0.0.1:TUNNEL_PORT`)。`/tunnel/start` で遅延バインドされ、`/tunnel/stop` で終了します。固定の許可リストを提供します。`/connect`(ペアリングの儀式。認証なし、レート制限あり)と `/command`(スコープ付きトークンのみ。さらにブラウザ操作のコマンドの許可リストに限定されます)です。それ以外はすべて 404 になります。
 
-ngrok forwards only the tunnel port. The security property comes from **physical port separation**: a tunnel caller cannot reach `/health` or `/cookie-picker` because those paths don't exist on that TCP socket. Header inference (check `x-forwarded-for`, check origin) is unreliable (ngrok header behavior changes; local proxies can add these headers); socket separation isn't.
+ngrok が転送するのはトンネルのポートだけです。セキュリティの性質は、**物理的なポートの分離**によって得られます。トンネルの呼び出し元は、`/health` や `/cookie-picker` に到達できません。その TCP ソケット上には、そのパスが存在しないからです。ヘッダーによる推測(`x-forwarded-for` の確認、origin の確認)は信頼できません。ngrok のヘッダーの挙動は変わりますし、ローカルのプロキシがそれらのヘッダーを追加することもあります。ソケットの分離は信頼できます。
 
-| Endpoint | Local listener | Tunnel listener | Notes |
+| エンドポイント | ローカルリスナー | トンネルリスナー | 備考 |
 |---|---|---|---|
-| `GET /health` | public (liveness/status only — never a token) | 404 | Token bootstrap moved to `POST /extension-token` (v1.63) |
-| `POST /extension-token` | pinned Origin (`chrome-extension://<GSTACK_EXTENSION_ID>`) + loopback Host | 404 | The only endpoint that hands out the root token |
-| `GET /connect` | public (`{alive:true}`) | public (`{alive:true}`) | Probe path for tunnel liveness |
-| `POST /connect` | public (rate-limited 300/min) | public (rate-limited) | Setup-key exchange for pair-agent |
-| `POST /command` | auth (Bearer root OR scoped) | auth (scoped only, allowlisted commands) | Root token on tunnel = 403 |
-| `POST /pair` | root-only | 404 | Pairing mint — local operator action |
-| `POST /tunnel/{start,stop}` | root-only | 404 | Daemon configuration |
-| `POST /token`, `DELETE /token/:id` | root-only | 404 | Scoped token mint/revoke |
-| `GET /cookie-picker`, `/cookie-picker/*` | one-use code/session for UI; Bearer or picker session for API | 404 | Local-only — reads local browser DBs |
-| `GET /inspector`, `/inspector/events`, etc. | auth | 404 | Extension callback, local-only |
-| `GET /welcome` | public | 404 | GStack Browser landing page, local-only |
-| `GET /refs` | auth | 404 | Ref map — internal state |
-| `GET /activity/stream` | Bearer OR HttpOnly `gstack_sse` cookie | 404 | SSE. ?token= query param no longer accepted |
-| `GET /inspector/events` | Bearer OR HttpOnly `gstack_sse` cookie | 404 | SSE. Same cookie as /activity/stream |
-| `POST /sse-session` | auth (Bearer) | 404 | Mints the view-only 30-min SSE session cookie |
+| `GET /health` | 公開(生存と状態のみ。トークンは決して返さない) | 404 | トークンのブートストラップは `POST /extension-token` に移行(v1.63) |
+| `POST /extension-token` | 固定の Origin(`chrome-extension://<GSTACK_EXTENSION_ID>`)+ ループバックの Host | 404 | ルートトークンを渡す唯一のエンドポイント |
+| `GET /connect` | 公開(`{alive:true}`) | 公開(`{alive:true}`) | トンネルの生存確認用のプローブパス |
+| `POST /connect` | 公開(300/分のレート制限) | 公開(レート制限あり) | pair-agent のセットアップキーの交換 |
+| `POST /command` | 認証(Bearer のルートまたはスコープ付き) | 認証(スコープ付きのみ。許可リストのコマンド) | トンネル上のルートトークンは 403 |
+| `POST /pair` | ルートのみ | 404 | ペアリングの発行。ローカルの操作者による操作 |
+| `POST /tunnel/{start,stop}` | ルートのみ | 404 | デーモンの設定 |
+| `POST /token`, `DELETE /token/:id` | ルートのみ | 404 | スコープ付きトークンの発行と取り消し |
+| `GET /cookie-picker`, `/cookie-picker/*` | UI 用のワンタイムのコードとセッション。API には Bearer または picker のセッション | 404 | ローカルのみ。ローカルのブラウザの DB を読む |
+| `GET /inspector`, `/inspector/events` など | 認証 | 404 | 拡張機能のコールバック。ローカルのみ |
+| `GET /welcome` | 公開 | 404 | GStack Browser のランディングページ。ローカルのみ |
+| `GET /refs` | 認証 | 404 | 参照のマップ。内部の状態 |
+| `GET /activity/stream` | Bearer または HttpOnly の `gstack_sse` Cookie | 404 | SSE。?token= のクエリパラメーターは受け付けなくなりました |
+| `GET /inspector/events` | Bearer または HttpOnly の `gstack_sse` Cookie | 404 | SSE。/activity/stream と同じ Cookie |
+| `POST /sse-session` | 認証(Bearer) | 404 | 30 分の、閲覧専用の SSE セッション Cookie を発行 |
 
-**Extension token bootstrap (v1.63.0.0).** `GET /health` never carries a token in any mode — it is liveness/status only. The sidebar extension obtains the root token via `POST /extension-token`, which releases it only when the caller's Origin is exactly `chrome-extension://<GSTACK_EXTENSION_ID>` (pinned by the `key` field in `extension/manifest.json`; reproduce the derivation with `bun browse/scripts/extension-id.ts`) and the Host header parses to a loopback hostname — parsed with `new URL()`, never compared raw, because Host carries the port. Web pages cannot forge a `chrome-extension://` Origin, and the endpoint is never added to the tunnel allowlist, so the tunnel surface 404s it by default-deny.
+**拡張機能のトークンのブートストラップ(v1.63.0.0)。** `GET /health` は、どのモードでもトークンを返しません。生存と状態のみです。サイドバーの拡張機能は、`POST /extension-token` でルートトークンを取得します。このエンドポイントは、呼び出し元の Origin が正確に `chrome-extension://<GSTACK_EXTENSION_ID>` であり(`extension/manifest.json` の `key` フィールドで固定されています。導出を再現するには `bun browse/scripts/extension-id.ts` を実行します)、Host ヘッダーがループバックのホスト名として解析される場合にのみ、トークンを渡します。解析は生の文字列比較ではなく `new URL()` で行います。Host にはポートが含まれるためです。ウェブページは `chrome-extension://` の Origin を偽装できません。また、このエンドポイントはトンネルの許可リストに追加されないため、トンネルのサーフェスはデフォルト拒否で 404 を返します。
 
-**Tunnel surface denial logs.** Every rejection on the tunnel listener (`path_not_on_tunnel`, `root_token_on_tunnel`, `missing_scoped_token`, `disallowed_command:*`) is recorded asynchronously to `~/.gstack/security/attempts.jsonl` with timestamp, source IP (from `x-forwarded-for`), path, and method. Rate-capped at 60 writes/min globally to prevent log-flood DoS. Shares the attempt log with the prompt-injection scanner.
+**トンネルのサーフェスの拒否ログ。** トンネルリスナーでのすべての拒否(`path_not_on_tunnel`、`root_token_on_tunnel`、`missing_scoped_token`、`disallowed_command:*`)は、タイムスタンプ、送信元 IP(`x-forwarded-for` から)、パス、メソッドとともに、`~/.gstack/security/attempts.jsonl` に非同期で記録されます。ログの洪水による DoS を防ぐため、全体で 1 分あたり 60 回の書き込みに制限されています。この攻撃ログは、プロンプトインジェクションのスキャナーとも共有されます。
 
-**SSE session cookies.** EventSource can't send Authorization headers, so the extension POSTs `/sse-session` once at bootstrap with the root Bearer and receives a 30-minute view-only cookie (`gstack_sse`, HttpOnly, SameSite=Strict). The cookie is valid ONLY for `/activity/stream` and `/inspector/events` — it is NOT a scoped token and cannot be used on `/command`. Scope isolation is enforced by the module boundary: `sse-session-cookie.ts` has no imports from `token-registry.ts`.
+**SSE セッションの Cookie。** EventSource は Authorization ヘッダーを送れません。そのため拡張機能は、ブートストラップ時に一度だけ `/sse-session` へルートの Bearer で POST し、30 分の閲覧専用の Cookie(`gstack_sse`。HttpOnly、SameSite=Strict)を受け取ります。この Cookie が有効なのは `/activity/stream` と `/inspector/events` だけです。スコープ付きトークンではないため、`/command` では使えません。スコープの分離はモジュールの境界で強制されています。`sse-session-cookie.ts` は `token-registry.ts` から何もインポートしません。
 
-**Windows native-cookie boundary** (#1136): the exposed debugging TCP fallback has been removed. The native adapter uses Playwright's pipe transport and requires browser/runtime process-ownership and cleanup qualification before enablement; its qualification list is currently empty. DPAPI-compatible database imports remain available, but this does not promise recovery of every App-Bound Encryption cookie. Chrome 136+ protects its default user-data directory, including numbered profiles, against both pipe and TCP debugging. Closing Chrome does not bypass that policy. No TCP downgrade, substitute browser, or real-profile copy is allowed; unsupported cases direct the user to manual sign-in in gstack's browser.
+**Windows のネイティブ Cookie の境界**(#1136)。露出していたデバッグ用の TCP フォールバックは削除されました。ネイティブのアダプターは Playwright のパイプ転送を使い、有効化する前にブラウザとランタイムのプロセスの所有権とクリーンアップの認定を必要とします。現時点でその認定リストは空です。DPAPI 互換のデータベースからの取り込みは引き続き利用できますが、App-Bound Encryption の Cookie をすべて復元できるとは約束しません。Chrome 136 以降は、番号付きプロファイルを含むデフォルトのユーザーデータディレクトリを、パイプとTCPの両方のデバッグから保護します。Chrome を閉じても、このポリシーは回避できません。TCP へのダウングレード、代替ブラウザ、実際のプロファイルのコピーは、いずれも許されません。対応していない場合は、gstack のブラウザで手動サインインするようユーザーに案内します。
 
-### Bearer token auth
+### Bearer トークンによる認証
 
-Every server session generates a random UUID token, written to the state file with mode 0o600 (owner-only read). Requests to `/command` must include `Authorization: Bearer <token>` using an authorized root or scoped token. Invalid authentication is rejected.
+サーバーのセッションごとに、ランダムな UUID のトークンが生成され、モード 0o600(所有者のみ読み取り可能)で状態ファイルに書き込まれます。`/command` へのリクエストには、認可されたルートまたはスコープ付きのトークンを使った `Authorization: Bearer <token>` を含める必要があります。認証が無効なリクエストは拒否されます。
 
-Command authorization requires the token. The local cookie picker instead exchanges a five-minute one-use code for a scoped HttpOnly session cookie; that cookie authorizes only picker routes, never `/command`. Its API also accepts Bearer authorization. The local health check (`/health`) is public and does not execute commands. On the tunnel listener nothing is exempt except `/connect`.
+コマンドの認可にはトークンが必要です。ローカルの Cookie picker は、5 分間だけ有効なワンタイムのコードを、スコープ付きの HttpOnly のセッション Cookie と交換します。この Cookie が認可するのは picker のルートだけで、`/command` は認可しません。picker の API は Bearer による認可も受け付けます。ローカルのヘルスチェック(`/health`)は公開されていて、コマンドは実行しません。トンネルのリスナーでは、`/connect` 以外に例外はありません。
 
-### Cookie security
+### Cookie のセキュリティ
 
-Cookies are the most sensitive data gstack handles. The design:
+Cookie は、gstack が扱う最も機密性の高いデータです。その設計は次のとおりです。
 
-Cookie databases use a read-only runtime adapter: Bun SQLite in Bun, or built-in SQLite in Node.js 22.13+. Large Chromium timestamps remain exact integers; ordinary domain counts remain JSON numbers. Temporary database snapshots are private and removed on close or failure.
+Cookie のデータベースは、読み取り専用のランタイムアダプターを使います。Bun では Bun SQLite、Node.js 22.13 以降では組み込みの SQLite を使います。Chromium の大きなタイムスタンプは正確な整数のまま保持され、通常のドメインの件数は JSON の数値になります。一時的なデータベースのスナップショットは非公開で、クローズ時または失敗時に削除されます。
 
-1. **OS key access follows platform permissions.** macOS may prompt for Keychain approval on the first import per browser. Linux supports libsecret-backed `v11` and the Chromium fallback key for `v10`; Windows supports DPAPI-compatible cookies. Permission denial stops the operation rather than automatically repeating prompts.
+1. **OS の鍵へのアクセスは、プラットフォームの権限に従います。** macOS では、ブラウザごとに最初の取り込みの際にキーチェーンの承認を求められることがあります。Linux では、libsecret を使う `v11` と、`v10` 向けの Chromium のフォールバックキーをサポートします。Windows では、DPAPI 互換の Cookie をサポートします。権限が拒否された場合は操作を停止し、プロンプトを自動で繰り返すことはしません。
 
-2. **Import receipts do not contain cookie values.** Database decryption happens in memory using the platform's supported format; decrypted cookies are applied to the captured Playwright context. The picker shows browser/profile labels, domains, counts, and separate import/reset/authentication statuses, never cookie values. Labels can still identify an account and must not be copied to public logs. Optional session persistence is a separate opt-in disk-storage feature.
+2. **取り込みの受領記録には Cookie の値が含まれません。** データベースの復号はメモリ内で、そのプラットフォームがサポートする形式を使って行われ、復号された Cookie は取得済みの Playwright のコンテキストに適用されます。picker が表示するのは、ブラウザやプロファイルのラベル、ドメイン、件数、そして取り込み・リセット・認証のステータスを分けたものだけで、Cookie の値は決して表示しません。ラベルからでもアカウントが特定できることがあるため、公開されるログにコピーしてはいけません。オプトインのセッション保存は、ディスクへの保存を伴う別の機能です。
 
-3. **Database reads do not modify the source.** gstack copies the Chromium cookie DB to a temp file to avoid SQLite lock conflicts and opens it read-only. Only classified transient reads retry, at most three attempts with 150ms and 500ms delays. Native browser extraction has a separate lifecycle boundary and remains disabled pending qualification.
+3. **データベースの読み取りは、元のデータを変更しません。** gstack は SQLite のロックの競合を避けるため、Chromium の Cookie の DB を一時ファイルにコピーし、読み取り専用で開きます。分類された一時的な読み取りエラーだけを再試行します。最大 3 回で、遅延は 150ms と 500ms です。ネイティブのブラウザからの抽出は独立したライフサイクルの境界を持ち、認定されるまで無効のままです。
 
-4. **Key caching is per-session.** Derived keys are cached in memory for the server's lifetime. When the server shuts down (idle timeout or explicit stop), the cache is gone.
+4. **鍵のキャッシュはセッション単位です。** 導出された鍵は、サーバーの稼働中ずっとメモリにキャッシュされます。サーバーが終了すると(アイドルタイムアウトまたは明示的な停止)、キャッシュも消えます。
 
-5. **Diagnostics use safe categories.** Cookie-import failures expose classified reasons and counts, not raw OS errors or decrypted values. The separate `cookies` inspection command redacts values that match its sensitive-name/value rules; it is not a metadata-only receipt and should not be used for public import summaries.
+5. **診断は安全なカテゴリを使います。** Cookie の取り込みの失敗は、分類された理由と件数を示しますが、OS の生のエラーや復号された値は示しません。別の `cookies` 検査コマンドは、機密の名前や値のルールに一致する値を伏せます。ただしこれはメタデータだけの受領記録ではないため、公開される取り込みの要約には使うべきではありません。
 
-`cookie-import-operation.ts` owns profile selection, decryption, application, and receipts for the direct CLI, `--all`, and authenticated picker. Explicit profile selection wins; otherwise only a sole relevant profile is chosen, with unreadable profiles treated as unknown. Current `Local State` labels precede Preferences and directory fallbacks. Browser/context/page ownership is captured before asynchronous work, imports serialize per destination context, and applied domains feed the existing JavaScript-origin guard. Cookies are context-wide, not tab-isolated.
+`cookie-import-operation.ts` は、直接の CLI、`--all`、そして認証済みの picker のために、プロファイルの選択、復号、適用、受領記録を担当します。明示的なプロファイル指定が優先されます。それ以外の場合は、関連するプロファイルが 1 つしかないときだけそれを選び、読めないプロファイルは不明として扱います。現在の `Local State` のラベルは、Preferences とディレクトリによるフォールバックより優先されます。ブラウザ、コンテキスト、ページの所有権は非同期の処理の前に取得されます。取り込みは、適用先のコンテキストごとに直列化されます。適用されたドメインは、既存の JavaScript のオリジンガードに渡されます。Cookie はコンテキスト全体に適用され、タブごとに分離されることはありません。
 
-Storage reset and authentication verification are independent opt-ins. `--clear-storage` clears only the captured origin's localStorage (shared by same-origin tabs in that context) and target-tab sessionStorage, never IndexedDB, service workers, sibling origins, or other tabs' sessionStorage; `--all` plus reset is rejected. Reset is Chromium-only: an isolated world binds native-clock sampling and the destructive operation to one system-unique context, while navigation and the host deadline cancel pending work. Other engines retain import/auth checks but reject reset. A failed reset or later application failure does not imply rollback.
+ストレージのリセットと認証の検証は、それぞれ独立したオプトインです。`--clear-storage` は、取得されたオリジンの localStorage(同じコンテキスト内の同一オリジンのタブで共有されます)と、対象タブの sessionStorage だけを消去します。IndexedDB、Service Worker、別のオリジン、他のタブの sessionStorage は消去しません。`--all` とリセットを同時に指定することは拒否されます。リセットは Chromium のみ対応です。隔離されたワールドが、ネイティブのクロックによるサンプリングと破壊的な操作を、システム全体で一意のコンテキストに結び付けます。ナビゲーションとホストの期限は、保留中の処理をキャンセルします。ほかのエンジンでは、取り込みと認証の確認は行いますが、リセットは拒否します。リセットの失敗や、後の適用の失敗があっても、ロールバックされたことにはなりません。
 
-`cookie-auth-verification.ts` validates daemon-side `GSTACK_COOKIE_AUTH_SELECTOR` and `GSTACK_COOKIE_AUTH_EXPECTED_IDENTITY` before a requested verification can mutate cookies or storage. Set them privately before daemon startup. After importing cookies, `--verify-auth` reloads the captured target and requires a successful same-origin response and exactly one visible identity whose normalized text matches exactly. Cookie count, HTTP 200, and substring matches cannot establish authentication. An import without this check is **not checked**, not verified; zero imports cannot verify sign-in. Results do not echo expected identity text.
+`cookie-auth-verification.ts` は、要求された検証が Cookie やストレージを変更する前に、デーモン側の `GSTACK_COOKIE_AUTH_SELECTOR` と `GSTACK_COOKIE_AUTH_EXPECTED_IDENTITY` を検証します。これらはデーモンの起動前に、非公開で設定してください。Cookie を取り込んだ後、`--verify-auth` は取得したターゲットを再読み込みし、同一オリジンの応答が成功すること、そして正規化したテキストが完全一致する、表示されたアイデンティティがちょうど 1 つあることを要求します。Cookie の件数、HTTP 200、部分一致では認証されたことにはなりません。この確認なしの取り込みは**未確認**であり、検証済みではありません。取り込み件数がゼロの場合、サインインを検証することはできません。結果には、期待されるアイデンティティのテキストは再掲されません。
 
-### Shell injection prevention
+### シェルインジェクションの防止
 
-The browser registry (Chrome, Chromium, Brave, Edge, Windows-only Opera and Opera GX, and macOS-only Comet, Arc, Dia) is hardcoded. Database roots come from known platform locations; profile directory input is validated. Keychain access uses `Bun.spawn()` with explicit argument arrays, not shell string interpolation.
+ブラウザのレジストリ(Chrome、Chromium、Brave、Edge、Windows のみの Opera と Opera GX、macOS のみの Comet、Arc、Dia)はハードコードされています。データベースのルートは既知のプラットフォームの場所から取得し、プロファイルのディレクトリの入力は検証されます。キーチェーンへのアクセスは、シェルの文字列の埋め込みではなく、明示的な引数の配列を使う `Bun.spawn()` で行います。
 
-### Egress receipt ledger (v1.63.0.0)
+### エグレス受領記録の台帳(v1.63.0.0)
 
-Every enumerated gstack-initiated off-machine sink writes a hash-chained, tamper-evident receipt to `~/.gstack/security/egress.jsonl` BEFORE the send — `writeReceipt` in `lib/egress-receipt.ts` for TypeScript callers, `_receipted_curl` / `_receipted_git` from `bin/gstack-egress-lib.sh` for shell scripts. Receipts record a sha256 of the exact bytes sent when the caller owns them (subprocess-owned sends like git pushes record `sha256: null`); they never store the body.
+gstack が起動する、マシン外への送信先はすべて、送信の前に、改ざん検知可能なハッシュチェーンの受領記録を `~/.gstack/security/egress.jsonl` に書き込みます。TypeScript の呼び出し元は `lib/egress-receipt.ts` の `writeReceipt` を、シェルスクリプトは `bin/gstack-egress-lib.sh` の `_receipted_curl` / `_receipted_git` を使います。呼び出し元が所有する送信では、送信したバイト列の sha256 を記録します。サブプロセスが所有する送信(git の push など)では `sha256: null` を記録します。本文は決して保存しません。
 
-Failure polarity is per-class and pinned by tests. Sensitive sinks are fail-closed: brain-sync pushes, memory-ingest, gbrain-sync, telemetry, ngrok tunnel starts, mcp-verify, supabase-provision, and the Memorable bridge's per-prompt `memorable-recall` hand-off (a prompt handed to a local vendor binary; see [docs/memorable-workflow-memory.md](docs/memorable-workflow-memory.md)) refuse to send if the receipt can't be written (each refusal prints problem + cause + fix). User-facing sinks fail open with a stderr warning — the design binary's OpenAI calls, update-check, the read-only dashboards, and git-class receipts proceed even when the receipt write failed, so a fail-open send can go unrecorded (warned, by design). The new-sink scanner in `test/egress-receipt-wiring.test.ts` fails CI when an off-machine sink ships unwired; its only exemptions are enumerated with reasons (user-directed page fetches, reachability probes, install-doc strings, skill prose).
+失敗時の方針はシンクの種類ごとに決まっており、テストで固定されています。機密性の高い送信先はフェイルクローズです。ブレインの同期の push、memory-ingest、gbrain-sync、telemetry、ngrok トンネルの起動、mcp-verify、supabase-provision、Memorable ブリッジの 1 プロンプトごとの `memorable-recall` の受け渡し(ローカルのベンダーのバイナリに渡されるプロンプト。[docs/memorable-workflow-memory.md](docs/memorable-workflow-memory.md) を参照)は、受領記録を書けなければ送信を拒否します。拒否のたびに、問題、原因、修正方法が表示されます。ユーザーに向けた送信先はフェイルオープンで、stderr に警告を出します。design バイナリの OpenAI への呼び出し、アップデートの確認、読み取り専用のダッシュボード、git 系の受領記録は、受領記録の書き込みに失敗しても送信を続けます。そのため、フェイルオープンの送信が記録されないことがあります(警告は出ます。これは設計どおりです)。`test/egress-receipt-wiring.test.ts` の新しいシンクのスキャナーは、配線されていない送信先があれば CI を失敗させます。例外はすべて理由付きで列挙されています。ユーザーが指定したページの取得、到達性のプローブ、インストール文書の文字列、スキルの文章だけです。
 
-Inspect the ledger with `bin/gstack-egress`: `list` (what gstack attempted to send), `verify` (recompute the chain, exit 3 on tamper), `grants` (the standing consent settings and how to revoke each). `verify` detects in-place edits, reordering, and mid-chain deletion; it does NOT detect tail-truncation, whole-file re-fabrication, or deletion of the ledger itself — guarding against the same-machine, same-user actor who owns the file is out of scope for a forensic log. Threat model: the ledger is forensic observability of ATTEMPTED egress — it records what gstack tried to send so accidents are auditable; it is not an exfiltration control.
+台帳の確認には `bin/gstack-egress` を使います。`list`(gstack が送信を試みたもの)、`verify`(チェーンを再計算し、改ざんがあれば終了コード 3)、`grants`(常設の同意設定と、それぞれの取り消し方法)です。`verify` は、その場での編集、並べ替え、チェーン途中の削除を検出します。しかし、末尾の切り詰め、ファイル全体の再作成、台帳そのものの削除は検出しません。同じマシン上で同じユーザーとして動くファイルの所有者からの保護は、フォレンジックのログの対象外です。脅威モデル: この台帳は、試みられた送信の法医学的な可観測性を提供するものです。gstack が何を送ろうとしたかを記録し、事故を監査できるようにするためのものです。流出を防ぐ仕組みではありません。
 
-### Unicode sanitization at server egress (v1.38.0.0)
+<a id="unicode-sanitization-at-server-egress-v13800"></a>
+### サーバーの送信時の Unicode サニタイズ(v1.38.0.0)
 
-Page content harvested by CDP can contain lone UTF-16 surrogate halves (orphaned high or low surrogates from broken JavaScript string handling on the page). When those reach `JSON.stringify`, Bun emits them as `\uD800`-style escape sequences that the downstream consumer's `JSON.parse` accepts, but the Anthropic API rejects with a 400 — turning a single weird page into a session-killing error. Defense is single-point, applied at every server egress that ships page-derived strings.
+CDP で取得したページのコンテンツには、単独の UTF-16 のサロゲートの半分(壊れた JavaScript の文字列処理に由来する、対になっていない上位または下位のサロゲート)が含まれることがあります。これが `JSON.stringify` に届くと、Bun はそれを `\uD800` 形式のエスケープとして出力します。下流の `JSON.parse` はこれを受け入れますが、Anthropic の API は 400 で拒否します。そのため、1 つの不具合のあるページが、セッション全体を止めるエラーになってしまいます。防御は 1 か所で行い、ページ由来の文字列を送るすべてのサーバーの送信経路に適用します。
 
-| Egress path | Module | Sanitization point |
+| 送信経路 | モジュール | サニタイズの箇所 |
 |---|---|---|
-| `POST /command` (HTTP) | `browse/src/routes/commands.ts` (wrapper in `browse/src/server.ts`) | `handleCommandInternal` wrapper (sanitizes the result of `handleCommandInternalImpl`) |
-| `POST /batch` | `browse/src/routes/commands.ts` | Same wrapper — batch consumers inherit it |
-| `GET /activity/stream` (SSE) | `browse/src/routes/activity.ts` | `sanitizeReplacer` applied inside `createSseEndpoint` |
-| `GET /inspector/events` (SSE) | `browse/src/routes/inspector.ts` | `sanitizeReplacer` applied inside `createSseEndpoint` |
+| `POST /command`(HTTP) | `browse/src/routes/commands.ts`(ラッパーは `browse/src/server.ts`) | `handleCommandInternal` のラッパー(`handleCommandInternalImpl` の結果をサニタイズ) |
+| `POST /batch` | `browse/src/routes/commands.ts` | 同じラッパー。バッチの利用側も継承する |
+| `GET /activity/stream`(SSE) | `browse/src/routes/activity.ts` | `createSseEndpoint` の内部で `sanitizeReplacer` を適用 |
+| `GET /inspector/events`(SSE) | `browse/src/routes/inspector.ts` | `createSseEndpoint` の内部で `sanitizeReplacer` を適用 |
 
-`sanitizeReplacer` is a `JSON.stringify` replacer function that cleans every string value during encoding. Post-stringify regex doesn't work here — `JSON.stringify` has already converted `\uD800` into the literal escape sequence `"\\ud800"` before the regex could match, so the replacer must run inside the encoding pipeline. The pure-string helper `sanitizeLoneSurrogates` is used directly for `text/plain` responses.
+`sanitizeReplacer` は、エンコード中にすべての文字列の値を整える `JSON.stringify` のリプレーサー関数です。stringify の後に正規表現をかけても動きません。`JSON.stringify` はすでに `\uD800` を文字列のエスケープ `"\\ud800"` に変換しており、正規表現が一致する前だからです。そのため、リプレーサーはエンコードの処理の内側で動かす必要があります。`text/plain` のレスポンスには、純粋な文字列のヘルパー `sanitizeLoneSurrogates` を直接使います。
 
-**Architectural invariant.** Every new SSE/WebSocket writer or HTTP response that ships page-content-derived strings MUST go through one of two paths: `JSON.stringify(payload, sanitizeReplacer)` for object payloads, or `sanitizeLoneSurrogates(body)` for text bodies. New surfaces that bypass both will desync the system. Inline comments at both SSE producers (`routes/activity.ts`, `routes/inspector.ts`) say so; `browse/test/server-sanitize-surrogates.test.ts` pins wiring with bug-repro + invariant tests (`handleCommandInternalImpl` rename, central sanitization line, replacer existence, SSE producers stringify with replacer).
+**アーキテクチャ上の不変条件。** ページのコンテンツ由来の文字列を送るすべての新しい SSE / WebSocket の書き込み先や HTTP レスポンスは、必ず次のどちらかの経路を通らなければなりません。オブジェクトのペイロードには `JSON.stringify(payload, sanitizeReplacer)`、テキストの本文には `sanitizeLoneSurrogates(body)` です。どちらも通らない新しいサーフェスは、システムの整合性を崩します。両方の SSE のプロデューサー(`routes/activity.ts`、`routes/inspector.ts`)には、インラインのコメントでそのことが書かれています。`browse/test/server-sanitize-surrogates.test.ts` が、バグを再現するテストと不変条件のテストによって配線を固定しています。`handleCommandInternalImpl` の改名、中央のサニタイズの行、リプレーサーの存在、リプレーサーを使う SSE のプロデューサーを確認します。
 
-### Prompt injection defense (sidebar agent)
+<a id="prompt-injection-defense-sidebar-agent"></a>
+### プロンプトインジェクションの防御(サイドバーエージェント)
 
-The Chrome sidebar agent has tools (Bash, Read, Glob, Grep, WebFetch) and reads hostile web pages, so it's the part of gstack most exposed to prompt injection. Defense is layered, not single-point.
+Chrome のサイドバーエージェントは、ツール(Bash、Read、Glob、Grep、WebFetch)を持ち、敵対的なウェブページを読みます。そのため、gstack の中でプロンプトインジェクションに最も晒される部分です。防御は 1 点ではなく、層を重ねた構成です。
 
-1. **L1-L3 content security (`browse/src/content-security.ts`).** Runs on every page-content command and every tool output: datamarking, hidden-element strip, ARIA regex, URL blocklist, and a trust-boundary envelope wrapper. Applied at both the server and the agent.
+1. **L1〜L3 のコンテンツセキュリティ(`browse/src/content-security.ts`)。** ページのコンテンツを扱うすべてのコマンドと、すべてのツールの出力に対して実行されます。データマーキング、非表示要素の除去、ARIA の正規表現、URL のブロックリスト、信頼境界のエンベロープのラッパーを含みます。サーバーとエージェントの両方に適用されます。
 
-2. **L4 ML classifier — TestSavantAI (`browse/src/security-classifier.ts`).** A 22MB BERT-small ONNX model (int8 quantized) running in the security sidecar subprocess. Runs locally, no network. Scans page-derived content on the inject-scan path before the agent sees it.
+2. **L4 の ML 分類器 — TestSavantAI(`browse/src/security-classifier.ts`)。** 22MB の BERT-small の ONNX モデル(int8 量子化)で、セキュリティのサイドカーのサブプロセス内で動きます。ローカルで動作し、ネットワークは使いません。インジェクションのスキャン経路で、エージェントが見る前にページ由来のコンテンツをスキャンします。
 
-3. **L4b transcript classifier (removed).** A Claude Haiku conversation-shape pass existed until the chat-path agent that invoked it was ripped; it was deleted as dead code (zero production callers), along with the opt-in DeBERTa ensemble. Do not re-document either as live.
+3. **L4b のトランスクリプト分類器(削除済み)。** Claude Haiku による会話の形のチェックが、それを呼び出していたチャットのエージェントが取り除かれるまで存在していました。本番での呼び出し元がゼロになったため、デッドコードとして、オプトインの DeBERTa のアンサンブルとともに削除されました。どちらも現役のものとして再び文書化しないでください。
 
-4. **L5 canary token (`browse/src/security.ts`).** Generate/inject/detect utilities for a random system-prompt token whose leak means the attacker convinced the model to reveal the system prompt. Canary leak BLOCKs deterministically. The utilities are pure and tested; the chat prompt-builder that injected the canary was ripped, so no production path injects it today.
+4. **L5 のカナリアトークン(`browse/src/security.ts`)。** システムプロンプトに入れるランダムなトークンを、生成、注入、検出するためのユーティリティです。このトークンが漏れた場合、攻撃者がモデルにシステムプロンプトを明かさせたことを意味します。カナリアの漏洩は決定的にブロックします。これらのユーティリティは純粋な関数で、テストされています。ただし、カナリアを注入していたチャットのプロンプトビルダーは取り除かれたため、現在、本番の経路でカナリアを注入するものはありません。
 
-5. **L6 ensemble combiner (`combineVerdict`).** BLOCK requires agreement from two ML classifiers at >= `WARN` (0.75), not a single confident hit. This is the Stack Overflow instruction-writing false-positive mitigation. On tool-output scans, single-layer high confidence BLOCKs directly — the content wasn't user-authored, so the FP concern doesn't apply.
+5. **L6 のアンサンブルの統合器(`combineVerdict`)。** ブロックには、2 つの ML 分類器が `WARN`(0.75)以上で一致していることが必要です。単一の高い信頼度の一致だけでは、ブロックしません。これは、Stack Overflow の命令文の書き方による誤検知を防ぐための措置です。ツールの出力のスキャンでは、単一の層の高い信頼度で直接ブロックします。そのコンテンツはユーザーが書いたものではないため、誤検知の懸念は当てはまらないからです。
 
-**Critical constraint:** `security-classifier.ts` runs only in the security sidecar subprocess (`security-sidecar-entry.ts`), never in the compiled browse binary. `@huggingface/transformers` v4 requires `onnxruntime-node`, which fails `dlopen` from Bun compile's temp extract directory. Only the pure-string pieces (canary inject/check, verdict combiner) are in `security.ts`, which is safe to import from `server.ts`. (The attack log lives in `tunnel-denial-log.ts`; the session-state/status surface was removed in #2557.)
+**重要な制約。** `security-classifier.ts` は、セキュリティのサイドカーのサブプロセス(`security-sidecar-entry.ts`)でのみ動き、コンパイル済みの browse バイナリでは決して動きません。`@huggingface/transformers` v4 は `onnxruntime-node` を必要とし、それは Bun のコンパイルが展開する一時ディレクトリからの `dlopen` に失敗するためです。純粋な文字列の部分(カナリアの注入と検査、判定の統合器)だけが `security.ts` にあり、これは `server.ts` からインポートしても安全です。(攻撃ログは `tunnel-denial-log.ts` にあります。セッション状態とステータスのサーフェスは #2557 で削除されました。)
 
-**Env knobs:** `GSTACK_SECURITY_OFF=1` is a real kill switch (classifier stays off even if warmed; the L1-L3 filters keep running). Model cache at `~/.gstack/models/testsavant-small/` (112MB, first run). Attack log at `~/.gstack/security/attempts.jsonl` (salted sha256 + domain, rotates at 10MB, 5 generations). Per-device salt at `~/.gstack/security/device-salt` (0600), cached in-process to survive FS-unwritable environments.
+**環境変数のつまみ。** `GSTACK_SECURITY_OFF=1` は実際のキルスイッチです(分類器はウォームアップ済みでも無効のままになります。L1〜L3 のフィルターは動き続けます)。モデルのキャッシュは `~/.gstack/models/testsavant-small/` にあります(112MB。初回の実行時)。攻撃ログは `~/.gstack/security/attempts.jsonl` にあります(ソルト付きの sha256 とドメイン。10MB でローテーションし、5 世代保持します)。端末ごとのソルトは `~/.gstack/security/device-salt`(0600)にあり、ファイルシステムに書き込めない環境でも保つため、プロセス内にキャッシュされます。
 
-**Visibility.** A centered banner appears on canary leak or BLOCK verdict with the exact layer scores. `bin/gstack-security-dashboard` aggregates local attempts; `supabase/functions/community-pulse` aggregates opt-in community telemetry across users. (The sidebar header's SEC shield icon and the `/health` `security` field were removed in #2557: their only data source — `~/.gstack/security/session-state.json` — lost its only writer when the chat-path agent was ripped, so the shield reported stale or empty state. The live defenses report through their own call sites.)
+**可視化。** カナリアの漏洩またはブロックの判定が出ると、正確なレイヤーのスコアとともに、中央寄せのバナーが表示されます。`bin/gstack-security-dashboard` はローカルの攻撃の試行を集計します。`supabase/functions/community-pulse` は、ユーザーがオプトインしたコミュニティのテレメトリを、ユーザーをまたいで集計します。(サイドバーのヘッダーの SEC シールドのアイコンと、`/health` の `security` フィールドは、#2557 で削除されました。そのデータの唯一の供給元である `~/.gstack/security/session-state.json` は、チャットのエージェントが取り除かれた時点で唯一の書き込み元を失い、シールドが古いまたは空の状態を示していたためです。現役の防御は、それぞれの呼び出し元を通じて自ら報告します。)
 
-## The ref system
+## 参照システム
 
-Refs (`@e1`, `@e2`, `@c1`) are how the agent addresses page elements without writing CSS selectors or XPath.
+参照(`@e1`、`@e2`、`@c1`)は、CSS セレクターや XPath を書かずに、エージェントがページの要素を指定する方法です。
 
-### How it works
+### 仕組み
 
 ```
 1. Agent runs: $B snapshot -i
@@ -263,23 +266,23 @@ Later:
 8. Server resolves @e3 → Locator → locator.click()
 ```
 
-### Why Locators, not DOM mutation
+### DOM の書き換えではなく Locator を使う理由
 
-The obvious approach is to inject `data-ref="@e1"` attributes into the DOM. This breaks on:
+分かりやすい方法は、DOM に `data-ref="@e1"` の属性を注入することです。しかし、次の点で壊れます。
 
-- **CSP (Content Security Policy).** Many production sites block DOM modification from scripts.
-- **React/Vue/Svelte hydration.** Framework reconciliation can strip injected attributes.
-- **Shadow DOM.** Can't reach inside shadow roots from the outside.
+- **CSP(Content Security Policy)。** 多くの本番サイトは、スクリプトによる DOM の変更をブロックします。
+- **React / Vue / Svelte のハイドレーション。** フレームワークの調整処理が、注入した属性を取り除いてしまうことがあります。
+- **Shadow DOM。** 外側からシャドウルートの内側に届きません。
 
-Playwright Locators are external to the DOM. They use the accessibility tree (which Chromium maintains internally) and `getByRole()` queries. No DOM mutation, no CSP issues, no framework conflicts.
+Playwright の Locator は DOM の外側にあります。Chromium が内部で保持しているアクセシビリティツリーと、`getByRole()` のクエリを使います。DOM の変更も、CSP の問題も、フレームワークの競合も起きません。
 
-### Ref lifecycle
+### 参照のライフサイクル
 
-Refs are cleared on navigation (the `framenavigated` event on the main frame). This is correct — after navigation, all locators are stale. The agent must run `snapshot` again to get fresh refs. This is by design: stale refs should fail loudly, not click the wrong element.
+参照は、ナビゲーション(メインフレームの `framenavigated` イベント)でクリアされます。これは正しい動作です。ナビゲーションの後は、すべてのロケーターが古くなるからです。エージェントは、新しい参照を得るために `snapshot` を再実行しなければなりません。これは設計どおりです。古い参照は、誤った要素をクリックするのではなく、はっきりと失敗すべきだからです。
 
-### Ref staleness detection
+### 参照の古さの検出
 
-SPAs can mutate the DOM without triggering `framenavigated` (e.g. React router transitions, tab switches, modal opens). This makes refs stale even though the page URL didn't change. To catch this, `resolveRef()` performs an async `count()` check before using any ref:
+SPA は、`framenavigated` を発火させずに DOM を変更することがあります(React のルーターの遷移、タブの切り替え、モーダルの表示など)。そのため、ページの URL が変わっていなくても、参照が古くなることがあります。これを検出するため、`resolveRef()` は参照を使う前に、非同期の `count()` チェックを行います。
 
 ```
 resolveRef(@e3) → entry = refMap.get("e3")
@@ -288,36 +291,36 @@ resolveRef(@e3) → entry = refMap.get("e3")
                 → if count > 0: return { locator }
 ```
 
-This fails fast (~5ms overhead) instead of letting Playwright's 30-second action timeout expire on a missing element. The `RefEntry` stores `role` and `name` metadata alongside the Locator so the error message can tell the agent what the element was.
+これにより、存在しない要素に対して Playwright の 30 秒のアクションタイムアウトが切れるのを待つのではなく、素早く(約 5ms のオーバーヘッドで)失敗します。`RefEntry` は、Locator と並べて `role` と `name` のメタデータを保持します。そのため、エラーメッセージは、その要素が何であったかをエージェントに伝えられます。
 
-### Cursor-interactive refs (@c)
+### カーソルで操作可能な参照(@c)
 
-The `-C` flag finds elements that are clickable but not in the ARIA tree — things styled with `cursor: pointer`, elements with `onclick` attributes, or custom `tabindex`. These get `@c1`, `@c2` refs in a separate namespace. This catches custom components that frameworks render as `<div>` but are actually buttons.
+`-C` フラグは、クリック可能でありながらアクセシビリティツリーに含まれない要素を見つけます。`cursor: pointer` のスタイルが付いたもの、`onclick` 属性を持つ要素、カスタムの `tabindex` などです。これらには `@c1`、`@c2` の参照が、別の名前空間で付けられます。フレームワークが `<div>` として描画するが、実際にはボタンとして機能するカスタムコンポーネントを捕捉します。
 
-## Logging architecture
+## ログのアーキテクチャ
 
-Three ring buffers (50,000 entries each, O(1) push):
+3 つのリングバッファ(それぞれ 50,000 件、O(1) の push)を使います。
 
 ```
 Browser events → CircularBuffer (in-memory) → Async flush to .gstack/*.log
 ```
 
-Console messages, network requests, and dialog events each have their own buffer. Flushing happens every 1 second — the server appends only new entries since the last flush. This means:
+コンソールメッセージ、ネットワークリクエスト、ダイアログのイベントには、それぞれ専用のバッファがあります。フラッシュは 1 秒ごとに行われ、サーバーは前回のフラッシュ以降の新しいエントリーだけを追記します。これにより、次のことが実現されます。
 
-- HTTP request handling is never blocked by disk I/O
-- Logs survive server crashes (up to 1 second of data loss)
-- Memory is bounded (50K entries × 3 buffers)
-- Disk files are append-only, readable by external tools
+- HTTP リクエストの処理がディスク I/O で止まることはありません。
+- サーバーがクラッシュしても、ログは残ります(失われるのは最大 1 秒分のデータです)。
+- メモリの使用量は上限があります(50K 件 × 3 つのバッファ)。
+- ディスクのファイルは追記専用で、外部のツールから読めます。
 
-The `console`, `network`, and `dialog` commands read from the in-memory buffers, not disk. Disk files are for post-mortem debugging.
+`console`、`network`、`dialog` のコマンドは、ディスクからではなく、メモリ内のバッファから読みます。ディスク上のファイルは、事後のデバッグのためのものです。
 
-## SKILL.md template system
+## SKILL.md のテンプレートシステム
 
-### The problem
+### 問題
 
-SKILL.md files tell Claude how to use the browse commands. If the docs list a flag that doesn't exist, or miss a command that was added, the agent hits errors. Hand-maintained docs always drift from code.
+SKILL.md は、Claude に browse コマンドの使い方を伝えます。ドキュメントに存在しないフラグが書かれていたり、追加されたコマンドが抜けていたりすると、エージェントはエラーに遭遇します。手で書かれたドキュメントは、コードとのずれが必ず生じます。
 
-### The solution
+### 解決策
 
 ```
 SKILL.md.tmpl          (human-written prose + placeholders)
@@ -327,103 +330,90 @@ gen-skill-docs.ts      (reads source code metadata)
 SKILL.md               (committed, auto-generated sections)
 ```
 
-Templates contain the workflows, tips, and examples that require human judgment. Placeholders are filled from source code at build time:
+テンプレートには、人間の判断が必要なワークフロー、ヒント、例が書かれます。プレースホルダーは、ビルド時にソースコードから埋められます。
 
-| Placeholder | Source | What it generates |
+| プレースホルダー | ソース | 生成される内容 |
 |-------------|--------|-------------------|
-| `{{COMMAND_REFERENCE}}` | `commands.ts` | Categorized command table |
-| `{{SNAPSHOT_FLAGS}}` | `snapshot.ts` | Flag reference with examples |
-| `{{ASIDE_SETUP}}` | `resolvers/aside.ts` | Aside browser-driver contract: readiness probe, the rules for driving a real browser, and the hand-off to the `$B` fallback |
-| `{{ASIDE_COOKBOOK}}` | `resolvers/aside.ts` | The verified `aside repl` script shapes (carried by /browse and /devex-review; other skills inline their own) |
-| `{{ASIDE_RESEARCH}}` | `resolvers/aside.ts` | Web research through `aside exec` in the user's browser, WebSearch as the fallback, then the no-search degrade |
-| `{{ASIDE_EXEC_PRELUDE}}` | `resolvers/aside.ts` | One-line `_aside_exec` definition: an `aside exec` call writes an egress receipt before the prompt leaves the machine (fail-open, user-facing sink: it runs unreceipted only when the egress library is missing); skills never call `aside exec` bare |
-| `{{UNTRUSTED_CONTENT_WARNING}}` | `resolvers/aside.ts` | The one untrusted-content rule for everything either browser hands back |
-| `{{PREAMBLE}}` | `gen-skill-docs.ts` | Startup block: update check, session tracking, contributor mode, AskUserQuestion format |
-| `{{BROWSE_SETUP}}` | `gen-skill-docs.ts` | Binary discovery + setup instructions |
-| `{{BROWSE_FALLBACK}}` | `resolvers/browse.ts` | Aside→`$B` hand-off: binary discovery + the step-by-step equivalence table, rendered right after `{{ASIDE_SETUP}}` in every browsing skill |
-| `{{BASE_BRANCH_DETECT}}` | `gen-skill-docs.ts` | Dynamic base branch detection for PR-targeting skills (ship, review, qa, plan-ceo-review) |
-| `{{QA_METHODOLOGY}}` | `resolvers/utility.ts` | Browser-only QA methodology, conditionally loaded by /qa and /qa-only |
-| `{{QA_SCOPE}}, {{QA_EXPLORATORY}}, {{QA_FUNCTIONAL}}, {{QA_RESOURCE}}, {{QA_METHOD_READS}}, {{QA_REVIEW}}` | `resolvers/qa.ts` | Surface selection, checkpointed native/exploratory QA, direct conditional method reads, installed-asset references and bounded review/ship callers |
-| `{{DESIGN_METHODOLOGY}}` | `gen-skill-docs.ts` | Shared design audit methodology for /plan-design-review and /design-review |
-| `{{SHARED_LIBS_RUBRIC}}` | `resolvers/shared-libs.ts` | Shared-code criteria for /deslop-shared-libs, /plan-eng-review, and /review: verified callers, existing helpers, compatibility, tests, and total savings |
-| `{{REVIEW_DASHBOARD}}` | `gen-skill-docs.ts` | Review Readiness Dashboard for /ship pre-flight |
-| `{{TEST_VALUE_BAR:<mode>}}` | `resolvers/test-value.ts` | Shared test value bar (authoring gate, value card, X/Y coverage, red-first proof, low-value catalog) for /qa and /qa-only (`qa`) and /test-audit (`audit`); /plan-eng-review and /ship embed it through the coverage audit |
-| `{{TEST_VALUE_MESSAGE:<key>}}` | `resolvers/test-value.ts` | One degraded-mode message (problem, consequence, fix, docs anchor) from the shared constants |
-| `{{TEST_BOOTSTRAP}}` | `resolvers/testing.ts` | Test framework detection, bootstrap, CI/CD setup for /ship and /design-review |
-| `{{CODEX_PLAN_REVIEW}}` | `resolvers/outside-voice-steps.ts` | Optional outside plan review for /plan-ceo-review and /plan-eng-review: Claude Code on Codex, Codex on other supported harnesses, with the caller's native subagent fallback |
-| `{{DESIGN_SETUP}}` | `resolvers/design.ts` | Discovery pattern for `$D` design binary, mirrors `{{BROWSE_SETUP}}` |
-| `{{DESIGN_DETECTOR}}` | `resolvers/design.ts` | Probe block + sentinel reading for the user-installed impeccable engine (`bin/gstack-design-detect.ts`); `:phase0` renders design-review's mechanical scan, `:gate` design-html's bounded slop gate |
-| `{{DESIGN_MD_CHECK}}` | `resolvers/design.ts` | Open DESIGN.md format check through `bin/gstack-design-md.ts`, with the one-time conversion offer persisted in the file; `:calibrate` renders the tokens-as-calibration form for /design-review |
-| `{{OVERUSED_FONTS}}` | `resolvers/design.ts` | Role-scoped font lists from `lib/design-catalog.ts` (overused as display, fine as body/UI, mono, banned, verified-free) for /design-consultation |
-| `{{DESIGN_SLOP_BULLETS}}` | `resolvers/design.ts` | Prose-only slop bullets from `lib/design-catalog.ts` (no rule ids) for the proposal skills |
-| `{{DESIGN_SHOTGUN_LOOP}}` | `resolvers/design.ts` | Shared comparison board feedback loop for /design-shotgun, /plan-design-review, /design-consultation |
-| `{{UX_PRINCIPLES}}` | `resolvers/design.ts` | User behavioral foundations (scanning, satisficing, goodwill reservoir, trunk test) for /design-html, /design-shotgun, /design-review, /plan-design-review |
-| `{{GBRAIN_CONTEXT_LOAD}}` | `resolvers/gbrain.ts` | Brain-first context search with keyword extraction, health awareness, and data-research routing. Injected into 10 brain-aware skills. Suppressed on non-brain hosts. |
-| `{{GBRAIN_SAVE_RESULTS}}` | `resolvers/gbrain.ts` | Post-skill brain persistence with entity enrichment, throttle handling, and per-skill save instructions. 8 skill-specific save formats. |
-| `{{FOREGROUND_DISPATCH_NOTE}}` | `resolvers/constants.ts` | Canonical `run_in_background: false` guidance for every synchronous Agent-tool subagent dispatch (subagents run in the background by default since Claude Code v2.1.198). Single source of truth; carriers are pinned per file by `test/run-in-background-guidance.test.ts`. |
+| `{{COMMAND_REFERENCE}}` | `commands.ts` | 分類されたコマンドの表 |
+| `{{SNAPSHOT_FLAGS}}` | `snapshot.ts` | 例付きのフラグのリファレンス |
+| `{{ASIDE_SETUP}}` | `resolvers/aside.ts` | Aside のブラウザ操作の契約: 準備状況のプローブ、実際のブラウザを操作する際のルール、`$B` フォールバックへの引き渡し |
+| `{{ASIDE_COOKBOOK}}` | `resolvers/aside.ts` | 検証済みの `aside repl` のスクリプトの形(/browse と /devex-review が持つ。他のスキルは独自に埋め込む) |
+| `{{ASIDE_RESEARCH}}` | `resolvers/aside.ts` | ユーザーのブラウザで `aside exec` を使うウェブ調査。その次に WebSearch をフォールバックとして使い、どちらもない場合の対応 |
+| `{{ASIDE_EXEC_PRELUDE}}` | `resolvers/aside.ts` | `_aside_exec` の 1 行の定義。`aside exec` の呼び出しは、プロンプトがマシンの外に出る前にエグレスの受領記録を書きます(フェイルオープン。ユーザーに向けた送信先で、送信用のライブラリがない場合にだけ記録なしで実行されます)。スキルが `aside exec` を直接呼ぶことはありません |
+| `{{UNTRUSTED_CONTENT_WARNING}}` | `resolvers/aside.ts` | どちらのブラウザが返すものにも適用される、信頼できないコンテンツに関する唯一のルール |
+| `{{PREAMBLE}}` | `gen-skill-docs.ts` | 起動時のブロック: アップデートの確認、セッションの追跡、コントリビューターモード、AskUserQuestion の形式 |
+| `{{BROWSE_SETUP}}` | `gen-skill-docs.ts` | バイナリの探索とセットアップの手順 |
+| `{{BROWSE_FALLBACK}}` | `resolvers/browse.ts` | Aside から `$B` への引き渡し: バイナリの探索と、手順ごとの対応表。すべてのブラウズ系スキルで `{{ASIDE_SETUP}}` の直後に描画される |
+| `{{BASE_BRANCH_DETECT}}` | `gen-skill-docs.ts` | PR を対象とするスキル(ship、review、qa、plan-ceo-review)のための、ベースブランチの動的な検出 |
+| `{{QA_METHODOLOGY}}` | `resolvers/utility.ts` | ブラウザのみの QA の手法。/qa と /qa-only が条件付きで読み込む |
+| `{{QA_SCOPE}}, {{QA_EXPLORATORY}}, {{QA_FUNCTIONAL}}, {{QA_RESOURCE}}, {{QA_METHOD_READS}}, {{QA_REVIEW}}` | `resolvers/qa.ts` | 対象の選択、チェックポイント付きのネイティブ/探索的な QA、条件付きの直接の手法の読み込み、インストール済みのアセットへの参照、範囲の限られたレビューと出荷の呼び出し元 |
+| `{{DESIGN_METHODOLOGY}}` | `gen-skill-docs.ts` | /plan-design-review と /design-review が共有するデザイン監査の手法 |
+| `{{SHARED_LIBS_RUBRIC}}` | `resolvers/shared-libs.ts` | /deslop-shared-libs、/plan-eng-review、/review の共有コードの基準: 検証済みの呼び出し元、既存のヘルパー、互換性、テスト、総節約量 |
+| `{{REVIEW_DASHBOARD}}` | `gen-skill-docs.ts` | /ship の事前確認のためのレビュー準備状況ダッシュボード |
+| `{{TEST_VALUE_BAR:<mode>}}` | `resolvers/test-value.ts` | /qa と /qa-only(`qa`)、および /test-audit(`audit`)が共有するテストの価値の基準(作成のゲート、価値のカード、X/Y のカバレッジ、赤から始める証明、価値の低いカタログ)。/plan-eng-review と /ship は、カバレッジ監査を通じてこれを組み込む |
+| `{{TEST_VALUE_MESSAGE:<key>}}` | `resolvers/test-value.ts` | 共有の定数から得られる、縮退モードのメッセージ 1 件(問題、影響、修正、ドキュメントのアンカー) |
+| `{{TEST_BOOTSTRAP}}` | `resolvers/testing.ts` | /ship と /design-review のための、テストフレームワークの検出、ブートストラップ、CI/CD のセットアップ |
+| `{{CODEX_PLAN_REVIEW}}` | `resolvers/outside-voice-steps.ts` | /plan-ceo-review と /plan-eng-review のための、任意の外部の計画レビュー。Codex 上の Claude Code、その他のサポート対象ハーネス上の Codex を使い、呼び出し元のネイティブのサブエージェントをフォールバックとします |
+| `{{DESIGN_SETUP}}` | `resolvers/design.ts` | `$D` デザインバイナリを探す手順。`{{BROWSE_SETUP}}` と対応します |
+| `{{DESIGN_DETECTOR}}` | `resolvers/design.ts` | ユーザーがインストールした impeccable エンジン(`bin/gstack-design-detect.ts`)のためのプローブのブロックとセンチネルの読み取り。`:phase0` は design-review の機械的スキャンを、`:gate` は design-html の有界なスロップ・ゲートを描画します |
+| `{{DESIGN_MD_CHECK}}` | `resolvers/design.ts` | `bin/gstack-design-md.ts` を通じた、オープンな DESIGN.md の形式チェック。ファイル内に永続化される一度きりの変換の申し出を含みます。`:calibrate` は /design-review のための、キャリブレーションとしてのトークンの形式を描画します |
+| `{{OVERUSED_FONTS}}` | `resolvers/design.ts` | `lib/design-catalog.ts` から、役割ごとのフォントの一覧(見出しで使いすぎのもの、本文や UI に適するもの、等幅、禁止、検証済みで問題のないもの)。/design-consultation 用 |
+| `{{DESIGN_SLOP_BULLETS}}` | `resolvers/design.ts` | `lib/design-catalog.ts` から、ルール ID を含まない、文章だけのスロップの箇条書き。提案系のスキル用 |
+| `{{DESIGN_SHOTGUN_LOOP}}` | `resolvers/design.ts` | /design-shotgun、/plan-design-review、/design-consultation で共有する、比較ボードのフィードバックループ |
+| `{{UX_PRINCIPLES}}` | `resolvers/design.ts` | ユーザーの行動の基礎(スキャン、満足化、好意の蓄え、トランクテスト)。/design-html、/design-shotgun、/design-review、/plan-design-review 用 |
+| `{{GBRAIN_CONTEXT_LOAD}}` | `resolvers/gbrain.ts` | キーワードの抽出、健全性の確認、データ調査のルーティングを伴う、ブレインを優先したコンテキストの検索。10 のブレイン対応スキルに挿入されます。ブレインのないホストでは抑制されます |
+| `{{GBRAIN_SAVE_RESULTS}}` | `resolvers/gbrain.ts` | エンティティの補強、スロットリングの処理、スキルごとの保存手順を伴う、スキル終了後のブレインへの永続化。8 種類のスキル固有の保存形式があります |
+| `{{FOREGROUND_DISPATCH_NOTE}}` | `resolvers/constants.ts` | 同期的な Agent ツールのサブエージェントを呼び出すすべての場合の、正規の `run_in_background: false` の指針(Claude Code v2.1.198 以降、サブエージェントは既定でバックグラウンドで動くため)。唯一の定義元で、各ファイルの担当は `test/run-in-background-guidance.test.ts` が固定します |
 
-`/qa` uses its browser-only `qa/sections/test-bootstrap.md.tmpl`; functional QA never bootstraps.
+`/qa` は、ブラウザのみで動く `qa/sections/test-bootstrap.md.tmpl` を使います。機能の QA では、決してブートストラップを行いません。
 
-This is structurally sound — if a command exists in code, it appears in docs. If it doesn't exist, it can't appear.
+これは構造的に健全です。コードに存在するコマンドは、必ずドキュメントに現れます。存在しないコマンドは、ドキュメントに現れることもありません。
 
-The generator also owns two files that are not skill docs: `review/design-checklist.md` is rendered from `lib/design-catalog.ts` (through `scripts/resolvers/design-checklist.ts`), and `lib/dom-dump.js` is written from `lib/dom-dump-script.ts`. The checklist `/review` and `/ship` read and the DOM dump `/design-review` runs therefore cannot drift from the catalog and the script the templates describe; `test/design-checklist-sync.test.ts` pins both.
+ジェネレーターは、スキルのドキュメントではない 2 つのファイルも所有しています。`review/design-checklist.md` は `lib/design-catalog.ts` から(`scripts/resolvers/design-checklist.ts` を通じて)描画されます。`lib/dom-dump.js` は `lib/dom-dump-script.ts` から書き出されます。そのため、`/review` と `/ship` が読むチェックリストと、`/design-review` が実行する DOM のダンプが、テンプレートが説明するカタログとスクリプトからずれることはありません。`test/design-checklist-sync.test.ts` が両方を固定しています。
 
-The internal async `runGeneration()` driver inventories skills, Claude sections
-and QA/qa-only sections on every supported host, host metadata, OpenClaw snippets,
-the index, the agent digest, and auxiliary assets. Other skills remain inline on
-non-Claude hosts; QA assets resolve relative to the installed host skill.
-Every artifact goes through one compare-or-write function. Dry runs
-report missing or different artifacts as `STALE` without changing files or
-directories; rendering and filesystem failures report `ERROR` with their cause.
-Either fails the command, including a single-host invocation. Module imports
-remain synchronous and do not start generation.
+非同期の内部ドライバー `runGeneration()` は、すべてのサポート対象のホストについて、スキルの一覧、Claude のセクション、QA と qa-only のセクション、ホストのメタデータ、OpenClaw のスニペット、インデックス、エージェントのダイジェスト、補助的なアセットを列挙します。ほかのスキルは、Claude 以外のホストではインラインのままです。QA のアセットは、インストール済みのホストのスキルに対する相対パスで解決されます。すべての成果物は、1 つの比較または書き込みの関数を通ります。ドライランは、不足しているもの、または異なっているものを `STALE` として報告し、ファイルやディレクトリを変更しません。描画やファイルシステムの失敗は、その原因とともに `ERROR` として報告します。どちらの場合も、単一のホストの呼び出しを含め、コマンド全体が失敗します。モジュールのインポートは同期的なままで、生成を開始しません。
 
-Physical output paths are separate from paths embedded in content. `skill:check`
-uses that separation to generate every host once in temporary storage, validate
-the complete render, and compare canonical tracked output. Nonignored generated
-output must be tracked. Optional ignored host caches are untouched, and temporary
-storage is cleaned in `finally`, including after failed generation.
+コンテンツの中に埋め込まれたパスとは別に、出力の物理的なパスがあります。`skill:check` はこの分離を利用して、すべてのホストを一時的なストレージに一度ずつ生成し、描画全体を検証してから、追跡されている正規の出力と比較します。無視されていない生成された出力は、必ず追跡されている必要があります。無視されているホストのキャッシュ(任意)には触れません。一時ストレージは、失敗した生成のあとを含め、`finally` でクリーンアップされます。
 
-### The preamble
+### プリアンブル
 
-Most workflow skills start with a `{{PREAMBLE}}` block that runs before the skill's own logic. The read-only `/deslop-shared-libs` audit omits this block and does not run startup, telemetry, memory, or stateful review helpers. Since v1.71.0.0 the rendered block is a thin fence that invokes `bin/gstack-skill-start` (the consolidated preamble runtime — it replaced ~18KB of inline bash per tier-2+ skill) and reads back `KEY: value` STATUS lines that the skill prose branches on; `bin/gstack-skill-end` logs telemetry at skill end. One-time onboarding and consent text is emitted as session-bound `GSTACK_INSTRUCTION` blocks only when a runtime gate actually fires, instead of rendering in every skill. The startup still handles five things:
+ほとんどのワークフロースキルは、スキル独自のロジックの前に動く `{{PREAMBLE}}` のブロックで始まります。読み取り専用の `/deslop-shared-libs` は、このブロックを省略し、起動、テレメトリ、メモリ、状態を持つレビューのヘルパーを実行しません。v1.71.0.0 以降、描画されるブロックは薄い fence で、`bin/gstack-skill-start`(統合されたプリアンブルのランタイム。tier 2 以上のスキル 1 つあたりの約 18KB のインラインの bash を置き換えました)を呼び出し、スキルの文章が分岐する `KEY: value` 形式のステータス行を読み取ります。`bin/gstack-skill-end` はスキルの終了時にテレメトリを記録します。一度きりのオンボーディングと同意の文言は、ランタイムのゲートが実際に発火したときにのみ、セッションに紐づく `GSTACK_INSTRUCTION` のブロックとして出力されます。すべてのスキルに毎回描画されるわけではありません。起動では次の 5 つのことを行います。
 
-1. **Update check** — calls `gstack-update-check`, reports if an upgrade is available.
-2. **Session tracking** — touches `~/.gstack/sessions/<parent-pid>` and prunes entries older than 2 hours, so concurrent-session state is observable on disk.
-3. **Operational self-improvement** — at the end of every skill session, the agent reflects on failures (CLI errors, wrong approaches, project quirks) and logs operational learnings to the project's JSONL file for future sessions.
-4. **AskUserQuestion format** — universal format: context, question, `RECOMMENDATION: Choose X because ___`, lettered options. Consistent across all skills.
-5. **Search Before Building** — before building infrastructure or unfamiliar patterns, search first. Three layers of knowledge: tried-and-true (Layer 1), new-and-popular (Layer 2), first-principles (Layer 3). When first-principles reasoning reveals conventional wisdom is wrong, the agent names the "eureka moment" and logs it. See `ETHOS.md` for the full builder philosophy.
+1. **アップデートの確認** — `gstack-update-check` を呼び出し、アップグレードがあれば報告します。
+2. **セッションの追跡** — `~/.gstack/sessions/<parent-pid>` に触れ、2 時間より古いエントリーを削除します。これにより、同時実行のセッションの状態をディスク上で確認できます。
+3. **運用上の自己改善** — すべてのスキルのセッションの終わりに、エージェントは失敗(CLI のエラー、誤ったアプローチ、プロジェクト特有の癖)を振り返り、今後のセッションのために、運用上の学びをプロジェクトの JSONL ファイルに記録します。
+4. **AskUserQuestion の形式** — 汎用の形式です。文脈、質問、`RECOMMENDATION: Choose X because ___`、英字の選択肢で構成されます。すべてのスキルで一貫しています。
+5. **作る前に検索する** — インフラや慣れないパターンを作る前に、まず検索します。知識は 3 つの層に分かれます。定番で確立したもの(Layer 1)、新しく人気のもの(Layer 2)、第一原理(Layer 3)です。第一原理による推論によって、従来の常識が誤っていると分かったときは、エージェントはそれを「eureka の瞬間」として名付けて記録します。ビルダーとしての哲学の全体は `ETHOS.md` を参照してください。
 
-### Why committed, not generated at runtime?
+### なぜ生成を実行時ではなくコミットするのか
 
-Three reasons:
+理由は 3 つです。
 
-1. **Claude reads SKILL.md at skill load time.** There's no build step when a user invokes `/browse`. The file must already exist and be correct.
-2. **CI can validate freshness.** All-host generation followed by tracked-diff and untracked-output checks catches stale docs before merge; `skill:check` also validates every host's content from a clean checkout.
-3. **Git blame works.** You can see when a command was added and in which commit.
+1. **Claude は、スキルを読み込むときに SKILL.md を読みます。** ユーザーが `/browse` を呼び出すときにビルドのステップはありません。ファイルは、すでに存在し、正しくなければなりません。
+2. **CI が鮮度を検証できます。** すべてのホストの生成を行い、追跡された差分と未追跡の出力のチェックを行うことで、マージの前に古いドキュメントを検出します。`skill:check` は、クリーンなチェックアウトからすべてのホストのコンテンツも検証します。
+3. **git blame が使えます。** コマンドがいつ、どのコミットで追加されたかを確認できます。
 
-### Template test tiers
+### テンプレートのテストのティア
 
-Paid-tier cost and speed estimates below predate the current model defaults.
-See [eval defaults and overrides](CONTRIBUTING.md#testing--evals).
+以下の段落にある有料ティアのコストと速度の見積もりは、現在のモデルの既定値より前のものです。詳細は [eval の既定値と上書き](CONTRIBUTING.md#testing--evals) を参照してください。
 
-| Tier | What | Cost | Speed |
-|------|------|------|-------|
-| 1 — Static validation | Parse every `$B` command in SKILL.md and validate it against the registry; pin the Aside contract sentences and the render wrapper's option mapping | Free | <2s |
-| 2 — E2E via `claude -p` | Spawn real Claude session, run each skill, check for errors | ~$3.85 | ~20min |
-| 3 — LLM-as-judge | `claude-fable-5-1` by default scores docs on clarity/completeness/actionability | ~$0.15 | ~30s |
+| ティア | 内容 | コスト | 速度 |
+|------|------|------|------|
+| 1 — 静的検証 | SKILL.md 内のすべての `$B` コマンドを解析し、レジストリに照らして検証する。Aside の契約の文を固定し、レンダーラッパーのオプションの対応を固定する | 無料 | 2 秒未満 |
+| 2 — `claude -p` による E2E | 実際の Claude のセッションを起動し、各スキルを実行して、エラーがないか確認する | 約 $3.85 | 約 20 分 |
+| 3 — LLM を審判にする | 既定では `claude-fable-5-1` が、ドキュメントを明確さ、完全性、実行可能性で採点する | 約 $0.15 | 約 30 秒 |
 
-Tier 1 runs on every `bun run test`. Tiers 2+3 are gated behind `EVALS=1`. The idea is: catch 95% of issues for free, use LLMs only for judgment calls.
+ティア 1 は、すべての `bun run test` で実行されます。ティア 2 と 3 は `EVALS=1` の背後に置かれます。考え方は、無料で 95% の問題を捉え、判断が必要な場合にだけ LLM を使うというものです。
 
-## Command dispatch
+## コマンドの振り分け
 
-Commands are categorized by side effects:
+コマンドは、副作用によって分類されます。
 
-- **READ** (text, html, links, console, cookies, ...): No mutations. Safe to retry. Returns page state.
-- **WRITE** (goto, click, fill, press, ...): Mutates page state. Not idempotent.
-- **META** (snapshot, screenshot, tabs, chain, ...): Server-level operations that don't fit neatly into read/write.
+- **READ**(text、html、links、console、cookies など): 変更はしません。再試行しても安全です。ページの状態を返します。
+- **WRITE**(goto、click、fill、press など): ページの状態を変更します。冪等ではありません。
+- **META**(snapshot、screenshot、tabs、chain など): 読み取りと書き込みのどちらにも当てはまりにくい、サーバーレベルの操作です。
 
-This isn't just organizational. The server uses it for dispatch:
+これは単なる整理のためではありません。サーバーは振り分けにこれを使います。
 
 ```typescript
 if (READ_COMMANDS.has(cmd))  → handleReadCommand(cmd, args, bm)
@@ -431,37 +421,37 @@ if (WRITE_COMMANDS.has(cmd)) → handleWriteCommand(cmd, args, bm)
 if (META_COMMANDS.has(cmd))  → handleMetaCommand(cmd, args, bm, shutdown)
 ```
 
-The `help` command returns all three sets so agents can self-discover available commands.
+`help` コマンドは 3 つの集合すべてを返します。そのため、エージェントは利用可能なコマンドを自分で見つけられます。
 
-## Error philosophy
+## エラーの考え方
 
-Errors are for AI agents, not humans. Every error message must be actionable:
+エラーは人間のためではなく、AI エージェントのためにあります。すべてのエラーメッセージは、実行可能なものでなければなりません。
 
-- "Element not found" → "Element not found or not interactable. Run `snapshot -i` to see available elements."
-- "Selector matched multiple elements" → "Selector matched multiple elements. Use @refs from `snapshot` instead."
-- Timeout → "Navigation timed out after 30s. The page may be slow or the URL may be wrong."
+- 「要素が見つかりません」 → 「要素が見つからないか、操作できません。`snapshot -i` を実行すると、利用可能な要素を確認できます。」
+- 「セレクタが複数の要素に一致しました」 → 「セレクタが複数の要素に一致しました。代わりに `snapshot` の @refs を使ってください。」
+- タイムアウト → 「30 秒後にナビゲーションがタイムアウトしました。ページの読み込みが遅いか、URL が誤っている可能性があります。」
 
-Playwright's native errors are rewritten through `wrapError()` to strip internal stack traces and add guidance. The agent should be able to read the error and know what to do next without human intervention.
+Playwright のネイティブなエラーは `wrapError()` を通して書き換えられ、内部のスタックトレースは取り除かれ、対処の指針が加えられます。エージェントは、人間の介入なしにエラーを読んで次に何をすべきか分かるべきです。
 
-### Crash recovery
+### クラッシュからの回復
 
-The server doesn't try to self-heal. If Chromium crashes (`browser.on('disconnected')`), the server exits immediately. The CLI detects the dead server on the next command and auto-restarts. This is simpler and more reliable than trying to reconnect to a half-dead browser process.
+サーバーは自己修復を試みません。Chromium がクラッシュ(`browser.on('disconnected')`)すると、サーバーは即座に終了します。CLI は次のコマンドで死んだサーバーを検出し、自動で再起動します。半分死んだブラウザのプロセスへの再接続を試みるより、単純で信頼できます。
 
-## E2E test infrastructure
+## E2E テストの基盤
 
-### Session runner (`test/helpers/session-runner.ts`)
+### セッションランナー(`test/helpers/session-runner.ts`)
 
-E2E tests spawn `claude -p` as a completely independent subprocess — not via the Agent SDK, which can't nest inside Claude Code sessions. The runner:
+E2E テストは、`claude -p` を完全に独立したサブプロセスとして起動します。Agent SDK は使いません。これは Claude Code のセッションの内側でネストできないためです。ランナーの処理は次のとおりです。
 
-1. Writes the prompt to a temp file (avoids shell escaping issues)
-2. Spawns `sh -c 'cat prompt | claude -p --output-format stream-json --verbose'`
-3. Streams NDJSON from stdout for real-time progress
-4. Races against a configurable timeout
-5. Parses the full NDJSON transcript into structured results
+1. プロンプトを一時ファイルに書き込みます(シェルのエスケープの問題を避けるため)。
+2. `sh -c 'cat prompt | claude -p --output-format stream-json --verbose'` を起動します。
+3. 標準出力から NDJSON をストリームで読み、進捗をリアルタイムに把握します。
+4. 設定可能なタイムアウトと競争させます。
+5. 完全な NDJSON のトランスクリプトを解析し、構造化された結果にします。
 
-The `parseNDJSON()` function is pure — no I/O, no side effects — making it independently testable.
+`parseNDJSON()` 関数は純粋です。I/O も副作用もないため、単独でテストできます。
 
-### Observability data flow
+### 観測データの流れ
 
 ```
   skill-e2e-*.test.ts
@@ -492,45 +482,45 @@ The `parseNDJSON()` function is pure — no I/O, no side effects — making it i
   │  Run dir: e2e-runs/{runId}/
 ```
 
-**Split ownership:** session-runner owns the heartbeat (current test state), eval-store owns partial results (completed test state). Neither component knows about the other — they share data only through the filesystem. Sharded runs report live progress through the detach log (`~/.gstack-dev/eval-runs/`) and each shard's own eval directory.
+**所有の分担:** session-runner はハートビート(現在のテストの状態)を所有し、eval-store は部分的な結果(完了したテストの状態)を所有します。どちらも互いの存在を知らず、ファイルシステムを通じてのみデータを共有します。シャード化された実行は、進捗を detach のログ(`~/.gstack-dev/eval-runs/`)と、各シャードの eval ディレクトリを通じて報告します。
 
-**Non-fatal everything:** All observability I/O is wrapped in try/catch. A write failure never causes a test to fail. The tests themselves are the source of truth; observability is best-effort.
+**観測は、すべて非致命的です。** 観測のための I/O はすべて try/catch で囲まれています。書き込みの失敗が、テストを失敗させることはありません。テスト自体が正となる情報源で、観測はベストエフォートです。
 
-**Machine-readable diagnostics:** Each test result includes `exit_reason` (success, timeout, error_max_turns, error_api, exit_code_N), `timeout_at_turn`, and `last_tool_call`. This enables `jq` queries like:
+**機械可読な診断情報。** 各テスト結果には、`exit_reason`(success、timeout、error_max_turns、error_api、exit_code_N)、`timeout_at_turn`、`last_tool_call` が含まれます。これにより、次のような `jq` のクエリが可能になります。
+
 ```bash
 jq '.tests[] | select(.exit_reason == "timeout") | .last_tool_call' ~/.gstack/projects/<slug>/evals/_partial-e2e.json
 ```
 
-### Eval persistence (`test/helpers/eval-store.ts`)
+### eval の永続化(`test/helpers/eval-store.ts`)
 
-The `EvalCollector` accumulates test results and writes them in two ways:
+`EvalCollector` はテスト結果を蓄積し、2 つの方法で書き出します。
 
-1. **Incremental:** `savePartial()` writes `_partial-e2e.json` after each test (atomic: write `.tmp`, `fs.renameSync`). Survives kills.
-2. **Final:** `finalize()` writes a timestamped eval file (e.g. `e2e-20260314-143022.json`). The partial file is never cleaned up — it persists alongside the final file for observability.
+1. **逐次的に:** `savePartial()` は、テストごとに `_partial-e2e.json` を書き込みます(アトミック: `.tmp` に書き込んでから `fs.renameSync`)。強制終了されても残ります。
+2. **最終的に:** `finalize()` は、タイムスタンプ付きの eval ファイル(例: `e2e-20260314-143022.json`)を書き込みます。部分ファイルは決して削除されず、観測のために最終ファイルと並んで残ります。
 
-`eval:compare` diffs two eval runs. `eval:summary` aggregates stats across all runs in `~/.gstack/projects/<slug>/evals/` (legacy fallback `~/.gstack-dev/evals/`). Both are shard-aware (v1.63.0.0): the sharded paid runner (`scripts/test-paid-shards.ts`, run via `test:gate:sharded` / `test:periodic:sharded` — the `eval:bg:gate` / `eval:bg:periodic` scripts now point at these) gives each shard's collector its own directory at `<evalDir>/shards/<slug>/` through the `GSTACK_EVAL_DIR` env var (honored by the `EvalCollector` constructor), and `eval:list` / `eval:compare` / `eval:summary` scan one level of `shards/<slug>/` subdirectories (`eval:flake-rank` reads the same tree recursively, plus the free-suite flake ledger). Baseline lookups exclude `_partial` accumulators (`isPartialEval` / `findLatestFinalizedRun` in `eval-store.ts`), so auto-comparison never uses the current run's own partial file as its baseline.
+`eval:compare` は 2 回の eval 実行を比較します。`eval:summary` は `~/.gstack/projects/<slug>/evals/`(従来のフォールバック: `~/.gstack-dev/evals/`)のすべての実行の統計を集計します。どちらもシャードを認識します(v1.63.0.0)。シャード化された有料ランナー(`scripts/test-paid-shards.ts`。`test:gate:sharded` / `test:periodic:sharded` で実行されます。`eval:bg:gate` と `eval:bg:periodic` は現在これを指しています)は、`GSTACK_EVAL_DIR` 環境変数(`EvalCollector` のコンストラクターが尊重します)を通じて、各シャードのコレクターに `<evalDir>/shards/<slug>/` の専用ディレクトリを与えます。`eval:list`、`eval:compare`、`eval:summary` は `shards/<slug>/` のサブディレクトリを 1 階層だけスキャンします。`eval:flake-rank` は同じツリーを再帰的に読み、さらに無料スイートのフレーキーの台帳も読みます。ベースラインの検索では `_partial` の蓄積ファイルを除外します(`eval-store.ts` の `isPartialEval` / `findLatestFinalizedRun`)。そのため、自動比較が現在の実行自身の部分ファイルをベースラインに使うことはありません。
 
-### Test tiers
+### テストのティア
 
-Paid-tier cost and speed estimates below predate the current model defaults.
-See [eval defaults and overrides](CONTRIBUTING.md#testing--evals).
+以下の段落にある有料ティアのコストと速度の見積もりは、現在のモデルの既定値より前のものです。詳細は [eval の既定値と上書き](CONTRIBUTING.md#testing--evals) を参照してください。
 
-| Tier | What | Cost | Speed |
-|------|------|------|-------|
-| 1 — Static validation | Parse `$B` commands against the registry, Aside contract pins, render-wrapper pins, observability unit tests | Free | <5s |
-| 2 — E2E via `claude -p` | Spawn real Claude session, run each skill, scan for errors | ~$3.85 | ~20min |
-| 3 — LLM-as-judge | `claude-fable-5-1` by default scores docs on clarity/completeness/actionability | ~$0.15 | ~30s |
+| ティア | 内容 | コスト | 速度 |
+|------|------|------|------|
+| 1 — 静的検証 | `$B` コマンドをレジストリに照らして解析する。Aside の契約の固定、レンダーラッパーの固定、観測のユニットテスト | 無料 | 5 秒未満 |
+| 2 — `claude -p` による E2E | 実際の Claude のセッションを起動し、各スキルを実行して、エラーがないかスキャンする | 約 $3.85 | 約 20 分 |
+| 3 — LLM を審判にする | 既定では `claude-fable-5-1` が、ドキュメントを明確さ、完全性、実行可能性で採点する | 約 $0.15 | 約 30 秒 |
 
-Tier 1 runs on every `bun run test`. Tiers 2+3 are gated behind `EVALS=1`. The idea: catch 95% of issues for free, use LLMs only for judgment calls and integration testing.
+ティア 1 は、すべての `bun run test` で実行されます。ティア 2 と 3 は `EVALS=1` の背後に置かれます。判断が必要な場合と統合テストのためにだけ LLM を使い、無料で 95% を捉えるというのが考え方です。
 
-Anything that needs Aside itself — `test/skill-e2e-aside.test.ts`, the Aside cases in the qa and design-review E2E files, the live round-trip in `test/aside-render.test.ts` — runs only on a Mac with the Aside app open and self-skips elsewhere (`asideAvailable()` in `test/helpers/aside-available.ts`; `GSTACK_SKIP_ASIDE=1` forces the skip). The render gates are engine-agnostic: make-pdf's `*-gate.test.ts` and `test/skill-e2e-diagram.test.ts` run through whichever engine resolves (`browserAvailable()` in `test/helpers/browser-available.ts` = `asideAvailable() || resolveBrowseBin() !== null`) and skip only when neither exists, so Linux CI builds the browse binary with `bun run build:gates` and runs them live. The fallback engine's own tests (`browse/test/`, the `$B`-driven E2E cases) run on every platform as before: Linux CI proves the fallback path live and the Aside contract statically.
+Aside そのものを必要とするもの(`test/skill-e2e-aside.test.ts`、qa と design-review の E2E ファイルにある Aside のケース、`test/aside-render.test.ts` のライブの往復)は、Aside アプリが開いている Mac でのみ実行され、それ以外では自動でスキップされます(`test/helpers/aside-available.ts` の `asideAvailable()`。`GSTACK_SKIP_ASIDE=1` は強制的にスキップします)。描画のゲートはエンジンに依存しません。make-pdf の `*-gate.test.ts` と `test/skill-e2e-diagram.test.ts` は、解決されたどのエンジンでも動きます(`test/helpers/browser-available.ts` の `browserAvailable()` = `asideAvailable() || resolveBrowseBin() !== null`)。両方ともない場合にだけスキップされます。そのため、Linux の CI は `bun run build:gates` で browse バイナリをビルドし、それらをライブで実行します。フォールバックエンジン自身のテスト(`browse/test/`、`$B` を使う E2E のケース)は、従来どおりすべてのプラットフォームで実行されます。Linux の CI はフォールバック経路をライブで検証し、Aside の契約は静的に検証します。
 
-## What's intentionally not here
+## 意図的に含めていないもの
 
-- **No persistent page across `aside repl` calls.** Every Aside script is a fresh session and its tabs die with it. Re-navigating per script is the honest tax of that model; `aside mcp` may lift it later (TODOS.md).
-- **No search tool of our own.** Research goes Aside first, the host's WebSearch tool second, in-distribution knowledge third — out loud each time it steps down.
-- **No WebSocket streaming.** HTTP request/response is simpler, debuggable with curl, and fast enough. Streaming would add complexity for marginal benefit.
-- **No MCP protocol.** MCP adds JSON schema overhead per request and requires a persistent connection. Plain HTTP + plain text output is lighter on tokens and easier to debug.
-- **No multi-user support.** One server per workspace, one user. The token auth is defense-in-depth, not multi-tenancy.
-- **No universal session recovery.** OS-backed cookie import supports macOS, Linux, and DPAPI-compatible Windows formats, not every encryption scheme or site's authentication state. Windows native extraction stays disabled pending qualification, and Chrome's protected default directory is not bypassed.
-- **No iframe auto-discovery.** `$B frame` supports cross-frame interaction (CSS selector, @ref, `--name`, `--url` matching), but the ref system does not auto-crawl iframes during `snapshot`. You must explicitly enter a frame context first.
+- **`aside repl` の呼び出しをまたぐ永続的なページはありません。** Aside のスクリプトはそれぞれ新しいセッションで、そのタブはスクリプトとともに消えます。その代償として、各スクリプトは URL から再度移動します。これはそのモデルの正直なコストです。`aside mcp` が将来これを解消するかもしれません(TODOS.md)。
+- **独自の検索ツールはありません。** 調査は、まず Aside、次にホストの WebSearch ツール、そして最後に学習済みの知識の順で行われます。どの段階に移るときも、そのたびに声に出して伝えます。
+- **WebSocket のストリーミングはありません。** HTTP のリクエストとレスポンスは単純で、curl でデバッグでき、十分に速いからです。ストリーミングは、わずかな利点のために複雑さを増すだけです。
+- **MCP プロトコルはありません。** MCP はリクエストごとに JSON スキーマのオーバーヘッドを加え、永続的な接続を必要とします。プレーンな HTTP とプレーンテキストの出力の方が、トークンが少なくて済み、デバッグもしやすいです。
+- **マルチユーザーのサポートはありません。** ワークスペースごとに 1 つのサーバー、ユーザーは 1 人です。トークンによる認証は多層防御であり、マルチテナントのためのものではありません。
+- **何でも復元できる、というセッションの回復はありません。** OS に紐づく Cookie の取り込みは、macOS、Linux、DPAPI 互換の Windows の形式をサポートしますが、あらゆる暗号化方式やサイトの認証状態をサポートするわけではありません。Windows のネイティブな抽出は、認定されるまで無効のままです。Chrome の保護されたデフォルトのディレクトリは回避しません。
+- **iframe の自動探索はありません。** `$B frame` は、フレーム間の操作(CSS セレクター、@ref、`--name`、`--url` のマッチング)をサポートしますが、参照システムは `snapshot` の間に iframe を自動でたどりません。事前に、フレームのコンテキストに明示的に入る必要があります。

@@ -1,84 +1,34 @@
-# Test, eval and CI audit — October 2026
+# テスト・評価・CI の監査 — 2026 年 10 月
 
-This document records the evidence behind the October 2026 test, eval and CI
-wave: the EVAL_POLICY v2 decision memo (D1) with its pre-registered backtest,
-and the commands that reproduce every number. Metrics that need post-merge
-traffic are measured with `bun run test:health --since-days 7` (merge + 7 days)
-and `bun run test:health --since-days 28` (after the fourth scheduled census).
+本書は、2026 年 10 月のテスト・評価・CI の一連の作業の根拠を記録したものです。内容は、EVAL_POLICY v2 の意思決定メモ (D1) とその事前登録済みのバックテスト、および、すべての数値を再現するためのコマンドです。マージ後のトラフィックが必要な指標は、`bun run test:health --since-days 7` (マージ + 7 日) と `bun run test:health --since-days 28` (4 回目の定期 census の後) で計測します。
 
-## EVAL_POLICY v2 decision memo (D1)
+## EVAL_POLICY v2 の意思決定メモ (D1)
 
-### Why the census is red
+### census が赤い理由
 
-The weekly census is red by arithmetic, not by a handful of broken tests.
-Over 22 censuses with trial outcomes the periodic lane recorded 76 failed
-trials in 3,550 (about 3.5 failed trials per run) and the gate census 27 in
-2,241 (about 1.2 per run). With independent failures, P(green) is e^-3.5 ≈ 3%
-for the periodic lane and e^-1.2 ≈ 30% for the gate census; observed green
-rates were 0/22 and 8/22. Holding a ~190-case single-trial lane green 80% of
-the time needs every case at or below about 0.12% failure per run, which a
-live agent judged by one trial does not reach. Fixing the top five chronic
-cases leaves the lane red.
+週次の census は、少数の壊れたテストのせいではなく、単純な計算によって赤くなっています。トライアルの結果がある 22 回の census にわたり、periodic レーンは 3,550 回中 76 回の失敗トライアル (実行あたり約 3.5 回の失敗) を記録し、gate census は 2,241 回中 27 回 (実行あたり約 1.2 回) でした。失敗が独立しているとすると、P(green) は periodic レーンで e^-3.5 ≈ 3%、gate census で e^-1.2 ≈ 30% になります。実際に観測された緑の割合は、それぞれ 0/22 と 8/22 でした。約 190 件の単一トライアルのレーンを 80% の確率で緑に保つには、各ケースの実行あたりの失敗率が約 0.12% 以下である必要があります。1 回のトライアルで判定されるライブのエージェントは、この水準に届きません。上位 5 件の慢性的なケースを直しても、レーンは赤いままです。
 
-Three levers stay inside the no-retry, no-threshold, no-rejudge rule: make
-detectors deterministic over structured artifacts (W3), classify INFRA
-honestly (W2d, owned by the reliability follow-ups), and make quarantine
-reachable for detector, harness and model-latency failures. v2 targets the
-third lever.
+「no-retry、no-threshold、no-rejudge」の規則の範囲内で、3 つの手段が残されています。決定論的な検出器を構造化された成果物の上に作る (W3)、INFRA を正直に分類する (W2d、信頼性の後続作業が担当)、そして検出器・ハーネス・モデルの遅延による失敗に対して隔離 (quarantine) を到達可能にする。v2 は 3 つ目の手段を対象としています。
 
-`test:health` reports the census as three separate numbers, so a policy
-change cannot read as a reliability gain: the raw trial failure rate per kind
-and failure class, P(lane red) from pooled per-case rates under the recorded
-panels, and the same evidence re-aggregated with every case judged on one
-trial. Both red probabilities treat every observed failure as
-nondeterminism, so they are upper bounds for known-good inputs.
+`test:health` は census を 3 つの別々の数値として報告します。こうすることで、方針の変更が信頼性の改善に見えてしまうことを防ぎます。その数値とは、種類と失敗の分類ごとの生のトライアル失敗率、記録された panel の下で各ケースのプールされた失敗率から求めた P(lane red)、そして、同じ証拠を各ケースを 1 回のトライアルで判定し直して再集計したものです。どちらの赤の確率も、観測されたすべての失敗を非決定性として扱うので、既知の正しい入力に対しては上限値になります。
 
-**False-blocking targets.** Periodic lane: at most 1.0 expected failed trial
-per census (P(red) ≤ 63%) at the 28-day check; gate census: at most 0.5
-(P(red) ≤ 39%). Neither target may be reached by a threshold, retry or
-rejudge change. A miss opens a P1 TODOS entry with the per-kind,
-per-failure-class breakdown from `test:health`.
+**誤ブロックの目標。** periodic レーン: 28 日目の確認時に、census あたりの失敗トライアルは最大 1.0 件 (P(red) ≤ 63%)。gate census: 最大 0.5 件 (P(red) ≤ 39%)。どちらの目標も、閾値・リトライ・再 judge の変更で達成してはいけません。達成できなかった場合は、`test:health` の種類ごと・失敗分類ごとの内訳を付けて P1 の TODOS エントリを起票します。
 
-### What v2 changes
+### v2 で変わること
 
-- **Series identity (W4a, CEO-27, ENG-3).** A case's pass-rate series is keyed
-  by the bytes it owns plus `HARNESS_VERSION`: its paid test file, its
-  fixtures, and the prompt files of the skills it names (templates, sections,
-  manifests and the generated `SKILL.md` the model reads). The series key adds
-  the model id, the pinned Claude Code CLI version and the policy version.
-  Shared helpers no longer start new series. Every trial also records the
-  full consumed-input fingerprint (all touchfiles, globals included) as
-  `series_fingerprint`, plus `harness_version`, as provenance.
-  (`caseSeriesIdentitiesV2` in `scripts/eval-trial-series.ts`.)
-- **Harness guard.** `scripts/harness-version.json` pins the blob of every
-  shared execution-harness file: `GLOBAL_TOUCHFILES` plus the session runners,
-  the PTY harness, the e2e gate and the LLM judge (36 files). A free test
-  (`test/harness-version.test.ts`) fails when one changes without a decision.
-  `bun run scripts/bump-harness-version.ts --bump "<reason>"` raises
-  `HARNESS_VERSION` and starts a new series for every case;
-  `--non-behavioral "<reason>"` records the new blobs as compatible with no
-  reset. Entries are one line per file so concurrent PRs that touch different
-  files merge cleanly; on a conflict, take the higher version, then rerun.
-- **Weekly history (W4b).** Weeks for quarantine expiry and drift are
-  `evals-periodic.yml` runs on `main`: scheduled runs and main dispatches.
-  Trials from branch census runs in the same window pool into a series `main`
-  has also run (option (b) below, approved 2026-10-05); a branch identity
-  `main` has not run is dropped and never becomes the current series.
-- **Kinds (W4c).** No kind changes; see the evidence below.
-- **Pre-v2 evidence does not qualify.** Readers segment strictly by
-  `policy_version`: only v2 trials count toward the quarantine entry rule; v1
-  trials stay visible as display-only. Quarantine is not seeded at merge; a
-  case enters only after it reaches `entry.minTrials` qualifying v2 trials,
-  and `test:health` shows qualifying-vs-required counts with "insufficient
-  evidence" distinct from healthy (DX-12).
+- **系列の同一性 (W4a、CEO-27、ENG-3)。** ケースのパス率の系列は、そのケースが所有するバイト列と `HARNESS_VERSION` をキーにします。所有するバイト列とは、有料のテストファイル、そのフィクスチャ、そして名指ししているスキルのプロンプトファイル (テンプレート、セクション、マニフェスト、モデルが読む生成済みの `SKILL.md`) です。系列のキーには、さらにモデル ID、固定した Claude Code CLI のバージョン、方針のバージョンが加わります。共有ヘルパーは新しい系列を開始しません。すべてのトライアルは、来歴として、全消費入力のフィンガープリント (グローバルを含むすべての touchfile) を `series_fingerprint` として、また `harness_version` も記録します。(`scripts/eval-trial-series.ts` の `caseSeriesIdentitiesV2`。)
+- **ハーネスのガード。** `scripts/harness-version.json` は、共有の実行ハーネスのすべてのファイルの blob を固定します。対象は `GLOBAL_TOUCHFILES` と、セッションのランナー、PTY ハーネス、e2e の gate、LLM judge です (36 ファイル)。無料のテスト (`test/harness-version.test.ts`) は、決定なしにいずれかが変わると失敗します。`bun run scripts/bump-harness-version.ts --bump "<reason>"` は `HARNESS_VERSION` を上げ、すべてのケースで新しい系列を開始します。`--non-behavioral "<reason>"` は、新しい blob を、リセットなしで互換と記録します。エントリはファイルごとに 1 行で、異なるファイルに触れる並行 PR がきれいにマージできるようにしています。競合した場合は、大きい方のバージョンを採用し、再実行してください。
+- **週次の履歴 (W4b)。** 隔離の期限と drift のための週は、`main` 上の `evals-periodic.yml` の実行です。定期実行と main への dispatch が対象です。同じ期間のブランチの census 実行のトライアルは、`main` も実行したことのある系列にプールされます (承認された選択肢 (b)、2026-10-05 承認)。`main` が実行していないブランチの同一性は捨てられ、現在の系列になることは決してありません。
+- **種類 (W4c)。** 種類は変更しません。根拠は以下のとおりです。
+- **v2 以前の証拠は資格を持たない。** 読み取り側は `policy_version` で厳密に区別します。隔離エントリの規則に数えられるのは v2 のトライアルだけです。v1 のトライアルは表示のみとして残ります。隔離はマージ時に種まきされません。ケースは `entry.minTrials` 件の資格を持つ v2 トライアルに達して初めて入ります。`test:health` は、資格のある件数と必要件数を表示し、「証拠不足 (insufficient evidence)」を健全とは区別して表示します (DX-12)。
 
-### W4c: the named "stochastic" cases are deterministic in the record
+### W4c: 名指しされた「確率的」なケースは、記録上は決定論的
 
-Recorded census and PR trials (all 95 recorded revisions, October 2026):
+記録された census と PR のトライアル (2026 年 10 月の全 95 リビジョン):
 
-| Case | Kind | Passed / trials | Failures |
+| ケース | 種類 | 合格 / トライアル | 失敗 |
 |---|---|---|---|
-| plan-ceo-finding-floor | rule | 26/27 | 1 timeout (608 s) |
+| plan-ceo-finding-floor | rule | 26/27 | 1 件のタイムアウト (608 秒) |
 | plan-devex-finding-floor | rule | 27/27 | — |
 | plan-eng-finding-floor | rule | 9/9 | — |
 | plan-design-finding-floor | rule | 9/9 | — |
@@ -86,100 +36,47 @@ Recorded census and PR trials (all 95 recorded revisions, October 2026):
 | plan-devex-review-plan-mode | rule | 27/27 | — |
 | plan-eng-review-plan-mode | rule | 9/9 | — |
 
-The comments calling `plan-*-finding-floor` "stochastic ask-first" are stale:
-the record shows these cases behave like rules. AGENTS.md forbids changing a
-kind without pass-rate evidence, and a 3-trial panel would triple their cost
-for no measurable gain, so they stay `rule`. `plan-design-review-plan-mode`
-(17/22) is handled by its detector repair, not by a kind change.
+`plan-*-finding-floor` を「確率的な ask-first」と呼ぶコメントは古くなっています。記録によれば、これらのケースはルールと同じように振る舞います。AGENTS.md は、パス率の証拠なしに種類を変えることを禁じており、3 トライアルの panel にすると、measurable な利得なしにコストが 3 倍になるため、`rule` のままとします。`plan-design-review-plan-mode` (17/22) は、種類の変更ではなく、その検出器の修復で対処します。
 
-### Backtest (ENG-3, DX-12)
+### バックテスト (ENG-3、DX-12)
 
-`bun run scripts/eval-trial-series.ts --backtest --weeks 30 --records <dir>`
-replays identities with today's registry over historical trees (cases whose
-test file did not exist at a revision are absent there).
+`bun run scripts/eval-trial-series.ts --backtest --weeks 30 --records <dir>` は、過去のツリーに対して、今日のレジストリで同一性を再生します (あるリビジョンでテストファイルが存在しなかったケースは、そのリビジョンには現れません)。
 
-**Weekly main revisions** (29 Mondays, 06:00 UTC, 2026-03-16 to 2026-09-28).
-A case qualifies at a week when one identity holds long enough to collect 10
-trials within the last 10 weekly runs (rule and judge cases record one trial
-per run, behavior cases a panel of three):
+**週次の main のリビジョン** (29 回の月曜日、06:00 UTC、2026-03-16 〜 2026-09-28)。ケースは、ある同一性が直近 10 回の週次実行の期間内に 10 件のトライアルを集めるに足る長さ保たれた週に資格を得ます (rule と judge のケースは実行ごとに 1 件、振る舞いのケースは 3 件の panel を記録):
 
-| Identity | Qualifying at the latest week | Mean qualifying share, last 8 weeks | Median identity changes per case |
-|---|---|---|---|
-| v1 (own touchfiles minus globals) | 0/195 | 0.3% | 15 |
-| v2 (case-owned bytes) | 0/195 | 0.7% | 14 |
-| v2, reset on every pinned-harness change | 0/195 | 0.1% | 14 |
-| v2 without the generated `SKILL.md` (prototype) | 0/217 | 2.0% | 7 |
+| 同一性 | 最新週の資格のある割合 | 直近 8 週の平均の資格のある割合 | ケースごとの同一性変更の中央値 |
+|---|---:|---:|---:|
+| v1 (自身の touchfile から globals を除いたもの) | 0/195 | 0.3% | 15 |
+| v2 (ケースが所有するバイト列) | 0/195 | 0.7% | 14 |
+| v2、固定したハーネスが変わるたびにリセット | 0/195 | 0.1% | 14 |
+| v2 から生成済みの `SKILL.md` を除いたもの (試作) | 0/217 | 2.0% | 7 |
 
-**Recorded trials** re-keyed by the v2 identity of the revision that produced
-them (blocking cases with at least 10 trials on one series):
+**記録されたトライアル**を、そのトライアルを生んだリビジョンの v2 同一性で付け直したもの (10 件以上のトライアルが 1 つの系列にある、ブロッキングのケース):
 
-| Trial source | Recorded (v1) identity | v2 identity |
+| トライアルの出所 | 記録された (v1) 同一性 | v2 同一性 |
 |---|---|---|
-| 22 census runs (5,665 trials) | 52/210 | 67/210 |
-| Census + PR lane, 95 revisions (14,898 trials) | 107/210 | 134/210 |
+| 22 回の census 実行 (5,665 トライアル) | 52/210 | 67/210 |
+| census + PR レーン、95 リビジョン (14,898 トライアル) | 107/210 | 134/210 |
 
-**Harness churn.** The pinned harness changed in 24 of 28 consecutive-week
-transitions, and 33 of the last 60 main commits (2026-08-04 to 2026-10-04)
-touched a pinned file. About half of PRs therefore record a
-`bump-harness-version` decision, and only `--bump` decisions reset series.
+**ハーネスの変動。** 固定したハーネスは、連続する 28 週の遷移のうち 24 回で変わり、直近 60 回の main のコミット (2026-08-04 〜 2026-10-04) のうち 33 回は、固定されたファイルに触れていました。そのため、PR の約半分は `bump-harness-version` の判断を記録しており、系列をリセットするのは `--bump` の判断だけです。
 
-### What the backtest shows
+### バックテストが示すこと
 
-1. v2 makes series honest and longer when trials are dense: on the recorded
-   census runs, 67 blocking cases reach 10 trials on one series versus 52
-   under v1, and 134 versus 107 with PR-lane trials included.
-2. Under the approved weekly history (main scheduled runs plus main
-   dispatches, about one run per week), no blocking case reaches 10
-   qualifying trials at any recent week. A rule case needs ten consecutive
-   weekly runs on unchanged owned bytes, and a case's own prompt files
-   change about every two weeks (the generated `SKILL.md` carries the shared
-   preamble). Excluding the generated `SKILL.md` halves identity churn but
-   still qualifies at most 2% of cases, and it would let preamble and resolver
-   prompt changes pool unless every such edit went through the harness guard.
-3. So v2 alone does not make quarantine reachable. Reaching it needs one of:
-   (a) keep the history as approved and accept that quarantine stays rare, so
-   census redness is fixed at source (W3) and tracked by `test:health`;
-   (b) pool trials from every v2 census run whose series key matches,
-   including branch dispatches, while weeks for expiry still count from main
-   only — the recorded backtest's 67/210, at the cost of pooling branch code
-   whose unbumped harness edits match; or (c) extra census dispatches on an
-   unchanged main revision (about $175 recorded each). Garry approved (b) on
-   2026-10-05, and this PR implements it: pooled branch trials count only
-   toward a series a `main` run also has.
+1. v2 は、トライアルが密な場合に系列をより正直で長くします。記録された census 実行では、1 つの系列で 10 件のトライアルに達するブロッキングのケースが、v1 の 52 件に対して v2 では 67 件、PR レーンのトライアルを含めると、107 件に対して 134 件でした。
+2. 承認された週次の履歴 (main の定期実行と main への dispatch、およそ週に 1 回の実行) の下では、直近のどの週にも、10 件の資格あるトライアルに達するブロッキングのケースはありません。rule のケースは、変更されていない所有バイト列の上で 10 回連続の週次実行が必要ですが、ケースのプロンプトファイルは約 2 週間ごとに変わります (生成済みの `SKILL.md` が共有のプリアンブルを運ぶためです)。生成された `SKILL.md` を除くと同一性の変動は半分になりますが、それでも資格を得るケースは最大 2% です。また、ハーネスガードを通さない限り、プリアンブルやリゾルバーのプロンプトの変更がプールされてしまいます。
+3. そのため、v2 だけでは隔離を到達可能にはなりません。到達するには、次のいずれかが必要です。 (a) 承認された履歴を維持し、隔離がまれであることを受け入れる。その場合、census の赤さは元で直す (W3) ことになり、`test:health` で追跡する。 (b) ブランチの dispatch を含め、系列のキーが一致するすべての v2 census 実行のトライアルをプールする。ただし、隔離の期限は引き続き main からのみ数える。これは記録されたバックテストの 67/210 に当たるが、代償として、ハーネスの未 bump の編集が一致してしまうブランチのコードがプールされる。 (c) 変更のない main のリビジョンで、追加の census の dispatch を行う (1 回あたり約 $175 と記録)。Garry は 2026-10-05 に (b) を承認し、この PR はそれを実装する。ブランチのプールされたトライアルは、main の実行も持つ系列に対してのみ数える。
 
-### Alternatives considered
+### 検討した代替案
 
-- **Gating vs trended.** The native CEO voice proposed keeping live-agent
-  cases trended (reported, never blocking) and gating only on deterministic
-  detectors. v2 keeps the census blocking because quarantine and the
-  pass-rate gate already provide a trended path per case; the
-  false-blocking targets above are the check on that choice. If the 28-day
-  check misses them, trended reporting for the remaining stochastic cases is
-  the next proposal.
-- **Adaptive sequential panels** (one trial, escalate to three on a failure,
-  about 1.04× cost across ~190 cases) would be the strongest lever for a
-  green census. They are not adopted: an escalation triggered by a failure is
-  a retry, which Garry's rule forbids.
-- **Buy vs build.** Hosted eval platforms (Braintrust, LangSmith, Weights &
-  Biases Weave) store per-case pass-rate history and cost natively, but
-  gstack's verdicts are produced inside GitHub Actions from Claude Code
-  sessions with pre-registered panels and receipts, and the history is a few
-  thousand JSONL lines per week that `gh` already serves. A platform would add
-  an external dependency and a second source of truth for verdicts without
-  removing the in-repo policy. Building on the existing artifacts stays the
-  choice; revisit if history outgrows artifact retention (90 days).
+- **ゲーティング対トレンド。** ネイティブの CEO の声は、ライブのエージェントのケースはトレンドとして (報告のみで、ブロックしない) 維持し、決定論的な検出器だけでゲートすることを提案していました。v2 は、各ケースごとにすでに隔離と合格率のゲートがトレンドの経路を提供しているため、census をブロッキングのままにします。上の誤ブロック目標がこの選択の検証になります。28 日目の確認でこの目標を満たせなければ、残りの確率的なケースのトレンド報告が次の提案になります。
+- **適応的な逐次 panel** (1 トライアル、失敗したら 3 に増やす。約 190 件のケースで約 1.04 倍のコスト) は、緑の census を得る最も強い手段でしょう。ただし採用しません。失敗によって引き起こされるエスカレーションはリトライであり、Garry の規則で禁じられているためです。
+- **買うか作るか。** Braintrust、LangSmith、Weights & Biases Weave などのホスト型の評価プラットフォームは、ケースごとのパス率の履歴とコストをネイティブに保存します。しかし gstack の判定は、事前登録された panel と証跡を持つ GitHub Actions 内の Claude Code セッションで生成されます。また履歴は週に数千行の JSONL で、`gh` がすでに配信しています。プラットフォームを入れると外部依存が増え、リポジトリ内の方針を取り除かずに、判定の情報源が 2 つになってしまいます。既存の成果物の上に作るという選択を維持します。履歴が成果物の保持期間 (90 日) を超えるようになったら見直します。
 
-### Rollout and rollback (ENG-14, DX-12)
+### ロールアウトとロールバック (ENG-14、DX-12)
 
-The reader-compatibility commit lands first: readers score only trials under
-their own `EVAL_POLICY.version`, show older-policy trials as display-only,
-and ignore newer-policy trials with a printed count. The v2 writer (identity
-stamping and `version: 2`) lands last. The supported rollback is reverting
-the v2 writer commits; a whole-PR revert is not claimed safe.
+互換性のための読み取り側の変更が最初に入ります。読み取り側は、自分の `EVAL_POLICY.version` のトライアルだけを採点し、古い方針のトライアルは表示のみとして扱い、新しい方針のトライアルは件数を表示したうえで無視します。v2 の書き込み側 (同一性のスタンプと `version: 2`) は最後に入ります。サポートされているロールバックは、v2 の書き込み側のコミットを revert することです。PR 全体の revert が安全だとは主張しません。
 
-On a mixed v1/v2 fixture (10 passing v1 trials, 12 v2 trials with 3
-failures), the pre-PR reader at 2db0b3a pools the v2 records as the current
-v1 series and fails its gate:
+v1/v2 が混在するフィクスチャ (合格した v1 のトライアル 10 件、3 件の失敗を含む v2 のトライアル 12 件) では、2db0b3a の PR 前の読み取り側が v2 のレコードを現在の v1 の系列としてプールし、そのゲートに失敗します。
 
 ```
 pass-rates: policy v1, 22 post-policy trial(s), 0 pre-policy (display only)
@@ -188,7 +85,7 @@ ACTION REQUIRED (2): [drift] ... [rule-as-behavior] ...
 exit=1
 ```
 
-The compatibility reader ignores the v2 records and keeps the v1 series:
+互換性のある読み取り側は、v2 のレコードを無視し、v1 の系列を維持します。
 
 ```
 pass-rates: policy v1, 10 post-policy trial(s), 0 pre-policy (display only)
@@ -197,111 +94,69 @@ pass-rates: policy v1, 10 post-policy trial(s), 0 pre-policy (display only)
 exit=0
 ```
 
-## Wave evidence
+## ウェーブの証拠
 
-### PR paid lane selection replay (CEO-23, ENG-18)
+### PR の有料レーンの選択の再生 (CEO-23、ENG-18)
 
-The replay sends each recorded PR push's changed files through today's
-selector and dependency graph:
+再生では、記録された各 PR の push の変更ファイルを、今日のセレクターと依存関係グラフに通します。
 
 ```bash
 gh run list -R garrytan/gstack --workflow evals.yml --json databaseId,headSha,event,createdAt,conclusion -L 200 > runs.json
 bun run scripts/replay-pr-selection.ts --runs runs.json
 ```
 
-Over 168 PR pushes with plan manifests (2026-09-25 to 2026-10-04):
+計画マニフェストのある 168 回の PR push (2026-09-25 〜 2026-10-04):
 
-| Measure | Recorded | Replayed |
+| 指標 | 記録 | 再生 |
 |---|---:|---:|
-| Full-fallback pushes | 165 of 168 (98.2%) | 164 of 168 (97.6%) |
-| Misses (a failed case that depends on the diff and is no longer selected) | — | 0 |
-| Failed cases that no longer exist (counted apart) | — | 6 |
+| 全件フォールバックの push | 168 回中 165 回 (98.2%) | 168 回中 164 回 (97.6%) |
+| 見逃し (差分に依存する、失敗したケースが選択されなくなったもの) | — | 0 |
+| 存在しなくなった失敗ケース (別に数える) | — | 6 |
 
-113 of the 168 diffs exceed the compare API's 300-file cap and are replayed on
-their first 300 files. The rate barely moves because the replay uses each push's
-cumulative branch diff, and the wave branches of that week touch shared inputs
-that correctly select every case: `scripts/` in 156 pushes, `.github/` in 125
-(mostly the eval workflows), `bin/` in 120, `make-pdf/` in 90, `test/helpers/` in
-86, `design/` in 67, `lib/` in 58, `hosts/` in 56 and `tsconfig*.json` in 37. The
-selector removes the single-class fallbacks (duration seeds, free-only workflows,
-`scripts/ubicloud/**`, free tests and free fixtures; run 36497566037 now selects
-the `pr` profile) and cannot narrow a branch that changes `bin/` or `lib/`;
-narrowing those needs touchfile mappings for `bin/`, `lib/`, `hosts/` and
-`make-pdf/`. The post-merge `test:health` check measures the fallback rate on
-ordinary PRs.
+168 件の差分のうち 113 件は、compare API の 300 ファイルの上限を超えるため、各 push の最初の 300 ファイルで再生しました。割合がほとんど動かないのは、再生が各 push の累積されたブランチの差分を使い、その週のウェーブのブランチが、すべてのケースを正しく選択する共有の入力に触れているためです。`scripts/` が 156 件の push、`.github/` が 125 件 (大半は評価のワークフロー)、`bin/` が 120 件、`make-pdf/` が 90 件、`test/helpers/` が 86 件、`design/` が 67 件、`lib/` が 58 件、`hosts/` が 56 件、`tsconfig*.json` が 37 件です。セレクターは、単一クラスのフォールバック (所要時間の seed、無料だけのワークフロー、`scripts/ubicloud/**`、無料のテストと無料のフィクスチャ。実行 36497566037 では `pr` プロファイルが選ばれるようになった) を取り除きますが、`bin/` や `lib/` を変更するブランチを絞り込むことはできません。それを絞り込むには、`bin/`、`lib/`、`hosts/`、`make-pdf/` に対する touchfile の対応が必要です。マージ後の `test:health` のチェックで、通常の PR におけるフォールバックの割合を計測します。
 
-### Paid slices and concurrency (ENG-17)
+### 有料の shard と並行性 (ENG-17)
 
-Live census with `EVALS_ALL=1` (periodic: `--list --slice-budget S --jobs 2`;
-gate census: `--emit-plan <file> --slice-budget S --jobs 2 --skip-judges`):
+`EVALS_ALL=1` によるライブの census (periodic: `--list --slice-budget S --jobs 2`、gate census: `--emit-plan <file> --slice-budget S --jobs 2 --skip-judges`):
 
-| Lane | Before (540 s) | After (420 s) |
+| レーン | 変更前 (540 秒) | 変更後 (420 秒) |
 |---|---|---|
-| Periodic slices / peak shard processes | 26 / 52 | 33 / 66 (max-parallel 26 → 36) |
-| Weekly gate census slices / peak | 12 / 24 | 16 / 32 (max-parallel 16 → 20) |
-| CI job ceiling | One value for every slice: 173 min periodic, 254 min gate census | Per slice: ordinary 50 min (30-minute shard wall + 20), periodic outliers 52 and 73 min, the overlay slice 173 min (5 serialized overlay wrappers); gate census 34–82 min |
+| Periodic のスライス / shard プロセスのピーク | 26 / 52 | 33 / 66 (max-parallel 26 → 36) |
+| 週次 gate census のスライス / ピーク | 12 / 24 | 16 / 32 (max-parallel 16 → 20) |
+| CI ジョブの上限 | すべてのスライスで 1 つの値: periodic 173 分、gate census 254 分 | スライスごと: 通常 50 分 (shard の壁時計 30 分 + 20)、periodic の外れ値 52 分と 73 分、オーバーレイのスライス 173 分 (直列化された 5 つのオーバーレイのラッパー)、gate census 34〜82 分 |
 
-The PR lane (`evals.yml`) uses the same 420-second budget and per-slice ceilings.
+PR レーン (`evals.yml`) は、同じ 420 秒の予算とスライスごとの上限を使います。
 
-### Free suite
+### 無料スイート
 
-- The Windows lane runs on six `windows-latest` jobs packed by Windows-measured
-  durations: about 4.6 minutes wall in the free-suite branch's validation runs,
-  down from 8.1 minutes on one runner.
-- Unseeded files pack at the 99th percentile (was the 75th), and the seed growth
-  ratchet (`test/free-seed-ratchet.test.ts`) keeps files over 60 seconds on a
-  shrink-only allowlist.
-- The bash+zsh portability tests (#2669) run in CI now that the free-suite job
-  installs zsh.
-- Native Windows and Dia qualification campaigns moved out of the PR workflow
-  into the dispatch-only `native-qualification.yml`.
+- Windows のレーンは、Windows で計測した所要時間でパックされた 6 個の `windows-latest` のジョブで動き、無料スイートのブランチの検証実行では壁時計で約 4.6 分です。1 台のランナーでは 8.1 分でした。
+- seed のないファイルは、99 パーセンタイルでパックされます (以前は 75 パーセンタイル)。また、seed の増加のラチェット (`test/free-seed-ratchet.test.ts`) が、60 秒を超えるファイルを縮小のみの許可リストで管理します。
+- bash と zsh の移植性テスト (#2669) は、無料スイートのジョブが zsh をインストールするようになったため、今では CI で実行されます。
+- ネイティブの Windows と Dia の認定キャンペーンは、PR のワークフローから、dispatch 専用の `native-qualification.yml` に移りました。
 
-### Prose pins (D2)
+### 散文の pin (D2)
 
-D2 is approved: the prompt-byte contract in
-[test-value-bar.md](test-value-bar.md) covers machine-read tokens only, and
-sentence pins in 55 free test files became structural checks through
-`test/helpers/prompt-structure.ts`. A sentence pin here is a 40-or-more-character
-English string literal, or a prose regex of five or more words, asserted against
-SKILL.md, template or section text in a free test.
+D2 は承認済みです。[test-value-bar.md](test-value-bar.md) の prompt-byte の契約は、機械が読むトークンだけを対象とします。55 個の無料テストファイルにある文の pin は、`test/helpers/prompt-structure.ts` を通じて構造のチェックに変わりました。ここでの文の pin とは、SKILL.md、テンプレート、またはセクションのテキストに対して無料のテストで assert される、40 文字以上の英語の文字列リテラル、または 5 語以上の散文の正規表現です。
 
-| Measure | main (2db0b3a) | This wave |
+| 指標 | main (2db0b3a) | 今回のウェーブ |
 |---|---:|---:|
-| Sentence pins | 2,332 in 217 files | 1,190 in 209 files |
-| Shouting pins (NEVER/MUST/ALWAYS/CRITICAL emphasis) | 8 | 4 |
+| 文の pin | 217 ファイルに 2,332 件 | 209 ファイルに 1,190 件 |
+| 強調の pin (NEVER/MUST/ALWAYS/CRITICAL の強調) | 8 | 4 |
 
-The 4 remaining shouting pins are enum or marker tokens (`PLAN MODE EXCEPTION —
-ALWAYS RUN`, `[CRITICAL]`, `ALWAYS-ON` CLI output), not emphasis. Most remaining
-sentence pins sit in QA caller, detector-helper and workflow files that other
-work in flight owns.
+残る 4 件の強調の pin は、強調ではなく列挙や marker のトークンです (`PLAN MODE EXCEPTION — ALWAYS RUN`、`[CRITICAL]`、`ALWAYS-ON` の CLI 出力)。残りの文の pin の大半は、QA の呼び出し元、検出器のヘルパー、他の作業が進行中のワークフローファイルにあります。
 
-## Post-merge follow-up (2026-10-15)
+## マージ後のフォローアップ (2026-10-15)
 
-The "post-merge audit metrics" TODO, from a no-spend run of
-`bun run test:health --since-days 7` (window 2026-10-08T22:14Z to
-2026-10-15T22:14Z). The 2026-10-12 figures are the weekly health run in issue
-#3154 (run 38234556073), kept as dated history.
+「post-merge audit metrics」の TODO。`bun run test:health --since-days 7` を、支出なしで実行した結果です (期間 2026-10-08T22:14Z 〜 2026-10-15T22:14Z)。2026-10-12 の数値は、issue #3154 (実行 38234556073) の週次ヘルスチェックのもので、日付付きの履歴として残しています。
 
-| Metric | 2026-10-12 | 2026-10-15 | Target | Verdict |
+| 指標 | 2026-10-12 | 2026-10-15 | 目標 | 判定 |
 |---|---:|---:|---|---|
-| PR full-fallback rate | 45.0% (58/129 runs) | 45.9% (39/85 runs) | none numeric; the replay above names the cause | open: branches touching `bin/`, `lib/`, `hosts/` or `make-pdf/` still select every case |
-| Recorded PR-lane spend per merged PR | $75.09 (46 merged) | $73.52 (33 merged) | down at least 50% from the pre-change baseline | unavailable: baseline not recorded (below) |
-| Cancelled slice-minutes per week | 1,939 (44 runs) | 1,545 (33 runs) | none numeric | reported |
-| PR push-to-verdict | p50 12.0 min, p95 1,160.7 min (122 runs) | p50 11.4 min, p95 107.9 min (80 runs) | 3–5 minutes for typical PR checks (CONTRIBUTING.md) | missed |
-| Free-suite flaky-pass rate | 13.0% (6/46 main runs) | 6.1% (2/33 main runs; `terminal-agent-publication-lock` 2/33, over the 5% per-file check) | under 5% of main runs | missed; fix wave 2 repairs the five ledger files |
+| PR の全件フォールバック率 | 45.0% (58/129 実行) | 45.9% (39/85 実行) | 数値目標なし。上の再生が原因を示す | 未解決: `bin/`、`lib/`、`hosts/`、`make-pdf/` に触れるブランチは、まだすべてのケースを選択する |
+| マージされた PR 1 件あたりの記録された PR レーンの費用 | $75.09 (マージ 46 件) | $73.52 (マージ 33 件) | 変更前の基準から少なくとも 50% 減 | 判定不能: 基準が記録されていない (下記) |
+| 1 週間あたりのキャンセルされたスライスの分数 | 1,939 (44 実行) | 1,545 (33 実行) | 数値目標なし | 報告のみ |
+| PR の push から判定まで | p50 12.0 分、p95 1,160.7 分 (122 実行) | p50 11.4 分、p95 107.9 分 (80 実行) | 通常の PR チェックで 3〜5 分 (CONTRIBUTING.md) | 未達 |
+| 無料スイートのフレーキーな合格率 | 13.0% (main の実行 46 件中 6 件) | 6.1% (main の実行 33 件中 2 件。`terminal-agent-publication-lock` が 2/33 で、ファイルごとの 5% の基準を超過) | main の実行の 5% 未満 | 未達。修正のウェーブ 2 で、5 つの台帳ファイルを直す |
 
-**Spend baseline.** The pre-change window was recomputed with the exported
-`collectHealth` at `now = 2026-10-04T00:00Z`, seven days, through a client that
-drops runs created and PRs merged after that instant (`listWorkflowRuns` has no
-upper bound of its own). The window holds 12 merged PRs but no
-`trial-outcomes-pr-*` artifacts and no paid-plan manifest with `prCoverage`:
-the recorder that feeds this metric shipped with the audit, so the PR lanes
-before it wrote nothing it can read (their other artifacts are retained until
-2026-11-02 and later). Baseline not recorded; verdict unavailable. The P1 in
-TODOS.md is opened on the absolute figures.
+**費用の基準。** 変更前の期間は、エクスポートされた `collectHealth` を `now = 2026-10-04T00:00Z`、7 日間で再計算しました。その時刻の後に作成された実行とマージされた PR を除外するクライアントを通しています (`listWorkflowRuns` は独自の上限を持たないため)。この期間には、マージされた PR が 12 件ありますが、`trial-outcomes-pr-*` の成果物はなく、`prCoverage` を持つ有料プランのマニフェストもありません。この指標を生むレコーダーは監査と一緒に出荷されたため、それ以前の PR レーンは読み取れるものを何も書いていません (それ以外の成果物は 2026-11-02 以降まで保持されています)。基準は記録されておらず、判定は不能です。TODOS.md の P1 は絶対値の数字に基づいて起票されています。
 
-**Census reliability (not yet due).** Due after the fourth scheduled census
-after the audit merge (2026-10-26). Interim: periodic 2.00 expected failed
-trials per run (6/538 over 3 runs; target at most 1.0), gate census 0.33 (1/308
-over 3 runs; target at most 0.5). The TODO keeps its due date; the census
-repair stays with #3153 and #3200.
+**census の信頼性 (まだ期限が来ていない)。** 監査のマージ後の 4 回目の定期 census (2026-10-26) の後に期限が来ます。途中経過: periodic は実行あたり 2.00 件の失敗トライアル (3 回の実行で 6/538。目標は最大 1.0)、gate census は 0.33 件 (3 回の実行で 1/308。目標は最大 0.5)。TODO は期限を維持します。census の修復は #3153 と #3200 が担当します。

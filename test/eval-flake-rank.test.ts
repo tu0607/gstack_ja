@@ -37,7 +37,7 @@ const run = (tests: object[], extra: object = {}) => JSON.stringify({
 describe('eval-flake-rank aggregate', () => {
   test('manual acceptance is visible but not a scored failure or retried pass', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'flakerank-manual-'));
-    const manual = manualReviewFixture();
+    const manual = manualReviewFixture(undefined, { synthetic: true });
     const { manual_review: _receipt, ...ordinary } = manual;
     fs.writeFileSync(path.join(dir, 'prior.json'), run([{ ...ordinary, passed: true, exit_reason: 'success',
       judge_scores: { clarity: 4, completeness: 3, actionability: 4 } }]));

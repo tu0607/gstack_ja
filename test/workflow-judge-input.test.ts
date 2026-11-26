@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { readWorkflowJudgeInput, buildWorkflowJudgePrompt, QA_DISCOVERY_REFERENCES, WORKFLOW_JUDGE_RESPONSE_SCHEMA, WORKFLOW_JUDGE_REASONING_WORD_LIMIT } from './helpers/workflow-judge-input';
 import { ASK_QUESTIONS_HEADING, ENG_REVIEW_EXCERPT } from './helpers/workflow-excerpt';
+import { expectMentions } from './helpers/prompt-structure';
 
 const ROOT = resolve(import.meta.dir, '..');
 const scratchRoots: string[] = [];
@@ -92,12 +93,12 @@ describe('workflow judge file bundle', () => {
     const input = readWorkflowJudgeInput({ root: ROOT, ...options });
     const entry = input.files.find(file => file.kind === 'entrypoint')!;
     const complete = readFileSync(join(ROOT, options.skillPath), 'utf8');
-    expect(entry.content).toBe(complete.slice(complete.indexOf('# Plan Review Mode')));
-    expect(entry.content).toContain('Do not build features, acceptance suites or benchmarks unless explicitly authorized');
-    expect(entry.content).toContain('## Scope gate');
-    expect(entry.content).toContain('## Section self-check');
+    expect(entry.content).toBe(complete.slice(complete.indexOf('# プランレビューモード')));
+    expectMentions(entry.content, [['機能', '受け入れスイート', 'ベンチマーク', '構築しないでください']], 'entrypoint');
+    expect(entry.content).toContain('## スコープゲート');
+    expect(entry.content).toContain('## セクションの自己チェック');
     expect(entry.content).toContain('## EXIT PLAN MODE GATE (BLOCKING)');
-    expect(entry.content.trimEnd()).toMatch(/After success telemetry and cache dispatch, call ExitPlanMode[^\n]*\.$/);
+    expect(entry.content.trimEnd()).toMatch(/成功のテレメトリとキャッシュの送信が完了したら[^\n]*ExitPlanMode[^\n]*。$/);
   });
 
   test('preserves the exact entrypoint excerpt and each complete section in sorted named files', () => {
@@ -186,15 +187,15 @@ describe('workflow judge file bundle', () => {
       } else if (skill === 'qa-only') {
         expect(input.files.map(file => file.path)).toContain('qa/sections/system-functional.md');
         expect(input.files.filter(file => file.path.endsWith('/exploratory.md'))).toHaveLength(1);
-        expect(input.files.find(file => file.kind === 'entrypoint')?.content).toContain('Never fix bugs or write product tests');
+        expectMentions(input.files.find(file => file.kind === 'entrypoint')!.content, [['バグを修正', '製品のテストを書', 'しないでください']], 'qa-only entrypoint');
       } else if (skill === 'document-release') {
         expect(input.files.map(file => file.path)).toContain('document-release/sections/audit-scope.md');
-        expect(input.text).toContain('Ship-owned documentation mode');
+        expect(input.text).toContain('## ship が所有するドキュメントモード');
       } else {
         expect(input.files.map(file => file.path)).toContain('qa/sections/exploratory.md');
         expect(input.files.map(file => file.path)).toContain('review/checklist.md');
         expect(input.text).toContain('test_stub');
-        expect(input.text).toContain('## Step 5: Fix-First Review');
+        expect(input.text).toContain('## Step 5: Fix-First レビュー');
       }
     });
   }
@@ -207,7 +208,7 @@ describe('workflow judge file bundle', () => {
       '<!-- Regenerate: bun run gen:skill-docs -->',
       'section context before the selected marker',
       '## Review Sections',
-      '### Pass 1: Information Architecture',
+      '### パス 1: 情報アーキテクチャ',
       'Evaluate the first pass.',
       '## CRITICAL RULE',
       'section context after the selected marker',
@@ -221,7 +222,7 @@ describe('workflow judge file bundle', () => {
     expect(input.files).toEqual([
       { path: 'example/sections/review-sections.md', kind: 'section', content: section, startLine: 1, endLine: 8 },
     ]);
-    expect(occurrences(input.text, '### Pass 1: Information Architecture')).toBe(1);
+    expect(occurrences(input.text, '### パス 1: 情報アーキテクチャ')).toBe(1);
     expect(occurrences(input.text, 'section context before the selected marker')).toBe(1);
     expect(occurrences(input.text, 'section context after the selected marker')).toBe(1);
     expect(occurrences(input.text, section)).toBe(1);
@@ -290,19 +291,19 @@ describe('workflow judge file bundle', () => {
     const entrypoint = input.files.find(file => file.kind === 'entrypoint');
     expect(entrypoint?.content).toBe(source.slice(source.indexOf(startMarker), source.indexOf(endMarker, source.indexOf(startMarker))));
     expect(entrypoint?.content).toContain('git remote get-url origin');
-    expect(entrypoint?.content).toContain('STOP blocks advancement until the stated repair/resume route clears; without one, end this attempt');
+    expectMentions(entrypoint!.content, [['STOP', '修復/再開ルート', '解消されるまで', '進行を止め']], 'entrypoint');
     const flow = entrypoint!.content.replace(/\s+/g, ' ');
-    expect(flow).toContain('Every new invocation repeats Steps 1–16, including both reviews and the docs audit');
-    expect(flow).toContain('children return evidence, not permission to proceed');
-    expect(flow).toContain('Follow the saved work list');
+    expectMentions(flow, [['新しい起動のたびに', 'Step 1–16', 'ドキュメント監査']], 'flow');
+    expectMentions(flow, [['子の出力は証拠', '進行の許可ではありません']], 'flow');
+    expectMentions(flow, [['保存された作業リストに従ってください']], 'flow');
     expect(flow).not.toContain('| At step | Outcome |');
-    expect(flow).toContain('`gstack-wtree` prints a Git tree hash');
-    expect(flow).toContain('Offline output without that fallback, failure, malformed output or an empty version is unusable');
-    expect(entrypoint?.content).toContain('Answer each AskUserQuestion before continuing');
-    expect(entrypoint?.content).toContain('Routine authorization never waives those gates or their required user decisions');
-    expect(entrypoint?.content).toContain('## Step 0: Detect platform and base branch');
+    expectMentions(flow, [['`gstack-wtree`', 'Git ツリーハッシュ']], 'flow');
+    expectMentions(flow, [['オフライン出力', '空のバージョン', '使えません']], 'flow');
+    expectMentions(entrypoint!.content, [['AskUserQuestion', '回答してから先に進んでください']], 'entrypoint');
+    expectMentions(entrypoint!.content, [['通常の承認', 'ゲート', '免除されません']], 'entrypoint');
+    expect(entrypoint?.content).toContain('## Step 0: プラットフォームとベースブランチを検出する');
     expect(entrypoint?.content).toContain('gh pr view --json baseRefName');
-    expect(entrypoint?.content).toContain('Print the detected base branch name.');
+    expectMentions(entrypoint!.content, [['検出したベースブランチ名を表示します']], 'entrypoint');
     expect(occurrences(input.text, startMarker)).toBe(1);
     const sections = input.files.filter(file => file.kind === 'section');
     expect(sections.map(file => file.path)).toEqual(sectionPaths('ship'));
@@ -323,17 +324,17 @@ describe('workflow judge file bundle', () => {
     expect(ENG_REVIEW_EXCERPT.skillPath).toBe(skillPath);
     const input = readWorkflowJudgeInput({ root: ROOT, ...options });
     const entrypoint = input.files.find(file => file.kind === 'entrypoint')!;
-    expect(entrypoint.content).toContain('B) A plan or design doc');
-    expect(entrypoint.content).toContain('## Scope gate');
-    expect(entrypoint.content.indexOf('## Scope gate')).toBeLessThan(entrypoint.content.indexOf('### Step 0: Scope Challenge'));
+    expectMentions(entrypoint.content, [['B)', 'プランまたは設計ドキュメント']], 'entrypoint');
+    expect(entrypoint.content).toContain('## スコープゲート');
+    expect(entrypoint.content.indexOf('## スコープゲート')).toBeLessThan(entrypoint.content.indexOf('### Step 0: Scope Challenge'));
     expect(entrypoint.content).toContain('## Web research runs in Aside');
     // E7: the readiness probe prints the resolved Aside path (READY: $_A).
     expect(entrypoint.content).toContain('echo "READY: $_A');
-    expect(input.text.indexOf('echo "READY: $_A')).toBeLessThan(input.text.indexOf('- **Search check:**'));
-    expect(entrypoint.content).not.toContain('- **Search check:**');
-    expect(occurrences(input.text, '- **Search check:**')).toBe(1);
-    expect(occurrences(input.text, '## Scope gate')).toBe(1);
-    expect(occurrences(input.text, '### 1. Architecture review')).toBe(1);
+    expect(input.text.indexOf('echo "READY: $_A')).toBeLessThan(input.text.indexOf('- **検索のチェック:**'));
+    expect(entrypoint.content).not.toContain('- **検索のチェック:**');
+    expect(occurrences(input.text, '- **検索のチェック:**')).toBe(1);
+    expect(occurrences(input.text, '## スコープゲート')).toBe(1);
+    expect(occurrences(input.text, '### 1. アーキテクチャのレビュー')).toBe(1);
     const sections = input.files.filter(file => file.kind === 'section');
     expect(sections.map(file => file.path)).toEqual(sectionPaths('plan-eng-review'));
     for (const file of sections) {
@@ -351,11 +352,11 @@ describe('workflow judge file bundle', () => {
     const [, startMarker, endMarker] = markers!;
     const input = readWorkflowJudgeInput({ root: ROOT, skillPath, startMarker, endMarker });
     const entrypoint = input.files.find(file => file.kind === 'entrypoint')!;
-    for (const prerequisite of ['## Phase 0: Pre-checks', 'DESIGN_MD_FORMAT:', 'DESIGN_READY', 'DESIGN_NOT_AVAILABLE']) {
+    for (const prerequisite of ['## Phase 0: 事前チェック', 'DESIGN_MD_FORMAT:', 'DESIGN_READY', 'DESIGN_NOT_AVAILABLE']) {
       expect(entrypoint.content).toContain(prerequisite);
     }
     expect(entrypoint.content.indexOf('## Phase 0:')).toBeLessThan(entrypoint.content.indexOf('## Phase 1:'));
-    expect(occurrences(input.text, '## Phase 0: Pre-checks')).toBe(1);
+    expect(occurrences(input.text, '## Phase 0: 事前チェック')).toBe(1);
     const sections = input.files.filter(file => file.kind === 'section');
     expect(sections.map(file => file.path)).toEqual(sectionPaths('design-consultation'));
     for (const file of sections) {
@@ -375,7 +376,7 @@ describe('workflow judge file bundle', () => {
     expect(section?.content).toBe(readFileSync(join(ROOT, 'plan-design-review/sections/review-sections.md'), 'utf8'));
     expect(section?.content).toStartWith('<!-- AUTO-GENERATED');
     expect(section?.content).toMatch(ASK_QUESTIONS_HEADING);
-    expect(section?.content).toContain('## Formatting Rules');
-    expect(occurrences(input.text, '### Pass 1: Information Architecture')).toBe(1);
+    expect(section?.content).toContain('## フォーマットのルール');
+    expect(occurrences(input.text, '### パス 1: 情報アーキテクチャ')).toBe(1);
   });
 });

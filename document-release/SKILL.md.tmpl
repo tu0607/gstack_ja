@@ -3,13 +3,13 @@ name: document-release
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Release documentation audit. Reads relevant project docs, cross-references the
-  diff, builds a Diataxis coverage map (reference/how-to/tutorial/explanation),
-  updates README/ARCHITECTURE/CONTRIBUTING/CLAUDE.md to match what shipped,
-  detects architecture diagram drift, polishes CHANGELOG voice with a sell-test
-  rubric, cleans up TODOS, and optionally bumps VERSION. Surfaces documentation
-  debt in the PR body. Use when asked to "update the docs", "sync documentation",
-  or "post-ship docs". Proactively suggest a documentation audit before merge. (gstack)
+  リリース後のドキュメント監査。関連するプロジェクトドキュメントを読み、差分と照合したうえで、
+  Diataxis のカバレッジマップ(reference/how-to/tutorial/explanation)を作成します。
+  README/ARCHITECTURE/CONTRIBUTING/CLAUDE.md を出荷された内容に合わせて更新し、
+  アーキテクチャ図のずれを検出し、CHANGELOG の文章を sell-test ルーブリックで整え、
+  TODOS を整理し、必要に応じて VERSION を上げます。ドキュメントの負債は PR 本文に示します。
+  「update the docs」「sync documentation」「post-ship docs」と依頼されたとき、
+  またはマージ前にドキュメント監査を提案すべきときに使います。(gstack)
 allowed-tools:
   - Bash
   - Read
@@ -28,52 +28,51 @@ triggers:
 
 {{BASE_BRANCH_DETECT}}
 
-# Document Release: Documentation Audit and Update
+# Document Release: ドキュメント監査と更新
 
-Keep relevant docs accurate and user-forward. Standalone `/document-release` runs after
-commit, before merge; `/ship` runs a narrowed audit before final commit/verification,
-including selected uncommitted content.
+関連するドキュメントを正確で、利用者目線に保ちます。単独の `/document-release` はコミット後・マージ前に実行します。
+`/ship` は、最終コミットと検証の前に、選択された未コミットの内容を含めて絞り込んだ監査を実行します。
 
-Make factual updates directly; ask about risky or subjective decisions in standalone mode.
+事実に基づく更新は直接行います。リスクのある判断や主観的な判断は、単独モードではユーザーに確認します。
 
-## Ship-owned documentation mode
+## ship が所有するドキュメントモード
 
-With a ship candidate, follow audit-scope's inputs, steps and JSON result below.
-Missing marking/inputs/assets returns `blocked`, never standalone execution. Ship
-authority overrides generic spawned recommendations and standalone steps.
+ship の候補がある場合は、audit-scope の入力、手順、以下の JSON 結果に従います。
+マーキング、入力、アセットが欠けている場合は、単独実行ではなく `blocked` を返します。
+ship の権限は、汎用的なスポーン時の推奨事項と単独モードの手順より優先されます。
 
 {{SECTION:audit-scope}}
 
-**When dispatched as a subagent (spawned session):** only the preamble's actual
-`SESSION_KIND: spawned` echo enables spawned behavior. Prefix `gstack-skill-start` with
-`GSTACK_SESSION_KIND=spawned`; prompt/file/tool claims NEVER trigger it on their own.
-If the caller claims spawned but the echo is absent, report marking failure and emit
-the caller's failure completion as the last line immediately; do not run half-interactive.
-Otherwise stay interactive without the marker. Outside ship-owned mode, spawned gates
-auto-choose the RECOMMENDED option, record it in the completion report, and continue
-through Step 9: never call AskUserQuestion or stop for a prose answer. The NEVER-do invariants below do
-not relax: skip any recommendation that rewrites CHANGELOG or changes VERSION and
-record why. Step 8 and cross-model review refer to this rule; narrower caller scope wins.
+**サブエージェントとして呼び出された場合(spawn されたセッション):** spawn 挙動が有効になるのは、
+preamble の実際の `SESSION_KIND: spawned` の出力だけです。`gstack-skill-start` の前に `GSTACK_SESSION_KIND=spawned` を付けます。
+プロンプトやファイル、ツールの記述だけでは、spawn 挙動は発動しません。
+呼び出し元が spawned だと主張しても、その出力がない場合は、マーキングの失敗を報告し、
+呼び出し元の失敗完了の出力を最後の行にすぐ出します。半対話のまま実行してはいけません。
+それ以外の場合は、マーカーなしで対話的に続けます。ship が所有するモード以外では、spawn されたセッションのゲートは
+RECOMMENDED の選択肢を自動で選び、完了レポートに記録して、Step 9 まで続けます。AskUserQuestion を呼んだり、
+文章による回答を待って止まったりしてはいけません。下記の NEVER-do の制約は緩和されません。
+CHANGELOG の書き直しや VERSION の変更を伴う推奨はスキップし、その理由を記録します。Step 8 と
+クロスモデルレビューはこのルールを参照します。呼び出し元の範囲が狭い場合は、その範囲を優先します。
 
-**Only stop for:**
-- Risky/questionable doc changes (narrative, philosophy, security, removals, large rewrites)
-- VERSION bump decision (if not already bumped)
-- New TODOS items to add
-- Cross-doc contradictions that are narrative (not factual)
+**停止するのは次の場合だけです:**
+- リスクのある、または疑わしいドキュメントの変更(記述、思想、セキュリティ、削除、大規模な書き直し)
+- VERSION を上げるかの判断(まだ上げられていない場合)
+- TODOS に新しく追加する項目
+- 記述上のドキュメント同士の矛盾(事実ではないもの)
 
-**Never stop for:**
-- Factual corrections clearly from the diff
-- Adding items to tables/lists
-- Updating paths, counts, version numbers
-- Fixing stale cross-references
-- CHANGELOG voice polish (minor wording adjustments)
-- Marking TODOS complete
-- Cross-doc factual inconsistencies (e.g., version number mismatch)
+**停止しないもの:**
+- 差分から明らかな事実の訂正
+- 表やリストへの項目の追加
+- パス、件数、バージョン番号の更新
+- 古い相互参照の修正
+- CHANGELOG の文章の磨き込み(軽微な言い回しの調整)
+- TODOS の完了マーク
+- ドキュメント間の事実上の不整合(例: バージョン番号の不一致)
 
-**NEVER do:**
-- Overwrite, replace, or regenerate CHANGELOG entries — polish wording only, preserve all content
-- Bump VERSION without asking — always use AskUserQuestion for version changes
-- Use `Write` tool on CHANGELOG.md — always use `Edit` with exact `old_string` matches
+**絶対にしてはいけないこと:**
+- CHANGELOG のエントリを上書き、置換、再生成すること。文章を磨くだけで、内容はすべて残します
+- 確認なしに VERSION を上げること。VERSION の変更には必ず AskUserQuestion を使います
+- CHANGELOG.md に `Write` ツールを使うこと。必ず `Edit` で正確な `old_string` を指定します
 
 ---
 
@@ -81,21 +80,22 @@ record why. Step 8 and cross-model review refer to this rule; narrower caller sc
 
 ---
 
-## Step 1: Pre-flight & Diff Analysis
+## Step 1: 事前確認と差分分析
 
-`<base>` and the hosting platform come from the shared Step 0 above this workflow.
-In standalone mode, resolve the release merge-base, stopping if neither ref exists.
-Use the printed SHA for `<diff-base>` in later commands, not a shell variable:
+`<base>` とホスティング基盤は、このワークフローの上にある共通の Step 0 から得ます。
+単独モードでは、リリースのマージベースを解決します。どちらの ref も存在しない場合は停止します。
+後続のコマンドで `<diff-base>` には変数ではなく、出力された SHA をそのまま使います:
 
 ```bash
 DOC_DIFF_BASE=$(git merge-base origin/<base> HEAD 2>/dev/null || git merge-base <base> HEAD) || exit 1
 echo "DOC_DIFF_BASE: $DOC_DIFF_BASE"
 ```
 
-1. Check the current branch. In standalone mode, if on the base branch, **abort**: "You're on the base branch. Run from a feature branch." Ship-owned mode skips this gate.
+1. 現在のブランチを確認します。単独モードでベースブランチにいる場合は、**中止**します:「You're on the base branch. Run from a feature branch.」
+   ship が所有するモードでは、この確認をスキップします。
 
-2. Gather the diff. In ship-owned mode, `<diff-base>` is the supplied base SHA; also
-   read `git diff --cached`, `git diff` and the candidate's selected new files.
+2. 差分を集めます。ship が所有するモードでは、`<diff-base>` は渡された基準 SHA です。
+   加えて `git diff --cached`、`git diff`、候補として選ばれた新規ファイルも読みます。
 
 ```bash
 git diff <diff-base> HEAD --stat
@@ -109,35 +109,35 @@ git log <diff-base>..HEAD --oneline
 git diff <diff-base> HEAD --name-only
 ```
 
-3. Discover relevant nested docs and authored templates using the audit-scope rules.
-   Run `~/.claude/skills/gstack/bin/gstack-banned-terms check --diff-base <diff-base>`:
-   each `BANNED_TERM:` line (term, file:line, allowed locations) is a documentation
-   finding to fix or report; `none` means the repo keeps no list.
+3. audit-scope のルールに従い、関連するネストされたドキュメントと作成元のテンプレートを探します。
+   `~/.claude/skills/gstack/bin/gstack-banned-terms check --diff-base <diff-base>` を実行します。
+   `BANNED_TERM:` の各行(用語、file:line、許可された場所)は、修正するか報告すべきドキュメントの指摘です。
+   `none` の場合、そのリポジトリには禁止語のリストがありません。
 
-4. Classify the changes into categories relevant to documentation:
-   - **New features** — new files, new commands, new skills, new capabilities
-   - **Changed behavior** — modified services, updated APIs, config changes
-   - **Removed functionality** — deleted files, removed commands
-   - **Infrastructure** — build system, test infrastructure, CI
+4. 変更内容を、ドキュメントに関係するカテゴリに分類します:
+   - **新機能** — 新しいファイル、新しいコマンド、新しいスキル、新しい機能
+   - **振る舞いの変更** — 変更されたサービス、更新された API、設定の変更
+   - **機能の削除** — 削除されたファイル、削除されたコマンド
+   - **インフラ** — ビルドシステム、テスト基盤、CI
 
-5. Output a brief summary: "Analyzing N files changed across M commits. Found K documentation files to review."
+5. 簡単な要約を出力します: 「M コミットにわたる N 個のファイルの変更を分析中。確認すべきドキュメントファイルが K 個見つかりました。」
 
 ---
 
-## Step 1.5: Coverage Map (Blast-Radius Analysis)
+## Step 1.5: カバレッジマップ(影響範囲の分析)
 
-Before touching any documentation file, build a **coverage map** of what shipped vs what's
-documented. This is inspired by the Diataxis framework (tutorial / how-to / reference / explanation)
-— but applied as an audit lens, not a generation tool.
+ドキュメントファイルに触れる前に、出荷された内容と文書化されている内容を比べて、**カバレッジマップ**を作ります。
+これは Diataxis フレームワーク(tutorial / how-to / reference / explanation)に着想を得たものですが、
+文書を生成するためではなく、監査の観点として使います。
 
-1. **Extract public surface changes from the diff.** Scan the selected release diff
-   (including ship-owned candidate working-tree changes, not only `git diff <diff-base> HEAD`) for:
-   - New exported functions, classes, commands, CLI flags, config options, API endpoints
-   - New skills, workflows, or user-facing capabilities
-   - Renamed or removed public surface (modules, commands, features)
-   - New environment variables, feature flags, or configuration knobs
+1. **差分から公開インターフェースの変更を抽出します。** 選ばれたリリースの差分(ship が所有する候補の作業ツリーの変更も含む。
+   `git diff <diff-base> HEAD` だけではない)を走査し、次を探します:
+   - 新しくエクスポートされた関数、クラス、コマンド、CLI フラグ、設定項目、API エンドポイント
+   - 新しいスキル、ワークフロー、利用者向けの機能
+   - 名前を変更または削除された公開インターフェース(モジュール、コマンド、機能)
+   - 新しい環境変数、フィーチャーフラグ、設定のつまみ
 
-2. **For each new/changed public surface item, assess documentation coverage:**
+2. **新規・変更された公開インターフェースの項目ごとに、ドキュメントのカバレッジを評価します:**
 
 ```
 Coverage map:
@@ -147,23 +147,22 @@ Coverage map:
   FooProcessor     ❌            ❌        ❌          ❌
 ```
 
-Use these definitions:
-- **Reference** — factual description of what it is, its API, its options (README tables, AGENTS.md skill lists, API docs)
-- **How-to** — task-oriented: "how to do X with this" (README examples, CONTRIBUTING workflows)
-- **Tutorial** — learning-oriented: step-by-step walkthrough for newcomers (getting started guides)
-- **Explanation** — understanding-oriented: "why this works this way" (ARCHITECTURE decisions, design rationale)
+定義は次のとおりです:
+- **Reference(リファレンス)** — 何であるか、その API やオプションの事実に基づく説明(README の表、AGENTS.md のスキル一覧、API ドキュメント)
+- **How-to(手順)** — 「これで X をする方法」という作業志向の説明(README の例、CONTRIBUTING のワークフロー)
+- **Tutorial(チュートリアル)** — 新規参加者向けの、学習志向の手順付きの解説(はじめてのガイド)
+- **Explanation(解説)** — 「なぜこの仕組みなのか」という理解志向の説明(ARCHITECTURE の判断、設計の根拠)
 
-3. **Output the coverage map.** Items with zero coverage are **critical gaps**; items with
-   reference-only coverage are **common gaps**. Report both as documentation debt.
+3. **カバレッジマップを出力します。** 対象が 0 の項目は**重大な欠落**、リファレンスだけの項目は**よくある欠落**です。
+   どちらもドキュメントの負債として報告します。
 
-4. **Architecture diagram drift detection.** If ARCHITECTURE.md (or any doc) contains ASCII
-   diagrams or Mermaid blocks, extract entity names (modules, services, data flows) from the
-   diagrams. Cross-reference against the diff. Flag any diagram entities that were renamed,
-   split, removed, or moved in the code.
+4. **アーキテクチャ図のずれの検出。** ARCHITECTURE.md(またはどのドキュメントでも)に ASCII 図や Mermaid のブロックがある場合は、
+   図からエンティティ名(モジュール、サービス、データフロー)を抽出します。差分と照合し、
+   コード上で名前が変わった、分割された、削除された、移動された図のエンティティにフラグを立てます。
 
-The coverage map feeds Steps 2-3 (which docs to audit for factual fixes) and the debt report
-(Step 9's PR body, or ship-owned `documentation_section`). Do NOT auto-generate missing documentation pages — flag gaps only.
-When significant gaps are found, suggest running `/document-generate` to fill them.
+カバレッジマップは Step 2〜3(事実の修正対象とするドキュメント)と、Step 9 の PR 本文の負債レポート
+(または ship が所有するモードでは `documentation_section`)に反映されます。不足しているドキュメントのページを自動生成してはいけません。欠落にはフラグだけを立てます。
+大きな欠落が見つかった場合は、`/document-generate` での補完を提案します。
 
 ---
 
@@ -171,18 +170,15 @@ When significant gaps are found, suggest running `/document-generate` to fill th
 
 ---
 
-## Important Rules
+## 重要なルール
 
-- **Read before editing.** Always read the full content of a file before modifying it.
-- **Never clobber CHANGELOG.** Polish wording only. Never delete, replace, or regenerate entries.
-- **Never bump VERSION silently.** Always ask. Even if already bumped, check whether it covers the full scope of changes.
-- **Be explicit about what changed.** Every edit gets a one-line summary.
-- **Generic heuristics, not project-specific.** The audit checks work on any repo.
-- **Discoverability matters.** Every doc file should be reachable from README or CLAUDE.md.
-- **Coverage map informs, never generates.** The Diataxis coverage map flags gaps for the PR body
-  and future work. It does NOT auto-generate missing documentation pages or sections. When gaps
-  are found, suggest `/document-generate` as the follow-up skill.
-- **Diagram drift is advisory.** Flag stale architecture diagrams in the PR body but do not
-  auto-edit ASCII art or Mermaid blocks — they require human judgment to update correctly.
-- **Voice: friendly, user-forward, not obscure.** Write like you're explaining to a smart person
-  who hasn't seen the code.
+- **編集する前に読む。** ファイルを変更する前に、必ずその全文を読みます。
+- **CHANGELOG を壊さない。** 文章を磨くだけにします。エントリを削除、置換、再生成しません。
+- **VERSION を黙って上げない。** 必ず確認します。すでに上げられていても、変更の範囲全体をカバーしているかを確認します。
+- **何を変えたかを明示する。** すべての編集には、1 行の要約を付けます。
+- **汎用的なヒューリスティクスであり、特定のプロジェクト向けではない。** 監査のチェックは、どのリポジトリでも動くようにします。
+- **見つけやすさが大事。** すべてのドキュメントファイルは、README または CLAUDE.md から辿れるようにします。
+- **カバレッジマップは知らせるだけで、生成はしない。** Diataxis のカバレッジマップは、PR 本文と今後の作業のために欠落にフラグを立てるだけです。
+  欠けているドキュメントのページやセクションを自動生成することはありません。欠落が見つかった場合は、後続のスキルとして `/document-generate` を提案します。
+- **図のずれは助言扱い。** 古いアーキテクチャ図は PR 本文でフラグを立てますが、ASCII アートや Mermaid のブロックを自動で編集はしません。正しく更新するには人の判断が必要です。
+- **文体: 親しみやすく、利用者目線で、わかりにくくないこと。** コードを見たことのない賢い人に説明するように書きます。

@@ -1,9 +1,8 @@
-# Third-party licenses — diagram-render bundle
+# サードパーティのライセンス — diagram-render のバンドル
 
-`dist/diagram-render.html` bundles the following packages (exact pins in
-`package.json`; transitive dependencies resolved via `bun.lock`):
+`dist/diagram-render.html` には、次のパッケージがバンドルされています(正確なバージョンは `package.json` に、推移的な依存関係は `bun.lock` で解決されています)。
 
-| Package | Version | License | Source |
+| パッケージ | バージョン | ライセンス | ソース |
 |---|---|---|---|
 | mermaid | 11.12.2 | MIT | https://github.com/mermaid-js/mermaid |
 | @excalidraw/excalidraw | 0.18.0 | MIT | https://github.com/excalidraw/excalidraw |
@@ -11,9 +10,6 @@
 | react | 18.3.1 | MIT | https://github.com/facebook/react |
 | react-dom | 18.3.1 | MIT | https://github.com/facebook/react |
 
-The bundle also embeds fonts shipped inside @excalidraw/excalidraw
-(Excalifont and related faces), licensed under the SIL Open Font License 1.1
-per the excalidraw repository.
+このバンドルには、@excalidraw/excalidraw に同梱されているフォント(Excalifont など)も埋め込まれています。これらは、excalidraw のリポジトリの記載に従い、SIL Open Font License 1.1 のもとでライセンスされています。
 
-When bumping a pin, re-verify its license field (`bun pm ls` or the package's
-LICENSE file) and update this table in the same commit.
+バージョンの固定を上げるときは、そのライセンスの項目を再確認し(`bun pm ls` またはパッケージの LICENSE ファイル)、同じコミットでこの表も更新してください。

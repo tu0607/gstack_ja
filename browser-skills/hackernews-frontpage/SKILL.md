@@ -1,6 +1,6 @@
 ---
 name: hackernews-frontpage
-description: Scrape the Hacker News front page (titles, points, comment counts).
+description: Hacker News のトップページをスクレイピングします(タイトル、ポイント数、コメント数)。
 host: news.ycombinator.com
 trusted: true
 source: human
@@ -13,13 +13,11 @@ triggers:
   - latest hacker news stories
 ---
 
-# Hacker News front-page scraper
+# Hacker News トップページのスクレイパー
 
-Scrapes the Hacker News (`news.ycombinator.com`) front page and returns the
-top 30 stories as JSON. Each story has its rank, title, link URL, point count,
-and comment count.
+Hacker News(`news.ycombinator.com`)のトップページをスクレイピングし、上位 30 件のストーリーを JSON で返します。各ストーリーには、順位、タイトル、リンク先の URL、ポイント数、コメント数が含まれます。
 
-## Usage
+## 使い方
 
 ```
 $ $B skill run hackernews-frontpage
@@ -32,21 +30,15 @@ $ $B skill run hackernews-frontpage
 }
 ```
 
-## How it works
+## 仕組み
 
-1. Navigates to `https://news.ycombinator.com` via the daemon.
-2. Reads the page HTML.
-3. Parses each story row (HN's stable `tr.athing` structure) into a typed
-   `Story` record.
-4. Emits a single JSON document on stdout.
+1. デーモン経由で `https://news.ycombinator.com` に移動します。
+2. ページの HTML を読みます。
+3. 各ストーリーの行(HN の安定した `tr.athing` の構造)を解析し、型付きの `Story` レコードにします。
+4. 単一の JSON ドキュメントを標準出力に出します。
 
-## Why this is the reference skill
+## これがリファレンススキルである理由
 
-`hackernews-frontpage` is the smallest interesting browser-skill: no auth,
-stable HTML, deterministic output, file-fixture-friendly. Every Phase 1
-component (SDK, scoped tokens, three-tier lookup, spawn lifecycle) is
-exercised by `$B skill run hackernews-frontpage` and the bundled
-`script.test.ts`.
+`hackernews-frontpage` は、最も小さくて興味深いブラウザスキルです。認証がなく、HTML が安定しており、出力が決定的で、フィクスチャのファイルで扱いやすいです。Phase 1 のすべてのコンポーネント(SDK、範囲を限定したトークン、3 段階の検索、プロセスの起動と終了の管理)は、`$B skill run hackernews-frontpage` と同梱の `script.test.ts` によって検証されます。
 
-When the HN HTML rotates and our selectors break, the test fails against the
-captured fixture before users notice. That's the point.
+HN の HTML が変わって、セレクターが壊れた場合は、取得済みのフィクスチャに対するテストが失敗します。ユーザーが気づく前に検出できることが、このテストの目的です。

@@ -1,76 +1,48 @@
-# Finalize a report from retained evidence
+# 保持された根拠からレポートを確定する
 
-Complete these steps before the final report Write. They use retained results, not
-new probes. Missing evidence stays unknown; an expired clock stays expired.
-The caller's write boundary includes reports, learning notes and automatic memory.
-Keep all of them in authorized destinations; a memory feature grants no extra path.
+最終的なレポートの Write の前に、これらのステップを完了させてください。ここでは、新しいプローブではなく、保持された結果を使います。不足している根拠は不明のままにし、期限切れの時計は期限切れのままにしてください。
+呼び出し元の書き込みの境界には、レポート、学習メモ、自動メモリが含まれます。これらすべてを許可された保存先に保ってください。メモリ機能によって、追加の経路が許可されるわけではありません。
 
-## 1. Establish each finding once
+## 1. 各指摘を一度だけ確定する
 
-Ground the report and learnings in retained observations. For every finding, distinguish
-the observed result, the expected contract and any untested causal hypothesis. Link the
-supporting command/result or screenshot; unknown impact remains unknown. A console error
-message does not establish an uncaught exception, failed payload or missing UI. Missing
-text in a page-text extract does not establish an absent attribute or inaccessible element.
-Verify those claims with an appropriate probe, or leave them unconfirmed when time expires.
+レポートと学習内容は、保持された観察に基づかせてください。すべての指摘について、観察された結果、期待される契約、テストされていない因果の仮説を区別してください。
+裏付けとなるコマンド/結果またはスクリーンショットをリンクします。影響が不明なものは不明のままにします。コンソールのエラーメッセージは、捕捉されなかった例外、失敗したペイロード、欠けている UI を証明するものではありません。
+ページのテキスト抽出に文字列がないことは、属性の欠落やアクセス不能な要素を証明するものではありません。
+それらの主張は、適切なプローブで検証してください。時間切れの場合は、未確認のままにしてください。
 
-Give each finding one ID and write its Observed, Expected, Evidence and Confirmation
-fields first. A logged exception-shaped string proves a logged message, not that the
-named operation executed. Keep possible causes in a separate Hypothesis field; omit
-speculation that does not help the next investigation. Observed-once is not replay-confirmed.
+各指摘に 1 つの ID を付け、まず Observed、Expected、Evidence、Confirmation の各フィールドを書いてください。ログに記録された例外のような文字列は、ログにそのメッセージがあったことを証明するだけで、指定された操作が実行されたことを証明しません。
+考えられる原因は、別の Hypothesis フィールドに残してください。次の調査に役立たない推測は省略します。一度観察しただけでは、リプレイで確認されたことにはなりません。
 
-## 2. Fill timing fields from their actual boundaries
+## 2. タイミングのフィールドを実際の境界から記入する
 
-Report **Probe budget** (configured limit) and **Guarded command time** (sum of measured
-child spans). Measure guard start to child launch as pre-launch elapsed time, and child
-start to finish as command duration, not a component's latency without its own measurement.
-A deadline window is not total run time. Gaps between receipts do not measure
-status/Write overhead or prove how many probes fit; if late, say only that this run
-dispatched its follow-up after the deadline.
+**Probe budget**(設定された上限)と **Guarded command time**(測定された子のスパンの合計)を報告してください。ガードの開始から子の起動までを起動前の経過時間として、子の開始から終了までをコマンドの実行時間として測定します。独自の測定がない限り、コンポーネントの遅延として扱わないでください。
+期限のウィンドウは、総実行時間ではありません。受領書の間の隔たりは、ステータスや Write のオーバーヘッドを測定するものではなく、いくつのプローブが収まったかを証明するものでもありません。遅れた場合は、この実行は期限後にフォローアップを送った、とだけ述べてください。
 
-Use **Total session elapsed**: `unmeasured` for the invocation whose report is being written.
-Its final report Write, acknowledgement and cleanup are not finished yet. Do not fetch
-a clock merely to fill that field. An optional **Measured interval** must cite its actual
-start/end receipts and name the work outside those boundaries, including later report
-Writes and cleanup; it is never a completed-session measurement.
+**Total session elapsed** には、レポートを書いている呼び出しについて `unmeasured` を使ってください。その最終レポートの Write、確認応答、クリーンアップはまだ完了していません。そのフィールドを埋めるためだけに時計を取得しないでください。任意の **Measured interval** は、実際の開始/終了の受領書を引用し、その境界の外にある作業を明記しなければなりません。後のレポートの Write やクリーンアップを含めます。完了したセッションの測定値として扱うことは決してありません。
 
-## 3. Assemble and check every repetition before writing
+## 3. 書き込む前に、すべての繰り返しを組み立てて確認する
 
-Use the caller's selected surface templates and assembly rules. Build headlines,
-Top 3, summaries and completion text from each finding's Observed and Confirmation
-fields, not its Hypothesis. Choose one conservative factual sentence per finding and
-reuse it verbatim in those locations; do not introduce a new causal paraphrase.
-A disclaimer in the detail does not qualify a stronger claim elsewhere.
+呼び出し元が選んだ対象のテンプレートと組み立てのルールを使ってください。見出し、Top 3、要約、完了のテキストは、各指摘の Hypothesis ではなく、Observed と Confirmation のフィールドから組み立ててください。
+指摘ごとに、慎重で事実に基づいた 1 文を選び、それらの箇所で一字一句そのまま再利用してください。新しい因果関係の言い換えを導入しないでください。
+詳細の中の但し書きは、ほかの場所でより強い主張をしてよい理由にはなりません。
 
-Proposed regression assertions must detect the original observation on its actual
-channel. For a logged console error, capture console errors; exception-only hooks
-do not detect a console-only message. Additional causal tests remain separate proposals.
-Apply these evidence limits to proposed tests and learnings too.
+提案された回帰のアサーションは、その実際のチャネルで元の観察を検出できなければなりません。ログに記録されたコンソールのエラーの場合は、コンソールのエラーを捕捉してください。例外のみのフックでは、コンソールだけのメッセージは検出できません。追加の因果関係のテストは、別の提案として残します。
+これらの根拠の限界は、提案されたテストと学習内容にも適用してください。
 
-Before the final Write, check every mention of each finding against its evidence
-fields, every proposed test against the observed channel, and each timing claim against
-its named boundaries. Remove unsupported claims from all sections, not only the detail.
-Keep refused/unstarted probes and untested categories explicit. Write the report only
-after this consistency check; do not repair an evidence gap with invented facts.
-Check claims about frequency and executed checks against the actual commands/results:
-one observation proves neither recurrence nor an unexecuted check. Apply the same
-evidence limits to the final response and any caller-authorized learning note.
+最終的な Write の前に、各指摘へのすべての言及をその根拠のフィールドと照らし、提案された各テストを観察されたチャネルと照らし、各タイミングの主張を明記された境界と照らしてください。根拠のない主張は、詳細だけでなく、すべてのセクションから削除してください。
+拒否された/開始されなかったプローブと、テストされていないカテゴリは、明示的に残してください。この整合性チェックの後にのみ、レポートを書いてください。根拠の欠落を、作り出した事実で埋めないでください。
+頻度や実行されたチェックに関する主張は、実際のコマンド/結果と照らして確認してください。1 回の観察は、再発も未実行のチェックも証明しません。同じ根拠の限界を、最終的な応答と、呼び出し元が許可した学習メモにも適用してください。
 
-## 4. Capture permitted notes, then write the report
+## 4. 許可されたメモを記録してから、レポートを書く
 
-Run the learning step below only if its destination is caller-authorized:
-the user or invoking workflow explicitly permitted that learning-store path.
-Invoking /qa-only alone does not grant this permission. Otherwise
-keep notes in `REPORT_FILE`; do not write learning stores or automatic memory.
+下の学習のステップは、その保存先が呼び出し元によって許可されている場合にのみ実行してください。
+ユーザーまたは呼び出しのワークフローが、その学習ストアの経路を明示的に許可している必要があります。/qa-only を単独で呼び出しても、この許可は与えられません。それ以外の場合は、メモを `REPORT_FILE` に残し、学習ストアや自動メモリには書き込まないでください。
 
-**No explicit permission:** skip learning-store writes and continue to the report.
+**明示的な許可がない場合:** 学習ストアへの書き込みはスキップし、レポートに進みます。
 
-**Explicit permission:** Read the named store first. Preserve its existing contents
-and use the permitted write tool to append a verified note in that store's format.
-If the format or write interface is unavailable, keep the note in the report instead.
-Do not run logging helpers: they may write caches or enqueue synchronization outside
-the permitted path. This branch never changes configuration or enables synchronization.
+**明示的な許可がある場合:** まず、指定されたストアを読み込んでください。既存の内容を保持し、許可された書き込みツールを使って、そのストアの形式で検証済みのメモを追記してください。
+形式または書き込みのインターフェースが利用できない場合は、代わりにメモをレポートに残してください。
+ログ記録のヘルパーは実行しないでください。許可された経路の外で、キャッシュの書き込みや同期のキューイングが発生する可能性があります。この分岐は、設定を変更したり、同期を有効にしたりしません。
 
-Write the checked report to the entrypoint's permitted destinations.
-After the final Write, respond briefly with its path and verified coverage/limits;
-do not append new findings or timing explanations.
+検証済みのレポートを、エントリポイントで許可された保存先に書き込んでください。
+最終的な Write の後は、その保存先と、検証済みの対象範囲/限界を簡潔に応答してください。新しい指摘やタイミングの説明を追記しないでください。

@@ -1,29 +1,20 @@
-## Step 7: Test Coverage Audit
+## Step 7: テストカバレッジ監査
 
-### Shared subagent dispatch
+### 共有サブエージェントのディスパッチ
 
-For Steps 7, 8 and 10, use the Agent tool with `run_in_background: false`.
-Omitting the flag runs the subagent in the background. The explicit flag waits
-for a result while keeping a fresh context. Do not invoke the target as a Skill
-or run it inline instead. Inline work is allowed only under that section's
-documented fallback, after a failed subagent has stopped.
+Step 7、8、10 では、`run_in_background: false` を指定して Agent ツールを使います。
+フラグを省略するとサブエージェントはバックグラウンドで実行されます。明示的なフラグを指定すると、新しいコンテキストを保ったまま結果を待ちます。対象を Skill として呼び出したり、代わりにインラインで実行したりしないでください。インラインでの作業は、サブエージェントが失敗して停止した後に、そのセクションに文書化されたフォールバックとしてのみ許可されます。
 
-Dispatch the audit through Agent with `subagent_type: "general-purpose"` and
-`run_in_background: false`, using the shared foreground-dispatch rule above.
-Wait for its LAST-line JSON before applying the coverage gate.
+監査は `subagent_type: "general-purpose"` と `run_in_background: false` を指定した Agent で、上記の共有フォアグラウンドディスパッチ規則に従って実行します。
+カバレッジゲートを適用する前に、その最後の行の JSON を待ってください。
 
-**Generation allowance:** Maximum 2 generation passes total per invocation.
-Count each generation-authorized attempt before dispatch/inline execution, including
-the initial audit, failures and zero-test results. Re-entry never resets it.
-Two passes already used means no further generation; read-only reassessment uses no pass.
+**生成の許容回数:** 1 回の呼び出しで、生成のパスは合計 2 回までです。
+ディスパッチまたはインライン実行の前に、生成が許可された試行をすべて数えます。初回の監査、失敗、テスト 0 件の結果も含みます。再入しても回数はリセットされません。
+2 回のパスをすでに使い切っている場合は、それ以上生成できません。読み取り専用の再評価はパスを消費しません。
 
-**Subagent prompt:** Supply `<base>`, Step 4's framework/bootstrap decision,
-permitted paths/commands, remaining gaps, passes used and generation allowance,
-plus the CLAUDE.md `## Test Coverage` values the gate below reads (`Generation cap:`,
-`Base control:`, `Base control budget:`). No allowance means audit only; missing
-permission is not approval. Preserve the 30-path/5-tests-per-pass/2-minute per-test caps.
+**サブエージェントのプロンプト:** `<base>`、Step 4 のフレームワーク/ブートストラップの判断、許可されたパスとコマンド、残りのギャップ、使用したパスの数と生成の許容回数を渡します。加えて、以下のゲートが読む CLAUDE.md の `## Test Coverage` の値 (`Generation cap:`、`Base control:`、`Base control budget:`) も渡します。許容回数がない場合は監査のみです。許可がないことは承認ではありません。パスごと 30 件、パスごと 5 件のテスト、テストごと 2 分の上限は維持してください。
 
-**Before the first dispatch,** sweep base-control worktrees a previous interrupted run left behind:
+**最初のディスパッチの前に**、前回の中断された実行が残したベースコントロールの worktree を掃除します:
 
 ```bash
 git worktree prune
@@ -37,7 +28,7 @@ Generation: <allowed|audit-only>; passes used: <N> of 2. Audit-only overrides ev
 
 {{TEST_COVERAGE_AUDIT_SHIP}}
 
-Rules for the implementing agent:
+実装エージェント向けのルール:
 {{IMPLEMENTER_DISPATCH_RULES}}
 Report any such change in the prose before the JSON line; the JSON fields below are unchanged.
 
@@ -46,29 +37,16 @@ After your analysis, output a single JSON object on the LAST LINE of your respon
 `coverage_pct` is Y (paths with any test), `coverage_pct_value` is X (paths with a ★★/★★★ test), `gaps` counts only paths with no test. Use null for an undetermined or skipped coverage percentage, not zero. Include every remaining gap in the diagram so the parent can target a second pass.
 ````
 
-**Parent processing:**
+**親の処理:**
 
-1. Read the subagent's final output. Parse the LAST line as JSON.
-2. Store `coverage_pct`, `coverage_pct_value`, `gaps`, `weak_gaps`, `tests_added`,
-   `tests_extended`, `tests_rejected` and `regression_proof`. A missing new key counts
-   as empty; say so in the summary (an older installed prompt must not fail the gate).
-   A key with the wrong type (for example `weak_gaps` not an array) is ignored the same
-   way and printed as: {{TEST_VALUE_MESSAGE:malformedKey}}
-3. **Machine checks** on every test written in this run (`tests_added` and
-   `tests_extended`): a value-card header with the four required fields non-empty plus
-   an optional `no_claim` (an older four-field card stays valid; else
-   `incomplete_card`); `protects` unique across the run after casefolding and stripping
-   punctuation and repeated whitespace (a later duplicate is `duplicate_protects`); seam
-   `none`, or a named seam with at least one non-test caller (N = 0 or an unavailable
-   caller check is `needs_seam`). Move each failure to `tests_rejected` with its
-   `reason_code`, then remove it before anything else reads the diff: an untracked new
-   file is deleted; for a tracked file, revert only this run's hunk with Edit, never
-   the whole file. Write one rejected test path per line, relative to the repository
-   root, into a private file:
+1. サブエージェントの最終出力を読みます。最後の行を JSON としてパースします。
+2. `coverage_pct`、`coverage_pct_value`、`gaps`、`weak_gaps`、`tests_added`、`tests_extended`、`tests_rejected`、`regression_proof` を保存します。新しいキーがない場合は空として扱い、その旨を要約に書きます (古くインストールされたプロンプトのせいでゲートが失敗してはいけません)。
+   型が誤っているキー (例: `weak_gaps` が配列でない) は同じように無視し、次のように表示します: {{TEST_VALUE_MESSAGE:malformedKey}}
+3. この実行で書かれたすべてのテスト (`tests_added` と `tests_extended`) に対して **機械的なチェック** を行います。値カードのヘッダーには、必須の 4 つのフィールドが空でないこと、および任意の `no_claim` が必要です (古い 4 フィールドのカードは有効なままです。それ以外は `incomplete_card`)。`protects` は、大文字小文字の区別をなくし、句読点と連続する空白を取り除いた後で、この実行全体で一意でなければなりません (後から出てくる重複は `duplicate_protects`)。seam は `none` か、テスト以外の呼び出し元が少なくとも 1 つある名前付きの seam である必要があります (N = 0 または呼び出し元チェックが利用できない場合は `needs_seam`)。失敗したものはそれぞれ、`reason_code` とともに `tests_rejected` に移し、差分を読む他の処理より前に取り除きます。追跡されていない新規ファイルは削除します。追跡されているファイルの場合は、Edit を使ってこの実行のハンクだけを元に戻し、ファイル全体は決して戻さないでください。拒否したテストのパスは、リポジトリのルートからの相対パスを 1 行に 1 つずつ、非公開のファイルに書き出します:
 
 {{FREE_TEXT_FILE:REJECTED_FILE=rejected-tests}}
 
-   Then run, substituting the printed name for `<rejected-file-name>`:
+   次に、表示された名前を `<rejected-file-name>` に置き換えて実行します:
 
    ```bash
    REJECTED_FILE="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gstack/tmp/<rejected-file-name>"
@@ -81,37 +59,19 @@ After your analysis, output a single JSON object on the LAST LINE of your respon
    rm -f "$REJECTED_FILE"
    ```
 
-   No `tests_rejected` path may remain on disk as a new file. If every test written in
-   a pass is rejected, print {{TEST_VALUE_MESSAGE:allRejected}}
-4. **Rating dispatch.** When this run wrote tests that survived the machine checks,
-   dispatch one read-only Agent (`subagent_type: "general-purpose"`,
-   `run_in_background: false`) with no generation permission; it uses no generation
-   pass. Give it the diagram and the surviving test paths. It rates each against the
-   ★ rubric and the test value bar and returns a LAST-line JSON
-   `{"coverage_pct_value":N,"weak_gaps":[...]}` recomputed with its ratings; use those
-   two values. Until rated, this run's tests count as weak (`unrated`). If it fails,
-   times out or returns invalid JSON, the gate is skipped for this run ("rating
-   unavailable").
-5. Embed `diagram` verbatim in the PR body's `## Test Coverage` section (Step 19).
-6. Print a one-line summary: `Coverage: {X}% value-weighted ({Y}% including {W} weakly covered paths), {gaps} gaps. {tests_added.length} tests added.`
-   Bindings for the PR body's Test value line: K = `tests_added.length`,
-   R = `tests_rejected.length`, E = `tests_extended.length`, W = `weak_gaps.length`.
-7. **Rescan gate edits after the child returns.** A child's green is a claim until
-   you have read its gate hunks. Run the scan over the whole candidate; never scan
-   only the paths the child reported:
+   `tests_rejected` のパスは、新規ファイルとしてディスク上に残してはいけません。1 回のパスで書かれたすべてのテストが拒否された場合は、{{TEST_VALUE_MESSAGE:allRejected}} を表示します。
+4. **評価のディスパッチ。** この実行で、機械的なチェックを通過したテストを書いた場合は、読み取り専用の Agent (`subagent_type: "general-purpose"`、`run_in_background: false`) を 1 つディスパッチします。生成の許可は与えず、生成のパスも消費しません。図と生き残ったテストのパスを渡します。各テストを ★ の基準と、テスト価値のバーに照らして評価し、評価に基づき再計算した `{"coverage_pct_value":N,"weak_gaps":[...]}` を最後の行の JSON として返させます。その 2 つの値を使ってください。評価されるまでは、この実行のテストは弱いもの (`unrated`) として数えます。失敗、タイムアウト、または不正な JSON を返した場合は、この実行のゲートを「評価を利用できません」としてスキップします。
+5. PR 本文の `## Test Coverage` セクション (Step 19) に、`diagram` をそのまま埋め込みます。
+6. 1 行の要約を表示します: `Coverage: {X}% value-weighted ({Y}% including {W} weakly covered paths), {gaps} gaps. {tests_added.length} tests added.`
+   PR 本文のテスト価値の行への対応: K = `tests_added.length`、R = `tests_rejected.length`、E = `tests_extended.length`、W = `weak_gaps.length`。
+7. **子プロセスが戻った後に、ゲートの編集を再スキャンします。** 子プロセスの green は、そのゲートのハンクを読むまでは主張にすぎません。候補全体に対してスキャンを実行します。子プロセスが報告したパスだけをスキャンしないでください:
 
 {{GATE_SCAN_BLOCK}}
 
-   Read every read-level hunk with the checklist's Gate Integrity question. Carry the
-   `GATE_SUMMARY:` line and any hunk that fails it into Step 9's Gate Integrity
-   category; the disposition question is asked there, never here. A relaxation the
-   child made in a test it did not author is a Step 9 finding even when its tests pass.
+   読み取りレベルのハンクはすべて、チェックリストのゲート整合性の質問を使って読みます。`GATE_SUMMARY:` の行と、それに失敗したハンクは、Step 9 のゲート整合性カテゴリに持ち越します。処分の質問はそこで行い、ここでは行いません。子プロセスが、自分では書いていないテストで行った緩和は、そのテストが通過していても Step 9 の指摘事項になります。
 
-**Audit failure:** On failure, invalid JSON or no completion after ~10 minutes,
-stop the child and confirm it stopped before running the same audit inline.
-Fallback recovers the audit; it does not pass or bypass the coverage gate.
-Apply that gate to the recovered results, including its undetermined-percentage
-and test-only rules. Preserve partial results as incomplete, not passing coverage.
+**監査の失敗:** 失敗、不正な JSON、または約 10 分たっても完了しない場合は、子プロセスを停止し、停止したことを確認してから、同じ監査をインラインで実行します。
+フォールバックは監査を回復させるだけで、カバレッジゲートを通過させたり迂回させたりはしません。回復した結果にもそのゲートを適用し、判定不能なパーセンテージやテストのみのルールも含めてください。部分的な結果は、カバレッジの合格ではなく、不完全なものとして保持します。
 
 {{TEST_COVERAGE_GATE_SHIP}}
 

@@ -1,16 +1,10 @@
-# Sidebar Flow
+# サイドバーのフロー
 
-How the GStack Browser sidebar actually works. Read this before touching
-`sidepanel.js`, `background.js`, `content.js`, `terminal-agent.ts`, or
-sidebar-related server endpoints.
+GStack Browser のサイドバーが実際にどう動くかを説明する。`sidepanel.js`、`background.js`、`content.js`、`terminal-agent.ts`、またはサイドバー関連のサーバーエンドポイントに触る前に読むこと。
 
-The sidebar has one primary surface — the **Terminal** pane, an interactive
-`claude` PTY. Activity / Refs / Inspector survive as debug overlays behind
-the `debug` toggle in the footer. The chat queue path (one-shot `claude -p`,
-sidebar-agent.ts) was ripped once the PTY proved out — the Terminal pane is
-strictly more capable.
+サイドバーの主要な画面は1つ、**Terminal** ペインである。インタラクティブな `claude` の PTY だ。Activity / Refs / Inspector は、フッターの `debug` トグルの裏にあるデバッグ用のオーバーレイとして残っている。チャットのキュー経路(1回限りの `claude -p`、sidebar-agent.ts)は、PTY が実用になった時点で取り除いた。Terminal ペインの方が厳密に高機能だからだ。
 
-## Components
+## コンポーネント
 
 ```
 ┌─────────────────┐     ┌──────────────┐     ┌──────────────────┐
@@ -44,11 +38,9 @@ strictly more capable.
                        └──────────────────┘
 ```
 
-The compiled browse server can't `posix_spawn` external executables —
-`terminal-agent.ts` runs as a separate non-compiled `bun run` process and
-owns the `claude` subprocess.
+コンパイル済みの browse サーバーは外部の実行ファイルを `posix_spawn` できない。そのため `terminal-agent.ts` は、コンパイルされていない `bun run` の別プロセスとして動き、`claude` のサブプロセスを所有する。
 
-## Startup + first-keystroke timeline
+## 起動から最初のキー入力までのタイムライン
 
 ```
 T+0ms     CLI runs `$B connect`
@@ -85,121 +77,81 @@ T+ready   tryAutoConnect calls connect()
             └── Agent message handler sees the byte → spawnClaude()
 ```
 
-## Auth: WebSocket can't send Authorization headers
+## 認証: WebSocket は Authorization ヘッダーを送れない
 
-Browser WebSocket clients can't set `Authorization`. They CAN set
-`Sec-WebSocket-Protocol` via the second arg of `new WebSocket(url,
-protocols)`. We exploit that:
+ブラウザの WebSocket クライアントは `Authorization` を設定できない。ただし、`new WebSocket(url, protocols)` の第2引数で `Sec-WebSocket-Protocol` を設定できる。これを利用する。
 
-1. `POST /pty-session` (auth: Bearer AUTH_TOKEN) → server mints a
-   short-lived session token, pushes it to the agent over loopback,
-   returns it in the JSON body.
-2. Extension calls `new WebSocket(url, ['gstack-pty.<token>'])`.
-3. Agent reads `Sec-WebSocket-Protocol`, strips `gstack-pty.`, validates
-   against `validTokens`, echoes the protocol back. Echo is mandatory —
-   without it Chromium closes the connection on receipt of the upgrade
-   response.
+1. `POST /pty-session`(認証: Bearer AUTH_TOKEN)→ サーバーが短命のセッショントークンを発行し、ループバック経由でエージェントに送り、JSON の本文で返す。
+2. 拡張機能が `new WebSocket(url, ['gstack-pty.<token>'])` を呼ぶ。
+3. エージェントは `Sec-WebSocket-Protocol` を読み、`gstack-pty.` を取り除き、`validTokens` と照合して、プロトコルを返す。このエコーは必須である。エコーがないと、Chromium はアップグレードの応答を受け取った時点で接続を閉じる。
 
-A `Set-Cookie: gstack_pty=...` header is also returned for non-browser
-callers (curl, integration tests). The cookie path was the original v1
-design but `SameSite=Strict` cookies don't survive the cross-port jump
-from server.ts:34567 → agent:<random> from a chrome-extension origin.
-The protocol-token path is what the browser actually uses.
+非ブラウザのクライアント(curl、インテグレーションテスト)向けに `Set-Cookie: gstack_pty=...` ヘッダーも返す。Cookie 経路は当初の v1 の設計だったが、`SameSite=Strict` の Cookie は、chrome-extension のオリジンから server.ts:34567 → agent:<random> へポートをまたぐ際に引き継がれない。ブラウザが実際に使うのはプロトコルトークンの経路である。
 
-### Dual-token model
+### 二重トークンのモデル
 
-| Token | Lives in | Used for | Lifetime |
+| トークン | 保存場所 | 用途 | 有効期間 |
 |-------|----------|----------|----------|
-| `AUTH_TOKEN` | `<stateDir>/browse.json`; in-memory in server.ts; extension memory via pinned-origin `POST /extension-token` (never `GET /health`) | `/pty-session` POST (mint cookie + token) | server lifetime |
-| `gstack-pty.<...>` (Sec-WebSocket-Protocol) | Browser memory only; agent `validTokens` Set | `/ws` upgrade auth | 30 min, auto-revoked on WS close |
-| `INTERNAL_TOKEN` | `<stateDir>/terminal-internal-token`; in agent memory | server → agent loopback `/internal/grant` | agent lifetime |
+| `AUTH_TOKEN` | `<stateDir>/browse.json`。server.ts のメモリ内。拡張機能のメモリには、固定したオリジンからの `POST /extension-token` で入る(`GET /health` からは決して得ない) | `/pty-session` への POST(Cookie とトークンを発行) | サーバーの稼働期間 |
+| `gstack-pty.<...>`(Sec-WebSocket-Protocol) | ブラウザのメモリのみ。エージェントの `validTokens` Set | `/ws` のアップグレード認証 | 30分。WS が閉じると自動で失効 |
+| `INTERNAL_TOKEN` | `<stateDir>/terminal-internal-token`。エージェントのメモリ内 | サーバーからエージェントへのループバック `/internal/grant` | エージェントの稼働期間 |
 
-`AUTH_TOKEN` is **never** valid for `/ws` directly. The session token is
-**never** valid for `/pty-session` or `/command`. Strict separation
-prevents an SSE or page-content token leak from escalating into shell
-access.
+`AUTH_TOKEN` は `/ws` に直接使うことは**決して**できない。セッショントークンは `/pty-session` や `/command` に**決して**使えない。この厳密な分離により、SSE やページ内容からのトークンの漏えいがシェルへのアクセスに発展するのを防ぐ。
 
-## Threat model
+## 脅威モデル
 
-The Terminal pane **bypasses the prompt-injection security stack** on
-purpose — the user is typing directly to claude, there's no untrusted
-page content in the loop. Trust source is the keyboard, same as any
-local terminal.
+Terminal ペインは、意図的に prompt-injection のセキュリティ層を**迂回する**。ユーザーが claude に直接入力しており、ループ内に信頼できないページの内容がないからだ。信頼の源はキーボードであり、ローカルのターミナルと同じである。
 
-That trust assumption is load-bearing on three transport guarantees:
+この信頼の前提は、次の3つの転送上の保証に依存している。
 
-1. **Local-only listener.** terminal-agent.ts binds `127.0.0.1` only.
-   The dual-listener tunnel surface (server.ts `TUNNEL_PATHS`) does
-   not include `/pty-session` or `/terminal/*`, so the tunnel returns
-   404 by default-deny.
-2. **Origin gate.** `/ws` upgrades require
-   `Origin: chrome-extension://<id>`. A localhost web page can't mount
-   a cross-site WebSocket hijack against the shell because its Origin
-   is a regular `http(s)://...`.
-3. **Session token auth.** Minted only by an authenticated
-   `/pty-session` POST, scoped to one WS, auto-revoked on close.
+1. **ローカルのみのリスナー。** terminal-agent.ts は `127.0.0.1` にのみバインドする。トンネルの面(server.ts の `TUNNEL_PATHS`)には `/pty-session` や `/terminal/*` が含まれないため、トンネルはデフォルトで拒否して 404 を返す。
+2. **Origin ゲート。** `/ws` のアップグレードには `Origin: chrome-extension://<id>` が必要である。ローカルホストの Web ページは、Origin が通常の `http(s)://...` になるため、シェルに対するクロスサイトの WebSocket ハイジャックを仕掛けられない。
+3. **セッショントークンの認証。** 認証済みの `/pty-session` への POST によってのみ発行され、1つの WS に限定され、閉じると自動で失効する。
 
-Drop any one of those three and the whole tab becomes unsafe.
+どれか1つでも欠ければ、タブ全体が安全でなくなる。
 
-## Lifecycle
+## ライフサイクル
 
-- **Eager auto-connect.** Sidebar opens → tryAutoConnect polls for the
-  bootstrap globals and connects as soon as they're set. No keypress
-  required.
-- **One PTY per WS.** Closing the WebSocket SIGINTs claude, then SIGKILLs
-  after 3s. The session token is revoked so a stolen token can't be
-  replayed.
-- **No auto-reconnect on close.** The user sees "Session ended, click to
-  start a new session." Auto-reconnect would burn a fresh claude session
-  on every reload. v1.1 may add session resumption keyed on tab/session
-  id (see TODOS).
-- **Manual restart anytime.** A `↻ Restart` button lives in the always-
-  visible terminal toolbar — works mid-session, not just from the ENDED
-  state.
+- **即時の自動接続。** サイドバーが開くと、tryAutoConnect がブートストラップ用のグローバル変数を確認し、設定され次第接続する。キー入力は不要。
+- **WS ごとに1つの PTY。** WebSocket を閉じると claude に SIGINT を送り、3秒後に SIGKILL を送る。セッショントークンは失効させるため、盗まれたトークンを再利用できない。
+- **閉じたときの自動再接続はしない。** ユーザーには「セッションが終了しました。クリックして新しいセッションを開始」と表示される。自動再接続すると、リロードのたびに新しい claude のセッションを消費してしまうからだ。v1.1 では、タブ/セッション ID をキーにしたセッションの再開を追加するかもしれない(TODOS を参照)。
+- **いつでも手動で再起動できる。** `↻ Restart` ボタンは、常に表示されているターミナルのツールバーにある。ENDED の状態だけでなく、セッションの途中でも使える。
 
-## Quick-action toolbar
+## クイックアクションのツールバー
 
-Three browser-action buttons live next to the Restart button at the top
-of the Terminal pane:
+ブラウザ操作の3つのボタンが、Terminal ペイン上部の Restart ボタンの隣にある。
 
-| Button | Behavior |
+| ボタン | 動作 |
 |--------|----------|
-| 🧹 Cleanup | `window.gstackInjectToTerminal(prompt)` — pipes a "remove ads/banners" instruction into the live PTY. claude in the terminal sees it and acts. |
-| 📸 Screenshot | `POST /command screenshot` — direct browse-server call, no PTY involvement. |
-| 🍪 Cookies | Navigates to the `/cookie-picker` page. |
+| 🧹 Cleanup | `window.gstackInjectToTerminal(prompt)` を呼ぶ。「広告やバナーを削除して」という指示を、稼働中の PTY に流し込む。ターミナルの claude がそれを見て実行する。 |
+| 📸 Screenshot | `POST /command screenshot`。browse サーバーを直接呼ぶ。PTY は関与しない。 |
+| 🍪 Cookies | `/cookie-picker` ページに移動する。 |
 
-The Inspector's "Send to Code" button uses the same `gstackInjectToTerminal`
-path to forward CSS inspector data into claude.
+Inspector の「Send to Code」ボタンは、同じ `gstackInjectToTerminal` の経路を使い、CSS のインスペクターのデータを claude に転送する。
 
-## Debug surfaces (Activity / Refs / Inspector)
+## デバッグ用の画面(Activity / Refs / Inspector)
 
-Behind the `debug` toggle in the footer. SSE-driven, independent of the
-Terminal pane:
+フッターの `debug` トグルの裏にある。SSE で駆動され、Terminal ペインとは独立している。
 
-- **Activity** — streams every browse command via `/activity/stream` SSE.
-- **Refs** — REST: `GET /refs` — current page's `@ref` element labels.
-- **Inspector** — CDP-based element picker; SSE on `/inspector/events`.
+- **Activity** — `/activity/stream` の SSE を通じて、browse のすべてのコマンドを流す。
+- **Refs** — REST: `GET /refs`。現在のページの `@ref` 要素のラベル。
+- **Inspector** — CDP ベースの要素ピッカー。`/inspector/events` の SSE。
 
-When the debug strip closes, the Terminal pane re-becomes visible.
-xterm.js doesn't auto-redraw when its container flips from `display:none`
-to `display:flex`, so sidepanel-terminal.js runs a `MutationObserver` on
-`#tab-terminal`'s class attribute and forces a fit + refresh when
-`.active` returns.
+デバッグのストリップを閉じると、Terminal ペインが再び表示される。xterm.js は、コンテナが `display:none` から `display:flex` に変わっても自動では再描画されない。そのため sidepanel-terminal.js は `#tab-terminal` の class 属性に対して `MutationObserver` を走らせ、`.active` が戻ったときに fit と refresh を強制する。
 
-## Files
+## ファイル
 
-| Component | File | Runs in |
+| コンポーネント | ファイル | 実行環境 |
 |-----------|------|---------|
-| Sidebar UI shell | `extension/sidepanel.html` + `sidepanel.js` + `sidepanel.css` | Chrome side panel |
-| Terminal UI | `extension/sidepanel-terminal.js` + `extension/lib/xterm.js` | Chrome side panel |
-| Service worker | `extension/background.js` | Chrome background |
-| Content script | `extension/content.js` | Page context |
-| HTTP server | `browse/src/server.ts` | Bun (compiled binary) |
-| PTY agent | `browse/src/terminal-agent.ts` | Bun (non-compiled) |
-| PTY token store | `browse/src/pty-session-cookie.ts` | Bun (compiled, in server.ts) |
-| CLI entry | `browse/src/cli.ts` | Bun (compiled binary) |
-| State file | `<stateDir>/browse.json` | Filesystem |
-| Terminal port | `<stateDir>/terminal-port` | Filesystem |
-| Internal token | `<stateDir>/terminal-internal-token` | Filesystem |
-| Claude probe | `<stateDir>/claude-available.json` | Filesystem |
-| Active tab | `<stateDir>/active-tab.json` | Filesystem (claude reads) |
+| サイドバーの UI 本体 | `extension/sidepanel.html` + `sidepanel.js` + `sidepanel.css` | Chrome のサイドパネル |
+| ターミナルの UI | `extension/sidepanel-terminal.js` + `extension/lib/xterm.js` | Chrome のサイドパネル |
+| サービスワーカー | `extension/background.js` | Chrome のバックグラウンド |
+| コンテンツスクリプト | `extension/content.js` | ページのコンテキスト |
+| HTTP サーバー | `browse/src/server.ts` | Bun(コンパイル済みバイナリ) |
+| PTY エージェント | `browse/src/terminal-agent.ts` | Bun(非コンパイル) |
+| PTY トークンストア | `browse/src/pty-session-cookie.ts` | Bun(コンパイル済み、server.ts 内) |
+| CLI のエントリ | `browse/src/cli.ts` | Bun(コンパイル済みバイナリ) |
+| 状態ファイル | `<stateDir>/browse.json` | ファイルシステム |
+| ターミナルのポート | `<stateDir>/terminal-port` | ファイルシステム |
+| 内部トークン | `<stateDir>/terminal-internal-token` | ファイルシステム |
+| Claude のプローブ | `<stateDir>/claude-available.json` | ファイルシステム |
+| アクティブなタブ | `<stateDir>/active-tab.json` | ファイルシステム(claude が読む) |

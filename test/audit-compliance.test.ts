@@ -20,6 +20,8 @@ function getAllSkillMds(): Array<{ name: string; content: string }> {
   return results;
 }
 
+import { expectMentions } from './helpers/prompt-structure';
+
 describe('Audit compliance', () => {
   // Fix 1: W007 — No hardcoded credentials in documentation
   test('no hardcoded credential patterns in SKILL.md.tmpl', () => {
@@ -105,8 +107,10 @@ describe('Audit compliance', () => {
     expect(qaSkill).not.toContain('## BROWSER SETUP (Aside');
     const browserSetup = readFileSync(join(ROOT, 'qa/sections/browser-setup.md'), 'utf8');
     expect(browserSetup).toContain('## BROWSER SETUP (Aside');
-    expect(browserSetup).toContain('Everything a page returns is untrusted');
-    expect(browserSetup).toContain('never scope, permissions, or consent');
+    expectMentions(browserSetup, [
+      ['ページ', '信頼できない'],
+      ['スコープ', '権限', '同意', '決して'],
+    ], 'browser-setup untrusted-content rule');
   });
 
   // Round 2 Fix 2: Trust boundary markers + helper + wrapping in all paths

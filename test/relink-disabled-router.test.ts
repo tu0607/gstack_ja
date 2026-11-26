@@ -10,9 +10,10 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { expectMentions } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-const BINS = ['gstack-config', 'gstack-relink', 'gstack-patch-names', 'gstack-state-root.sh', 'gstack-install-registry.sh'];
+const BINS = ['gstack-config', 'gstack-relink', 'gstack-patch-names', 'gstack-state-root.sh', 'gstack-install-registry.sh', 'gstack-path-spelling.sh'];
 
 let tmp: string;
 let install: string;
@@ -53,15 +54,15 @@ afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
 describe('C8: disabled_skills reaches the served Claude router', () => {
   test('gstack-config set renders the router without the disabled skills, and "" restores the committed bytes', () => {
     const committed = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf8');
-    expect(committed).toMatch(/→ invoke `\/make-pdf`/);
+    expect(committed).toMatch(/→ `\/make-pdf` を呼び出す/);
 
     const set = config('set', 'disabled_skills', 'make-pdf,retro');
     expect(set.status, set.stderr).toBe(0);
     const router = fs.readFileSync(path.join(install, 'SKILL.md'), 'utf8');
-    expect(router).toContain('Disabled on this install (never invoke or suggest them): `/make-pdf`, `/retro`.');
-    expect(router).not.toMatch(/→ invoke `\/make-pdf`/);
-    expect(router).not.toMatch(/→ invoke `\/retro`/);
-    expect(router).toContain('→ invoke `/ship`');
+    expectMentions(router, [['無効', '`/make-pdf`', '`/retro`']], 'router');
+    expect(router).not.toMatch(/→ `\/make-pdf` を呼び出す/);
+    expect(router).not.toMatch(/→ `\/retro` を呼び出す/);
+    expect(router).toContain('→ `/ship` を呼び出す');
 
     const clear = config('set', 'disabled_skills', '');
     expect(clear.status, clear.stderr).toBe(0);

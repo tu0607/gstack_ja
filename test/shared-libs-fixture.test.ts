@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { expectMentions } from './helpers/prompt-structure';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   createSharedInteractiveToolHandler, createSharedLibsFixture, fixtureGit, fixtureWrite, installSourceShims,
@@ -79,10 +80,10 @@ describe('shared-code Git guard', () => {
 
 describe('review Skip option description', () => {
   test.each(skipDescriptions.cases)('Step 5c limits Skip to its own effect; the $scenario capture narrated more and stays refused', async ({ input }) => {
-    const rule = 'B) Skip (describe only as: no code/index change; Skip recorded)';
-    expect(fs.readFileSync(path.join(SHARED_LIBS_ROOT, 'review/SKILL.md'), 'utf8')).toContain(rule);
+    const skipRule = [['B)', 'スキップ', 'コードやインデックスの変更なし'], ['スキップを記録']];
+    expectMentions(fs.readFileSync(path.join(SHARED_LIBS_ROOT, 'review/SKILL.md'), 'utf8'), skipRule, 'review/SKILL.md');
     const workflow = fs.readFileSync(reviewLifecycleInstructions({ root: scratch() } as SharedLibsFixture), 'utf8');
-    expect(workflow.slice(workflow.indexOf('### Step 5c'), workflow.indexOf('### Step 5d'))).toContain(rule);
+    expectMentions(workflow.slice(workflow.indexOf('### Step 5c'), workflow.indexOf('### Step 5d')), skipRule, 'Step 5c');
     const refusals: Error[] = [];
     const handler = () => createSharedInteractiveToolHandler('skip', { nonQuestion: () => { throw new Error('unexpected tool'); },
       onQuestion: () => {}, onAnswer: () => {}, onRefusal: error => { refusals.push(error); } });

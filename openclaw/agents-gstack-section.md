@@ -1,51 +1,42 @@
-## Coding Tasks (gstack)
+## コーディング作業 (gstack)
 
-### Rules (non-negotiable)
+### ルール(譲れないもの)
 
-1. **Always spawn, never redirect.** When user asks to use ANY gstack skill,
-   ALWAYS spawn a Claude Code session via sessions_spawn. Never tell user to
-   open Claude Code himself. Never say "this needs to run in Claude Code."
-   Never say "you'll need to open Claude Code for that." Just do it.
+1. **必ず起動し、転送しない。** ユーザーが gstack のスキルを使うよう頼んだら、必ず sessions_spawn で Claude Code セッションを起動してください。ユーザー自身に Claude Code を開かせることは決してしません。「これは Claude Code で実行する必要があります」と言ってはいけません。「Claude Code を開く必要があります」とも言わないでください。そのまま実行してください。
 
-2. **Resolve the repo.** If user names a repo or project, set the working
-   directory to that repo path. If the repo path isn't known, ask which
-   repo — don't punt to telling the user to open Claude Code.
+2. **リポジトリを特定する。** ユーザーがリポジトリやプロジェクトを名指しした場合は、作業ディレクトリをそのリポジトリのパスに設定してください。リポジトリのパスが分からない場合は、どのリポジトリかを尋ねてください。Claude Code を開くよう伝えて押し付けてはいけません。
 
-3. **Autoplan runs end-to-end.** For /autoplan specifically: spawn the session,
-   let it run the full review pipeline (CEO → design → eng), and when it
-   finishes, report the plan back here in chat. Write the plan to memory so
-   the user can find it later. User should never have to leave Telegram.
+3. **/autoplan はエンドツーエンドで実行する。** /autoplan に限っては、セッションを起動し、レビューのパイプライン全体(CEO → デザイン → エンジニアリング)を実行させ、終わったらプランをこのチャットで報告してください。プランはメモリに保存し、ユーザーが後から見つけられるようにしてください。ユーザーが Telegram から離れる必要は一度もないようにしてください。
 
-### Dispatch Routing
+### ディスパッチのルーティング
 
-When asked for coding work, pick the dispatch tier:
+コーディング作業を依頼されたら、ディスパッチの階層を選んでください。
 
-**SIMPLE:** "fix this typo," "update that config," single-file changes
-→ sessions_spawn(runtime: "acp", prompt: "<just the task>")
+**SIMPLE:** 「このタイプミスを直して」「あの設定を更新して」、単一ファイルの変更
+→ sessions_spawn(runtime: "acp", prompt: "<タスクだけ>")
 
-**MEDIUM:** multi-file features, refactors, skill edits
-→ sessions_spawn(runtime: "acp", prompt: "<gstack-lite content>\n\n<task>")
+**MEDIUM:** 複数ファイルにまたがる機能、リファクタリング、スキルの編集
+→ sessions_spawn(runtime: "acp", prompt: "<gstack-lite の内容>\n\n<タスク>")
 
-**HEAVY:** needs a specific gstack methodology
+**HEAVY:** 特定の gstack の方法論が必要
 → sessions_spawn(runtime: "acp", prompt: "Load gstack. Run /qa https://...")
-  Skills: /cso, /review, /qa, /ship, /investigate, /design-review, /benchmark, /gstack-upgrade
+  スキル: /cso、/review、/qa、/ship、/investigate、/design-review、/benchmark、/gstack-upgrade
 
-**FULL:** build a complete feature, multi-day scope, needs planning + review
-→ sessions_spawn(runtime: "acp", prompt: "<gstack-full content>\n\n<task>")
-  Claude Code runs: /autoplan → implement → /ship → report back
+**FULL:** 完全な機能を構築する、数日にわたるスコープ、計画とレビューが必要
+→ sessions_spawn(runtime: "acp", prompt: "<gstack-full の内容>\n\n<タスク>")
+  Claude Code は次を実行します: /autoplan → 実装 → /ship → 報告
 
-**PLAN:** user wants to plan a Claude Code project, spec out a feature, or design
-  something before any code is written
-→ sessions_spawn(runtime: "acp", prompt: "<gstack-plan content>\n\n<task>")
-  Claude Code runs: /office-hours → /autoplan → saves plan file → reports back
-  Persist the plan link to memory/knowledge store.
-  When the user is ready to implement, spawn a new FULL session pointing at the plan.
+**PLAN:** ユーザーが Claude Code のプロジェクトを計画したい、機能の仕様を決めたい、またはコードを書く前に設計したい
+→ sessions_spawn(runtime: "acp", prompt: "<gstack-plan の内容>\n\n<タスク>")
+  Claude Code は次を実行します: /office-hours → /autoplan → プランファイルを保存 → 報告
+  プランへのリンクをメモリ/ナレッジストアに保存してください。
+  ユーザーが実装する準備ができたら、そのプランを指す新しい FULL セッションを起動してください。
 
-### Decision Heuristic
+### 判断の目安
 
-- Can it be done in <10 lines of code? → **SIMPLE**
-- Does it touch multiple files but the approach is obvious? → **MEDIUM**
-- Does the user name a specific skill (/cso, /review, /qa)? → **HEAVY**
-- "Upgrade gstack", "update gstack" → **HEAVY** with `Run /gstack-upgrade`
-- Is it a feature, project, or objective (not a task)? → **FULL**
-- Does the user want to PLAN something without implementing yet? → **PLAN**
+- 10 行未満のコードで済むか? → **SIMPLE**
+- 複数ファイルにまたがるが、アプローチが明らかか? → **MEDIUM**
+- ユーザーが特定のスキル(/cso、/review、/qa)を名指ししたか? → **HEAVY**
+- 「gstack をアップグレード」「gstack を更新」 → `Run /gstack-upgrade` を付けた **HEAVY**
+- 作業ではなく、機能、プロジェクト、目標か? → **FULL**
+- 実装はまだで、何かを計画したいか? → **PLAN**

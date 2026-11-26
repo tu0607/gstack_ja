@@ -70,12 +70,12 @@ describe('compact QA bootstrap preserves native detection', () => {
   test('QA bootstrap owns approval, cleanup, red-test evidence, CI and documentation', () => {
     expect(bootstrap).not.toContain('{{TEST_BOOTSTRAP}}');
     for (const contract of [
-      'never functional/report-only', 'documented command skips bootstrap', '**do not bootstrap**',
-      'AskUserQuestion and WAIT', 'install only the actual choice', 'ONLY owned changes', 'preserve user edits',
-      'Never silently delete a valid red regression', '/qa\'s diagnosis/fix gate', 'First real tests',
-      'min 1, max 5', 'full verified command', '.github/workflows/test.yml', 'push + pull_request',
-      'ubuntu-latest', 'manual test-step addition', 'never overwrite TESTING.md', '100% test coverage',
-      'BOTH branches', 'unrelated staged edits', '{{FREE_TEXT_FILE:PROMPT_FILE=aside-prompt}}', '{{ASIDE_RESEARCH_SEND}}', 'WebSearch',
+      '機能系や report-only では実行しません', 'コマンドが文書化されていればブートストラップは省略し', '**ブートストラップしないでください**',
+      'AskUserQuestion で回答を待つこと', '実際に選ばれたものだけをインストール', '自分が加えた変更だけを元に戻し', 'ユーザーの編集は残したまま',
+      '有効な赤いリグレッションテストを黙って削除しないでください', '/qa の診断・修正ゲート', '最初の実テスト',
+      '最低 1、最大 5', '検証済みの完全なコマンド', '.github/workflows/test.yml', 'push と pull_request',
+      'ubuntu-latest', 'テストステップの追加を手動で行う必要がある', 'TESTING.md は上書きせず更新してください', '100% のテストカバレッジ',
+      '両方の分岐', '無関係なステージ済みの編集', '{{FREE_TEXT_FILE:PROMPT_FILE=aside-prompt}}', '{{ASIDE_RESEARCH_SEND}}', 'WebSearch',
     ]) expect(bootstrap).toContain(contract);
     expect(bootstrap).not.toContain('git checkout --');
     expect(bootstrap).not.toContain('delete silently');
@@ -87,9 +87,9 @@ describe('compact QA bootstrap preserves native detection', () => {
       expect(shared).not.toContain('git checkout --');
       expect(shared).not.toMatch(/delete silently/i);
       expect(shared).not.toMatch(/revert all bootstrap changes/i);
-      expect(shared).toMatch(/undo only/i);
-      expect(shared).toMatch(/preserve the user's edits/i);
-      expectMentions(shared, [['stop', 'unrelated', 'already']], 'shared');
+      expect(shared).toMatch(/ブートストラップ(?:自身の|が行った)変更だけを元に戻し/);
+      expect(shared).toMatch(/ユーザーの編集は保持/);
+      expectMentions(shared, [['無関係な編集', 'すでにステージ', '停止']], 'shared');
     }
   });
 });
@@ -154,37 +154,37 @@ describe('compact QA browser recipes retain native operations', () => {
       const n = qaProbeNames(loop);
       for (const contract of [
         `bun ${n.guard} start ${n.deadline} SECONDS [EARLIER_UTC]`,
-        'Set SECONDS to the shorter mode/caller limit',
-        `${n.guard} enforces the deadline`,
-        'QA_DEADLINE receipts are not observations',
-        'Report refusals as not-run',
+        'SECONDS には、モードと呼び出し元の制限のうち短い方を設定します',
+        `${n.guard} が期限を強制します`,
+        'QA_DEADLINE のレシートは観測ではありません',
+        '拒否されたものは not-run として報告し',
         `\`bun ${n.guard} run ${n.deadline} -- COMMAND ARGS\``,
-        'announce finite command timeouts',
+        '有限のコマンドタイムアウトを宣言します',
       ]) expect(loop).toContain(contract);
-      expect(loop).toMatch(new RegExp(`never reset ${n.deadline}\\W+bypass ${n.guard}`, 'i'));
+      expect(loop).toMatch(new RegExp(`${n.deadline} をリセットしたり、${n.guard} を迂回したりしてはいけません`));
       for (const field of ['observationCommand', 'observed', 'hypothesis', 'nextCommand']) expect(loop).toContain(`${field}:`);
-      expectMentions(loop, [['no', 'functional', 'regression']], 'loop');
-      if (skillName !== 'qa-only') expect(loop).toContain('Explicit plan checks and revalidation remain required beyond this smoke budget');
+      expectMentions(loop, [['Functional', 'Regression', 'デフォルトの合計タイマーはありません']], 'loop');
+      if (skillName !== 'qa-only') expect(loop).toContain('明示的なプランのチェックと再検証は、このスモーク予算を超えても引き続き必要です');
     }
   });
 
   test('one shared loop owns the preserved phases, checkpoints and time limits', () => {
     const prose = method.replace(/\s+/g, ' ');
     for (const contract of [
-      'shared exploratory loop owns execution order, not these technique phases',
-      'checkpoint rule covers every probe after the baseline, including orientation, links, exact replay and additional evidence',
-      'Never batch across checkpoints',
-      'Time caps include checkpoints and evidence',
-      'stop probing and report unfinished coverage, never skip checkpoints',
-      'For /qa and /qa-only, choose Full, Quick or Regression',
-      "/review and /ship keep their caller's smoke and plan bounds",
-      'Resolve conflicting depth flags by asking before probes',
-      'Diff-aware selects scope, not another pass',
-      'After selecting and isolating a browser surface',
-      'Visit every reachable page (5-15 minutes)', '3 minutes: homepage + top 5 navigation targets',
-      "skip detailed issues/checklist, never the shared loop's gates",
+      '実行順序を決めるのは共有の探索ループであり、これらの技法フェーズではありません',
+      'ベースライン以降のすべてのプローブ(オリエンテーション、リンク、 正確なリプレイ、追加の証拠を含む)に適用されます',
+      'チェックポイントをまたいでバッチ処理してはいけません',
+      '時間の上限にはチェックポイントと証拠が含まれます',
+      '時間を使い切ったらプローブを止め、未完了のカバレッジを報告します。チェックポイントを飛ばしてはいけません',
+      '/qa と /qa-only では、Full、Quick、Regression のいずれかを選びます',
+      '/review と /ship は、呼び出し元のスモークと計画の範囲を維持します',
+      '深さを指定するフラグが 競合する場合は、プローブの前に質問して解決します',
+      'Diff-aware は範囲を選ぶもので、別のパスではありません',
+      'ブラウザサーフェスを選択して切り分けた後',
+      '到達できるすべてのページを訪れます(5〜15 分)', '3 分: ホームページと主要なナビゲーション先 5 つ',
+      '詳細な問題とチェックリストはスキップしますが、共有ループのゲートは決してスキップしません',
     ]) expect(prose).toContain(contract);
-    const titles = ['Initialize', 'Authenticate (if needed)', 'Orient', 'Explore', 'Document', 'Wrap Up'];
+    const titles = ['初期化', '認証(必要な場合)', 'オリエンテーション', '探索', '記録', 'まとめ'];
     const phases = titles.map((title, index) => {
       const heading = `### Phase ${index + 1}: ${title}`;
       expect(method).toContain(heading);
@@ -193,26 +193,26 @@ describe('compact QA browser recipes retain native operations', () => {
       expect(next).toBeGreaterThan(start);
       return method.slice(start, next).replace(/\s+/g, ' ');
     });
-    expect(phases[0]).toContain("Reuse the caller's BROWSER SETUP");
-    expect(phases[0]).toContain('owned artifact paths');
-    expectMentions(phases[0], [['only', 'authority', 'complete']], 'phases[0]');
-    expectMentions(phases[2], [['before', 'successful', 'challenges']], 'phases[2]');
-    expectMentions(phases[2], [['not', 'result/state', 'successful']], 'phases[2]');
-    expect(phases[4]).toContain("shared loop's exact-replay rule");
-    expectMentions(phases[4], [['before', 'confirmation', 'incomplete']], 'phases[4]');
-    expect(phases[4]).toContain('evidence or minimization unfinished');
-    expectMentions(phases[5], [['without', 'retained', 'evidence']], 'phases[5]');
-    expect(phases[5]).toContain("caller's artifact/mixed-report rules");
+    expect(phases[0]).toContain('呼び出し元の BROWSER SETUP');
+    expect(phases[0]).toContain('呼び出し元が所有するアーティファクトのパス');
+    expectMentions(phases[0], [['呼び出し元の権限の範囲内でのみ', '完了させます']], 'phases[0]');
+    expectMentions(phases[2], [['負荷をかける前に', '成功するベースライン']], 'phases[2]');
+    expectMentions(phases[2], [['読み込みが成功したことではなく', '結果/状態を観察します']], 'phases[2]');
+    expect(phases[4]).toContain('共有ループの正確なリプレイのルール');
+    expectMentions(phases[4], [['リプレイが終わる前のタイムアウト', '確認が未完了']], 'phases[4]');
+    expect(phases[4]).toContain('最小化が未完了になります');
+    expectMentions(phases[5], [['新しいプローブは行わず', '保持した証拠']], 'phases[5]');
+    expect(phases[5]).toContain('呼び出し元のアーティファクト/混合レポートのルール');
     for (const skillName of ['qa', 'qa-only']) {
       const loop = generateQAExploratory({ ...ctx, skillName }).replace(/\s+/g, ' ');
       for (const contract of [
-        'Each probe is one native command/interaction', 'demonstrate success: output AND durable effects',
-        '**Publish before probing.** Create',
-        'Wait for successful checkpoint publication before dispatch',
-        'Never backfill or overwrite notes',
-        'Replay the exact failing command/request from the same initial fixture state',
-        'then minimize via those gates',
-        'Another input or a regression test is not that replay',
+        '各プローブは、ネイティブなコマンド/操作 1 つとチェックです', 'まず成功を実証します: 出力と、永続的な効果の両方です',
+        '**プローブの前に公開します。**',
+        'ディスパッチの前に、チェックポイントの公開が成功するのを待ちます',
+        'メモを後から埋めたり、上書きしたりしてはいけません',
+        '同じ初期フィクスチャの状態から、失敗した正確なコマンド/リクエストを',
+        'その後、それらのゲートを通して最小化します',
+        '別の入力や回帰テストは、そのリプレイにはなりません',
       ]) expect(loop).toContain(contract);
     }
   });
@@ -220,35 +220,35 @@ describe('compact QA browser recipes retain native operations', () => {
   test('consolidated QA rules survive at their authoritative execution steps', () => {
     const source = fs.readFileSync(path.resolve(import.meta.dir, '../qa/SKILL.md.tmpl'), 'utf8');
     const section = (start: string, end: string) => source.slice(source.indexOf(start), source.indexOf(end)).replace(/\s+/g, ' ');
-    const setup = section('## Setup', '## Phases 1-6:');
+    const setup = section('## セットアップ', '## Phases 1-6:');
     expect(setup).toContain('git status --porcelain');
-    expect(setup).toContain('If dirty, **STOP** and use AskUserQuestion');
-    for (const choice of ['Commit all current changes with a descriptive message', 'Stash changes, run QA, then pop the stash', 'Abort for manual cleanup']) expect(setup).toContain(choice);
-    expectMentions(setup, [['only', 'continuing', 'execute']], 'setup');
-    expectMentions(section('### 8d.', '### 8e.'), [['never', 'regression', 'unrelated']], 'section(### 8d., ### 8e.)');
+    expect(setup).toContain('ツリーが汚れている場合は **STOP** し、AskUserQuestion を使ってください');
+    for (const choice of ['QA の前に、現在のすべての変更を説明的なメッセージでコミットする', '変更をスタッシュし、QA を実行してから、スタッシュを pop する', '手動でのクリーンアップのために中止する']) expect(setup).toContain(choice);
+    expectMentions(setup, [['セットアップを続ける前に', 'ユーザーの選択だけを実行してください']], 'setup');
+    expectMentions(section('### 8d.', '### 8e.'), [['関係のない修正は決してコミットしないでください']], 'section(### 8d., ### 8e.)');
     const classification = section('### 8e.', '### 8e.5.');
-    for (const rule of ['passed 8c', 'native regression when available', 'disclose missing test coverage', "undo only this run's repair", 'revert its commit if already committed', 'retain the valid regression/evidence', '"deferred"', 'Never discard user changes']) expect(classification).toContain(rule);
+    for (const rule of ['8c に合格', 'ネイティブの回帰テスト', 'テストのカバレッジが欠けている場合はそれを開示する', 'この実行の修復のみを元に戻す', 'すでにコミットされている場合はそのコミットを revert する', '有効な回帰テストや根拠は残し', '「deferred」', 'ユーザーの変更は決して破棄しないこと']) expect(classification).toContain(rule);
     const regulation = section('### 8f.', '## Phase 9:');
-    for (const rule of [/every 5 fixes/i, /after any revert/i, /STOP immediately/i, /ask whether to continue/i, /Hard cap: 50 fixes/]) expect(regulation).toMatch(rule);
-    for (const signal of [/STOP immediately/i, /revert/i, /unrelated/i]) expect(regulation).toMatch(signal);
-    expectMentions(source, [['stop', 'doubt']], 'source');
+    for (const rule of [/5 件の修正ごとに/, /差し戻しの後にはいつでも/, /すぐに STOP/, /続けるかどうかを尋ねてください/, /上限: 修正 50 件/]) expect(regulation).toMatch(rule);
+    for (const signal of [/すぐに STOP/, /差し戻し/, /無関係なファイル/]) expect(regulation).toMatch(signal);
+    expectMentions(source, [['迷ったら', '止まって尋ねてください']], 'source');
     const rules = source.slice(source.indexOf('## Additional Rules'));
-    for (const rule of ['Outside an explicitly approved browser bootstrap', 'Only create tests through authorized codification in Phase 8a.5', 'Never modify CI configuration or weaken existing tests', 'use new native test files']) expect(rules).toContain(rule);
+    for (const rule of ['明示的に承認されたブラウザのブートストラップの外では', 'Phase 8a.5 の、許可された明文化によってのみテストを作成してください', 'CI の設定を変更したり、既存のテストを弱めたりは決してしないでください', '新しいネイティブのテストファイルを使ってください']) expect(rules).toContain(rule);
     const loop = generateQAExploratory(ctx).replace(/\s+/g, ' ');
-    for (const rule of ['unit for logic', 'integration for state/requests', 'E2E only if smaller tests miss the journey', 'not automatically both', 'Mock only unrelated services', 'Phase 8 regression gates before verified repair', 'Never freeze buggy output, weaken tests or delete valid red tests']) expect(loop).toContain(rule);
-    expectMentions(section('### 8a.5.', '### 8b.'), [['not', 'detected', 'command']], 'section(### 8a.5., ### 8b.)');
-    expectMentions(section('### 8e.5.', '### 8f.'), [['does not', 'records', 'results']], 'section(### 8e.5., ### 8f.)');
+    for (const rule of ['ロジックにはユニット', '状態/リクエストには統合', 'E2E は、より小さいテストがジャーニーを捉えられない場合に限ります', '自動的に両方を行うわけではありません', 'モックにするのは無関係なサービスだけです', 'Phase 8 の回帰ゲートは親が担います', 'バグのある出力を固定したり、テストを弱めたり、有効な red のテストを削除したりしてはいけません']) expect(loop).toContain(rule);
+    expectMentions(section('### 8a.5.', '### 8b.'), [['検出したコマンドを実行し', '欠陥によるものだと証明してください']], 'section(### 8a.5., ### 8b.)');
+    expectMentions(section('### 8e.5.', '### 8f.'), [['結果を記録するもの', '別のテストを作成するものではありません']], 'section(### 8e.5., ### 8f.)');
   });
 
   test('browser repair verification points at the actual read/flow recipe', () => {
     const verify = fs.readFileSync(path.resolve(import.meta.dir, '../qa/sections/browser-verify.md.tmpl'), 'utf8');
     expectTokens(verify, ['`flow = true`'], 'verify');
-    for (const contract of ['original reproduction', '`flow = false`', 'Keep the error hook',
-      '`GSTACK_STEP_OK` check', 'fresh screenshot names', 'add a suffix if it exists',
-      'Read the copied screenshot', 'Functional repairs never load this section']) expect(verify).toContain(contract);
+    for (const contract of ['元の再現手順に合わせて設定してください', '`flow = false`', 'エラーフック、スナップショット、コンソール出力',
+      '`GSTACK_STEP_OK` の確認', '修正後のスクリーンショット名は新規のものを使い', '同名が既に存在する場合はサフィックスを付けてください',
+      'コピーしたスクリーンショットを Read で確認します', '機能面の修正では、このセクションは読み込まないでください']) expect(verify).toContain(contract);
     expect(verify).not.toContain('const HOOK =');
     expect(verify).not.toContain('Phase 5 Drive-a-flow');
-    const orient = method.slice(method.indexOf('### Phase 3: Orient'), method.indexOf('### Phase 4: Explore'));
+    const orient = method.slice(method.indexOf('### Phase 3: オリエンテーション'), method.indexOf('### Phase 4: 探索'));
     expect(orient).toContain('const flow = false;');
     expect(orient).toContain('if (flow)');
     expect(orient).toContain('"DIFF_START"');
@@ -257,14 +257,14 @@ describe('compact QA browser recipes retain native operations', () => {
 
   test('browser selection, evidence, consent and report contracts remain explicit', () => {
     for (const contract of [
-      'selected browser surfaces', 'Map diffs with source', 'discovery stays black-box',
-      '### Diff-aware (automatic when on a feature branch with no URL)', '### Full', '### Quick', '### Regression',
+      '選択されたブラウザサーフェスに対してのみ実行します', 'diff をソースと突き合わせてマッピングします', '探索はブラックボックスのままとし',
+      '### Diff-aware(URL がなくフィーチャーブランチにいる場合は自動)', '### Full', '### Quick', '### Regression',
       'BROWSER SETUP', 'NEEDS_ASIDE', 'ASIDE_NOT_RUNNING', '/setup-browser-cookies', '$B handoff', '$B resume',
-      'Never handle credentials', 'EVERY screenshot', 'then Read it', 'Never delete reports/screenshots',
-      'Confirm each issue by retrying once', 'severity counts', 'page/screenshot counts', 'YYYY-MM-DD',
-      'baseline.json', 'healthScore', 'categoryScores', 'BROWSER SETUP safety/sentinel rules',
-      'one AskUserQuestion listing non-LOCAL mutations per run, BEFORE acting',
-      'Never refuse to use the browser for a selected browser surface',
+      '認証情報を扱ったり、cookie/トークン/localStorage を露出させたりしてはいけません', 'すべてのスクリーンショットについて', '続けて Read します', 'レポート/スクリーンショットを削除してはいけません',
+      '一度再試行して確認し', '重大度ごとの件数', 'ページ/スクリーンショットの数', 'YYYY-MM-DD',
+      'baseline.json', 'healthScore', 'categoryScores', 'BROWSER SETUP の安全性/センチネルのルール',
+      'LOCAL 以外の変更を列挙した AskUserQuestion を、操作する前に 1 回だけ行います',
+      '選択されたブラウザサーフェスについて、ブラウザの使用を決して拒否してはいけません',
     ]) expect(method).toContain(contract);
   });
 

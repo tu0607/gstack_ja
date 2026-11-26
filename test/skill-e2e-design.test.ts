@@ -949,8 +949,8 @@ function pluginDetectorFixture() {
     return { ...finding, ...where };
   }), null, 2));
   fs.writeFileSync(path.join(repoDir, 'design-review-detector.md'), detectorSkillText([
-    ['**Design detector (optional, deterministic):**', '**Create output directories:**'],
-    ['**Phase 0: mechanical scan**', '## Phases 1-6'],
+    ['**Design detector(任意、決定的):**', '**出力ディレクトリを作成します:**'],
+    ['**Phase 0: mechanical scan**', '## フェーズ 1-6'],
   ]));
   return { dir: fixture.dir, repoDir, env, engines };
 }
@@ -1074,13 +1074,13 @@ describeIfSelected('Design review detector shim E2E', ['design-review-detector-s
     fs.writeFileSync(
       path.join(repoDir, 'design-review-detector.md'),
       detectorSkillText([
-        ['**Design detector (optional, deterministic):**', '**Create output directories:**'],
-        ['**Phase 0: mechanical scan**', '## Phases 1-6'],
+        ['**Design detector(任意、決定的):**', '**出力ディレクトリを作成します:**'],
+        ['**Phase 0: mechanical scan**', '## フェーズ 1-6'],
       ]),
     );
     fs.writeFileSync(
       path.join(repoDir, 'design-review-dom-dump.md'),
-      detectorSkillText([['### DOM dump (DOM mode only', '### Auth Detection']]),
+      detectorSkillText([['### DOM dump(DOM モードのみ', '### Auth Detection']]),
     );
   });
 
@@ -1302,8 +1302,8 @@ describeIfSelected('Design HTML slop gate E2E', ['design-html-slop-gate'], () =>
     engineDir = makeFakeEngine();
     const full = fs.readFileSync(path.join(ROOT, 'design-html', 'SKILL.md'), 'utf-8');
     const text = [
-      sliceBetween(full, '**Design detector (optional, deterministic):**', '## Step 0: Input Detection'),
-      sliceBetween(full, '### Slop Gate (bounded, never a loop)', '### Verification Screenshots'),
+      sliceBetween(full, '**Design detector(任意、決定的):**', '## Step 0: 入力の検出'),
+      sliceBetween(full, '### Slop Gate(上限あり、ループにしない)', '### 検証用スクリーンショット'),
     ].join('\n\n---\n\n').replaceAll('$HOME/.claude/skills/gstack', ROOT).replaceAll('~/.claude/skills/gstack', ROOT);
     fs.writeFileSync(path.join(workDir, 'design-html-gate.md'), text);
   });

@@ -5,6 +5,7 @@
  * to the installed skill directory: `$GSTACK_ROOT/<skill>/sections/...` does
  * not exist in external runtime roots (Codex's holds bin, lib, browse, review).
  */
+import { expectMentions } from './helpers/prompt-structure';
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
@@ -94,10 +95,10 @@ describe('C4: ship, plan-ceo-review and office-hours are carved on every externa
     expect(offenders).toEqual([]);
     const codex = ALL_HOST_CONFIGS.find(c => c.name === 'codex')!;
     expect(fs.readFileSync(path.join(skillDir(codex, renders.all, 'plan-eng-review'), 'SKILL.md'), 'utf8'))
-      .toContain('Read the `review-sections` section inlined in this SKILL.md');
+      .toContain('the `review-sections` section inlined in this SKILL.md');
     const html = fs.readFileSync(path.join(skillDir(codex, renders.all, 'design-html'), 'SKILL.md'), 'utf8');
     expect(html).not.toContain('detector-install-offer.md');
-    expect(html).toContain('the user has never answered this. Ask now');
+    expectMentions(html, [['DESIGN_DETECTOR_INSTALL_OFFER', '回答していません'], ['今すぐ尋ねます']], 'design-html');
   });
 
   test('codex: the autoplan methodology loader accepts the carved plan-ceo-review install', () => {
@@ -136,15 +137,15 @@ describe('C4: UTF-8 byte gate (every host, every Codex model overlay)', () => {
     fs.cpSync(path.join(ROOT, 'scripts'), path.join(fixture, 'scripts'), { recursive: true });
     fs.cpSync(path.join(ROOT, 'retro'), path.join(fixture, 'retro'), { recursive: true });
     const tmpl = path.join(fixture, 'retro', 'SKILL.md.tmpl');
-    fs.appendFileSync(tmpl, `\n${`${'Padding for the oversized-render fixture. '.repeat(20)}\n`.repeat(250)}`);
+    fs.appendFileSync(tmpl, `\n${`${'Padding for the oversized-render fixture. '.repeat(20)}\n`.repeat(Math.ceil(SKILL_BYTE_CEILING / 860) + 10)}`);
     const gen = (...args: string[]) => spawnSync(process.execPath, ['scripts/gen-skill-docs.ts', '--host', 'codex', ...args],
       { cwd: fixture, encoding: 'utf8', timeout: 60_000 });
     const repo = gen('--out-dir', path.join(fixture, 'out-repo'));
     expect(repo.status).toBe(1);
-    expect(repo.stderr).toMatch(/codex\/gstack-retro\/SKILL\.md is \d+ bytes, over the 160,000-byte limit\. Fix: carve sections with usesLazySections\(\) for this skill\./);
+    expect(repo.stderr).toMatch(new RegExp(String.raw`codex/gstack-retro/SKILL\.md is \d+ bytes, over the ${SKILL_BYTE_CEILING.toLocaleString('en-US')}-byte limit\. Fix: carve sections with usesLazySections\(\) for this skill\.`));
     const install = gen('--out-dir', path.join(fixture, 'out-install'), '--install-root', '/opt/gstack');
     expect(install.status, install.stderr).toBe(0);
-    expect(install.stderr).toContain('over the 160,000-byte limit');
+    expect(install.stderr).toContain(`over the ${SKILL_BYTE_CEILING.toLocaleString('en-US')}-byte limit`);
     expect(fs.existsSync(path.join(fixture, 'out-install', '.agents', 'skills', 'gstack-retro', 'SKILL.md'))).toBe(true);
   });
 });

@@ -126,7 +126,7 @@ describe.skipIf(process.platform === 'win32')('full setup repairs the installed 
         expect(fs.existsSync(f.oldRender)).toBe(false);
         expect(fs.readFileSync(path.join(f.skills, 'gstack-review/SKILL.md'), 'utf8')).toContain('gstack-claude-code');
         expect(fs.readFileSync(path.join(f.skills, 'gstack-review/notes.md'), 'utf8')).toBe('user notes\n');
-        expect(fs.readFileSync(path.join(f.root, '.agents/skills/gstack-review/SKILL.md'), 'utf8')).toContain('Model-Specific Behavioral Patch (gpt-5.6-sol)');
+        expect(fs.readFileSync(path.join(f.root, '.agents/skills/gstack-review/SKILL.md'), 'utf8')).toContain('Model-Specific Behavioral Patch (gpt-5.6-sol)(モデル固有の動作パッチ)');
         expect(fs.existsSync(path.join(f.skills, 'gstack/bin/gstack-claude-code'))).toBe(true);
         expect(fs.existsSync(path.join(f.skills, 'gstack/lib/outside-review-result.ts'))).toBe(true);
         const fakeCli = path.join(f.temp, 'fake-reviewer.ts');

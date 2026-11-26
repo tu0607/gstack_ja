@@ -1,12 +1,12 @@
-# gstack-full Pipeline
+# gstack-full パイプライン
 
-Injected by the orchestrator for complete feature builds. Append to existing CLAUDE.md.
+完全な機能開発のためにオーケストレーターが注入します。既存の CLAUDE.md に追記してください。
 
-## Full Pipeline
-1. Read CLAUDE.md and understand the project context.
-2. Run /autoplan to review your approach (CEO + eng + design review pipeline).
-3. Implement the approved plan. Follow the planning discipline above.
-4. Run /ship to create a PR with tests, changelog, and version bump.
-5. Report back: PR URL, what shipped, decisions made, anything uncertain.
+## フルパイプライン
+1. CLAUDE.md を読み、プロジェクトの文脈を理解する。
+2. /autoplan を実行し、アプローチをレビューする(CEO + エンジニアリング + デザインのレビューパイプライン)。
+3. 承認されたプランを実装する。上記のプランニングの規律に従うこと。
+4. /ship を実行し、テスト、CHANGELOG、バージョン更新を含む PR を作成する。
+5. 報告する: PR の URL、出荷した内容、下した判断、不確かな点。
 
-Do not ask for human input until the PR is ready for review.
+PR がレビューの準備ができるまで、人間の入力を求めないこと。

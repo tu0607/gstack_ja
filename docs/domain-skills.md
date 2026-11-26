@@ -1,17 +1,12 @@
-# Domain Skills
+# ドメインスキル
 
-> **Scope:** domain-skills are a feature of gstack's own browser engine (`$B`), the **fallback** that runs when the Aside browser is absent (Linux, Windows, a closed Aside app). Skills driving Aside record per-project learnings through `/learn` instead. See [BROWSER.md](../BROWSER.md).
+> **適用範囲:** ドメインスキルは gstack 独自のブラウザエンジン(`$B`)の機能で、Aside ブラウザが使えない場合(Linux、Windows、Aside アプリが閉じている場合)に動く**フォールバック**です。Aside を操作するスキルは、代わりに `/learn` でプロジェクトごとの学習内容を記録します。詳しくは [BROWSER.md](../BROWSER.md) を参照してください。
 
-Per-site notes the agent writes for itself. Compounds across sessions: once an
-agent figures out something non-obvious about a website, it saves a skill, and
-future sessions on that host get the note injected into their prompt context.
+Web サイトごとのメモを、エージェントが自分自身のために書き残す仕組みです。セッションをまたいで蓄積されます。エージェントが Web サイトについて自明でない点を見つけたらスキルとして保存し、その後のセッションで同じホストを扱うときに、そのメモがプロンプトのコンテキストに注入されます。
 
-This is gstack's borrow from [browser-use/browser-harness](https://github.com/browser-use/browser-harness).
-gstack copies the per-site-notes pattern, NOT the self-modifying-runtime
-pattern. Skills are markdown text loaded into prompts; they are not executable
-code.
+これは [browser-use/browser-harness](https://github.com/browser-use/browser-harness) から gstack が取り入れたものです。gstack が採用したのはサイトごとのメモというパターンだけで、ランタイムを自己書き換えするパターンは採用していません。スキルはプロンプトに読み込まれる Markdown テキストであり、実行可能なコードではありません。
 
-## How agents use it
+## エージェントによる利用方法
 
 ```bash
 # Agent wrote down what it learned about a site after a successful task.
@@ -41,7 +36,7 @@ $B domain-skill rollback linkedin.com
 $B domain-skill rm linkedin.com
 ```
 
-## State machine
+## 状態遷移
 
 ```
   ┌──────────────┐  3 successful uses        ┌────────┐  promote-to-global   ┌────────┐
@@ -53,73 +48,52 @@ $B domain-skill rm linkedin.com
          └───────────────────────────────────────┘
 ```
 
-A new save lands as **quarantined** and does NOT auto-fire in prompts. After 3
-uses on this host without the L4 ML classifier flagging the skill content, the
-skill auto-promotes to **active** in the project. Active skills fire on every
-new sidebar-agent session for that hostname.
+新しく保存されたスキルは **quarantined(隔離)** 状態になり、プロンプトに自動では組み込まれません。同じホストで 3 回使われ、その間 L4 ML 分類器がスキルの内容にフラグを立てなければ、プロジェクト内で **active(有効)** 状態に自動昇格します。active のスキルは、そのホスト名に対する新しいサイドバーエージェントのセッションごとに毎回組み込まれます。
 
-To make a skill fire across projects (for example, "I want my LinkedIn skill
-on every gstack project I work on"), explicitly run
-`$B domain-skill promote-to-global <host>`. This is opt-in by design (Codex T4
-outside-voice review): blanket cross-project compounding leaks context across
-unrelated work.
+複数のプロジェクトをまたいでスキルを有効にしたい場合(例: 「LinkedIn 用のスキルをすべての gstack プロジェクトで使いたい」)は、`$B domain-skill promote-to-global <host>` を明示的に実行します。これは意図的にオプトイン方式にしています(Codex T4 の外部レビューによる判断)。無関係な作業の間でコンテキストが無制限に漏れるのを防ぐためです。
 
-## Storage
+## ストレージ
 
-Skills live in two places:
+スキルは次の 2 か所に保存されます。
 
-- **Per-project**: `~/.gstack/projects/<slug>/learnings.jsonl` — same JSONL
-  file the `/learn` skill uses. Domain skills are `type:"domain"` rows.
-- **Global**: `~/.gstack/global-domain-skills.jsonl` — only `state:"global"`
-  rows.
+- **プロジェクトごと**: `~/.gstack/projects/<slug>/learnings.jsonl` — `/learn` スキルも使う同じ JSONL ファイルです。ドメインスキルは `type:"domain"` の行として保存されます。
+- **グローバル**: `~/.gstack/global-domain-skills.jsonl` — `state:"global"` の行だけが保存されます。
 
-Both files are append-only JSONL. Tombstones for deletes; an idle compactor
-rewrites files periodically. Tolerant parser drops partial trailing lines on
-read so a crash mid-write doesn't poison subsequent reads.
+どちらのファイルも追記専用の JSONL です。削除はトゥームストーン(削除マーカー)で記録され、アイドル時のコンパクター(圧縮処理)が定期的にファイルを書き直します。寛容なパーサーは読み込み時に末尾の不完全な行を捨てるため、書き込み途中でクラッシュしても後続の読み込みが壊れません。
 
-## Security model
+## セキュリティモデル
 
-Skills are agent-authored content loaded into future prompt context. That makes
-them a classic agent-to-agent prompt-injection vector. The plan explicitly
-addresses this with multiple layers:
+スキルはエージェントが作成し、後のセッションのプロンプトコンテキストに読み込まれるコンテンツです。そのため、エージェント間のプロンプトインジェクションの典型的な経路になります。この計画では複数の層でこれに対処しています。
 
-| Layer | What | Where |
+| 層 | 内容 | 場所 |
 |-------|------|-------|
-| L1-L3 | Datamarking, hidden-element strip, ARIA regex, URL blocklist | `content-security.ts` (compiled binary) |
-| L4 | TestSavantAI ONNX classifier | `security-classifier.ts` (sidebar-agent, non-compiled) |
-| L4b | Claude Haiku transcript classifier | `security-classifier.ts` (sidebar-agent) |
-| L5 | Canary token leak detection | `security.ts` |
+| L1-L3 | データマーキング、非表示要素の除去、ARIA の正規表現、URL ブロックリスト | `content-security.ts`(コンパイル済みバイナリ) |
+| L4 | TestSavantAI ONNX 分類器 | `security-classifier.ts`(sidebar-agent、非コンパイル) |
+| L4b | Claude Haiku によるトランスクリプト分類器 | `security-classifier.ts`(sidebar-agent) |
+| L5 | カナリアトークンによる漏えい検出 | `security.ts` |
 
-L1-L3 checks run at **save time** (in the daemon). The L4 ML classifier runs at
-**load time** (in sidebar-agent), so each session that loads a skill into its
-prompt also re-validates the content. This catches issues that only manifest
-after a classifier model update.
+L1-L3 のチェックは**保存時**(デーモン内)に実行されます。L4 の ML 分類器は**読み込み時**(sidebar-agent 内)に実行されるため、スキルをプロンプトに読み込むセッションのたびにコンテンツが再検証されます。これにより、分類器モデルが更新された後にだけ現れる問題も検出できます。
 
-The save command derives the hostname from the **active tab's top-level
-origin**, not from agent arguments. This closes a confused-deputy bug Codex
-flagged: a malicious page redirect chain could otherwise trick the agent into
-poisoning a different domain.
+保存コマンドは、エージェントの引数ではなく**アクティブタブのトップレベルのオリジン**からホスト名を導出します。これは Codex が指摘した混乱した代理(confused-deputy)のバグへの対策です。悪意のあるページのリダイレクトチェーンによって、エージェントが別のドメインを汚染させられる恐れがあったためです。
 
-## Error reference
+## エラーリファレンス
 
-| Error | Cause | Action |
-|-------|-------|--------|
-| `Save blocked: classifier flagged content as potential injection` | L4 score ≥ 0.85 at save | Rewrite the skill removing instruction-like prose; retry. |
-| `Save blocked: <L1-L3 message>` | URL blocklist match or ARIA injection at save | Review skill body for suspicious patterns. |
-| `Save failed: empty body` | No content via stdin or `--from-file` | Pipe markdown into `$B domain-skill save`, or pass `--from-file <path>`. |
-| `Cannot save domain-skill: no top-level URL on active tab` | Tab is `about:blank` or `chrome://...` | `$B goto <target-site>` first, then save. |
-| `Cannot promote: skill is in state "quarantined"` | Skill hasn't auto-promoted yet | Use it in this project until 3 successful runs without classifier flags. |
-| `Cannot rollback: <host> has fewer than 2 versions` | Only one version exists | Use `$B domain-skill rm` to delete instead. |
+| エラー | 原因 | 対処 |
+|-------|------|-------|
+| `Save blocked: classifier flagged content as potential injection` | 保存時に L4 スコアが 0.85 以上 | 命令的な文章を取り除いてスキルを書き直し、再試行する。 |
+| `Save blocked: <L1-L3 message>` | 保存時に URL ブロックリストに一致、または ARIA インジェクション | スキルの本文に不審なパターンがないか確認する。 |
+| `Save failed: empty body` | stdin または `--from-file` から内容が渡されていない | Markdown を `$B domain-skill save` にパイプするか、`--from-file <path>` を指定する。 |
+| `Cannot save domain-skill: no top-level URL on active tab` | タブが `about:blank` または `chrome://...` である | 先に `$B goto <target-site>` を実行してから保存する。 |
+| `Cannot promote: skill is in state "quarantined"` | スキルがまだ自動昇格していない | 分類器のフラグなしで 3 回成功するまで、このプロジェクトで使い続ける。 |
+| `Cannot rollback: <host> has fewer than 2 versions` | バージョンが 1 つしかない | 代わりに `$B domain-skill rm` で削除する。 |
 
-## Telemetry
+## テレメトリ
 
-When telemetry is enabled (default `community` mode unless turned off), the
-following events are written to `~/.gstack/analytics/browse-telemetry.jsonl`:
+テレメトリが有効な場合(デフォルトは `community` モード。無効にしていない限り)、次のイベントが `~/.gstack/analytics/browse-telemetry.jsonl` に記録されます。
 
 - `domain_skill_saved {host, scope, state, bytes}`
 - `domain_skill_save_blocked {host, reason}`
 - `domain_skill_fired {host, source, version}`
-- `domain_skill_state_changed {host, from_state, to_state}` (planned)
+- `domain_skill_state_changed {host, from_state, to_state}`(計画中)
 
-Hostname only — no body content, no agent text. Disable entirely with
-`gstack-config set telemetry off` or `GSTACK_TELEMETRY_OFF=1`.
+記録されるのはホスト名だけで、本文の内容やエージェントのテキストは含みません。`gstack-config set telemetry off` または `GSTACK_TELEMETRY_OFF=1` で完全に無効にできます。

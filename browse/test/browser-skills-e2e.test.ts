@@ -56,7 +56,8 @@ describe('browser-skills E2E — bundled hackernews-frontpage', () => {
     const result = await handleSkillCommand(['show', 'hackernews-frontpage'], { port: 0 });
     expect(result).toContain('host: news.ycombinator.com');
     expect(result).toContain('trusted: true');
-    expect(result).toContain('Hacker News front-page scraper');
+    expect(result).toMatch(/^name: hackernews-frontpage$/m);
+    expect(result).toMatch(/^description: .*Hacker News/m);
     expect(result).toContain('triggers:');
   });
 

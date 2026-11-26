@@ -1,14 +1,12 @@
-# Troubleshooting gstack messages
+# gstack メッセージのトラブルシューティング
 
-Find the message you saw, then follow its fix. Every check gstack runs ends in
-one of three states:
+表示されたメッセージを探し、その修正手順に従ってください。gstack が実行するチェックはすべて、次の3つの状態のいずれかで終わります。
 
-- **ran**: the check executed. It may still have found problems.
-- **not run**: gstack chose not to run it (you turned it off, or nothing applied).
-- **unavailable**: gstack tried and could not run it. This is missing coverage,
-  never a pass.
+- **ran**: チェックは実行された。ただし問題が見つかった可能性はある。
+- **not run**: gstack がチェックを実行しないことにした(無効にしている、または該当するものがなかった)。
+- **unavailable**: gstack は実行を試みたが、実行できなかった。これはカバレッジの欠落であり、合格ではない。
 
-A message that is not `ran` has this shape:
+`ran` 以外のメッセージは、次のような形になります。
 
 ```
 <check>: not run (<reason>). Fix: <command>
@@ -16,384 +14,225 @@ A message that is not `ran` has this shape:
 <check>: ran, verdict unverified (<reason>). Fix: read the output above
 ```
 
-Search this page for the words after `unavailable:` or `not run (`. Each
-section has a stable link anchor; the reason codes and anchors come from
-`lib/gate-outcomes.ts`, and a free test fails if a code has no section here.
+このページで `unavailable:` または `not run (` の後ろの語句を検索してください。各セクションには安定したリンクアンカーがあります。理由コードとアンカーは `lib/gate-outcomes.ts` から取得されており、コードに対応するセクションがない場合は無料テストが失敗します。
 
 <a id="gstack-doctor"></a>
-### Check readiness before a skill runs
+### スキルを実行する前に準備状況を確認する
 
-Run `~/.claude/skills/gstack/bin/gstack-doctor` (other hosts: `./setup --status`
-in your gstack checkout prints the doctor's absolute path). It prints one row
-each for the install, state root, Bun, hooks, Codex, the cached Codex model
-check, artifacts sync, the browse bundle, the other compiled binaries, the
-/cso native helper, Claude Code, the largest session journal and recent
-/autoplan guard codes. Each row is `ok`, `warn`,
-`not configured` or `fail` with its fix; only `fail` exits non-zero. It makes
-no paid call: the Codex rows report the cached model check and its age, and
-`--live` runs that check once. Paste its output into bug reports.
+`~/.claude/skills/gstack/bin/gstack-doctor` を実行してください(他のホストでは、gstack のチェックアウトで `./setup --status` を実行すると、doctor の絶対パスが表示されます)。doctor は、インストール、state root、Bun、フック、Codex、キャッシュされた Codex モデルチェック、artifacts の同期、browse バンドル、その他のコンパイル済みバイナリ、/cso のネイティブヘルパー、Claude Code、最大のセッションジャーナル、最近の /autoplan ガードコードについて、それぞれ1行ずつ表示します。各行は `ok`、`warn`、`not configured`、`fail` のいずれかで、修正方法が併記されます。終了コードが非ゼロになるのは `fail` の場合だけです。doctor は有料の呼び出しを行いません。Codex の行はキャッシュされたモデルチェックとその経過時間を報告し、`--live` を指定するとそのチェックを一度実行します。バグ報告には出力を貼り付けてください。
 
 ---
 
-## Model policy
+## モデルポリシー
 
-The [model-policy guide](model-policy.md) explains the two tiers, all six
-settings, precedence and the read-only inspection command. A resolved selection
-is not proof that the requested provider or model can run.
+[モデルポリシーのガイド](model-policy.md)では、2つのティア、6つの設定、優先順位、読み取り専用の確認コマンドを説明しています。解決された選択は、要求したプロバイダーやモデルが実際に動くことの証明ではありません。
 
 <a id="model-policy-config"></a>
-### Model policy configuration is invalid or unreadable
+### モデルポリシーの設定が無効または読み取れない
 
-**Meaning.** The new policy path could not read a coherent configuration or a
-configured value is invalid. An unreadable file is not treated as an absent
-setting: doing that could silently select the premium default.
+**意味。** 新しいポリシーのパスで、整合性のある設定を読み取れなかったか、設定された値が無効でした。読み取れないファイルは「設定なし」として扱われません。そうすると、プレミアムのデフォルトが黙って選ばれてしまうおそれがあるためです。
 
-**Fix.** Repair the file or key named by the error. `plan_review_tier` accepts
-`frontier`, `smart` or `host`; `implementation_tier` accepts `frontier` or
-`smart`. Use `gstack-config unset <key>` to restore a default, not an empty
-value. A rejected `set` leaves the old value intact. Correct ownership/read
-permissions rather than deleting an unrelated state directory.
-For a malformed line such as `plan_review_tier = smart`, edit the reported file
-and correct or remove that line first: `unset` only removes canonical `key:`
-records and cannot repair a misspelled delimiter or quoted key.
+**修正。** エラーに示されたファイルまたはキーを修復してください。`plan_review_tier` は `frontier`、`smart`、`host` を受け付け、`implementation_tier` は `frontier` または `smart` を受け付けます。既定値に戻すには、空の値を設定するのではなく `gstack-config unset <key>` を使ってください。`set` が拒否された場合、古い値はそのまま残ります。無関係な state ディレクトリを削除するのではなく、所有者や読み取り権限を正してください。
+`plan_review_tier = smart` のような不正な行の場合は、報告されたファイルを編集し、その行を修正するか削除してください。`unset` が取り除けるのは正規の `key:` レコードだけで、区切り文字の綴りの誤りや引用符で囲まれたキーは修復できません。
 
-**Expected result.** `gstack-models list` or the corresponding `resolve`
-command explains the winning source. No outside model call ran on this error.
+**期待される結果。** `gstack-models list` またはそれに対応する `resolve` コマンドが、どのソースが優先されたかを説明します。このエラーでは外部モデルの呼び出しは行われていません。
 
 <a id="model-policy-provider"></a>
-### A custom provider needs an explicit model or host mode
+### カスタムプロバイダーには明示的なモデルまたはホストモードが必要
 
-**Meaning.** Native settings or environment flags route the reviewer to a
-custom endpoint or partner platform. A public API catalog identifier is not
-necessarily a valid deployment identifier there. Malformed native provider
-configuration also prevents gstack from assuming the public endpoint.
+**意味。** ネイティブの設定や環境フラグによって、レビュアーがカスタムエンドポイントやパートナープラットフォームに送られています。公開 API のカタログ識別子が、そこでは有効なデプロイ識別子とは限りません。ネイティブのプロバイダー設定が不正な場合も、gstack は公開エンドポイントを前提にできません。
 
-**Fix.** Supply a compatible model for that request, set the provider's gstack
-environment override or tier-model setting, or choose
-`gstack-config set plan_review_tier host`. Keep credentials in the provider's
-normal authentication mechanism, never in a model setting. If the error names
-a malformed native configuration, fix that source first.
+**修正。** そのリクエストに互換性のあるモデルを指定するか、プロバイダーの gstack 用環境変数による上書きまたは tier モデルの設定を行うか、`gstack-config set plan_review_tier host` を選んでください。認証情報は、モデルの設定ではなく、プロバイダーの通常の認証の仕組みに置いてください。エラーがネイティブ設定の不正を指している場合は、先にそのソースを修正してください。
 
-**Expected result.** Inspection reports an explicit selection or honest
-host-managed delegation. It does not certify account entitlement or send a
-public default to an inferred custom endpoint.
+**期待される結果。** 確認コマンドは、明示的な選択、または正直にホストに委譲された選択を報告します。アカウントの資格を証明するものではなく、公開のデフォルトを、推定されたカスタムエンドポイントに送ることもありません。
 
 <a id="model-policy-selection"></a>
-### The selected review model could not be used
+### 選択されたレビューモデルを使用できなかった
 
-**Meaning.** The requested model was rejected or the provider could not
-complete the review. A model may be nonexistent, unavailable to the account,
-retired, or behind a misconfigured endpoint; preserve the provider's evidence
-rather than treating all of these as the same diagnosis. No successful outside
-review is implied, and gstack does not substitute a different model.
+**意味。** 要求されたモデルが拒否されたか、プロバイダーがレビューを完了できませんでした。モデルが存在しない、アカウントで使えない、廃止された、または誤って構成されたエンドポイントの背後にある、といった可能性があります。これらを同じ診断として扱わず、プロバイダーの証拠は残してください。外部レビューが成功したことにはならず、gstack は別のモデルに置き換えません。
 
-**Fix.** Change the source named in the error. For example, an environment
-override beats a tier setting, so editing the tier cannot replace it. Unset or
-correct that override, or explicitly name a supported model for the request.
-Follow the existing auth, quota, sandbox or timeout repair when that is the
-reported failure. Missing usage identity remains unknown, even if inspection
-showed a requested ID.
+**修正。** エラーで指定されたソースを変更してください。たとえば、環境変数による上書きは tier の設定より優先されるため、tier を編集しても置き換えられません。その上書きを解除するか修正するか、リクエストに対応するモデルを明示的に指定してください。報告された失敗が認証、クォータ、サンドボックス、タイムアウトによるものであれば、既存の修復手順に従ってください。確認コマンドがリクエストされた ID を示していても、使用者の識別情報が欠けている場合は不明のままです。
 
-**Expected result.** The next invocation announces its model and source,
-checks that same selection and reports the actual provider result. A cached
-probe or a native fallback is not a completed outside review.
+**期待される結果。** 次の呼び出しでは、使用するモデルとそのソースを示し、同じ選択を確認したうえで、プロバイダーの実際の結果を報告します。キャッシュされた probe やネイティブのフォールバックは、完了した外部レビューとはみなされません。
 
 <a id="model-policy-freshness"></a>
-### Model-catalog freshness is unknown, stale or needs an update
+### モデルカタログの鮮度が不明、古い、または更新が必要
 
-**Meaning.** Official evidence changed, a required source could not be
-checked, or the retained evidence does not match this catalog and parser.
-`unknown/source-unavailable` is not current. A later source failure must not
-erase an earlier retirement finding or close its maintenance issue.
+**意味。** 公式の根拠が変わったか、必要なソースを確認できなかったか、保持している根拠がこのカタログやパーサーと一致していません。`unknown/source-unavailable` は最新ではありません。後でソースが失敗しても、以前の廃止の検出結果を消したり、そのメンテナンス課題を閉じたりしてはいけません。
 
-**Fix.** Read the failed source and evidence details in the freshness workflow
-report and tracking issue. Repair the source parser or publication access when
-needed, then run the workflow manually against the default branch. If a model
-was superseded or deprecated, follow the [maintainer checklist](model-policy.md#maintainer-update-checklist)
-to qualify a replacement or record a supported mitigation. Do not clear the
-issue just because a new release has not been adopted yet.
+**修正。** freshness ワークフローのレポートと追跡 issue で、失敗したソースと根拠の詳細を読んでください。必要に応じてソースのパーサーやパブリケーションへのアクセスを修復し、その後デフォルトブランチに対してワークフローを手動で実行してください。モデルが置き換えられたか非推奨になった場合は、[メンテナンス担当者向けチェックリスト](model-policy.md#maintainer-update-checklist)に従って、代替モデルを検証するか、サポートされている緩和策を記録してください。新しいリリースがまだ採用されていないという理由だけで issue を閉じないでください。
 
-**Expected result.** Complete source checks produce evidence bound to the
-current catalog, while unresolved lifecycle findings remain visible. Personal
-pins and unrelated PRs are unchanged. Check the workflow's last run date too:
-a scheduled job that never runs cannot report its own absence.
+**期待される結果。** 確認が完了したソースは、現在のカタログに紐づく根拠を生成し、未解決の検出結果は見えたままになります。個人のピンや無関係な PR は変更されません。ワークフローの最終実行日も確認してください。スケジュールされたジョブが一度も実行されていなければ、その不在を自ら報告することはできません。
 
-#### Repairing `recoveryRequired` state
+#### `recoveryRequired` 状態の修復
 
-This flag deliberately keeps the issue open until a maintainer repairs the
-record. Another successful fetch alone cannot certify corrupted history.
+このフラグは、メンテナンス担当者がレコードを修復するまで issue を開いたままにします。別の取得が成功しただけでは、破損した履歴が正しいと証明されません。
 
-1. Save the current issue body, including its retained recovery archive, and
-   download the latest trustworthy workflow report. Use its `report.state` as
-   the starting state; do not invent run IDs, catalog hashes or check dates.
-2. Reconcile its `lifecycle` array with the issue's independent lifecycle block
-   and any retained archive. Preserve known retirements, deadlines and human
-   dispositions. A model currently in the catalog must not keep an old
-   `resolvedByCatalog` flag from a previous replacement.
-3. In the issue editor, restore valid JSON between the `state:begin` and
-   `state:end` marker lines. Put that same lifecycle array between
-   `lifecycle:begin` and `lifecycle:end`. Restore the standalone ownership and
-   region markers, and leave human text outside the owned region intact.
-4. Set `recoveryRequired` to `false` only after that reconciliation. If prior
-   successful evidence cannot be verified, set `lastSuccess` to `null` rather
-   than making up a fresh success. If lifecycle history cannot be recovered,
-   leave the flag set and the issue open for investigation.
-5. Run **Model-policy freshness** against the default branch. Only complete,
-   current evidence with no unresolved findings can close the issue. A parsing
-   or source error leaves it open; do not clear history to manufacture a pass.
+1. 現在の issue の本文を保存してください。保持されている復旧アーカイブも含めます。そのうえで、信頼できる最新のワークフローレポートをダウンロードしてください。その `report.state` を開始時の状態として使ってください。実行 ID、カタログのハッシュ、確認日を推測で作ってはいけません。
+2. そのレポートの `lifecycle` 配列を、issue の独立したライフサイクルブロックおよび保持されているアーカイブと照合してください。既知の廃止、期限、人による判断は保持してください。現在カタログにあるモデルが、以前の置き換えによる古い `resolvedByCatalog` フラグを持ち続けてはいけません。
+3. issue のエディターで、`state:begin` と `state:end` のマーカー行の間にある有効な JSON を復元してください。同じライフサイクル配列を `lifecycle:begin` と `lifecycle:end` の間に置いてください。独立した所有権と領域のマーカーを復元し、所有範囲外の人間が書いた本文はそのまま残してください。
+4. この照合が済んでから初めて、`recoveryRequired` を `false` に設定してください。以前に成功した証拠を検証できない場合は、新しい成功を捏造するのではなく、`lastSuccess` を `null` に設定してください。ライフサイクルの履歴を復元できない場合は、フラグを立てたままにして、issue を調査のため開いたままにしてください。
+5. デフォルトブランチに対して **Model-policy freshness** を実行してください。完全で最新の根拠があり、未解決の検出結果がない場合にのみ、issue を閉じられます。パースエラーやソースエラーがあれば issue は開いたままです。合格を作るために履歴を消してはいけません。
 
-## Outside reviews (Codex and Claude Code)
+## 外部レビュー(Codex と Claude Code)
 
-Outside reviews send your diff, plan or question to a second AI provider. Their
-verdict comes from `lib/outside-review-result.ts`, which prints
-`VERDICT: clean|findings|unverified|unavailable`. A `findings` verdict with a
-P0 or P1 finding blocks exactly like a native P0/P1. `unverified` and
-`unavailable` are missing coverage: /ship and /review continue, show the gap in
-the readiness dashboard and the PR body, and never count it as a pass.
+外部レビューでは、差分、計画、質問を別の AI プロバイダーに送信します。その判定は `lib/outside-review-result.ts` から得られ、`VERDICT: clean|findings|unverified|unavailable` を出力します。P0 または P1 の検出結果を含む `findings` の判定は、ネイティブの P0/P1 と同様にブロックします。`unverified` と `unavailable` はカバレッジの欠落です。/ship と /review は続行しますが、準備状況ダッシュボードと PR 本文にそのギャップを表示し、合格としては決して数えません。
 
 <a id="outside-review-verdict"></a>
-### How the verdict is read from a review
+### レビューから判定を読み取る方法
 
-- **Severity tags.** `[P0]`-`[P3]`, Codex's native `P1:` labels, and a P0-P3
-  label at the start of a line after an optional heading, bullet, number or
-  bold: `**P1 — x**`, `**P1** — x`, `1. P2 — x`, `P2 —`, `### P1`, or a table
-  cell `| P1 |`. P0 and P1 block; P2 and P3 are advisory. A P0-P3 token in that
-  label position that none of these forms reads (`## P1/P2 findings`) makes the
-  review [`unverified`](#outside-review-unparsed-severity), never `clean`. Code
-  fences and inline code are quotes, not labels.
-- **Severity words in label position.** `Severity: High`, `Priority: low`, a
-  line that starts with `High:`, `High —`, `[High]` or `**High**` (after an
-  optional heading, bullet or number), a bold `**High**` anywhere, or a table
-  cell `| high |`. Critical and High block like P0 and P1; Medium and Low are
-  advisory like P2 and P3. Words inside prose do not count: "high-level",
-  "low-risk", "a medium-term follow-up" and "no critical findings" are not
-  findings.
-- **Every review gate.** These rules apply to every gate that summarises a
-  review, including the `execution` gate behind `/codex` consult and challenge.
-  A reply whose last `Verdict:` line says `not ready` but carries no readable
-  severity prints `FINDINGS: unspecified` and exits 3 like a blocking finding.
-- **No findings.** A review with no tag and no label is `clean` only when its
-  conclusion says so: the last sentence (or its last ", and" clause), or the
-  `because` clause of its `Recommendation:` line, opens with `NO_FINDINGS`,
-  "No issues found", "I found no actionable regressions" or "I did not find
-  any bugs", with no "but", "however", "except", "other than" or "elsewhere".
-  When other prose comes first, anything after that statement except a
-  predicate ("were found", "is evident") or a colon explanation must scope it
-  to the change as a whole ("in this change", "in the staged changes"); "No
-  issues in the parser." does not conclude the review. A "no issues" phrase
-  anywhere else in the reply does not count. Otherwise the review is
-  `unverified` (see below), never `clean`. A `/codex` consult
-  answer with no severity labels at all is not a review summary and stays
-  `clean`.
-- **Design proposals** (the design-direction voices in /design-consultation
-  and /office-hours) are read with the `proposal` gate: a completed proposal
-  needs only its `Recommendation: ... because ...` line.
+- **重大度タグ。** `[P0]`〜`[P3]`、Codex のネイティブ `P1:` ラベル、そして任意の見出し、箇条書き、番号、太字の後に続く行頭の P0〜P3 ラベルです。たとえば `**P1 — x**`、`**P1** — x`、`1. P2 — x`、`P2 —`、`### P1`、表のセル `| P1 |` です。P0 と P1 はブロックします。P2 と P3 は助言です。ラベルの位置にある P0〜P3 のトークンが、これらのどの形式としても読めない場合(`## P1/P2 findings` など)、そのレビューは [`unverified`](#outside-review-unparsed-severity) となり、決して `clean` にはなりません。コードフェンスとインラインコードは引用であってラベルではありません。
+- **ラベルの位置にある重大度の語。** `Severity: High`、`Priority: low`、行頭の `High:`、`High —`、`[High]`、`**High**`(任意の見出し、箇条書き、番号の後)、どこにあっても太字の `**High**`、表のセル `| high |` などです。Critical と High は P0 と P1 と同様にブロックします。Medium と Low は P2 と P3 と同様に助言です。散文中の語は数えません。"high-level"、"low-risk"、"a medium-term follow-up"、"no critical findings" は検出結果ではありません。
+- **すべてのレビューゲート。** これらのルールは、レビューを要約するすべてのゲートに適用されます。`/codex` の相談と challenge を支える `execution` ゲートも含みます。最後の `Verdict:` 行が `not ready` で、読み取れる重大度がない返答は、`FINDINGS: unspecified` を出力し、ブロックする検出結果と同様に終了コード 3 で終わります。
+- **検出結果がない場合。** タグもラベルもないレビューが `clean` となるのは、その結論がそう述べている場合だけです。つまり、最後の文(またはその最後の ", and" の節)、あるいは `Recommendation:` 行の `because` 節が、`NO_FINDINGS`、"No issues found"、"I found no actionable regressions"、"I did not find any bugs" で始まっており、"but"、"however"、"except"、"other than"、"elsewhere" を含まない場合です。ほかの文が先に来る場合、その後の文は、述語("were found"、"is evident")や、コロンで始まる説明を除き、変更全体に限定される必要があります(例: "in this change"、"in the staged changes")。"No issues in the parser." はレビューの結論になりません。返答の他の場所にある "no issues" という表現は数えません。それ以外の場合、レビューは `unverified` となり(下記参照)、決して `clean` にはなりません。重大度のラベルがまったくない `/codex` の相談への回答は、レビューの要約ではないため `clean` のままです。
+- **設計提案。** /design-consultation と /office-hours の設計方向の意見は、`proposal` ゲートで読み取られます。完了した提案に必要なのは、`Recommendation: ... because ...` の行だけです。
 
-Outside-review prompts ask the reviewer to label each finding Critical, High,
-Medium or Low, so most reviews land on `findings` or `clean`.
+外部レビューのプロンプトでは、レビュアーに各検出結果を Critical、High、Medium、Low のいずれかで分類するよう求めています。そのため、ほとんどのレビューは `findings` か `clean` になります。
 
 <a id="sourced-helper-location"></a>
 ### `gstack: cannot load gstack-codex-probe` / `gstack: cannot locate <helper> (shell: ...)` / `CODEX_MODE: helper_unavailable`
 
-**Meaning.** Skills run `gstack-codex-probe` as a command, one subcommand per
-check, so the shell your agent uses does not matter. `cannot load
-gstack-codex-probe` and `CODEX_MODE: helper_unavailable` mean the probe file is
-missing or not executable in your install.
+**意味。** スキルは `gstack-codex-probe` をコマンドとして実行し、チェックごとにサブコマンドを1つ使います。そのため、エージェントが使うシェルは関係ありません。`cannot load gstack-codex-probe` と `CODEX_MODE: helper_unavailable` は、インストール先でプローブファイルが見つからないか、実行可能ではないことを意味します。
 
-`cannot locate <helper> (shell: ...)` comes from a helper that is still loaded
-into your shell with `source` (`gstack-egress-lib.sh`, and the Codex probe when
-a skill rendered before the upgrade sources it). Such a helper finds its own
-directory from bash (`BASH_SOURCE`) or zsh (`%x`). In any other shell (dash,
-sh), or when the shell cannot say which file it is reading, it stops instead of
-guessing a path. The message names the shell it saw.
+`cannot locate <helper> (shell: ...)` は、`source` でシェルに読み込まれたままのヘルパーから出されます(`gstack-egress-lib.sh` や、スキルがアップグレード前にレンダリングされた場合に読み込まれる Codex プローブ)。そのようなヘルパーは、bash では `BASH_SOURCE`、zsh では `%x` を使って自分のディレクトリを見つけます。それ以外のシェル(dash、sh)や、どのファイルを読んでいるのかシェルが判断できない場合は、パスを推測せずに停止します。メッセージには、認識されたシェルが表示されます。
 
-**Fix.** For `cannot load`, re-run `./setup` from your gstack checkout (or
-`/gstack-upgrade`). For `cannot locate`, run the skill from bash or zsh (the
-macOS and Linux defaults), or tell the helper where gstack is installed:
+**修正。** `cannot load` の場合は、gstack のチェックアウトから `./setup` を再実行するか(または `/gstack-upgrade`)。`cannot locate` の場合は、bash または zsh(macOS と Linux の既定)からスキルを実行するか、gstack のインストール先をヘルパーに教えてください。
 
 ```bash
 export GSTACK_ROOT=~/.claude/skills/gstack   # your install dir; it holds bin/
 ```
 
-If you see `gstack: sourcing gstack-codex-probe is deprecated ...`, a skill
-rendered before the upgrade is still sourcing the probe. It keeps working
-until a release on or after 2026-10-21; run `/gstack-upgrade` to re-render
-your skills now.
+`gstack: sourcing gstack-codex-probe is deprecated ...` と表示される場合、アップグレード前にレンダリングされたスキルが、まだプローブを source しています。2026-10-21 以降のリリースまでは動作し続けます。今すぐスキルを再レンダリングするには `/gstack-upgrade` を実行してください。
 
-**Expected result.** `~/.claude/skills/gstack/bin/gstack-codex-probe select-model exec`
-prints `CODEX_SEL: <model>` (and `CODEX_MODEL: <model> (exec; source: ...)` on
-stderr) from any shell, and preflights print a `CODEX_MODE` other than
-`helper_unavailable`. `gstack-codex-probe help` lists every subcommand.
+**期待される結果。** `~/.claude/skills/gstack/bin/gstack-codex-probe select-model exec` は、どのシェルからでも `CODEX_SEL: <model>` を(stderr には `CODEX_MODEL: <model> (exec; source: ...)` を)出力します。また、事前確認は `helper_unavailable` 以外の `CODEX_MODE` を出力します。`gstack-codex-probe help` はすべてのサブコマンドを表示します。
 
 <a id="codex-sandbox-unavailable"></a>
 ### `Codex outside review unavailable: Codex's sandbox could not start here (...)`
 
-**Meaning.** Codex runs every command inside a Linux sandbox (bubblewrap). In
-many containers and devcontainers the kernel does not allow unprivileged user
-namespaces, so the sandbox cannot start and every command Codex tries fails.
-gstack reports this instead of trusting a review that read nothing.
-`CODEX_MODE: sandbox_unavailable` is the same condition found by the free
-preflight before any paid call.
+**意味。** Codex はすべてのコマンドを Linux のサンドボックス(bubblewrap)内で実行します。多くのコンテナや devcontainer では、カーネルが非特権のユーザー名前空間を許可しないため、サンドボックスを起動できず、Codex が試みるすべてのコマンドが失敗します。gstack は、何も読めなかったレビューを信用する代わりに、これを報告します。`CODEX_MODE: sandbox_unavailable` は、有料の呼び出しの前に無料の事前確認で見つかった同じ状態です。
 
-**What is kept.** Nothing was sent for review, or the review was discarded. Your
-code and files are unchanged.
+**保持される内容。** 何も外部レビューに送られていないか、レビューは破棄されています。コードとファイルは変更されていません。
 
-**Fix.** Enable unprivileged user namespaces for the container (for Docker, a
-seccomp profile that allows them), or, inside a container you trust, run
-Codex without its sandbox for this shell:
+**修正。** コンテナで非特権のユーザー名前空間を有効にするか(Docker の場合は、それを許可する seccomp プロファイル)、信頼できるコンテナ内であれば、このシェルで Codex をサンドボックスなしで実行してください。
 
 ```bash
 export GSTACK_CODEX_NO_SANDBOX=1
 ```
 
-**Expected result.** With namespaces enabled, the next review prints
-`OUTSIDE_STATUS: completed`. With `GSTACK_CODEX_NO_SANDBOX=1`, every review
-prints `WARNING: GSTACK_CODEX_NO_SANDBOX=1: ...` because Codex can then read
-and write anything your user can. Only the exact value `1` works, and only from
-your shell environment.
+**期待される結果。** 名前空間が有効なら、次のレビューは `OUTSIDE_STATUS: completed` を出力します。`GSTACK_CODEX_NO_SANDBOX=1` の場合、すべてのレビューは `WARNING: GSTACK_CODEX_NO_SANDBOX=1: ...` を出力します。Codex は、あなたのユーザーが読み書きできるすべてを読み書きできるためです。値が正確に `1` の場合のみ有効で、シェルの環境変数からのみ設定できます。
 
 <a id="outside-review-commands-failed"></a>
 ### `... outside review unavailable: the reviewer could not run commands or read the diff (...)`
 
-**Meaning.** The reviewer tried to run commands but none succeeded, or its
-answer says it could not run commands or read the diff. A "no issues found"
-written after that is not a review.
+**意味。** レビュアーはコマンドの実行を試みましたが、どれも成功しませんでした。または、その回答がコマンドを実行できなかった、あるいは差分を読めなかったと述べています。その後に書かれた "no issues found" はレビューではありません。
 
-**What is kept.** Nothing; the answer is shown above but not counted.
+**保持される内容。** なし。回答は上に表示されますが、数えられません。
 
-**Fix.** Read the reviewer's stderr above, repair what it names, and re-run.
+**修正。** 上に表示されたレビュアーの stderr を読み、指摘された内容を直してから再実行してください。
 
-**Expected result.** `OUTSIDE_STATUS: completed` with a `VERDICT:` line.
+**期待される結果。** `VERDICT:` 行を含む `OUTSIDE_STATUS: completed`。
 
 <a id="outside-review-execution-failed"></a>
 ### `... outside review unavailable: the reviewer process failed (exit N: ...)`
 
-**Meaning.** The provider CLI exited non-zero. The first stderr line is in the
-parentheses.
+**意味。** プロバイダーの CLI が 0 以外の終了コードで終了しました。括弧内は stderr の最初の行です。
 
-**What is kept.** Partial output is shown above; it is not counted.
+**保持される内容。** 部分的な出力は上に表示されますが、数えられません。
 
-**Fix.** Repair the cause in the provider diagnosis (log in again, fix the
-model, check the network), then re-run.
+**修正。** プロバイダーの診断で示された原因を修正してください(再ログイン、モデルの修正、ネットワークの確認など)。その後、再実行してください。
 
-**Expected result.** `OUTSIDE_STATUS: completed`.
+**期待される結果。** `OUTSIDE_STATUS: completed`。
 
 <a id="outside-review-timeout"></a>
 ### `... outside review unavailable: the reviewer hit its time limit and was stopped (exit 124)`
 
-**Meaning.** The provider did not finish within its deadline and was stopped.
+**意味。** プロバイダーが期限内に完了せず、停止されました。
 
-**What is kept.** Partial output is shown above; it is not counted.
+**保持される内容。** 部分的な出力は上に表示されますが、数えられません。
 
-**Fix.** Re-run with a smaller scope, or check the provider's status and your
-network.
+**修正。** より小さい範囲で再実行するか、プロバイダーの状態とネットワークを確認してください。
 
-**Expected result.** `OUTSIDE_STATUS: completed`.
+**期待される結果。** `OUTSIDE_STATUS: completed`。
 
 <a id="outside-review-empty-response"></a>
 ### `... outside review unavailable: the reviewer returned no response`
 
-**Meaning.** The provider exited successfully but returned nothing.
+**意味。** プロバイダーは正常終了しましたが、何も返しませんでした。
 
-**Fix.** Read the stderr above, then re-run.
+**修正。** 上の stderr を読んでから、再実行してください。
 
-**Expected result.** `OUTSIDE_STATUS: completed`.
+**期待される結果。** `OUTSIDE_STATUS: completed`。
 
 <a id="outside-review-refused"></a>
 ### `... outside review unavailable: the reviewer declined to review`
 
-**Meaning.** The provider answered with a refusal instead of a review.
+**意味。** プロバイダーは、レビューの代わりに拒否の回答を返しました。
 
-**Fix.** Re-run; if it declines again, rely on the native review.
+**修正。** 再実行してください。再び拒否される場合は、ネイティブのレビューに頼ってください。
 
-**Expected result.** `OUTSIDE_STATUS: completed`.
+**期待される結果。** `OUTSIDE_STATUS: completed`。
 
 <a id="outside-review-missing-markers"></a>
 ### `... outside review unavailable: the response lacks the markers this gate requires (...)`
 
-**Meaning.** The answer did not contain what the gate checks: a
-`Recommendation: ... because ...` line, a `SCORE:`/`AMBIGUITIES:` pair, or
-severity tags.
+**意味。** 回答に、このゲートが確認する内容が含まれていませんでした。具体的には、`Recommendation: ... because ...` の行、`SCORE:`/`AMBIGUITIES:` の組、または重大度のタグです。
 
-**Fix.** Re-run the review.
+**修正。** レビューを再実行してください。
 
-**Expected result.** `OUTSIDE_STATUS: completed`.
+**期待される結果。** `OUTSIDE_STATUS: completed`。
 
 <a id="outside-review-unverified"></a>
 ### `... outside review: ran, verdict unverified (...)` / `OUTSIDE_STATUS: unverified` / `GATE: UNVERIFIED`
 
-**Meaning.** The review completed but had no severity tag or label and gave
-no explicit no-findings conclusion, so no pass or fail can be read from it
-([how the verdict is read](#outside-review-verdict)).
+**意味。** レビューは完了しましたが、重大度のタグもラベルもなく、検出結果がないという明示的な結論もなかったため、そこから合格か不合格かを読み取ることができません([判定の読み取り方](#outside-review-verdict)を参照)。
 
-**What is kept.** The full answer is shown above.
+**保持される内容。** 回答全体が上に表示されます。
 
-**Fix.** Read the output above and decide. It is not a pass, and /ship and
-/review list it as missing coverage.
+**修正。** 上の出力を読んで判断してください。これは合格ではなく、/ship と /review はカバレッジの欠落として一覧表示します。
 
 <a id="outside-review-unparsed-severity"></a>
 ### `... outside review: ran, verdict unverified (the review labels a finding with a P0-P3 severity in a form the parser cannot read (line N: "..."))` / `REASON: unparsed_severity`
 
-**Meaning.** The reply starts a line with a P0-P3 token, the place a finding's
-label goes, but in a form gstack does not read as one severity, for example
-`## P1/P2 findings` or `- P2/P3 nits`. gstack will not guess which severity
-applies, so the verdict is unverified instead of `clean`. The quoted line in
-parentheses (also printed as `UNPARSED:`) is the first such label. When the
-same reply also has a readable P0 or P1 finding, that finding blocks
-(`VERDICT: findings`, exit 3) and the unparsed line is still printed.
+**意味。** 返答には、行頭に P0〜P3 のトークンがあります。検出結果のラベルが置かれる位置です。しかし、その形式は gstack が単一の重大度として読めないものです(例: `## P1/P2 findings` や `- P2/P3 nits`)。gstack はどの重大度が適用されるかを推測しないため、判定は `clean` ではなく unverified になります。括弧内に引用された行(`UNPARSED:` としても表示されます)が、最初のそのようなラベルです。同じ返答に読み取れる P0 または P1 の検出結果もある場合、その検出結果がブロックし(`VERDICT: findings`、終了コード 3)、解析できなかった行も引き続き表示されます。
 
-**What is kept.** The full reply is shown above.
+**保持される内容。** 返答全体が上に表示されます。
 
-**Fix.** Read the quoted line and the reply, and decide; it is not a pass.
-Re-run the review and ask the reviewer to label each finding `[P1] <title>` or
-`P1: <title>`. To re-check a saved or corrected reply, run from your gstack
-checkout:
+**修正。** 引用された行と返答を読んで判断してください。これは合格ではありません。レビューを再実行し、レビュアーに各検出結果を `[P1] <title>` または `P1: <title>` の形式でラベル付けするよう求めてください。保存された、または修正された返答を再確認するには、gstack のチェックアウトから次を実行します。
 
 ```bash
 bun lib/outside-review-result.ts --verdict execution reply.md
 ```
 
-(use `review` or `structured` for those gates).
+(それらのゲートには `review` または `structured` を使います。)
 
-**Expected result.** `VERDICT: findings` or `VERDICT: clean` with a P0-P3
-`FINDINGS:` value, and no `UNPARSED:` line.
+**期待される結果。** `VERDICT: findings` または `VERDICT: clean` と、P0〜P3 の `FINDINGS:` 値が表示され、`UNPARSED:` 行は出ないこと。
 
 <a id="codex-model-unusable"></a>
 ### `CODEX_MODE: model_unusable` / `MODEL_UNUSABLE`
 
-**Meaning.** Codex rejected the selected model: the account cannot use it
-(HTTP 400), the model is retired, or a custom provider's `base_url` is wrong
-(HTTP 404). The `CODEX_MODEL:` line names the model and where it came from.
+**意味。** Codex が選択されたモデルを拒否しました。アカウントがそのモデルを使えない(HTTP 400)、モデルが廃止された、またはカスタムプロバイダーの `base_url` が誤っている(HTTP 404)のいずれかです。`CODEX_MODEL:` の行は、モデル名とその取得元を示します。
 
-**Fix.** Choose a model your account can use, or correct the provider:
+**修正。** アカウントで使えるモデルを選ぶか、プロバイダーを修正してください。
 
 ```bash
 export GSTACK_CODEX_MODEL=<supported-model>
 # or edit model / base_url in ${CODEX_HOME:-~/.codex}/config.toml
 ```
 
-**Expected result.** `CODEX_MODE: ready`.
+**期待される結果。** `CODEX_MODE: ready`。
 
 <a id="codex-quota-exhausted"></a>
 ### `CODEX_MODE: quota_exhausted` / `MODEL_QUOTA_EXHAUSTED`
 
-**Meaning.** Codex refused the call because the account behind it hit its
-usage limit (`You've hit your usage limit`, or `insufficient_quota`). The line
-under the marker is Codex's own message, with its reset time and where to buy
-more. The model choice is fine. gstack reports outside coverage as
-unavailable, never as a pass, and caches the result for 15 minutes, so the
-rest of the run (and other skills) make no Codex call. The HINT line says how
-many minutes remain.
+**意味。** アカウントが利用上限に達したため、Codex は呼び出しを拒否しました(`You've hit your usage limit` または `insufficient_quota`)。マーカーの下の行は Codex 自身のメッセージで、リセット時刻と追加購入の方法が書かれています。モデルの選択は問題ありません。gstack は外部のカバレッジを、合格ではなく unavailable として報告し、結果を 15 分間キャッシュするため、その後の実行(および他のスキル)は Codex を呼び出しません。HINT 行には、残りの分数が表示されます。
 
-**Fix.** Wait for the reset time in Codex's message, or add credits or a
-higher plan for that account. To use a different account, sign in again:
+**修正。** Codex のメッセージに示されたリセット時刻まで待つか、そのアカウントにクレジットや上位プランを追加してください。別のアカウントを使うには、再度サインインしてください。
 
 ```bash
 codex login
 ```
 
-To re-check before gstack's 15-minute cache expires (for example, right after
-buying credits), skip the cached result for one check, or delete it:
+gstack の 15 分のキャッシュが切れる前に再確認するには(たとえばクレジットを購入した直後など)、1回だけキャッシュされた結果を無視するか、削除してください。
 
 ```bash
 export GSTACK_CODEX_PROBE_RETRY=1   # unset it again afterwards
@@ -401,56 +240,45 @@ export GSTACK_CODEX_PROBE_RETRY=1   # unset it again afterwards
 rm -f ~/.gstack/.codex-model-probe  # <state root>/.codex-model-probe
 ```
 
-**Expected result.** After the reset (or after `codex login`, which changes
-the auth signature and re-probes at once), `CODEX_MODE: ready`.
+**期待される結果。** リセットの後、または `codex login` の後(認証の署名が変わり、直ちに再確認されます)、`CODEX_MODE: ready` になります。
 
 <a id="codex-rate-limited"></a>
 ### `CODEX_MODE: unverified (rate_limited)` / `MODEL_PROBE_RATE_LIMITED` / `unavailable: Codex rate-limited the review`
 
-**Meaning.** Codex answered HTTP 429 (too many requests), which usually clears
-within seconds. It is a different state from `quota_exhausted` and is never
-cached. At probe time the review still runs, and its own result decides. A 429
-during the review itself means that review failed, so coverage is missing,
-never a pass.
+**意味。** Codex が HTTP 429(リクエストが多すぎる)を返しました。通常は数秒で解消されます。`quota_exhausted` とは別の状態で、キャッシュされることはありません。プローブの時点ではレビューは引き続き実行され、その結果によって判断されます。レビュー自体の最中に 429 が出た場合は、そのレビューが失敗したことを意味するため、カバレッジは欠落しており、合格にはなりません。
 
-**Fix.** Re-run the review in a minute. If 429s persist, check the rate limits
-for the account or API key on the provider's dashboard.
+**修正。** 1分後にレビューを再実行してください。429 が続く場合は、プロバイダーのダッシュボードで、そのアカウントまたは API キーのレート制限を確認してください。
 
-**Expected result.** `CODEX_MODE: ready`, and the review completes.
+**期待される結果。** `CODEX_MODE: ready` となり、レビューが完了します。
 
 <a id="codex-mode-unverified"></a>
 ### `CODEX_MODE: unverified` / `MODEL_PROBE_INCONCLUSIVE`
 
-**Meaning.** The short model check timed out or hit a network error, so gstack
-could not confirm the model works. The review still runs and its own result is
-checked.
+**意味。** 短いモデルチェックがタイムアウトしたか、ネットワークエラーが発生したため、gstack はモデルが動作することを確認できませんでした。レビューは引き続き実行され、その結果が確認されます。
 
-**Fix.** Nothing now. If the review then fails, its message says why.
+**修正。** 今は何もしなくて構いません。その後レビューが失敗した場合は、そのメッセージに理由が示されます。
 
 <a id="codex-auth-failed"></a>
 ### `CODEX_MODE: not_authed` / `AUTH_FAILED`
 
-**Meaning.** No Codex credentials were found: no `CODEX_API_KEY`, no
-`OPENAI_API_KEY`, no `auth.json`, and no set environment variable named by a
-custom provider's `env_key` in `config.toml`.
+**意味。** Codex の認証情報が見つかりませんでした。`CODEX_API_KEY` も `OPENAI_API_KEY` も `auth.json` もなく、`config.toml` のカスタムプロバイダーの `env_key` で指定された環境変数も設定されていません。
 
-**Fix.**
+**修正。**
 
 ```bash
 codex login
 ```
 
-or export the variable your provider's `env_key` names.
+または、プロバイダーの `env_key` が指定する変数をエクスポートしてください。
 
-**Expected result.** `CODEX_MODE: ready`.
+**期待される結果。** `CODEX_MODE: ready`。
 
 <a id="outside-review-disabled"></a>
 ### `Codex review skipped (codex_reviews disabled)` / `CODEX_MODE: disabled`
 
-**Meaning.** You turned outside reviews off. This is `not run`, never a pass and
-never an outage.
+**意味。** 外部レビューを無効にしています。これは `not run` であり、合格でも障害でもありません。
 
-**Fix.** To turn them back on:
+**修正。** 外部レビューを再び有効にするには、次を実行します。
 
 ```bash
 gstack-config set codex_reviews enabled
@@ -459,216 +287,150 @@ gstack-config set codex_reviews enabled
 <a id="outside-review-consent-missing"></a>
 ### `outside review: not run (outside reviews are turned off ... ). Fix: gstack-config set codex_reviews enabled ...` / `OUTSIDE_STATUS: not_run reason=consent_missing`
 
-**Meaning.** The send itself refused. `gstack-codex-probe run-with-timeout`,
-`gstack-claude-code`, `gstack-outside-voice` and the unattended
-`gstack-autoplan` runner read `codex_reviews` before they send repository
-content to an outside model. When it is `disabled`, or when the config file
-exists but cannot be read (or holds a value other than `enabled` or
-`disabled`), they print this line, start no CLI and make no API request. An
-unset `codex_reviews` means the default, `enabled`, and the first send on a
-machine prints the [notice](#codex-review-notice) below. A review you ask for by
-name (`/codex`, `/claude-code`) passes `--user-invoked` and still runs. This is
-`not run`, never a pass and never an outage; `/autoplan` records it as the
-phase's outside outcome (`status: disabled`, `outcome: not_run`,
-`reason: consent_missing`).
+**意味。** 送信そのものが拒否されました。`gstack-codex-probe run-with-timeout`、`gstack-claude-code`、`gstack-outside-voice`、そして無人の `gstack-autoplan` ランナーは、リポジトリの内容を外部モデルに送る前に `codex_reviews` を読み取ります。その値が `disabled` の場合、または設定ファイルは存在するものの読み取れない場合(あるいは `enabled` と `disabled` 以外の値が入っている場合)、これらは上の行を表示し、CLI を起動せず、API リクエストも行いません。`codex_reviews` が未設定の場合は既定値の `enabled` となり、そのマシンでの最初の送信時に下の[通知](#codex-review-notice)が表示されます。名前を指定して依頼したレビュー(`/codex`、`/claude-code`)は `--user-invoked` を渡すため、引き続き実行されます。これは `not run` であり、合格でも障害でもありません。`/autoplan` は、このフェーズの外部結果として、`status: disabled`、`outcome: not_run`、`reason: consent_missing` を記録します。
 
-**Fix.** To allow outside reviews again:
+**修正。** 外部レビューを再び許可するには、次を実行します。
 
 ```bash
 gstack-config set codex_reviews enabled
 gstack-config get --stored codex_reviews   # enabled, disabled, unset, or unreadable (exit 2)
 ```
 
-If the stored read exits 2, fix the permissions or the malformed
-`codex_reviews` line in the `config.yaml` it names, then re-run.
+保存された値の読み取りが終了コード 2 で終わる場合は、表示された `config.yaml` のパーミッションか、不正な `codex_reviews` の行を修正してから、再実行してください。
 
 <a id="codex-review-notice"></a>
 ### `NOTICE: gstack outside reviews send the review prompt and code to Codex (...) using ...`
 
-**Meaning.** Outside reviews are on by default. The first one on a machine
-says which provider receives your prompt and code and which login or key pays
-for it. It shows once (gstack records `.codex-review-notice-shown` in its state
-directory) and never blocks the review.
+**意味。** 外部レビューは既定で有効です。そのマシンで最初に行われるレビューでは、どのプロバイダーがプロンプトとコードを受け取るか、そして費用を負担するログインまたはキーが何であるかが表示されます。これは一度だけ表示され(gstack は状態ディレクトリに `.codex-review-notice-shown` を記録します)、レビューをブロックすることはありません。
 
-**Fix.** Nothing, if that is what you want. To stop sending code to Codex:
+**修正。** 望みどおりの状態であれば、何もしなくて構いません。Codex へのコード送信を止めるには、次を実行します。
 
 ```bash
 gstack-config set codex_reviews disabled
 ```
 
-**Expected result.** Later reviews print `Codex review skipped (codex_reviews disabled)`
-or `CODEX_MODE: disabled`, and /ship and /review show the outside review as not run.
+**期待される結果。** 以降のレビューは `Codex review skipped (codex_reviews disabled)` または `CODEX_MODE: disabled` を表示し、/ship と /review は外部レビューを未実行として表示します。
 
 ---
 
-## /ship, /review and /document-release
+## /ship、/review、/document-release のトラブル
 
 <a id="ship-no-version-source"></a>
 ### `Shipped without a version change: no version source is configured (no VERSION file, no .gstack/version-path). ...`
 
-**Meaning.** /ship found no version file it owns: there is no `VERSION`, no
-`.gstack/version-path`, or release automation (release-please, Changesets,
-semantic-release, a workspace monorepo, a placeholder package.json version)
-owns the version. This is `not run` for the version bump.
+**意味。** /ship が、所有しているバージョンファイルを見つけられませんでした。`VERSION` も `.gstack/version-path` もないか、リリース自動化(release-please、Changesets、semantic-release、ワークスペースのモノレポ、プレースホルダーの package.json のバージョン)がバージョンを管理しています。バージョンの更新については `not run` です。
 
-**What is kept.** Everything else ships. No bump, no CHANGELOG version header,
-no `vX.Y.Z` PR title prefix.
+**保持される内容。** それ以外はすべてリリースされます。バージョンの更新なし、CHANGELOG のバージョン見出しなし、`vX.Y.Z` の PR タイトル接頭辞なし。
 
-**Fix.** To have /ship version releases, create `VERSION`, or pin the file:
+**修正。** /ship でリリースのバージョン管理を行うには、`VERSION` を作成するか、ファイルを固定してください。
 
 ```bash
 echo package.json > .gstack/version-path && git add .gstack/version-path
 ```
 
-**Expected result.** The next /ship bumps that file and writes a CHANGELOG header.
+**期待される結果。** 次の /ship が、そのファイルを更新し、CHANGELOG の見出しを書き出します。
 
 <a id="ship-version-source-broken"></a>
 ### `gstack-version-bump: classify: version source is broken: <path> ...`
 
-**Meaning.** The pinned version file does not exist, is empty, unreadable, or
-contains no parsable version. /ship stops instead of inventing `0.0.0.0`.
+**意味。** 固定されたバージョンファイルが存在しない、空である、読み取れない、またはバージョンを解析できません。/ship は `0.0.0.0` を勝手に作ることなく停止します。
 
-**What is kept.** Nothing was written.
+**保持される内容。** 何も書き込まれていません。
 
-**Fix.** Repair that file, or correct `--version-path` / `.gstack/version-path`.
+**修正。** そのファイルを修復するか、`--version-path` / `.gstack/version-path` を修正してください。
 
-**Expected result.** `gstack-version-bump classify` prints the current version.
+**期待される結果。** `gstack-version-bump classify` が現在のバージョンを表示します。
 
 <a id="review-base-stale"></a>
 ### `BASE_REFRESH: stale <rev>` / `Base coverage: stale at <rev>`
 
-**Meaning.** /review could not fetch the base branch (offline, no credentials,
-or a read-only `.git` such as Codex's sandbox), so it reviewed against your
-local `origin/<base>` at `<rev>`.
+**意味。** /review はベースブランチを取得できなかったため(オフライン、認証情報なし、または Codex のサンドボックスのような読み取り専用の `.git`)、ローカルの `origin/<base>` の `<rev>` と比較してレビューしました。
 
-**Fix.** Run `git fetch origin <base>` outside the sandbox and rerun /review if
-the base has moved.
+**修正。** サンドボックスの外で `git fetch origin <base>` を実行し、ベースが進んでいれば /review を再実行してください。
 
 <a id="review-fingerprint-tmpdir"></a>
 ### `gstack-wtree: cannot create a temp index under <dir>; set TMPDIR to a writable directory` / `gstack-review-log: cannot create a private object directory under <dir>; no working-tree fingerprint. Set TMPDIR to a writable directory.`
 
-**Meaning.** /review fingerprints the working tree in a private temporary
-object directory (Codex's sandbox keeps `.git` read-only). The temp directory
-could not be created, so this review has no fingerprint and later steps cannot
-reuse its evidence.
+**意味。** /review は、一時的なプライベートオブジェクトディレクトリ内でワーキングツリーのフィンガープリントを取ります(Codex のサンドボックスでは `.git` が読み取り専用です)。その一時ディレクトリを作成できなかったため、このレビューにはフィンガープリントがなく、後続の手順でその証拠を再利用できません。
 
-**Fix.** `export TMPDIR=<a writable directory>`, then run /review again.
+**修正。** `export TMPDIR=<a writable directory>` を実行してから、/review を再度実行してください。
 
 <a id="review-fingerprint-stage"></a>
 ### `gstack-wtree: cannot stage the working tree: <git error>`
 
-**Meaning.** The fingerprint's objects could not be written. Standalone
-`gstack-wtree` writes into the repository's object store.
+**意味。** フィンガープリントのオブジェクトを書き込めませんでした。単独で実行した `gstack-wtree` は、リポジトリのオブジェクトストアに書き込みます。
 
-**Fix.** Run it through /review (`gstack-review-log` supplies a private object
-directory), or make `.git/objects` writable.
+**修正。** /review を通じて実行してください(`gstack-review-log` がプライベートなオブジェクトディレクトリを用意します)。または、`.git/objects` を書き込み可能にしてください。
 
 <a id="plan-audit-not-run"></a>
 ### `Plan completion audit: not run (no plan is bound to this branch and no docs/designs/ file matches). Fix: ...`
 
-**Meaning.** /ship and /review audit a PR against the plan bound to its branch
-(plan mode, /autoplan, or a `Plan: <path>` line in the PR body). With none bound
-and no matching `docs/designs/` file, they no longer pick the newest unrelated
-plan; the audit is `not run`.
+**意味。** /ship と /review は、そのブランチに紐づいた計画(plan モード、/autoplan、または PR 本文の `Plan: <path>` 行)に対して PR の監査を行います。紐づく計画がなく、一致する `docs/designs/` のファイルもない場合、無関係な最新の計画を選ばなくなり、監査は `not run` になります。
 
-**Fix.** Add `Plan: docs/designs/<file>.md` to the PR body, or run /autoplan.
+**修正。** PR 本文に `Plan: docs/designs/<file>.md` を追加するか、/autoplan を実行してください。
 
-**Expected result.** The next /ship or /review prints the audit against that plan.
+**期待される結果。** 次の /ship または /review が、その計画に対する監査を表示します。
 
 <a id="plan-eng-review-not-persisted"></a>
 ### `PERSISTED: no` / `PERSIST: gstack-review-log '{...}'` / `no saved Eng Review: run the PERSIST: line ...`
 
-**Meaning.** /plan-eng-review ran where the caller forbids writes (for example
-a delegating agent keeps the reviewer read-only, so it cannot edit the plan it
-judges). The review completed: it ends `DONE` with `PERSISTED: no`, records
-telemetry `success`, and returns the full report and decision ledger in its
-reply. Nothing was saved, so /ship's readiness dashboard has no Eng Review
-record and reports NOT CLEARED with "no saved Eng Review". A real failure (a
-permitted save that failed, stale evidence) still ends `BLOCKED`.
+**意味。** /plan-eng-review は、呼び出し元が書き込みを禁じている場所で実行されました(たとえば、委任するエージェントが、判定対象の計画を編集できないようにレビュアーを読み取り専用にしている場合)。レビュー自体は完了しています。レビューは `DONE` で終わり、`PERSISTED: no` と記録し、テレメトリとして `success` を記録し、完全なレポートと判断の台帳を返答として返します。何も保存されていないため、/ship の準備状況ダッシュボードには Eng Review の記録がなく、「no saved Eng Review」とともに NOT CLEARED と報告します。実際の失敗(許可された保存が失敗した場合、古い証拠の場合)では、依然として `BLOCKED` で終わります。
 
-**What is kept.** The reply holds the complete report; its last line is the
-review-log command with this review's values.
+**保持される内容。** 返答には完全なレポートが含まれ、その最後の行は、今回のレビューの値を使ったレビューログのコマンドです。
 
-**Fix.** From the reviewed repository, run the reply's last line without the
-`PERSIST: ` prefix:
+**修正。** レビューされたリポジトリから、返答の最後の行を `PERSIST: ` の接頭辞なしで実行してください。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-eng-review",...}'
 ```
 
-Or rerun /plan-eng-review where it may write its report and log.
+または、書き込みが許可された場所で /plan-eng-review を再実行し、そのレポートとログを記録してください。
 
-**Expected result.** `gstack-review-read` lists the `plan-eng-review` entry and
-/ship's dashboard shows the Eng Review row (CLEAR when its status is `clean`).
+**期待される結果。** `gstack-review-read` が `plan-eng-review` のエントリを一覧表示し、/ship のダッシュボードに Eng Review の行が表示されます(ステータスが `clean` の場合は CLEAR)。
 
 <a id="learnings-bun-missing"></a>
 ### `gstack-learnings-search: bun not found on PATH, so learnings could not be read. Fix: ...`
 
-**Meaning.** Learnings search (and `gstack-timeline-read`, "the timeline") needs
-Bun. It exits 127 instead of looking like "no learnings".
+**意味。** 学習内容の検索(および `gstack-timeline-read`、つまり「タイムライン」)には Bun が必要です。「学習内容がない」と誤認されないよう、終了コード 127 で終了します。
 
-**Fix.** Install Bun from https://bun.sh, then `cd <gstack checkout> && ./setup`.
+**修正。** https://bun.sh から Bun をインストールし、その後 `cd <gstack checkout> && ./setup` を実行してください。
 
-**Expected result.** Skills print your prior learnings again.
+**期待される結果。** スキルが、これまでの学習内容を再び表示します。
 
 <a id="learnings-unavailable"></a>
 ### `LEARNINGS: unavailable (<first stderr line>)`
 
-**Meaning.** A skill's learnings lookup failed (often Bun is missing). Skills
-used to show nothing here, which looked like "no learnings".
+**意味。** スキルの学習内容の参照が失敗しました(多くの場合、Bun が見つからない)。以前のスキルは、ここで何も表示しなかったため、「学習内容がない」と誤解されていました。
 
-**What is kept.** Your learnings file is untouched; the skill continues without them.
+**保持される内容。** 学習内容のファイルはそのままで、スキルは学習内容なしで続行します。
 
-**Fix.** Read the reason in parentheses. If it names Bun, install it and re-run
-`./setup`.
+**修正。** 括弧内の理由を読んでください。Bun が原因と示されている場合は、インストールしてから `./setup` を再実行してください。
 
 <a id="log-tmpdir-unwritable"></a>
 ### `gstack-learnings-log: could not create a temp file in <dir>, so the learning was not recorded. Fix: ...`
 
-**Meaning.** The learnings, question and preference logs write through a temp
-file in `${TMPDIR:-/tmp}`. A sandbox that blocks it used to drop the entry silently.
+**意味。** 学習内容、質問、設定のログは、`${TMPDIR:-/tmp}` 内の一時ファイルを経由して書き込まれます。その書き込みを妨げるサンドボックスでは、以前は黙ってエントリが失われていました。
 
-**Fix.** `export TMPDIR=<a writable directory>` and log again.
+**修正。** `export TMPDIR=<a writable directory>` を実行し、再度ログを記録してください。
 
 <a id="plan-tune-not-calibrated"></a>
 ### `CALIBRATION: not calibrated: no recorded signals`
 
-**Meaning.** Your logged answers matched no psychographic signal, so /plan-tune
-has nothing to calibrate from. It no longer says "calibrated".
+**意味。** 記録された回答が、どの心理特性のシグナルとも一致しなかったため、/plan-tune が調整に使えるものがありません。もう「calibrated」とは表示されません。
 
-**Fix.** Answer more registered questions, then `gstack-developer-profile --derive`.
+**修正。** 登録された質問にさらに回答してから、`gstack-developer-profile --derive` を実行してください。
 
 <a id="artifact-case-collision"></a>
 ### `ARTIFACTS_SYNC: attention: case-collision held=<N> names=<names>. Artifact paths differ only by letter case, ...`
 
-**Meaning.** The artifacts repo holds paths that differ only by letter case,
-such as `projects/MyApp/` and `projects/myapp/`. A Mac or Windows disk stores
-them as one file, so git there would stage a write under the other spelling,
-and sync would report success while one spelling stays modified and the other
-machines read stale data (#3220). Sync now holds every queued file under such a
-path instead of staging it: the file stays queued, everything else keeps
-syncing, and the status is `collision` rather than `ok`. When only one
-spelling is tracked, that spelling keeps syncing and only the new alias is
-held; when neither is tracked yet, both wait. `<names>` are the colliding folder or file names; `gstack-brain-sync
---status` lists the held paths in `message`. A local commit that would push a
-new alias to the remote (two machines created both spellings at once) is
-refused with status `error` and kept locally.
+**意味。** artifacts リポジトリには、英字の大文字小文字だけが異なるパスがあります(例: `projects/MyApp/` と `projects/myapp/`)。Mac や Windows のディスクでは、それらは1つのファイルとして保存されます。そのため、そうした環境の git は、もう一方の綴りでの書き込みをステージしてしまい、同期は成功と報告しても、一方の綴りは変更されたまま残り、他のマシンは古いデータを読むことになります(#3220)。同期は現在、そのようなパスの下にあるキューに入ったファイルをすべて、ステージせずに保留します。ファイルはキューに残り、ほかのものは同期を続けます。ステータスは `ok` ではなく `collision` になります。追跡されているのが片方の綴りだけの場合は、その綴りが同期を続け、新しいエイリアスだけが保留されます。どちらもまだ追跡されていない場合は、両方とも待機します。`<names>` は衝突しているフォルダ名またはファイル名です。`gstack-brain-sync --status` は、保留されたパスを `message` に一覧表示します。新しいエイリアスをリモートに push するローカルのコミット(2台のマシンで両方の綴りを同時に作った場合)は、ステータス `error` で拒否され、ローカルに残ります。
 
-Nothing is repaired automatically. Slug resolution and skill start are
-unaffected; only the sync holds files.
+自動では何も修復されません。スラグの解決やスキルの起動には影響せず、影響を受けるのは同期だけです。
 
-**Fix.** Keep one spelling, by hand, on one machine:
+**修正。** 1台のマシンで、片方の綴りを手作業で残してください。
 
-1. Choose the spelling to keep: the one `gstack-slug` prints in that project
-   today. If the project resolves to different spellings (a remote URL typed
-   two ways, a folder reached as `~/code/MyApp` and `~/code/myapp`), make it
-   stable first: fix the remote URL's case, or set `GSTACK_PROJECT_SLUG`.
-2. Fold the other spelling's tracked files into the kept one. Read both
-   spellings from git, because a Mac's working tree shows only one of them,
-   and the working files too, because they hold the held, unsynced writes.
-   This loop covers the dropped spelling's tracked files and its untracked
-   ones (held writes that never synced). It folds JSONL logs (concatenated,
-   duplicate lines dropped) and prints every other file for you to decide:
+1. 残す綴りを選びます。今日そのプロジェクトについて `gstack-slug` が表示するものを選んでください。プロジェクトが異なる綴りに解決される場合(リモート URL が2通りに入力されている、`~/code/MyApp` と `~/code/myapp` の両方でフォルダにアクセスしている場合など)は、先に安定させてください。リモート URL の大文字小文字を修正するか、`GSTACK_PROJECT_SLUG` を設定します。
+2. もう一方の綴りの追跡されたファイルを、残す側に統合します。Mac の作業ツリーには片方の綴りしか表示されないため、Git から両方の綴りを読んでください。また、作業ファイルも読んでください。保留された、まだ同期されていない書き込みがそこにあるためです。このループは、捨てる側の綴りの追跡ファイルと、追跡されていないファイル(同期されなかった保留の書き込み)を扱います。JSONL のログは連結され(重複行は除かれます)、それ以外のファイルは、判断のために表示されます。
 
    ```bash
    cd ~/.gstack
@@ -684,278 +446,192 @@ unaffected; only the sync holds files.
    done
    ```
 
-   For each file it prints (Markdown, JSON snapshots such as
-   `decisions.active.json`), compare `git show ":$keep/<file>"` with
-   `git show ":$drop/<file>"`, write the content to keep to `"$keep/<file>"`,
-   then run the same `git -c core.ignorecase=false add -f -- "$keep/<file>"`
-   and `git -c core.ignorecase=false rm -q --cached --ignore-unmatch -- "$drop/<file>"`. Never
-   concatenate a JSON snapshot. Then commit and push:
+   このループが表示する各ファイル(Markdown、`decisions.active.json` などの JSON スナップショット)について、`git show ":$keep/<file>"` と `git show ":$drop/<file>"` を比べ、残す内容を `"$keep/<file>"` に書き込み、その後、同じ `git -c core.ignorecase=false add -f -- "$keep/<file>"` と `git -c core.ignorecase=false rm -q --cached --ignore-unmatch -- "$drop/<file>"` を実行してください。JSON スナップショットを連結してはいけません。その後、コミットして push します。
 
    ```bash
    git -c core.ignorecase=false commit -m "repair: fold $drop into $keep"
    git push origin HEAD
    ```
 
-   On Linux the two folders are separate on disk: after the commit, check
-   that `git -c core.ignorecase=false ls-files --others -- "$drop"` lists
-   nothing you have not folded or moved, then remove the dropped folder
-   (`rm -r "$drop"`). On a Mac or Windows they are the same folder, so do
-   not remove anything.
-3. Clear the held records of the dropped spelling and queue the kept files:
-   `gstack-brain-sync --skip-file <dropped path>` for each held path that
-   `--status` lists, then `gstack-brain-enqueue <kept path>` for each
-   `folded:` line and each file you moved by hand, and
-   `gstack-brain-sync --once`.
-4. On every other machine, let the next skill start pull the repair (or run
-   `git -C ~/.gstack pull`). The line disappears once no tracked path
-   differs only by case.
+   Linux では、2つのフォルダはディスク上で別々です。コミット後、`git -c core.ignorecase=false ls-files --others -- "$drop"` が、統合または移動していないものを何も一覧表示しないことを確認してから、捨てたフォルダ(`rm -r "$drop"`)を削除してください。Mac や Windows では、2つは同じフォルダなので、何も削除してはいけません。
+3. 捨てる綴りの保留記録を消し、残す側のファイルをキューに入れます。`--status` が一覧表示する保留パスごとに `gstack-brain-sync --skip-file <dropped path>` を実行し、`folded:` の行ごと、および手作業で移動したファイルごとに `gstack-brain-enqueue <kept path>` を実行してから、`gstack-brain-sync --once` を実行してください。
+4. ほかのすべてのマシンでは、次のスキル起動で修復が取り込まれます(または `git -C ~/.gstack pull` を実行してください)。追跡されているパスで大文字小文字だけが異なるものがなくなると、この行は消えます。
 
 <a id="skill-start-former-bucket"></a>
 ### `gstack: earlier data for this project is in projects/<slug> (a worktree's old bucket). Merge it: ...`
 
-**Meaning.** Linked worktrees now share the main checkout's project identity.
-Learnings and checkpoints a worktree wrote under its own old bucket still exist.
+**意味。** リンクされたワークツリーは、メインのチェックアウトとプロジェクトの識別情報を共有するようになりました。ワークツリーが以前の独自のバケットに書き込んだ学習内容やチェックポイントは、まだ残っています。
 
-**Fix.** Merge them (logs are de-duplicated, conflicts listed, nothing overwritten):
+**修正。** それらを統合してください(ログは重複排除され、競合は一覧表示され、何も上書きされません)。
 
 ```bash
 gstack-slug --adopt-legacy --from <slug>
 ```
 
-Or stop the reminder: `gstack-slug --adopt-legacy --dismiss <slug>`.
+または、この通知を止めるには、`gstack-slug --adopt-legacy --dismiss <slug>` を実行してください。
 
 ---
 
-## Design skills
+## デザインスキル
 
 <a id="design-not-available"></a>
-### `DESIGN_NOT_AVAILABLE: <path> --version exited <code>` (or `timed out after 10s`, `is not installed`, `no timeout/gtimeout/perl ...`)
+### `DESIGN_NOT_AVAILABLE: <path> --version exited <code>`(または `timed out after 10s`、`is not installed`、`no timeout/gtimeout/perl ...`)
 
-**Meaning.** Design skills now run `"$D" --version` with a 10-second deadline
-before claiming `DESIGN_READY`. Exit 137 means macOS killed the binary at launch
-(a bad code signature); setup prints the same condition as
-`design unavailable: <bin> is killed at launch (exit 137) after re-signing`.
+**意味。** デザインスキルは、`DESIGN_READY` を宣言する前に、`"$D" --version` を10秒の期限付きで実行するようになりました。終了コード 137 は、macOS が起動時にバイナリを強制終了したことを意味します(コード署名が不正)。セットアップは同じ状態を `design unavailable: <bin> is killed at launch (exit 137) after re-signing` と表示します。
 
-**What is kept.** Nothing was generated or spent.
+**保持される内容。** 何も生成されておらず、費用も発生していません。
 
-**Fix.** Re-run setup, which rebuilds and re-signs the binary:
+**修正。** バイナリを再ビルドして再署名するセットアップを再実行してください。
 
 ```bash
 cd <gstack checkout> && ./setup
 ```
 
-If the message names a missing timeout tool, install coreutils (`gtimeout`) or perl.
+メッセージが不足しているタイムアウト用のツールを示している場合は、coreutils(`gtimeout`)または perl をインストールしてください。
 
-**Expected result.** The next design skill prints `DESIGN_READY`.
+**期待される結果。** 次のデザインスキルが `DESIGN_READY` を表示します。
 
 <a id="design-image-model-invalid"></a>
 ### `GSTACK_DESIGN_IMAGE_MODEL="<value>" is not a gpt-image model name (expected something like gpt-image-2); fix it or unset it to use gpt-image-2`
 
-**Meaning.** The design binary refuses an image tool model override that is not
-a `gpt-image-*` model name, before sending any request.
+**意味。** デザインのバイナリは、リクエストを送る前に、`gpt-image-*` のモデル名ではない画像ツールのモデルの上書きを拒否します。
 
-**Fix.** `export GSTACK_DESIGN_IMAGE_MODEL=gpt-image-2` (or another gpt-image
-model your key can use), or `unset GSTACK_DESIGN_IMAGE_MODEL`.
+**修正。** `export GSTACK_DESIGN_IMAGE_MODEL=gpt-image-2`(またはキーで使える別の gpt-image モデル)を実行するか、`unset GSTACK_DESIGN_IMAGE_MODEL` を実行してください。
 
 <a id="design-taste-profile-unavailable"></a>
 ### `TASTE_PROFILE_UNAVAILABLE: could not resolve the project slug (gstack-slug failed). Fix: run ./setup.`
 
-**Meaning.** /design-consultation and /design-shotgun load your taste profile.
-This says it could not be found, instead of acting as if you had none.
+**意味。** /design-consultation と /design-shotgun は、あなたの好み(taste)のプロファイルを読み込みます。これは、プロファイルが見つからなかったことを示します。好みがないものとして扱うことはありません。
 
-**Fix.** `cd <gstack checkout> && ./setup`.
+**修正。** `cd <gstack checkout> && ./setup`。
 
 <a id="design-variant-save-failed"></a>
 ### `cannot save paid image to <path>: <code> (<cause>). Image bytes were received; saved a recovery copy to <tmp path>. Fix: ...`
 
-**Meaning.** The paid image generation succeeded but writing it to the output
-path failed (disk, permissions, or every name through `-999` taken). gstack never
-buys the same image twice and never overwrites an existing image.
+**意味。** 有料の画像生成は成功しましたが、出力パスへの書き込みに失敗しました(ディスク、パーミッション、または `-999` までのすべての名前が使用済み)。gstack は同じ画像を二重に購入することも、既存の画像を上書きすることもありません。
 
-**What is kept.** The image, at the printed recovery path in your temp directory.
+**保持される内容。** 画像は、一時ディレクトリに表示された復旧パスに保存されています。
 
-**Fix.** Follow the printed fix (free disk space, make the folder writable, or
-pick a new `--output`), then copy the recovery file to where you want it.
+**修正。** 表示された修正手順に従ってください(ディスク容量の確保、フォルダの書き込み許可、または新しい `--output` の指定)。その後、復旧ファイルを希望の場所にコピーしてください。
 
 ---
 
-## Codex and other env-var hosts
+## Codex およびその他の環境変数ホスト
 
 <a id="gstack-no-install-found"></a>
 ### `gstack: no install found (tried <path>). Fix: ./setup --host <host> from your gstack checkout; ./setup --status shows it.`
 
-**Meaning.** On Codex, Factory, OpenCode, Cursor, Copilot and Kiro every bash
-block finds gstack on its own: an exported `GSTACK_ROOT` (with `bin/` and
-`lib/`), then a repo-local install, then the host's global install
-(`$CODEX_HOME/skills/gstack` on Codex). None existed.
+**意味。** Codex、Factory、OpenCode、Cursor、Copilot、Kiro では、すべての bash ブロックが自力で gstack を探します。まずエクスポートされた `GSTACK_ROOT`(`bin/` と `lib/` を含む)、次にリポジトリ内のインストール、最後にホストのグローバルインストール(Codex では `$CODEX_HOME/skills/gstack`)の順です。どれも存在しませんでした。
 
-**Fix.**
+**修正。**
 
 ```bash
 cd <gstack checkout> && ./setup --host codex   # or your host
 ./setup --status
 ```
 
-**Expected result.** `./setup --status` lists the install and says the router is
-a real file and its section links resolve.
+**期待される結果。** `./setup --status` がインストールを一覧表示し、ルーターが実ファイルであり、セクションのリンクが解決されることを示します。
 
 <a id="setup-status-router-symlink"></a>
 ### `router is a symlink, which Codex skips` / `section links: N of M broken (first: ...)`
 
-**Meaning.** `./setup --status` checks each registered install. Codex ignores a
-symlinked SKILL.md, and a broken section link means a carved skill cannot load
-its next step.
+**意味。** `./setup --status` は、登録されている各インストールを確認します。Codex はシンボリックリンクされた SKILL.md を無視します。また、リンク切れのセクションがあると、切り出されたスキルは次の手順を読み込めません。
 
-**Fix.** `cd <source> && ./setup --host <host>` (the command is printed).
+**修正。** `cd <source> && ./setup --host <host>`(コマンドが表示されます)。
 
 <a id="setup-skill-copy-saved"></a>
 ### `saved your edited <path> to <backup> (setup rewrites gstack's SKILL.md copies on every run)`
 
-**Meaning.** Installed router and nested SKILL.md files are now real copies,
-rewritten by every setup. Your hand edit was saved first.
+**意味。** インストールされたルーターとネストされた SKILL.md ファイルは、実際のコピーになりました。セットアップを実行するたびに書き換えられます。あなたの手による編集は、先に保存されています。
 
-**What is kept.** Your edit, at `<backup>`. Move the customization into your own skill.
+**保持される内容。** あなたの編集内容は `<backup>` にあります。カスタマイズは、ご自身のスキルに移してください。
 
 <a id="setup-skill-copy-backup-failed"></a>
 ### `error: could not back up an edited SKILL.md copy under <root>; the previous runtime root is unchanged`
 
-**Fix.** Fix permissions on `<state root>/backups`, then `./setup --host <host>`.
+**修正。** `<state root>/backups` のパーミッションを修正してから、`./setup --host <host>` を実行してください。
 
 <a id="upgrade-not-a-checkout"></a>
 ### `ERROR: <dir> is not a gstack checkout; nothing was changed. Re-run Step 2.` / `INSTALL_DIR is not set: re-run Step 2 ...`
 
-**Meaning.** /gstack-upgrade now checks, before any git command, that it is
-inside gstack's own checkout. A block ran without the path Step 2 printed, so it
-stopped instead of touching your project.
+**意味。** /gstack-upgrade は、どの git コマンドよりも前に、gstack 自身のチェックアウトの中にいることを確認するようになりました。手順 2 が表示したパスなしでブロックが実行されたため、プロジェクトに触れずに停止しました。
 
-**Fix.** Run Step 2 again and prefix the block with `INSTALL_DIR=<printed path>`.
-On Windows (Git Bash) with `INSTALL_DIR` set correctly, older /gstack-upgrade
-text compared two spellings of the same path and refused anyway; recover with
-`cd <install dir> && git pull --ff-only --autostash && ./setup` (see
-[the hook false positive](#setup-hook-does-not-parse)).
+**修正。** 手順 2 をもう一度実行し、ブロックの先頭に `INSTALL_DIR=<printed path>` を付けてください。Windows(Git Bash)で `INSTALL_DIR` が正しく設定されている場合、古い /gstack-upgrade の文言は、同じパスの2通りの綴りを比べてしまい、それでも拒否することがありました。その場合は、`cd <install dir> && git pull --ff-only --autostash && ./setup` で回復できます([フックの誤検知](#setup-hook-does-not-parse)を参照)。
 
 <a id="skill-over-size-limit"></a>
 ### `<host>/<skill>/SKILL.md is <bytes> bytes, over the 160,000-byte limit. Fix: carve sections with usesLazySections() for this skill.`
 
-**Meaning.** For contributors: hosts read at most 160,000 bytes of one SKILL.md.
-`bun run gen:skill-docs` fails in the repo and warns under `--install-root`.
+**意味。** コントリビューター向けの情報です。ホストが1つの SKILL.md を読み込める上限は 160,000 バイトです。`bun run gen:skill-docs` はリポジトリ内で失敗し、`--install-root` の下では警告を出します。
 
 ---
 
-## Setup and auto-update
+## セットアップと自動更新
 
 <a id="bun-too-old"></a>
 ### `gstack needs Bun 1.3.3 or newer (1.4.2 recommended); found <version> at <path>. Nothing was installed or changed.`
 
-**Meaning.** Bun older than 1.3.3 silently ignores the build flags that stop
-gstack's compiled tools from reading a project's `.env`, so setup refuses it
-before writing anything. The same link appears on two warnings that do not stop
-setup: `warning: gstack is tested on Bun 1.4.2 (CI pin); found <version>` (1.3.3
-up to 1.4.2 works but is untested) and `warning: could not read the Bun version
-(...)` (setup continued; check `bun --version`).
+**意味。** 1.3.3 より古い Bun は、gstack のコンパイル済みツールがプロジェクトの `.env` を読むのを止めるビルドフラグを、黙って無視します。そのため、セットアップは何も書き込む前に拒否します。セットアップを止めない2つの警告にも同じリンクが表示されます。`warning: gstack is tested on Bun 1.4.2 (CI pin); found <version>`(1.3.3 から 1.4.2 は動作しますが、テストされていません)と、`warning: could not read the Bun version (...)`(セットアップは続行されます。`bun --version` を確認してください)です。
 
-**Fix.**
+**修正。**
 
 ```bash
 bun upgrade
 ./setup
 ```
 
-**Expected result.** `bun --version` prints 1.4.2 or newer and setup finishes
-with no Bun warning.
+**期待される結果。** `bun --version` が 1.4.2 以上を表示し、セットアップは Bun の警告なしで完了します。
 
 <a id="auto-update-bun-too-old"></a>
 ### `gstack auto-update: update held (bun-too-old: found Bun <version> at <path>; gstack <version> needs <floor> or newer); nothing was installed or changed. Fix now: ...`
 
-**Meaning.** Team-mode auto-update fetched a release whose setup needs a newer
-Bun than the one setup would run. It left your checkout and installed skills at
-the current revision and prints this line once per session start. (An older
-auto-updater running its first update cannot make this check.)
+**意味。** チーム モードの自動更新が、セットアップが実行する Bun より新しい Bun を必要とするリリースを取得しました。チェックアウトとインストール済みのスキルは現在のリビジョンのままにされ、この行はセッションの開始ごとに1回表示されます。(古い自動更新プログラムが最初の更新を実行する場合は、この確認を行えません。)
 
-**Fix.** `bun upgrade`; the next session start resumes the update. To update
-now: `bun upgrade && cd <gstack checkout> && git pull --ff-only && ./setup`.
+**修正。** `bun upgrade`。次のセッション開始時に更新が再開されます。今すぐ更新するには、`bun upgrade && cd <gstack checkout> && git pull --ff-only && ./setup` を実行してください。
 
 <a id="bun-version-unreadable"></a>
 ### `bun-version-unreadable: could not read the version of Bun at <path> (bun --version printed '<output>'); gstack <version> needs <floor> or newer (BUN_VERSION_UNREADABLE)`
 
-**Meaning.** Before moving the checkout, the auto-updater and `/gstack-upgrade`
-compare the Bun that setup would run with the incoming release's security
-floor. `bun --version` printed something that is not a version (shown, with
-control characters removed), so the comparison could not run and the update was
-held: nothing was installed or changed. `/gstack-upgrade` prints the same text
-after `BUN_VERSION_UNREADABLE:`. Earlier releases read an unreadable version,
-and every version under zsh, as "not below the floor" and went ahead (#3195).
+**意味。** チェックアウトを移動する前に、自動更新プログラムと `/gstack-upgrade` は、セットアップが実行する Bun と、入ってくるリリースのセキュリティ下限を比べます。`bun --version` がバージョンではない内容を表示したため(制御文字を取り除いた上で表示)、比較を実行できず、更新は保留されました。何もインストールも変更もされていません。`/gstack-upgrade` も、同じテキストを `BUN_VERSION_UNREADABLE:` の後に表示します。以前のリリースでは、読み取れないバージョンや、zsh のもとでのすべてのバージョンを、「下限を下回っていない」と解釈して先に進んでいました(#3195)。
 
-**Fix.** Reinstall Bun; `bun upgrade` may not run on a broken install. In Git
-Bash or a macOS/Linux terminal:
+**修正。** Bun を再インストールしてください。壊れたインストールでは `bun upgrade` が動かないことがあります。Git Bash または macOS/Linux のターミナルで次を実行します。
 
 ```bash
 curl -fsSL https://bun.sh/install | bash
 bun --version
 ```
 
-**Expected result.** `bun --version` prints a version such as `1.4.2`, and the
-next session start (or `/gstack-upgrade`) updates.
+**期待される結果。** `bun --version` が `1.4.2` などのバージョンを表示し、次のセッション開始時(または `/gstack-upgrade`)に更新されます。
 
-**Fixed in.** The first release after v1.91.101.0 (#3195).
+**修正されたバージョン。** v1.91.101.0 以降の最初のリリース(#3195)。
 
 <a id="auto-update-incomplete"></a>
 ### `gstack auto-update: setup did not finish (<reason>); installed skills may be out of date. gstack retries automatically. Fix now: cd <dir> && ./setup`
 
-**Meaning.** The pull worked but setup (or migrations) failed. gstack no longer
-says "just upgraded". It retries after 1 hour, then 6, then 24, and prints this
-line once per session start. A `(bun not found on PATH)` reason means install
-Bun first.
+**意味。** pull は成功しましたが、セットアップ(またはマイグレーション)が失敗しました。gstack はもう「たった今アップグレードされました」とは表示しません。1時間後、次に6時間後、次に24時間後に再試行し、この行をセッション開始ごとに1回表示します。`(bun not found on PATH)` が理由の場合は、先に Bun をインストールしてください。
 
-**What is kept.** The previous install stays active.
+**保持される内容。** 以前のインストールが有効なままです。
 
-**Fix.** Run the printed command.
+**修正。** 表示されたコマンドを実行してください。
 
 <a id="auto-update-pull-failed"></a>
 ### `gstack auto-update: git pull did not finish (exit N: ...); gstack is not updating. Fix now: ...`
 
-**Fix.** `cd <gstack checkout> && git pull --ff-only && ./setup`.
+**修正。** `cd <gstack checkout> && git pull --ff-only && ./setup`。
 
 <a id="setup-hook-does-not-parse"></a>
 ### `gstack setup: refusing to register hooks that do not parse (Claude Code would block tool calls with them): <file>:<line>: <error>`
 
-**On Windows (Git Bash), from 1.91.31: a false positive.** If every
-TypeScript hook fails with `bun could not bundle the TypeScript entry` (the
-question-log, question-preference, auq-error-fallback and timeline-stop hooks,
-`/autoplan`'s publication hook and `/plan-ceo-review`'s mode-handoff hook),
-your hooks are fine. Git Bash handed Bun its paths as `C:/…` while the checker
-looked them up as `/c/…` (#3088, #3100); the checker on main reads both
-spellings. The same Git Bash spelling made `/gstack-upgrade` stop with
-`ERROR: <dir> is not a gstack checkout; nothing was changed.` One recovery
-covers both: update by hand, then run setup from the update.
+**Windows(Git Bash)の場合、1.91.31 から: 誤検知です。** すべての TypeScript フックが `bun could not bundle the TypeScript entry` で失敗する場合(question-log、question-preference、auq-error-fallback、timeline-stop のフック、`/autoplan` の公開フック、`/plan-ceo-review` のモード引き継ぎフック)、フックには問題がありません。Git Bash は `C:/…` のパスを Bun に渡していましたが、チェッカーは `/c/…` として探していました(#3088、#3100)。main のチェッカーは両方の綴りを読みます。同じ Git Bash の綴りのせいで、`/gstack-upgrade` が `ERROR: <dir> is not a gstack checkout; nothing was changed.` で停止していました。どちらも1つの方法で回復できます。手作業で更新し、その更新からセットアップを実行してください。
 
 ```bash
 cd ~/.claude/skills/gstack && git pull --ff-only --autostash && ./setup
 ```
 
-Use your install directory if it is not `~/.claude/skills/gstack` (`./setup
---status` prints it). Expected result: setup finishes with exit 0 and no
-refusal line, and later auto-updates go through.
+インストール先が `~/.claude/skills/gstack` でない場合は、そのディレクトリを使ってください(`./setup --status` がパスを表示します)。**期待される結果。** セットアップが終了コード 0 で完了し、拒否の行がなく、以後の自動更新が正常に進みます。
 
-**Meaning, everywhere else.** Claude Code runs gstack's hook shims through
-`/bin/sh`, and a hook that does not parse exits 2, which blocks the tool call
-it guards in every session. Setup parse-checks every hook it registers and
-every hook a skill's frontmatter runs (`/autoplan`, `/careful`, `/freeze`,
-`/guard`, `/investigate` and `/plan-ceo-review`): the shim, the gstack shell
-helpers it sources (such as `careful/bin/hook-extract.sh` and
-`bin/gstack-state-root.sh`), and the TypeScript it runs with its local imports.
-A merge conflict marker line in any of those files fails as `unresolved merge
-conflict marker`, even when the file still parses (markers inside a heredoc, a
-string or a template literal do). The TypeScript is bundled from the gstack
-checkout, so the `tsconfig.json` or `bunfig.toml` of the project you run it
-from is never read. It registers the hooks that parse, skips the ones listed,
-finishes the rest of the install, and exits non-zero. Claude Code runs hooks
-straight from `~/.claude/skills/gstack`, so a skipped hook that an earlier
-setup registered, or that a skill runs, keeps running the broken file until it
-is fixed. This is a gstack bug, or a half-applied edit or merge in your
-checkout: report the printed `<file>:<line>`.
+**それ以外の環境での意味。** Claude Code は gstack のフックのシム(shim)を `/bin/sh` 経由で実行します。パースできないフックは終了コード 2 で終わり、それが保護するツール呼び出しを、すべてのセッションでブロックします。セットアップは、登録するすべてのフックと、スキルのフロントマターが実行するすべてのフック(`/autoplan`、`/careful`、`/freeze`、`/guard`、`/investigate`、`/plan-ceo-review`)をパースチェックします。対象は、シム、それが source する gstack のシェルヘルパー(`careful/bin/hook-extract.sh` や `bin/gstack-state-root.sh` など)、そして、ローカルのインポートを含めて実行する TypeScript です。どのファイルでも、マージ競合のマーカー行は、ファイルがパースできる場合でも `unresolved merge conflict marker` として失敗します(ヒアドキュメント、文字列、テンプレートリテラル内のマーカーも含みます)。TypeScript は gstack のチェックアウトからバンドルされるため、フックを実行するプロジェクトの `tsconfig.json` や `bunfig.toml` は読み込まれません。セットアップはパースできるフックを登録し、スキップしたものを一覧にし、残りのインストールを完了して、0 以外の終了コードで終わります。Claude Code は `~/.claude/skills/gstack` から直接フックを実行するため、以前のセットアップが登録し、スキップされたフックや、スキルが実行するフックは、修正されるまで壊れたファイルを実行し続けます。これは gstack のバグか、チェックアウトでの編集またはマージが中途半端に終わったものです。表示された `<file>:<line>` を報告してください。
 
-**Fix.**
+**修正。**
 
 ```bash
 git -C ~/.claude/skills/gstack status   # half-applied edits or merge conflicts?
@@ -963,105 +639,56 @@ git -C ~/.claude/skills/gstack checkout -- <file>   # or finish the merge
 cd ~/.claude/skills/gstack && ./setup
 ```
 
-**Expected result.** Setup finishes with exit 0 and no refusal line.
+**期待される結果。** セットアップが終了コード 0 で完了し、拒否の行が出ないこと。
 
 <a id="auto-update-hook-does-not-parse"></a>
 ### `gstack auto-update: update held (hook-does-not-parse: <file>:<line>: <error>); nothing was installed or changed, and your current hooks keep running. ...`
 
-**On Windows (Git Bash), from 1.91.31: a false positive.** If the held
-reason is `<hook>.ts:1: bun could not bundle the TypeScript entry`, the
-release is fine: your installed checker misread Git Bash's `C:/…` paths
-(#3088, #3100), and the auto-updater checks every release with it, so it
-holds every release until you update once by hand. Recovery (this also clears
-`/gstack-upgrade`'s `is not a gstack checkout` refusal):
+**Windows(Git Bash)の場合、1.91.31 から: 誤検知です。** 保留の理由が `<hook>.ts:1: bun could not bundle the TypeScript entry` である場合、そのリリースに問題はありません。インストール済みのチェッカーが Git Bash の `C:/…` パスを誤って読んでいます(#3088、#3100)。自動更新プログラムはすべてのリリースをこのチェッカーで確認するため、手作業で一度更新するまで、すべてのリリースを保留します。回復手順は次のとおりです(これで `/gstack-upgrade` の `is not a gstack checkout` による拒否も解消されます)。
 
 ```bash
 cd ~/.claude/skills/gstack && git pull --ff-only --autostash && ./setup
 ```
 
-Use your install directory if it is not `~/.claude/skills/gstack`. Expected
-result: setup finishes with exit 0, the next session start prints no held
-line, and later updates install on their own.
+インストール先が `~/.claude/skills/gstack` でない場合は、そのディレクトリを使ってください。**期待される結果。** セットアップが終了コード 0 で完了し、次のセッション開始時に保留の行が表示されず、以後の更新は自動でインストールされます。
 
-**Meaning, everywhere else.** Team-mode auto-update fetched a release with a
-hook that does not parse or still holds a merge conflict marker (the same
-check setup runs). It checked the incoming revision before moving your
-checkout, so your checkout, installed skills and registered hooks stay at the
-current revision. The incoming release's own `bin/gstack-hook-check` decides,
-so a checker bug in your install cannot hold later releases; your installed
-checker decides only when the incoming one crashes, prints nothing or prints
-a report it cannot verify. gstack checks again at the next update check and
-installs the first release whose hooks parse. This is a gstack bug: report the
-printed `<file>:<line>`.
+**それ以外の環境での意味。** チーム モードの自動更新が、パースできないフック、またはマージ競合のマーカーが残るフックを含むリリースを取得しました(セットアップと同じチェックです)。チェックアウトを移動する前に、入ってくるリビジョンを確認するため、チェックアウト、インストール済みのスキル、登録済みのフックは現在のリビジョンのままです。入ってくるリリース自身の `bin/gstack-hook-check` が判断するため、インストールされているチェッカーのバグが後続のリリースを保留することはありません。ただし、入ってくるチェッカーがクラッシュしたり、何も出力しなかったり、検証できないレポートを出力したりした場合は、インストール済みのチェッカーが判断します。gstack は次の更新チェックで再度確認し、フックがパースできる最初のリリースをインストールします。これは gstack のバグです。表示された `<file>:<line>` を報告してください。
 
-**Fix.** Wait for the next release. A manual `git pull` followed by `./setup`
-cannot be checked before the pull; setup then refuses the broken hook (see the
-entry above).
+**修正。** 次のリリースを待ってください。手動で `git pull` して `./setup` を実行することは、pull の前に確認できないため、推奨されません。その場合、セットアップが壊れたフックを拒否します(上の項目を参照)。
 
 <a id="auto-update-hook-check-unavailable"></a>
 ### `gstack auto-update: update held (hook-check-unavailable: <reason>); nothing was installed or changed, and your current hooks keep running. ... Fix now (in a terminal; Git Bash on Windows): cd '<dir>' && git fetch origin && bash bin/gstack-ff-update . '@{upstream}' && ./setup ...`
 
-**Meaning.** Neither the incoming release's hook checker nor your installed
-one gave a verified report on the incoming hooks (a crash, no output, an
-unreadable report, or no Bun to bundle the TypeScript hooks), or the incoming
-revision could not be extracted for the check (`cannot extract the incoming
-revision: <git's error>`), so the auto-updater cannot tell whether moving your
-checkout would break Claude Code tool calls. It left your checkout, skills and
-hooks at the current revision. The `<reason>` names what each checker did.
+**意味。** 入ってくるリリースのフックチェッカーも、インストール済みのチェッカーも、入ってくるフックについて検証されたレポートを出せませんでした(クラッシュ、出力なし、読めないレポート、または TypeScript フックをバンドルする Bun がない)。あるいは、入ってくるリビジョンをチェック用に展開できませんでした(`cannot extract the incoming revision: <git's error>`)。そのため、自動更新プログラムは、チェックアウトを移動すると Claude Code のツール呼び出しが壊れるかどうかを判断できません。チェックアウト、スキル、フックは現在のリビジョンのままです。`<reason>` は、各チェッカーが何をしたかを示します。
 
-**Fix.** Run the printed command. `bin/gstack-ff-update` moves the checkout
-without losing a local edit (see
-[shelved edits](#auto-update-rescued-edits)), and setup checks every hook it
-registers and says what is wrong (for example that Bun is missing).
+**修正。** 表示されたコマンドを実行してください。`bin/gstack-ff-update` は、ローカルの編集を失わずにチェックアウトを移動します([退避された編集](#auto-update-rescued-edits)を参照)。セットアップは、登録するすべてのフックをチェックし、問題を示します(たとえば Bun がないなど)。
 
-On Windows, if the reason is `git archive of the incoming revision failed`,
-your updater predates the fix for #3184: see
-[the held-install recovery](#auto-update-held-install-recovery).
+Windows で、理由が `git archive of the incoming revision failed` の場合、更新プログラムは #3184 の修正より前のものです。[保留されたインストールの回復](#auto-update-held-install-recovery)を参照してください。
 
 <a id="auto-update-held-install-recovery"></a>
 ### `HELD hook-check-unavailable: git archive of the incoming revision failed` / `gstack auto-update: update held (hook-check-unavailable: git archive of the incoming revision failed) ...` / `gstack auto-update: setup did not finish (bun not found on PATH) ...` on Windows
 
-**Meaning.** From 1.91.89.0 to the release that fixed #3184, the auto-updater
-extracted each incoming release with `git archive | tar` before checking its
-hooks. Git for Windows' MSYS `tar` cannot create the `connect-chrome` symlink
-because it comes before its target in the archive, so every release was held
-(`~/.gstack/analytics/session-update.log` shows the `HELD` line), and a stale
-`setup did not finish (bun not found on PATH)` line could hide the hold. Your
-installed updater cannot deliver its own fix, and the old `/gstack-upgrade`
-can leave conflict markers when a local edit conflicts. The recovery fetches
-the new `bin/gstack-ff-update` from the new revision into a private temp
-directory and runs it. It works on a clean install, an install with local
-edits that conflict, an install that already has unmerged files, and a
-prefix-mode install: regenerable `SKILL.md` and `sections/*.md` edits are
-re-rendered by setup, and every other edit is kept in a rescue ref (the
-command prints it; see [shelved edits](#auto-update-rescued-edits)).
+**意味。** 1.91.89.0 から、#3184 を修正したリリースまでの間、自動更新プログラムは、フックをチェックする前に、入ってくる各リリースを `git archive | tar` で展開していました。Git for Windows の MSYS `tar` は、アーカイブ内でターゲットより前に来る `connect-chrome` のシンボリックリンクを作成できません。そのため、すべてのリリースが保留され(`~/.gstack/analytics/session-update.log` に `HELD` の行が出ます)、古い `setup did not finish (bun not found on PATH)` の行が、その保留を隠すことがありました。インストール済みの更新プログラムは、自分自身の修正を届けられず、古い `/gstack-upgrade` は、ローカルの編集が競合した場合にマーカーを残すことがあります。この回復では、新しいリビジョンから新しい `bin/gstack-ff-update` を private な一時ディレクトリに取得し、それを実行します。クリーンなインストール、ローカルの編集が競合するインストール、すでに未マージのファイルがあるインストール、そしてプレフィックスモードのインストールで動作します。再生成可能な `SKILL.md` と `sections/*.md` の編集は、セットアップが再レンダリングします。それ以外の編集はすべて、退避用の ref に保持されます(コマンドがその ref を表示します。[退避された編集](#auto-update-rescued-edits)を参照)。
 
-**Fix, in Git Bash** (use your install directory if it is not
-`~/.claude/skills/gstack`):
+**修正(Git Bash)。** (インストール先が `~/.claude/skills/gstack` でない場合は、そのディレクトリを使ってください。)
 
 <!-- form:recovery-gitbash -->
 ```bash
 cd ~/.claude/skills/gstack && git fetch origin main && d=$(mktemp -d) && git show FETCH_HEAD:bin/gstack-ff-update > "$d/gstack-ff-update" && bash "$d/gstack-ff-update" . FETCH_HEAD; s=$?; rm -rf "$d"; [ "$s" = 0 ] && ./setup
 ```
 
-**Fix, in Windows PowerShell 5.1** (it runs the same script through Git's
-`bash.exe`, then `.\setup.ps1`):
+**修正(Windows PowerShell 5.1)。** (同じスクリプトを Git の `bash.exe` 経由で実行し、その後 `.\setup.ps1` を実行します。)
 
 <!-- form:recovery-powershell -->
 ```powershell
 Set-Location -LiteralPath "$HOME\.claude\skills\gstack" -ErrorAction Stop; $gb = Join-Path (git --exec-path) '..\..\..\bin\bash.exe'; & $gb -c 'set -f; IFS=; git fetch origin main && d=$(mktemp -d) && git show FETCH_HEAD:bin/gstack-ff-update > $d/gstack-ff-update && bash $d/gstack-ff-update . FETCH_HEAD; s=$?; rm -rf -- $d; exit $s'; if ($LASTEXITCODE -eq 0) { .\setup.ps1 }
 ```
 
-**In Claude Code**, ask it to run the Git Bash form above.
+**Claude Code の中では**、上の Git Bash 版を実行するように依頼してください。
 
-**Expected result.** The script prints `ok <old> <new>` or
-`rescued <old> <new> refs/gstack/rescue/<oid> unmerged=<0|1>`, setup
-finishes with exit 0, the next session start prints no held line, and later
-updates install on their own.
+**期待される結果。** スクリプトが `ok <old> <new>` または `rescued <old> <new> refs/gstack/rescue/<oid> unmerged=<0|1>` を表示し、セットアップが終了コード 0 で完了し、次のセッション開始時に保留の行が表示されず、以後の更新は自動でインストールされます。
 
-**Trying an unreleased fix, and going back.** A fix branch can be tried
-before it ships; auto-update pauses while a detached revision is checked out.
-Replace `<branch>` with the branch named in the issue.
+**未リリースの修正を試す場合と、元に戻す場合。** 修正ブランチは出荷前に試すことができます。分離したリビジョンがチェックアウトされている間は、自動更新が一時停止します。`<branch>` は、issue に記載されたブランチ名に置き換えてください。
 
 <!-- form:trial-gitbash -->
 ```bash
@@ -1073,7 +700,7 @@ cd ~/.claude/skills/gstack && git checkout -- 'SKILL.md' '*/SKILL.md' '*/section
 Set-Location -LiteralPath "$HOME\.claude\skills\gstack" -ErrorAction Stop; $gb = Join-Path (git --exec-path) '..\..\..\bin\bash.exe'; & $gb -c 'set -f; git checkout -- SKILL.md */SKILL.md */sections/*.md && git fetch origin <branch> && git checkout --detach FETCH_HEAD'; if ($LASTEXITCODE -eq 0) { .\setup.ps1 }
 ```
 
-To go back to the released version (this also resumes auto-update):
+リリース版に戻すには(これで自動更新も再開されます):
 
 <!-- form:goback-gitbash -->
 ```bash
@@ -1088,67 +715,36 @@ Set-Location -LiteralPath "$HOME\.claude\skills\gstack" -ErrorAction Stop; $gb =
 <a id="auto-update-unmerged-files"></a>
 ### `gstack auto-update: update held (unmerged-files: <n> unmerged file(s) in the install (first: <path>)); an earlier merge, rebase or stash pop left conflicts in the install, and an update would bury them. Fix now (...): cd '<dir>' && git fetch origin && bash bin/gstack-ff-update . '@{upstream}' && ./setup ...`
 
-**Meaning.** Your gstack checkout has unmerged files: conflict markers from a
-merge, rebase or `git stash pop` of your own, or from an auto-updater older
-than the fix for this (its `merge --autostash` left markers in place when a
-local edit conflicted). The background updater never moves a checkout with
-unmerged files, and it prints no "setup did not finish" fix while they exist,
-because setup would run over the markers.
+**意味。** gstack のチェックアウトに未マージのファイルがあります。自分で行ったマージ、リベース、または `git stash pop` によるコンフリクトマーカー、または以前の自動更新プログラム(この修正より前のもの。ローカルの編集が競合したとき、その `merge --autostash` がマーカーを残していました)によるものです。バックグラウンドの更新プログラムは、未マージのファイルがあるチェックアウトを移動することはありません。また、それらが存在する間は、「setup did not finish」の修正手順も表示しません。セットアップがマーカーの上で実行されてしまうためです。
 
-**Fix.** Run the printed command. It saves everything first, the unmerged
-files included, in a rescue ref labelled "needs manual resolution", then
-moves the checkout to the release and runs setup. Read the rescue with the
-commands under [shelved edits](#auto-update-rescued-edits). To resolve the
-conflict yourself instead, finish or abort your merge (`git -C '<dir>' merge
---abort`, `git -C '<dir>' checkout -- <file>`); gstack retries at the next
-check.
+**修正。** 表示されたコマンドを実行してください。まずすべてを保存します。未マージのファイルも含めて、"needs manual resolution" というラベルの付いた退避用の ref に保存されます。その後、チェックアウトをリリースに移動して、セットアップを実行します。退避内容は [退避された編集](#auto-update-rescued-edits) の下のコマンドで読めます。自分で競合を解決する場合は、マージを完了するか中止してください(`git -C '<dir>' merge --abort`、`git -C '<dir>' checkout -- <file>`)。gstack は次の確認で再試行します。
 
 <a id="auto-update-autostash-unrecoverable"></a>
 ### `gstack auto-update: update held (autostash-unrecoverable: <reason>); your local edits are where they were and nothing was installed. Look first: git -C '<dir>' status --short. Fix now (...)` / `autostash-unrecoverable: <reason>`
 
-**Meaning.** `bin/gstack-ff-update` refused to move the checkout and changed
-nothing. The `<reason>` says why: an untracked file is where the release
-puts a tracked one (`git refused to update ...: would be overwritten`), a
-file changed while the update ran, another git command held the index lock
-(`index.lock exists`), or a rescue ref of that name already names another
-commit.
+**意味。** `bin/gstack-ff-update` は、チェックアウトを移動することを拒否し、何も変更しませんでした。`<reason>` がその理由を示します。リリースが追跡されているファイルを置く場所に、追跡されていないファイルがある(`git refused to update ...: would be overwritten`)、更新の実行中にファイルが変わった、別の git コマンドがインデックスのロックを保持している(`index.lock exists`)、またはその名前の退避用 ref が、すでに別のコミットを指している、のいずれかです。
 
-**Fix.** Run the `status` command the line prints, move the listed untracked
-file out of the way (or wait for the other git command to finish), then run
-the printed `Fix now` command. Nothing needs restoring: your edits are still
-in the working tree.
+**修正。** 表示された `status` コマンドを実行し、一覧表示された追跡されていないファイルを邪魔にならない場所に移すか(または別の git コマンドの終了を待ち)、その後、表示された `Fix now` のコマンドを実行してください。復元するものはありません。ローカルの編集は作業ツリーにそのまま残っています。
 
 <a id="auto-update-rescued-edits"></a>
 ### `gstack auto-update: your local edits in the install (<files>) conflicted with an update, so they were saved in refs/gstack/rescue/<oid> and the install runs the update. ...` / `rescued <old> <new> refs/gstack/rescue/<oid> unmerged=<0|1>`
 
-**Meaning.** You had edited tracked files in your gstack checkout, and the
-release changed the same lines (or you had staged changes or unmerged files).
-Instead of leaving conflict markers in the checkout Claude Code runs hooks
-from, `bin/gstack-ff-update` saved your edits as one commit,
-`refs/gstack/rescue/<oid>`, and moved the checkout to the release. The
-rescue's first parent is the revision you had, so it holds only your changes;
-its second parent holds what you had staged. Edits that did not conflict stay
-in place, and regenerable `SKILL.md` and `sections/*.md` edits (skill prefix,
-gbrain blocks) are re-rendered by setup instead of being rescued. The
-session-start line repeats once a day until you delete the ref.
+**意味。** gstack のチェックアウトで追跡されているファイルを編集していて、リリースが同じ行を変更しました(またはステージされた変更や未マージのファイルがありました)。Claude Code がフックを実行するチェックアウトにコンフリクトマーカーを残す代わりに、`bin/gstack-ff-update` は編集内容を1つのコミット `refs/gstack/rescue/<oid>` として保存し、チェックアウトをリリースに移動しました。退避のコミットの最初の親は、以前のリビジョンなので、含まれるのは編集内容だけです。2番目の親には、ステージされていた内容が入っています。競合しなかった編集はそのまま残ります。再生成可能な `SKILL.md` と `sections/*.md` の編集(スキルのプレフィックス、gbrain のブロック)は、退避されるのではなく、セットアップが再レンダリングします。セッション開始時の行は、その ref を削除するまで、1日1回繰り返し表示されます。
 
-**Fix.** Inspect first:
+**修正。** まず確認してください。
 
 ```bash
 git -C ~/.claude/skills/gstack show --stat 'refs/gstack/rescue/<oid>'
 ```
 
-To keep your edits, export only your changes and apply them in a scratch
-checkout (never with `stash apply` in the install):
+編集内容を残すには、変更内容だけを書き出し、一時的なチェックアウトで適用してください(インストール先では決して `stash apply` を使わないでください)。
 
 ```bash
 git -C ~/.claude/skills/gstack diff 'refs/gstack/rescue/<oid>^' 'refs/gstack/rescue/<oid>' > ~/gstack-local-edits.patch
 git clone https://github.com/garrytan/gstack.git ~/gstack-scratch && cd ~/gstack-scratch && git apply -3 ~/gstack-local-edits.patch
 ```
 
-A rescue labelled "needs manual resolution" holds files that were already
-unmerged: their content can contain conflict markers to resolve. Delete the
-ref when you are done (this also stops the daily line):
+"needs manual resolution" というラベルの退避には、すでに未マージだったファイルが含まれています。その内容にはコンフリクトマーカーが含まれている可能性があるため、解決してください。作業が終わったら、その ref を削除してください(これで毎日の表示も止まります)。
 
 ```bash
 git -C ~/.claude/skills/gstack update-ref -d 'refs/gstack/rescue/<oid>'
@@ -1157,603 +753,325 @@ git -C ~/.claude/skills/gstack update-ref -d 'refs/gstack/rescue/<oid>'
 <a id="setup-runtime-root-contains-checkout"></a>
 ### `gstack setup: refusing to replace <root> for <host>: this runtime directory contains the source checkout setup runs from (<checkout>), so replacing it would delete the checkout. Nothing was changed.`
 
-**Meaning.** Setup installs Codex, Factory, OpenCode, Cursor, Copilot and
-Antigravity by building a runtime root (such as `~/.cursor/skills/gstack`) and
-swapping it in for the old one, and Kiro by writing into `~/.kiro/skills/gstack`.
-Your gstack checkout lives at that root or inside it, so the swap would delete
-the checkout (#3084), and Kiro would link the checkout into itself. Setup refuses before
-writing anything. `./setup --status` and `gstack-doctor` suggest the move for
-that host instead of `./setup --host <host>`.
+**意味。** セットアップは、Codex、Factory、OpenCode、Cursor、Copilot、Antigravity については、ランタイムのルート(`~/.cursor/skills/gstack` など)を構築し、古いものと入れ替えることでインストールします。Kiro については、`~/.kiro/skills/gstack` に書き込みます。gstack のチェックアウトがそのルートにあるか、その内部にあるため、入れ替えるとチェックアウトが削除されてしまいます(#3084)。Kiro の場合は、チェックアウトを自分自身にリンクしてしまいます。セットアップは、何かを書き込む前に拒否します。`./setup --status` と `gstack-doctor` は、`./setup --host <host>` の代わりに、そのホストについての移動の手順を提案します。
 
-**Fix.** Move the checkout out, then run setup from its new place. Setup
-prints the exact commands. When `~/.claude/skills/gstack` is a symlink to the
-checkout, the checkout takes the symlink's place:
+**修正。** チェックアウトを外に移してから、その新しい場所からセットアップを実行してください。セットアップは正確なコマンドを表示します。`~/.claude/skills/gstack` がチェックアウトへのシンボリックリンクである場合、チェックアウトがそのシンボリックリンクの位置に置かれます。
 
 ```bash
 rm ~/.claude/skills/gstack && mv ~/.cursor/skills/gstack ~/.claude/skills/gstack
 cd ~/.claude/skills/gstack && ./setup --host claude && ./setup --host cursor
 ```
 
-Otherwise move it anywhere outside the host's skills directory:
+そうでない場合は、ホストのスキルディレクトリの外に移してください。
 
 ```bash
 mv ~/.cursor/skills/gstack ~/gstack && cd ~/gstack && ./setup --host cursor
 ```
 
-**Expected result.** Both setups finish with exit 0, and `./setup --status`
-lists each host as `current`.
+**期待される結果。** 両方のセットアップが終了コード 0 で完了し、`./setup --status` が各ホストを `current` と表示します。
 
 <a id="host-renders-pruned"></a>
 ### `pruned <dir> (<host> is not installed from this checkout): ...` / `kept <path>: not proven generated (...)` / `host-render backup: <dir> (...)`
 
-**Meaning.** A gstack checkout keeps skills only for the agents installed from
-it, listed in `.gstack-installed-hosts` in the checkout (#1694). Older installs
-rendered every agent's copy, so a global Claude install carried 632 `SKILL.md`
-files (34.7 MB) that Claude Code and Cursor-agent scan. setup removed the copy
-for an agent that is not installed from this checkout. Generated files were
-moved to the backup directory it printed; links into the checkout were removed;
-files it could not prove gstack generated (`kept ...`) were left in place.
-`prune.log` in the backup lists every path. The same prune runs once from the
-upgrade migration. Agents in the record are never pruned.
+**意味。** gstack のチェックアウトは、そこからインストールされたエージェントのスキルだけを保持します。その一覧は、チェックアウト内の `.gstack-installed-hosts` にあります(#1694)。古いインストールでは、すべてのエージェントのコピーがレンダリングされていたため、グローバルな Claude のインストールには、Claude Code と Cursor-agent がスキャンする 632 個の `SKILL.md` ファイル(34.7 MB)がありました。セットアップは、このチェックアウトからインストールされていないエージェントのコピーを削除しました。生成されたファイルは、表示されたバックアップディレクトリに移動されました。チェックアウトへのリンクは削除されました。gstack が生成したと証明できないファイル(`kept ...`)は、そのまま残されました。バックアップ内の `prune.log` にすべてのパスが記載されています。同じ剪定は、アップグレードのマイグレーションからも一度実行されます。記録にあるエージェントは、決して剪定されません。
 
-**Fix.** Nothing, if you don't use that agent. To get an agent back, install
-it from this checkout, which records it and renders its skills:
+**修正。** 使っていないエージェントであれば、何もしなくて構いません。そのエージェントを戻すには、このチェックアウトからインストールすると、記録されてスキルがレンダリングされます。
 
 ```bash
 ./setup --host <name>
 ```
 
-For an instruction-only agent you render by hand (Hermes, OpenClaw, GBrain),
-add its name to `.gstack-installed-hosts` first, then run
-`bun run gen:skill-docs --host <name>`. To restore one file, `mv` it back from
-the backup. A `kept` file is yours: move or delete it when you no longer need it.
-The backup sits in gstack's state root, which no agent scans; delete it once
-you are sure you don't need it (about 36 MB for a pre-1.91.65 Claude install).
+手作業でレンダリングする指示のみのエージェント(Hermes、OpenClaw、GBrain)の場合は、まず `.gstack-installed-hosts` にその名前を追加し、その後 `bun run gen:skill-docs --host <name>` を実行してください。1つのファイルを戻すには、バックアップから `mv` で戻します。`kept` のファイルはあなたのものです。必要がなくなったら、移動または削除してください。バックアップは、どのエージェントもスキャンしない gstack の state root にあります。不要だと確信できたら削除してください(v1.91.65 より前の Claude のインストールで約 36 MB)。
 
-**Expected result.** The next `./setup` prints no `pruned` line, and
-`./setup --status` lists the agents you use.
+**期待される結果。** 次の `./setup` は `pruned` の行を表示せず、`./setup --status` は使っているエージェントを一覧表示します。
 
 <a id="cso-windows-msvc-compile"></a>
 ### `CSO unavailable: its native helper was not built (windows-msvc-compile)`
 
-**Meaning.** Visual Studio's compiler was found but the /cso native helper did
-not compile. setup prints the first compiler error. It used to say "install
-Visual Studio".
+**意味。** Visual Studio のコンパイラは見つかりましたが、/cso のネイティブヘルパーをコンパイルできませんでした。セットアップは最初のコンパイラエラーを表示します。以前は「Visual Studio をインストールしてください」と表示していました。
 
-**Fix.** Fix the printed compiler error, then re-run `./setup`.
+**修正。** 表示されたコンパイラエラーを修正してから、`./setup` を再実行してください。
 
 <a id="cso-build-or-publish-failed"></a>
 ### `CSO unavailable: the native helper's <stage> step failed (...)` / `CSO publish step failed (...) for <revision>; previous CSO kept: <revision>`
 
-**Meaning.** The /cso native helper is optional. Its build prerequisites were
-present, but the `build` step (compiling the helper) or the `publish` step
-(swapping the new helper into `bin/` under a lock) failed. setup used to stop
-here (#3071); now it finishes everything else and says which step failed. When
-an earlier helper was installed and the failed publish restored it, setup
-prints `previous CSO kept` and /cso keeps using that helper; otherwise /cso
-reports `not assessed`. `interrupted` means the step was killed before it could
-record a result. The outcome is in `bin/.gstack-cso-build-result`, and
-`gstack-doctor`'s `cso` row reads the same record. The build output is in
-`bin/.gstack-cso-build.log`.
+**意味。** /cso のネイティブヘルパーは任意です。そのビルドの前提条件は満たされていましたが、`build` の段階(ヘルパーのコンパイル)か、`publish` の段階(ロックの下で新しいヘルパーを `bin/` に入れ替える)が失敗しました。以前はセットアップがここで停止していましたが(#3071)、今は他のすべてを完了させ、どの段階が失敗したかを示します。以前のヘルパーがインストールされていて、失敗した publish がそれを戻した場合、セットアップは `previous CSO kept` を表示し、/cso はそのヘルパーを使い続けます。そうでない場合、/cso は `not assessed` を報告します。`interrupted` は、結果を記録する前にその段階が強制終了されたことを意味します。結果は `bin/.gstack-cso-build-result` にあり、`gstack-doctor` の `cso` の行は同じ記録を読みます。ビルドの出力は `bin/.gstack-cso-build.log` にあります。
 
-**Fix.** Read the log, fix what it reports, then retry from your gstack checkout:
-
+**修正。** ログを読み、報告された内容を修正してから、gstack のチェックアウトから再試行してください。
 ```bash
 bun run build:cso && ./setup
 ```
 
-On Windows, setup and the build use PowerShell 7 (`pwsh`) when it is installed
-and fall back to Windows PowerShell 5.1. The root cause of the staged files
-vanishing during publish in #3071 is still unknown; attach the log there if you
-hit it. CI sets `GSTACK_STRICT_BUILD=1`, which makes these failures fatal so
-build regressions cannot hide.
+Windows では、セットアップとビルドは、`pwsh`(PowerShell 7)がインストールされていればそれを使い、なければ Windows PowerShell 5.1 にフォールバックします。#3071 で、公開中にステージされたファイルが消える根本原因はまだ分かっていません。遭遇した場合は、ログをそこに添付してください。CI は `GSTACK_STRICT_BUILD=1` を設定します。これにより、これらの失敗は致命的となり、ビルドの回帰が隠れなくなります。
 
-**Expected result.** setup prints no CSO line, and the doctor's `cso` row is
-`ok`.
+**期待される結果。** セットアップが CSO の行を表示せず、doctor の `cso` の行が `ok` になります。
 
 <a id="cso-windows-docker"></a>
 ### `Docker found at <path>, but native Windows Docker transport is not supported yet; static assessment only.` / `docker.exe at <path> is outside the trusted install locations (...)`
 
-**Meaning.** On Windows, /cso looks for `docker.exe` only under the install
-folders Windows reports for Program Files, Program Files (x86) and the Windows
-directory, by its real path, with no symlink or junction on the way. A
-user-writable directory is untrusted, because the Docker child carries
-registry credentials; that refusal cannot be overridden.
+**意味。** Windows では、/cso は `docker.exe` を、Windows が報告する Program Files、Program Files (x86)、Windows ディレクトリのインストールフォルダの下でのみ探します。実パスで確認し、途中にシンボリックリンクやジャンクションがないものに限ります。ユーザーが書き込めるディレクトリは信頼されません。Docker の子プロセスはレジストリの認証情報を持つためです。この拒否は上書きできません。
 
-Even a trusted `docker.exe` cannot run /cso's isolated containers yet: /cso
-admits only a local Unix Docker socket, and Docker Desktop on Windows speaks
-over a named pipe. /cso reports this and runs its static assessment only; no
-container or runtime check runs.
+信頼された `docker.exe` であっても、/cso の隔離されたコンテナを、まだ実行できません。/cso が許可するのは、ローカルの Unix Docker ソケットだけです。Windows の Docker Desktop は、名前付きパイプで通信します。/cso はこれを報告し、静的な評価のみを実行します。コンテナやランタイムのチェックは実行されません。
 
-**Fix.** For runtime checks, run /cso from Linux or macOS (WSL2 counts as
-Linux) with a local Docker socket. On Windows, static assessment is the
-supported mode; if the refusal named a user directory, install Docker Desktop
-under Program Files.
+**修正。** ランタイムのチェックを行うには、Linux または macOS(WSL2 は Linux と数えます)で、ローカルの Docker ソケットを使って /cso を実行してください。Windows では、静的な評価がサポートされているモードです。拒否のメッセージがユーザーディレクトリを示していた場合は、Docker Desktop を Program Files の下にインストールしてください。
 
 <a id="cso-capacity"></a>
 ### `Snapshot manifest cap exceeded: ...` / `64 MiB source cap exceeded: ...` / `Symlink or special source file: <path>`
 
-**Meaning.** /cso copies the repository into a private snapshot before any
-audit starts, and refuses the whole run when the snapshot would be incomplete
-or too large. Each message names the cap that applied:
+**意味。** /cso は、監査を始める前に、リポジトリのプライベートなスナップショットをコピーします。スナップショットが不完全になるか、大きすぎる場合は、実行全体を拒否します。各メッセージは、適用された上限を示します。
 
-- **Snapshot manifest cap (16 MiB).** One entry per tracked or nonignored
-  untracked file; about 50,000 files fit.
-- **64 MiB source cap.** The full size of every such file outside dependency
-  and VCS directories counts, including files over 1 MiB whose contents are
-  withheld from the audit.
-- **Symlinks.** A tracked symlink anywhere in the repository stops the run.
+- **スナップショットのマニフェストの上限(16 MiB)。** 追跡されているか、無視されていない追跡対象外のファイルごとに1エントリです。約 50,000 個のファイルが収まります。
+- **64 MiB のソースの上限。** 依存関係ディレクトリと VCS ディレクトリの外にあるすべてのそのようなファイルのサイズの合計です。1 MiB を超えるファイルも、その内容が監査から除かれていても含まれます。
+- **シンボリックリンク。** リポジトリのどこかに追跡されたシンボリックリンクがあると、実行が停止します。
 
-**Fix.** No setting raises these caps. For the 64 MiB source cap, rerun with
-`--paths` set to the comma-separated repo-relative directories you want audited
-(for example `--paths src/core,src/mcp`). Paths outside them are never
-captured or assessed and do not count toward the cap; snapshot and history
-coverage then read **partial**, the report counts every skipped path, and the run's
-snapshot manifest lists each one, so the verdict says what was not audited.
-With `--diff`, every changed path outside dependency directories must be inside
-`--paths`, or the run is refused. Do not audit a hand-trimmed copy: /cso would treat it as the whole
-repository and report nothing as skipped. `--paths` does not lower the
-manifest cap or the 100,000-entry limit, because every skipped path still has a
-manifest entry (about 50,000 files fit). Symlinks must be removed. Add your
-file count or size to
-[#2993](https://github.com/garrytan/gstack/issues/2993).
+**修正。** これらの上限を引き上げる設定はありません。64 MiB のソースの上限については、監査したいリポジトリ相対のディレクトリをカンマ区切りで `--paths` に指定して再実行してください(例: `--paths src/core,src/mcp`)。それ以外のパスは、取得も評価もされず、上限にも数えられません。その場合、スナップショットと履歴のカバレッジは **partial** と表示され、スキップされたパスはすべてレポートに数えられ、実行のスナップショットのマニフェストに一覧されるため、判定は何が監査されなかったかを示します。`--diff` を使う場合、依存関係ディレクトリ以外で変更されたパスはすべて `--paths` の中になければ、実行は拒否されます。手で切り詰めたコピーを監査してはいけません。/cso はそれをリポジトリ全体として扱い、何もスキップされたと報告しないためです。`--paths` は、マニフェストの上限や 100,000 エントリの上限を下げるものではありません。スキップされたパスにも、マニフェストのエントリがあるためです(約 50,000 個のファイルが収まります)。シンボリックリンクは削除する必要があります。ファイル数やサイズを [#2993](https://github.com/garrytan/gstack/issues/2993) に追記してください。
 
 <a id="cso-scanner-invalid-output"></a>
-### `INVALID_OUTPUT: Scanner report is malformed, unsupported, or exceeds structural limits.` (Semgrep on a real repository)
+### `INVALID_OUTPUT: Scanner report is malformed, unsupported, or exceeds structural limits.`(実際のリポジトリでの Semgrep)
 
-**Meaning.** Before the first release after v1.91.101.0, /cso redacted a
-scanner's JSON report by splicing an unquoted `<REDACTED-...>` marker over any
-bare number that looked like a phone number or card number, such as Semgrep's
-`"max_memory_bytes":1145427776` or an epoch timestamp. The report then failed to
-parse and the scanner was recorded as not assessed (#3185). Now a redacted
-number becomes the quoted string `"<REDACTED-...>"` and the report parses. A
-redaction that would cross JSON tokens still withholds the payload
-(`REDACTION_FAILED`).
+**意味。** v1.91.101.0 より後の最初のリリースより前は、/cso は、電話番号やカード番号に見える数値に、引用符のない `<REDACTED-...>` のマーカーを重ねることで、スキャナーの JSON レポートを墨消ししていました。たとえば Semgrep の `"max_memory_bytes":1145427776` やエポックのタイムスタンプなどです。その結果、レポートはパースできず、スキャナーは評価されなかったと記録されていました(#3185)。今は、墨消しされた数値は引用符付きの文字列 `"<REDACTED-...>"` になり、レポートはパースできます。JSON のトークンをまたぐような墨消しは、なお内容を伏せます(`REDACTION_FAILED`)。
 
-**Fix.** Update gstack (`/gstack-upgrade`), then run /cso again. If this code
-still appears, the scanner itself emitted malformed JSON; report the scanner
-and version at https://github.com/garrytan/gstack/issues.
+**修正。** gstack を更新(`/gstack-upgrade`)してから、/cso を再度実行してください。このコードがまだ表示される場合、スキャナー自体が不正な JSON を出力しています。スキャナーとそのバージョンを https://github.com/garrytan/gstack/issues に報告してください。
 
-**Fixed in.** The first release after v1.91.101.0 (#3185).
+**修正されたバージョン。** v1.91.101.0 より後の最初のリリース(#3185)。
 
 <a id="cso-orbstack-argv0"></a>
-### `unsupported argv0 "docker-tools"` (OrbStack's `docker` under /cso)
+### `unsupported argv0 "docker-tools"`(/cso 下の OrbStack の `docker`)
 
-**Meaning.** /cso runs the canonical path of `docker` (symlinks resolved), and
-OrbStack's `docker` is a symlink to one multicall binary, `docker-tools`, that
-decides what to be from the name it was started as. Started under its real name
-it refused, so Docker isolation and every scanner were reported missing
-(#3187). /cso now starts the same verified binary with the name `docker`,
-including in its cleanup watchdog.
+**意味。** /cso は `docker` の正規パス(シンボリックリンクを解決したもの)を実行します。OrbStack の `docker` は、1つのマルチコールバイナリ `docker-tools` へのシンボリックリンクで、そのバイナリは起動された名前によって何をするかを決めます。実際の名前で起動すると拒否されたため、Docker の隔離と、すべてのスキャナーが欠けていると報告されていました(#3187)。今は /cso が、同じ検証済みバイナリを `docker` という名前で起動します。クリーンアップのウォッチドッグの中でも同じです。
 
-**Fix.** Update gstack (`/gstack-upgrade`), then run `gstack-doctor`; its `cso`
-row should pass with OrbStack running.
+**修正。** gstack を更新(`/gstack-upgrade`)してから、`gstack-doctor` を実行してください。OrbStack が動いていれば、その `cso` の行が合格になるはずです。
 
-**Fixed in.** The first release after v1.91.101.0 (#3187).
+**修正されたバージョン。** v1.91.101.0 より後の最初のリリース(#3187)。
 
 <a id="conductor-auq-hook-removed"></a>
 ### `removed the AskUserQuestion preference hook: it breaks Conductor's native AskUserQuestion (#2207). ...`
 
-**Meaning.** In Conductor, setup no longer installs the plan-tune
-question-preference hook and removes one it added before. The other plan-tune
-hooks stay.
+**意味。** Conductor では、セットアップは plan-tune の質問設定フックをもうインストールしません。以前に追加されていた場合は削除します。他の plan-tune のフックは残ります。
 
-**Fix.** To keep it anyway: `gstack-config set plan_tune_hooks yes`, then `./setup`.
+**修正。** それでも残したい場合は、`gstack-config set plan_tune_hooks yes` を実行してから、`./setup` を実行してください。
 
 <a id="browse-extension-id-invalid"></a>
 ### `Error: browse_extension_id '<v>' is not a Chrome extension ID ... Existing value left unchanged.`
 
-**Fix.** Copy the 32-letter ID (letters a to p) from `chrome://extensions`, then
-`gstack-config set browse_extension_id <id>`.
+**修正。** `chrome://extensions` から32文字の ID(a から p の文字)をコピーし、`gstack-config set browse_extension_id <id>` を実行してください。
 
 ---
 
-## Install check (`gstack-doctor --check`) and the Capy installer
+<a id="install-check-gstack-doctor---check-and-the-capy-installer"></a>
+## インストールの確認(`gstack-doctor --check`)と Capy インストーラー
 
-`gstack-doctor --check` prints one `PASS | FAIL | SKIP <id>` row per component
-and ends with `gstack: ok <revision> for=<workflow>` (exit 0) or
-`gstack: fail <id,id>` (exit 1). Every FAIL row carries a `fix:` clause and one
-of the codes below. Read the trailer directly; never pipe `--check` through
-`tail` or another command whose exit status would replace the doctor's
-(docs/capy-install.md).
+`gstack-doctor --check` は、コンポーネントごとに `PASS | FAIL | SKIP <id>` の行を1つずつ表示し、最後に `gstack: ok <revision> for=<workflow>`(終了コード 0)または `gstack: fail <id,id>`(終了コード 1)を表示します。FAIL の行には、すべて `fix:` の節と、以下のコードのいずれかが付きます。末尾の行は直接読んでください。`--check` を `tail` や、終了ステータスが doctor のものを置き換えてしまうコマンドにパイプしてはいけません(docs/capy-install.md)。
 
 <a id="doctor-component-missing"></a>
 ### `FAIL <id> — <detail>; fix: <command> (COMPONENT_MISSING; ...)`
 
-**Meaning.** A component the selected workflow needs (`--for <skill>`,
-`--require <csv>`, or by default every host profile installed from this
-checkout) is not installed, not built, not current, or not authenticated. The
-row names it: `claude` or `codex` (a host profile missing or stale), `patch`
-(the Codex render lacks the model behavioral patch), `codex-cli` (the Codex CLI
-is required and absent or not logged in), `browse-bundle`, `browser` (Chromium
-does not launch or render), `cso` (the native helper is required and not
-built).
+**意味。** 選択されたワークフロー(`--for <skill>`、`--require <csv>`、またはデフォルトでは、このチェックアウトからインストールされたすべてのホストプロファイル)が必要とするコンポーネントが、インストールされていない、ビルドされていない、最新ではない、または認証されていないことを示します。その行にはそれが示されています。`claude` または `codex`(ホストプロファイルが欠けているか古い)、`patch`(Codex のレンダリングにモデルの振る舞いのパッチがない)、`codex-cli`(Codex CLI が必要だが、存在しないかログインしていない)、`browse-bundle`、`browser`(Chromium が起動またはレンダリングしない)、`cso`(ネイティブヘルパーが必要だがビルドされていない)です。
 
-**Fix.** Run the command in the row's `fix:` clause. For `browser`, that is
-`<checkout>/bin/gstack-browser-ensure`, which installs Chromium on first use
-when the installer skipped it (`SKIP browser (lazy; ...)`).
+**修正。** その行の `fix:` の節にあるコマンドを実行してください。`browser` の場合は、`<checkout>/bin/gstack-browser-ensure` です。インストーラーが Chromium をスキップしている場合(`SKIP browser (lazy; ...)`)、初回の使用時にインストールされます。
 
-**Expected result.** The row turns `PASS` and the trailer reads `gstack: ok`.
+**期待される結果。** その行が `PASS` になり、末尾の行が `gstack: ok` になります。
 
 <a id="doctor-runtime-below-minimum"></a>
 ### `FAIL runtime — bun <version> ... (RUNTIME_BELOW_MINIMUM; ...)`
 
-**Meaning.** The Bun on `PATH` is absent, below gstack's security floor
-(1.3.3: older Bun ignores the no-autoload compile flags, see
-[bun-too-old](#bun-too-old)) or below the supported minimum (1.4.2, the CI pin
-and `engines.bun`). The dashboard (`gstack-doctor` without `--check`) warns on
-an untested version; `--check` fails it, because a gate run on an untested
-runtime is the incident this check exists for. The default Capy cloud image
-ships 1.3.14, so a fresh Capy machine fails here until the installer upgrades
-Bun.
+**意味。** `PATH` 上の Bun が存在しないか、gstack のセキュリティ下限(1.3.3。古い Bun は、コンパイルフラグの no-autoload を無視します。[bun-too-old](#bun-too-old) を参照)、またはサポートされている最小値(1.4.2。CI の固定値であり `engines.bun`)を下回っています。ダッシュボード(`--check` なしの `gstack-doctor`)は、テストされていないバージョンを警告しますが、`--check` は失敗させます。テストされていないランタイムでのゲートの実行は、この確認が防ぐためにある事故だからです。Capy の既定のクラウドイメージは 1.3.14 を含むため、新しい Capy マシンは、インストーラーが Bun をアップグレードするまでここで失敗します。
 
-**Fix.** `bin/gstack-capy-install` upgrades Bun through setup's
-checksum-verified recipe before running `./setup`. By hand: download
-`https://bun.sh/install`, verify its SHA-256 against `GSTACK_BUN_INSTALL_SHA`
-in `bin/gstack-bun-version.sh`, then `BUN_VERSION=1.4.2 bash <file>` and
-re-run `./setup`.
+**修正。** `bin/gstack-capy-install` は、`./setup` を実行する前に、セットアップのチェックサムで検証された手順を使って Bun をアップグレードします。手動で行う場合は、`https://bun.sh/install` をダウンロードし、その SHA-256 を `bin/gstack-bun-version.sh` の `GSTACK_BUN_INSTALL_SHA` と照合してから、`BUN_VERSION=1.4.2 bash <file>` を実行し、`./setup` を再実行してください。
 
 <a id="doctor-project-pin-mismatch"></a>
 ### `FAIL pins — bun <version> outside engines.bun >=1.4.2 (package.json:<line>; ...) (PROJECT_PIN_MISMATCH; ...)`
 
-**Meaning.** The target project (`--project <path>`, default the git toplevel
-of the current directory, never the gstack checkout) pins a Bun or Node
-version the running one does not satisfy. Pins come from `package.json`
-(`packageManager`, `engines`), `.tool-versions`, `.nvmrc`, `.bun-version` and
-`bun-version:` / `node-version:` lines in `.github/workflows/*.yml`. A range
-(`>=1.4.2`) and an exact pin are told apart, and a CI pin keeps its platform
-lane: a Windows job's pin never fails a Linux run. The dashboard warns; `--check`
-fails. The row is `SKIP pins (no bun to evaluate the project pins)` when Bun
-is absent, never silent.
+**意味。** 対象のプロジェクト(`--project <path>`、既定では現在のディレクトリの git のトップレベル。gstack のチェックアウトは決して対象にしません)が、実行中のものが満たさない Bun または Node のバージョンを固定しています。固定は `package.json`(`packageManager`、`engines`)、`.tool-versions`、`.nvmrc`、`.bun-version`、そして `.github/workflows/*.yml` 内の `bun-version:` / `node-version:` の行から取得されます。範囲(`>=1.4.2`)と厳密な固定は区別されます。CI の固定は、そのプラットフォームのレーンに限定されます。Windows のジョブの固定が、Linux の実行を失敗させることはありません。ダッシュボードは警告し、`--check` は失敗させます。Bun が存在しない場合、その行は `SKIP pins (no bun to evaluate the project pins)` になります。これは決して黙って行われません。
 
-**Fix.** Install the pinned version for this platform (the row names each
-constraint with its source), or change the project's pin. On Capy the row's
-fix is the exact bootstrapper command, `bash <skill>/scripts/install.sh`
-(the same command without `--check`): it installs the pinned Bun when the pin
-names a verified version and ends `gstack: ok`, or stops with
-`RUNTIME_PIN_CONFLICT` naming the pin to raise.
+**修正。** インストールされた固定バージョン(このプラットフォーム向け)を入れるか、プロジェクトの固定を変更してください。行には、各制約とそのソースが示されます。Capy では、その行の修正は正確なブートストラップのコマンド `bash <skill>/scripts/install.sh` です(`--check` を付けないのと同じコマンドです)。これは、固定が検証済みのバージョンを指定している場合に、固定された Bun をインストールし、`gstack: ok` で終わるか、引き上げるべき固定を名指しした `RUNTIME_PIN_CONFLICT` で停止します。
 
 <a id="doctor-revision-unmet"></a>
 ### `FAIL revision — installed <version> (requested <ref>) (REVISION_UNMET; ...)`
 
-**Meaning.** `--revision <ref>` asked the doctor to certify a specific gstack
-revision (a VERSION string, tag, branch or commit) and the checkout is at
-another. An unmet revision is never `ok`.
+**意味。** `--revision <ref>` は、doctor に特定の gstack のリビジョン(VERSION の文字列、タグ、ブランチ、またはコミット)を認定するよう求めましたが、チェックアウトは別のものにあります。満たされていないリビジョンは決して `ok` になりません。
 
-**Fix.** Move the checkout: `<checkout>/bin/gstack-upgrade` (the tip of the default
-branch; `/gstack-upgrade` interactively), or
-`git -C <checkout> fetch origin && git -C <checkout> checkout <ref> && ./setup`.
-`bin/gstack-capy-install --revision <ref>` never moves an existing checkout; it
-reports `gstack: ok <installed> (requested <ref>; run <checkout>/bin/gstack-upgrade to move)`.
+**修正。** チェックアウトを移動してください。`<checkout>/bin/gstack-upgrade`(デフォルトブランチの先端。対話的には `/gstack-upgrade`)、または `git -C <checkout> fetch origin && git -C <checkout> checkout <ref> && ./setup`。`bin/gstack-capy-install --revision <ref>` は、既存のチェックアウトを決して移動しません。`gstack: ok <installed> (requested <ref>; run <checkout>/bin/gstack-upgrade to move)` と報告します。
 
 <a id="capy-install-runtime-conflict"></a>
 ### `gstack-capy-install: Bun conflict: gstack needs >=<minimum>, <project> pins <constraint> (RUNTIME_PIN_CONFLICT; ...)`
 
-**Meaning.** The installer installs one verified Bun archive: gstack's
-supported minimum, or the project's exact pin when that pin is above the
-minimum and listed in the message's `verified archives:`. Here the two do not
-meet (for example the project pins `bun@1.3.14`, or a version gstack has no
-verified archive for), so the installer changed nothing and stopped before
-`./setup`.
+**意味。** インストーラーは、検証済みの Bun のアーカイブを1つだけインストールします。gstack のサポートされている最小値か、その最小値より上で、メッセージの `verified archives:` に挙げられているプロジェクトの厳密な固定です。ここでは両者が合わないため(たとえば、プロジェクトが `bun@1.3.14` を固定している場合や、gstack が検証済みのアーカイブを持たないバージョンの場合)、インストーラーは何も変更せず、`./setup` の前に停止しました。
 
-**Fix.** Pin a verified version in the project, upgrade gstack to a release
-that verifies the pinned version, or install gstack on a machine whose Bun the
-project accepts. `--project <path>` names
-the project whose pins apply.
+**修正。** プロジェクトで検証済みのバージョンを固定するか、そのバージョンを検証できるリリースに gstack を更新するか、プロジェクトが受け入れる Bun を持つマシンに gstack をインストールしてください。`--project <path>` は、どのプロジェクトの固定を適用するかを指定します。
 
 <a id="browser-ensure-failed"></a>
 ### `gstack-browser-ensure: NEEDS_SETUP ... (BROWSER_UNAVAILABLE; ...)`
 
-**Meaning.** The first browser skill run on a machine installed without
-Chromium (`SKIP browser (lazy; gstack-browser-ensure installs on first use)`)
-tried to install it through `bun x playwright install chromium` under setup's
-lock, or Chromium is installed but does not launch.
+**意味。** Chromium なしでインストールされたマシン(`SKIP browser (lazy; gstack-browser-ensure installs on first use)`)で、最初のブラウザスキルを実行すると、セットアップのロックの下で `bun x playwright install chromium` を通じて Chromium のインストールを試みました。あるいは、Chromium はインストールされていますが、起動しません。
 
-**Fix.** Read the installer output above: offline or proxied machines need
-network access to the Playwright CDN; on Ubuntu 24.04+ an AppArmor
-user-namespace error needs `GSTACK_CHROMIUM_NO_SANDBOX=1`; then re-run
-`<checkout>/bin/gstack-browser-ensure`. `--with-browser` on the installer
-front-loads the install on machines that want it now.
+**修正。** 上のインストーラーの出力を読んでください。オフラインやプロキシ経由のマシンでは、Playwright の CDN へのネットワークアクセスが必要です。Ubuntu 24.04 以降では、AppArmor のユーザー名前空間のエラーに `GSTACK_CHROMIUM_NO_SANDBOX=1` が必要です。その後、`<checkout>/bin/gstack-browser-ensure` を再実行してください。インストーラーの `--with-browser` は、今すぐブラウザが欲しいマシンでインストールを前倒しします。
 
 <a id="capy-install-preflight-failed"></a>
 ### `gstack-capy-install: preflight: <tool> not found (INSTALL_PREFLIGHT_FAILED; ...)`
 
-**Meaning.** The installer checks `git`, `curl`, `node` and `jq` before
-`./setup`, and installs Bun when it is absent or below the supported minimum.
-One of them is missing, or the Bun install script's checksum did not match
-`GSTACK_BUN_INSTALL_SHA` (the download is discarded, nothing runs).
+**意味。** インストーラーは、`./setup` の前に `git`、`curl`、`node`、`jq` を確認し、Bun がない場合や、サポートされている最小値を下回る場合は Bun をインストールします。いずれかのツールが欠けているか、Bun のインストールスクリプトのチェックサムが `GSTACK_BUN_INSTALL_SHA` と一致しませんでした(ダウンロードは破棄され、何も実行されません)。
 
-**Fix.** Install the named tool (`apt-get install -y jq`, Node from nodejs.org
-or nvm), then re-run `bin/gstack-capy-install`. A checksum mismatch means the
-upstream installer changed: update `GSTACK_BUN_INSTALL_SHA` only after
-reviewing the new script.
+**修正。** 指定されたツールをインストールしてから(`apt-get install -y jq`、nodejs.org または nvm からの Node)、`bin/gstack-capy-install` を再実行してください。チェックサムの不一致は、上流のインストーラーが変わったことを意味します。新しいスクリプトを確認した後にだけ、`GSTACK_BUN_INSTALL_SHA` を更新してください。
 
 <a id="upgrade-refused"></a>
 ### `gstack-upgrade: <cause>; nothing was changed; fix: <command> (UPGRADE_REFUSED)`
 
-**Meaning.** `bin/gstack-upgrade` moves a checkout only by fast-forward to the
-tip of its remote default branch. It refused before changing anything: the
-directory is not a gstack checkout, HEAD is detached or on another branch (a
-pin), a tracked file is modified, a local commit is not on the remote branch,
-the incoming release's Bun floor is above the Bun on PATH, or another updater
-holds `<state root>/.setup-lock`. It never stashes, resets or discards.
+**意味。** `bin/gstack-upgrade` は、チェックアウトをリモートのデフォルトブランチの先端まで、fast-forward でのみ移動します。何かを変更する前に拒否しました。ディレクトリが gstack のチェックアウトではない、HEAD がデタッチされているか別のブランチにある(固定されている)、追跡されているファイルが変更されている、ローカルのコミットがリモートのブランチにない、入ってくるリリースの Bun の下限が PATH 上の Bun より高い、または別の更新プログラムが `<state root>/.setup-lock` を保持している、のいずれかです。stash、reset、破棄は決して行いません。
 
-**Fix.** Resolve the named cause with the printed command (commit or move the
-listed changes, check out the default branch, move local commits to another
-branch), then re-run `bin/gstack-upgrade`. A reinstall that failed after the
-fast-forward is completed by the next run (`reinstall pending from <version>`).
+**修正。** 表示されたコマンドで、指摘された原因を解決してください(表示された変更をコミットまたは移動する、デフォルトブランチをチェックアウトする、ローカルのコミットを別のブランチに移動する)。その後、`bin/gstack-upgrade` を再実行してください。fast-forward の後に失敗した再インストールは、次の実行で完了します(`reinstall pending from <version>`)。
 
 <a id="upgrade-busy"></a>
 ### `gstack-upgrade: live gstack sessions hold this installation: pid <p> (<age>m), ...; nothing was changed; fix: ... (UPGRADE_BUSY)`
 
-**Meaning.** Several agents share this checkout (Capy subagents on one
-machine, say). Each session start writes a workflow lease,
-`<git dir>/gstack-leases/<harness pid>` (`bin/gstack-lease touch`, from
-`bin/gstack-skill-start`), and `bin/gstack-upgrade` refused before changing
-anything because a lease whose pid is alive and not in its own process
-ancestry exists: fast-forwarding would change gstack under a session
-mid-workflow. Leases older than 120 minutes are pruned; a lease whose
-process has exited never blocks, and neither does a stale one: each lease
-records its process's start identity, so a pid reused after a reboot or a
-machine wake (GBRA-105's lease named pid 379, which had become dbus-daemon)
-is reclaimed instead of blocking. The upgrader's own session (the pid chain it
-runs under) never counts.
+**意味。** 複数のエージェントがこのチェックアウトを共有しています(たとえば、1台のマシンの Capy のサブエージェント)。セッションの開始ごとに、ワークフローのリース `<git dir>/gstack-leases/<harness pid>` が書き込まれます(`bin/gstack-lease touch`、`bin/gstack-skill-start` から)。`bin/gstack-upgrade` は、何かを変更する前に拒否しました。pid が生きていて、かつ自身のプロセスの祖先に含まれないリースが存在するためです。fast-forward すると、ワークフローの途中のセッションの下で gstack が変わってしまいます。120 分より古いリースは剪定されます。プロセスが終了したリースは、決してブロックしません。古いリースも同様です。各リースは、そのプロセスの開始の識別情報を記録するため、再起動やマシンのスリープ後に pid が再利用された場合(GBRA-105 のリースは pid 379 を指していましたが、それは dbus-daemon になっていました)は、ブロックせずに回収されます。アップグレードを行う側のセッション(その実行を行う pid の連鎖)は、決して数えられません。
 
-**Fix.** Wait for those sessions to finish (`bin/gstack-lease list` shows
-every lease with its age and `alive|dead|stale`; a holder is named as
-`pid <p> (<age>m <command>)`), then re-run `bin/gstack-upgrade`.
-When you know they are idle, `GSTACK_UPGRADE_FORCE=1 bin/gstack-upgrade`
-proceeds. At a Capy session start the same refusal appears as
-`SELF_UPGRADE: skipped (live gstack sessions hold this installation: ...)`,
-and the trailer is `gstack: fail behind — … (UPGRADE_BUSY)`: a session that
-could not upgrade is never certified ok.
+**修正。** それらのセッションが終わるまで待ってください(`bin/gstack-lease list` は、すべてのリースを、その経過時間と `alive|dead|stale` とともに表示します。保持しているものは `pid <p> (<age>m <command>)` と名指しされます)。その後、`bin/gstack-upgrade` を再実行してください。それらが休止していると分かっている場合は、`GSTACK_UPGRADE_FORCE=1 bin/gstack-upgrade` で続行できます。Capy のセッション開始時には、同じ拒否が `SELF_UPGRADE: skipped (live gstack sessions hold this installation: ...)` として表示され、末尾の行は `gstack: fail behind — … (UPGRADE_BUSY)` になります。アップグレードできなかったセッションが、ok と認定されることはありません。
 
 <a id="upgrade-fetch-failed"></a>
 ### `gstack-upgrade: could not reach origin (...) (UPGRADE_FETCH_FAILED)`
 
-**Meaning.** The remote default branch could not be listed or fetched (offline,
-proxy, credentials), so `--check` cannot say whether the checkout is current.
-It never reports `current` without the fetch.
+**意味。** リモートのデフォルトブランチを一覧にも取得もできませんでした(オフライン、プロキシ、認証情報)。そのため、`--check` はチェックアウトが最新かどうかを判断できません。取得なしに `current` と報告することはありません。
 
-**Fix.** Check network access to the checkout's origin
-(`git -C <checkout> remote -v`), then re-run.
+**修正。** チェックアウトの origin へのネットワークアクセスを確認(`git -C <checkout> remote -v`)してから、再実行してください。
 
 <a id="revision-below-minimum"></a>
 ### `gstack: fail revision — installed <v> is below the supported minimum <m> (<cause>); fix: ... (REVISION_BELOW_MINIMUM)`
 
-**Meaning.** `capy/support.env` on the remote default branch declares the
-oldest revision whose installer, trailer and fix lines are honest
-(`GSTACK_MIN_REVISION`), and this checkout is older. The Capy skill
-bootstrapper reads it from `FETCH_HEAD`, so even a checkout that predates the
-file learns it. `--check` only reports (`fast-forward available`); install
-mode fast-forwards a clean, unpinned checkout, reinstalls and rechecks under
-one lock. The cause names why nothing moved: `pinned by --revision`, `pinned:
-HEAD is detached`, `tracked files changed: <files>`, `diverged: ...` or
-`auto-upgrade disabled` (`GSTACK_CAPY_AUTO_UPGRADE=0`). `gstack-doctor --check
---min-revision <m>` fails the revision row the same way.
+**意味。** デフォルトブランチの `capy/support.env` は、そのインストーラー、末尾の行、修正の行が正直である最も古いリビジョン(`GSTACK_MIN_REVISION`)を宣言しており、このチェックアウトはそれより古いです。Capy のスキルのブートストラッパーは、それを `FETCH_HEAD` から読むため、そのファイルより前のチェックアウトでも、この値を知ることができます。`--check` は報告するだけです(`fast-forward available`)。インストールモードでは、クリーンで固定されていないチェックアウトを fast-forward し、1つのロックの下で再インストールして再確認します。原因は、何も移動しなかった理由を示します。`pinned by --revision`、`pinned: HEAD is detached`、`tracked files changed: <files>`、`diverged: ...`、または `auto-upgrade disabled`(`GSTACK_CAPY_AUTO_UPGRADE=0`)です。`gstack-doctor --check --min-revision <m>` は、revision の行を同じように失敗させます。
 
-**Fix.** Run the fix clause: the bootstrapper without `--check`, or
-`<checkout>/bin/gstack-upgrade`. For a pin, drop `--revision` or pin a
-revision at or above the minimum. An interrupted install after the
-fast-forward leaves the trailer `fail`; the next install run completes it.
+**修正。** 修正の節のコマンドを実行してください。ブートストラッパーを `--check` なしで実行するか、`<checkout>/bin/gstack-upgrade` を実行します。固定の場合は `--revision` を外すか、最小値以上のリビジョンを固定してください。fast-forward の後で、インストールが中断されると、末尾の行は `fail` のままになります。次のインストールの実行で完了します。
 
 <a id="capy-wrapper-stale"></a>
 ### `FAIL wrapper — ... (CAPY_WRAPPER_STALE)` / `WARN wrapper — ...; owner action: ...` / `gstack-capy-skill: owner action — Drive copy is wrapper <n>, minimum <m>; ...`
 
-**Meaning.** The Capy skill folder is older than the checkout's
-`GSTACK_CAPY_MIN_WRAPPER` (`capy/support.env`). The doctor's `wrapper` row
-decides by the active wrapper's provenance (`GSTACK_CAPY_WRAPPER_REV` and
-`GSTACK_CAPY_WRAPPER_PATH`, exported by the bootstrapper): a current active
-wrapper passes, and a stale Drive copy elsewhere is a `WARN` row, an owner
-action that never fails the run. Without provenance (a direct
-`gstack-doctor --check`, or a pre-bootstrapper copy with no
-`GSTACK_CAPY_WRAPPER=` line, which reads as wrapper 0) it reads the Drive
-copies (`~/.capy/drive/*/skills/gstack/scripts/install.sh`, or only
-`GSTACK_CAPY_WRAPPER_PATH` when set) and fails only when every copy is stale,
-listing each with its revision. A stale active wrapper is a `WARN` too: an
-older copy still works (`capy/support.env`). `bin/gstack-upgrade` runs the
-installer with the checkout's own copy as the active wrapper and never leaves
-a pending reinstall when the wrapper row is the only failure.
+**意味。** Capy のスキルフォルダが、チェックアウトの `GSTACK_CAPY_MIN_WRAPPER`(`capy/support.env`)より古いです。doctor の `wrapper` の行は、アクティブなラッパーの来歴(ブートストラッパーがエクスポートする `GSTACK_CAPY_WRAPPER_REV` と `GSTACK_CAPY_WRAPPER_PATH`)によって判断します。最新のアクティブなラッパーは合格します。一方、他の場所にある古い Drive のコピーは `WARN` の行になります。これはオーナーの対応事項であり、実行を失敗させることはありません。来歴がない場合(`gstack-doctor --check` の直接実行、または `GSTACK_CAPY_WRAPPER=` の行がない、ブートストラッパー以前のコピー。ラッパーのバージョン 0 として読まれます)は、Drive のコピー(`~/.capy/drive/*/skills/gstack/scripts/install.sh`、または `GSTACK_CAPY_WRAPPER_PATH` が設定されている場合はそれだけ)を読み、すべてのコピーが古い場合にだけ失敗します。その場合、各コピーをそのリビジョンとともに一覧にします。古いアクティブなラッパーも `WARN` です。古いコピーでも動作するためです(`capy/support.env`)。`bin/gstack-upgrade` は、チェックアウト自身のコピーをアクティブなラッパーとしてインストーラーを実行し、ラッパーの行だけが失敗の原因である場合に、保留中の再インストールを残しません。
 
-**Fix.** This session: run the checkout's own copy,
-`bash <checkout>/capy/skill/gstack/scripts/install.sh --check --for <skill>`;
-it carries current provenance, so it certifies with the stale Drive copy left
-unchanged. Owner: copy `<checkout>/capy/skill/gstack/` over the Drive skill
-folder (on Capy, the user-scope Drive `skills/gstack/`), or have Capy re-sync
-it. The message recurs every session until the Drive copy changes. Agents never
-write the skill folder.
+**修正。** このセッションでは、チェックアウト自身のコピーを実行してください: `bash <checkout>/capy/skill/gstack/scripts/install.sh --check --for <skill>`。これは最新の来歴を持つため、古い Drive のコピーを変更せずに、認定します。オーナーは、`<checkout>/capy/skill/gstack/` を Drive のスキルフォルダに上書きコピーするか(Capy では、ユーザースコープの Drive の `skills/gstack/`)、Capy に再同期させてください。Drive のコピーが変わるまで、このメッセージは毎セッション表示されます。エージェントがスキルフォルダに書き込むことはありません。
 
 <a id="bun-resolution-drift"></a>
 ### `FAIL runtime — bun resolution drifted: recorded bun <v> at <path> (<rule>), now <current>; changed: <what>; fix: ... (BUN_RESOLUTION_DRIFT)`
 
-**Meaning.** Install and `--check` resolve Bun through one contract
-(`gstack_bun_resolve` in `bin/gstack-bun-version.sh`, twinned by `resolveBun`
-in `lib/pregate/runtime.ts`): the project's exact pin and gstack's install
-default in the runtime store (`<state root>/runtimes/bun/<version>/bun`),
-`$BUN_INSTALL/bin`, `~/.bun/bin`, then PATH; the first Bun that satisfies
-gstack's minimum and every project pin wins. Install records the pick in the
-install verdict for this checkout and project (`bun_path`, `bun_version`,
-`bun_rule`). The recorded Bun is gone, reports another version (replaced in
-place), or no longer satisfies gstack's minimum and the project's pins. A
-different candidate that would now resolve first (a store Bun another
-project's install published, a changed `BUN_INSTALL`) is not drift: `--check`
-keeps the recorded Bun, prints `note: the recorded bun ... stays certified`
-and names the installer run that records the new pick. The pregate's lanes and
-guards (`lib/pregate/runtime.ts`) and the workflow start refuse with this code
-when the Bun the verdict recorded is gone or changed.
+**意味。** インストールと `--check` は、1つの契約(`bin/gstack-bun-version.sh` の `gstack_bun_resolve`。`lib/pregate/runtime.ts` の `resolveBun` と対になっています)を通して Bun を解決します。その契約は、プロジェクトの厳密な固定と、ランタイムストアにある gstack のインストール既定値(`<state root>/runtimes/bun/<version>/bun`)、次に `$BUN_INSTALL/bin`、`~/.bun/bin`、そして PATH の順で見ます。gstack の最小値とプロジェクトのすべての固定を満たす最初の Bun が選ばれます。インストールは、このチェックアウトとプロジェクトのために、その選択を検証の判定に記録します(`bun_path`、`bun_version`、`bun_rule`)。記録された Bun が消えているか、別のバージョンを報告するか(その場で置き換えられた)、gstack の最小値やプロジェクトの固定を満たさなくなっています。今、先に解決されるかもしれない別の候補(別のプロジェクトのインストールがストアに公開した Bun、変更された `BUN_INSTALL`)は、ドリフトではありません。`--check` は記録された Bun を保持し、`note: the recorded bun ... stays certified` を表示し、新しい選択を記録するインストールの実行を名指しします。パイプラインのレーンとガード(`lib/pregate/runtime.ts`)と、ワークフローの開始は、検証が記録した Bun が消えているか変わっている場合に、このコードで拒否します。
 
-**Fix.** Run the row's fix: the installer, which records the current pick, or,
-when nothing eligible remains, re-downloads a verified Bun into the store. The
-next `--check` passes.
+**修正。** 行の修正を実行してください。これはインストーラーで、現在の選択を記録します。または、資格のあるものが何も残っていない場合は、検証済みの Bun をストアに再ダウンロードします。次の `--check` は合格します。
 
 <a id="bun-install-version-invalid"></a>
 ### `gstack-capy-install: GSTACK_BUN_INSTALL_VERSION=<v> is not a verified Bun at or above gstack's supported minimum ...; fix: ... (BUN_INSTALL_VERSION_INVALID)`
 
-**Meaning.** `GSTACK_BUN_INSTALL_VERSION` overrides the Bun the installer
-downloads when no exact project pin decides (`GSTACK_BUN_DEFAULT`, 1.4.3). It
-must be listed in `GSTACK_BUN_VERIFIED` (a SHA-256-verified archive) and sit at
-or above the supported minimum (`GSTACK_BUN_TESTED`). Nothing was installed.
+**意味。** `GSTACK_BUN_INSTALL_VERSION` は、プロジェクトの厳密な固定が決めない場合に、インストーラーがダウンロードする Bun を上書きします(`GSTACK_BUN_DEFAULT`、1.4.3)。その値は `GSTACK_BUN_VERIFIED`(SHA-256 で検証されたアーカイブ)に含まれ、gstack のサポートされている最小値(`GSTACK_BUN_TESTED`)以上である必要があります。何もインストールされていません。
 
-**Fix.** Unset the variable, or set it to one of the verified versions the
-message lists.
+**修正。** 変数を解除するか、メッセージが一覧表示する検証済みのバージョンの1つに設定してください。
 
 <a id="install-unverified"></a>
 ### `INSTALL: fail verdict — <detail>; fix: ... (INSTALL_UNVERIFIED)`
 
-**Meaning.** On a Capy machine (`GSTACK_CAPY=1`, set by the `GSTACK_LAUNCH`
-line), an unattended or spawned workflow starts only with a passing install
-verdict (`<state root>/install-verdicts/<sha256 of the checkout path>.json`,
-named as `GSTACK_INSTALL_VERDICT`) for this checkout, its current HEAD and a
-workflow at least as wide as the one starting: a verdict for `--for autoplan`
-does not cover `qa`'s browser, and a planning-only pins SKIP does not cover a
-workflow that runs the repo's tests. `gstack-skill-start` printed this row and
-`GSTACK_RESULT: skill=<s> status=refused run=-`, exit 3. The same start refuses
-an unattended run whose Bun on PATH is below the supported minimum
-(`INSTALL: fail runtime ... (RUNTIME_BELOW_MINIMUM)`) on any host.
+**意味。** Capy のマシン(`GSTACK_CAPY=1`。`GSTACK_LAUNCH` の行で設定されます)では、無人または生成されたワークフローは、合格のインストール判定(`<state root>/install-verdicts/<sha256 of the checkout path>.json`。`GSTACK_INSTALL_VERDICT` として名指しされます)を持ち、かつこのチェックアウト、その現在の HEAD、そして開始されるワークフロー以上の範囲を対象とする場合にのみ開始されます。`--for autoplan` の判定は、`qa` のブラウザを対象としません。計画だけの pins SKIP は、リポジトリのテストを実行するワークフローを対象としません。`gstack-skill-start` がこの行を表示し、`GSTACK_RESULT: skill=<s> status=refused run=-`、終了コード 3 で終わりました。同じ開始は、Capy のマシン以外でも、Bun が PATH 上で最小値未満である無人の実行を拒否します(`INSTALL: fail runtime ... (RUNTIME_BELOW_MINIMUM)`)。
 
-**Fix.** Run the Capy skill installer with `--for <workflow>` on this machine
-and launch with the `GSTACK_LAUNCH` line it prints.
-`GSTACK_ALLOW_UNSUPPORTED_RUNTIME=1` admits anyway (printed as
-`INSTALL_VERDICT: overridden`); record it as a deviation.
+**修正。** このマシンで `--for <workflow>` を付けて Capy のスキルインストーラーを実行し、それが表示する `GSTACK_LAUNCH` の行で起動してください。`GSTACK_ALLOW_UNSUPPORTED_RUNTIME=1` は、そのまま許可します(`INSTALL_VERDICT: overridden` と表示されます)。これは逸脱として記録してください。
 
 ---
 
-## Capy: approvals, Captain briefs and PR screenshots
+## Capy: 承認、Captain のブリーフ、PR のスクリーンショット
 
-These come from the commands gstack's Capy adaptations add: `gstack-approvals` (the
-per-thread approval record), `gstack-owner-brief render --captain` (the plan ask in
-the before/after shape) and `gstack-pr-shots` (before/after images for a PR body).
-The guide is `capy/skill/gstack/captain.md`.
+これらは、gstack の Capy 向けの変更が追加するコマンドによるものです。`gstack-approvals`(スレッドごとの承認記録)、`gstack-owner-brief render --captain`(before/after の形式による計画の依頼)、`gstack-pr-shots`(PR 本文用の before/after 画像)です。ガイドは `capy/skill/gstack/captain.md` にあります。
 
 <a id="approval-record-invalid"></a>
 ### `gstack-approvals: ... (APPROVAL_RECORD_INVALID)`
 
-**Meaning.** A row is missing a required field (`--ask`, `--words`, `--scope`,
-`--by`), holds a value outside its enum (`--outcome approved|rejected|pending|standing`,
-a `--date` that is not a real `YYYY-MM-DD` day) or exceeds a length cap (ask, scope and
-pending 300 characters, words 2,000). Exit 2. Nothing was written.
+**意味。** 必須フィールド(`--ask`、`--words`、`--scope`、`--by`)が欠けているか、値が列挙された範囲外にあります(`--outcome approved|rejected|pending|standing`、実在する `YYYY-MM-DD` の日付ではない `--date`)。または、長さの上限を超えています(ask、scope、pending は 300 文字、words は 2,000 文字)。終了コードは 2 です。何も書き込まれていません。
 
-**Fix.** Rerun with every required flag inside the caps the line names.
+**修正。** 必須のフラグをすべて付け、行に示された上限の範囲内にして、再実行してください。
 
 <a id="approval-record-secret"></a>
 ### `gstack-approvals: ... (APPROVAL_RECORD_SECRET)`
 
-**Meaning.** A field matched gstack's secret scanner (the same one the push guard
-uses). The line names the field and the detector rule, never the matched text. Exit 3.
-Nothing was written, locally or to the Drive mirror.
+**意味。** あるフィールドが、gstack のシークレットスキャナー(push ガードと同じもの)に一致しました。その行には、フィールド名と検出ルールが示されますが、一致したテキストは示されません。終了コードは 3 です。ローカルにも Drive のミラーにも、何も書き込まれていません。
 
-**Fix.** Record the words with the secret replaced by `[redacted]`, or ask the person to
-restate them. Rotate the secret if it was real.
+**修正。** シークレットを `[redacted]` に置き換えて、その言葉を記録するか、本人にその言葉を言い直してもらってください。それが本物のシークレットであった場合は、ローテーションしてください。
 
 <a id="approval-record-no-branch"></a>
 ### `gstack-approvals: ... (APPROVAL_RECORD_NO_BRANCH)`
 
-**Meaning.** The record is kept per branch (one Capy thread ships one branch), and
-HEAD is detached or the working directory is not a git repository. Exit 3.
+**意味。** 記録はブランチごとに保持されます(1つの Capy スレッドは1つのブランチを出荷します)。HEAD がデタッチされているか、作業ディレクトリが git リポジトリではありません。終了コードは 3 です。
 
-**Fix.** Check out the branch the work ships from, or pass `--branch <name>`.
+**修正。** 作業を出荷するブランチをチェックアウトするか、`--branch <name>` を渡してください。
 
 <a id="approval-record-unavailable"></a>
 ### `gstack-approvals: ... (APPROVAL_RECORD_UNAVAILABLE)`
 
-**Meaning.** There is no record on this machine, the state root is ephemeral (a Capy
-machine), and no Drive mirror could be resolved, so "no approvals" cannot be told apart
-from "the record was lost with the old machine". `render` still prints the section, with
-"Record unavailable on this machine" instead of "No approvals recorded". Exit 1.
+**意味。** このマシンには記録がなく、state root は一時的なもの(Capy のマシン)で、Drive のミラーも解決できません。そのため、「承認はない」と、「古いマシンとともに記録が失われた」とを区別できません。`render` はセクションを出力しますが、「No approvals recorded」の代わりに「Record unavailable on this machine」と表示します。終了コードは 1 です。
 
-**Fix.** Run where the record lives, copy the rows back from the thread's report, or make
-the private Drive mirror resolvable (one `~/.capy/drive/project-user-*` folder, or
-`GSTACK_APPROVALS_DIR`).
+**修正。** 記録がある場所で実行するか、スレッドのレポートから行をコピーし直すか、private な Drive のミラーを解決できるようにしてください(`~/.capy/drive/project-user-*` フォルダが1つ、または `GSTACK_APPROVALS_DIR`)。
 
 <a id="approval-record-write-failed"></a>
 ### `gstack-approvals: ... (APPROVAL_RECORD_WRITE_FAILED)`
 
-**Meaning.** The local record or its Drive mirror could not be written; the line names
-the path and the error. A failed local append wrote nothing. A failed mirror write
-leaves the local row in place. Exit 1.
+**意味。** ローカルの記録、またはその Drive のミラーに書き込めませんでした。その行にはパスとエラーが示されます。ローカルへの追記に失敗した場合、何も書き込まれていません。ミラーへの書き込みに失敗した場合、ローカルの行はそのまま残ります。終了コードは 1 です。
 
-**Fix.** Make the named directory writable, then rerun `gstack-approvals sync` to mirror again.
+**修正。** 指定されたディレクトリを書き込み可能にしてから、`gstack-approvals sync` を再実行してミラーし直してください。
 
 <a id="approval-import-unanswered"></a>
 ### `gstack-approvals import: ... (APPROVAL_IMPORT_UNANSWERED)`
 
-**Meaning.** The autoplan run has no answered gate (every decision is still pending),
-so there is nothing to import. Exit 3.
+**意味。** autoplan の実行には、回答されたゲートがありません(すべての判断が保留のまま)。そのため、取り込むものがありません。終了コードは 3 です。
 
-**Fix.** Answer the gate (`gstack-autoplan answer ... --by human|agent:<id>`), then
-import again. Imports are idempotent, so a retry never records an answer twice.
+**修正。** ゲートに回答(`gstack-autoplan answer ... --by human|agent:<id>`)してから、再度取り込んでください。取り込みは冪等なので、再試行しても回答が二重に記録されることはありません。
 
 <a id="captain-brief-incomplete"></a>
 ### `gstack-owner-brief render --captain: ... (CAPTAIN_BRIEF_INCOMPLETE)`
 
-**Meaning.** The plan is missing at least one section the brief needs: `## Before → after`,
-`## Why it matters`, `## What caused this work`, `## Big decisions`. The brief still prints,
-but it opens with "Not ready for approval" and has no reply invitation. Exit 1.
+**意味。** 計画に、ブリーフが必要とするセクションが少なくとも1つ欠けています。`## Before → after`、`## Why it matters`、`## What caused this work`、`## Big decisions` のいずれかです。ブリーフは表示されますが、冒頭に "Not ready for approval" と書かれ、返信の依頼は含まれません。終了コードは 1 です。
 
-**Fix.** Add the named sections to the plan (`gstack-autoplan revise --plan <file>` if
-the run is reviewing it) and render again. `--allow-incomplete` exits 0 for a preview,
-but the text still says it is not ready.
+**修正。** 指定されたセクションを計画に追加し(レビュー中の場合は `gstack-autoplan revise --plan <file>`)、再度レンダリングしてください。`--allow-incomplete` はプレビュー用に終了コード 0 で終わりますが、本文には依然として準備ができていないと書かれます。
 
 <a id="pr-shots-input-not-found"></a>
 ### `gstack-pr-shots: ... (PR_SHOTS_INPUT_NOT_FOUND)`
 
-**Meaning.** An input is missing: a `--before/--after` file, the `--base` ref, the
-`--path` at both the base and the working tree, or the `--heading` on both sides. Exit 3.
+**意味。** 入力が見つかりません。`--before/--after` のファイル、`--base` の ref、両側にない `--path`、または両側にない `--heading` のいずれかです。終了コードは 3 です。
 
-**Fix.** Check the ref, path or heading named on the line.
+**修正。** その行に示された ref、パス、または見出しを確認してください。
 
 <a id="pr-shots-input-refused"></a>
 ### `gstack-pr-shots: ... (PR_SHOTS_INPUT_REFUSED)`
 
-**Meaning.** An input was refused before anything was rendered, because PR images
-are public. It matched the secret scanner (the line names the side, line and rule),
-is binary, exceeds 512 KiB, lies outside the repository and the state root, or names a
-ref starting with `-`. Exit 3.
+**意味。** PR の画像は公開されるため、入力は何もレンダリングされる前に拒否されました。入力がシークレットスキャナーに一致した(その行に側、行番号、ルールが示されます)、バイナリである、512 KiB を超える、リポジトリと state root の外にある、または `-` で始まる ref を指定した、のいずれかです。終了コードは 3 です。
 
-**Fix.** Take the secret out of the capture, or picture a tracked text file.
+**修正。** キャプチャからシークレットを取り除くか、追跡されているテキストファイルを撮影してください。
 
 <a id="pr-shots-identical"></a>
 ### `gstack-pr-shots: ... (PR_SHOTS_IDENTICAL)`
 
-**Meaning.** Before and after are the same text, so there is no change to picture. Exit 1.
+**意味。** before と after が同じテキストなので、撮影すべき変更がありません。終了コードは 1 です。
 
-**Fix.** Picture a file or section this branch changed (`git diff --stat origin/<base>...HEAD`).
+**修正。** このブランチが変更したファイルまたはセクションを撮影してください(`git diff --stat origin/<base>...HEAD`)。
 
 <a id="pr-shots-render-failed"></a>
 ### `gstack-pr-shots: ... (PR_SHOTS_RENDER_FAILED)`
 
-**Meaning.** A browser was available but rendering `shot.html` failed; the line names the
-renderer's error. `shot.html` and `text.md` are still written. Exit 1. With no browser at
-all the command prints `SHOT_PNG: unavailable (...)` and exits 0 instead.
+**意味。** ブラウザは利用可能でしたが、`shot.html` のレンダリングに失敗しました。その行にはレンダラーのエラーが示されます。`shot.html` と `text.md` は依然として書き出されます。終了コードは 1 です。ブラウザがまったくない場合、コマンドは代わりに `SHOT_PNG: unavailable (...)` を表示し、終了コード 0 で終わります。
 
-**Fix.** Screenshot `shot.html` with your own browser at 880 px wide, or use `text.md`.
+**修正。** 幅 880 px で、ご自身のブラウザを使って `shot.html` のスクリーンショットを撮るか、`text.md` を使ってください。
 
-## Browser
+## ブラウザ
 
 <a id="browse-runtime-version-skew"></a>
 ### `[browse] this install's browse CLI (<root>, build <hash>) and the gstack checkout's server bundle (<checkout>, build <hash>) are from different builds, so the server was not started. ...`
 
-**Meaning.** On Windows a host runtime root (`~/.codex/skills/gstack` and the
-other env-var hosts) holds a copy of browse with no `node_modules`, so its CLI
-starts the server bundle in the gstack checkout recorded in `.source-path`.
-The checkout was rebuilt (or updated) without refreshing this runtime root, so
-the two builds differ and browse refuses rather than run a mismatched server.
+**意味。** Windows では、ホストのランタイムのルート(`~/.codex/skills/gstack` およびその他の環境変数ホスト)には、browse のコピーがあり、`node_modules` がありません。そのため、その CLI は、`.source-path` に記録された gstack のチェックアウトにあるサーバーのバンドルを起動します。チェックアウトが再ビルド(または更新)されたのに、このランタイムのルートは更新されなかったため、両者のビルドが異なります。食い違ったサーバーを実行しないよう、browse は実行を拒否します。
 
-**Fix.** Re-run setup from the checkout named in the message; it rebuilds and
-refreshes every runtime root:
+**修正。** メッセージに名指しされたチェックアウトからセットアップを再実行してください。すべてのランタイムのルートを再ビルドし、更新します。
 
 ```bash
 cd <checkout> && ./setup
 ```
 
 <a id="browse-chain-no-flow"></a>
-### `[browse] chain: no flow to run (stdin was empty)` (or `stdin is a terminal`, `stdin could not be read (EAGAIN)`)
+### `[browse] chain: no flow to run (stdin was empty)`(または `stdin is a terminal`、`stdin could not be read (EAGAIN)`)
 
-**Meaning.** `browse chain` with no arguments runs the JSON flow piped to it.
-Nothing arrived, so it exits 1 before starting a browser. It used to exit 0 on
-Windows having run nothing.
+**意味。** 引数なしの `browse chain` は、それにパイプされた JSON のフローを実行します。何も届かなかったため、ブラウザを起動する前に終了コード 1 で終わります。以前は Windows で、何も実行せずに終了コード 0 で終わっていました。
 
-**Fix.** Pipe the flow, or pass it as an argument:
+**修正。** フローをパイプするか、引数として渡してください。
 
 ```bash
 echo '[["goto","https://example.com"],["text"]]' | browse chain
@@ -1763,105 +1081,77 @@ browse chain 'goto https://example.com | text'
 <a id="browse-chromium-path-failed"></a>
 ### `Chromium at GSTACK_CHROMIUM_PATH=<path> failed to launch: ...`
 
-**Meaning.** Headless browse and make-pdf now use `GSTACK_CHROMIUM_PATH`
-(NixOS, macOS 13). That binary could not start.
+**意味。** ヘッドレスの browse と make-pdf は、現在 `GSTACK_CHROMIUM_PATH` を使います(NixOS、macOS 13)。そのバイナリが起動できませんでした。
 
-**Fix.** Point `GSTACK_CHROMIUM_PATH` at a working Chromium, or
-`unset GSTACK_CHROMIUM_PATH` to use gstack's bundled one.
+**修正。** `GSTACK_CHROMIUM_PATH` を、動作する Chromium に向けるか、`unset GSTACK_CHROMIUM_PATH` を実行して gstack に同梱の Chromium を使ってください。
 
 <a id="browse-profile-in-use"></a>
 ### `Headed Chromium profile <dir> is in use by Chromium PID <pid> (started by PID <ppid>: <name>). ...`
 
-**Meaning.** Headed browse keeps one profile per project
-(`<project>/.gstack/chromium-profile`). A live browser owns this one, and
-browse never kills it. `... is locked by PID <pid> on another host (<host>)`
-means the lock came from another machine through a synced folder.
+**意味。** ヘッドありの browse は、プロジェクトごとに1つのプロファイル(`<project>/.gstack/chromium-profile`)を保持します。稼働中のブラウザがこれを所有しており、browse はそれを決して終了させません。`... is locked by PID <pid> on another host (<host>)` は、同期されたフォルダを経由して、別のマシンからロックが来ていることを意味します。
 
-**Fix.** Close that browser, or `export CHROMIUM_PROFILE=<another dir>`. For the
-other-host case, stop it there, or remove `<dir>/SingletonLock` once you are
-sure nothing uses it.
+**修正。** そのブラウザを閉じるか、`export CHROMIUM_PROFILE=<another dir>` を実行してください。別のホストの場合は、そちらで停止するか、何も使っていないと確信できたら `<dir>/SingletonLock` を削除してください。
 
 <a id="browse-profile-per-project"></a>
 ### `[browse] Headed browse now keeps a profile per project ...`
 
-**Meaning.** First use copies your logins from `~/.gstack/chromium-profile`
-when no browser is using it; otherwise it starts fresh and prints how to import.
-`browse profiles` lists them, `browse profiles prune --days 30` removes idle ones.
+**意味。** 初回の使用時には、どのブラウザもそれを使っていない場合に、`~/.gstack/chromium-profile` からログイン情報がコピーされます。そうでなければ、新しく開始し、取り込み方法を表示します。`browse profiles` は一覧を表示し、`browse profiles prune --days 30` は使われていないものを削除します。
 
 <a id="browse-blocked-address"></a>
 ### `Blocked: <host> is a cloud metadata or link-local address` / `... resolves to a cloud metadata or link-local address`
 
-**Meaning.** Browse refuses 169.254.0.0/16 (including container credential
-endpoints), 100.100.100.200, fe80::/10 and fc00::/7 in every numeric spelling,
-including after a redirect or a page-driven navigation. The tab is reset to
-`about:blank` and the command fails. This cannot be overridden.
+**意味。** browse は、すべての数値表記における 169.254.0.0/16(コンテナの認証情報エンドポイントを含む)、100.100.100.200、fe80::/10、fc00::/7 を拒否します。リダイレクトの後やページが起こしたナビゲーションの後も同様です。タブは `about:blank` にリセットされ、コマンドは失敗します。これは上書きできません。
 
 <a id="browse-forbidden-origin"></a>
-### `forbidden origin` from the sidebar terminal
+### サイドバーのターミナルからの `forbidden origin`
 
-**Meaning.** The terminal accepts only gstack's extension. A self-built or forked
-extension has a different ID. `BROWSE_EXTENSION_ID` is no longer read.
+**意味。** ターミナルが受け付けるのは、gstack の拡張機能だけです。自分でビルドした拡張機能や、フォークした拡張機能は、別の ID を持ちます。`BROWSE_EXTENSION_ID` はもう読み込まれません。
 
-**Fix.** `gstack-config set browse_extension_id <your 32-letter id>`.
+**修正。** `gstack-config set browse_extension_id <your 32-letter id>` を実行してください。
 
 <a id="browse-type-selector-hint"></a>
 ### `hint: "<word>" looks like a CSS selector`
 
-**Meaning.** Bare `browse type <text>` types into the focused element. The first
-word looked like a selector, so it was typed as text.
+**意味。** 単独の `browse type <text>` は、フォーカスされている要素に入力します。最初の語がセレクターに見えたため、テキストとして入力されました。
 
-**Fix.** `browse type --selector '<sel>' <text>` (put text that starts with `--`
-after `--`).
+**修正。** `browse type --selector '<sel>' <text>` を使ってください(`--` で始まるテキストは、`--` の後に置いてください)。
 
 <a id="browse-server-node-missing"></a>
-### `server-node.mjs not found. Run bun run build` (Windows)
+### `server-node.mjs not found. Run bun run build`(Windows)
 
-**Fix.** `cd <gstack checkout> && bun run build`.
+**修正。** `cd <gstack checkout> && bun run build`。
 
 <a id="freeze-helpers-out-of-date"></a>
 ### `[freeze] Hook helpers out of date (partial upgrade?)`
 
-**Meaning.** `check-freeze.sh` and `hook-extract.sh` come from different gstack versions.
+**意味。** `check-freeze.sh` と `hook-extract.sh` が、異なる gstack のバージョンから来ています。
 
-**Fix.** `cd <gstack checkout> && ./setup` (or `/unfreeze`).
+**修正。** `cd <gstack checkout> && ./setup`(または `/unfreeze`)。
 
 <a id="browse-chromium-pid-unrecorded"></a>
 ### `[browse] Could not record the Chromium PID (CDP SystemInfo.getProcessInfo: <error>); browse stop cannot reap a surviving Chromium.`
 
-**Meaning.** For a headless Chromium it launched, browse reads the browser's
-process id over CDP so `browse stop` can kill a browser that outlives the
-server. That read failed or took longer than 2 seconds, so this session's
-browser is not recorded. Browsers gstack did not launch are never recorded or
-killed.
+**意味。** browse が起動したヘッドレスの Chromium について、browse は `browse stop` がサーバーより長く生き残ったブラウザを終了できるように、CDP でブラウザのプロセス ID を読み取ります。その読み取りが失敗したか、2 秒を超えたため、このセッションのブラウザは記録されていません。gstack が起動していないブラウザは、記録も終了もされません。
 
-**Fix.** After `browse stop`, check for a leftover browser with
-`ps aux | grep -i chrom` and end it with `kill <pid>`.
+**修正。** `browse stop` の後、`ps aux | grep -i chrom` で残ったブラウザを確認し、`kill <pid>` で終了させてください。
 
 <a id="browse-no-active-page"></a>
-### `No active page. Use "browse goto <url>" first.` (after the last tab was closed outside browse)
+### `No active page. Use "browse goto <url>" first.`(browse の外で最後のタブが閉じられた後)
 
-**Meaning.** When every tab was closed outside browse (the headed window's tabs
-closed by hand, or a page that closed itself), earlier releases failed every
-later command this way, `status` and `stop` included, until the daemon was
-killed (#3167). Now `status` and `stop` answer without opening a tab, and any
-other command opens one new blank tab first and prints
-`[browse] warning: every tab was closed outside browse, so this command ran on a new blank tab; open your page again with: browse goto <url>`.
+**意味。** browse の外で、すべてのタブが閉じられた場合(ヘッドありのウィンドウのタブを手で閉じた場合や、ページが自分で閉じた場合)、以前のリリースでは、デーモンが強制終了されるまで、その後のすべてのコマンドが、`status` と `stop` を含めて、この理由で失敗していました(#3167)。今は `status` と `stop` が、タブを開かずに応答します。ほかのコマンドは、最初に新しい空白のタブを1つ開き、`[browse] warning: every tab was closed outside browse, so this command ran on a new blank tab; open your page again with: browse goto <url>` を表示します。
 
-**Fix.** `browse goto <url>` to open your page again.
+**修正。** `browse goto <url>` で、ページを開き直してください。
 
-**Fixed in.** The first release after v1.91.101.0 (#3167).
+**修正されたバージョン。** v1.91.101.0 以降の最初のリリース(#3167)。
 
 <a id="browse-tab-unrecoverable"></a>
 ### ``browse: every tab was closed outside browse and a new one could not be opened, because the browser or its context is gone (<cause>); fix: run `browse restart` ... (BROWSE_TAB_UNRECOVERABLE)``
 
-**Meaning.** Every tab was closed outside browse and the browser, or its
-context, is gone too, so browse could not open a tab to run the command.
-`browse status` and `browse stop` still answer.
+**意味。** browse の外で、すべてのタブが閉じられ、ブラウザまたはそのコンテキストも失われているため、browse はコマンドを実行するためのタブを開けませんでした。`browse status` と `browse stop` は、依然として応答します。
 
-**Fix.** `browse restart` (`$B restart` inside a gstack skill), then run the
-command again.
+**修正。** `browse restart`(gstack のスキル内では `$B restart`)を実行してから、コマンドを再度実行してください。
 
-**Fixed in.** The first release after v1.91.101.0 (#3167).
+**修正されたバージョン。** v1.91.101.0 以降の最初のリリース(#3167)。
 
 ---
 
@@ -1870,63 +1160,30 @@ command again.
 <a id="windows-smart-app-control"></a>
 ### `Windows blocked compiled gstack binaries at launch (Smart App Control or another application-control policy, #2595)` / `bash: .../browse.exe: Permission denied`
 
-**Meaning.** Known issue (#2595, #2124). gstack compiles five binaries on your
-machine with Bun: `browse`, `find-browse`, `design`, `pdf` and
-`gstack-global-discover`. They are unsigned, and a binary built on one machine
-never earns the reputation Smart App Control accepts instead of a signature, so
-Windows 11 with Smart App Control on refuses to start them. Git Bash reports
-that as `Permission denied`, which looks like a file-permission problem but is
-code integrity (PowerShell says `An Application Control policy has blocked this
-file`). setup now runs each binary's `--version` and names the blocked ones and
-the skills that need them: the gstack browser fallback (`/browse`, `/qa`,
-`/qa-only`, `/design-review`, `/canary`, `/benchmark`, `/pair-agent`,
-`/scrape`, `/make-pdf`), the design binary (`/design-consultation`,
-`/design-shotgun`, `/design-html`, `/plan-design-review`) and `/retro global`.
-Every other skill works. `gstack-doctor` shows the same state in its
-`browse bundle` and `binaries` rows. The exact Windows error text has not been
-verified on a Smart App Control machine; setup prints the raw first line beside
-its classification.
+**意味。** 既知の問題です(#2595、#2124)。gstack は、Bun を使って、お使いのマシン上で5つのバイナリをコンパイルします。`browse`、`find-browse`、`design`、`pdf`、`gstack-global-discover` です。これらには署名がなく、あるマシンでビルドされたバイナリは、署名の代わりに Smart App Control が受け入れる評価を得ることはありません。そのため、Smart App Control が有効な Windows 11 は、それらの起動を拒否します。Git Bash はそれを `Permission denied` と表示します。これはファイルのパーミッションの問題に見えますが、実際はコードの整合性の問題です(PowerShell は `An Application Control policy has blocked this file` と表示します)。セットアップは、各バイナリに `--version` を実行し、ブロックされたものと、それを必要とするスキルを名指しするようになりました。gstack のブラウザのフォールバック(`/browse`、`/qa`、`/qa-only`、`/design-review`、`/canary`、`/benchmark`、`/pair-agent`、`/scrape`、`/make-pdf`)、デザインのバイナリ(`/design-consultation`、`/design-shotgun`、`/design-html`、`/plan-design-review`)、そして `/retro global` です。それ以外のすべてのスキルは動作します。`gstack-doctor` は、同じ状態を `browse bundle` と `binaries` の行に表示します。Smart App Control のあるマシンでの、正確な Windows のエラーテキストは検証されていません。セットアップは、生の最初の行を、その分類の隣に表示します。
 
-**Fix.** There is no per-file allowlist for Smart App Control. Today's options:
+**修正。** Smart App Control のファイルごとの許可リストはありません。現在の選択肢は次のとおりです。
 
-- Run gstack inside WSL (`wsl --install`, then install gstack in the Linux
-  distro). WSL runs gstack's Linux build, which Smart App Control does not check.
-- Or turn Smart App Control off in Windows Security > App & browser control >
-  Smart App Control settings. On Windows 11 with the April 2026 update you can
-  turn it back on later without reinstalling Windows; on older builds turning it
-  off is permanent. gstack's binaries stay blocked whenever it is on.
+- WSL で gstack を実行する(`wsl --install` の後、Linux のディストリビューションに gstack をインストールします)。WSL は gstack の Linux 版のビルドを実行します。Smart App Control はそれを確認しません。
+- または、Windows セキュリティの「アプリとブラウザー コントロール」>「Smart App Control の設定」で、Smart App Control をオフにする。2026 年 4 月の更新がある Windows 11 では、後から Windows を再インストールせずにオンに戻せます。古いビルドでは、オフにすると元に戻せません。Smart App Control がオンの間、gstack のバイナリはブロックされたままです。
 
-Signed release binaries are the real fix and are tracked in `TODOS.md`. After
-Windows allows the binaries, re-run `./setup`; the message goes away.
+署名付きのリリースバイナリが、本当の修正です。`TODOS.md` で追跡しています。Windows がバイナリを許可したら、`./setup` を再実行してください。メッセージは消えます。
 
-**Expected result.** setup prints no "Windows blocked" line, and
-`gstack-doctor` shows `ok` for `browse bundle` and `binaries`.
+**期待される結果。** セットアップが "Windows blocked" の行を表示せず、`gstack-doctor` が `browse bundle` と `binaries` について `ok` を表示します。
 
 <a id="setup-ps1-unexpected-eof"></a>
-### `setup: -c: line 1: unexpected EOF while looking for matching '"'` / `setup: -c: line 2: syntax error: unexpected end of file` from `.\setup.ps1`
+### `setup: -c: line 1: unexpected EOF while looking for matching '"'` / `setup: -c: line 2: syntax error: unexpected end of file`(`.\setup.ps1` から)
 
-**Meaning.** Windows PowerShell 5.1 (`powershell.exe`, the default PowerShell
-on Windows) passes arguments to native programs the legacy way and strips
-the double quotes inside them. Until the release that fixed #3130,
-`setup.ps1` handed Git Bash a `bash -c` script with double quotes in it, so
-bash read a broken script and nothing was installed. PowerShell 7.3 and newer
-were not affected.
+**意味。** Windows PowerShell 5.1(`powershell.exe`、Windows の既定の PowerShell)は、ネイティブプログラムへの引数を従来の方法で渡し、その内部の二重引用符を取り除きます。#3130 を修正したリリースより前は、`setup.ps1` が Git Bash に、二重引用符を含む `bash -c` のスクリプトを渡していたため、bash は壊れたスクリプトを読み、何もインストールされませんでした。PowerShell 7.3 以降は影響を受けませんでした。
 
-**Fix.** Update gstack (in Git Bash: `cd ~/.claude/skills/gstack && git pull
---ff-only`), then run `.\setup.ps1` again: its script no longer holds a
-double quote. Until then, run `./setup` from Git Bash, or `.\setup.ps1` from
-PowerShell 7 (`pwsh`).
+**修正。** gstack を更新してください(Git Bash では `cd ~/.claude/skills/gstack && git pull --ff-only`)。その後、`.\setup.ps1` を再度実行してください。そのスクリプトにはもう二重引用符が含まれていません。それまでは、Git Bash から `./setup` を実行するか、PowerShell 7(`pwsh`)から `.\setup.ps1` を実行してください。
 
 <a id="setup-ps1-empty-argument"></a>
 ### `setup.ps1: argument N is empty; setup takes no empty arguments. Nothing was installed or changed. (SETUP_PS1_EMPTY_ARGUMENT; ...)`
 
-**Meaning.** One of the arguments you gave `.\setup.ps1` is an empty string
-(for example `''` or an unset variable such as `$hostName`). setup takes no
-empty arguments, and the way `setup.ps1` hands arguments to Git Bash under
-Windows PowerShell 5.1 cannot carry one, so it refuses before running
-anything.
+**意味。** `.\setup.ps1` に渡した引数の1つが空文字列です(`''` や、`$hostName` のような未設定の変数など)。セットアップは空の引数を受け付けず、Windows PowerShell 5.1 のもとで `setup.ps1` が引数を Git Bash に渡す方法では、空の引数を渡せないため、何かを実行する前に拒否します。
 
-**Fix.** Drop the empty argument, or give it a value:
+**修正。** 空の引数を取り除くか、値を与えてください。
 
 ```powershell
 .\setup.ps1 --host codex
@@ -1937,23 +1194,15 @@ anything.
 <a id="chromium-install-exit-127"></a>
 ### `Chromium bootstrap: chromium-install — <bun> x playwright install chromium exited 127 (command not found); install Bun from bun.sh (winget Bun ships no bunx), or skip with ./setup --no-browser (Git Bash) or .\setup.ps1 --no-browser (PowerShell)`
 
-**Meaning.** setup (or `bin/gstack-browser-ensure`, as `BROWSER_UNAVAILABLE
-<bun> x playwright install chromium exited 127 (command not found)`) could
-not run the Playwright installer: the shell found no command to run. Until
-the release that fixed #3131, setup called `bunx`, which a Bun installed with
-winget does not ship, and reported the failure as `exited 127 (offline,
-proxy, or blocked download?)`. It now runs `bun x` through the Bun it
-resolved, so exit 127 means that Bun itself, or a command it starts, is
-missing. Skills that do not need a browser are installed either way.
+**意味。** セットアップ(または `bin/gstack-browser-ensure`。`BROWSER_UNAVAILABLE <bun> x playwright install chromium exited 127 (command not found)` として)が、Playwright のインストーラーを実行できませんでした。シェルが実行するコマンドを見つけられなかったためです。#3131 を修正したリリースより前は、セットアップは `bunx` を呼んでいました。winget でインストールされた Bun には `bunx` が含まれないため、その失敗を `exited 127 (offline, proxy, or blocked download?)` として報告していました。今は、解決された Bun を通じて `bun x` を実行します。そのため、終了コード 127 は、その Bun 自体、またはそれが起動するコマンドが欠けていることを意味します。ブラウザを必要としないスキルは、どちらの場合もインストールされます。
 
-**Fix.** Install Bun from https://bun.sh (it ships `bun` and `bunx`), then
-run setup again. To install without the browser for now, in Git Bash:
+**修正。** https://bun.sh から Bun をインストールしてから(`bun` と `bunx` が含まれます)、セットアップを再度実行してください。今はブラウザなしでインストールするには、Git Bash では次を実行します。
 
 ```bash
 ./setup --no-browser
 ```
 
-or in Windows PowerShell:
+Windows PowerShell では次を実行します。
 
 ```powershell
 .\setup.ps1 --no-browser
@@ -1964,138 +1213,104 @@ or in Windows PowerShell:
 <a id="bash-unavailable"></a>
 ### `gstack: no Git Bash found to run gstack's bash scripts on Windows (tried ...); fix: ... (BASH_UNAVAILABLE)`
 
-**Meaning.** Windows cannot run a shebang script, so gstack hands its bash
-scripts (`gstack-wtree`, `gstack-slug`, the hooks' bins, `bash -c` commands in
-regen and pregate selection manifests) to Git Bash. It looks in this order and
-the message lists every candidate it tried with the reason it was rejected:
+**意味。** Windows は shebang のスクリプトを実行できないため、gstack は bash のスクリプト(`gstack-wtree`、`gstack-slug`、フックのバイナリ、regen と pregate の選択マニフェストにある `bash -c` のコマンド)を、Git Bash に渡します。次の順序で探し、メッセージには試したすべての候補と、それを拒否した理由が表示されます。
 
-1. `GSTACK_GIT_BASH` (or the older name `GSTACK_BASH`; when both are set and
-   differ, `GSTACK_GIT_BASH` wins and a one-line warning says so). A value
-   that does not exist is refused, not skipped.
-2. bash next to `git --exec-path` (finds scoop, per-user and portable Git).
-3. `C:\Program Files\Git`, `C:\Program Files (x86)\Git`,
-   `%LOCALAPPDATA%\Programs\Git` and scoop's `git\current`.
-4. A `bash` on PATH, only when `uname -s` reports MSYS or MINGW. WSL's
-   `bash.exe` in `System32` or `WindowsApps` is never used: it reads
-   `C:\...` paths as Linux paths. A PATH bash that is neither (Cygwin, for
-   example) is no longer used either.
+1. `GSTACK_GIT_BASH`(または古い名前の `GSTACK_BASH`。両方が設定されていて値が異なる場合は、`GSTACK_GIT_BASH` が優先され、その旨が1行で警告されます)。存在しない値は、スキップされずに拒否されます。
+2. `git --exec-path` の隣にある bash(scoop、ユーザーごと、およびポータブルな Git を見つけます)。
+3. `C:\Program Files\Git`、`C:\Program Files (x86)\Git`、`%LOCALAPPDATA%\Programs\Git`、および scoop の `git\current`。
+4. PATH 上の `bash`。ただし、`uname -s` が MSYS または MINGW を報告する場合に限ります。`System32` や `WindowsApps` にある WSL の `bash.exe` は決して使われません。それは `C:\...` のパスを Linux のパスとして読むためです。どちらでもない PATH 上の bash(たとえば Cygwin)も、もう使われません。
 
-Before #3197 these commands spawned the scripts directly, so `gstack-restamp`
-refused with `cannot fingerprint the working tree ()` and `gstack-gate-diff`
-and `gstack-evidence` silently dropped the fingerprint.
+Issue #3197 より前は、これらのコマンドはスクリプトを直接起動していたため、`gstack-restamp` は `cannot fingerprint the working tree ()` で拒否し、`gstack-gate-diff` と `gstack-evidence` は黙ってフィンガープリントを落としていました。
 
-**Fix.** Install Git for Windows (`winget install --id Git.Git -e` in
-PowerShell), or point gstack at your bash.exe for good. An `export` in Git Bash
-reaches only that shell, so set it where Claude Code reads it:
+**修正。** PowerShell で `winget install --id Git.Git -e` を実行して Git for Windows をインストールするか、gstack に、そのための bash.exe を恒久的に指定してください。Git Bash の `export` は、そのシェルにしか届きません。Claude Code が読む場所に設定してください。
 
-- Windows PowerShell 5.1 or PowerShell 7, then restart Claude Code:
+- Windows PowerShell 5.1 または PowerShell 7 の場合。その後、Claude Code を再起動してください。
 
   ```powershell
   [Environment]::SetEnvironmentVariable('GSTACK_GIT_BASH', 'C:\Program Files\Git\bin\bash.exe', 'User')
   ```
 
-- Or the `env` block of `~/.claude/settings.json`:
+- または、`~/.claude/settings.json` の `env` ブロック。
 
   ```json
   { "env": { "GSTACK_GIT_BASH": "C:/Program Files/Git/bin/bash.exe" } }
   ```
 
-The hooks cache the bash they found in `<state root>/cache/windows-bash.json`
-(keyed by `git.exe`'s path and modification time, rechecked before use); the
-override is never cached.
+フックは、見つけた bash を `<state root>/cache/windows-bash.json` にキャッシュします(`git.exe` のパスと更新日時でキーされ、使用前に再確認されます)。上書きの値はキャッシュされません。
 
-**Expected result.** `gstack-restamp --dry-run` prints its diff and
-`gstack-gate-diff` records a candidate ending in a tree id instead of
-`+nowtree`.
+**期待される結果。** `gstack-restamp --dry-run` が差分を表示し、`gstack-gate-diff` が `+nowtree` ではなく、ツリー ID で終わる候補を記録します。
 
 ---
 
-## Memory and gbrain
+## メモリと gbrain
 
-Every message below is also in [docs/gbrain-sync-errors.md](gbrain-sync-errors.md)
-with more detail, along with the per-page ingest messages (`FAILED`,
-`re-queued`, `quarantined`, reconcile progress, kept-on-this-machine notices).
+以下のすべてのメッセージは、[docs/gbrain-sync-errors.md](gbrain-sync-errors.md) にも、より詳しく記載されています。ページごとの取り込みのメッセージ(`FAILED`、`re-queued`、`quarantined`、照合の進捗、このマシンに残されたという通知)も含みます。
 
 <a id="gbrain-db-unreachable"></a>
 ### `database host unreachable (<code> <host>); your gbrain config is unchanged. Fix: check network or VPN, then re-run /sync-gbrain.`
 
-**Meaning.** A DNS or connection error reaching your gbrain database. It used to
-look like a broken config, and setup stripped brain features while offline.
+**意味。** gbrain のデータベースへの DNS または接続のエラーです。以前は設定の破損のように見え、セットアップはオフラインの間、brain の機能を取り除いていました。
 
-**Fix.** Restore the network or VPN, then `/sync-gbrain`.
+**修正。** ネットワークまたは VPN を復旧してから、`/sync-gbrain` を実行してください。
 
 <a id="memory-ingest-unattributed-failures"></a>
 ### `[memory-ingest] ERR: gbrain reported N failure(s) it did not attribute to a staged page ... Refusing to advance state.`
 
-**What is kept.** Nothing is marked saved, so nothing is lost. After three such
-runs gstack bisects the batch and quarantines the page that breaks it.
+**保持される内容。** 何も保存済みとしてマークされないため、何も失われません。このような実行が3回続くと、gstack はバッチを二分探索し、それを壊しているページを隔離します。
 
-**Fix.** Re-run `/sync-gbrain`.
+**修正。** `/sync-gbrain` を再実行してください。
 
 <a id="memory-reconcile-not-run"></a>
 ### `[memory-ingest] reconcile: not run (...)`
 
-**Meaning.** After upgrading, gstack re-checks transcripts it had marked saved
-and re-imports the ones missing from your brain. That check needs a local gbrain.
+**意味。** アップグレードの後、gstack は保存済みとしてマークしたトランスクリプトを再確認し、brain にないものを再取り込みします。その確認には、ローカルの gbrain が必要です。
 
-**Fix.** `/setup-gbrain`, then `gstack-memory-ingest --reconcile` (`--dry-run` to preview).
+**修正。** `/setup-gbrain` を実行してから、`gstack-memory-ingest --reconcile` を実行してください(`--dry-run` で事前確認できます)。
 
 <a id="memory-ingest-locked"></a>
 ### `[memory-ingest] ERR: another memory ingest (pid <N>) is writing <state file>; not run.`
 
-**Fix.** Wait for it to finish, then re-run `/sync-gbrain`.
+**修正。** 完了するまで待ってから、`/sync-gbrain` を再実行してください。
 
 <a id="memory-ingest-state-unsaved"></a>
 ### `[memory-ingest] ERR: could not save ingest state <path>: <error>.`
 
-**Fix.** Fix permissions or free disk space under your gstack state root, then `/sync-gbrain`.
+**対処。** gstack の state root 配下のパーミッションを直すか、ディスク空き容量を確保してから、`/sync-gbrain` を実行してください。
 
 <a id="memory-ingest-transcript-checkout"></a>
 ### `[memory-ingest] kept N transcript page(s) for <repo> on this machine: gbrain source <id> ...`
 
-On a managed gbrain brain (0.60+), an import lands only in a source bound to a
-checkout this host owns, so gstack binds each transcript source to its own
-checkout, `<state root>/gbrain-transcript-sources/<id>/`, before importing.
-The partition stays on this machine, unstamped, and imports on a later run when:
+管理対象の gbrain brain(0.60 以降)では、インポートは、このホストが所有する checkout に紐づいたソースにしか入りません。そのため gstack は、インポートの前に各 transcript ソースを専用の checkout `<state root>/gbrain-transcript-sources/<id>/` に紐づけます。
+この partition はこのマシン上に残り、スタンプ(記録)も付かないままです。次のいずれかの場合、後の実行でインポートされます。
 
-- **held by another owner**: the source is bound to another host or another
-  directory. gstack never takes it over. Inspect it with
-  `gbrain sources writer status --source <id> --json`; the owner releases it
-  (`gbrain sources writer transfer prepare <id>` on the owning host) or you
-  re-bind it here with `gbrain sources set-path <id> <checkout>`.
-- **the state root is ephemeral** (`GSTACK_EPHEMERAL=1`): a binding would point
-  at a directory that vanishes with the machine. Run with a durable root:
-  `GSTACK_STATE_ROOT=<durable directory> gstack-memory-ingest --bulk`.
-- **bound to gstack's checkout, but it is missing or not active**: restore the
-  checkout from a backup of the state root, or follow `gbrain doctor --json`.
-- **could not bind**: the message carries gbrain's refusal; inspect the source
-  with the writer status command above.
+- **別の所有者が保持している**: ソースが別のホストや別のディレクトリに紐づいています。gstack がそれを横取りすることはありません。`gbrain sources writer status --source <id> --json` で状態を確認してください。所有者が解放する(所有側のホストで `gbrain sources writer transfer prepare <id>` を実行する)か、ここで `gbrain sources set-path <id> <checkout>` を使って紐づけ直してください。
+- **state root が一時的なもの**(`GSTACK_EPHEMERAL=1`): 紐づけ先のディレクトリがマシンとともに消えてしまいます。永続的な root を指定して実行してください: `GSTACK_STATE_ROOT=<durable directory> gstack-memory-ingest --bulk`
+- **gstack の checkout に紐づいているが、存在しないか有効でない**: state root のバックアップから checkout を復元するか、`gbrain doctor --json` の指示に従ってください。
+- **紐づけできなかった**: メッセージには gbrain が拒否した理由が含まれています。上記の writer status コマンドでソースを確認してください。
 
 <a id="gbrain-artifacts-not-indexed"></a>
 ### `curated artifacts pushed to git, but gbrain source <id> has 0 indexed pages. Fix: gbrain sync --source <id>, then re-run /sync-gbrain`
 
-**Fix.** `gbrain sync --source <id>`, then `/sync-gbrain`.
+**対処。** `gbrain sync --source <id>` を実行してから、`/sync-gbrain` を実行してください。
 
 <a id="gbrain-dream-skipped"></a>
 ### `dream: skipped — the installed gbrain cannot run only the resolve_symbol_edges phase, and the full dream cycle costs about 35 minutes ...`
 
-**Meaning.** `/sync-gbrain --dream` (and `--full`'s auto-build) now runs only the
-call-graph phase. Your gbrain cannot scope it, so nothing ran.
+**意味。** `/sync-gbrain --dream`(および `--full` の自動ビルド)は、現在 call-graph フェーズだけを実行します。インストールされている gbrain ではスコープを絞れないため、何も実行されませんでした。
 
-**Fix.** `gstack-gbrain-install`, then `/sync-gbrain --dream`. Or run the full
-cycle yourself: `gbrain dream --source <id>`.
+**対処。** `gstack-gbrain-install` を実行してから、`/sync-gbrain --dream` を実行してください。または、dream サイクル全体を自分で実行してください: `gbrain dream --source <id>`。
 
 <a id="gbrain-cycle-freshness-unknown"></a>
 ### `call graph for <source>: unknown: installed gbrain does not expose cycle_freshness`
 
-**Fix.** `gstack-gbrain-install`.
+**対処。** `gstack-gbrain-install` を実行してください。
 
 <a id="gbrain-path-unavailable"></a>
 ### `[gbrain-sync] gbrain source <id>: path unavailable (<path>); gstack skips it.`
 
-**Meaning.** A deleted worktree's code source. gstack never removes it on its own.
+**意味。** 削除されたワークツリーのコードソースです。gstack がこれを自動で削除することはありません。
 
-**Fix.** Preview, then remove the ones gstack can prove belonged to this machine:
+**対処。** まずプレビューし、このマシンのものだと gstack が確認できたものだけを削除してください。
 
 ```bash
 gstack-gbrain-sync --prune-gone-worktrees --dry-run
@@ -2104,675 +1319,470 @@ gstack-gbrain-sync --prune-gone-worktrees
 
 ---
 
-## Eval reports and pass-rates
+## Eval レポートと合格率
 
-These come from the paid eval census reports and `bun run eval:pass-rates`.
-The walkthrough for a red census is [docs/evals/census-red.md](evals/census-red.md).
+これらは、paid eval の census レポートと `bun run eval:pass-rates` から出力されます。
+census が赤になった場合の手順は [docs/evals/census-red.md](evals/census-red.md) を参照してください。
 
 <a id="pass-rates-unknown-flag"></a>
 ### `eval:pass-rates: unknown flag <flag>` / `eval:pass-rates: unknown case <id> (not an E2E, judge or paid test file id)`
 
-**Meaning.** The flag or case id is not recognized. The command exits 2 before
-fetching anything.
+**意味。** フラグまたは case id が認識されませんでした。コマンドは何も取得せずに終了コード 2 で終了します。
 
-**Fix.** `bun run eval:pass-rates --help` lists the flags. `--case` takes a
-registry id from `test/helpers/touchfiles-data.ts` or a paid test file path.
+**対処。** `bun run eval:pass-rates --help` でフラグの一覧を確認してください。`--case` には、`test/helpers/touchfiles-data.ts` にあるレジストリ id か、paid テストファイルのパスを指定します。
 
 <a id="failure-cause-newer"></a>
 ### `unknown failure_cause "<x>" (written by a newer gstack; update this checkout to read it)`
 
-**Meaning.** A trial record names a failure cause this checkout does not know.
-A newer gstack wrote it.
+**意味。** 試行記録に、このチェックアウトが知らない failure cause が含まれています。新しい gstack が書き込んだものです。
 
-**Fix.** `git pull` (or rebase your branch onto `main`), then rerun the command.
+**対処。** `git pull`(またはブランチを `main` にリベース)を実行してから、コマンドを再実行してください。
 
 <a id="paid-case-several-owners"></a>
 ### `--case <id>: registered by <file>, <file>; it needs exactly one`
 
-**Meaning.** More than one paid test file registers the case, so
-`test-paid-shards.ts --case` cannot pick one file.
+**意味。** 複数の paid テストファイルがその case を登録しているため、`test-paid-shards.ts --case` はどのファイルを使うか選べません。
 
-**Fix.** Run the red shard's file directly; the report's `after a repair:` line
-prints it: `EVALS=1 EVALS_TIER=<tier> bun test <file>`.
+**対処。** 赤くなった shard のファイルを直接実行してください。レポートの `after a repair:` の行に、実行するコマンドが出力されています: `EVALS=1 EVALS_TIER=<tier> bun test <file>`
 
 <a id="evidence-too-large"></a>
 ### `evidence: <artifact> too large to fetch (<N> MB)`
 
-**Meaning.** The slice artifact holding this red's transcript is over 64 MB, so
-`eval:pass-rates --run` does not download it.
+**意味。** この赤の試行記録を含むスライス artifact が 64 MB を超えているため、`eval:pass-rates --run` はこれをダウンロードしません。
 
-**Fix.** Download it from the run page, or
-`gh api repos/<owner>/<repo>/actions/artifacts/<artifact id>/zip > slice.zip`.
+**対処。** 実行ページからダウンロードするか、次のコマンドを使ってください。
+`gh api repos/<owner>/<repo>/actions/artifacts/<artifact id>/zip > slice.zip`
 
 <a id="headroom-alarm"></a>
 ### `[headroom] <case> session <key>: max <s> of <s> (<pct>) over <n> sample(s), above the 85% cap. Cut work in the skill or fixture; budgets are never raised ...`
 
-**Meaning.** `eval:pass-rates --gate` (the weekly report) found a case whose
-slowest session used more than 85% of the timeout it armed. It is one timeout
-away from a red.
+**意味。** `eval:pass-rates --gate`(週次レポート)が、最も遅いセッションで設定したタイムアウトの 85% を超える時間を使っている case を検出しました。赤になるまであと一歩の状態です。
 
-**Fix.** Cut work in the skill or fixture. Budgets are never raised. Check the
-case with `bun run eval:pass-rates --headroom --case <id>`.
+**対処。** スキルまたは fixture の作業量を減らしてください。予算(タイムアウト値)は引き上げないでください。`bun run eval:pass-rates --headroom --case <id>` でその case を確認できます。
 
 <a id="cost-unknown"></a>
 ### `cost unknown (no billing captured for any of <N> trial(s))` / `cost $<x> known + <N> of <M> trial(s) cost unknown`
 
-**Meaning.** PTY and Codex sessions record no billing, so their cost is
-unknown. Only the known sum is shown.
+**意味。** PTY と Codex のセッションでは課金情報が記録されないため、コストは不明です。表示されるのは、判明している分の合計だけです。
 
-**Fix.** None needed; this is informational.
+**対処。** 対応不要です。情報提供のメッセージです。
 
 <a id="cause-provider-stall"></a>
 ### `· cause provider_stall: no stream event for <N>s ...`
 
-**Meaning.** The session streamed partial messages, then received no event of
-any kind for at least 120 seconds while a model request was in flight and no
-tool, permission prompt, hook or subagent was outstanding. Under EVAL_POLICY v1
-it is still a failed trial.
+**意味。** セッションは部分的なメッセージをストリーミングしたあと、モデルへのリクエストが処理中で、ツール、権限プロンプト、フック、サブエージェントのいずれも未完了の状態で、少なくとも 120 秒間まったくイベントを受信しませんでした。EVAL_POLICY v1 のもとでも、この試行は失敗として扱われます。
 
-**Fix.** Inspect it with `bun run eval:pass-rates --run <run id> --case <id>`.
-A paid rerun happens only after a repair.
+**対処。** `bun run eval:pass-rates --run <run id> --case <id>` で内容を確認してください。paid の再実行は、修正を入れた後にのみ行ってください。
 
 <a id="overlay-wrong-answer"></a>
-### Overlay record with `taskCorrect: false` and `answerError` (contract v4)
+### `taskCorrect: false` と `answerError` を持つオーバーレイのレコード(契約 v4)
 
-**Meaning.** The trial completed with a wrong answer. Under overlay contract v4
-that is a valid measurement in the comparison; only an overlay-ON wrong answer
-fails the case.
+**意味。** 試行は完了しましたが、回答が誤っていました。overlay contract v4 のもとでは、これは比較の中で有効な測定値です。失敗になるのは overlay を ON にした場合の誤答だけです。
 
-**Fix.** Read `answerError` in the trial JSON. No rerun is needed.
+**対処。** 試行の JSON 内の `answerError` を読んでください。再実行は不要です。
 
 <a id="detector-corpora-stale"></a>
 ### `[detector-corpora] <N> stale entries (refresh from a current census when one fails)`
 
-**Meaning.** Some replay-corpus entries came from an older input series of
-their case. This is informational; the corpus still replays them.
+**意味。** 一部のリプレイコーパスのエントリは、その case の古い入力系列から来ています。これは情報提供のメッセージです。コーパスは引き続きそれらをリプレイします。
 
-**Fix.** When that case goes red in a census, add the new capture to its corpus
-and check it with `bun test test/detector-corpus-<case>.test.ts`.
+**対処。** census でその case が赤になった場合は、新しいキャプチャをそのコーパスに追加し、`bun test test/detector-corpus-<case>.test.ts` で確認してください。
 
 <a id="auq-substance-panel"></a>
 ### `recommendation substance median <x> < 4 over samples [<a>,<b>,<c>] (boilerplate/weak)`
 
-**Meaning.** The auq-matrix case scores each captured question's recommendation
-with a 3-sample judge panel; fewer than 2 of the 3 samples reached 4, so their
-median was below 4.
+**意味。** auq-matrix の case では、取得した各質問の推奨内容を 3 サンプルの judge パネルで採点します。3 サンプルのうち 4 点に達したのが 2 つ未満だったため、中央値が 4 未満になりました。
 
-**Fix.** Read the logged samples and the captured question. A fix goes in the
-skill text, followed by one diagnostic run of auq-matrix.
+**対処。** ログに残ったサンプルと取得された質問を読んでください。修正はスキルの本文に加え、auq-matrix の診断実行を 1 回行ってください。
 
 ---
 
-## Push guard (redaction)
+## Push ガード(マスキング)
 
 <a id="redact-postgres-default-pair"></a>
-### `db.url_with_password` HIGH on a default `postgres`/`postgres` login whose host is a service name like `@db` (pre-push BLOCKED)
+### ホスト名が `@db` のようなサービス名で、既定の `postgres`/`postgres` ログインを使う場合の `db.url_with_password` HIGH(pre-push でブロック)
 
-**Meaning.** The default `postgres:postgres` pair is exempt only on `localhost`
-or `127.0.0.1`. A service name like `@db` says nothing about where the URL ends
-up deployed, so it still blocks.
+**意味。** デフォルトの `postgres:postgres` の組み合わせが例外扱いになるのは、ホストが `localhost` または `127.0.0.1` の場合だけです。`@db` のようなサービス名では、その URL が最終的にどこにデプロイされるかわからないため、ブロックされたままになります。
 
-**Fix.** Use `postgres://postgres:postgres@localhost:5432/...` in local and CI
-config, or read the URL from an env var. If the credential is real, rotate it.
-Bypass once: `GSTACK_REDACT_PREPUSH=skip git push`.
-If the URL is a reviewed, public dev-only value, list it in
-[`.gstack-redact-allowlist`](#redact-allowlist).
+**対処。** ローカルと CI の設定では `postgres://postgres:postgres@localhost:5432/...` を使うか、URL を環境変数から読み込んでください。認証情報が本物であれば、ローテーションしてください。一度だけバイパスする場合は `GSTACK_REDACT_PREPUSH=skip git push` を使います。
+URL がレビュー済みの、公開されている開発用の値である場合は、[`.gstack-redact-allowlist`](#redact-allowlist) に登録してください。
 
 <a id="redact-allowlist"></a>
 ### `.gstack-redact-allowlist (<n> entries) suppressed <m> finding(s) in this push`
 
-**Meaning.** The pushed commit carries `.gstack-redact-allowlist` at the repo
-root. Each line (after trimming; `#` starts a comment) is one exact matched
-span: the whole `postgres://USER:PASSWORD@host:port` URL for
-`db.url_with_password`, the key for a key pattern, the address for `pii.email`. A finding is suppressed only when its
-matched text equals an entry, so a password alone, a substring, or a different
-key still reports and still blocks. The hook reads the file from each pushed
-commit, never the working tree, and ignores a file over 64 KiB. Every push that
-carries entries prints this line and each suppressed finding's file and line.
-It works alongside `gstack.redact.allowEmail`, which stays a local setting.
+**意味。** push されたコミットのリポジトリルートに `.gstack-redact-allowlist` が含まれています。各行(前後の空白を除去し、`#` はコメントの開始)は、完全一致する 1 つのスパンを表します。`db.url_with_password` の場合は `postgres://USER:PASSWORD@host:port` という URL 全体、キーパターンの場合はキー、`pii.email` の場合はアドレスです。検出結果は、マッチしたテキストがエントリと完全に一致する場合にのみ抑制されます。そのため、パスワードだけ、部分文字列、別のキーは引き続き報告され、ブロックされます。フックはワーキングツリーではなく、push される各コミットからファイルを読みます。64 KiB を超えるファイルは無視されます。エントリを含む push のたびに、この行と、抑制された各検出結果のファイルと行番号が表示されます。
+`gstack.redact.allowEmail` と併用でき、こちらはローカル設定のままです。
 
-**Fix.** Nothing, if every listed suppression is the reviewed value. Remove an
-entry that no longer applies; rotate a credential that is real.
+**対処。** 抑制されているものがすべてレビュー済みの値であれば、何もする必要はありません。もう適用されないエントリは削除し、実際の認証情報はローテーションしてください。
 
 <a id="redact-version-as-ip"></a>
-### `pii.ip_public` MEDIUM on a four-part version number
+### 4 区切りのバージョン番号に対する `pii.ip_public` MEDIUM
 
-**Meaning.** The line does not declare the value as a version.
+**意味。** その行は、値をバージョンとして宣言していません。
 
-**Fix.** Write it as `version: 1.2.3.4`, `"version": "..."` or `v1.2.3.4`.
-MEDIUM findings do not block pushes.
+**対処。** `version: 1.2.3.4`、`"version": "..."`、または `v1.2.3.4` の形式で書いてください。
+MEDIUM の検出結果では push はブロックされません。
 
 <a id="redact-prepush-email"></a>
-### `MEDIUM  pii.email  <file>:<line>` from the pre-push hook
+### pre-push フックによる `MEDIUM  pii.email  <file>:<line>`
 
-**Meaning.** The pushed lines add an email address that is not yours and not
-already in the destination's commit metadata. The hook does not report your
-own address (`git config user.email`), addresses listed in
-`gstack.redact.allowEmail`, or author and committer addresses (mailmapped too)
-from the history of the pushed commits, of the remote tip being replaced, and,
-for a new branch pushed to a configured remote, of that remote's tracking refs.
-An address only another remote knows still reports. If the hook also printed
-`existing-email suppression was limited for this push`, it could not read the
-history in 5 seconds, so known authors may be listed too.
+**意味。** push される行に、自分のものではなく、かつ push 先のコミットメタデータにまだ含まれていないメールアドレスが追加されています。フックは次のものは報告しません: 自分のアドレス(`git config user.email`)、`gstack.redact.allowEmail` に列挙されたアドレス、そして push されるコミットの履歴、置き換えられるリモートの先端、および設定済みのリモートに新しいブランチを push する場合はそのリモートの追跡ref に含まれる作成者とコミッターのアドレス(mailmap で解決されたものを含む)。別のリモートにしか存在しないアドレスは、引き続き報告されます。フックが `existing-email suppression was limited for this push` も出力している場合は、5 秒以内に履歴を読み取れなかったことを意味します。そのため、既知の作成者も一覧に含まれる可能性があります。
 
-**Fix.** Remove the address, or allow it for this repo:
-`git config --add gstack.redact.allowEmail <address>`. If it is your own
-address, check `git config user.email`. The allowlist only covers `pii.email`;
-it never lets a HIGH finding through.
+**対処。** アドレスを削除するか、このリポジトリで許可してください: `git config --add gstack.redact.allowEmail <address>`。自分のアドレスである場合は、`git config user.email` を確認してください。allowlist が対象とするのは `pii.email` だけです。HIGH の検出結果を通すことはありません。
 
-## Unattended runs and artifacts
+<a id="unattended-runs-and-artifacts"></a>
+## 無人実行と artifact
 
-Workflow commands (`gstack-artifact`, `gstack-gate`, `gstack-autoplan-timing`,
-`gstack-review-log --findings`) end each error line with a code in
-parentheses, for example `(ARTIFACT_STALE)`. The codes and anchors come from
-`lib/result-codes.ts`; grep the code, not the prose. Every such command shares
-one exit table: `0` ok, `1` fail, `2` usage, `3` refused or needs a flag. The
-artifact contract itself is in [docs/unattended.md](unattended.md).
+ワークフローのコマンド(`gstack-artifact`、`gstack-gate`、`gstack-autoplan-timing`、`gstack-review-log --findings`)は、エラー行の末尾に括弧付きのコードを付けます(例: `(ARTIFACT_STALE)`)。コードとアンカーは `lib/result-codes.ts` から来ています。説明文ではなく、コードで grep してください。これらのコマンドは、いずれも同じ終了コード表を共有します: `0` 成功、`1` 失敗、`2` 使い方の誤り、`3` 拒否またはフラグが必要。artifact の契約そのものは [docs/unattended.md](unattended.md) にあります。
 
 <a id="artifact-invalid-json"></a>
 ### `ARTIFACT_INVALID_JSON`
 
-**Meaning.** `run.json`, `timing.json` or another JSON artifact did not parse.
+**意味。** `run.json`、`timing.json`、またはその他の JSON artifact が解析できませんでした。
 
-**Fix.** Regenerate the run with the tool that writes it. A manifest is never
-hand-edited; a partial write means the writer was interrupted.
+**対処。** 書き出しを行ったツールで run を再生成してください。マニフェストを手で編集することはありません。書き込みが途中で止まっていれば、それは書き込み側が中断されたことを意味します。
 
 <a id="artifact-unsupported-version"></a>
 ### `ARTIFACT_UNSUPPORTED_VERSION`
 
-**Meaning.** The artifact's `schema_version` is one this gstack does not read
-(`gstack-artifact schema <name>` prints the versions it validates).
+**意味。** artifact の `schema_version` は、この gstack が読めないバージョンです(`gstack-artifact schema <name>` で、検証できるバージョンが表示されます)。
 
-**Fix.** Upgrade the consumer (`/gstack-upgrade`) or regenerate the run with
-this gstack.
+**対処。** 利用側をアップグレードする(`/gstack-upgrade`)か、この gstack で run を再生成してください。
 
 <a id="artifact-schema"></a>
 ### `ARTIFACT_SCHEMA`
 
-**Meaning.** A required field is missing, has the wrong type, or holds a value
-outside its enum. The message names the file, row and field.
+**意味。** 必須フィールドがない、型が誤っている、または enum の範囲外の値が入っています。メッセージには、ファイル、行、フィールド名が示されます。
 
-**Fix.** Compare the row with `gstack-artifact schema <name>` and regenerate it.
+**対処。** `gstack-artifact schema <name>` と行の内容を比べて、再生成してください。
 
 <a id="artifact-missing"></a>
 ### `ARTIFACT_MISSING`
 
-**Meaning.** `run.json` names an artifact that is not in the run directory.
+**意味。** `run.json` が、run ディレクトリ内に存在しない artifact を指定しています。
 
-**Fix.** Copy the whole run directory, not single files. If the file was never
-written, rerun the phase that writes it.
+**対処。** 個別のファイルではなく、run ディレクトリ全体をコピーしてください。そのファイルが一度も書き出されていない場合は、それを書き出すフェーズを再実行してください。
 
 <a id="artifact-stale"></a>
 ### `ARTIFACT_STALE`
 
-**Meaning.** The file's bytes no longer hash to the value `run.json` recorded,
-so the manifest does not describe this file.
+**意味。** ファイルのバイト列のハッシュが、`run.json` に記録された値と一致しません。そのため、マニフェストはこのファイルを正しく表していません。
 
-**Fix.** Treat the run as partially rewritten. Regenerate it, or re-bind the
-file through the tool that wrote it so the manifest is updated with it.
+**対処。** run は一部が書き換えられたものとして扱ってください。再生成するか、そのファイルを書き出したツールを通して再度紐づけ、マニフェストを更新してください。
 
 <a id="artifact-path-escape"></a>
 ### `ARTIFACT_PATH_ESCAPE`
 
-**Meaning.** An artifact path resolves outside the run directory: a `..`
-segment, an absolute path, or a symlink that points elsewhere.
+**意味。** artifact のパスが run ディレクトリの外を指しています。`..` のセグメント、絶対パス、または別の場所を指すシンボリックリンクのいずれかです。
 
-**Fix.** Keep every artifact inside the run directory under a plain relative
-name. A run directory is copied as one unit; nothing outside it is part of
-the contract.
+**対処。** すべての artifact を、単純な相対名で run ディレクトリ内に置いてください。run ディレクトリは 1 つの単位としてコピーされるため、その外にあるものは契約の対象外です。
 
 <a id="artifact-malformed-jsonl"></a>
 ### `ARTIFACT_MALFORMED_JSONL`
 
-**Meaning.** A JSONL artifact has a line, usually the last, that is not one
-JSON object. The writer was interrupted mid-append.
+**意味。** JSONL の artifact に、1 つの JSON オブジェクトになっていない行があります。多くの場合は最後の行で、書き込みが追記の途中で中断されています。
 
-**Fix.** Rerun the phase that writes the file. Do not trim the line by hand;
-the row it held is lost either way, and the manifest hash would change.
+**対処。** そのファイルを書き出すフェーズを再実行してください。行を手で削除しないでください。どちらにしてもその行が持っていたデータは失われ、マニフェストのハッシュも変わってしまいます。
 
 <a id="artifact-duplicate-id"></a>
 ### `ARTIFACT_DUPLICATE_ID`
 
-**Meaning.** Two rows in one file share an id.
+**意味。** 1 つのファイル内の 2 つの行が同じ id を持っています。
 
-**Fix.** Ids are run-bound (`<run>-...`) and unique per file. Regenerate the
-rows with the tool that assigns them.
+**対処。** id は run に紐づいており(`<run>-...`)、ファイルごとに一意です。id を割り当てたツールで行を再生成してください。
 
 <a id="artifact-unbound-id"></a>
 ### `ARTIFACT_UNBOUND_ID`
 
-**Meaning.** A row id does not start with the run id in `run.json`, so it
-could belong to another run.
+**意味。** 行の id が `run.json` の run id で始まっていないため、別の run に属している可能性があります。
 
-**Fix.** Regenerate the row with this run's id.
+**対処。** この run の id を使って行を再生成してください。
 
 <a id="artifact-dangling-ref"></a>
 ### `ARTIFACT_DANGLING_REF`
 
-**Meaning.** A task's `findings`, `blocked_by` or `depends_on`, or a decision's
-reference, names an id no artifact in this run defines.
+**意味。** タスクの `findings`、`blocked_by`、`depends_on`、または decision の参照が、この run の artifact が定義していない id を指しています。
 
-**Fix.** Write the referenced finding, decision or task first, or drop the
-reference. A `depends_on` entry may also name a `pr` label that another task
-in the file carries.
+**対処。** 参照先の finding、decision、またはタスクを先に書くか、参照を削除してください。`depends_on` のエントリは、同じファイル内の別のタスクが持つ `pr` ラベルを指すこともできます。
 
 <a id="artifact-dependency-cycle"></a>
 ### `ARTIFACT_DEPENDENCY_CYCLE`
 
-**Meaning.** Tasks depend on each other in a cycle, so no lane could start.
+**意味。** タスク同士が循環して依存しているため、どのレーンも開始できません。
 
-**Fix.** Break the cycle in `depends_on`. The message lists the ids on it.
+**対処。** `depends_on` で循環を断ち切ってください。メッセージには、循環に含まれる id が列挙されます。
 
 <a id="artifact-count-mismatch"></a>
 ### `ARTIFACT_COUNT_MISMATCH`
 
-**Meaning.** A `counts` value in `run.json` disagrees with the rows in the file
-it summarizes (for example `counts.findings: 65` beside 64 rows).
+**意味。** `run.json` の `counts` の値が、それが要約しているファイルの行と一致しません(例: 行が 64 件なのに `counts.findings: 65`)。
 
-**Fix.** Regenerate `run.json` after the last row was written. A count never
-replaces the file; the hash and the rows are the record.
+**対処。** 最後の行が書き込まれた後に `run.json` を再生成してください。件数が、ファイルの代わりになることはありません。記録となるのはハッシュと行の内容です。
 
 <a id="artifact-run-interrupted"></a>
 ### `ARTIFACT_RUN_INTERRUPTED`
 
-**Meaning.** `run.json.status` is not terminal, or a voice is still
-`running`/`pending`. The artifacts describe an unfinished run.
+**意味。** `run.json.status` が終了状態ではないか、いずれかの voice がまだ `running` または `pending` です。artifact は未完了の run を表しています。
 
-**Fix.** Resume it (`gstack-autoplan resume --out <dir>`, PR B-runner) or
-consume the artifacts as partial and say so.
+**対処。** run を再開してください(`gstack-autoplan resume --out <dir>`、PR B-runner)。または、artifact を部分的なものとして扱い、その旨を明記してください。
 
 <a id="artifact-reviewer-missing"></a>
 ### `ARTIFACT_REVIEWER_MISSING`
 
-**Meaning.** A phase in `required_phases` is absent from `phases`, a voice has
-no terminal status, or a completed voice has no bound output file (path and
-hash) in `artifacts`.
+**意味。** `required_phases` のフェーズが `phases` に存在しない、voice が終了状態になっていない、または完了した voice に `artifacts` 内で紐づいた出力ファイル(パスとハッシュ)がありません。
 
-**Fix.** Finish the phase. A missing voice is missing coverage; the validator
-never fills it in as N/A.
+**対処。** フェーズを完了させてください。voice が欠けている場合、それはカバレッジが欠けていることを意味します。バリデーターがそれを N/A として補完することはありません。
 
 <a id="artifact-guard-line-missing"></a>
 ### `ARTIFACT_GUARD_LINE_MISSING`
 
-**Meaning.** The run says `session_kind: unattended`, but its
-`review-record.md` does not carry the `GUARD_NOT_INSTALLED` line, so the
-record does not state that publication order was unverified.
+**意味。** run には `session_kind: unattended` と書かれていますが、その `review-record.md` に `GUARD_NOT_INSTALLED` の行がありません。そのため、記録上、公開の順序が検証されていないことが明示されていません。
 
-**Fix.** Start the run through `gstack-skill-start` (it prints the line) and
-keep the line in the review record.
+**対処。** `gstack-skill-start` で run を開始してください(この行を出力します)。そして、その行をレビュー記録に残してください。
 
 <a id="guard-not-installed"></a>
 ### `autoplan guard: not enforced by this host; publication order is unverified (GUARD_NOT_INSTALLED)`
 
-**Meaning.** The autoplan publication hook only executes inside Claude Code.
-On every other host, and in every `unattended` session, the hook is present
-but never runs, so phase publication order rests on the snapshot hashes
-recorded per phase rather than on the guard.
+**意味。** autoplan の公開フックは、Claude Code の内部でのみ実行されます。それ以外のホストと、すべての `unattended` セッションでは、フックは存在しても実行されません。そのため、フェーズの公開順序は、ガードではなく、フェーズごとに記録されたスナップショットのハッシュに依存します。
 
-**Fix.** Nothing on this host. The line is printed once per run and belongs
-in the review record; `gstack-artifact validate` requires it for an
-unattended run. On Claude Code a *missing* hook file still denies every
-guarded call (a broken install must not pass as an absent one).
+**対処。** このホストでは何もする必要はありません。この行は run ごとに 1 回出力され、レビュー記録に残すものです。`gstack-artifact validate` は、unattended の run でこの行を必須とします。Claude Code では、フックファイルが*存在しない*場合、ガードされたすべての呼び出しが拒否されます(インストールが壊れているものを、存在しないものとして通してはならないため)。
 
 <a id="review-status-mismatch"></a>
 ### `review-log: status mismatch ... (REVIEW_STATUS_MISMATCH)`
 
-**Meaning.** The row handed to `gstack-review-log` claims a `status`,
-`unresolved`, `issues_found` or `critical_gaps` that the `--findings` file
-contradicts (for example `status: clean` beside open findings). The row was
-not written.
+**意味。** `gstack-review-log` に渡された行が主張する `status`、`unresolved`、`issues_found`、または `critical_gaps` の値が、`--findings` ファイルと矛盾しています(例: 未解決の finding があるのに `status: clean`)。その行は書き込まれませんでした。
 
-**Fix.** Fix the findings file, not the claim, and log again. Omit the claimed
-fields and let the row be derived from the file.
+**対処。** 主張の方ではなく、findings ファイルを直してから、再度ログを記録してください。主張するフィールドは省略し、行をファイルから導出させてください。
 
 <a id="gate-rev-stale"></a>
 ### `GATE_REV_STALE`
 
-**Meaning.** The reply names a `gate_rev` older than the gate list's current
-revision, so it may answer items that changed.
+**意味。** 返信が、ゲート一覧の現在のリビジョンより古い `gate_rev` を指定しています。そのため、変更された項目への回答になっている可能性があります。
 
-**Fix.** Render the current list (`gstack-gate render <file>`), read it, and
-reply with the printed `gate_rev`.
+**対処。** 現在の一覧を表示し(`gstack-gate render <file>`)、それを読んでから、表示された `gate_rev` を指定して返信してください。
 
 <a id="gate-reply-unparsed"></a>
 ### `GATE_REPLY_UNPARSED`
 
-**Meaning.** Part of the reply matched no gate item or option. Nothing was
-applied; the unparsed tokens are listed.
+**意味。** 返信の一部が、どのゲート項目や選択肢にも一致しませんでした。何も適用されておらず、解析できなかったトークンが一覧表示されます。
 
-**Fix.** Reply with `all`, with `<id><option>` tokens (`d3b uc1a`), or with
-`all except <tokens>`. A bare `yes` or `no` is ambiguous across multi-option
-items and is never guessed.
+**対処。** `all`、`<id><option>` 形式のトークン(`d3b uc1a`)、または `all except <tokens>` で返信してください。単独の `yes` や `no` は、複数の選択肢を持つ項目では曖昧なため、推測されることはありません。
 
 <a id="answer-by-required"></a>
 ### `ANSWER_BY_REQUIRED`
 
-**Meaning.** `gstack-autoplan answer` ran in an unattended run without
-`--by`, or with a value that is neither `human` nor `agent:<id>`. The
-artifacts must say who answered a gate: an owner typing tokens and an agent
-relaying or deciding them look identical in `decisions.jsonl` otherwise.
-Nothing was applied.
+**意味。** `gstack-autoplan answer` が、`--by` を指定せずに、または `human` でも `agent:<id>` でもない値を指定して unattended の run で実行されました。artifact には、ゲートに誰が回答したかが記録されている必要があります。そうしないと、オーナーがトークンを入力した場合と、エージェントが中継または決定した場合が `decisions.jsonl` 上で区別できなくなります。何も適用されていません。
 
-**Fix.** Re-run with `--by human` when the owner typed the tokens, or
-`--by agent:<thread or id>` when an agent relays or decides. The value is
-recorded as `answered_by` on every decision row the reply answers and in the
-review record's gate line.
+**対処。** オーナーがトークンを入力した場合は `--by human` を、エージェントが中継または決定した場合は `--by agent:<thread or id>` を指定して再実行してください。この値は、返信が回答する各 decision 行に `answered_by` として記録され、レビュー記録のゲートの行にも記録されます。
 
-## Queue-aware ship: policy, restamp, tree receipt, ship receipt
+<a id="queue-aware-ship-policy-restamp-tree-receipt-ship-receipt"></a>
+## キュー対応の ship: ポリシー、restamp、ツリーの受領記録、ship の受領記録
 
-`gstack-ship-policy`, `gstack-restamp`, `gstack-tree-receipt`,
-`gstack-ship-receipt` and `gstack-evidence bundle|ancestor` share the exit
-table above and end each error line with a code in parentheses. The policy
-file is described in [docs/ship-policy.md](ship-policy.md); the queue flow in
-[docs/ship-policy.md#stamp-at-merge](ship-policy.md#stamp-at-merge).
+`gstack-ship-policy`、`gstack-restamp`、`gstack-tree-receipt`、`gstack-ship-receipt`、および `gstack-evidence bundle|ancestor` は、上記と同じ終了コード表を共有し、エラー行の末尾に括弧付きのコードを付けます。ポリシーファイルについては [docs/ship-policy.md](ship-policy.md) で、キューのフローについては [docs/ship-policy.md#stamp-at-merge](ship-policy.md#stamp-at-merge) で説明しています。
 
 <a id="policy-source-unavailable"></a>
 ### `policy source unavailable — fix: git fetch origin <base> --depth=1 (POLICY_SOURCE_UNAVAILABLE)`
 
-**Meaning.** The policy is read from the committed copy on `origin/<base>`,
-and that ref does not resolve here (a shallow or detached gate checkout, or a
-fetch that never happened). The tool exits 3 and never falls back to the
-working-tree file silently.
+**意味。** ポリシーは `origin/<base>` にコミットされたコピーから読み込まれます。その ref がここでは解決できません(shallow または detached なゲートのチェックアウト、あるいは fetch が一度も行われていない場合)。ツールは終了コード 3 で終了し、ワーキングツリーのファイルに黙ってフォールバックすることはありません。
 
-**Fix.** `git fetch origin <base> --depth=1`, then rerun. To run against the
-branch's own file deliberately, pass `--policy-from head --allow-repo-commands`;
-the receipt then says `policy: head (unreviewed)`.
+**対処。** `git fetch origin <base> --depth=1` を実行してから、再実行してください。ブランチ自身のファイルに対して意図的に実行する場合は、`--policy-from head --allow-repo-commands` を指定します。その場合、受領記録には `policy: head (unreviewed)` と書かれます。
 
-`--base` names a branch on `origin`. A commit SHA, a tag or another remote's
-ref (`upstream/main` in a fork clone) never resolves as `origin/<base>`, and
-fetching it cannot create that ref, so pass a branch that exists on `origin`
-(`git branch -r --list 'origin/*'` lists them). `gstack-pregate` says so in
-its fix instead of suggesting the fetch.
+`--base` には `origin` 上のブランチ名を指定します。コミット SHA、タグ、または別のリモートの ref(フォークのクローンにおける `upstream/main`)は、`origin/<base>` としては解決されず、fetch してもその ref は作成されないため、`origin` に存在するブランチを指定してください(`git branch -r --list 'origin/*'` で一覧を確認できます)。`gstack-pregate` は、fetch を提案する代わりに、このことを対処方法の中で説明します。
 
 <a id="policy-invalid"></a>
 ### `POLICY_INVALID`
 
-**Meaning.** `.gstack/ship-policy.json` has an unknown key, a wrong type or a
-value outside its enum. The message names the key. Unknown keys are errors so
-a typo never silently means "default".
+**意味。** `.gstack/ship-policy.json` に、未知のキー、型の誤り、または enum の範囲外の値があります。メッセージにはキー名が示されます。未知のキーはエラーになります。タイプミスが黙って「デフォルト」として扱われることがないようにするためです。
 
-**Fix.** `gstack-ship-policy validate` lists every problem;
-`gstack-ship-policy init --explain` prints each key, its meaning and default.
+**対処。** `gstack-ship-policy validate` で、すべての問題が一覧表示されます。`gstack-ship-policy init --explain` は、各キーの意味とデフォルト値を表示します。
 
 <a id="policy-containment"></a>
 ### `POLICY_CONTAINMENT`
 
-**Meaning.** A repo-controlled input escapes its box: an absolute path or a
-`..` segment in `stamp_paths`, `release_outputs`, `changelog` or `mirror`; a
-glob whose expansion passes 512 regex characters; more than 64 entries in a
-list; a `release_tool` over 512 characters or holding a newline. At write time
-the same code names a matched file that resolves through a symlink to outside
-the repository.
+**意味。** リポジトリ側で指定された入力が、許可された範囲を超えています。`stamp_paths`、`release_outputs`、`changelog`、`mirror` に、絶対パスや `..` のセグメントがある。展開結果が 512 文字の正規表現を超えるグロブがある。リストが 64 件を超えている。`release_tool` が 512 文字を超える、または改行を含んでいる。書き込み時には、同じコードが、シンボリックリンクを通してリポジトリの外を指す一致ファイルも検出します。
 
-**Fix.** Keep paths repo-relative, globs short and lists small. A mirror may
-start with `..` (a sibling checkout) but may not contain an interior `..`.
+**対処。** パスはリポジトリからの相対パスにし、グロブは短く、リストは小さく保ってください。mirror は `..`(兄弟のチェックアウト)で始められますが、途中に `..` を含めることはできません。
 
 <a id="policy-exists"></a>
 ### `POLICY_EXISTS`
 
-**Meaning.** `gstack-ship-policy init` found an existing policy file and wrote
-nothing.
+**意味。** `gstack-ship-policy init` が既存のポリシーファイルを見つけたため、何も書き込みませんでした。
 
-**Fix.** Edit the file, or pass `--force` to replace it with the example.
+**対処。** ファイルを編集するか、`--force` を指定してサンプルで置き換えてください。
 
 <a id="repo-commands-not-allowed"></a>
 ### `repo commands not executed (pass --allow-repo-commands) (REPO_COMMANDS_NOT_ALLOWED)`
 
-**Meaning.** The policy declares a command (`release_tool`), and the tool was
-run standalone. File presence never authorizes execution: outside `/ship` and
-`/land-and-deploy` a repo-declared command runs only with
-`--allow-repo-commands`. The commands were listed and nothing was written.
+**意味。** ポリシーでコマンド(`release_tool`)が宣言されていて、そのツールが単独で実行されました。ファイルが存在するだけでは実行は許可されません。`/ship` と `/land-and-deploy` の外では、リポジトリが宣言したコマンドは `--allow-repo-commands` を付けたときだけ実行されます。このときコマンドは一覧表示されただけで、何も書き込まれていません。
 
-**Fix.** Pass `--allow-repo-commands` when you mean to execute the repo's
-code (you already do when you run its tests), or drop the release tool.
+**対処。** リポジトリのコードを実行するつもりであれば `--allow-repo-commands` を渡してください(テストを実行するときは、すでにこのオプションを付けているはずです)。実行しないのであれば、release tool を削除してください。
 
 <a id="queue-stale"></a>
 ### `QUEUE_STALE`
 
-**Meaning.** `gstack-restamp` was told the base SHA (`--expect-base`) or the
-merge order (`--expect-order`) the allocation assumed, and one of them moved:
-the base advanced, a predecessor is not merged, or a successor merged first.
-The JSON result carries `expected`, `actual` and `recompute`.
+**意味。** `gstack-restamp` に、バージョン割り当てが前提としていたベース SHA(`--expect-base`)またはマージ順(`--expect-order`)が伝えられましたが、そのどちらかが変わりました。ベースが進んだ、前のブランチがまだマージされていない、後続のブランチが先にマージされた、のいずれかです。JSON の結果には `expected`、`actual`、`recompute` が含まれます。
 
-**Fix.** Run the printed `recompute` command, which recomputes the version
-from the current base, then merge with the server-side head condition
-(`MERGE_CONDITION: sha=<head>`).
+**対処。** 表示された `recompute` コマンドを実行して、現在のベースからバージョンを再計算し、その後サーバー側の head 条件(`MERGE_CONDITION: sha=<head>`)を使ってマージしてください。
 
 <a id="restamp-version-source"></a>
 ### `RESTAMP_VERSION_SOURCE`
 
-**Meaning.** The configured version source (`VERSION`, `.gstack/version-path`)
-is absent, ambiguous or broken at the base revision or on the branch, so there
-is no version to bump from.
+**意味。** 設定されたバージョンのソース(`VERSION`、`.gstack/version-path`)が、ベースリビジョンまたはブランチ上で存在しない、曖昧である、または壊れています。そのため、バンプの元となるバージョンがありません。
 
-**Fix.** Create `VERSION` or pin the manifest path in `.gstack/version-path`
-on the base branch. gstack never substitutes `0.0.0.0`.
+**対処。** ベースブランチで `VERSION` を作成するか、`.gstack/version-path` でマニフェストのパスを固定してください。gstack が `0.0.0.0` で代用することはありません。
 
 <a id="restamp-merge-conflict"></a>
 ### `RESTAMP_MERGE_CONFLICT`
 
-**Meaning.** `--after <pr>` builds the merge of the branch and the
-predecessor's head in a throwaway worktree, and that merge conflicts. The
-branch is untouched.
+**意味。** `--after <pr>` は、一時的な worktree でブランチと前のブランチの head をマージしたものを作りますが、そのマージがコンフリクトしました。ブランチ自体は変更されていません。
 
-**Fix.** Merge the predecessor (or the base once it merges) into the branch
-under `/ship` Step 3's conflict rules, then run `--after` again.
+**対処。** 前のブランチ(またはベースがマージされたらベース)を、`/ship` の Step 3 のコンフリクトルールに従ってブランチへマージし、その後 `--after` をもう一度実行してください。
 
 <a id="restamp-release-tool-failed"></a>
 ### `RESTAMP_RELEASE_TOOL_FAILED`
 
-**Meaning.** The policy's `release_tool` exited non-zero inside the staging
-worktree. The branch was not written; the journal records the stage.
+**意味。** ポリシーの `release_tool` が、ステージング用 worktree の中で 0 以外の終了コードで終了しました。ブランチには書き込まれておらず、journal にはステージが記録されています。
 
-**Fix.** Run the tool by hand in the repo, fix it, then rerun `gstack-restamp`.
+**対処。** リポジトリ内でそのツールを手動で実行し、問題を修正してから `gstack-restamp` を再実行してください。
 
 <a id="restamp-output-outside-allowed"></a>
 ### `RESTAMP_OUTPUT_OUTSIDE_ALLOWED`
 
-**Meaning.** The release tool changed a path outside its allowed-output set
-(the version files, lockfiles, the CHANGELOG, `stamp_paths` and
-`release_outputs`). The restamp refused before writing anything to the branch.
+**意味。** release tool が、許可された出力の集合(バージョンファイル、ロックファイル、CHANGELOG、`stamp_paths`、`release_outputs`)の外にあるパスを変更しました。restamp はブランチへ何も書き込む前に処理を拒否しました。
 
-**Fix.** Add the path to `release_outputs` on the base branch when it is a
-legitimate generated output, or stop the tool from writing it.
+**対処。** そのパスが正当な生成物である場合は、ベースブランチの `release_outputs` にそのパスを追加してください。そうでなければ、そのツールがそのパスへ書き込まないようにしてください。
 
 <a id="restamp-conflict"></a>
 ### `RESTAMP_CONFLICT`
 
-**Meaning.** While applying or rolling back, a file no longer held the bytes
-the journal recorded (someone edited it after the stage ran). Overwriting it
-would lose that edit, so the restamp stopped.
+**意味。** 適用またはロールバックの途中で、ファイルの中身がジャーナルに記録されたバイト列と一致しなくなりました(ステージの実行後に誰かが編集しました)。上書きするとその編集が失われるため、restamp は停止しました。
 
-`cannot fingerprint the working tree (<detail>); nothing written` is the same
-code before anything was staged: `gstack-wtree exited <n>: <reason>` carries
-the helper's own repair (for example a writable `TMPDIR`), and
-`gstack-wtree could not start: ...` is the Windows bash lookup failing (see
-[`BASH_UNAVAILABLE`](#bash-unavailable)).
+`cannot fingerprint the working tree (<detail>); nothing written` も、何もステージされる前に発生する同じコードです。`gstack-wtree exited <n>: <reason>` にはヘルパー自身の修復案(たとえば書き込み可能な `TMPDIR`)が含まれます。`gstack-wtree could not start: ...` は、Windows で bash の検索に失敗したことを示します([`BASH_UNAVAILABLE`](#bash-unavailable) を参照)。
 
-**Fix.** Read `.gstack/tmp/restamp-journal.json`, reconcile the named file by
-hand, then rerun `gstack-restamp` (idempotent: a complete stamp is a no-op).
+**対処。** `.gstack/tmp/restamp-journal.json` を読み、指定されたファイルを手作業で整合させてから、`gstack-restamp` を再実行してください(冪等です。stamp が完了していれば何もしません)。
 
 <a id="restamp-predecessor-moved"></a>
 ### `PREDECESSOR MOVED <old> -> <new> — fix: gstack-restamp --after <pr> again (RESTAMP_PREDECESSOR_MOVED)`
 
-**Meaning.** The gate ran on a synthetic tree built against a predecessor
-head that is no longer that PR's head, so the gated tree is not the tree that
-will merge. The receipt refuses `gate-reuse: eligible`.
+**意味。** ゲートは、前の PR の head が現在のものではなくなった時点の head に対して構築された合成ツリー上で実行されました。そのため、ゲートされたツリーは、マージされるツリーと一致しません。receipt は `gate-reuse: eligible` を拒否します。
 
-**Fix.** `gstack-restamp --after <pr>` again, gate the new synthetic tree, and
-read the receipt again.
+**対処。** `gstack-restamp --after <pr>` を再度実行し、新しい合成ツリーにゲートをかけ直して、receipt を読み直してください。
 
 <a id="changelog-duplicate-heading"></a>
 ### `CHANGELOG_DUPLICATE_HEADING`
 
-**Meaning.** Two sections share one version heading, usually a stamp that
-re-headed `[Unreleased]` beside an entry that already carried the version.
+**意味。** 2 つのセクションが同じバージョンの見出しを共有しています。多くの場合、バージョンを既に持つエントリの隣で、stamp が `[Unreleased]` の見出しを付け替えたことが原因です。
 
-**Fix.** Merge them into one entry under the new version.
+**対処。** 両者を新しいバージョンの下の 1 つのエントリにまとめてください。
 
 <a id="changelog-top-mismatch"></a>
 ### `CHANGELOG_TOP_MISMATCH`
 
-**Meaning.** After the stamp, the first entry's heading is not the version in
-`VERSION`.
+**意味。** stamp の後、最初のエントリの見出しが `VERSION` のバージョンと一致しません。
 
-**Fix.** `gstack-restamp` moves the PR's section to the top; if a hand edit
-undid that, fix the heading or rerun the restamp.
+**対処。** `gstack-restamp` は PR のセクションを先頭へ移動します。手作業の編集によってそれが元に戻された場合は、見出しを修正するか、restamp を再実行してください。
 
 <a id="changelog-section-missing"></a>
 ### `CHANGELOG_SECTION_MISSING`
 
-**Meaning.** The CHANGELOG has neither an `[Unreleased]` section nor one
-headed by the version currently stamped on the branch, so there is nothing to
-re-head.
+**意味。** CHANGELOG に `[Unreleased]` セクションもなく、現在ブランチに stamp されているバージョンを見出しとするセクションもありません。そのため、見出しを付け替える対象がありません。
 
-**Fix.** Under stamp-at-merge, write the PR's entry under `## [Unreleased]`;
-the restamp turns it into `## [<version>] - <date>`.
+**対処。** stamp-at-merge の方式では、PR のエントリを `## [Unreleased]` の下に書いてください。restamp がそれを `## [<version>] - <date>` に変換します。
 
 <a id="gate-reuse-not-eligible"></a>
 ### `gate-reuse: not-eligible (<what changed>) — fix: <rerun command> (GATE_REUSE_NOT_ELIGIBLE)`
 
-**Meaning.** Tree identity alone is not gate evidence. The receipt compares
-the gated identity (tree modulo stamps, runtime pins, lockfile hash, CI
-workflow hashes, gate command hash, executed selection, runner image) with the
-current one and names what differs, or the stamp-sensitive gates that must
-rerun on the final tree.
+**意味。** ツリーの同一性だけではゲートの証拠になりません。receipt は、ゲートされた同一性(stamp を除いたツリー、ランタイムのピン、ロックファイルのハッシュ、CI ワークフローのハッシュ、ゲートコマンドのハッシュ、実行された選択、ランナーイメージ)を現在の状態と比較し、異なる箇所を示します。また、最終ツリーで再実行しなければならない stamp に依存するゲートも示します。
 
-**Fix.** Rerun the named lanes with the printed command on the stamped tree,
-or pass `--force-gate <reason>` in `/ship` to run the full gate again.
+**対処。** 表示されたコマンドで、stamp されたツリー上の該当レーンを再実行するか、`/ship` で `--force-gate <reason>` を渡して、ゲート全体をもう一度実行してください。
 
 <a id="evidence-identity-unknown"></a>
 ### `EVIDENCE_IDENTITY_UNKNOWN`
 
-**Meaning.** The bundle (or ledger record) lacks a committed tree id, runtime
-versions, lockfile hashes or the command hash, so no reuse decision can rest on
-it. Imported assertions without verification count as unknown too.
+**意味。** バンドル(またはレコード)に、コミット済みのツリー ID、ランタイムのバージョン、ロックファイルのハッシュ、またはコマンドのハッシュがありません。そのため、再利用の判断をその証拠に基づいて行うことができません。検証されていない取り込み済みのアサーションも、不明として扱われます。
 
-**Fix.** Rebuild the bundle on the gate machine after the lanes ran on a
-committed head: `gstack-evidence bundle --out <file> --label <lane>...`.
+**対処。** コミット済みの head に対してレーンを実行した後、ゲートマシン上で `gstack-evidence bundle --out <file> --label <lane>...` を使ってバンドルを作り直してください。
 
 <a id="evidence-bundle-invalid"></a>
 ### `EVIDENCE_BUNDLE_INVALID`
 
-**Meaning.** The bundle is not valid JSON or not `gstack-evidence-bundle` v1.
+**意味。** バンドルが有効な JSON ではないか、`gstack-evidence-bundle` v1 ではありません。
 
-**Fix.** Rebuild it with `gstack-evidence bundle`; a bundle is never hand-edited.
+**対処。** `gstack-evidence bundle` で作り直してください。バンドルを手で編集することはありません。
 
 <a id="preregistration-not-ancestor"></a>
 ### `PREREGISTRATION_NOT_ANCESTOR`
 
-**Meaning.** A `preregistration_shas` entry in the policy is not an ancestor
-of HEAD, so the preregistered eval does not describe this branch.
+**意味。** ポリシーの `preregistration_shas` のエントリが HEAD の祖先ではありません。そのため、事前登録された eval はこのブランチを表していません。
 
-**Fix.** Merge or rebase so the commit is in the branch history, or remove the
-entry on the base branch. `gstack-evidence ancestor <sha>...` prints one line
-per entry; the ship receipt records the result.
+**対処。** そのコミットがブランチの履歴に含まれるようにマージまたは rebase するか、ベースブランチでそのエントリを削除してください。`gstack-evidence ancestor <sha>...` はエントリごとに 1 行ずつ結果を出力します。ship receipt にはその結果が記録されます。
 
 <a id="history-policy-violation"></a>
 ### `HISTORY_POLICY_VIOLATION`
 
-**Meaning.** The policy says `history: merge-only` and the plan would squash,
-rebase or otherwise rewrite the branch: `gstack-ship-policy check-history
---plan squash|rebase` refuses (exit 3) before anything moves, and without
-`--plan` it reports the violation (exit 1) when the pushed branch is no longer
-an ancestor of HEAD.
+**意味。** ポリシーは `history: merge-only` を指定していますが、計画では squash、rebase、またはその他の方法でブランチを書き換えることになっています。`gstack-ship-policy check-history --plan squash|rebase` は、何かが動く前に拒否します(終了コード 3)。`--plan` を付けない場合は、push 済みのブランチが HEAD の祖先でなくなったときに違反を報告します(終了コード 1)。
 
-**Fix.** `git merge origin/<base>` and keep every commit; merge the PR with a
-merge commit.
+**対処。** `git merge origin/<base>` を実行し、すべてのコミットを残してください。PR はマージコミットでマージしてください。
 
 <a id="receipt-missing"></a>
 ### `RECEIPT_MISSING`
 
-**Meaning.** `gstack-ship-receipt read --pr <n>` found no
-```` ```gstack-ship-receipt ```` block in the PR body.
+**意味。** `gstack-ship-receipt read --pr <n>` が、PR 本文の中に ```` ```gstack-ship-receipt ```` ブロックを見つけられませんでした。
 
-**Fix.** `/ship` Step 18 writes it (`gstack-ship-receipt write ... --pr <n>`);
-for an older PR, write it once by hand with the same command.
+**対処。** `/ship` の Step 18 が書き込みます(`gstack-ship-receipt write ... --pr <n>`)。古い PR の場合は、同じコマンドで一度手動で書き込んでください。
 
 <a id="receipt-invalid"></a>
 ### `RECEIPT_INVALID`
 
-**Meaning.** The block exists but does not validate against the `ship-receipt`
-schema (`gstack-artifact schema ship-receipt`).
+**意味。** ブロックは存在しますが、`ship-receipt` スキーマ(`gstack-artifact schema ship-receipt`)に対して検証できません。
 
-**Fix.** Regenerate it with `gstack-ship-receipt write`; never hand-edit the
-block.
+**対処。** `gstack-ship-receipt write` で再生成してください。ブロックを手で編集してはいけません。
 <a id="execution-unknown"></a>
 ### `EXECUTION_UNKNOWN`
 
-**Meaning.** `gstack-autoplan` recorded a dispatch intent for an attempt (the
-prompt was handed to a reviewer) but no terminal record followed: no `submit`,
-no cancellation. The runner was killed, or the parent never came back. The
-provider may have finished and charged; snapshot hashes prove which input was
-sent, not whether the review completed. The spend ledger keeps the attempt's
-reservation.
+**意味。** `gstack-autoplan` が、ある試行について dispatch の意図を記録しました(プロンプトはレビュアーに渡されました)が、その後に終了レコードがありません(`submit` もキャンセルもありません)。ランナーが強制終了されたか、親プロセスが戻ってこなかったかのどちらかです。プロバイダーは完了して課金された可能性があります。スナップショットのハッシュは、どの入力が送られたかを証明しますが、レビューが完了したかどうかは証明しません。支出台帳には、その試行の予約分が残ります。
 
-**Fix.** If the reviewer finished, submit its result with the same attempt id
-(`gstack-autoplan submit --out <dir> --phase <p> --voice <v> --result <file>
---model <id> --attempt <id>`); a late result is still bound. If it did not,
-redispatch explicitly with `gstack-autoplan next --out <dir> --redispatch
-<attempt>`. `resume` and `next` never redispatch an ambiguous attempt on their own.
+**対処。** レビュアーが完了していた場合は、同じ試行 ID で結果を submit してください(`gstack-autoplan submit --out <dir> --phase <p> --voice <v> --result <file> --model <id> --attempt <id>`)。後から届いた結果も引き続き紐づけられます。完了していなかった場合は、`gstack-autoplan next --out <dir> --redispatch <attempt>` で明示的に再 dispatch してください。`resume` と `next` は、曖昧な試行を自動的に再 dispatch することはありません。
 
 <a id="run-locked"></a>
 ### `RUN_LOCKED`
 
-**Meaning.** Another `gstack-autoplan` process holds `<dir>/run.lock` (pid,
-host and start time are in the file). Every mutating command takes the lock
-for its duration, so two writers never interleave.
+**意味。** 別の `gstack-autoplan` プロセスが `<dir>/run.lock` を保持しています(ファイルには pid、ホスト、開始時刻が記録されています)。変更を伴うコマンドはすべて、実行中ロックを取得するため、2 つの書き手が互いに干渉することはありません。
 
-**Fix.** Wait for the owner to exit. If its pid is gone (a killed runner),
-`gstack-autoplan resume --out <dir>` takes ownership and reconciles open
-attempts; a lock whose pid is alive is never stolen.
+**対処。** 所有プロセスが終了するまで待ってください。その pid がすでに存在しない場合(ランナーが強制終了された場合)は、`gstack-autoplan resume --out <dir>` を実行すると所有権を取得し、未完了の試行を整理します。pid が生きているロックが奪われることはありません。
 
 <a id="run-not-initialized"></a>
 ### `RUN_NOT_INITIALIZED`
 
-**Meaning.** The `--out` directory has no `run.json` written by
-`gstack-autoplan`, so `submit`, `status`, `answer` and `resume` have nothing to
-act on.
+**意味。** `--out` ディレクトリに、`gstack-autoplan` が書いた `run.json` がありません。そのため、`submit`、`status`、`answer`、`resume` が対象とするものがありません。
 
-**Fix.** Start the run with `gstack-autoplan next --plan <file> --out <dir>`;
-the first `next` initializes the run (restore point, active plan, manifest).
+**対処。** `gstack-autoplan next --plan <file> --out <dir>` で実行を開始してください。最初の `next` で実行が初期化されます(復元ポイント、アクティブな計画、マニフェストを作成します)。
 
 <a id="phase-not-awaiting"></a>
 ### `PHASE_NOT_AWAITING`
 
-**Meaning.** `submit` named a phase or voice that is not waiting for a result:
-the phase is already closed, not yet opened, or the voice already has a bound
-result.
+**意味。** `submit` が指定したフェーズまたは voice は、結果を待っている状態ではありません。そのフェーズはすでに閉じられているか、まだ開かれていないか、その voice にはすでに紐づいた結果があります。
 
-**Fix.** Run `gstack-autoplan status --out <dir>` and submit for the attempt
-the last `next` printed (`ATTEMPT: ... phase=<p> voice=<v>`).
+**対処。** `gstack-autoplan status --out <dir>` を実行し、直前の `next` が出力した試行(`ATTEMPT: ... phase=<p> voice=<v>`)に対して submit してください。
 
 <a id="attempt-mismatch"></a>
 ### `ATTEMPT_MISMATCH`
 
-**Meaning.** The `--attempt` id is not the open attempt for that phase and
-voice, or that attempt was already submitted. A result is bound exactly once;
-a second submit of the same attempt is refused rather than overwriting the
-first.
+**意味。** `--attempt` の ID が、そのフェーズと voice に対して開いている試行ではないか、その試行はすでに submit 済みです。結果は 1 回だけ紐づけられます。同じ試行を 2 回 submit すると、最初の結果を上書きせず拒否されます。
 
-**Fix.** Pass the attempt id printed by `next` for this voice. To replace a
-bound result, reopen the phase through `answer` (a scope-changing choice) or
-start a new run.
+**対処。** その voice について `next` が出力した試行 ID を渡してください。紐づいた結果を置き換えたい場合は、`answer` でフェーズを開き直す(スコープを変える選択になります)か、新しい実行を開始してください。
 
 <a id="result-receipt-missing"></a>
 ### `RESULT_RECEIPT_MISSING`
 
-**Meaning.** The result file does not begin with the full-read receipt the
-prompt asked for: `INPUT: <phase> <snapshot sha256>`. Either the reviewer did
-not read the prompt file through EOF, or the result belongs to a different
-snapshot (the plan changed between dispatch and submit).
+**意味。** 結果ファイルの先頭に、プロンプトが要求した完全読了の receipt がありません。receipt は `INPUT: <phase> <snapshot sha256>` の形式です。レビュアーがプロンプトファイルを EOF まで読まなかったか、その結果が別のスナップショットに対するものです(dispatch と submit の間に計画が変わりました)。
 
-**Fix.** The reviewer's first line must be the INPUT line from its prompt
-file. If the plan changed, run `next` again for a fresh snapshot and
-redispatch; a result for an older snapshot is never bound to the current phase.
+**対処。** レビュアーの 1 行目は、プロンプトファイルの INPUT 行と同じでなければなりません。計画が変わった場合は、`next` を再実行して新しいスナップショットを取得し、再 dispatch してください。古いスナップショットに対する結果が現在のフェーズに紐づくことはありません。
 
 <a id="result-findings-missing"></a>
 ### `RESULT_FINDINGS_MISSING`
 
-**Meaning.** The result has no valid canonical findings block. Every reviewer
-returns, beside its prose, one fenced block:
+**意味。** 結果に、有効な正規の findings ブロックがありません。各レビュアーは、散文と一緒に次のフェンス付きブロックを 1 つ返します。
 
 ````
 ```gstack-findings
@@ -2780,1419 +1790,850 @@ returns, beside its prose, one fenced block:
 ```
 ````
 
-one JSON object per line with at least `severity` (`Critical`, `High`,
-`Medium`, `Low`, `Informational`) and `title`. An empty fence means the
-reviewer found nothing; a missing fence or a malformed row means the result
-cannot be reconciled and is refused.
+1 行に 1 つの JSON オブジェクトで、少なくとも `severity`(`Critical`、`High`、`Medium`、`Low`、`Informational` のいずれか)と `title` を含みます。空のフェンスは、レビュアーが何も見つけなかったことを意味します。フェンスがない場合や行の形式が不正な場合は、結果を照合できないため拒否されます。
 
-**Fix.** Ask the reviewer for the fence (the prompt names it), or add the rows
-from its prose yourself and submit again. Reconciliation runs on these rows,
-not on the prose; a prose-only review has no completeness check.
+**対処。** レビュアーにフェンスを出すよう依頼してください(プロンプトにその指定があります)。あるいは、散文から行を自分で追加して、再度 submit してください。照合は散文ではなくこれらの行に対して行われます。散文だけのレビューには、網羅性のチェックがありません。
 
 <a id="model-family-conflict"></a>
 ### `MODEL_FAMILY_CONFLICT`
 
-**Meaning.** The outside voice's model is in the same family as the native
-reviewer (both Anthropic, both OpenAI, ...), or its family cannot be
-determined from the id. Two voices from one family are one voice; the record
-says which was which.
+**意味。** 外部 voice のモデルが、ネイティブのレビュアーと同じファミリーに属しています(どちらも Anthropic、どちらも OpenAI など)。または、ID からファミリーを判定できません。同じファミリーの 2 つの voice は、実質的には 1 つの voice です。記録には、どの voice がどのモデルかが示されます。
 
-**Fix.** Run the outside voice on a model from another family and pass its id
-with `--model`. Families recognized: anthropic, openai, google, xai, deepseek,
-qwen, zai, moonshot, meta, mistral, minimax. An id the table cannot classify
-is refused; name the model fully (`openai/gpt-6-astra`, not `astra`).
+**対処。** 外部 voice を別のファミリーのモデルで実行し、そのモデルの ID を `--model` で渡してください。認識されるファミリーは、anthropic、openai、google、xai、deepseek、qwen、zai、moonshot、meta、mistral、minimax です。テーブルで分類できない ID は拒否されます。モデル名は完全に指定してください(`astra` ではなく `openai/gpt-6-astra`)。
 
 <a id="spend-cap-exceeded"></a>
 ### `SPEND_CAP_EXCEEDED`
 
-**Meaning.** `spent + reserved + next_estimate` would exceed `--spend-cap`.
-The ledger (`<dir>/spend.json`) counts unsettled reservations and unknown
-charges at their reservation, so a crashed attempt keeps its cost held until
-it is settled or released.
+**意味。** `spent + reserved + next_estimate` が `--spend-cap` を超えます。台帳(`<dir>/spend.json`)は、未確定の予約と不明な課金を予約額で計上します。そのため、クラッシュした試行のコストは、確定または解放されるまで保留されたままです。
 
-**Fix.** Raise `--spend-cap`, settle attempts whose actual cost is known
-(`submit --usage-usd <n>`), release attempts that never ran (`gstack-autoplan
-release --attempt <id>`), or stop here. Host-dispatched subagent spend is
-`unknown`, never zero.
+**対処。** `--spend-cap` を引き上げるか、実際のコストがわかっている試行を確定させるか(`submit --usage-usd <n>`)、実行されなかった試行を解放するか(`gstack-autoplan release --attempt <id>`)、ここで停止してください。ホストが dispatch したサブエージェントの支出は `unknown` として扱われ、ゼロ扱いにはなりません。
 
 <a id="consensus-missing"></a>
 ### `CONSENSUS_MISSING`
 
-**Meaning.** `next` for the Eng phase found a closed prior phase without its
-consensus record (`<phase>-consensus.md` plus its reconciliation rows), so the
-Eng prompt would be sent without that phase's summary.
+**意味。** Eng フェーズの `next` が、閉じられた前のフェーズに、そのコンセンサス記録(`<phase>-consensus.md` とその照合行)がないことを見つけました。そのため、そのフェーズの要約がないまま Eng のプロンプトが送られてしまうことになります。
 
-**Fix.** `gstack-autoplan resume --out <dir>` re-closes the phase through
-reconciliation. The Eng dispatch is refused until every closed phase has its
-summary; it is never sent partially.
+**対処。** `gstack-autoplan resume --out <dir>` を実行すると、照合を通じてフェーズが再度閉じられます。閉じられたすべてのフェーズに要約が揃うまで、Eng の dispatch は拒否されます。一部だけ送られることはありません。
 
 <a id="outside-runner-unavailable"></a>
 ### `OUTSIDE_RUNNER_UNAVAILABLE`
 
-**Meaning.** `gstack-outside-voice run --runner <r>` cannot run here:
-`codex-cli` found no `codex` binary or no login, `api` found neither
-`OPENAI_API_KEY` nor `ANTHROPIC_API_KEY` for the model's family, or
-`host-subagent` was called without `--result <file> --model <id>`. When
-another runner is configured (`--fallback` or `GSTACK_OUTSIDE_RUNNER`), the
-line reads `codex-cli unavailable; using <runner>` and the review proceeds on
-that runner; it is a full outside voice, not a degraded one. With no other
-runner, this is missing coverage.
+**意味。** `gstack-outside-voice run --runner <r>` をここで実行できません。`codex-cli` は `codex` バイナリもログインも見つけられませんでした。`api` は、そのモデルのファミリーに対応する `OPENAI_API_KEY` も `ANTHROPIC_API_KEY` も見つけられませんでした。`host-subagent` は `--result <file> --model <id>` なしで呼ばれました。別のランナーが設定されている場合(`--fallback` または `GSTACK_OUTSIDE_RUNNER`)は、`codex-cli unavailable; using <runner>` という行が表示され、そのランナーでレビューが続行されます。これは完全な外部 voice であり、縮退版ではありません。ほかに使えるランナーがない場合は、カバレッジが欠けている状態です。
 
-**Fix.** `gstack-codex-login` logs Codex in from `OPENAI_API_KEY`
-(unattended machines); or set the API key and pass `--runner api`; or run the
-review on a cross-family subagent and submit its file with `--runner
-host-subagent --result <file> --model <id>`.
+**対処。** `gstack-codex-login` は `OPENAI_API_KEY` から Codex にログインします(無人のマシン向けです)。または、API キーを設定して `--runner api` を渡してください。あるいは、別ファミリーのサブエージェントでレビューを実行し、そのファイルを `--runner host-subagent --result <file> --model <id>` で submit してください。
 
 <a id="reality-row-missing"></a>
 ### `REALITY_ROW_MISSING`
 
-**Meaning.** `gstack-plan-reality check --phase <p> <review>` found no
-`REALITY: <row> …` line for a row the review must carry (every tier 1 row:
-`premise-table`, `already-done`, `surface-check`, `binding-decisions`,
-`numbers`, `deferred-asks`, `pr-count`; plus the tier 2 rows whose scope was
-passed with `--scope`), or a tier 1 row was marked `n/a`. The check prints
-`PLAN_REALITY: phase=<p> rows=<n>/<m> missing=<ids> verdict=<v>` and exits
-`1`. In an unattended run the verdict is `incomplete` and the phase does not
-close; interactively it is `repair`: produce the missing rows and re-check, at
-most twice, then warn at the gate with each row still missing.
+**意味。** `gstack-plan-reality check --phase <p> <review>` で、レビューが含むべき行に対応する `REALITY: <row> …` の行が見つかりませんでした。対象は、ティア 1 のすべての行(`premise-table`、`already-done`、`surface-check`、`binding-decisions`、`numbers`、`deferred-asks`、`pr-count`)と、`--scope` で指定されたスコープに対応するティア 2 の行です。また、ティア 1 の行が `n/a` とマークされている場合も対象です。チェックは `PLAN_REALITY: phase=<p> rows=<n>/<m> missing=<ids> verdict=<v>` を出力し、終了コード `1` で終わります。無人実行では判定は `incomplete` となり、そのフェーズは閉じません。対話的な実行では判定は `repair` となり、不足している行を作成して再チェックします。これは最大 2 回までで、その後は不足したままの行を各々ゲートで警告します。
 
-**Fix.** `gstack-plan-reality rows --phase <p> [--scope <csv>]` prints each
-row's check. Work it and end the review with one line per row,
-`REALITY: <row> pass|finding <summary> <file:line>`.
+**対処。** `gstack-plan-reality rows --phase <p> [--scope <csv>]` は、各行のチェック内容を出力します。その内容に従って作業し、レビューの最後に、行ごとに 1 行ずつ `REALITY: <row> pass|finding <summary> <file:line>` を書いてください。
 
 <a id="reality-receipt-missing"></a>
 ### `REALITY_RECEIPT_MISSING`
 
-**Meaning.** A `REALITY:` line names its row and status but carries no
-receipt. A receipt is `path:line`, `path:line-line` or a commit sha; it is what
-makes the row a check rather than a claim.
+**意味。** `REALITY:` の行には行名と状態がありますが、receipt がありません。receipt は `path:line`、`path:line-line`、またはコミットの sha です。receipt があることで、その行は主張ではなくチェックとして扱われます。
 
-**Fix.** Add where the check was made to the line, for example
-`REALITY: already-done pass 0 hits since 2026-10-09 for bin/gstack-doctor 91bbd9e`
-or `REALITY: surface-check finding bun upgrade --version absent on 1.3.14 bin/gstack-capy-install:52`.
+**対処。** その行に、チェックを行った場所を追記してください。例: `REALITY: already-done pass 0 hits since 2026-10-09 for bin/gstack-doctor 91bbd9e` または `REALITY: surface-check finding bun upgrade --version absent on 1.3.14 bin/gstack-capy-install:52`。
 
-## Pre-gate: generated-file registry, gstack-pregate, issue links
+## プリゲート: 生成ファイルのレジストリ、gstack-pregate、Issue リンク
 
-Both tools read their pin file (`.gstack/generated.json`, `.gstack/pregate.json`)
-from `origin/<base>`, never the working tree, and run repo-declared commands only
-under `--allow-repo-commands` or inside `/ship`. Details: docs/pregate.md.
+どちらのツールも、ピン留めファイル(`.gstack/generated.json`、`.gstack/pregate.json`)を作業ツリーからではなく `origin/<base>` から読みます。また、リポジトリが宣言したコマンドは、`--allow-repo-commands` を付けた場合か `/ship` の内部でのみ実行されます。詳細は docs/pregate.md を参照してください。
 
 <a id="regen-registry-invalid"></a>
 ### `REGEN_REGISTRY_INVALID`
 
-**Meaning.** `.gstack/generated.json` is not valid JSON, has an unknown key, a
-missing `id`/`inputs`/`outputs`, or a duplicate id.
+**意味。** `.gstack/generated.json` が有効な JSON ではないか、未知のキーがあるか、`id`/`inputs`/`outputs` が欠けているか、ID が重複しています。
 
-**Fix.** `gstack-regen validate` prints every error with its JSON path; compare
-with `gstack-regen init --explain` and fix the file on the base branch.
+**対処。** `gstack-regen validate` は、すべてのエラーを JSON パス付きで表示します。`gstack-regen init --explain` と比較して、ベースブランチでファイルを修正してください。
 
 <a id="regen-containment"></a>
 ### `REGEN_CONTAINMENT`
 
-**Meaning.** A registry glob escapes the repository (`..`, absolute, more than 64
-per list) or a command is not one line under 512 bytes.
+**意味。** レジストリの glob がリポジトリの外に出ている(`..`、絶対パス、各リストで 64 を超える)か、コマンドが 1 行でないか、512 バイトを超えています。
 
-**Fix.** Repo-relative globs only; one line per command.
+**対処。** リポジトリからの相対 glob を使い、コマンドは 1 行ごとに書いてください。
 
 <a id="regen-stale"></a>
 ### `REGEN_STALE`
 
-**Meaning.** A registered output differs from what its command produces in a
-scratch `git worktree` of the current tree: the output is stale or hand-edited.
+**意味。** 登録された出力が、現在のツリーの一時的な `git worktree` でそのコマンドが生成する内容と異なります。出力が古いか、手で編集されています。
 
-**Fix.** Run the printed command (`gstack-regen write --only <id>` does it in
-place) and commit the outputs. Never hand-merge a generated file: on a conflict
-take either side, then regenerate.
+**対処。** 表示されたコマンドを実行してください(`gstack-regen write --only <id>` はその場で実行します)。そして出力をコミットしてください。生成ファイルを手でマージしてはいけません。コンフリクトが起きたら、どちらか一方を選んでから再生成してください。
 
 <a id="regen-command-failed"></a>
 ### `REGEN_COMMAND_FAILED`
 
-**Meaning.** A registered command exited non-zero in the scratch worktree.
+**意味。** 登録されたコマンドが、一時的な worktree で 0 以外の終了コードで終了しました。
 
-**Fix.** Run it by hand in the repository and read its output; the scratch
-worktree has no `node_modules` of its own, so a command that needs them must
-reference the repository's (gstack's entries do through `bun run`).
+**対処。** リポジトリで手動で実行し、出力を確認してください。一時的な worktree には独自の `node_modules` がないため、依存関係を必要とするコマンドはリポジトリのものを参照する必要があります(gstack のエントリは `bun run` 経由でこれを行います)。
 
 <a id="regen-deps-missing"></a>
 ### `REGEN_DEPS_MISSING`
 
-**Meaning.** A registered command exited 0 and its outputs differ from the
-committed ones, but `package.json` declares dependencies and the repository has
-no `node_modules`, so the scratch worktree ran the generator without them. The
-difference may come from the missing dependencies rather than stale files, so
-the entry is reported as unverified, not `REGEN_STALE`.
+**意味。** 登録されたコマンドは 0 で終了し、その出力はコミット済みのものと異なります。ただし `package.json` は依存関係を宣言しており、リポジトリには `node_modules` がありません。そのため、一時的な worktree は依存関係なしで生成処理を実行しました。差分は古いファイルではなく、依存関係の欠落から生じた可能性があります。そのためこのエントリは `REGEN_STALE` ではなく、未検証として報告されます。
 
-**Fix.** Run the printed install command (`bun install`, or the one matching the
-repository's lockfile), then rerun `gstack-regen check` or the pre-gate.
+**対処。** 表示されたインストールコマンド(`bun install`、またはリポジトリのロックファイルに対応するもの)を実行してから、`gstack-regen check` かプリゲートを再実行してください。
 
 <a id="pregate-config-invalid"></a>
 ### `PREGATE_CONFIG_INVALID`
 
-**Meaning.** `.gstack/pregate.json` has an unknown key, a wrong type, a glob
-that escapes the repository, a runner without `{files}`, or `secrets` in `warn`.
+**意味。** `.gstack/pregate.json` に、未知のキー、誤った型、リポジトリの外に出る glob、`{files}` を含まないランナー、または `warn` 内の `secrets` があります。
 
-**Fix.** `gstack-pregate validate`. `secrets` and required-lane obligations
-cannot be downgraded; every other check id in `warn` is honoured only from the
-base branch's copy.
+**対処。** `gstack-pregate validate` を実行してください。`secrets` と必須レーンの義務は格下げできません。それ以外の `warn` 内のチェック ID は、ベースブランチのコピーに書かれている場合のみ適用されます。
 
 <a id="pregate-secrets"></a>
 ### `PREGATE_SECRETS`
 
-**Meaning.** `gstack-redact` found a HIGH finding, or a MEDIUM finding in the
-`secret` category, in the lines this branch adds.
+**意味。** `gstack-redact` が、このブランチが追加した行の中で HIGH の検出、または `secret` カテゴリの MEDIUM の検出を見つけました。
 
-**Fix.** Rotate the credential, remove it from the added lines (history
-included), rerun. Not downgradable.
+**対処。** 認証情報をローテーションし、追加した行から(履歴も含めて)削除してから、再実行してください。格下げはできません。
 
 <a id="pregate-strays"></a>
 ### `PREGATE_STRAYS`
 
-**Meaning.** A file was added at the repository root, in a new top-level
-directory, or under a scratch name (`zz-*`, `tmp*`, `scratch*`).
+**意味。** リポジトリのルート、新しいトップレベルディレクトリ、または一時的な名前(`zz-*`、`tmp*`、`scratch*`)でファイルが追加された。
 
-**Fix.** Delete or move it. An intentional root file goes in `strays.allow`.
+**対処。** 削除するか移動してください。意図的にルートに置くファイルは `strays.allow` に記載します。
 
 <a id="pregate-literals"></a>
 ### `PREGATE_LITERALS`
 
-**Meaning.** A changed exported constant (or a named timeout/retry literal) still
-appears with its old value in a test file the branch did not update — nightly-
-and Heavy-only files included.
+**意味。** 変更されたエクスポート定数(または名前付きのタイムアウト/リトライのリテラル)が、ブランチで更新されていないテストファイルに、古い値のまま残っている。nightly および Heavy 専用のファイルも対象に含まれる。
 
-**Fix.** Update every listed `file:line`, or keep the old value.
+**対処。** 一覧に出ている `file:line` をすべて更新するか、古い値を残してください。
 
 <a id="pregate-no-lane"></a>
 ### `PREGATE_NO_LANE`
 
-**Meaning.** A touched source file maps to no test through static imports,
-repo-path string literals, the `bin/<name>` → `test/<name>*.test.ts` convention
-or a `dependencies` declaration (in a Django project, also the files Django
-loads by name: settings strings, `include()`, app migrations, admin, templates
-and static files). That is a failure, not a pass. Markdown no
-test depends on is a docs/no-tests empty lane and is not this error, whether
-or not the name says plan, evidence or redproof. A test that reads one of
-those files (a quoted path or a `join()` of path segments) still selects that
-test. An unmapped source or code file still fails. A file under a test
-directory is not this empty lane. Images, fonts and media, and
-allowlisted tool config no test names, are the assets-and-tool-config empty lane,
-not this error.
+**意味。** 変更されたソースファイルが、静的インポート、リポジトリパスの文字列リテラル、`bin/<name>` → `test/<name>*.test.ts` の命名規則、または `dependencies` の宣言のいずれを通してもテストに対応付けられない。Django プロジェクトでは、Django が名前で読み込むファイル(settings の文字列、include()、アプリのマイグレーション、admin、テンプレート、静的ファイル)も対応付けの対象になる。これは合格ではなく失敗である。どのテストにも依存されていない Markdown は docs/no-tests の空レーンであり、このエラーには当たらない。名前に plan、evidence、redproof が含まれているかどうかは関係ない。あるテストがそれらのファイルを読む場合(パスの引用や、パスセグメントの `join()`)は、そのテストが選択される。対応付けられないソースファイルやコードファイルは引き続き失敗する。テストディレクトリ配下のファイルは、この空レーンには該当しない。画像、フォント、メディア、およびどのテストも名前を挙げていない許可リスト入りのツール設定は、assets-and-tool-config の空レーンであり、このエラーではない。
 
-**Fix.** Add a test that names the file, or declare its lane (an explicit `[]`
-for files with no behaviour) under `dependencies` in `.gstack/pregate.json`.
-Other non-Markdown documentation goes in `empty_lanes` on the base branch.
-Dart files under `integration_test/` or `test_driver/` need a device, so pregate
-never runs them: declare `"**/integration_test/**": []` (and
-`"**/test_driver/**": []`) under `dependencies` and let CI run them.
-With no policy yet, `gstack-pregate init` drafts the `dependencies` entries
-from the repo and lists the files it could not place. `--explain` prints every mapping and why. For a file with no lane it also prints the import
-specifiers in test files that resolved to no repo file (for example a
-`tsconfig.json` `paths` alias such as `@/lib/x` whose target is missing) and any
-`extends` hop that was not followed (only relative `extends`, at most 4 hops). If
-a test does cover the file, declare it under `dependencies`; if the resolver
-should have found it, report the specifier as a resolver gap.
+**対処。** そのファイルを名指しするテストを追加するか、`.gstack/pregate.json` の `dependencies` にレーンを宣言してください(動作を持たないファイルには明示的な `[]` を指定します)。それ以外の非 Markdown のドキュメントは、ベースブランチの `empty_lanes` に記載します。`integration_test/` または `test_driver/` 配下の Dart ファイルはデバイスを必要とするため、pregate では実行されません。その場合は `dependencies` に `"**/integration_test/**": []`(および `"**/test_driver/**": []`)を宣言し、CI で実行させてください。ポリシーがまだない場合は、`gstack-pregate init` がリポジトリから `dependencies` のエントリを作成し、配置できなかったファイルを一覧表示します。`--explain` は、すべての対応付けとその理由を表示します。レーンのないファイルについては、テストファイル内で解決されなかったインポート指定子(例えば、対象が存在しない `tsconfig.json` の `paths` エイリアス `@/lib/x`)や、たどられなかった `extends` の中継(相対 `extends` のみ、最大4ホップ)も表示します。テストが実際にそのファイルをカバーしている場合は、`dependencies` に宣言してください。リゾルバーが見つけるべきだったのに見つけられなかった場合は、その指定子をリゾルバーの不具合として報告してください。
 
 <a id="pregate-lane-failed"></a>
 ### `PREGATE_LANE_FAILED`
 
-**Meaning.** A local lane the touched files select exited non-zero under
-`set -o pipefail`, or reported zero tests (ZERO-RUN).
+**意味。** 変更されたファイルが選択したローカルレーンが、`set -o pipefail` の下で非ゼロで終了したか、テストを 0 件しか報告しなかった(ZERO-RUN)。
 
-**Fix.** Read the printed lane log, fix the failure, rerun
-`gstack-pregate --stage tests`. A `| tail`-hidden exit is still an exit.
+**対処。** 出力されたレーンのログを読み、失敗を修正して、`gstack-pregate --stage tests` を再実行してください。`| tail` によって隠れた終了も、終了であることに変わりはありません。
 
 <a id="pregate-incomplete"></a>
 ### `PREGATE_INCOMPLETE`
 
-**Meaning.** A check timed out, its tool is unavailable, repo commands were not
-allowed, or the working tree changed while the check ran. Incomplete is never
-pass and blocks publication.
+**意味。** チェックがタイムアウトした、そのツールが利用できない、リポジトリのコマンドが許可されていない、またはチェックの実行中に作業ツリーが変わった。Incomplete は合格とは扱われず、公開もブロックされる。
 
-**Fix.** Pass `--allow-repo-commands`, install the tool (for a Dart package the
-message names `not on PATH: dart` or `flutter`; fvm also works when the repo pins
-it), commit the `pubspec.yaml` of a Dart package the message says has none (or
-declare `runner`), raise `--timeout`, or keep the tree still, then rerun.
+**対処。** `--allow-repo-commands` を指定する、ツールをインストールする(Dart パッケージの場合、メッセージには `not on PATH: dart` または `flutter` と表示される。リポジトリが fvm で固定している場合は fvm も使える)、メッセージが `pubspec.yaml` を持たないと指摘する Dart パッケージの `pubspec.yaml` をコミットする(または `runner` を宣言する)、`--timeout` を上げる、あるいは作業ツリーを変更せずに保ってから、再実行してください。
 
 <a id="pregate-stalled"></a>
 ### `PREGATE_STALLED`
 
-**Meaning.** A test command the lanes check (or a guard, or the `--remote`
-gate) launched wrote nothing to its log for the stall timeout (default 300 s,
-`stall_timeout_s` in the base branch's `.gstack/pregate.json`, or
-`--stall-timeout`). pregate killed its process group and names the last test
-file started. The check is incomplete, never pass.
+**意味。** レーンチェック(またはガード、`--remote` ゲート)が起動したテストコマンドが、ストールタイムアウト(デフォルトは 300 秒。ベースブランチの `.gstack/pregate.json` の `stall_timeout_s`、または `--stall-timeout`)の間、ログに何も書き出さなかった。pregate はそのプロセスグループを強制終了し、最後に開始されたテストファイルの名前を表示する。このチェックは未完了であり、合格ではない。
 
-**Fix.** Open the printed log, find the hang in the named file (a blocked
-child, a server that never exits, a synchronous wait), fix it and rerun
-`gstack-pregate --stage tests`. A test that is legitimately quiet for longer
-needs a larger `--stall-timeout`; `0` disables the stall kill and leaves only
-`--timeout`.
+**対処。** 出力されたログを開き、指定されたファイルでハングの原因を探してください(ブロックされた子プロセス、終了しないサーバー、同期的な待機など)。修正してから `gstack-pregate --stage tests` を再実行します。正当な理由で長く静かになるテストには、より大きな `--stall-timeout` が必要です。`0` を指定するとストールによる強制終了が無効になり、`--timeout` だけが残ります。
 
 <a id="pregate-receipt-invalid"></a>
 ### `PREGATE_RECEIPT_INVALID`
 
-**Meaning.** `gstack-pregate clear --remote pregate.json/remote_gate --receipt
-<file>` read the remote gate's output and its `PREGATE_REMOTE:` line is missing,
-names another tree than the one `pregate.json` tested, reports 0 tests, or
-reports failures. The obligation stays uncleared. A run URL alone never clears
-this obligation; a `test_backend/<backend>` obligation takes a run URL, recorded
-as attested rather than validated.
+**意味。** `gstack-pregate clear --remote pregate.json/remote_gate --receipt <file>` が、リモートゲートの出力を読み取った結果、その `PREGATE_REMOTE:` 行が欠けている、`pregate.json` がテストしたものとは別のツリーを指している、0 件のテストを報告している、または失敗を報告している、のいずれかに該当した。この義務は未クリアのままになる。実行 URL だけでは、この義務はクリアされない。`test_backend/<backend>` の義務は実行 URL を受け付けるが、その URL は検証済みではなく、申告済み(attested)として記録される。
 
-**Fix.** Run the remote gate on the tree pregate tested and pass its output
-file with `--receipt`, or let `gstack-pregate --stage tests --remote --spend-cap
-<usd> --allow-repo-commands` run and validate it.
+**対処。** pregate がテストしたツリーでリモートゲートを実行し、その出力ファイルを `--receipt` で渡してください。または、`gstack-pregate --stage tests --remote --spend-cap <usd> --allow-repo-commands` を実行させて、結果を検証させてください。
 
 <a id="pregate-stale"></a>
 ### `PREGATE_STALE`
 
-**Meaning.** `pregate.json` was recorded against a different working-tree
-fingerprint than the one being published (the final stamp, a regen, any edit).
+**意味。** `pregate.json` が、公開しようとしている作業ツリーのフィンガープリントとは別のものに対して記録されている(最終スタンプ、再生成、または任意の編集の後)。
 
-**Fix.** Rerun `gstack-pregate` after the final generation and stamp; Step 18
-refuses to write the ship receipt otherwise.
+**対処。** 最終的な生成とスタンプの後で `gstack-pregate` を再実行してください。そうしないと、Step 18 は出荷レシートの書き込みを拒否します。
 
 <a id="pregate-remote-uncleared"></a>
 ### `PREGATE_REMOTE_UNCLEARED`
 
-**Meaning.** A `requires-remote` obligation (a platform lane this machine cannot
-run, named by `workflow.yml/job`) has no receipt.
+**意味。** `requires-remote` の義務(このマシンでは実行できないプラットフォームレーンで、`workflow.yml/job` によって指定される)に、レシートがない。
 
-**Fix.** Dispatch that job, then
-`gstack-pregate clear --remote <workflow.yml/job> --run-url <url>` (or
-`--bundle-lane <label>` from an evidence bundle). The ship receipt carries each
-obligation with its receipt.
+**対処。** そのジョブをディスパッチし、その後 `gstack-pregate clear --remote <workflow.yml/job> --run-url <url>` を実行してください(エビデンスバンドルから行う場合は `--bundle-lane <label>`)。出荷レシートには、各義務とそのレシートが記載されます。
 
 <a id="issue-unreadable"></a>
 ### `ISSUE_UNREADABLE`
 
-**Meaning.** An issue named by a `Fixes #N`/`Closes #N` trailer or `--issue N`
-could not be read through `gstack-issue-guard`.
+**意味。** `Fixes #N`/`Closes #N` のトレーラー、または `--issue N` で指定された Issue を、`gstack-issue-guard` を通じて読み取れなかった。
 
-**Fix.** Check `gh auth status` and the number. Until it reads, the link is
-rendered as `Refs #N`, never `Fixes`.
+**対処。** `gh auth status` と番号を確認してください。読み取れるようになるまでは、そのリンクは `Fixes` ではなく `Refs #N` として表示されます。
 
 <a id="issue-lookup-failed"></a>
 ### `ISSUE_LOOKUP_FAILED`
 
-**Meaning.** `gstack-issue-links` could not resolve the repository, list the open
-PRs that close an issue this PR fixes, search the flake issues naming a
-`--ci-run` id, or tell this PR's author: `gh` runs as an app (`…[bot]`) and
-neither the HEAD commit (unpushed, or not linked to a GitHub user) nor a
-user-owned repository names one, so the owner's own open PRs stay in the
-`Related:` lines. The closure and reference lines are still printed; `--json`
-lists each failure under `unavailable`.
+**意味。** `gstack-issue-links` が、リポジトリを解決できなかった、この PR が修正する Issue をクローズする未解決の PR の一覧を取得できなかった、`--ci-run` の ID を名指ししている flake の Issue を検索できなかった、またはこの PR の作成者を特定できなかった。`gh` はアプリ(`…[bot]`)として実行されており、HEAD コミット(未 push、または GitHub ユーザーに紐づいていない)もユーザー所有のリポジトリも、作成者を示していない。そのため、オーナー自身の未解決 PR は `Related:` の行に残る。クローズおよび参照の行は引き続き出力される。`--json` を指定すると、各失敗が `unavailable` の下に一覧されます。
 
-**Fix.** Check `gh auth status`, pass `--repo <owner/repo>` when the remote
-is not a GitHub repository and `--author <login>` when `gh` runs as an app,
-then rerun. If it still fails, say in the handoff
-which lookup is missing; never present the body as complete.
+**対処。** `gh auth status` を確認してください。リモートが GitHub リポジトリでない場合は `--repo <owner/repo>` を、`gh` がアプリとして実行されている場合は `--author <login>` を指定してから、再実行します。それでも失敗する場合は、どの検索が欠けているかを引き継ぎ時に明記してください。本文が完全であるかのように提示してはいけません。
 
 <a id="issue-links-missing"></a>
 ### `ISSUE_LINKS_MISSING`
 
-**Meaning.** `gstack-ship-receipt write --issues @issues.json --body <file>`
-found that the body lacks a `Fixes`, `Refs`, `Flake:`, `Related:`,
-`Supersedes` or `Contributed by` line the issues object records, so the PR
-body and its receipt would disagree. Nothing was written.
+**意味。** `gstack-ship-receipt write --issues @issues.json --body <file>` が、Issue オブジェクトに記録された `Fixes`、`Refs`、`Flake:`、`Related:`、`Supersedes`、または `Contributed by` の行が本文に欠けていることを検出した。このままでは PR 本文とそのレシートが食い違ってしまうため、何も書き込まれなかった。
 
-**Fix.** Paste every line `gstack-issue-links` printed under `## Issues` in the
-body (or rerun `gstack-issue-links --out` if the issue set changed), then rerun
-the receipt write.
+**対処。** `gstack-issue-links` が `## Issues` の下に出力した行をすべて本文に貼り付けるか(Issue の集合が変わった場合は `gstack-issue-links --out` を再実行してから)、レシートの書き込みを再実行してください。
 
-## Eval plans, lane ownership, evidence verification, the owner brief
+## eval の計画、レーンの所有、証拠の検証、オーナー向けブリーフ
 
-Codes printed by `bin/gstack-eval-plan`, `bin/gstack-lane-check`,
-`gstack-evidence verify`, `bin/gstack-owner-brief`, `bin/gstack-contributor-mode`
-and `bin/gstack-banned-terms` (plan E1–E3). Each ends an error line in
-parentheses; grep the code.
+`bin/gstack-eval-plan`、`bin/gstack-lane-check`、`gstack-evidence verify`、`bin/gstack-owner-brief`、`bin/gstack-contributor-mode`、`bin/gstack-banned-terms` が出力するコードです(計画 E1〜E3)。それぞれ、末尾に括弧付きのエラー行が出力されます。コードを grep して確認してください。
 
 <a id="prereg-incomplete"></a>
 ### `PREREG_INCOMPLETE`
 
-**Meaning.** `gstack-eval-plan prereg --check <file>` found a required
-preregistration section missing or empty: `## Bars`, `## Arms`, `## Decoys`,
-`## Stop rules` or `## Held-out exposure` (every held-out set the plan
-touches, its prior exposure and the reservation on it).
+**意味。** `gstack-eval-plan prereg --check <file>` が、必須の事前登録セクションの欠落または空を検出した。対象は `## Bars`、`## Arms`、`## Decoys`、`## Stop rules`、`## Held-out exposure`(計画が触れるすべての held-out セット、その事前の露出、およびそのセットに対する予約)である。
 
-**Fix.** Fill the named sections before any priced call. A plan that cannot
-name its stop rule or its held-out exposure is not preregistered; the pilot
-refuses to start without a passing check.
+**対処。** 有償の呼び出しを行う前に、名指しされたセクションを埋めてください。停止ルールや held-out の露出を示せない計画は、事前登録されていないことになります。パイロットは、このチェックに合格するまで開始を拒否します。
 
 <a id="eval-price-missing"></a>
 ### `EVAL_PRICE_MISSING`
 
-**Meaning.** An arm's model has no row in `lib/pricing.ts`, so the admission
-estimate would be `$0`, which the ledger would admit without limit.
+**意味。** あるアームのモデルが `lib/pricing.ts` に行を持っていないため、承認見積もりが `$0` になってしまう。台帳はそれを無制限に承認してしまう。
 
-**Fix.** Add the row from the provider's pricing page (USD per million tokens
-with `as_of`), or drop the arm. The table prices standard text tokens only;
-see the excluded billing categories in `lib/pricing.ts`.
+**対処。** プロバイダーの料金ページから行を追加してください(100 万トークンあたりの USD を `as_of` と共に記載)。または、そのアームを削除します。この表は標準のテキストトークンのみを価格設定しています。除外された課金カテゴリについては `lib/pricing.ts` を参照してください。
 
 <a id="eval-dry-run-failed"></a>
 ### `EVAL_DRY_RUN_FAILED`
 
-**Meaning.** The `$0` stub-model dry run over the real input file found a
-problem the priced run would have paid for: a row without the fields the
-prompt needs, an output budget too small for a reasoning model, or no retry
-prompt text.
+**意味。** 実際の入力ファイルに対する `$0` のスタブモデルでのドライランで、有償の実行であれば支払うことになっていた問題が見つかった。具体的には、プロンプトに必要なフィールドがない行、推論モデルには小さすぎる出力予算、またはリトライ用のプロンプトテキストがない、といったものである。
 
-**Fix.** Repair the named rows or flags (`--output-budget`, `--retry-prompt`)
-and rerun `gstack-eval-plan dry-run`. The checklist it prints is the record
-the pilot requires.
+**対処。** 名指しされた行またはフラグ(`--output-budget`、`--retry-prompt`)を修正し、`gstack-eval-plan dry-run` を再実行してください。出力されるチェックリストが、パイロットに必要な記録になります。
 
 <a id="eval-arms-unresolved"></a>
 ### `EVAL_ARMS_UNRESOLVED`
 
-**Meaning.** `gstack-models resolve --role eval-arms` produced no arm and the
-repo policy document fallback (`--policy-doc`, default the first of
-`docs/model-policy.md`, `MODEL_POLICY.md`, `docs/MODELS.md`) named no priced
-model.
+**意味。** `gstack-models resolve --role eval-arms` がアームを一つも生成せず、リポジトリのポリシードキュメントによるフォールバック(`--policy-doc`、デフォルトは `docs/model-policy.md`、`MODEL_POLICY.md`、`docs/MODELS.md` のうち最初に見つかったもの)にも、価格設定されたモデルが記載されていなかった。
 
-**Fix.** Pass `--arms <model,model>`, point `--policy-doc` at the document
-that lists the project's allowed models, or fix the model policy config.
+**対処。** `--arms <model,model>` を指定するか、`--policy-doc` でプロジェクトで許可されたモデルを一覧している文書を指すか、モデルポリシーの設定を修正してください。
 
 <a id="eval-budget-exhausted"></a>
 ### `EVAL_BUDGET_EXHAUSTED`
 
-**Meaning.** The ledger refused the next reservation: spent + reserved +
-unknown charges + the estimate exceeds the cap (`SPEND_CAP_EXCEEDED`
-underneath). The run stops with status `budget_exhausted`; nothing is retried.
+**意味。** 台帳が次の予約を拒否した。消費済み + 予約済み + 不明な課金 + 見積もりが上限を超えている(その下では `SPEND_CAP_EXCEEDED`)。実行はステータス `budget_exhausted` で停止し、再試行されない。
 
-**Fix.** Read the spend table (`gstack-eval-plan pilot report`), settle or
-release the open attempts, then raise `--cap` on purpose or stop.
+**対処。** 支出表(`gstack-eval-plan pilot report`)を確認し、未決の試行を確定させるか解放してから、意図的に `--cap` を上げるか、停止してください。
 
 <a id="lane-conflict"></a>
 ### `LANE_CONFLICT`
 
-**Meaning.** `gstack-lane-check` found a planned file that an in-flight
-branch or pull request already changes; the line names the PR number, the
-branch and the hunk count.
+**意味。** `gstack-lane-check` が、計画中のファイルを、進行中のブランチまたはプルリクエストがすでに変更していることを検出した。該当行には PR 番号、ブランチ、およびハンク数が表示される。
 
-**Fix.** Give the file one owner: wait for that PR to merge, stack this lane
-on its branch, or drop the file from the plan. Two lanes editing one file is
-the merge-conflict incident the check exists to prevent.
+**対処。** そのファイルの所有者を一つに決めてください。その PR がマージされるのを待つか、このレーンをそのブランチの上に積むか、計画からそのファイルを外します。2つのレーンが同じファイルを編集することは、このチェックが防ぐために存在するマージコンフリクトの事故にあたります。
 
 <a id="lane-ref-unavailable"></a>
 ### `LANE_REF_UNAVAILABLE`
 
-**Meaning.** A `--branch` or `--pr` could not be resolved: the ref is not
-fetched, or `gh` is missing or not logged in.
+**意味。** `--branch` または `--pr` を解決できなかった。ref が取得されていないか、`gh` が存在しないかログインしていない。
 
-**Fix.** `git fetch origin <branch>`, or `gh auth status`. An unresolved lane
-is reported as such and never counted as clear.
+**対処。** `git fetch origin <branch>` を実行するか、`gh auth status` を確認してください。解決できなかったレーンは、そのように報告され、クリア済みとして数えられることは決してありません。
 
 <a id="evidence-unverified"></a>
 ### `EVIDENCE_UNVERIFIED`
 
-**Meaning.** `gstack-evidence verify <bundle>` could not verify a lane claim
-on this machine: the committed tree differs from the bundle's, the recorded
-log is absent or its hash differs, or the probe was not rerun.
+**意味。** `gstack-evidence verify <bundle>` が、このマシン上ではレーンの主張を検証できなかった。コミットされたツリーがバンドルのものと異なる、記録されたログが存在しない、またはそのハッシュが異なる、あるいはプローブが再実行されていない、のいずれかである。
 
-**Fix.** Check out the bundle's commit and run `--rerun` to execute the lane
-command here, or treat the claim as an imported assertion that never counts
-toward gate reuse.
+**対処。** バンドルのコミットをチェックアウトし、`--rerun` を実行して、ここでレーンのコマンドを実行してください。または、その主張を、ゲートの再利用に決して数えられない、取り込まれた主張として扱ってください。
 
 <a id="banned-term-found"></a>
 ### `BANNED_TERM_FOUND`
 
-**Meaning.** The diff adds a term listed in `.gstack/banned-terms.json`
-outside that term's `allowed_paths`. The finding names the term, the file and
-line, and the allowed locations.
+**意味。** 差分が、`.gstack/banned-terms.json` に記載された用語を、その用語の `allowed_paths` の外側に追加している。検出結果には、用語、ファイル、行、および許可された場所が示される。
 
-**Fix.** Remove the term from the added line or move the text to an allowed
-path. `/review` and `/document-release` run this check on every diff.
+**対処。** 追加された行からその用語を削除するか、テキストを許可されたパスに移動してください。`/review` と `/document-release` は、すべての差分でこのチェックを実行します。
 
 <a id="banned-terms-invalid"></a>
 ### `BANNED_TERMS_INVALID`
 
-**Meaning.** `.gstack/banned-terms.json` is not valid: `terms` must be a
-non-empty list of strings, and each `allowed_paths` entry must be a plain
-repo-relative glob (no `..`, no absolute path, no symlink escape).
+**意味。** `.gstack/banned-terms.json` が無効である。`terms` は空でない文字列のリストでなければならず、各 `allowed_paths` のエントリは、単純なリポジトリ相対のグロブでなければならない(`..` 、絶対パス、シンボリックリンクによる脱出は不可)。
 
-**Fix.** `gstack-banned-terms init` writes a commented example with every key
-at its default; `gstack-banned-terms validate` checks the file.
+**対処。** `gstack-banned-terms init` は、すべてのキーがデフォルト値であるコメント付きの例を書き出します。`gstack-banned-terms validate` でファイルを検証できます。
 
 <a id="contributor-source-unavailable"></a>
 ### `CONTRIBUTOR_SOURCE_UNAVAILABLE`
 
-**Meaning.** `gstack-contributor-mode detect` found no `maintainers` list in
-`.gstack/ship-policy.json` and could not ask the collaborators API (`gh`
-missing, not logged in, or no PR author resolvable), so the mode is off and
-`source=off` is recorded.
+**意味。** `gstack-contributor-mode detect` が、`.gstack/ship-policy.json` に `maintainers` のリストを見つけられず、collaborators API にも問い合わせられなかった(`gh` が存在しない、ログインしていない、または PR の作成者を解決できない)。そのため、モードはオフになり、`source=off` が記録される。
 
-**Fix.** Add `maintainers` to the ship policy (the explicit list always wins),
-run `gh auth login`, or pass `--contributor` to force the mode for this review.
+**対処。** ship policy に `maintainers` を追加してください(明示的なリストが常に優先される)。`gh auth login` を実行するか、このレビューに限ってモードを強制するために `--contributor` を指定してください。
 
 <a id="brief-input-missing"></a>
 ### `BRIEF_INPUT_MISSING`
 
-**Meaning.** `gstack-owner-brief render --out <dir>` needs `gate.json`,
-`decisions.jsonl` and `findings.jsonl` in the run directory; one is missing.
+**意味。** `gstack-owner-brief render --out <dir>` には、実行ディレクトリに `gate.json`、`decisions.jsonl`、`findings.jsonl` が必要だが、そのうち一つが欠けている。
 
-**Fix.** Reach the gate first (`gstack-autoplan next --out <dir>` until
-`gate_pending`); the brief renders what the gate wrote.
+**対処。** 先にゲートに到達させてください(`gstack-autoplan next --out <dir>` を `gate_pending` になるまで実行する)。ブリーフは、ゲートが書き出した内容を描画します。
 
 <a id="draft-direction-unresolved"></a>
 ### `DRAFT_DIRECTION_UNRESOLVED`
 
-**Meaning.** The phase-close rewrite found a `draft direction stands until the
-owner decides` line whose decision id is still pending, so it was left as is.
+**意味。** フェーズクローズの書き換えが、`draft direction stands until the owner decides` という行を見つけたが、その判断 ID がまだ保留中のため、そのまま残された。
 
-**Fix.** Answer the gate for that id, then rerun `gstack-owner-brief close`;
-only decided lines are rewritten, each to its chosen option and the date.
+**対処。** その ID に対するゲートに回答してから、`gstack-owner-brief close` を再実行してください。判断済みの行だけが、選ばれた選択肢と日付に書き換えられます。
 
 <a id="setup-crlf-repair"></a>
 ### `warning: left <n> locally edited file(s) with CRLF line endings that gstack pins to LF`
 
-**Meaning.** Git for Windows checks out with `core.autocrlf=true`, so gstack's
-nested shell scripts (skill `bin/` helpers, the Claude hook shims,
-`lib/cso/images/*`, `scripts/app/*`) were written with CRLF until
-`.gitattributes` pinned them to LF (#3110). Git Bash runs them anyway, but a
-Linux bash reading the same checkout (a synced tree, WSL, a bind mount) fails
-with `set: pipefail: invalid option name`, and a hook that fails that way
-blocks the tool call it guards. Pulling the new rule does not fix existing
-copies, because git never rewrites a file whose content did not change. Setup
-finds those files with one `git ls-files --eol` pass and checks them out again
-as LF. It leaves a file you edited locally alone and names it in this warning.
-The same section covers `skipped the CRLF repair` (another setup held the
-install registry lock) and `the CRLF repair could not rewrite every file`.
+**意味。** Git for Windows は `core.autocrlf=true` でチェックアウトするため、`.gitattributes` が LF に固定するまで、gstack のネストされたシェルスクリプト(スキルの `bin/` ヘルパー、Claude のフックシム、`lib/cso/images/*`、`scripts/app/*`)は CRLF で書かれていた(#3110)。Git Bash はそれでも実行できるが、同じチェックアウトを読む Linux の bash(同期されたツリー、WSL、バインドマウント)は `set: pipefail: invalid option name` で失敗し、その方法で失敗するフックは、それが保護するツール呼び出しをブロックする。新しいルールを取り込んでも既存のコピーは修正されない。Git は内容が変わらなかったファイルを書き換えないからである。setup は、`git ls-files --eol` を一度実行してそれらのファイルを見つけ、LF で再チェックアウトする。ローカルで編集されたファイルは触らず、この警告の中で名前を挙げる。同じセクションは、`skipped the CRLF repair`(別の setup がインストールレジストリのロックを保持していた)と `the CRLF repair could not rewrite every file` もカバーしている。
 
-**Fix.** For edited files, stash and restore them; git writes them back with LF
-and keeps your edits:
+**対処。** 編集されたファイルについては、stash して restore してください。Git は LF で書き戻し、あなたの編集は保たれます。
 
 ```bash
 cd ~/.claude/skills/gstack && git stash && git stash pop
 ```
 
-If the repair was skipped, re-run `./setup` once the other setup finishes. If
-it failed, `git checkout -- . && ./setup` in the checkout discards local edits
-and rewrites every file. Use your install directory if it is not
-`~/.claude/skills/gstack` (`./setup --status` prints it). Expected result: the
-next `./setup` prints no CRLF warning.
+修復がスキップされた場合は、もう一方の setup が終わったら `./setup` を再実行してください。失敗した場合は、チェックアウトで `git checkout -- . && ./setup` を実行すると、ローカルの編集は破棄され、すべてのファイルが書き直されます。インストールディレクトリが `~/.claude/skills/gstack` でない場合は、そのディレクトリを使ってください(`./setup --status` が表示します)。期待される結果は、次の `./setup` で CRLF の警告が出力されないことです。
 
-## Field wave lane CD: pregate guards, regate, sealed output
+## フィールドウェーブのレーン CD: プリゲートのガード、再ゲート、封印された出力
 
 <a id="pregate-guard-failed"></a>
 ### `PREGATE_GUARD_FAILED`
 
-**Meaning.** A guard from the base branch's `.gstack/pregate.json` (a repo
-command such as a serial-test manifest check or a CLI golden test) matched a
-file the branch touched and exited non-zero. Guards cover what the import graph
-cannot see: manifests, subprocess goldens, registries. They cannot be
-downgraded to warn.
+**意味。** ベースブランチの `.gstack/pregate.json` にあるガード(シリアルテストのマニフェストチェックや CLI のゴールデンテストなど、リポジトリのコマンド)が、ブランチが変更したファイルに一致し、非ゼロで終了した。ガードは、インポートグラフからは見えない領域(マニフェスト、サブプロセスのゴールデン、レジストリ)をカバーする。これらを warn に格下げすることはできない。
 
-**Fix.** Read the guard's lines in the table (exit code, output tail, log path)
-and do what its `fix` line says, commit, then rerun
-`gstack-pregate run --allow-repo-commands`. A lane reports done only after this
-passes and carries the `PREGATE:` line in its handoff.
+**対処。** 表の中のガードの行(終了コード、出力の末尾、ログのパス)を読み、その `fix` の行に従って対処し、コミットしてから、`gstack-pregate run --allow-repo-commands` を再実行してください。レーンは、これが合格した後にのみ完了と報告され、そのハンドオフに `PREGATE:` の行を含めます。
 
 <a id="migration-collision"></a>
 ### `MIGRATION_COLLISION`
 
-**Meaning.** `gstack-pregate regate` read `migrations` (`dir`, `id`) from the
-base branch's `.gstack/ship-policy.json` and found a migration number this
-branch adds that the base branch already has, or that another open PR adds
-under a different file name. Both PRs would pass their own gates and the
-second merge would break the schema order. When the open-PR lookup cannot
-finish (`gh` missing or failing, 1000 open PRs, a PR whose file list GitHub
-truncates and cannot be fetched in full) the line says
-`MIGRATION_COLLISION: unknown (...)` and `REGATE: not-needed` is withheld.
+**意味。** `gstack-pregate regate` が、ベースブランチの `.gstack/ship-policy.json` から `migrations`(`dir`、`id`)を読み取り、このブランチが追加するマイグレーション番号が、ベースブランチにすでにあるか、別のファイル名で別の未解決 PR が追加するものと一致することを検出した。両方の PR は、それぞれのゲートを通過してしまうが、二番目のマージでスキーマの順序が壊れてしまう。オープン PR の検索が完了できない場合(`gh` が存在しない、または失敗している、オープン PR が 1000 件ある、GitHub がファイル一覧を切り詰めて完全に取得できない PR がある)には、その行は `MIGRATION_COLLISION: unknown (...)` と表示され、`REGATE: not-needed` は出力されない。
 
-**Fix.** Take the next free migration number when this PR is next to merge,
-rename the file and its id, commit, then rerun
-`gstack-pregate regate --against <gated-head> --bundle <file>`. The renamed
-migration is a code change, so the gate reruns.
+**対処。** この PR が次にマージされるときに使える空いているマイグレーション番号を取り、ファイルと ID の名前を変更し、コミットしてから、`gstack-pregate regate --against <gated-head> --bundle <file>` を再実行してください。名前を変更したマイグレーションはコードの変更であるため、ゲートは再実行されます。
 
 <a id="sealed-output-refused"></a>
 ### `SEALED_OUTPUT_REFUSED`
 
-**Meaning.** The repo declares a `sealed` policy in `.gstack/pregate.json`
-(base branch ∪ the pushed commit) and a commit this push publishes adds a
-sealed path or transcript (binary, empty and later-deleted files included), or
-adds a line with a sealed-answer marker, a seed or a local home path, and the
-destination is public or its visibility is unknown (a new or unreadable
-repository counts as public). An unreadable or malformed sealed policy refuses
-too. The managed pre-push hook and `gstack-pregate sealed` print one line per
-finding: rule, `file[:line]`, commit. They never print the matched text.
+**意味。** リポジトリが `.gstack/pregate.json` に `sealed` ポリシーを宣言しており(ベースブランチ ∪ push されたコミット)、今回の push が公開するコミットが、sealed のパスまたはトランスクリプトを追加している(バイナリ、空のファイル、後で削除されたファイルを含む)か、sealed-answer のマーカー、シード、またはローカルのホームパスを含む行を追加している。そして、送信先が公開されているか、その可視性が不明である(新規または読み取れないリポジトリは公開とみなされる)。読み取れない、または不正な形式の sealed ポリシーも拒否される。管理された pre-push フックと `gstack-pregate sealed` は、検出結果ごとに 1 行を出力する。ルール、`file[:line]`、コミットである。一致したテキストは決して出力されない。
 
-**Fix.** Remove the output from every published commit before the branch
-reaches the public repository (a later commit that deletes it still publishes
-it). A reviewed false positive gets one line in the base branch's
-`.gstack/sealed-allow.tsv`: `rule<TAB>path<TAB>sha<TAB>reason`. A private
-destination sets `"visibility": "private"` under `sealed` in the base branch's
-`.gstack/pregate.json`. Capy's pull-request tool may not run local hooks, so
-run `gstack-pregate sealed` yourself before any push or PR creation.
+**対処。** ブランチが公開リポジトリに届く前に、公開されるすべてのコミットからその出力を削除してください(後のコミットで削除しても、それまでに公開されたものは残ります)。レビュー済みの誤検知は、ベースブランチの `.gstack/sealed-allow.tsv` に 1 行で記載します。形式は `rule<TAB>path<TAB>sha<TAB>reason` です。非公開の送信先の場合は、ベースブランチの `.gstack/pregate.json` の `sealed` 配下に `"visibility": "private"` を設定してください。Capy のプルリクエストツールはローカルのフックを実行しないことがあるため、push や PR 作成の前には、ご自身で `gstack-pregate sealed` を実行してください。
 
 <a id="eval-gate-unpriced"></a>
 ### `EVAL_GATE_UNPRICED`
 
-**Meaning.** `gstack-eval-plan price-gate` found no call-plan file for the paid
-gate: no `--plan-file`, no `price_file` in the base branch's
-`.gstack/pregate.json`, or the file has no `GSTACK_EVAL_CALLS` lines. (A
-declared `price_file` missing from HEAD is `EVAL_PLAN_STALE`, not this.) A gate whose cost is unknown cannot
-be approved as priced.
+**意味。** `gstack-eval-plan price-gate` が、有償ゲートのためのコール計画ファイルを見つけられなかった。`--plan-file` がない、ベースブランチの `.gstack/pregate.json` に `price_file` がない、またはファイルに `GSTACK_EVAL_CALLS` の行がない、のいずれかである。(宣言された `price_file` が HEAD に存在しない場合は、これではなく `EVAL_PLAN_STALE` になる。)コストが不明なゲートは、価格設定済みとして承認することはできない。
 
-**Fix.** The consuming repo commits a call-plan file in the format of
-[docs/eval-calls.md](eval-calls.md) and names it in `price_file`. Only when the
-owner accepts an unpriced gate, rerun with `--allow-unpriced "<reason>"`: it
-exits 0, prints `GATE_UNPRICED_OVERRIDE: <reason> (owner-authorized override;
-not authorization to spend)` and records the reason in the receipt.
+**対処。** 利用するリポジトリは、[docs/eval-calls.md](eval-calls.md) の形式でコール計画ファイルをコミットし、それを `price_file` に指定してください。オーナーが価格未設定のゲートを認めた場合に限り、`--allow-unpriced "<reason>"` を付けて再実行します。これは終了コード 0 で終了し、`GATE_UNPRICED_OVERRIDE: <reason> (owner-authorized override; not authorization to spend)` を出力し、その理由をレシートに記録します。
 
 <a id="eval-gate-over-cap"></a>
 ### `EVAL_GATE_OVER_CAP`
 
-**Meaning.** The gate's priced total is above `--cap-usd`, or one call's
-reservation (its share of the input plus `max_out_tokens`) is above `--cap-usd`,
-or above `--smoke-cap-usd` for a `scope=smoke` row. A provider refuses a
-reservation the cap cannot hold, so the run would fail after spending.
+**意味。** ゲートの課金合計が `--cap-usd` を超えているか、1回の呼び出しの予約量(入力の分担分と `max_out_tokens` の合計)が `--cap-usd` を超えているか、`scope=smoke` の行の場合は `--smoke-cap-usd` を超えていることを示します。プロバイダーは上限に収まらない予約を拒否するため、このまま実行すると支払い後に失敗してしまいます。
 
-**Fix.** Cut questions, arms or `max_out_tokens` in the call plan and
-regenerate it, or raise the cap deliberately with the owner. Never split calls
-to slip under it.
+**対処。** 呼び出し計画で質問数、アーム数、または `max_out_tokens` を減らして計画ファイルを再生成するか、オーナーと相談のうえ上限を意図的に引き上げてください。上限をすり抜けるために呼び出しを分割してはいけません。
 
 <a id="eval-plan-stale"></a>
 ### `EVAL_PLAN_STALE`
 
-**Meaning.** The call-plan file prices something other than what is being
-approved: its `GSTACK_EVAL_GATE` command is not the exact `--gate` string, its
-`GSTACK_EVAL_HEAD` is behind HEAD with files other than the plan file changed
-since, an input's sha256 at HEAD differs from its `GSTACK_EVAL_INPUT` line, or
-the base policy's `price_file` is not in the HEAD commit. `--allow-unpriced`
-does not override it.
+**意味。** 呼び出し計画ファイルが、承認されようとしている内容とは異なるものに価格を付けています。具体的には、その `GSTACK_EVAL_GATE` コマンドが正確な `--gate` 文字列と一致しない、`GSTACK_EVAL_HEAD` が HEAD より古く、計画ファイル以外のファイルが変更されている、入力のsha256が HEAD 上で `GSTACK_EVAL_INPUT` の行と一致しない、あるいは基本ポリシーの `price_file` が HEAD コミットに含まれていない、といった場合です。`--allow-unpriced` でもこの拒否は覆せません。
 
-**Fix.** Regenerate the plan file at HEAD for the exact gate command (the
-repo's own producer), commit it, and rerun `gstack-eval-plan price-gate`.
+**対処。** 正確なゲートコマンドに対して、HEAD 時点で計画ファイルを再生成し(リポジトリ自身の生成元を使用)、コミットしてから `gstack-eval-plan price-gate` を再実行してください。
 
 <a id="plan-sections-invalid"></a>
 ### `PLAN_SECTIONS_INVALID`
 
-**Meaning.** `gstack-autoplan next` reviews only the plan's `## Implementation
-plan` section and keeps the `## Review record` private, so the plan needs
-exactly one non-empty Implementation plan section followed by one Review record
-section, both outside code fences. A plan with neither heading is wrapped
-automatically; one heading alone, duplicate or reversed headings, or an empty
-section is refused before anything is written. The error names the problem.
+**意味。** `gstack-autoplan next` がレビューするのは、計画の `## Implementation plan` セクションのみで、`## Review record` は非公開のまま保たれます。そのため計画には、コードフェンスの外にある、空でない Implementation plan セクションがちょうど1つと、その後に続く Review record セクションが1つ必要です。両方の見出しがない計画は自動的にラップされます。見出しが1つだけの場合、見出しが重複または逆順の場合、セクションが空の場合は、何も書き込まれずに拒否されます。エラーには問題点が示されます。
 
-**Fix.** Add the missing heading, or rerun the first `next` with `--scaffold`:
-it writes `<out>/plan-source.md` with the missing heading added, reviews that
-copy and prints `SCAFFOLDED:`. Your plan file is never edited. Duplicate,
-reversed or empty sections are ambiguous and must be fixed by hand.
+**対処。** 不足している見出しを追加するか、最初の `next` を `--scaffold` 付きで再実行してください。そうすると、不足している見出しを追加した `<out>/plan-source.md` が書き出され、そのコピーをレビューして `SCAFFOLDED:` を表示します。計画ファイル自体は編集されません。セクションの重複、逆順、空の場合は意味があいまいなため、手作業で修正する必要があります。
 
 <a id="plan-amend-pending"></a>
 ### `PLAN_AMEND_PENDING`
 
-**Meaning.** The owner accepted at least one plan change at the gate (each was
-printed as an `APPLY:` line), and the run's plan has not absorbed it, so a rerun
-would review the old plan. `next` refuses until every accepted change is
-incorporated or withdrawn; `export` refuses a `complete` run with one pending.
+**意味。** オーナーがゲートで少なくとも1つの計画変更を承認しています(それぞれ `APPLY:` 行として表示されます)が、実行中の計画にはその変更がまだ反映されていません。このまま再実行すると古い計画がレビューされてしまいます。承認された変更がすべて反映されるか取り下げられるまで、`next` は実行を拒否します。`complete` の実行に保留中の変更がある場合、`export` も拒否します。
 
-**Fix.** Edit the plan, then `gstack-autoplan revise --out <dir> --plan <file>
---incorporates <decision id,...>`. `revise` binds each named id to the old and
-new Implementation-plan hashes and refuses when the Implementation plan did
-not change; an id you do not name stays pending. A packaging or ordering change
-(its `APPLY:` line ends `no plan edit needed: revise --settle <id>`) is
-discharged with `gstack-autoplan revise --out <dir> --settle <id>` and reopens
-nothing. To drop an accepted change
-instead, `gstack-autoplan revise --out <dir> --withdraw <decision id>` records
-the withdrawal in the journal.
+**対処。** 計画を編集してから、`gstack-autoplan revise --out <dir> --plan <file> --incorporates <decision id,...>` を実行してください。`revise` は指定された各 id を、変更前と変更後の Implementation plan のハッシュに紐付け、Implementation plan が変わっていない場合は拒否します。指定しなかった id は保留のままになります。パッケージングや順序の変更(その `APPLY:` 行が `no plan edit needed: revise --settle <id>` で終わるもの)は、`gstack-autoplan revise --out <dir> --settle <id>` で処理でき、何も再オープンされません。承認された変更を取り下げたい場合は、`gstack-autoplan revise --out <dir> --withdraw <decision id>` を実行すると、取り下げが journal に記録されます。
 
 <a id="amendment-unknown"></a>
 ### `AMENDMENT_UNKNOWN`
 
-**Meaning.** `gstack-autoplan revise --incorporates` or `--withdraw` named a
-decision id that is not a pending amendment: the owner never accepted it as a
-plan change at the gate (for example a gate answered before gstack recorded
-amendments), or it was already incorporated or withdrawn. Nothing was changed.
+**意味。** `gstack-autoplan revise --incorporates` または `--withdraw` に、保留中の変更ではない decision id が指定されました。オーナーがゲートでその変更を計画変更として承認していない(たとえば gstack が変更を記録する前にゲートに回答された場合)か、すでに反映済みまたは取り下げ済みです。何も変更されません。
 
-**Fix.** Name only the ids the refusal lists after `pending:`. With none
-pending, revise without `--incorporates`:
-`gstack-autoplan revise --out <dir> --plan <file>`.
+**対処。** `pending:` の後に拒否メッセージが列挙する id のみを指定してください。保留中のものがない場合は、`--incorporates` を付けずに revise してください。
+`gstack-autoplan revise --out <dir> --plan <file>`
 
 <a id="amendment-not-settleable"></a>
 ### `AMENDMENT_NOT_SETTLEABLE`
 
-**Meaning.** `gstack-autoplan revise --settle <id>` discharges an accepted change
-without a plan edit, which is honest only for a packaging or ordering change
-(the gate item's `changes` is `packaging` or `ordering`) on the plan the run
-already reviews: the plan the owner accepted it on, or one a later `revise`
-recorded. The named change alters scope, cost or direction, names no `changes`
-value, the plan file has edits no `revise` has recorded, or `--settle` came with
-a `--plan` that changes the Implementation plan while incorporating nothing.
-Nothing was changed.
+**意味。** `gstack-autoplan revise --settle <id>` は、計画の編集なしに承認済みの変更を処理するものです。これが正しいのは、パッケージングまたは順序の変更(ゲート項目の `changes` が `packaging` または `ordering`)で、かつ実行がすでにレビューしている計画に対してのみです。レビュー対象は、オーナーがその変更を承認した計画、または後の `revise` で記録された計画です。指定された変更が範囲、コスト、方向性に影響する場合、`changes` の値が指定されていない場合、計画ファイルに `revise` で記録されていない編集がある場合、あるいは `--settle` に Implementation plan を変更しつつ何も反映しない `--plan` が付いている場合は、この拒否になります。何も変更されません。
 
-**Fix.** Edit the plan, then
-`gstack-autoplan revise --out <dir> --plan <file> --incorporates <decision id>`,
-adding `--settle <id>` to settle packaging or ordering changes in the same call
-(or settle them after the revise). The `APPLY:` line for each change says which
-path it takes, and `NEXT:` lists the settle step first.
+**対処。** 計画を編集したうえで、
+`gstack-autoplan revise --out <dir> --plan <file> --incorporates <decision id>`
+を実行してください。パッケージングや順序の変更を同時に処理する場合は `--settle <id>` を加えるか、revise の後に処理してください。各変更の `APPLY:` 行はどの経路をたどるかを示し、`NEXT:` には settle の手順が最初に挙げられます。
 
 <a id="gate-rec-stale"></a>
 ### `GATE_REC_STALE`
 
-**Meaning.** `gstack-autoplan recommend` changed a recommendation after the gate
-was rendered, so a `rec` (or `all`) reply the owner gave to the earlier render
-would take recommendations they never saw. Every render prints
-`rec_hash=<h>`; once `recommend` has run, a `rec` answer must name the hash of
-the render the owner answered. The same refusal meets a `rec`/`all` reply to a
-gate written before `rec` existed (a `gate.json` with no `rec_rev`, from
-1.91.101.0 or earlier): that render told the owner `all` leaves items
-recommended `b` pending, and `all` now takes them.
+**意味。** ゲートが描画された後に `gstack-autoplan recommend` が推奨内容を変更したため、オーナーが以前の描画に対して返した `rec`(または `all`)の回答は、オーナーが見ていない推奨を採用してしまうことになります。描画のたびに `rec_hash=<h>` が表示され、`recommend` が一度実行されると、`rec` の回答にはオーナーが回答した描画のハッシュを指定する必要があります。`rec` が存在する前に書かれたゲート(`rec_rev` がない `gate.json`、バージョン 1.91.101.0 以前)に対する `rec`/`all` の回答も同様に拒否されます。その描画は、`all` が `b` と推奨された項目を保留のままにすると説明していましたが、`all` では今やそれらも採用されてしまうためです。
 
-**Fix.** Render again (`gstack-gate render <dir>/gate.json --all`), relay it,
-and answer with `--rec-hash <h>` from that render. Explicit `<id><option>`
-tokens are never refused.
+**対処。** 再描画し(`gstack-gate render <dir>/gate.json --all`)、オーナーに伝えてから、その描画の `--rec-hash <h>` を指定して回答してください。明示的な `<id><option>` トークンは拒否されません。
 
 <a id="checkpoint-invalid"></a>
 ### `CHECKPOINT_INVALID`
 
-**Meaning.** `gstack-autoplan resume --out <dir> --from <checkpoint>` found no
-generation it can restore: a `checkpoint.json` is unreadable or not a
-schema_version 1 checkpoint, a listed file is missing, is not a regular file,
-escapes the generation (an `..` path or a symlinked directory), or does not
-match its recorded sha256; or the staged run does not pass
-`gstack-artifact validate`. `--from` naming a run's collection restores the
-newest generation that verifies, skipping corrupt newer ones; a root holding
-several runs must name one. Nothing was written to `--out`.
+**意味。** `gstack-autoplan resume --out <dir> --from <checkpoint>` が、復元可能な世代を見つけられませんでした。原因は、`checkpoint.json` が読めない、または schema_version 1 のチェックポイントではない、リストされたファイルが存在しない、通常ファイルではない、世代の外へ出ている(`..` のパスや、シンボリックリンクされたディレクトリ)、あるいは記録された sha256 と一致しない、のいずれかです。または、ステージングされた実行が `gstack-artifact validate` を通らないことも原因になります。`--from` に実行のコレクションを指定した場合は、検証に通る最新の世代を復元し、壊れた新しい世代は読み飛ばします。ルートに複数の実行がある場合は、どれか1つを指定する必要があります。`--out` には何も書き込まれません。
 
-**Fix.** `gstack-autoplan checkpoints --from <dir>` lists every generation
-with `hash=ok` or `hash=bad (<reason>)`; restore an intact one by passing its
-directory. With `GSTACK_AUTOPLAN_CHECKPOINT_DIR` set, every command that
-leaves the run at rest publishes a new generation and keeps the previous one.
+**対処。** `gstack-autoplan checkpoints --from <dir>` を実行すると、すべての世代が `hash=ok` または `hash=bad (<reason>)` 付きで表示されます。問題のない世代を、そのディレクトリを指定して復元してください。`GSTACK_AUTOPLAN_CHECKPOINT_DIR` が設定されていると、実行が静止状態で残るすべてのコマンドは新しい世代を発行し、前の世代を保持します。
 
 <a id="checkpoint-overlap"></a>
 ### `CHECKPOINT_OVERLAP`
 
-**Meaning.** The checkpoint directory for this run and the run directory (or,
-on restore, the checkpoint and `--out` or its staging directory) are the same
-directory or one contains the other, after resolving symlinks. Copying one
-into the other would replace or delete the live run, so nothing was touched.
-A checkpoint refusal after a committed command prints `CHECKPOINT: failed …`
-on stderr and leaves that command's exit code alone.
+**意味。** この実行のチェックポイントディレクトリと、実行ディレクトリが同じディレクトリであるか、片方がもう片方を含んでいます(シンボリックリンクを解決した後で判定)。復元時には、チェックポイントと `--out` またはそのステージングディレクトリが該当します。一方をもう一方にコピーすると、稼働中の実行が置き換えられるか削除されてしまうため、何も触られていません。コマンドがコミットされた後のチェックポイントの拒否は、stderr に `CHECKPOINT: failed …` を表示しますが、そのコマンドの終了コードはそのままです。
 
-**Fix.** Point `GSTACK_AUTOPLAN_CHECKPOINT_DIR` (or `--from` / `--out`) at a
-directory outside the run, for example the private project-user Drive folder.
+**対処。** `GSTACK_AUTOPLAN_CHECKPOINT_DIR`(または `--from` / `--out`)を、実行の外側のディレクトリに向けてください。たとえば、プロジェクトユーザーの非公開の Drive フォルダなどです。
 
 <a id="checkpoint-target-exists"></a>
 ### `CHECKPOINT_TARGET_EXISTS`
 
-**Meaning.** `resume --from` restores only into a missing or empty `--out`
-directory, and this one already holds files.
+**意味。** `resume --from` は、存在しないか空の `--out` ディレクトリにのみ復元します。今回指定された `--out` にはすでにファイルがあります。
 
-**Fix.** Pass a new `--out` directory, or run `gstack-autoplan resume --out
-<dir>` without `--from` to resume the run already there.
+**対処。** 新しい `--out` ディレクトリを指定するか、`--from` を付けずに `gstack-autoplan resume --out <dir>` を実行して、そこにすでにある実行を再開してください。
 
 <a id="owner-reply-required"></a>
 ### `OWNER_REPLY_REQUIRED`
 
-**Meaning.** An agent answered the gate (`--by agent:<id>`) without recording
-what the owner actually said. Nothing was applied.
+**意味。** エージェントが、オーナーの実際の発言を記録せずにゲートに回答しました(`--by agent:<id>`)。何も適用されていません。
 
-**Fix.** Pass the owner's words verbatim: `--owner-reply "<text>"`,
-`--owner-reply -` to read them from stdin, or `--owner-reply-file <path>`. They
-are stored on every decision row; when they parse under the gate grammar they
-must resolve to the same choices as `--reply`.
+**対処。** オーナーの言葉をそのまま渡してください。`--owner-reply "<text>"`、標準入力から読む場合は `--owner-reply -`、またはファイルから読む場合は `--owner-reply-file <path>` を使います。これらはすべての決定の行に保存されます。ゲートの文法で解析できる場合は、`--reply` と同じ選択に解決される必要があります。
 
 <a id="gate-owner-reply-mismatch"></a>
 ### `GATE_OWNER_REPLY_MISMATCH`
 
-**Meaning.** The owner's verbatim reply is itself a gate reply (for example
-`rec`), and it resolves to different choices than the tokens the agent relayed.
-Nothing was applied.
+**意味。** オーナーの発言そのものがゲートへの回答(たとえば `rec`)になっていて、エージェントが伝えたトークンとは異なる選択に解決されます。何も適用されていません。
 
-**Fix.** Relay what the owner chose; passing their reply as `--reply` is always
-consistent. When the owner's words and your tokens disagree, ask the owner.
+**対処。** オーナーが選んだ内容をそのまま伝えてください。オーナーの言葉を `--reply` として渡せば、常に整合します。オーナーの言葉とトークンが食い違う場合は、オーナーに確認してください。
 
 <a id="gstack-version-changed"></a>
 ### `GSTACK_VERSION_CHANGED`
 
-**Meaning.** `run.json.gstack_version` names a different gstack than the one
-running. For an older run (or one written before the field existed) this is a
-notice: the command journals `gstack_version_changed`, runs the forward
-migrations (for example rewriting decision ids minted before 1.91.95) and
-continues. For a run written by a newer gstack the command refuses, because an
-older runner cannot know the newer state.
+**意味。** `run.json.gstack_version` が、現在実行中の gstack とは別のバージョンを指しています。古い実行(またはこのフィールドが存在する前に書かれた実行)の場合は通知にとどまり、コマンドは `gstack_version_changed` を journal に記録して、前方への移行(たとえば 1.91.95 より前に発行された decision id の書き換え)を実行してから続行します。新しい gstack が書いた実行の場合は、古いランナーは新しい状態を理解できないため、コマンドは拒否されます。
 
-**Fix.** Nothing for the notice. For the refusal, upgrade gstack
-(`bin/gstack-upgrade`) on this machine and rerun the command.
+**対処。** 通知の場合は何もする必要はありません。拒否された場合は、このマシンで gstack をアップグレード(`bin/gstack-upgrade`)してから、コマンドを再実行してください。
 
 <a id="artifact-gate-unsettled"></a>
 ### `ARTIFACT_GATE_UNSETTLED`
 
-**Meaning.** `gstack-artifact validate` found a run whose status is `complete`
-while an approval item of its last gate revision is still pending, or an
-accepted plan change (`run.json.amendments`) is still pending. The runner never
-writes that state; it comes from a hand edit or an older runner.
+**意味。** `gstack-artifact validate` が、ステータスが `complete` であるにもかかわらず、最後のゲート改訂の承認項目が保留のままになっている実行、または承認された計画変更(`run.json.amendments`)が保留のままになっている実行を見つけました。ランナーがこのような状態を書き込むことはありません。手作業による編集か、古いランナーが原因です。
 
-**Fix.** Answer the gate with `gstack-autoplan answer` until no approval is
-pending, and `revise --incorporates` or `--withdraw` each pending amendment.
+**対処。** 承認が保留のものがなくなるまで `gstack-autoplan answer` でゲートに回答し、保留中の変更それぞれについて `revise --incorporates` または `--withdraw` を実行してください。
 
 <a id="ios-launch-env-invalid"></a>
 ### `ios-qa launch: GSTACK_IOS_LAUNCH_ENV ... so the app was not launched (<detail>); fix: ... (IOS_LAUNCH_ENV_INVALID)`
 
-**Meaning.** `gstack-ios-qa-daemon` forwards `GSTACK_IOS_LAUNCH_ENV` to
-`xcrun devicectl device process launch --environment-variables` whenever it
-launches the app under test. The value must be a JSON object whose keys are
-environment variable names and whose values are strings, and it may not set a
-`GSTACK_` variable (that namespace belongs to the debug bridge). Anything else
-(invalid JSON, an array, a number value, a `GSTACK_` key) refuses the launch,
-because launching without the variables an env-gated debug bridge needs would
-look like a working app with no bridge. The detail names the key and its type,
-never a value. Added in the release after v1.91.101.0.
+**意味。** `gstack-ios-qa-daemon` は、テスト対象のアプリを起動するたびに、`GSTACK_IOS_LAUNCH_ENV` を `xcrun devicectl device process launch --environment-variables` に渡します。その値は、キーが環境変数名、値が文字列である JSON オブジェクトでなければならず、`GSTACK_` の変数を設定してはいけません(その名前空間はデバッグブリッジのものです)。それ以外(不正な JSON、配列、数値の値、`GSTACK_` のキー)は起動が拒否されます。環境変数なしでアプリを起動すると、環境変数でゲートされたデバッグブリッジが動かないまま正常に動いているように見えてしまうためです。詳細にはキーと型が示されますが、値は示されません。v1.91.101.0 の次のリリースで追加されました。
 
-**Fix.** In the shell that starts the daemon (macOS Terminal or Claude Code on
-the Mac with the device):
+**対処。** デーモンを起動するシェル(デバイスを接続した Mac 上の macOS ターミナルまたは Claude Code)で次を実行します。
 
 ```bash
 export GSTACK_IOS_LAUNCH_ENV='{"DEBUG_BRIDGE":"1"}'
 ```
 
-or `unset GSTACK_IOS_LAUNCH_ENV`, then restart `gstack-ios-qa-daemon`.
+または `unset GSTACK_IOS_LAUNCH_ENV` を実行してから、`gstack-ios-qa-daemon` を再起動してください。
 
 <a id="outside-voice-unavailable"></a>
 ### `Outside voice unavailable: <cause>. Fix: <fix>. Continuing to ... (OUTSIDE_VOICE_UNAVAILABLE)`
 
-**Meaning.** `/plan-ceo-review`, `/plan-eng-review` or `/plan-devex-review` ran
-without a second opinion. The outside provider (Codex, or Claude Code under the
-Codex host) did not run or failed, and the native fallback could not supply a
-bounded review either. That fallback dispatches the built-in Plan subagent in
-the background next to a five-minute background timer, and stops whichever is
-still running when the other ends. The cause names which part was missing:
-`Plan agent type not offered`, `TaskStop not offered`, `background tasks
-unavailable`, `no complete report within five minutes`, or a failed status.
-The review-log row carries the same cause as `unavailable_reason`. Claude Code
-2.1.277 removed the TaskOutput tool the fallback used before, so on older
-gstack every native fallback on current Claude Code ended here.
+**意味。** `/plan-ceo-review`、`/plan-eng-review`、または `/plan-devex-review` が、セカンドオピニオンなしで実行されました。外部のプロバイダー(Codex、または Codex ホストの下の Claude Code)が実行されなかったか失敗し、ネイティブのフォールバックも有効なレビューを提供できませんでした。このフォールバックは、組み込みの Plan サブエージェントをバックグラウンドで起動し、同時に5分のバックグラウンドタイマーを動かして、どちらか先に終わらなかった方を停止させます。原因の行には、どの部分が不足していたかが示されます。`Plan agent type not offered`、`TaskStop not offered`、`background tasks unavailable`、`no complete report within five minutes`、または失敗ステータスのいずれかです。レビューログの行には、同じ原因が `unavailable_reason` として記録されます。Claude Code 2.1.277 でフォールバックが以前使っていた TaskOutput ツールが削除されたため、古い gstack では、最新の Claude Code でのネイティブフォールバックがすべてここで終わっていました。
 
-**What is kept.** The native plan review itself is complete. The row is
-recorded with `status: unavailable`, never as a clean review; a late or partial
-reviewer result is not counted.
+**保持される内容。** ネイティブの計画レビュー自体は完了しています。この行は `status: unavailable` として記録され、正常なレビューとしては記録されません。遅れて届いた、または部分的なレビュアーの結果は数えられません。
 
-**Fix.** Repair the provider the line names: install it, or run `codex login`
-(in your terminal or Git Bash). For the native fallback, run Claude Code 2.1.277
-or later with background tasks enabled (`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS`
-unset, not in bare mode). Then re-run the review.
+**対処。** 行に示されたプロバイダーを修復してください。インストールするか、`codex login` を実行します(ターミナルまたは Git Bash で)。ネイティブフォールバックの場合は、Claude Code 2.1.277 以降を、バックグラウンドタスクを有効にして実行してください(`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS` が未設定で、bare モードではないこと)。その後、レビューを再実行してください。
 
-**Expected result.** An `OUTSIDE VOICE (...)` report, or `CODEX SAYS (plan
-review — outside voice)` when the provider runs.
+**期待される結果。** プロバイダーが実行された場合は `OUTSIDE VOICE (...)` のレポート、または `CODEX SAYS (plan review — outside voice)` が表示されます。
 
 <a id="artifact-machine-path"></a>
 ### `ARTIFACT_MACHINE_PATH`
 
-**Meaning.** A public copy of an autoplan run still contains a path the run
-recorded on this machine: its run directory, the home directory, the plan's
-directory, the checkpoint directory or the worktree root. `gstack-artifact
-validate --public <dir> --private <run>/run.json` reports each hit with
-file:line; `gstack-autoplan export --public` runs that check on a staging copy
-and writes nothing when it fails.
+**意味。** autoplan 実行の公開コピーに、その実行がこのマシン上で記録したパスがまだ含まれています。具体的には、実行ディレクトリ、ホームディレクトリ、計画のディレクトリ、チェックポイントディレクトリ、またはワークツリーのルートです。`gstack-artifact validate --public <dir> --private <run>/run.json` は、各ヒットを file:line 付きで報告します。`gstack-autoplan export --public` は、ステージングコピーに対してこのチェックを実行し、失敗した場合は何も書き出しません。
 
-**Fix.** Export with `gstack-autoplan export --out <run> --public <dir>`, which
-rewrites recorded roots to repo-relative paths or `<local notes (not
-committed)>`. Export never rewrites inline code or fenced blocks in plan.md, so
-a hit there needs a plan edit: change the path, `revise`, and export again.
-Generic home-directory paths that are not recorded roots are WARN lines, not
-errors.
+**対処。** `gstack-autoplan export --out <run> --public <dir>` でエクスポートしてください。これは記録されたルートをリポジトリ相対パス、または `<local notes (not committed)>` に書き換えます。エクスポートは plan.md のインラインコードやフェンスされたブロックを書き換えないため、そこでヒットした場合は計画の編集が必要です。パスを変更し、`revise` してから、再度エクスポートしてください。記録されたルートではない一般的なホームディレクトリのパスは、エラーではなく WARN 行になります。
 
 <a id="artifact-public-target-exists"></a>
 ### `ARTIFACT_PUBLIC_TARGET_EXISTS`
 
-**Meaning.** `gstack-autoplan export --public <dir>` found files in `<dir>`
-that are not an earlier public copy of the same run, and refused to overwrite
-them.
+**意味。** `gstack-autoplan export --public <dir>` は、`<dir>` の中に、同じ実行の以前の公開コピーではないファイルを見つけたため、上書きを拒否しました。
 
-**Fix.** Pass an empty or new directory, or the directory that already holds
-this run's public copy (it is replaced as a whole).
+**対処。** 空の新しいディレクトリを指定するか、この実行の公開コピーがすでにあるディレクトリを指定してください(そのディレクトリは丸ごと置き換えられます)。
 
 <a id="prereg-diagnostic-untested"></a>
 ### `PREREG_DIAGNOSTIC_UNTESTED`
 
-**Meaning.** `gstack-eval-plan prereg --check <file> --allow-repo-commands` ran
-the preregistration's declared summarizer (`## Diagnostics`: `summarizer:`,
-`fixture:` and one `| diagnostic | expected |` row each) on its synthetic
-fixture. Its result did not match the preregistered definitions: a count
-differed (`mismatch`), a declared diagnostic was absent (`missing`), it
-reported one nobody preregistered (`undeclared`), or the summarizer failed,
-timed out, or did not end its stdout with one JSON object of counts. Each
-`PREREG_DIAGNOSTIC:` line names one diagnostic. This is the gbrain-evals #162
-(D7) shape, where two diagnostic counts needed a post-paid amendment.
+**意味。** `gstack-eval-plan prereg --check <file> --allow-repo-commands` が、事前登録の宣言されたサマライザー(`## Diagnostics` の `summarizer:`、`fixture:`、および診断ごとの `| diagnostic | expected |` の行)を合成フィクスチャに対して実行しました。その結果が事前登録の定義と一致しませんでした。カウントが異なる(`mismatch`)、宣言された診断が存在しない(`missing`)、事前に登録されていない診断が報告された(`undeclared`)、またはサマライザーが失敗、タイムアウト、あるいは stdout を1つの JSON オブジェクトのカウントで終えなかった、のいずれかです。各 `PREREG_DIAGNOSTIC:` 行は1つの診断を示します。これは gbrain-evals #162(D7)のパターンで、2つの診断カウントが有料実行後の修正を必要としたケースです。
 
-**Fix.** Fix the summarizer, or correct the definition (the expected count or
-the fixture), until every line says `ok`. Then commit the freeze. The
-`PREREG_DIAGNOSTICS:` line's `sha256` binds the fixture you tested. Without
-`--allow-repo-commands`, the command lists the summarizer
-(`PREREG_COMMAND:`) and exits 3 (`REPO_COMMANDS_NOT_ALLOWED`), because the
-summarizer is a repository command.
+**対処。** すべての行が `ok` になるまで、サマライザーを修正するか、定義(期待されるカウントまたはフィクスチャ)を修正してください。その後、凍結をコミットします。`PREREG_DIAGNOSTICS:` 行の `sha256` は、テストしたフィクスチャに紐付いています。`--allow-repo-commands` がない場合、コマンドはサマライザー(`PREREG_COMMAND:`)を一覧表示して終了コード 3(`REPO_COMMANDS_NOT_ALLOWED`)で終わります。サマライザーはリポジトリのコマンドだからです。
 
 <a id="eval-models-invalid"></a>
 ### `EVAL_MODELS_INVALID`
 
-**Meaning.** `.gstack/eval-models.json` could not be read or failed
-validation. Causes include JSON errors, `schema_version` other than 1, a
-missing or empty `allow`, an unknown key or scope, a glob in `families`, an id
-in two families, or a family that lists gstack's current catalog model after an
-older id. It also fires when `origin/<base>` cannot be resolved while a
-working-tree copy exists. While the rules are invalid, no arm passes.
+**意味。** `.gstack/eval-models.json` を読み込めなかったか、検証に失敗しました。原因には、JSON エラー、`schema_version` が 1 以外、`allow` が欠けているか空、未知のキーやスコープ、`families` 内のグロブ、2つのファミリーに同じ id がある、あるいは古い id の後に gstack の現在のカタログのモデルを列挙したファミリーがある、といったものが含まれます。また、作業ツリーのコピーが存在するのに `origin/<base>` を解決できない場合も発火します。ルールが無効な間は、どのアームも合格しません。
 
-**Fix.** Correct the file as the line says (`docs/eval-models.md`) in a
-reviewed PR, or fetch the base branch. To test an unmerged edit, use
-`--models-from head`.
+**対処。** 行が示すとおり(`docs/eval-models.md`)にファイルを修正し、レビュー済みの PR で反映するか、ベースブランチを取得してください。マージされていない編集をテストするには、`--models-from head` を使います。
 
 <a id="eval-model-denied"></a>
 ### `EVAL_MODEL_DENIED`
 
-**Meaning.** An arm's model matched `deny` or its scope's `deny`, matched no
-`allow` entry (unknown ids fail closed), or matched no entry of its scope's
-`allow` list. The `EVAL_MODEL:` line names the rule.
+**意味。** アームのモデルが `deny` または、そのスコープの `deny` に一致したか、どの `allow` のエントリにも一致しなかった(未知の id はフェイルクローズされます)、あるいはそのスコープの `allow` リストのどのエントリにも一致しませんでした。`EVAL_MODEL:` 行がルールを示します。
 
-**Fix.** Pick a model the rules allow for that scope. For a smoke run, pass
-`--scope smoke` (`price-gate` uses each call row's scope). To change the rule,
-edit `.gstack/eval-models.json` in a reviewed PR.
+**対処。** そのスコープでルールが許可しているモデルを選んでください。スモーク実行の場合は、`--scope smoke` を渡します(`price-gate` は各呼び出し行のスコープを使います)。ルールを変更するには、レビュー済みの PR で `.gstack/eval-models.json` を編集してください。
 
 <a id="eval-model-old-generation"></a>
 ### `EVAL_MODEL_OLD_GENERATION`
 
-**Meaning.** The rules declare `families` (newest first), and an arm uses an id
-that is not the first one in its family.
+**意味。** ルールで `families`(新しい順)が宣言されていて、アームが、そのファミリーの先頭ではない id を使っています。
 
-**Fix.** Use the family's newest id, which the `EVAL_MODEL:` line names. If the
-order is wrong, fix `families` in a reviewed PR.
+**対処。** ファミリーの最新の id を使ってください。`EVAL_MODEL:` 行が名前を示します。順序が間違っている場合は、レビュー済みの PR で `families` を修正してください。
 
 <a id="eval-model-generation-unresolved"></a>
 ### `EVAL_MODEL_GENERATION_UNRESOLVED`
 
-**Meaning.** The rules declare `families`, so every arm must be its family's
-newest generation. This arm's model is in no family, so its generation cannot be
-checked, and the arm fails instead of passing unchecked.
+**意味。** ルールで `families` が宣言されているため、すべてのアームはそのファミリーの最新世代でなければなりません。このアームのモデルはどのファミリーにも含まれていないため、世代を確認できず、確認されないまま合格するのではなく失敗します。
 
-**Fix.** Add the model to its family (newest first) in
-`.gstack/eval-models.json` in a reviewed PR, or use a model a family lists.
+**対処。** レビュー済みの PR で `.gstack/eval-models.json` のファミリー(新しい順)にそのモデルを追加するか、ファミリーに含まれているモデルを使ってください。
 
 <a id="wtree-unavailable"></a>
 ### `gstack-pregate: cannot fingerprint the working tree: bin/gstack-wtree could not start (on Windows, no Git Bash was found) or it ran and failed (<detail>); fix: <fix> (WTREE_UNAVAILABLE)`
 
-**Meaning.** `gstack-pregate` fingerprints the working tree with
-`bin/gstack-wtree` before any check runs, and refuses (exit 3) when it cannot.
-There are two causes, and the line says which:
+**意味。** `gstack-pregate` は、どのチェックを実行する前にも `bin/gstack-wtree` で作業ツリーのフィンガープリントを取ります。これができない場合は終了コード 3 で拒否されます。原因は2つあり、行にどちらかが示されます。
 
-- **It could not start.** On Windows no Git Bash was found to run the script.
-  The detail lists every candidate tried with the reason it was rejected
-  (`GSTACK_GIT_BASH (unset): not set; git --exec-path …; install path …;
-  PATH bash: …`), in the order [`BASH_UNAVAILABLE`](#bash-unavailable)
-  describes. On macOS or Linux it means `bin/gstack-wtree` is missing.
-- **It ran and failed.** The detail is the script's own message, and the fix
-  is the repair it printed, for example `set TMPDIR to a writable directory`.
+- **起動できなかった。** Windows では、スクリプトを実行するための Git Bash が見つかりませんでした。詳細には、試したすべての候補と、それが拒否された理由(`GSTACK_GIT_BASH (unset): not set; git --exec-path …; install path …; PATH bash: …` など)が、[`BASH_UNAVAILABLE`](#bash-unavailable) に記載された順序で列挙されます。macOS や Linux では、`bin/gstack-wtree` が存在しないことを意味します。
+- **実行したが失敗した。** 詳細はスクリプト自身のメッセージで、修正方法は表示された修復手順です(例: `set TMPDIR to a writable directory`)。
 
-Before this, both cases were reported as `policy source unavailable:
-origin/<base> is not a resolvable commit` with `git fetch` as the fix, which
-changed nothing.
+これ以前は、どちらの場合も `policy source unavailable: origin/<base> is not a resolvable commit` と報告され、修正として `git fetch` が示されていました。それでは何も変わりませんでした。
 
-**Fix.** Run the fix the line prints. For the Windows case, point gstack at
-Git Bash's `bash.exe`, then rerun `gstack-pregate`:
+**対処。** 行に表示された修正を実行してください。Windows の場合は、gstack が Git Bash の `bash.exe` を使うように指定してから、`gstack-pregate` を再実行してください。
 
-- Git Bash (this shell only): `export GSTACK_GIT_BASH='C:/Program Files/Git/bin/bash.exe'`
-- Windows PowerShell 5.1 or PowerShell 7 (this shell only):
+- Git Bash(このシェルのみ): `export GSTACK_GIT_BASH='C:/Program Files/Git/bin/bash.exe'`
+- Windows PowerShell 5.1 または PowerShell 7(このシェルのみ):
   `$env:GSTACK_GIT_BASH = 'C:\Program Files\Git\bin\bash.exe'`
 
-To set it for good (Claude Code reads it on its next start), follow the
-recipes under [`BASH_UNAVAILABLE`](#bash-unavailable), or install Git for
-Windows (`winget install --id Git.Git -e` in PowerShell).
+恒久的に設定するには(Claude Code は次回の起動時にこれを読み込みます)、[`BASH_UNAVAILABLE`](#bash-unavailable) の手順に従うか、Git for Windows をインストールしてください(PowerShell で `winget install --id Git.Git -e`)。
 
-**With `--json`.** Every refusal before a check runs (this one, an
-unavailable base, an invalid pin file) is one JSON object on stdout,
-`{"ok":false,"status":"refused","code":"WTREE_UNAVAILABLE","detail":"…","fix":"…","docs":"…#wtree-unavailable"}`,
-with exit 3. A run's object carries the same `ok` and `status`
-(`complete` or `incomplete`), so `status` tells a refusal from a run. The
-`GSTACK_RESULT:` line goes to stderr under `--json`.
+**`--json` を付けた場合。** チェックが実行される前の拒否(この場合、ベースが利用できない場合、不正なピンファイルの場合)はすべて、stdout に1つの JSON オブジェクトとして出力されます。`{"ok":false,"status":"refused","code":"WTREE_UNAVAILABLE","detail":"…","fix":"…","docs":"…#wtree-unavailable"}` の形式で、終了コードは 3 です。実行の結果のオブジェクトも同じ `ok` と `status` を持ちます(`complete` または `incomplete`)ので、`status` で拒否と実行を区別できます。`--json` 指定時、`GSTACK_RESULT:` 行は stderr に出力されます。
 
 <a id="claude-md-skill-list"></a>
 ### `warn CLAUDE.md the gstack section in <file> lists <n> skills; Claude Code lists installed skills itself, and a pasted list goes stale with each release`
 
-**Meaning.** `gstack-doctor` found a gstack section in `~/.claude/CLAUDE.md`
-or in this project's `CLAUDE.md` that enumerates skills: an `Available
-skills:` line, or eight or more `/skill` names. Older install prompts asked
-for that list (#3169). Claude Code already lists every installed skill with
-its description, and a pasted list goes stale with each release, so the agent
-can take a partial list as the complete set.
+**意味。** `gstack-doctor` が、`~/.claude/CLAUDE.md` またはこのプロジェクトの `CLAUDE.md` にある gstack セクションで、スキルを列挙しているのを検出しました。具体的には、`Available
+skills:` の行があるか、8 個以上の `/skill` 名が並んでいる状態です。古いインストールプロンプトは、この一覧を書くよう求めていました(#3169)。Claude Code は、インストール済みのすべてのスキルを説明付きで自動的に一覧表示します。貼り付けられた一覧はリリースのたびに古くなるため、エージェントが一部だけの一覧を完全な一覧だと誤解することがあります。
 
-**Fix.** Replace the section with the short block the doctor prints (no skill
-list; keep any other gstack rules you wrote yourself):
+**対処。** そのセクションを、doctor が出力する短いブロックに置き換えてください(スキル一覧は含みません。自分で書いた gstack に関するほかのルールは残してください)。
 
 ```
 ## gstack
 Use /browse from gstack for all web browsing. Never use mcp__claude-in-chrome__* tools.
 ```
 
-**Expected result.** The next `gstack-doctor` run shows
-`ok CLAUDE.md no gstack section lists skills (...)`.
+**期待される結果。** 次回の `gstack-doctor` 実行で、`ok CLAUDE.md no gstack section lists skills (...)` と表示されます。
 <a id="policy-gstack-too-old"></a>
 ### `POLICY_GSTACK_TOO_OLD`
 
-**Meaning.** `.gstack/ship-policy.json` on the base branch sets
-`min_gstack_version` above the gstack reading it. The policy uses keys this
-gstack would read differently or not at all, so every ship-policy reader
-(`gstack-restamp`, `gstack-tree-receipt`, `gstack-ship-queue`,
-`gstack-ship-policy`) refuses it instead of guessing. A gstack older than
-`min_gstack_version` itself sees that key as unknown and fails with
-`POLICY_INVALID`, which names the key.
+**意味。** ベースブランチ上の `.gstack/ship-policy.json` で、`min_gstack_version` が、それを読み込む gstack のバージョンより高く設定されています。このポリシーは、この gstack が違う意味で解釈するか、まったく解釈できないキーを使っているため、ship-policy の読み取り元(`gstack-restamp`、`gstack-tree-receipt`、`gstack-ship-queue`、`gstack-ship-policy`)はすべて、推測で処理せず拒否します。`min_gstack_version` より古い gstack は、そのキーを未知のものとして扱い、キー名を示す `POLICY_INVALID` で失敗します。
 
-**Fix.** Upgrade gstack to the version the message names
-(`bin/gstack-upgrade`, or rerun the session install), then rerun. A crew lead
-raising `min_gstack_version` raises the crew's install floor at the same
-time; `gstack-ship-policy validate` prints `MIN_READER:` for exactly that.
+**対処。** メッセージで示されたバージョンまで gstack をアップグレードしてから(`bin/gstack-upgrade` を使うか、セッションのインストールを再実行します)、再実行してください。クルーのリードが `min_gstack_version` を上げると、同時にクルー全体のインストール下限も上がります。`gstack-ship-policy validate` は、その場合にだけ `MIN_READER:` を表示します。
 
 <a id="queue-not-ready"></a>
 ### `QUEUE_NOT_READY`
 
-**Meaning.** `gstack-ship-queue ready` will not print a READY block the
-coordinator could misread: the working tree has uncommitted tracked changes,
-HEAD is not the PR's pushed head (read through `gh pr view`), CI at that
-exact head is not green (failed, pending or unreadable), or the pregate result
-is missing, failed or recorded on another tree (`PREGATE_STALE`).
+**意味。** `gstack-ship-queue ready` は、コーディネーターが誤読するおそれのある READY ブロックを出力しません。次のいずれかに当てはまる場合です。作業ツリーに未コミットの追跡対象の変更がある、HEAD が(`gh pr view` で読み取った) PR の push 済みヘッドと一致しない、その正確なヘッドでの CI が成功していない(失敗、保留中、または読み取り不能)、あるいは pregate の結果がない、失敗している、別のツリーに対して記録されている(`PREGATE_STALE`)。
 
-**Fix.** Commit and push, wait for CI on that head, rerun
-`gstack-pregate run --allow-repo-commands` when the tree changed, then rerun
-`gstack-ship-queue ready --pr <n>`. The block it prints before refusing shows
-which line is not yet true.
+**対処。** コミットして push し、そのヘッドでの CI の完了を待ってください。ツリーが変わっていた場合は `gstack-pregate run --allow-repo-commands` を再実行し、その後 `gstack-ship-queue ready --pr <n>` を再実行します。拒否される前に表示されるブロックに、まだ満たされていない行が示されます。
 
 <a id="queue-proof-missing"></a>
 ### `QUEUE_PROOF_MISSING`
 
-**Meaning.** A queue step lacks an input it needs to prove its claim, or an
-input does not match: the gated head is not a commit here, HEAD differs from
-the gated head beyond stamps (the gate never covered this tree), an earlier
-stamp with other inputs is unfinished, the stamp journal's head moved, or a
-gate-ahead merge could not be recomputed with `git merge-tree`. Nothing was
-written unless the `QUEUE_STAMP_REFUSED:` line says `committed=yes`.
+**意味。** キューのステップが、自分の主張を証明するために必要な入力を欠いているか、入力が一致しません。具体的には、ゲートされたヘッドがここではコミットではない、HEAD がスタンプを除いてゲートされたヘッドと異なる(ゲートがこのツリーをまったくカバーしていない)、他の入力を持つ前のスタンプが未完了である、スタンプジャーナルのヘッドが移動している、あるいは gate-ahead マージを `git merge-tree` で再計算できない、といった場合です。`QUEUE_STAMP_REFUSED:` 行に `committed=yes` と書かれていない限り、何も書き込まれていません。
 
-**Fix.** Supply the named input (fetch the gated head, pass the current base
-sha), or regate the tree you mean to stamp. For an unfinished stamp, rerun the
-identical command to resume, or revert its files and delete
-`.gstack/tmp/ship-queue/stamp-<pr>.json`.
+**対処。** 指定された入力を用意するか(ゲートされたヘッドを fetch する、現在のベースの sha を渡す)、スタンプしたいツリーをゲートし直してください。未完了のスタンプの場合は、同じコマンドを再実行して再開するか、そのファイルを元に戻して `.gstack/tmp/ship-queue/stamp-<pr>.json` を削除してください。
 
 <a id="queue-stamp-not-stamp-only"></a>
 ### `QUEUE_STAMP_NOT_STAMP_ONLY`
 
-**Meaning.** `gstack-ship-queue stamp` committed the stamp, and the tree
-receipt between the gated head and the stamped head found a difference
-outside the stamp rules (the residual paths are printed). The gate's result
-does not cover that head. The refusal line says `committed=yes <sha>`.
+**意味。** `gstack-ship-queue stamp` はスタンプをコミットしました。しかし、ゲートされたヘッドとスタンプされたヘッドの間のツリーレシートで、スタンプのルールの外にある差分が見つかりました(残りのパスは表示されます)。ゲートの結果はそのヘッドをカバーしません。拒否行には `committed=yes <sha>` と表示されます。
 
-**Fix.** Inspect the residual paths: drop the stray edit and stamp again, or
-run the gate on the stamped head.
+**対処。** 残っているパスを確認してください。余計な編集であれば取り除いてから再度スタンプするか、スタンプされたヘッドに対してゲートを実行してください。
 
 <a id="queue-verify-mismatch"></a>
 ### `QUEUE_VERIFY_MISMATCH`
 
-**Meaning.** The coordinator's `gstack-ship-queue verify` could not
-reproduce the lane's claim from the PR's pushed commits: the head moved, the
-head differs from the gated tree beyond stamps, the receipt digest differs
-from the one in `QUEUE_STAMP`, or, for a gate-ahead record, `git merge-tree
---write-tree` gives another merge tree, the recorded stamp patch does not
-rebuild the recorded gated tree or changes more than stamps, or the
-predecessor PR moved after the gate.
+**意味。** コーディネーターの `gstack-ship-queue verify` が、PR の push 済みコミットからレーンの主張を再現できませんでした。ヘッドが移動した、ヘッドがスタンプを除いてゲートされたツリーと異なる、レシートのダイジェストが `QUEUE_STAMP` のものと異なる、あるいは gate-ahead の記録の場合に、`git merge-tree --write-tree` が別のマージツリーを返す、記録されたスタンプパッチが記録されたゲート済みツリーを再現しない、またはスタンプ以外のものを変更している、もしくはゲート後に先行 PR が移動した、といった場合です。
 
-**Fix.** Do not merge. Ask the lane to rerun `gstack-ship-queue stamp` (or
-`gate-ahead`) on the current queue and report again.
+**対処。** マージしないでください。レーンに、現在のキューに対して `gstack-ship-queue stamp`(または `gate-ahead`)を再実行し、改めて報告するよう依頼してください。
 
 <a id="queue-gate-missing"></a>
 ### `QUEUE_GATE_MISSING`
 
-**Meaning.** The ship policy sets `full_e2e: true`, and no passing full-gate
-result is bound to the tree being stamped or verified: no recorded gate-ahead
-attempt for that gated head, no `--gate-exit 0 --gate-log <file>` from a run
-on it, or the recorded run exited non-zero.
+**意味。** ship ポリシーで `full_e2e: true` が設定されていますが、スタンプまたは検証しようとしているツリーに結び付いた、合格したフルゲートの結果がありません。該当するゲート済みヘッドに対する gate-ahead の記録がない、そのヘッドでの実行による `--gate-exit 0 --gate-log <file>` がない、または記録された実行が非ゼロで終了している、のいずれかです。
 
-**Fix.** Run the gate the policy's `gate_command` names in the gate-ahead
-worktree and bind it with `gstack-ship-queue gate-ahead --record`, or pass the
-exit code and log of a passing run on the gated head to `stamp`.
+**対処。** gate-ahead ワークツリーで、ポリシーの `gate_command` に指定されたゲートを実行し、`gstack-ship-queue gate-ahead --record` で結び付けてください。あるいは、ゲート済みヘッドでの合格した実行の終了コードとログを `stamp` に渡してください。
 
 <a id="gate-ahead-attempt-invalid"></a>
 ### `GATE_AHEAD_ATTEMPT_INVALID`
 
-**Meaning.** `gstack-ship-queue gate-ahead --record` could not bind the gate
-result: the attempt id is unknown for that PR, the attempt already holds a
-different result, the log file is missing, or the attempt's worktree no longer
-holds the gated commit (its HEAD moved or a tracked file changed), so the
-result would not describe the gated tree.
+**意味。** `gstack-ship-queue gate-ahead --record` が、ゲートの結果を結び付けられませんでした。試行 ID がその PR に対して不明である、その試行にはすでに別の結果が入っている、ログファイルが存在しない、あるいは試行のワークツリーがもはやゲート済みのコミットを保持していない(HEAD が移動したか、追跡対象のファイルが変更された)ため、結果がゲート済みのツリーを表さなくなる、といった場合です。
 
-**Fix.** `gstack-ship-queue gate-ahead --list --pr <n>` shows every attempt
-and the current one. Record the live attempt, or prepare a new one with
-`gate-ahead --after <pr>` and run the gate there without editing tracked
-files.
+**対処。** `gstack-ship-queue gate-ahead --list --pr <n>` で、すべての試行と現在の試行を確認できます。現在有効な試行を記録するか、`gate-ahead --after <pr>` で新しい試行を準備し、追跡対象のファイルを編集せずにそこでゲートを実行してください。
 
 <a id="queue-train-off"></a>
 ### `QUEUE_TRAIN_OFF`
 
-**Meaning.** A merge-train command (`train …` or `verify --train`) ran
-against a base revision whose `.gstack/ship-policy.json` declares no `train`
-block, so the train surface is off and the per-PR queue applies. Nothing was
-written.
+**意味。** マージトレインのコマンド(`train …` または `verify --train`)が、`.gstack/ship-policy.json` に `train` ブロックが宣言されていないベースリビジョンに対して実行されました。そのため、トレインの機能は無効で、PR ごとのキューが適用されます。何も書き込まれていません。
 
-**Fix.** Use the per-PR queue (`ready --pr <n>`, `stamp`, `verify`), or land
-a `train` block with `min_gstack_version` on the base branch first
-([Run a merge train](ship-policy.md#run-a-merge-train)).
+**対処。** PR ごとのキュー(`ready --pr <n>`、`stamp`、`verify`)を使うか、先にベースブランチへ `min_gstack_version` 付きの `train` ブロックを入れてください([マージトレインを実行する](ship-policy.md#run-a-merge-train))。
 
 <a id="queue-train-untrusted"></a>
 ### `QUEUE_TRAIN_UNTRUSTED`
 
-**Meaning.** A pinned PR's head repository is not the base repository. The
-train branch and its dispatches run with repository secrets, so fork work
-never rides a train.
+**意味。** ピン留めされた PR のヘッドリポジトリが、ベースリポジトリではありません。トレインのブランチとそのディスパッチはリポジトリのシークレットを使って実行されるため、フォークからの作業がトレインに乗ることはありません。
 
-**Fix.** Run the printed `train build --prs <list without it>`; the fork PR
-stays on the trusted-branch path.
+**対処。** 表示された `train build --prs <list without it>` を実行してください。フォークの PR は信頼済みブランチの経路にとどまります。
 
 <a id="queue-train-moved"></a>
 ### `QUEUE_TRAIN_MOVED`
 
-**Meaning.** A PR's head is no longer the SHA the train pinned (at build, or
-past its pin beyond stamps at verify), so the train would not test what
-merges. At verify after earlier slots merged, the queue also freezes
-(`QUEUE_TRAIN_FROZEN`).
+**意味。** PR のヘッドが、トレインがピン留めした SHA ではなくなりました(ビルド時、または検証時にスタンプを超えてピン留めを過ぎた場合)。そのため、トレインはマージされるものをテストしないことになります。先行するスロットがマージされた後の検証では、キューは `QUEUE_TRAIN_FROZEN` によって凍結されます。
 
-**Fix.** Ask the lane for a fresh READY on the new head, then build the train
-with the new pin (`train build --prs <n>@<new sha>,…`).
+**対処。** レーンに、新しいヘッドに対する新しい READY を依頼し、その後新しいピンでトレインをビルドしてください(`train build --prs <n>@<new sha>,…`)。
 
 <a id="queue-train-conflict"></a>
 ### `QUEUE_TRAIN_CONFLICT`
 
-**Meaning.** Merging a PR onto the prefix before it conflicts outside the
-version files and the CHANGELOG. The `QUEUE_TRAIN_CONFLICT:` line names the
-PR, the conflicting files and the PRs merged before it. Nothing was
-dispatched and no branch was pushed.
+**意味。** ある PR を、その前にあるプレフィックスに対してマージすると、バージョンファイルと CHANGELOG 以外でコンフリクトします。`QUEUE_TRAIN_CONFLICT:` 行に、その PR、コンフリクトしたファイル、そしてその前にマージされた PR が示されます。何もディスパッチされず、ブランチも push されていません。
 
-**Fix.** Run the printed `train build --prs <list without that PR>`. The PR's
-lane merges main (with the earlier PRs once they land) and reports READY
-again.
+**対処。** 表示された `train build --prs <list without that PR>` を実行してください。その PR のレーンは main をマージし(先行 PR が取り込まれた後は、それらも含めて)、再度 READY を報告します。
 
 <a id="queue-train-free-red"></a>
 ### `QUEUE_TRAIN_FREE_RED`
 
-**Meaning.** The free tests dispatched on `train/<nonce>` are red, cancelled,
-missing (no `workflow_dispatch` run appeared before `--free-timeout`) or ran
-on another SHA, so the paid gate was not dispatched.
+**意味。** `train/<nonce>` にディスパッチされた無料テストが、失敗、キャンセル、欠落している(`--free-timeout` までに `workflow_dispatch` の実行が現れなかった)、あるいは別の SHA で実行された、のいずれかです。そのため、有料ゲートはディスパッチされていません。
 
-**Fix.** Read the free-tests run. A PR-caused red drops that PR (`train build
---prs <list without it>`); a flaky test goes to its owner before the next
-build.
+**対処。** 無料テストの実行結果を確認してください。PR が原因の失敗であれば、その PR を外してください(`train build --prs <list without it>`)。不安定なテストであれば、次のビルドの前に、そのテストの担当者に渡してください。
 
 <a id="queue-train-dispatch-unknown"></a>
 ### `QUEUE_TRAIN_DISPATCH_UNKNOWN`
 
-**Meaning.** A train dispatch was attempted, but no run carrying its nonce
-appeared, so whether it started is unknown (`gh workflow run` can fail after
-GitHub accepted the dispatch). It is never dispatched again blindly.
+**意味。** トレインのディスパッチが試行されましたが、そのナンスを持つ実行が現れませんでした。そのため、開始したかどうかはわかりません(GitHub がディスパッチを受け付けた後で `gh workflow run` が失敗することがあります)。盲目的に再ディスパッチされることはありません。
 
-**Fix.** Run `gstack-ship-queue train status --train <nonce>`. It adopts the
-run carrying the nonce, or marks the dispatch absent; only then does
-`train build --train <nonce>` dispatch it again, under the same nonce.
+**対処。** `gstack-ship-queue train status --train <nonce>` を実行してください。ナンスを持つ実行を採用するか、ディスパッチが存在しないとマークします。そのあとでのみ、`train build --train <nonce>` で同じナンスを使って再ディスパッチできます。
 
 <a id="queue-train-waiting"></a>
 ### `QUEUE_TRAIN_WAITING`
 
-**Meaning.** The train has fewer PRs than `train.max_size` and its oldest
-READY PR has waited less than `train.fill_hours`, so it does not dispatch
-yet. The message prints when it will.
+**意味。** トレインの PR 数が `train.max_size` より少なく、最も古い READY の PR が `train.fill_hours` より短い時間しか待っていません。そのため、まだディスパッチされません。メッセージには、いつディスパッチされるかが表示されます。
 
-**Fix.** Add READY PRs, rerun after the printed time, or pass `--urgent` for a
-one-PR train.
+**対処。** READY の PR を追加するか、表示された時刻の後で再実行してください。あるいは、1 PR のトレインにする場合は `--urgent` を指定してください。
 
 <a id="queue-train-pending"></a>
 ### `QUEUE_TRAIN_PENDING`
 
-**Meaning.** The train's run (free tests, the full gate or the bisect) has
-not finished, so there is no verdict yet.
+**意味。** トレインの実行(無料テスト、フルゲート、またはバイセクト)がまだ終わっていないため、判定はまだ出ていません。
 
-**Fix.** Rerun the printed `NEXT:` command later. Nothing is dispatched again
-while a run is pending.
+**対処。** 表示された `NEXT:` コマンドを後で再実行してください。実行が保留中のあいだは、何も再ディスパッチされません。
 
 <a id="queue-train-incomplete"></a>
 ### `QUEUE_TRAIN_INCOMPLETE`
 
-**Meaning.** The train gate did not complete its census: INFRA or INCOMPLETE
-panels, an unbound, partial or cancelled shard, a slice killed before its
-upload, a record bound to another nonce, head or tree, or no published
-record. An incomplete gate is never green.
+**意味。** トレインのゲートが、その集計を完了しませんでした。INFRA または INCOMPLETE のパネル、どのジョブにも結び付いていない/一部だけ/キャンセルされたシャード、アップロード前に停止されたスライス、別のナンス・ヘッド・ツリーに結び付いたレコード、あるいは公開されたレコードがない、といった場合です。不完全なゲートは、決して成功とはみなされません。
 
-**Fix.** When every gap is machine-classified INFRA or INCOMPLETE, take the
-one re-dispatch EVAL_POLICY.infraRedispatch allows (`train rebuild --train
-<nonce> --infra`) and report both runs. Otherwise diagnose the run.
+**対処。** すべての欠落が機械的に INFRA または INCOMPLETE と分類されている場合は、EVAL_POLICY.infraRedispatch が許可する 1 回の再ディスパッチ(`train rebuild --train <nonce> --infra`)を実行し、両方の実行を報告してください。それ以外の場合は、その実行を診断してください。
 
 <a id="queue-train-red"></a>
 ### `QUEUE_TRAIN_RED`
 
-**Meaning.** The train's full gate is red on the train tree; the message names
-the red cases. Its PRs do not merge, and nothing is retried to change the
-verdict.
+**意味。** トレインのツリー上で、トレインのフルゲートが失敗しています。メッセージには失敗したケースが示されます。その PR はマージされず、判定を変えるための再試行もされません。
 
-**Fix.** Bisect the red cases (`train bisect --train <nonce> --spend-cap
-<usd>`). After a rebuild's second red, route the cases to a repair lane.
+**対処。** 失敗したケースをバイセクトしてください(`train bisect --train <nonce> --spend-cap <usd>`)。再ビルドの 2 回目も失敗した後は、そのケースを修正用のレーンに回してください。
 
 <a id="queue-train-red-on-main"></a>
 ### `QUEUE_TRAIN_RED_ON_MAIN`
 
-**Meaning.** The bisect found the red cases red on every prefix, main (T0)
-included: main is broken, not the train's PRs.
+**意味。** バイセクトの結果、失敗したケースは、main(T0 を含む)を含むすべてのプレフィックスで失敗していました。つまり、トレインの PR ではなく、main が壊れています。
 
-**Fix.** Fix forward on main first (a one-PR train), then rebuild this train
-unchanged.
+**対処。** まず main を前進させる形で修正してください(1 PR のトレインとして)。その後、このトレインを変更せずに再ビルドします。
 
 <a id="queue-train-unattributed"></a>
 ### `QUEUE_TRAIN_UNATTRIBUTED`
 
-**Meaning.** The bisect pattern blames no PR and not main: all green, or not
-monotone. One trial per prefix cannot tell a flake from a break.
+**意味。** バイセクトのパターンが、どの PR も main も原因とみなせません。すべて成功しているか、単調ではないかのどちらかです。プレフィックスごとに 1 回の試行では、不安定さと破損を区別できません。
 
-**Fix.** All green: the one preregistered rebuild (`train rebuild --train
-<nonce>`), reporting both runs. Any other pattern: a repair lane, then a
-changed train once the repair merges.
+**対処。** すべて成功している場合は、事前に登録された再ビルド(`train rebuild --train <nonce>`)を 1 回実行し、両方の実行を報告してください。それ以外のパターンの場合は、修正用のレーンを用意し、修正がマージされた後に変更されたトレインを作成してください。
 
 <a id="queue-train-bisect-capped"></a>
 ### `QUEUE_TRAIN_BISECT_CAPPED`
 
-**Meaning.** The bisect's reserved price (every case×prefix trial, trials
-without cost data at `train.trial_reservation_usd`) passes `--spend-cap`.
-Prefixes that fit were launched, completed prefixes are kept, and the
-outcome stays unattributed; it is never green.
+**意味。** バイセクトの予約コスト(すべてのケース×プレフィックスの試行。コストデータがない試行は `train.trial_reservation_usd` で見積もられます)が `--spend-cap` を超えています。収まったプレフィックスは起動され、完了したプレフィックスの結果は保持されます。ただし結果は原因不明のままであり、決して成功にはなりません。
 
-**Fix.** Resume with a higher cap (`train bisect --train <nonce> --spend-cap
-<usd>`). Only prefixes without a result run.
+**対処。** より高い上限を指定して再開してください(`train bisect --train <nonce> --spend-cap <usd>`)。結果のないプレフィックスだけが実行されます。
 
 <a id="queue-train-prefix-invalid"></a>
 ### `QUEUE_TRAIN_PREFIX_INVALID`
 
-**Meaning.** A bisect prefix is not an ancestor of the train head on
-`train/<nonce>` (the branch moved), or a red case is not in the gate's plan,
-so the bisect inputs are refused before any dispatch.
+**意味。** バイセクトのプレフィックスが、`train/<nonce>` 上のトレインのヘッドの祖先ではありません(ブランチが移動した)。あるいは、失敗したケースがゲートの計画に含まれていません。そのため、バイセクトの入力はディスパッチ前に拒否されます。
 
-**Fix.** Check that `train/<nonce>` still points at the recorded head
-(`train status`). A moved branch needs a new train.
+**対処。** `train/<nonce>` がまだ記録されたヘッドを指しているか確認してください(`train status`)。ブランチが移動した場合は、新しいトレインが必要です。
 
 <a id="queue-train-rebuild-refused"></a>
 ### `QUEUE_TRAIN_REBUILD_REFUSED`
 
-**Meaning.** `train rebuild` is not allowed: there is no bisect record (or,
-with `--infra`, no INFRA/INCOMPLETE-only census), the bisect was not all
-green, or the train was already rebuilt or re-dispatched once.
+**意味。** `train rebuild` は許可されていません。バイセクトの記録がない(`--infra` を指定した場合は、INFRA/INCOMPLETE のみの集計がない)、バイセクトがすべて成功していない、あるいはトレインがすでに一度再ビルドまたは再ディスパッチされている、のいずれかです。
 
-**Fix.** Route the red cases to a repair lane; the train is rebuilt only once
-the repair merges (a changed train).
+**対処。** 失敗したケースを修正用のレーンに回してください。トレインは、修正がマージされた後にのみ再ビルドできます(変更されたトレインとして)。
 
 <a id="queue-train-tree-mismatch"></a>
 ### `QUEUE_TRAIN_TREE_MISMATCH`
 
-**Meaning.** Main's tree is neither the train's prefix before this PR nor the
-one after it, modulo stamps, so the merge would not publish what the gate
-tested.
+**意味。** main のツリーが、この PR の前のトレインのプレフィックスとも、後のプレフィックスとも一致しません(スタンプを除く)。そのため、マージするとゲートがテストしたものが公開されなくなります。
 
-**Fix.** Stop merging. If earlier PRs of the train merged, the queue is now
-frozen (`QUEUE_TRAIN_FROZEN`); otherwise build a new train on current main.
+**対処。** マージを停止してください。そのトレインの先行 PR がすでにマージされていた場合、キューは `QUEUE_TRAIN_FROZEN` により凍結されています。そうでなければ、現在の main に対して新しいトレインを作成してください。
 
 <a id="queue-train-frozen"></a>
 ### `QUEUE_TRAIN_FROZEN`
 
-**Meaning.** A train stopped partway through publication, so main holds a
-prefix no gate covered on its own. The `QUEUE_TRAIN_FROZEN:` line lists the
-merged PRs, main's tree and the backstop run dispatched on main's SHA. The
-freeze lives in local state and on `refs/notes/gstack-trains`. Ordinary
-trains and other trains' merges are refused until a repair lands.
+**意味。** トレインが公開の途中で停止し、main には、どのゲートも単独ではカバーしていないプレフィックスが入った状態になっています。`QUEUE_TRAIN_FROZEN:` 行には、マージされた PR、main のツリー、そして main の SHA でディスパッチされたバックストップの実行が示されます。凍結の情報はローカルの状態と `refs/notes/gstack-trains` に保存されています。修復が入るまで、通常のトレインや他のトレインのマージは拒否されます。
 
-**Fix.** Admit one repair PR at its exact head (`train build --repair --prs
-<n>@<sha>`). The freeze clears when verify finds main's tree after that merge
-in a green record; `NEXT:` then builds a train of the PRs still unmerged.
+**対処。** 修復用の PR を、その正確なヘッドで 1 つ受け入れてください(`train build --repair --prs <n>@<sha>`)。その修復のマージ後の main のツリーが、成功の記録とともに検証されると、凍結は解除されます。その後、`NEXT:` が、まだマージされていない PR のトレインを構築します。
 
 <a id="ready-screen-choice-required"></a>
 ### `READY_SCREEN_CHOICE_REQUIRED`
 
-**Meaning.** The base policy turns trains on, so READY needs an explicit
-screen choice: `--screen` (pay for a screen on the PR's merge SHA now) or
-`--no-screen`. The `SCREEN:` lines show the selection and the recommendation.
+**意味。** ベースのポリシーでトレインが有効になっているため、READY では明示的な画面の選択が必要です。`--screen`(今、PR のマージ SHA に対する画面に料金を払う)か、`--no-screen` のいずれかを指定してください。`SCREEN:` 行に、選択内容と推奨が示されます。
 
-**Fix.** Rerun `gstack-ship-queue ready` with the printed recommendation. A
-lane that already ran focused local cases says so in the READY block and may
-pass `--no-screen`.
+**対処。** 表示された推奨に従って `gstack-ship-queue ready` を再実行してください。ローカルで集中的なケースをすでに実行したレーンは、その旨を READY ブロックに記載し、`--no-screen` を指定してもかまいません。
 
 <a id="pregate-timing-assertion"></a>
 ### `PREGATE_TIMING_ASSERTION`
 
-**Meaning.** A test line the branch added or changed compares an elapsed
-wall-clock or CPU time against a bound, or sleeps for a fixed time and then
-asserts. Under machine load such a test fails without a code change. The
-`timing` check warns; it does not block (the measurement is in
-[docs/pregate.md#timing](pregate.md#timing)).
+**意味。** ブランチが追加または変更したテスト行が、経過した実時間または CPU 時間を上限と比較しているか、固定時間だけスリープしてからアサートしています。マシンの負荷がかかると、このようなテストはコードを変更していなくても失敗します。`timing` チェックは警告を出しますが、ブロックはしません(計測の詳細は [docs/pregate.md#timing](pregate.md#timing) にあります)。
 
-**Fix.** Assert on the outcome instead: an injected clock, a forced deadline,
-an event or a poll with a deadline. When the bound is the contract, add
-`gstack-timing-ok: <reason>` in a comment on the line or the line above. Never
-raise a bound to make a flake pass; /investigate's flake playbook covers the
-diagnosis.
+**対処。** 代わりに結果をアサートしてください。注入されたクロック、強制された期限、イベント、あるいは期限付きのポーリングなどです。上限そのものが契約である場合は、その行、またはその上の行のコメントに `gstack-timing-ok: <reason>` を追加してください。不安定なテストを通すために上限を引き上げることは、決してしないでください。原因の診断については /investigate の flake playbook を参照してください。
 
 <a id="approval-classes-invalid"></a>
 ### `APPROVAL_CLASSES_INVALID`
 
-**Meaning.** The `.gstack/approval-classes.json` committed on the base branch
-(or, for `gstack-approval-classes validate`, the working-tree copy) is not
-valid JSON, has an unknown key, a class without a name or anything to match,
-or a glob that escapes the repository. `gstack-ship-receipt write` refuses
-rather than ship with the classes unchecked.
+**意味。** ベースブランチにコミットされた `.gstack/approval-classes.json`(または `gstack-approval-classes validate` の場合は作業ツリー上のコピー)が、有効な JSON ではない、未知のキーがある、名前や照合対象のない class がある、あるいはリポジトリの外に出る glob がある、のいずれかです。`gstack-ship-receipt write` は、class が未検査のままで出荷されることを避けるため、拒否します。
 
-**Fix.** Run `gstack-approval-classes validate`, correct the file, and merge
-it. See [Approval classes](ship-policy.md#approval-classes).
+**対処。** `gstack-approval-classes validate` を実行し、ファイルを修正してマージしてください。[承認クラス](ship-policy.md#approval-classes) を参照してください。
 
 <a id="approval-class-found"></a>
 ### `APPROVAL_CLASS_FOUND`
 
-**Meaning.** `gstack-approval-classes check` found changes a declared class
-covers. Each `APPROVAL_CLASS:` line names the class and file:line, and each
-`APPROVAL_SCOPE: <class>@<digest12>` line is the token an approval binds to.
-Report-only lines from built-in detectors do not set this code.
+**意味。** `gstack-approval-classes check` が、宣言された class でカバーされる変更を検出しました。各 `APPROVAL_CLASS:` 行には class と file:line が示され、各 `APPROVAL_SCOPE: <class>@<digest12>` 行は、承認が紐付けられるトークンです。組み込みの検出器によるレポートのみの行は、このコードを設定しません。
 
-**Fix.** Ask the owner, then add
-`Approved by <owner> <YYYY-MM-DD> via <ref> for <class>@<digest12>` to the PR
-body. The token changes whenever an effect is added, removed or edited, so a
-later change needs a new approval.
+**対処。** オーナーに確認し、次の行を PR の本文に追加してください: `Approved by <owner> <YYYY-MM-DD> via <ref> for <class>@<digest12>`。トークンは、効果が追加、削除、または編集されるたびに変わるため、後の変更には新たな承認が必要です。
 
 <a id="approval-citation-missing"></a>
 ### `APPROVAL_CITATION_MISSING`
 
-**Meaning.** `gstack-ship-receipt write` found a declared approval class with
-no citation that both resolves and binds to the current effects, and wrote no
-receipt. The line lists every candidate citation and why it did not count:
-the plan's autoplan gate is not APPROVED, the comment is not by a ship-policy
-maintainer or not by the cited owner, the evidence names neither the scope
-token nor the class with every effect path (an approval of other work, or one
-given before an effect was added), or an unresolvable reference lacks a
-matching `for <class>@<digest12>` attestation.
+**意味。** `gstack-ship-receipt write` が、宣言された承認 class に対して、解決可能かつ現在の効果に紐付く引用を見つけられませんでした。そのためレシートは書き込まれていません。拒否行には、すべての候補の引用と、それが有効とみなされなかった理由が示されます。プランの autoplan ゲートが APPROVED でない、コメントが ship-policy のメンテナーによるものでない、または引用されたオーナーによるものでない、証拠がスコープトークンも class も、すべての効果パスとともに示していない(他の作業の承認、または効果が追加される前に与えられた承認)、あるいは解決できない参照に一致する `for <class>@<digest12>` の証明が欠けている、といった場合です。
 
-**Fix.** Cite the approval: a plan sha with `--approval-run <run dir>`, or the
-URL of a maintainer's comment or review that names the token. For evidence
-gstack cannot read (a thread code, a chat message), attest which scope it
-covers with `for <class>@<digest12>`; the receipt records it as
-`citation: unverified` for the coordinator.
+**対処。** 承認を引用してください。プランの sha と `--approval-run <run dir>`、またはトークンを示すメンテナーのコメントやレビューの URL を指定します。gstack が読めない証拠(スレッドのコードやチャットメッセージなど)の場合は、`for <class>@<digest12>` で、どのスコープをカバーするかを証明してください。レシートには、コーディネーター向けに `citation: unverified` と記録されます。
 
 <a id="approval-source-unavailable"></a>
 ### `APPROVAL_SOURCE_UNAVAILABLE`
 
-**Meaning.** `origin/<base>` does not resolve, so the committed approval
-classes cannot be read. `check` exits 3; `gstack-ship-receipt write`
-records `approval.status: unavailable` and prints `approval=unchecked`.
+**意味。** `origin/<base>` が解決できないため、コミットされた承認 class を読めません。`check` は終了コード 3 で終了し、`gstack-ship-receipt write` は `approval.status: unavailable` を記録して `approval=unchecked` を表示します。
 
-**Fix.** `git fetch origin <base>` and rerun. The working-tree copy is never
-used.
+**対処。** `git fetch origin <base>` を実行してから再実行してください。作業ツリー上のコピーは決して使われません。
 
 <a id="state-matrix-incomplete"></a>
 ### `STATE_MATRIX_INCOMPLETE`
 
-**Meaning.** `gstack-state-matrix check` read the state-machines specialist's
-output and found a gap: a kind × owner action pair with no row, a row with no
-resulting row, a test reference that does not exist in the checkout, or an
-untested cell without a CRITICAL finding. A review whose matrix is incomplete
-has incomplete coverage, never a clean result.
+**意味。** `gstack-state-matrix check` が、state-machines スペシャリストの出力を読み、ギャップを見つけました。具体的には、kind × オーナーのアクションの組に行がない、結果の行がない行がある、チェックアウトに存在しないテスト参照がある、あるいは CRITICAL の検出なしにテストされていないセルがある、といった場合です。マトリクスが不完全なレビューは、カバレッジが不完全であり、決してクリーンな結果とはみなされません。
 
-**Fix.** Rerun the state-machines specialist on the same diff and check its
-output again.
+**対処。** 同じ差分に対して state-machines スペシャリストを再実行し、その出力を再度確認してください。
 
 ## gstack-error-capture
 
-`gstack-error-capture` runs one target CLI for `/devex-review` Step 3 with no
-terminal, a scrubbed environment and a private temporary HOME, and prints one
-redacted JSON record. Its own failures print one stderr line,
-`gstack-error-capture: <what>; fix: <fix> (<CODE>)`, and no record. Exit 2 is a
-usage error, 3 a refusal, 1 a helper failure. `gstack-error-capture --help` lists
-every flag and code.
+`gstack-error-capture` は、`/devex-review` のステップ 3 のために、ターミナルなし、環境を消去し、一時的なプライベート HOME の状態で対象の CLI を 1 つ実行し、秘匿化された JSON レコードを 1 件出力します。このツール自身の失敗は、`gstack-error-capture: <what>; fix: <fix> (<CODE>)` という 1 行の stderr を出力し、レコードは出力しません。終了コード 2 は使用法の誤り、3 は拒否、1 はヘルパーの失敗を意味します。`gstack-error-capture --help` で、すべてのフラグとコードを一覧表示できます。
 
 <a id="dx-capture-usage"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_USAGE)`
 
-**Meaning.** Gstack-error-capture arguments are malformed: an unknown flag, a flag missing its value, no `--`, or no command after it. Exit 2.
+**意味。** gstack-error-capture の引数が不正です。未知のフラグ、値のないフラグ、`--` がない、または `--` の後にコマンドがない、のいずれかです。終了コードは 2 です。
 
-**Fix.** Rerun as `gstack-error-capture [--deadline <s>] [--max-bytes <n>] [--pass-env NAME,...] [--copy-config <path>] [--cwd <dir>] [--approved] [--launch-check] -- <cmd> [args]`: flags before `--`, the command and its arguments after it.
+**対処。** `gstack-error-capture [--deadline <s>] [--max-bytes <n>] [--pass-env NAME,...] [--copy-config <path>] [--cwd <dir>] [--approved] [--launch-check] -- <cmd> [args]` の形式で再実行してください。フラグは `--` の前に置き、コマンドとその引数は `--` の後に置きます。
 
 <a id="dx-capture-bad-deadline"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_BAD_DEADLINE)`
 
-**Meaning.** --deadline is not a positive number of seconds (at most 3600, up to 3 decimals). Exit 2.
+**意味。** `--deadline` が、正の秒数ではありません(3600 以下で、小数点以下 3 桁まで指定できます)。終了コードは 2 です。
 
-**Fix.** Rerun with `--deadline 20`.
+**対処。** `--deadline 20` を付けて再実行してください。
 
 <a id="dx-capture-bad-max-bytes"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_BAD_MAX_BYTES)`
 
-**Meaning.** --max-bytes is not an integer from 1 to 1048576. Exit 2.
+**意味。** --max-bytes が 1 から 1048576 までの整数ではありません。終了コードは 2 です。
 
-**Fix.** Rerun with `--max-bytes 65536`.
+**対処。** `--max-bytes 65536` を付けて再実行してください。
 
 <a id="dx-capture-bad-pass-env"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_BAD_PASS_ENV)`
 
-**Meaning.** --pass-env names an invalid or unset variable, or one the containment owns (PATH, HOME, XDG_CONFIG_HOME, TERM, USERPROFILE). Exit 2.
+**意味。** --pass-env に、無効な変数、未設定の変数、またはコンテインメントが管理する変数(PATH、HOME、XDG_CONFIG_HOME、TERM、USERPROFILE)が指定されています。終了コードは 2 です。
 
-**Fix.** Rerun with `--pass-env NAME with NAME set in the calling environment`.
+**対処。** `--pass-env NAME` を、呼び出し元の環境で NAME が設定された状態で再実行してください。
 
 <a id="dx-capture-bad-cwd"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_BAD_CWD)`
 
-**Meaning.** --cwd is not an existing directory. Exit 2.
+**意味。** --cwd が既存のディレクトリではありません。終了コードは 2 です。
 
-**Fix.** Rerun with `--cwd <existing directory> --approved`.
+**対処。** `--cwd <existing-directory> --approved` を付けて再実行してください。
 
 <a id="dx-capture-approval-required"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_APPROVAL_REQUIRED)`
 
-**Meaning.** --pass-env, --copy-config or --cwd was given without --approved; they hand the target credentials or real files. Exit 3.
+**意味。** --pass-env、--copy-config、--cwd のいずれかが --approved なしで指定されました。これらは対象の認証情報や実ファイルを渡すため、承認が必要です。終了コードは 3 です。
 
-**Fix.** Ask the user to approve the named variables, files or directory, then add --approved.
+**対処。** 指定された変数、ファイル、またはディレクトリについて、ユーザーに承認を求めてから、--approved を付けてください。
 
 <a id="dx-capture-config-refused"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_CONFIG_REFUSED)`
 
-**Meaning.** --copy-config names a missing file, a symlink, a non-regular file, a path outside HOME, a duplicate, or a file over 1 MiB. Exit 3.
+**意味。** --copy-config に、存在しないファイル、シンボリックリンク、通常のファイルではないもの、HOME の外にあるパス、重複したファイル、または 1 MiB を超えるファイルが指定されています。終了コードは 3 です。
 
-**Fix.** Rerun with `--copy-config <regular file under $HOME, no symlinks>`.
+**対処。** `--copy-config <regular file under $HOME, no symlinks>` を指定して再実行してください。
 
 <a id="dx-capture-not-found"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_NOT_FOUND)`
 
-**Meaning.** The command does not resolve to an executable file; the record carries launch "not_found" and nothing ran. Exit 1.
+**意味。** コマンドが実行可能ファイルに解決されません。レコードには launch "not_found" が記録され、何も実行されていません。終了コードは 1 です。
 
-**Fix.** Install the command or pass its absolute path after --.
+**対処。** コマンドをインストールするか、`--` の後にそのコマンドの絶対パスを指定してください。
 
 <a id="dx-capture-temp-dir"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_TEMP_DIR)`
 
-**Meaning.** The private 0700 containment directory under the gstack state root could not be created. Exit 1.
+**意味。** gstack の状態ルート配下にある、非公開(0700)のコンテインメント用ディレクトリを作成できませんでした。終了コードは 1 です。
 
-**Fix.** Make $GSTACK_STATE_ROOT/error-capture a writable directory you own (not a symlink), then rerun.
+**対処。** $GSTACK_STATE_ROOT/error-capture を、自分が所有する書き込み可能なディレクトリにしてください(シンボリックリンクは不可)。そのうえで再実行してください。
 
 <a id="dx-capture-containment-unavailable"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_CONTAINMENT_UNAVAILABLE)`
 
-**Meaning.** Process-group or Windows job containment is unavailable on this platform; nothing ran. Exit 1.
+**意味。** このプラットフォームでは、プロセスグループまたは Windows のジョブによるコンテインメントが利用できません。何も実行されていません。終了コードは 1 です。
 
-**Fix.** Run the capture on Linux, macOS or Windows with job objects available.
+**対処。** Linux、macOS、またはジョブオブジェクトが利用可能な Windows でキャプチャを実行してください。
 
 <a id="dx-capture-supervisor-failed"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_SUPERVISOR_FAILED)`
 
-**Meaning.** The deadline supervisor failed before reporting a result. Exit 1.
+**意味。** 結果を報告する前に、デッドラインのスーパーバイザーが失敗しました。終了コードは 1 です。
 
-**Fix.** Rerun the same command once; if it repeats, run bin/gstack-qa-deadline --help to check the supervisor.
+**対処。** 同じコマンドを一度再実行してください。それでも同じエラーになる場合は、`bin/gstack-qa-deadline --help` を実行してスーパーバイザーを確認してください。
 
 <a id="dx-capture-interrupted"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_INTERRUPTED)`
 
-**Meaning.** The helper received SIGINT, SIGTERM or SIGHUP; the target group was killed and no record was printed. Exit 1.
+**意味。** ヘルパーが SIGINT、SIGTERM、または SIGHUP を受け取りました。対象のグループは強制終了され、レコードは出力されていません。終了コードは 1 です。
 
-**Fix.** Rerun the same command without interrupting it.
+**対処。** 中断せずに同じコマンドを再実行してください。
 
 <a id="dx-capture-redaction-failed"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_REDACTION_FAILED)`
 
-**Meaning.** The finished record still matched a secret check, so nothing was printed. Exit 1.
+**意味。** 完成したレコードがまだ秘密情報のチェックに引っかかったため、何も出力されていません。終了コードは 1 です。
 
-**Fix.** Do not rerun with more --pass-env; report the command name to the gstack maintainers.
+**対処。** --pass-env を追加して再実行しないでください。コマンド名を gstack のメンテナーに報告してください。
 
 <a id="dx-capture-internal"></a>
 ### `gstack-error-capture: ... (DX_CAPTURE_INTERNAL)`
 
-**Meaning.** Unexpected helper failure; the line names the error class and its first stack frame. Exit 1.
+**意味。** ヘルパーで想定外の障害が発生しました。出力される行にはエラークラスと最初のスタックフレームが含まれます。終了コードは 1 です。
 
-**Fix.** Rerun once; if it repeats, report the printed frame to the gstack maintainers.
+**対処。** 一度再実行してください。それでも同じエラーになる場合は、出力されたフレームを gstack のメンテナーに報告してください。

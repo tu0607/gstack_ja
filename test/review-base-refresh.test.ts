@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { expectMentions } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const roots: string[] = [];
@@ -17,7 +18,7 @@ function git(cwd: string, ...args: string[]) {
 /** Step 1 item 3's commands from the /review template, run in order, with `<base>` bound. */
 function stepOneBlock(base: string): string {
   const body = fs.readFileSync(path.join(ROOT, 'review/SKILL.md.tmpl'), 'utf8');
-  const item = body.slice(body.indexOf('3. Run `git fetch origin <base>'), body.indexOf('{{SCOPE_DRIFT}}'));
+  const item = body.slice(body.indexOf('3. `git fetch origin <base>'), body.indexOf('{{SCOPE_DRIFT}}'));
   const commands = [...item.matchAll(/`(git fetch [^`]+|DIFF_BASE=[^`]+)`/g)].map(m => m[1]!);
   if (commands.length !== 2) throw new Error('Step 1 item 3 commands moved');
   return commands.join('\n').replaceAll('<base>', base);
@@ -63,7 +64,7 @@ describe('/review Step 1 base refresh', () => {
 
   test('the review reports stale coverage instead of stopping', () => {
     const body = fs.readFileSync(path.join(ROOT, 'review/SKILL.md.tmpl'), 'utf8').replace(/\s+/g, ' ');
-    expect(body).toContain('`stale` is not an empty diff: continue; report `Base coverage: stale at <revision>`.');
+    expectMentions(body, [['`stale`', '空の差分'], ['続行', '`Base coverage: stale at <revision>`']], 'review template');
     expect(body).not.toContain('git fetch origin <base> --quiet && DIFF_BASE=');
   });
 });

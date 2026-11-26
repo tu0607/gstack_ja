@@ -1,134 +1,134 @@
 ---
 name: gstack-openclaw-investigate
-description: Use when asked to debug, fix a bug, investigate an error, or do root cause analysis, and when users report errors, stack traces, unexpected behavior, or say something stopped working.
+description: バグの調査、バグ修正、エラーの調査、根本原因分析を求められたとき、またユーザーがエラー、スタックトレース、想定外の振る舞いを報告したとき、何かが動かなくなったと言ったときに使います。
 ---
 
-# Systematic Debugging
+# 体系的なデバッグ
 
-## Iron Law
+## 鉄則
 
-**NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST.**
+**根本原因の調査なしに修正しない。**
 
-Fixing symptoms creates whack-a-mole debugging. Every fix that doesn't address root cause makes the next bug harder to find. Find the root cause, then fix it.
+症状だけを直すと、もぐらたたきのようなデバッグになります。根本原因に対処しない修正はすべて、次のバグを見つけにくくします。根本原因を見つけ、そのうえで直してください。
 
 ---
 
-## Phase 1: Root Cause Investigation
+## フェーズ 1: 根本原因の調査
 
-Gather context before forming any hypothesis.
+仮説を立てる前に、文脈を集めてください。
 
-1. **Collect symptoms:** Read the error messages, stack traces, and reproduction steps. If the user hasn't provided enough context, ask ONE question at a time. Don't ask five questions at once.
+1. **症状を集める:** エラーメッセージ、スタックトレース、再現手順を読む。ユーザーから十分な文脈が得られていない場合は、質問は一度に一つだけ。5 つの質問を一度にしないこと。
 
-2. **Read the code:** Trace the code path from the symptom back to potential causes. Search for all references, read the logic around the failure point.
+2. **コードを読む:** 症状から、考えられる原因まで、コードの経路をたどる。すべての参照箇所を検索し、失敗箇所の周辺のロジックを読む。
 
-3. **Check recent changes:**
+3. **最近の変更を確認する:**
    ```bash
    git log --oneline -20 -- <affected-files>
    ```
-   Was this working before? What changed? A regression means the root cause is in the diff.
+   以前は動いていたか? 何が変わったか? 回帰であれば、根本原因は差分の中にある。
 
-4. **Reproduce:** Can you trigger the bug deterministically? If not, gather more evidence before proceeding.
+4. **再現する:** バグを確実に再現できるか? 再現できない場合は、先に進む前にさらに証拠を集める。
 
-5. **Check memory** for prior debugging sessions on the same area. Recurring bugs in the same files are an architectural smell.
+5. **メモリを確認する:** 同じ領域での過去のデバッグのセッションを確認する。同じファイルで繰り返し起きるバグは、アーキテクチャの臭いである。
 
-Output: **"Root cause hypothesis: ..."** ... a specific, testable claim about what is wrong and why.
-
----
-
-## Phase 2: Pattern Analysis
-
-Check if this bug matches a known pattern:
-
-**Race condition** ... Intermittent, timing-dependent. Look at concurrent access to shared state.
-
-**Nil/null propagation** ... NoMethodError, TypeError. Missing guards on optional values.
-
-**State corruption** ... Inconsistent data, partial updates. Check transactions, callbacks, hooks.
-
-**Integration failure** ... Timeout, unexpected response. External API calls, service boundaries.
-
-**Configuration drift** ... Works locally, fails in staging/prod. Env vars, feature flags, DB state.
-
-**Stale cache** ... Shows old data, fixes on cache clear. Redis, CDN, browser cache.
-
-Also check:
-- Known issues in the project for related problems
-- Git log for prior fixes in the same area. Recurring bugs in the same files are an architectural smell, not a coincidence.
-
-**External search:** If the bug doesn't match a known pattern, search for the error type online. **Sanitize first:** strip hostnames, IPs, file paths, SQL, customer data. Search the error category, not the raw message.
+出力: **「根本原因の仮説: ...」** … 何が間違っていて、なぜそうなるのかについての、具体的で検証可能な主張。
 
 ---
 
-## Phase 3: Hypothesis Testing
+## フェーズ 2: パターン分析
 
-Before writing ANY fix, verify your hypothesis.
+このバグが既知のパターンに当てはまるかを確認する:
 
-1. **Confirm the hypothesis:** Add a temporary log statement, assertion, or debug output at the suspected root cause. Run the reproduction. Does the evidence match?
+**レースコンディション** … 断続的で、タイミングに依存する。共有状態への同時アクセスを確認する。
 
-2. **If the hypothesis is wrong:** Search for the error (sanitize sensitive data first). Return to Phase 1. Gather more evidence. Do not guess.
+**nil/null の伝播** … NoMethodError、TypeError。任意の値に対するガードの欠如。
 
-3. **3-strike rule:** If 3 hypotheses fail, **STOP**. Tell the user:
+**状態の破損** … 不整合なデータ、部分的な更新。トランザクション、コールバック、フックを確認する。
 
-   "3 hypotheses tested, none match. This may be an architectural issue rather than a simple bug."
+**連携の失敗** … タイムアウト、想定外のレスポンス。外部 API の呼び出し、サービスの境界。
 
-   Options:
-   - Continue investigating with a new hypothesis (describe it)
-   - Escalate for human review (needs someone who knows the system)
-   - Add logging and wait (instrument the area and catch it next time)
+**設定のずれ** … ローカルでは動くが、ステージング/本番で失敗する。環境変数、フィーチャーフラグ、DB の状態。
 
-**Red flags** ... if you see any of these, slow down:
-- "Quick fix for now" ... there is no "for now." Fix it right or escalate.
-- Proposing a fix before tracing data flow ... you're guessing.
-- Each fix reveals a new problem elsewhere ... wrong layer, not wrong code.
+**古いキャッシュ** … 古いデータを表示し、キャッシュを消すと直る。Redis、CDN、ブラウザのキャッシュ。
 
----
+また、次も確認する:
+- プロジェクトの既知の問題に、関連する問題がないか
+- 同じ領域で過去に修正されたものがないか、git log を確認する。同じファイルで繰り返し起きるバグは、偶然ではなくアーキテクチャの臭いである。
 
-## Phase 4: Implementation
-
-Once root cause is confirmed:
-
-1. **Fix the root cause, not the symptom.** The smallest change that eliminates the actual problem.
-
-2. **Minimal diff:** Fewest files touched, fewest lines changed. Resist the urge to refactor adjacent code.
-
-3. **Write a regression test** that:
-   - **Fails** without the fix (proves the test is meaningful)
-   - **Passes** with the fix (proves the fix works)
-
-4. **Run the full test suite.** No regressions allowed.
-
-5. **If the fix touches >5 files:** Flag the blast radius to the user before proceeding. That's large for a bug fix.
+**外部検索:** バグが既知のパターンに当てはまらない場合は、エラーの種類をオンラインで検索する。**まずサニタイズする:** ホスト名、IP、ファイルパス、SQL、顧客データを取り除く。生のメッセージではなく、エラーのカテゴリを検索する。
 
 ---
 
-## Phase 5: Verification & Report
+## フェーズ 3: 仮説の検証
 
-**Fresh verification:** Reproduce the original bug scenario and confirm it's fixed. This is not optional.
+修正を書く**前に**、仮説を検証する。
 
-Run the test suite.
+1. **仮説を確認する:** 疑わしい根本原因に、一時的なログ文、アサーション、またはデバッグ出力を入れる。再現を実行する。証拠は一致するか?
 
-Output a structured debug report:
+2. **仮説が間違っていた場合:** エラーを検索する(先に機密データをサニタイズする)。フェーズ 1 に戻る。さらに証拠を集める。推測しない。
+
+3. **3 回失敗のルール:** 3 つの仮説が失敗したら、**停止**する。ユーザーに伝える:
+
+   「3 つの仮説を検証しましたが、どれも一致しません。単純なバグではなく、アーキテクチャの問題かもしれません。」
+
+   選択肢:
+   - 新しい仮説で調査を続ける(仮説を説明する)
+   - 人間のレビューにエスカレーションする(システムに詳しい人が必要)
+   - ログを追加して待つ(その領域を計測し、次に発生したときに捕まえる)
+
+**危険信号** … これらのどれかが見えたら、速度を落とす:
+- 「とりあえずの簡単な修正」… 「とりあえず」は存在しない。今きちんと直すか、エスカレーションするかのどちらかだ。
+- データの流れを追う前に修正を提案する … 推測しているだけだ。
+- 修正するたびに、別の場所で新しい問題が出てくる … 間違ったコードではなく、間違った層だ。
+
+---
+
+## フェーズ 4: 実装
+
+根本原因が確認できたら:
+
+1. **症状ではなく根本原因を直す。** 実際の問題を取り除く、最小限の変更にする。
+
+2. **最小の差分:** 触るファイルは最少、変更する行は最少にする。隣接するコードのリファクタリングの誘惑に抗う。
+
+3. **回帰テストを書く。** そのテストは:
+   - 修正なしでは**失敗する**(テストが意味のあるものだと証明する)
+   - 修正ありでは**成功する**(修正が機能することを証明する)
+
+4. **テストスイート全体を実行する。** 回帰は一切許さない。
+
+5. **修正が 5 ファイルを超える場合:** 先に進む前に、影響範囲をユーザーに知らせる。バグ修正としては大きすぎる。
+
+---
+
+## フェーズ 5: 検証と報告
+
+**新鮮な検証:** 元のバグのシナリオを再現し、直ったことを確認する。これは任意ではない。
+
+テストスイートを実行する。
+
+構造化されたデバッグレポートを出力する:
 
 **DEBUG REPORT**
-- **Symptom:** what the user observed
-- **Root cause:** what was actually wrong
-- **Fix:** what was changed, with file references
-- **Evidence:** test output, reproduction showing fix works
-- **Regression test:** location of the new test
-- **Related:** prior bugs in same area, architectural notes
-- **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED
+- **症状:** ユーザーが観察したこと
+- **根本原因:** 実際に何が間違っていたか
+- **修正:** 何を変更したか。ファイルの参照付き
+- **証拠:** テストの出力、修正が機能することを示す再現
+- **回帰テスト:** 新しいテストの場所
+- **関連:** 同じ領域の過去のバグ、アーキテクチャのメモ
+- **ステータス:** DONE | DONE_WITH_CONCERNS | BLOCKED
 
-Save the report to `memory/` with today's date so future sessions can reference it.
+将来のセッションが参照できるように、このレポートを今日の日付付きで `memory/` に保存してください。
 
 ---
 
-## Important Rules
+## 重要なルール
 
-- **3+ failed fix attempts: STOP and question the architecture.** Wrong architecture, not failed hypothesis.
-- **Never apply a fix you cannot verify.** If you can't reproduce and confirm, don't ship it.
-- **Never say "this should fix it."** Verify and prove it. Run the tests.
-- **If fix touches >5 files:** Flag to user before proceeding.
-- **Completion status:**
-  - DONE ... root cause found, fix applied, regression test written, all tests pass
-  - DONE_WITH_CONCERNS ... fixed but cannot fully verify (e.g., intermittent bug, requires staging)
-  - BLOCKED ... root cause unclear after investigation, escalated
+- **3 回以上修正に失敗したら: 停止し、アーキテクチャを疑う。** 仮説が外れたのではなく、アーキテクチャが間違っている。
+- **検証できない修正は決して適用しない。** 再現して確認できないなら、出荷しない。
+- **「これで直るはず」とは決して言わない。** 検証し、証明する。テストを実行する。
+- **修正が 5 ファイルを超える場合:** 先に進む前にユーザーに知らせる。
+- **完了ステータス:**
+  - DONE … 根本原因を見つけ、修正を適用し、回帰テストを書き、すべてのテストが通った
+  - DONE_WITH_CONCERNS … 修正したが、完全には検証できない(例: 断続的なバグ、ステージング環境が必要)
+  - BLOCKED … 調査の後も根本原因が不明確で、エスカレーションした

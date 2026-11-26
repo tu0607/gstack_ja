@@ -28,6 +28,7 @@
 import { describe, test, expect } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { between, expectMentions } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const SKILL_DIR = path.join(ROOT, 'setup-gbrain');
@@ -55,7 +56,7 @@ const union = [skeleton]
 
 describe('setup-gbrain carve — dispatch stays in the skeleton', () => {
   test('the path-dispatch step (Step 2 picker) stays always-loaded', () => {
-    expect(skeleton).toContain('## Step 2: Pick a path (AskUserQuestion)');
+    expect(skeleton).toMatch(/^## Step 2:.*AskUserQuestion/m);
   });
 
   test('the skeleton routes to all four sections and renders the index', () => {
@@ -81,11 +82,11 @@ describe('setup-gbrain carve — dispatch stays in the skeleton', () => {
 describe('setup-gbrain Path 4 (Remote MCP) — structural contract', () => {
   test('Step 2 lists Path 4 as one of the path options (skeleton)', () => {
     // "4 — Remote gbrain MCP" with em-dash (—, U+2014 — one codepoint).
-    expect(skeleton).toMatch(/\*\*4 . Remote gbrain MCP/);
+    expect(skeleton).toMatch(/\*\*4 . .*gbrain MCP/);
   });
 
   test('Step 4 has a Path 4 sub-section (brain-init section)', () => {
-    expect(brainInit).toMatch(/### Path 4 \(Remote gbrain MCP/);
+    expect(brainInit).toMatch(/### Path 4[(（].*gbrain MCP/);
   });
 
   test('Step 4 collects the bearer via read_secret_to_env, never argv', () => {
@@ -102,11 +103,15 @@ describe('setup-gbrain Path 4 (Remote MCP) — structural contract', () => {
   });
 
   test('Step 4d explicitly skips Steps 3, 4 (other paths), 5, 7.5 in remote mode', () => {
-    expect(brainInit).toMatch(/4d.*[Ss]kip Steps? 3, 4.*5.*7\.5/s);
+    const step4e = between(brainInit, '**4e.', '### Switch');
+    expectMentions(step4e, [
+      ['スキップ', 'Step 3', 'Step 4', 'Step 5'],
+      ['スキップ', '7.5'],
+    ], 'brain-init Step 4e');
   });
 
   test('Step 5a has a Path 4 branch with claude mcp add --transport http (skeleton)', () => {
-    expect(skeleton).toMatch(/Path 4 \(Remote MCP/);
+    expect(skeleton).toMatch(/Path 4[(（]リモート MCP/);
     expect(skeleton).toMatch(/claude mcp add --scope user --transport http gbrain/);
     expect(skeleton).toContain('Authorization: Bearer $GBRAIN_MCP_TOKEN');
     // Token must be unset after registration so it doesn't linger in env.
@@ -124,14 +129,14 @@ describe('setup-gbrain Path 4 (Remote MCP) — structural contract', () => {
 
   test('Step 8 CLAUDE.md block branches on mode (claude-md-persist section)', () => {
     // The remote-http block has Mode: remote-http; local-stdio block has Engine:.
-    expect(claudeMdPersist).toMatch(/### Path 4 \(Remote MCP\)/);
+    expect(claudeMdPersist).toMatch(/### Path 4[(（]リモート MCP[)）]/);
     expect(claudeMdPersist).toMatch(/Mode: remote-http/);
     expect(claudeMdPersist).toMatch(/Mode: local-stdio/);
   });
 
   test('Step 8 explicitly says the bearer is never written to CLAUDE.md', () => {
     // Token-leak regression guard. CLAUDE.md is committed in many projects.
-    expect(claudeMdPersist).toMatch(/bearer token is \*\*never\*\* written to CLAUDE\.md/);
+    expectMentions(claudeMdPersist, [['ベアラー', '決して', 'CLAUDE.md']], 'claude-md-persist');
   });
 
   test('Step 9 smoke test on Path 4 prints a placeholder, never the real token', () => {
@@ -140,7 +145,7 @@ describe('setup-gbrain Path 4 (Remote MCP) — structural contract', () => {
   });
 
   test('Step 10 verdict block has a remote-http variant separate from local-stdio', () => {
-    expect(skeleton).toMatch(/### Path 4 \(Remote MCP\)/);
+    expect(skeleton).toMatch(/### Path 4[(（]リモート MCP[)）]/);
     expect(skeleton).toMatch(/mode: remote-http/);
     expect(skeleton).toMatch(/N\/A.*remote mode/);
   });
@@ -151,14 +156,14 @@ describe('setup-gbrain Path 4 (Remote MCP) — structural contract', () => {
   });
 
   test('Step 5 (local doctor) explicitly skips on Path 4 (skeleton)', () => {
-    expect(skeleton).toMatch(/SKIP entirely on Path 4 \(Remote MCP\)/);
+    expect(skeleton).toMatch(/Path 4[(（]リモート MCP[)）]では完全にスキップ/);
   });
 
   test('Step 7.5 (transcript ingest) explicitly skips on Path 4 (skeleton)', () => {
     // Transcript ingest needs local gbrain CLI which Path 4 doesn't install.
     // The skip notes are DISPATCH — they must stay in the always-loaded
     // skeleton (Steps 3, 5, and 7.5 each carry one).
-    const matches = skeleton.match(/SKIP entirely on Path 4 \(Remote MCP\)/g);
+    const matches = skeleton.match(/Path 4[(（]リモート MCP[)）]では完全にスキップ/g);
     expect(matches?.length).toBeGreaterThanOrEqual(2);
   });
 });

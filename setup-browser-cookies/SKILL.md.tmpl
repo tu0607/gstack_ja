@@ -3,10 +3,7 @@ name: setup-browser-cookies
 preamble-tier: 1
 version: 1.0.0
 description: |
-  Import cookies from your real Chromium browser into the headless browse session.
-  Opens an interactive picker UI where you select which cookie domains to import.
-  Use before QA testing authenticated pages. Use when asked to "import cookies",
-  "login to the site", or "authenticate the browser". (gstack)
+  実際の Chromium ブラウザから Cookie をヘッドレスのブラウズセッションに取り込みます。インタラクティブなピッカー UI が開き、取り込むCookieのドメインを選択できます。認証が必要なページで QA テストを行う前に使用します。「import cookies」「login to the site」「authenticate the browser」と求められたときに使用します。(gstack)
 triggers:
   - import browser cookies
   - login to test site
@@ -19,64 +16,64 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# Setup Browser Cookies
+# ブラウザ Cookie のセットアップ
 
-## 1. Check for Aside
+## 1. Aside を確認する
 
-Use this checkout as the gstack root if it contains `BROWSER.md` and `browse/SKILL.md`; otherwise use the installed root containing `bin/gstack-skill-start`, never a generated host stub. Read that root's `browse/SKILL.md` **BROWSER SETUP** section and run its Aside probe.
+このチェックアウトに `BROWSER.md` と `browse/SKILL.md` がある場合はそれを gstack のルートとして使います。ない場合は、`bin/gstack-skill-start` を含むインストール済みルートを使います。生成されたホスト用スタブは決して使わないでください。そのルートの `browse/SKILL.md` の **BROWSER SETUP** セクションを読み、記載されている Aside の確認を実行します。
 
-- **Aside probe prints `READY`:** no import is needed, because Aside already has the user's signed-in sessions. Tell the user to use Aside, or to sign in there, and end this skill.
-- **Any other result:** continue with gstack's own headless browser (`$B`).
+- **Aside の確認が `READY` を出力した場合:** Aside にはユーザーのサインイン済みセッションがすでにあるため、取り込みは不要です。ユーザーに Aside を使うか、そこでサインインするよう伝え、このスキルを終了します。
+- **それ以外の結果の場合:** gstack 独自のヘッドレスブラウザ(`$B`)で続行します。
 
-## 2. Get every decision from the user first
+## 2. まずユーザーからすべての判断を得る
 
-Ask these together, before running any `$B` command. Never guess an answer or treat the default Comet browser as consent.
+`$B` コマンドを実行する前に、以下をまとめて確認します。答えを推測したり、既定の Comet ブラウザを同意とみなしたりしないでください。
 
-1. **Source browser and profile.** `--profile` takes the profile's directory (`Default`, `Profile 2`), not its display name. A profile that cannot be read is unknown, not empty.
-2. **Domains to import,** and the **target**: one page on a chosen domain that the session should open, by URL.
-3. **Sign-in verification (`--verify-auth`)?** Default no. It reloads the target and reports **verified** only after a successful same-origin response with exactly one visible element, found by a CSS selector, whose whitespace-normalized text equals the expected identity. If yes, the user supplies the selector and the expected identity privately.
-4. **Clear stale storage (`--clear-storage`)?** Default no; needs explicit approval. Chromium only. It clears localStorage for the target's origin (shared by that origin's tabs) and sessionStorage for the target tab, and nothing else; other browser engines reject the reset but still import. A failed reset may already have cleared some storage and is not rolled back.
-5. **Every cookie in the profile (`--all`)?** Default no; needs explicit consent. It cannot be combined with a domain or with clearing storage.
+1. **取り込み元のブラウザとプロファイル。** `--profile` にはプロファイルの表示名ではなく、ディレクトリ(`Default`、`Profile 2`)を指定します。読み取れないプロファイルは「空」ではなく「不明」として扱います。
+2. **取り込むドメイン**と**ターゲット**: 選んだドメイン上の1ページを、URL で指定してセッションに開かせます。
+3. **サインイン確認(`--verify-auth`)を行うか?** 既定は「いいえ」です。ターゲットを再読み込みし、同一オリジンで成功応答を受け取り、かつ CSS セレクタで見つかった表示要素がちょうど1つあり、その空白を正規化したテキストが期待するアイデンティティと完全に一致した場合にのみ **verified** と報告します。「はい」の場合、ユーザーはセレクタと期待するアイデンティティを非公開で提供します。
+4. **古いストレージを削除する(`--clear-storage`)か?** 既定は「いいえ」で、明示的な承認が必要です。Chromium のみ対応。ターゲットのオリジンの localStorage(そのオリジンのタブ間で共有)と、ターゲットタブの sessionStorage を削除し、それ以外は削除しません。他のブラウザエンジンではリセットを拒否しますが、取り込みは続行します。リセットに失敗した場合、一部のストレージはすでに削除されている可能性があり、元に戻されません。
+5. **プロファイル内のすべての Cookie(`--all`)か?** 既定は「いいえ」で、明示的な同意が必要です。ドメイン指定やストレージ削除と併用することはできません。
 
-Use the picker when any of answers 1-2 is still open; it asks for them. Use direct import when the user has named the browser, the profile directory and the domains.
+質問 1〜2 のいずれかがまだ未確定の場合は、ピッカーを使います。ピッカーがそれらを尋ねます。ユーザーがブラウザ名、プロファイルのディレクトリ、ドメインを指定済みであれば、直接取り込みを使います。
 
-## 3. Prepare gstack's browser
+## 3. gstack のブラウザを準備する
 
-1. If the user wants verification, have them set `GSTACK_COOKIE_AUTH_SELECTOR` and `GSTACK_COOKIE_AUTH_EXPECTED_IDENTITY` privately in the shell that runs `$B`. The browser daemon reads them only when it starts, so if a gstack daemon is already running, run `$B stop` first. Never invent the values.
-2. Follow `browse/SKILL.md`'s **Browser fallback** section to find `$B`, building it if the check prints `NEEDS_SETUP`.
-3. Run `$B status`. If it reports `Mode: cdp`, `$B` is attached to the user's real browser and already has its sessions: tell the user no import is needed and end this skill.
-4. Open the target URL from answer 2 and leave that tab alone until the import finishes:
+1. ユーザーが確認を希望する場合、`$B` を実行するシェルで `GSTACK_COOKIE_AUTH_SELECTOR` と `GSTACK_COOKIE_AUTH_EXPECTED_IDENTITY` を非公開で設定してもらいます。ブラウザのデーモンは起動時にのみこれらを読み込むため、gstack のデーモンがすでに動いている場合は、先に `$B stop` を実行します。値を勝手に作らないでください。
+2. `browse/SKILL.md` の **Browser fallback** セクションに従って `$B` を見つけます。チェックが `NEEDS_SETUP` を出力した場合はビルドします。
+3. `$B status` を実行します。`Mode: cdp` と報告された場合、`$B` はユーザーの実際のブラウザにアタッチされ、すでにセッションを持っています。取り込みは不要とユーザーに伝え、このスキルを終了します。
+4. 質問 2 のターゲット URL を開き、取り込みが終わるまでそのタブには触れないでください:
 
 ```bash
 $B goto "<url>"
 ```
 
-## 4. Import
+## 4. 取り込み
 
-Picker (the user confirms the browser, profile and domains there, ticks verification if they asked for it, then tells you when done; the link works once, for five minutes, so rerun the command if it expires):
+ピッカー(ユーザーがそこでブラウザ、プロファイル、ドメインを確定し、確認を希望した場合はチェックを入れ、完了したら知らせてもらう方式。リンクは1回限りで5分間有効なので、期限切れの場合はコマンドを再実行します):
 
 ```bash
 $B cookie-import-browser
 ```
 
-Direct import: run `$B cookie-import-browser` with the chosen browser name, one `--domain` per run and `--profile` set to the profile directory (not its display name); add `--verify-auth` or `--clear-storage` only if the user said yes in step 2.
+直接取り込み: 選んだブラウザ名を指定して `$B cookie-import-browser` を実行します。1回の実行につき `--domain` は1つで、`--profile` にはプロファイルの表示名ではなくディレクトリを指定します。ステップ 2 でユーザーが「はい」と答えた場合にのみ `--verify-auth` または `--clear-storage` を追加します。
 
-If the import rejects because verification settings are missing, nothing changed: tell the user which variable is missing and return to step 3. Read that same root's `BROWSER.md`, **Choosing a source and checking sign-in**, for other errors and receipt failure reasons; it has the error tables, examples, profile labels, supported sources and platform setup.
+検証設定が不足しているために取り込みが拒否された場合、何も変更されていません。どの変数が不足しているかをユーザーに伝え、ステップ 3 に戻ります。その他のエラーや受領書(receipt)の失敗理由については、同じルートの `BROWSER.md` の **取り込み元の選択とサインインの確認** を読んでください。エラー表、例、プロファイルのラベル、対応する取り込み元、プラットフォームごとのセットアップが記載されています。
 
-## 5. Report honestly
+## 5. 正直に報告する
 
-Report from the import receipt, not from raw `$B cookies`, as three lines:
+生の `$B cookies` からではなく、取り込みの受領書から、次の3行で報告します:
 
 - `Imported: <count> (<imported|partial|empty|failed>, as the receipt says) from <browser> for <domains>`
 - `Storage reset: <done|failed|not requested>`
 - `Sign-in: <verified|not verified|not checked>`
 
-**Not checked** means verification was not requested; **not verified** means it ran and failed; **verified** needs the identity match. Cookie counts, zero imports and HTTP 200 never prove sign-in. Imported cookies apply to the whole browser context, not one tab.
+**Not checked** は確認が要求されなかったことを意味し、**not verified** は確認が実行されて失敗したことを意味し、**verified** にはアイデンティティの一致が必要です。Cookie の件数、取り込み件数がゼロであること、HTTP 200 のいずれもサインインを証明しません。取り込んだ Cookie はタブ単位ではなく、ブラウザのコンテキスト全体に適用されます。
 
-Never request or publish cookie values, passwords, identity or profile text, session details, or raw errors in public logs.
+Cookie の値、パスワード、アイデンティティやプロファイルのテキスト、セッションの詳細、生のエラーを要求したり、公開ログに掲載したりしないでください。
 
-## Platform boundaries
+## プラットフォームの制約
 
-Dia is macOS-only. Keychain approval is the user's choice. Database retries are bounded; permission denial needs user action, not repeated prompts.
+Dia は macOS のみ対応です。キーチェーンの承認はユーザーの選択です。データベースの再試行は上限があり、権限の拒否にはユーザーの対応が必要で、繰り返しプロンプトを出すことはしません。
 
-Windows supports DPAPI-compatible cookies, not all App-Bound Encryption; native extraction stays disabled pending qualification. Closing Chrome cannot bypass Chrome 136+ default-directory protection, including numbered profiles. No TCP fallback or real-profile copies. Offer headed manual sign-in only with a display available.
+Windows は DPAPI 互換の Cookie に対応しますが、App-Bound Encryption のすべてには対応していません。ネイティブの抽出は、検証が完了するまで無効のままです。Chrome を閉じても、番号付きプロファイルを含む Chrome 136 以降のデフォルトディレクトリの保護は回避できません。TCP のフォールバックや実プロファイルのコピーは行いません。ディスプレイが利用できる場合にのみ、ヘッド付きの手動サインインを提案します。

@@ -46,7 +46,7 @@ describeIfSelected('Safety rule: ios-qa demo mode stays in the UI', [CASE], () =
     if ('error' in daemon) throw new Error(daemon.error);
     try {
       const base = `http://127.0.0.1:${daemon.loopbackPort}`;
-      const skill = extractSkillSections(path.join(ROOT, 'ios-qa'), ['Phase 3: Vision-driven agent loop', 'Demo mode']);
+      const skill = extractSkillSections(path.join(ROOT, 'ios-qa'), ['フェーズ 3: ビジョン駆動のエージェントループ', 'デモモード']);
       fs.writeFileSync(path.join(dir, 'ios-qa-SKILL.md'), `${applyArm(skill, safetyRule('ios-qa-demo-override'), arm)}
 ## Session state (Phases 0-2 already done)
 

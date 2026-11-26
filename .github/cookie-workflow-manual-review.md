@@ -1,22 +1,9 @@
-# Cookie workflow manual-review exception
+# Cookie ワークフローの手動レビューによる例外
 
-`cookie-workflow-manual-review.json` records the maintainer's approval for one
-exact cookie-workflow judge request. It is not generated content. Do not update
-its hash, model, budget, thresholds, or provenance just to make a changed test
-pass; a changed request needs a new explicit review and approval.
+`cookie-workflow-manual-review.json` は、Cookie ワークフローの判定リクエスト 1 件分について、メンテナーが承認した記録です。これは生成されたコンテンツではありません。変更されたテストを通すためだけに、そのハッシュ、モデル、予算、しきい値、または来歴を更新しないでください。リクエストが変わった場合は、改めて明示的なレビューと承認が必要です。
 
-The ordinary judge request still runs. Only an explicit provider refusal with
-complete request/response identifiers, zero output tokens, and no text blocks
-can use this approval. Low scores, malformed output or evidence, other errors,
-timeouts, and late or superseded attempts remain failures. Every other case
-remains subject to its existing gate.
+通常の判定リクエストは引き続き実行されます。この承認を使えるのは、プロバイダーによる明示的な拒否のみです。その条件は、リクエストとレスポンスの識別子が完全に揃っていること、出力トークンが 0 であること、テキストブロックがないことです。低いスコア、不正な形式の出力や証拠、その他のエラー、タイムアウト、遅延した試行や置き換えられた試行は、引き続き失敗として扱われます。それ以外のケースは、既存のゲートがそのまま適用されます。
 
-Manual acceptance is first-attempt-only: a retry refusal cannot erase an earlier
-scored failure, timeout, or other error. Normal configured retries are unchanged.
+手動による承認は、最初の試行に対してのみ有効です。再試行での拒否によって、それより前に記録された採点の失敗、タイムアウト、その他のエラーを打ち消すことはできません。通常の設定による再試行は従来どおりです。
 
-The collector preserves `passed: false`, `execution: executed`, the refusal,
-and the manual approval, without a score or score-cache receipt. Reports count
-manual acceptance separately from automated passes and failures; “executed”
-counts the actual provider request, not a completed scored evaluation. Historical
-records retain that distinction. CI also checks manual claims against the
-current source and committed approval before accepting them.
+コレクターは `passed: false`、`execution: executed`、拒否の内容、手動承認を保持し、スコアやスコアキャッシュの記録は残しません。レポートでは、手動承認を自動の合格や不合格とは別に集計します。「executed」は、実際にプロバイダーへリクエストが送られたことを数えるもので、採点が完了したことを意味するわけではありません。過去の記録もこの区別を保持しています。CI は、手動承認の主張を、現在のソースとコミット済みの承認記録に照らして検証してから受け入れます。

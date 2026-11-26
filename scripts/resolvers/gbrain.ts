@@ -53,20 +53,20 @@ const skillSaveMap: Record<string, SkillSaveMeta> = {
 };
 
 export function generateGBrainContextLoad(ctx: TemplateContext): string {
-  let base = `## Brain Context Load
+  let base = `## Brain Context Load(brain の文脈の読み込み)
 
-**Skip this entire section if \`gbrain\` is not on PATH.**
+**\`gbrain\` が PATH にない場合は、このセクション全体をスキップします。**
 
-Extract 2-4 keywords from the user's request. Search the brain:
-\`gbrain search "<keywords>"\`. Read the top 3 results with
-\`gbrain get "<slug>"\`. Use that context to inform your analysis.
+ユーザーのリクエストから 2〜4 個のキーワードを抽出し、brain を検索します:
+\`gbrain search "<keywords>"\`。上位 3 件の結果を
+\`gbrain get "<slug>"\` で読みます。その文脈を分析に活かします。
 
-If \`gbrain search\` returns no results or any non-zero exit, proceed
-without brain context. Full search/read protocol + examples:
-see \`docs/gbrain-write-surfaces.md\` §Context Load.`;
+\`gbrain search\` が結果を返さない場合、または 0 以外の終了コードで終わった場合は、
+brain の文脈なしで進めます。検索/読み取りの完全なプロトコルと例は、
+\`docs/gbrain-write-surfaces.md\` §Context Load を参照してください。`;
 
   if (ctx.skillName === 'investigate') {
-    base += `\n\nFor structured-data extraction requests ("track this", "extract from emails", "build a tracker"), route to GBrain's data-research skill instead: \`gbrain call data-research\`.`;
+    base += `\n\n構造化データの抽出リクエスト(「これを追跡して」「メールから抽出して」「トラッカーを作って」)は、代わりに GBrain の data-research スキルに回します: \`gbrain call data-research\`。`;
   }
 
   return base;
@@ -83,33 +83,33 @@ export function generateGBrainSaveResults(ctx: TemplateContext): string {
   const meta = skillSaveMap[ctx.skillName];
 
   if (!meta) {
-    return `## Save Results to Brain
+    return `## Save Results to Brain(結果を brain に保存)
 
-**Skip this entire section if \`gbrain\` is not on PATH.**
+**\`gbrain\` が PATH にない場合は、このセクション全体をスキップします。**
 
-If the skill output is worth preserving, write the page (frontmatter + markdown)
-into a private file with your file-write tool and run
-\`gbrain put "<slug>" < "<page-file>"\`. Full template (frontmatter shape,
-entity stubs, throttle handling): see \`docs/gbrain-write-surfaces.md\` §Save Template.`;
+スキルの出力が保存に値する場合は、ファイル書き込みツールでページ(frontmatter + Markdown)を
+非公開のファイルに書き、
+\`gbrain put "<slug>" < "<page-file>"\` を実行します。完全なテンプレート(frontmatter の形、
+エンティティのスタブ、スロットル処理)は、\`docs/gbrain-write-surfaces.md\` §Save Template を参照してください。`;
   }
 
-  return `## Save Results to Brain
+  return `## Save Results to Brain(結果を brain に保存)
 
-**Skip this entire section if \`gbrain\` is not on PATH.**
+**\`gbrain\` が PATH にない場合は、このセクション全体をスキップします。**
 
-Save the output: run \`mkdir -p .gstack/tmp && mktemp .gstack/tmp/page.XXXXXX\` at the
-repo root, write the page into the printed file with your file-write tool
-(frontmatter \`title: "${meta.title}: <feature name>"\`, \`tags: [${meta.tag}, <feature-slug>]\`,
-then the output in markdown), then:
+出力を保存します: リポジトリのルートで \`mkdir -p .gstack/tmp && mktemp .gstack/tmp/page.XXXXXX\` を実行し、
+ファイル書き込みツールで、出力されたファイルにページを書きます
+(frontmatter は \`title: "${meta.title}: <feature name>"\`、\`tags: [${meta.tag}, <feature-slug>]\`、
+続けて出力を Markdown で)。その後:
 
 \`\`\`bash
 gbrain put "${meta.slugPrefix}/<feature-slug>" < "<page-file>" && rm -f "<page-file>"
 \`\`\`
 
-Read the saved page back before claiming persistence. Then create stub pages for
-its person/org entities. Any non-zero exit (throttle included) is transient: don't
-retry inline. Entity stubs, throttling and backlinks: see
-\`docs/gbrain-write-surfaces.md\` §Save Template.`;
+保存したページを読み戻してから、永続化したと主張します。その後、ページ内の人物/組織の
+エンティティのスタブページを作成します。0 以外の終了コード(スロットルを含む)は一時的なものです。その場では
+再試行しません。エンティティのスタブ、スロットル、バックリンクは、
+\`docs/gbrain-write-surfaces.md\` §Save Template を参照してください。`;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -149,14 +149,14 @@ export function generateBrainPreflight(ctx: TemplateContext): string {
     return `  printf '\\n### %s\\n\\n' "${entityName}"\n  ${binDir}/gstack-brain-cache get ${entityName} ${projectFlag} 2>/dev/null || printf '_(no ${entityName} digest available yet)_\\n'`;
   }).join('\n');
   const usageByEntity: Record<string, string> = {
-    product: 'If `product` digest names the value prop, target user, or stage, do not re-ask.',
-    goals: 'If `goals` digest lists active goals, frame recommendations against them.',
-    'recent-decisions': 'If `recent-decisions` digest names a prior scope/architecture choice, flag if this plan contradicts.',
-    'user-profile': 'If `user-profile` digest carries calibration pattern statements ("tends to over-engineer security"), surface them when relevant.',
-    'developer-persona': 'If `developer-persona` digest describes the builder workflow or friction tolerance, adapt the DX recommendations.',
-    brand: 'If `brand` digest names visual principles or constraints, use them before asking about design taste.',
-    'competitive-intel': 'If `competitive-intel` digest names peer products or workflow expectations, use them as comparison context.',
-    salience: 'If `salience` digest surfaces recent local context, treat it as a pointer to verify rather than a standalone fact.',
+    product: '`product` ダイジェストにバリュープロポジション、ターゲットユーザー、ステージが示されている場合は、再度尋ねない。',
+    goals: '`goals` ダイジェストにアクティブな目標が列挙されている場合は、それに照らして推奨を組み立てる。',
+    'recent-decisions': '`recent-decisions` ダイジェストに過去のスコープ/アーキテクチャの選択が示されている場合は、このプランがそれと矛盾していないか指摘する。',
+    'user-profile': '`user-profile` ダイジェストにキャリブレーションのパターン(「セキュリティを作り込みすぎる傾向がある」など)が含まれている場合は、関連するときに提示する。',
+    'developer-persona': '`developer-persona` ダイジェストにビルダーのワークフローや摩擦への耐性が記述されている場合は、DX の推奨をそれに合わせる。',
+    brand: '`brand` ダイジェストにビジュアルの原則や制約が示されている場合は、デザインの好みを尋ねる前にそれを使う。',
+    'competitive-intel': '`competitive-intel` ダイジェストに競合製品やワークフローへの期待が示されている場合は、比較の文脈として使う。',
+    salience: '`salience` ダイジェストが最近のローカルな文脈を示している場合は、単独の事実ではなく、検証すべき手がかりとして扱う。',
   };
   const usageLines = subset
     .map((entityName) => usageByEntity[entityName])
@@ -164,30 +164,29 @@ export function generateBrainPreflight(ctx: TemplateContext): string {
     .map((line) => `- ${line}`)
     .join('\n');
 
-  return `## Brain Context (preflight)
+  return `## Brain Context (preflight)(brain の文脈、事前読み込み)
 
-${ctx.skillName === 'plan-eng-review' ? 'After the Scope gate, before later review questions, load the brain\'s structured context' : 'Before asking any clarifying questions, load the brain\'s structured context'}
-for this project. The cache layer handles staleness, refresh, and stale-but-
-usable fallback automatically. Skip questions whose answers are already
-present in the loaded context; ground recommendations in what the brain
-prints for this skill.
+${ctx.skillName === 'plan-eng-review' ? 'Scope ゲートの後、以降のレビューの質問の前に、' : '確認の質問をする前に、'}このプロジェクトの brain の構造化された文脈を読み込みます。
+キャッシュ層が、陳腐化、更新、期限切れでも使えるフォールバックを
+自動で処理します。読み込んだ文脈にすでに答えがある質問はスキップし、
+推奨は、brain がこのスキル向けに出力した内容に基づかせます。
 
 \`\`\`bash
 SLUG=$(${binDir}/gstack-slug --get SLUG 2>/dev/null) || true
 {
-  printf '## Brain Context\\n\\n'
+  printf '## Brain Context(brain の文脈)\\n\\n'
 ${loadLines}
 } > /tmp/.gstack-brain-context-$$.md 2>/dev/null
 [ -s /tmp/.gstack-brain-context-$$.md ] && cat /tmp/.gstack-brain-context-$$.md
 rm -f /tmp/.gstack-brain-context-$$.md 2>/dev/null || true
 \`\`\`
 
-**How to use this context:**
+**この文脈の使い方:**
 ${usageLines}
-- If a digest is \`(no X digest available yet)\`, treat that section as cold; ask the user.
+- ダイジェストが \`(no X digest available yet)\` の場合は、そのセクションをコールド(未取得)として扱い、ユーザーに尋ねる。
 
-**Privacy:** Salience digest is filtered by allowlist (D9 default: \`projects/\`,
-\`gstack/\`, \`concepts/\` only). Personal/family/therapy content never leaks here.
+**プライバシー:** Salience ダイジェストは許可リストでフィルタされます(D9 のデフォルト: \`projects/\`、
+\`gstack/\`、\`concepts/\` のみ)。個人/家族/セラピーの内容がここに漏れることはありません。
 `;
 }
 
@@ -202,14 +201,14 @@ ${usageLines}
 export function generateBrainCacheRefresh(ctx: TemplateContext): string {
   if (!isPreflightSkill(ctx.skillName)) return '';
   const binDir = ctx.paths.binDir;
-  return `## Brain Cache Background Refresh
+  return `## Brain Cache Background Refresh(brain キャッシュのバックグラウンド更新)
 
-${ctx.skillName === 'plan-ceo-review' ? `After the exit gate passes, start this nonblocking refresh before telemetry.
-Then return to the finalization instructions below; the user need not wait for
-the refresh process.` : `After the skill's work completes (and telemetry has logged), kick a
-background refresh of any cache digest that's getting close to its TTL.
-This is non-blocking — the user doesn't wait. Next invocation benefits
-from the warm cache.`}
+${ctx.skillName === 'plan-ceo-review' ? `終了ゲートを通過したら、テレメトリの前に、このノンブロッキングの更新を開始します。
+その後、以下の最終処理の指示に戻ります。ユーザーが
+更新プロセスを待つ必要はありません。` : `スキルの作業が完了し(テレメトリが記録された後)、TTL に近づいているキャッシュダイジェストの
+バックグラウンド更新を起動します。
+これはノンブロッキングで、ユーザーは待ちません。次回の呼び出しでは、
+ウォームなキャッシュの恩恵を受けられます。`}
 
 \`\`\`bash
 SLUG=$(${binDir}/gstack-slug --get SLUG 2>/dev/null) || true
@@ -239,15 +238,15 @@ export function generateBrainWriteBack(ctx: TemplateContext): string {
     .map((e) => `  ${ctx.paths.binDir}/gstack-brain-cache invalidate ${e} --project "$SLUG" 2>/dev/null || true`)
     .join('\n');
 
-  return `## Brain Calibration Write-Back (gated)
+  return `## Brain Calibration Write-Back (gated)(brain キャリブレーションの書き戻し、ゲート付き)
 
-${ctx.skillName === 'plan-eng-review' ? '`BRAIN_CALIBRATION_WRITEBACK` is a reserved default-off gate; this runtime does not set it. Skip this section and continue the finish sequence. Do not enable it or infer permission from brain availability. The contract below is retained for future gated integration, not an instruction to write now.\n\n' : ''}Skip unless \`BRAIN_CALIBRATION_WRITEBACK\` is set and the preamble/brain-health
-output or gstack config shows \`brain_trust_policy@<endpoint-hash>=personal\`.
-If unknown, skip. If both gates pass, record one durable
-typed prediction with \`mcp__gbrain__takes_add\`; if unavailable, use
-\`mcp__gbrain__put_page\` with a gstack:takes fence block.
+${ctx.skillName === 'plan-eng-review' ? '`BRAIN_CALIBRATION_WRITEBACK` は、デフォルトでオフの予約済みゲートです。このランタイムはこれを設定しません。このセクションをスキップし、終了のシーケンスを続けます。有効にしたり、brain が利用可能であることから許可を推測したりしてはいけません。以下の契約は、将来のゲート付き統合のために残してあるもので、今すぐ書き込む指示ではありません。\n\n' : ''}\`BRAIN_CALIBRATION_WRITEBACK\` が設定され、かつプリアンブル/brain-health の
+出力または gstack の設定に \`brain_trust_policy@<endpoint-hash>=personal\` が示されている場合を除き、スキップします。
+不明な場合はスキップします。両方のゲートを通過した場合は、永続的な
+型付きの予測を 1 つ \`mcp__gbrain__takes_add\` で記録します。利用できない場合は、
+gstack:takes フェンスブロックを付けて \`mcp__gbrain__put_page\` を使います。
 
-Take frontmatter:
+Take の frontmatter:
 \`\`\`yaml
 kind: bet
 holder: <user identity from whoami>
@@ -258,7 +257,7 @@ expected_resolution: <date in 1-3 months depending on skill>
 source_skill: ${ctx.skillName}
 \`\`\`
 
-After write, invalidate affected digests:
+書き込み後、影響を受けるダイジェストを無効化します:
 
 \`\`\`bash
 SLUG=$(${ctx.paths.binDir}/gstack-slug --get SLUG 2>/dev/null) || true

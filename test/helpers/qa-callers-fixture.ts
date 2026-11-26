@@ -33,10 +33,10 @@ export function qaCallerInstructions(caller: QaCaller, root = QA_CALLER_ROOT): s
   const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8');
   const source = read(`${caller}/SKILL.md`);
   const excerpt = caller === 'review'
-    ? callerExcerpt(source, '## Step 4: Critical pass (core review)', '## Step 5.8: Persist Eng Review result')
+    ? callerExcerpt(source, '## Step 4: 重大な問題のパス(コアのレビュー)', '## Step 5.8: エンジニアリングレビューの結果を保存する')
     : callerExcerpt(source,
-      '> **STOP.** Before auditing plan completion, verification, and scope drift (Step 8),',
-      '> **STOP.** Before addressing Greptile review comments');
+      '> **STOP.** プランの完了、検証、スコープのずれの監査(Step 8)の前に、',
+      '> **STOP.** PR がある場合の Greptile のレビューコメントへの対応(Step 10)の前に');
   const review = caller === 'review' ? excerpt : read('ship/sections/review-army.md');
   if (!review.includes(`### Step ${caller === 'review' ? '4.7' : '9.2.1'}: Exploratory QA (before Fix-First)`) || !review.includes('sections/exploratory.md')) {
     throw new Error(`Generated /${caller} parent is missing the exploratory QA integration`);

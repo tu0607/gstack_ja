@@ -15,7 +15,7 @@ const ROOT = path.resolve(import.meta.dir, '..');
 const PINNED = JSON.parse(fs.readFileSync(path.join(import.meta.dir, 'fixtures', 'workflow-required-steps.json'), 'utf8')) as {
   skills: Record<string, Record<string, string[]>>;
 };
-const STEP = /^#{2,4} (?:(?:Step|Phase|Section) \d+[A-Za-z0-9.]*|Phases \d+-\d+|\d+[A-Za-z]?(?:\.\d+)?\.)[ :].*$/;
+const STEP = /^#{2,4} (?:(?:Step|Phase|Section|ステップ|フェーズ|セクション) \d+[A-Za-z0-9.]*|(?:Phases|フェーズ) \d+-\d+|\d+[A-Za-z]?(?:\.\d+)?\.)[ :].*$/;
 
 /** Heading lines outside code fences. */
 function headings(text: string): string[] {
@@ -61,12 +61,12 @@ describe('judged workflow skills keep their required steps', () => {
 
   test('the C1 control defects are reported by step name', () => {
     const qa = read('qa', 'SKILL.md');
-    expect(missingSteps('qa', 'SKILL.md', qa.replace('## Phase 10: Report', '## Report'), PINNED.skills.qa!['SKILL.md']!))
-      .toEqual(['qa/SKILL.md: missing required step "## Phase 10: Report"']);
+    expect(missingSteps('qa', 'SKILL.md', qa.replace('## Phase 10: レポート', '## Report'), PINNED.skills.qa!['SKILL.md']!))
+      .toEqual(['qa/SKILL.md: missing required step "## Phase 10: レポート"']);
     const review = read('review', 'SKILL.md');
-    expect(missingSteps('review', 'SKILL.md', review.replace(/^## Step 3: Get the diff$/m, ''), PINNED.skills.review!['SKILL.md']!))
-      .toEqual(['review/SKILL.md: missing required step "## Step 3: Get the diff"']);
-    const fenced = review.replace(/^(## Step 3: Get the diff)$/m, '```\n$1\n```');
+    expect(missingSteps('review', 'SKILL.md', review.replace(/^## Step 3: 差分の取得$/m, ''), PINNED.skills.review!['SKILL.md']!))
+      .toEqual(['review/SKILL.md: missing required step "## Step 3: 差分の取得"']);
+    const fenced = review.replace(/^(## Step 3: 差分の取得)$/m, '```\n$1\n```');
     expect(missingSteps('review', 'SKILL.md', fenced, PINNED.skills.review!['SKILL.md']!)).toHaveLength(1);
   });
 });

@@ -30,35 +30,34 @@ describe('pre-publication documentation lifecycle', () => {
   test('final verification orders build, bounded documentation refresh, freeze and evidence', () => {
     const body = read('ship/SKILL.md.tmpl');
     const gate = body.slice(body.indexOf('## Step 16:'), body.indexOf('## Step 17:'));
-    const steps = ['### 1. Finish writers and prepare outputs', '### 2. Choose the change route',
-      '### 3. Resolve documentation freshness', '### 4. Verify the frozen candidate', '### 5. Report, then push'];
+    const steps = ['### 1. 書き込みを終えて、出力を準備する', '### 2. 変更ルートを選ぶ',
+      '### 3. ドキュメントの鮮度を解決する', '### 4. 凍結された候補を検証する', '### 5. 報告してから push する'];
     const positions = steps.map(step => gate.indexOf(step));
     expect(positions.every(position => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
-    const recovery = body.slice(body.indexOf('### 3. Resolve documentation freshness'), body.indexOf('### 4. Verify the frozen candidate')).replace(/\s+/g, ' ');
-    expect(recovery).toContain('Validate the outcome before Step 15');
-    expect(recovery).toContain('Never run a third audit');
-    expect(body.replace(/\s+/g, ' ')).toContain('its initial-plus-ONE limit never resets');
-    expect(gate.replace(/\s+/g, ' ')).toContain('Docs, TODO edits, new/generated tests and fixes make evidence STALE');
+    const recovery = body.slice(body.indexOf('### 3. ドキュメントの鮮度を解決する'), body.indexOf('### 4. 凍結された候補を検証する')).replace(/\s+/g, ' ');
+    expectMentions(recovery, [['Step 15 の前に結果を検証し'], ['3 回目の監査は決して実行しないでください']], 'recovery');
+    expectMentions(body.replace(/\s+/g, ' '), [['初回+1 回の上限はリセットされません']], 'body');
+    expectMentions(gate.replace(/\s+/g, ' '), [['ドキュメント', 'TODO の編集', '証拠は STALE']], 'gate');
     const docs = read('ship/sections/documentation.md.tmpl');
-    expectMentions(docs.replace(/\s+/g, ' '), [['never', 'attempt', 'changes']], 'docs.replace(/\s+/g,  )');
-    expect(docs.replace(/\s+/g, ' ')).toContain('Otherwise STOP before commit/publication and do not launch another child');
+    expectMentions(docs.replace(/\s+/g, ' '), [['3 回目の試行は決して行いません']], 'docs.replace(/\s+/g,  )');
+    expectMentions(docs.replace(/\s+/g, ' '), [['コミット/公開の前に STOP し', '別の子プロセスを起動しません']], 'docs stop before publication');
   });
 
   test('dispatch is carved before commit and final verification on every host', () => {
     const claude = fs.readFileSync(path.join(generated, 'ship/SKILL.md'), 'utf8');
-    const marker = '## Step 14.5: Documentation audit (every ship)';
+    const marker = '## Step 14.5: ドキュメント監査(毎回の Ship)';
     expect(claude.indexOf(marker)).toBeGreaterThan(0);
     expect(claude.indexOf('ship/sections/documentation.md', claude.indexOf(marker))).toBeLessThan(claude.indexOf('## Step 15:'));
-    expect(claude).not.toContain('Dispatch /document-release as a subagent');
+    expect(claude).not.toContain('/document-release をサブエージェントとして起動します');
     // C4: ship is carved on external hosts too; the pointer is relative to the installed skill.
     for (const dir of ['.agents/skills/gstack-ship', '.factory/skills/gstack-ship']) {
       const body = fs.readFileSync(path.join(generated, dir, 'SKILL.md'), 'utf8');
       const pointer = body.indexOf('`sections/documentation.md` relative to the installed `gstack-ship` SKILL.md directory', body.indexOf(marker));
       expect(pointer).toBeGreaterThan(body.indexOf(marker));
       expect(pointer).toBeLessThan(body.indexOf('## Step 15:'));
-      expect(body).not.toContain('Dispatch /document-release as a subagent');
-      expect(fs.readFileSync(path.join(generated, dir, 'sections/documentation.md'), 'utf8')).toContain('Dispatch /document-release as a subagent');
+      expect(body).not.toContain('/document-release をサブエージェントとして起動します');
+      expect(fs.readFileSync(path.join(generated, dir, 'sections/documentation.md'), 'utf8')).toContain('/document-release をサブエージェントとして起動します');
       expect(body.indexOf('## Step 16:')).toBeLessThan(body.indexOf('## Step 17:'));
     }
   });
@@ -68,8 +67,8 @@ describe('pre-publication documentation lifecycle', () => {
     expect(body).toContain('run_in_background: false');
     expect(body).toContain('subagent_type: "general-purpose"');
     const prompt = extractDocsDispatch(body);
-    for (const marker of ['GSTACK_SESSION_KIND=spawned', 'LAST nonempty line', 'schema_version', 'read-only',
-      'no Git mutation', 'CHANGELOG or TODOS mutation', 'never auto-approve', 'staged, unstaged and selected new']) expect(prompt).toContain(marker);
+    for (const marker of ['GSTACK_SESSION_KIND=spawned', '最後の空でない行', 'schema_version', 'read-only',
+      'Git の変更', 'CHANGELOG や TODOS の変更', '決して自動承認せず', 'コミット済み、ステージ済み、未ステージ、および選択された新規']) expect(prompt).toContain(marker);
     expect(docsDispatchIndex([{ tool: 'Agent', input: { prompt } }])).toBe(0);
     expect(docsDispatchIndex([{ tool: 'Agent', input: { prompt: body } }])).toBe(-1);
     expect(() => extractDocsDispatch('no markers')).toThrow();
@@ -84,9 +83,9 @@ describe('pre-publication documentation lifecycle', () => {
       const ship = fs.readFileSync(path.join(generated, host, 'skills/gstack-ship/sections/documentation.md'), 'utf8');
       const directory = path.join(generated, host, 'skills/gstack-document-release');
       const document = fs.readFileSync(path.join(directory, 'SKILL.md'), 'utf8');
-      expect(document).toContain('# Documentation scope and discovery');
-      expect(document).toContain('## Step 2: Per-File Documentation Audit');
-      expect(document).toContain('## Ship-owned documentation mode');
+      expect(document).toContain('# ドキュメントの範囲と発見');
+      expect(document).toContain('## Step 2: ファイルごとのドキュメント監査');
+      expect(document).toContain('## ship が所有するドキュメントモード');
       expect(fs.existsSync(path.join(directory, 'sections/audit-scope.md'))).toBe(false);
       expect(fs.existsSync(path.join(directory, 'sections/release-body.md'))).toBe(false);
     }
@@ -94,47 +93,51 @@ describe('pre-publication documentation lifecycle', () => {
 
   test('failure is visible, bounded and settled before another writer', () => {
     const body = read('ship/sections/documentation.md.tmpl').replace(/\s+/g, ' ');
-    for (const text of ['Terminal completion or confirmed termination is sufficient', 'the request alone is insufficient',
-      'an initial audit plus ONE repair/re-audit', 'specific named documentation risk', 'Preserve partial',
-      'Compare actual changes against the candidate',
-      'enforcing prompt/audit-scope permissions and protected-file exclusions',
-      'HEAD and index must be unchanged, existing dirty/untracked user content preserved',
-      'changed paths exactly `files_updated`. Reject any read-only write',
-      'Only verified permitted child edits may differ. Other edits or base changes make the audit stale',
-      'Later changes require the remaining re-audit or a risk decision',
-      'never silently refreshed hashes']) expect(body).toContain(text);
+    expectMentions(body, [
+      ['終了の完了', '確認された終了で十分です'], ['要求だけでは不十分です'],
+      ['最初の監査 1 回', '修復/再監査 1 回'], ['名指しの特定のドキュメントリスク'],
+      ['部分的な内容', '既存の内容', '拒否された出力は保持してください'],
+      ['実際の変更を候補と比較し'],
+      ['プロンプトと監査スコープの権限', '保護されたファイルの除外を適用します'],
+      ['HEAD とインデックスは変わっていないこと', '既存の未コミットのユーザー内容が保持されていること'],
+      ['変更されたパスが `files_updated` と正確に一致すること'], ['読み取り専用の書き込みはすべて拒否します'],
+      ['検証済みで許可された子プロセスの編集だけが違っても構いません'],
+      ['それ以外の編集やベースの変更は', '監査を古いものにします'],
+      ['後の変更には', '残りの再監査またはリスクの判断が必要です'],
+      ['ハッシュを黙って更新することは決してしません'],
+    ], 'documentation failure handling');
     expect(body).not.toContain('block /ship on subagent failure');
   });
 
   test('stale detection does not spend the remaining audit, but repair and inline takeover do', () => {
     const body = read('ship/sections/documentation.md.tmpl').replace(/\s+/g, ' ');
-    for (const text of ['Increment before each launch or inline takeover',
-      'including failed launches',
-      'A stale snapshot is neither a new attempt nor a current audit',
-      'inline work follows the same validation gates',
-      'never a third attempt, even after Step 16 changes',
-      'Confirm the child stopped before any repair, retry, inline takeover or other writer',
-      'request stop and inspect its status; the request alone is insufficient',
-      'If an attempt remains and either the audited inputs changed or a concrete launch/input/permission correction or reviewed patch repair is available',
-      'using current inputs and a fresh id/snapshot, run the remaining attempt, then validate it through Parent processing',
-      'Otherwise STOP before commit/publication',
-      'do not launch another child']) expect(body).toContain(text);
+    expectMentions(body, [
+      ['起動する前', 'インラインで引き継ぐ前に', 'カウントを増やします'], ['失敗した起動も含めて'],
+      ['古いスナップショットは', '新しい試行でも', '最新の監査でもありません'],
+      ['インラインの作業も同じ検証ゲートに従います'],
+      ['3 回目の試行は決して行いません'],
+      ['子プロセスが停止したことを確認します'], ['停止を要求してステータスを確認します'], ['要求だけでは不十分です'],
+      ['試行回数が残っていて', '監査された入力が変わったか'],
+      ['現在の入力と新しい ID/スナップショットを使って', '残りの試行を実行してから', '親の処理を通して検証します'],
+      ['コミット/公開の前に STOP し', '別の子プロセスを起動しません'],
+    ], 'documentation attempt accounting');
   });
 
   test('PR creation and reruns keep current and blocked audits visible', () => {
     const body = read('ship/sections/pr-body.md.tmpl');
     // Oct 7 wave B4: the title travels in Step 18's agent-written file and both
     // PR paths publish through gstack-post, which scans the exact bytes it sends.
-    expect(body).toContain('`grep -Eq \'^v<new-version>( |$)\' "$TITLE_FILE"` and never publish an unprefixed title');
+    expect(body).toContain('`grep -Eq \'^v<new-version>( |$)\' "$TITLE_FILE"`');
+    expectMentions(body, [['バージョン接頭辞のないタイトルは決して公開しないでください']], 'title prefix rule');
     expect(body).toContain('gstack-pr-title-rewrite.sh <new-version> --stdin > "$TITLE_FILE"');
     expect(body).toContain('gstack-post pr-create --base <base> --title-file "$TITLE_FILE"');
     expect(body).toContain('gstack-post pr-title <pr-number> --title-file "$TITLE_FILE"');
-    expect(body).toContain('`gstack-post` detects GitHub or GitLab from the remote');
+    expectMentions(body, [['`gstack-post`', 'リモートとリポジトリの公開範囲', 'GitHub か GitLab か']], 'gstack-post host detection');
     expect(body).not.toContain('Dispatch /document-release');
     expectMentions(body, [['never', 'section', 'another']], 'body');
     expect(body).toContain('gstack-post pr-body <pr-number> --body-file "${PR_BODY_FILE:?restore the composed body path}"');
     expect(body).toContain('gstack-redact --from-file "$PR_BODY_FILE" --auto-redact');
-    expect(read('ship/SKILL.md.tmpl')).toContain('existing PRs and docs-only changes');
+    expectMentions(read('ship/SKILL.md.tmpl'), [['すべての Ship', '/document-release サブエージェントを必ず起動します'], ['既存の PR', 'ドキュメントのみの変更']], 'docs sync invariant');
     expect(read('ship/sections/apple-release.md.tmpl')).toContain('read-only');
     expect(read('ship/sections/apple-release.md.tmpl')).toContain('ship/sections/documentation.md');
   });
@@ -152,20 +155,25 @@ describe('pre-publication documentation lifecycle', () => {
     // SKILL.md "Ship-owned documentation mode" heading, read the gate as satisfied and dispatched.
     const gate = read('ship/sections/documentation.md.tmpl').replace(/\s+/g, ' ');
     expectTokens(gate, ['`Ship-owned documentation mode`'], 'gate');
-    expectMentions(gate, [['never', 'substitute', 'missing']], 'gate');
+    expectMentions(gate, [['セクションが欠けている場合', '起動前にブロックします'], ['代用してはいけません']], 'gate');
   });
 
   test('nested authored discovery and standalone protections survive', () => {
     const skill = read('document-release/SKILL.md.tmpl') + read('document-release/sections/audit-scope.md.tmpl');
     expect(skill).not.toContain('find . -maxdepth 2');
-    for (const text of ['declared documentation roots', '.tmpl', 'generated output', 'Read before editing',
-      'Ship-owned documentation mode', 'standalone branch gate']) expect(skill).toContain(text);
+    expectTokens(skill, ['.tmpl'], 'document-release skill');
+    expectMentions(skill, [
+      ['宣言されたドキュメントのルート'], ['生成された出力'], ['編集する前に読む。'],
+      ['ship が所有するドキュメントモード'], ['単独の `/document-release`', 'コミット後・マージ前'],
+    ], 'document-release discovery and standalone protections');
     const body = read('document-release/sections/release-body.md.tmpl');
-    for (const text of ['never `git add -A`', 'Never regenerate a CHANGELOG entry',
-      'body-original.md', 'UNTRUSTED TRACKER CONTENT', 'gstack-redact --from-file']) expect(body).toContain(text);
+    expectTokens(body, ['body-original.md', 'UNTRUSTED TRACKER CONTENT', 'gstack-redact --from-file'], 'release body');
+    expectMentions(body, [
+      ['`git add -A`', '絶対に使わない'], ['CHANGELOG のエントリを白紙から再生成してはいけません'],
+    ], 'release body staging and changelog rules');
     const versionStep = body.slice(body.indexOf('## Step 8'), body.indexOf('\n## ', body.indexOf('## Step 8') + 1));
-    expect(versionStep).toMatch(/ask[^\n]*before[^\n]*VERSION/i);
-    expect(body).toMatch(/does not rewrite, replace, or regenerate CHANGELOG/i);
+    expectMentions(versionStep, [['VERSION を変更する前に必ず確認します']], 'version step');
+    expectMentions(body, [['CHANGELOG の内容を書き直したり', '置き換えたり', '再生成したりはしません']], 'changelog polish scope');
   });
 });
 

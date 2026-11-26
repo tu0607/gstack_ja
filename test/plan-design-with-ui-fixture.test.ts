@@ -8,7 +8,8 @@ const ROOT = path.resolve(import.meta.dir, '..');
 // Execute the real paid registration with native observation mocked. The actual
 // actor picker, exact seeding, owned binding, assertions and cleanup execute.
 function exercise(mode: string) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'design-ui-free-'));
+  // realpath: on macOS os.tmpdir() is a /var symlink to /private/var, which the owned fixture resolves.
+  const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'design-ui-free-')));
   const script = path.join(directory, 'registration.test.ts');
   const facts = path.join(directory, 'facts.json');
   fs.writeFileSync(script, `
@@ -19,7 +20,13 @@ import { execFileSync } from 'node:child_process';
 const mode = ${JSON.stringify(mode)};
 const fixture = ${JSON.stringify(path.join(ROOT, 'test/fixtures/plans/ui-heavy-feature.md'))};
 const template = fs.readFileSync(${JSON.stringify(path.join(ROOT, 'plan-design-review/SKILL.md.tmpl'))}, 'utf8');
-const focus = template.match(/### 0D\\. Focus Areas\\nAskUserQuestion: "([^\\n]+)"/)![1]
+// The Japanese template keeps the Step 0D question with its rating and gap placeholders; the
+// native-call predicates (test/skill-e2e-plan-design-with-ui.test.ts) still recognise the
+// English wording, so the replayed question below uses that English form.
+const focusTemplate = template.match(/### 0D\\. (?:Focus Areas|注目領域)\\nAskUserQuestion: (?:"([^\\n]+)"|「([^\\n]+)」)/)!.slice(1).find(Boolean);
+expect(focusTemplate).toContain('{N}/10');
+expect(focusTemplate).toContain('{X, Y, Z}');
+const focus = "I've rated this plan {N}/10 on design completeness. The biggest gaps are {X, Y, Z}. I'll generate visual mockups next, then review all 7 dimensions. Want me to focus on specific areas instead of all 7?"
   .replace('{N}', '4').replace('{X, Y, Z}', 'hierarchy, spacing, contrast');
 const { DESIGN_BOARD_ACTOR_PROTOCOL, createDesignReviewPicker: actualCreateDesignReviewPicker } = await import(${JSON.stringify(path.join(ROOT, 'test/helpers/plan-review-board-feedback.ts'))});
 const outsideVoices = JSON.parse(fs.readFileSync(${JSON.stringify(path.join(ROOT, 'test/fixtures/design-outside-voices-question.json'))}, 'utf8'));

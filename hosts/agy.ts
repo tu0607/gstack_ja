@@ -7,7 +7,7 @@ import { defineHost, GBRAIN_RESOLVERS, preambleToolGlossary } from './define-hos
 // Paths: the CLI reads global skills from ~/.gemini/antigravity-cli/skills and
 // workspace skills from .agents/skills (antigravity.google/docs/skills, CLI
 // section). Tool names: antigravity.google/docs/hooks "Supported tools".
-const ANTIGRAVITY_TOOL_GLOSSARY = '**Antigravity tool names:** `AskUserQuestion` means your `ask_question` tool (options as choices); there is no `mcp__*__AskUserQuestion` variant. The Bash tool means `run_command`, the Read tool `view_file`, the Write tool `write_to_file`, the Edit tool `replace_file_content` (`multi_replace_file_content` for several edits in one file), Grep `grep_search`, Glob `find_by_name`, and the Agent tool `invoke_subagent`. There is no Skill tool: load a skill by reading its SKILL.md with `view_file`. If a step says to call `ExitPlanMode`, tell the user the plan is ready and wait. `view_file` can return only part of a long file: when a SKILL.md or a file it tells you to read ends before its last line, read the remaining line ranges before acting on it.';
+const ANTIGRAVITY_TOOL_GLOSSARY = '**Antigravity のツール名:** `AskUserQuestion` は `ask_question` ツール(選択肢はチョイスとして渡す)を指します。`mcp__*__AskUserQuestion` という変種はありません。Bash ツールは `run_command`、Read ツールは `view_file`、Write ツールは `write_to_file`、Edit ツールは `replace_file_content`(1 つのファイルに複数の編集を行う場合は `multi_replace_file_content`)、Grep は `grep_search`、Glob は `find_by_name`、Agent ツールは `invoke_subagent` を指します。Skill ツールはありません。スキルは `view_file` で SKILL.md を読んで読み込みます。ステップが `ExitPlanMode` の呼び出しを求めている場合は、計画の準備ができたことをユーザーに伝えて待ちます。`view_file` は長いファイルの一部しか返さないことがあります。SKILL.md や、読むよう指示されたファイルが最後の行より前で終わっている場合は、それに基づいて動く前に、残りの行範囲を読みます。';
 
 const agy = defineHost({
   name: 'agy',

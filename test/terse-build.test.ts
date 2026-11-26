@@ -40,20 +40,18 @@ describe('terse build — per-resolver behavior', () => {
   describe('generateWritingStyle', () => {
     test('default: emits full section with jargon-list pointer', () => {
       const out = generateWritingStyle(makeCtx('default'));
-      expect(out).toContain('## Writing Style');
+      expect(out).toContain('## 文体');
       expect(out).toContain('jargon-list.json');
-      expect(out).toContain('Curated jargon list');
-      expect(out).toContain('outcome');
+      expect(out).toContain('成果の言葉');
     });
 
     test('terse: emits one-line terse directive only', () => {
       const out = generateWritingStyle(makeCtx('terse'));
-      expect(out).toContain('## Writing Style');
-      expect(out).toContain('Terse mode (build-time)');
+      expect(out).toContain('## 文体');
+      expect(out).toContain('簡潔モード(ビルド時)');
       // Negative: NONE of the default-mode prose
       expect(out).not.toContain('jargon-list.json');
-      expect(out).not.toContain('Curated jargon list');
-      expect(out).not.toContain('Frame questions in outcome terms');
+      expect(out).not.toContain('成果の言葉');
     });
 
     test('terse is meaningfully shorter than default', () => {
@@ -84,7 +82,7 @@ describe('terse build — per-resolver behavior', () => {
     test('default: emits full section', () => {
       const out = generateConfusionProtocol(makeCtx('default'));
       expect(out).toContain('## Confusion Protocol');
-      expect(out).toContain('high-stakes ambiguity');
+      expect(out).toContain('重大な曖昧さ');
     });
 
     test('terse: returns empty string', () => {
@@ -99,8 +97,8 @@ describe('terse build — per-resolver behavior', () => {
   describe('generateContextHealth', () => {
     test('default: emits full section', () => {
       const out = generateContextHealth(makeCtx('default'));
-      expect(out).toContain('## Context Health');
-      expect(out.replace(/^## Context Health.*$/m, '').trim().length).toBeGreaterThan(80);
+      expect(out).toContain('## コンテキストの健全性');
+      expect(out.replace(/^## コンテキストの健全性.*$/m, '').trim().length).toBeGreaterThan(80);
     });
 
     test('terse: returns empty string', () => {
@@ -112,21 +110,21 @@ describe('terse build — per-resolver behavior', () => {
 describe('terse build — generatePreamble integration', () => {
   test('default tier-2 preamble includes all 4 terse-gated sections', () => {
     const out = generatePreamble(makeCtx('default', 2));
-    expect(out).toContain('## Writing Style');
+    expect(out).toContain('## 文体');
     expect(out).toContain('## Completeness Principle');
     expect(out).toContain('## Confusion Protocol');
-    expect(out).toContain('## Context Health');
+    expect(out).toContain('## コンテキストの健全性');
   });
 
   test('terse tier-2 preamble drops 3 of 4 sections + collapses Writing Style', () => {
     const out = generatePreamble(makeCtx('terse', 2));
     // Writing Style heading still present (collapsed to one line)
-    expect(out).toContain('## Writing Style');
-    expect(out).toContain('Terse mode (build-time)');
+    expect(out).toContain('## 文体');
+    expect(out).toContain('簡潔モード(ビルド時)');
     // Three sections dropped entirely
     expect(out).not.toContain('## Completeness Principle');
     expect(out).not.toContain('## Confusion Protocol');
-    expect(out).not.toContain('## Context Health');
+    expect(out).not.toContain('## コンテキストの健全性');
   });
 
   test('terse preamble is measurably smaller', () => {

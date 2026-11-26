@@ -1,123 +1,20 @@
-# Running CSO scanners
+# CSO スキャナーの実行
 
-`gstack-cso scan RUN SCANNER [REQUEST.json]` collects candidate evidence through
-the trusted helper when a matching qualified scanner catalog profile exists.
-Recognized IDs are `gitleaks`, `osv`, `semgrep`, `zizmor`, `trivy`, and
-`schemathesis`. Without a qualified profile, the command records a specific
-prerequisite; static assessment and importing existing CodeQL or other SARIF
-with `gstack-cso import-sarif RUN REPORT.sarif` remain available.
-The returned immutable artifact can be read later with
-`gstack-cso scanner-outcome RUN ARTIFACT_ID`; callers never need to open private
-state files directly.
+`gstack-cso scan RUN SCANNER [REQUEST.json]` は、対応する認定済みのスキャナーのカタログプロファイルがあれば、信頼されたヘルパーを通して候補の証拠を収集します。認識される ID は `gitleaks`、`osv`、`semgrep`、`zizmor`、`trivy`、`schemathesis` です。認定されたプロファイルがない場合、このコマンドは具体的な前提条件を記録します。静的な評価と、`gstack-cso import-sarif RUN REPORT.sarif` による既存の CodeQL や他の SARIF のインポートは引き続き利用できます。返された不変の成果物は、後から `gstack-cso scanner-outcome RUN ARTIFACT_ID` で読めます。呼び出し側がプライベートな状態のファイルを直接開く必要はありません。
 
-The source-controlled catalog in
-[`scanner-images/catalog.json`](../lib/cso/scanner-images/catalog.json) is empty
-until every release gate produces real evidence. Without a reviewed profile,
-the command records a specific `not_assessed` prerequisite. Installing a
-scanner on the host does not enable execution. Each profile binds a Linux
-platform, immutable image digest, fixed entrypoint, absolute scanner executable,
-version-probe hash, required adapter capabilities, helper ABI, and the exact
-isolation-policy hash. The helper validates that catalog when it starts and has
-no executable fallback.
-Setup preloads the current platform's qualified scanner digests through the
-trusted installation helper using anonymous public-registry access. A failed
-preload or a bounded per-image/setup deadline is a nonfatal prerequisite and
-never causes an audit to pull. The default is 30 seconds per declared image;
-`GSTACK_CSO_IMAGE_PULL_TIMEOUT_SECONDS=120` selects a longer allowance (accepted
-range: 5–300 seconds) while the complete preload remains capped at one hour. Doctor is
-read-only and reports each scanner unavailable unless its exact catalog digest
-is already present locally.
+[`scanner-images/catalog.json`](../lib/cso/scanner-images/catalog.json) にあるソース管理されたカタログは、すべてのリリースゲートが実際の証拠を出すまで空です。レビュー済みのプロファイルがない場合、このコマンドは具体的な `not_assessed` の前提条件を記録します。スキャナーをホストにインストールしても、実行は有効になりません。各プロファイルは、Linux のプラットフォーム、不変のイメージのダイジェスト、固定のエントリポイント、絶対パスのスキャナーの実行ファイル、バージョン確認のプローブのハッシュ、必要なアダプターの機能、ヘルパーの ABI、そして正確な分離ポリシーのハッシュに結びつきます。ヘルパーは起動時にそのカタログを検証し、実行ファイルへのフォールバックは一切ありません。
+セットアップは、現在のプラットフォームの認定済みのスキャナーのダイジェストを、信頼されたインストールのヘルパーを通して、匿名のパブリックレジストリのアクセスで事前に読み込みます。事前読み込みが失敗した場合、またはイメージごと/セットアップ全体の期限に達した場合は、致命的ではない前提条件であり、監査が決してプルを行うことはありません。既定は、宣言されたイメージごとに 30 秒です。`GSTACK_CSO_IMAGE_PULL_TIMEOUT_SECONDS=120` を設定すると、より長い時間を選べます(受け入れる範囲は 5〜300 秒)。ただし、事前読み込み全体は 1 時間で打ち切られます。Doctor は読み取り専用で、正確なカタログのダイジェストがすでにローカルにない限り、各スキャナーを利用不可と報告します。
 
-All scanner processes use Docker containment with a watchdog, shared admission
-limits, read-only source, bounded output, and an isolated network namespace.
-Static scanners have no network access, including when the audit omits
-`--offline`. Semgrep rules and OSV/Trivy databases must be baked into the reviewed
-image. Their content hashes, scope, and freshness accompany the result. Database
-refresh is a separately reviewed image acquisition/release operation; scans
-never download missing assets or switch to unrestricted registry networking.
+すべてのスキャナーのプロセスは、ウォッチドッグ、共有の実行上限、読み取り専用のソース、上限付きの出力、そして独立したネットワーク名前空間を持つ Docker の封じ込めを使います。静的なスキャナーは、監査で `--offline` を省略した場合でも、ネットワークにアクセスできません。Semgrep のルールと OSV/Trivy のデータベースは、レビュー済みのイメージに焼き込まれていなければなりません。それらの内容のハッシュ、対象範囲、鮮度は、結果に添えられます。データベースの更新は、別途レビューされるイメージの取得/リリースの操作です。スキャンが、欠けている資産をダウンロードしたり、制限のないレジストリのネットワークに切り替えたりすることは決してありません。
 
-`REQUEST.json` can select an exact scanner `profile`. Schemathesis additionally
-requires comprehensive mode and an `api` object; `gstack-cso schema` describes
-its fields. The API harness supplies a bounded OpenAPI 3.0/3.1 JSON document,
-1–20 unique path operation IDs, a qualified application runtime, an absolute
-start command, a numeric loopback port, a legitimate HTTP control, and the
-source files defining the security boundary. Internal schema references are
-allowed. Server overrides, remote references/examples, hooks, callbacks, and
-webhooks are rejected. The application must boot and pass the control before
-the scanner starts. Application and scanner share only the admitted loopback
-namespace. An API failure is a candidate, never a reproduced vulnerability or
-certified repair. Sources needing dependency preparation report that prerequisite
-until a prepared offline closure is available to the API runner.
+`REQUEST.json` では、正確なスキャナーの `profile` を選択できます。Schemathesis はさらに、包括的なモードと `api` オブジェクトを必要とします。フィールドの説明は `gstack-cso schema` が示します。API ハーネスは、上限付きの OpenAPI 3.0/3.1 の JSON ドキュメント、1〜20 個の一意なパスの操作 ID、認定済みのアプリケーションのランタイム、絶対パスの起動コマンド、数値のループバックのポート、正当な HTTP の制御、そしてセキュリティ境界を定義するソースファイルを供給します。内部のスキーマ参照は許可されます。サーバーの上書き、リモートの参照や例、フック、コールバック、webhook は拒否されます。スキャナーが始まる前に、アプリケーションが起動し、制御に合格しなければなりません。アプリケーションとスキャナーは、受け入れられたループバックの名前空間だけを共有します。API の失敗は候補であり、再現された脆弱性や認定された修復ではありません。依存関係の準備を必要とするソースは、API の実行器が利用できる準備済みのオフラインの閉包が揃うまで、その前提条件を報告します。
 
-Each execution probes the scanner version before scanning and validates the
-retained source both before and after collection. Unknown output, failed
-diagnostics, a timeout, changed source, or incomplete cleanup cannot become an
-empty clean result. The helper retains valid partial candidates when the
-adapter can distinguish them from failed coverage. Scanner output is redacted
-in place: each located sensitive span becomes a `<REDACTED-...>` marker, so an
-advisory URL or version string that resembles a phone number or IP address does
-not discard the whole report. Output that cannot be redacted, including a span
-split across stdout and stderr, is withheld.
+各実行は、スキャンの前にスキャナーのバージョンを確認し、収集の前後の両方で、保持されたソースを検証します。認識されない出力、失敗した診断、タイムアウト、変更されたソース、または不完全なクリーンアップは、空のクリーンな結果にはなりません。アダプターが有効な部分的な候補を、失敗したカバレッジと区別できる場合、ヘルパーはそれを保持します。スキャナーの出力は、その場で redact されます。機微な範囲が見つかるたびに、`<REDACTED-...>` のマーカーに置き換えられます。そのため、電話番号や IP アドレスに似た勧告の URL やバージョン文字列があっても、レポート全体が破棄されることはありません。redact できない出力(stdout と stderr にまたがる範囲を含む)は、保留されます。
 
-Scanner and SARIF collection hold the run's mutation lock and reject finished
-or interrupted reports. Every outcome is written exclusively under a unique
-`scanner-outcomes/` name before its coverage record enters the report. The
-returned `artifact` path is relative to the run directory. Model submissions
-cannot replace `scanner:*` coverage or certify the imported candidates. The
-free scanner tests use injected runners and catalogs to verify dispatch and
-failure handling; they do not claim real image qualification. The opt-in Docker
-qualification test runs the production adapter, image, watchdog, and isolation
-policy. It emits the version-output hash only after a representative scan
-completes without a coverage gap.
+スキャナーと SARIF の収集は、実行のミューテーションロックを保持し、完了または中断されたレポートを拒否します。すべての結果は、そのカバレッジの記録がレポートに入る前に、一意の `scanner-outcomes/` の名前で排他的に書き込まれます。返される `artifact` のパスは、実行ディレクトリからの相対パスです。モデルの提出物は、`scanner:*` のカバレッジを置き換えたり、インポートされた候補を認定したりできません。無料のスキャナーのテストは、注入されたランナーとカタログを使って、ディスパッチと失敗時の処理を検証します。それらは実際のイメージの認定を主張しません。オプトインの Docker の認定テストは、本番のアダプター、イメージ、ウォッチドッグ、分離ポリシーを実行します。バージョン出力のハッシュは、代表的なスキャンがカバレッジの欠落なしに完了した後にのみ出力します。
 
-The reviewed release inputs in
-[`build-inputs.json`](../lib/cso/scanner-images/build-inputs.json) cover all six
-scanners on both native platforms. The inputs require immutable base and SBOM-generator image digests, exact source
-commits and versions, signer workflow identities and digests, and reviewed
-canonical SLSA/SPDX statement-set digests. The workflow cryptographically
-re-verifies each image with those repository, source, signer, and predicate
-constraints before use. Semgrep additionally requires a reviewed local rules bundle. OSV and
-Trivy require complete offline database bundles with recorded content hashes,
-freshness, and ecosystem coverage. The release workflow does not invent or
-silently replace them. None of the upstream scanner images publish GitHub
-artifact attestations, so the reviewed bases come from
-[`garrytan/gstack-cso-scanner-bases`](https://github.com/garrytan/gstack-cso-scanner-bases).
-That repository re-publishes each pinned upstream digest with the offline assets
-added and signs provenance and an SPDX SBOM with its own workflow. Each tagged
-release attaches a `pending` `build-inputs.json` candidate; a reviewer
-independently re-verifies the identities and hashes before the state here
-changes to `reviewed`.
+[`build-inputs.json`](../lib/cso/scanner-images/build-inputs.json) にあるレビュー済みのリリースの入力は、2 つのネイティブのプラットフォームすべてで、6 つのスキャナーすべてをカバーします。入力には、不変のベースと SBOM 生成ツールのイメージのダイジェスト、正確なソースのコミットとバージョン、署名者のワークフローの ID とダイジェスト、そしてレビュー済みの正規の SLSA/SPDX の声明のセットのダイジェストが必要です。ワークフローは、使用前に、リポジトリ、ソース、署名者、述語の制約を使って、各イメージを暗号学的に再検証します。Semgrep にはさらに、レビュー済みのローカルのルールのバンドルが必要です。OSV と Trivy には、記録された内容のハッシュ、鮮度、エコシステムの対象範囲を持つ完全なオフラインのデータベースのバンドルが必要です。リリースのワークフローは、それらを作り出したり、黙って置き換えたりはしません。上流のスキャナーのイメージはどれも GitHub のアーティファクトの証明を公開していないため、レビュー済みのベースは [`garrytan/gstack-cso-scanner-bases`](https://github.com/garrytan/gstack-cso-scanner-bases) から来ています。そのリポジトリは、固定された上流の各ダイジェストを、オフラインの資産を追加して再公開し、来歴と SPDX の SBOM を独自のワークフローで署名します。タグ付けされた各リリースは、`pending` の `build-inputs.json` の候補を添付します。レビューする人が、ここの状態を `reviewed` に変える前に、ID とハッシュを独立に再検証します。
 
-[`cso-scanner-images.yml`](../.github/workflows/cso-scanner-images.yml) lets a
-dispatched branch run read-only input and contract validation. Image publishing,
-native amd64/arm64 qualification, attestation verification, embedded-asset hash
-checks, containment, real-adapter execution, and catalog-proposal generation run
-only from protected `main` through the `cso-scanner-release` environment. Before
-enabling qualification or promotion, configure the repository's
-`cso-scanner-release` GitHub environment with required maintainer reviewers and
-deployments restricted to protected `main`. GitHub otherwise creates a referenced
-missing environment without protection rules. Promotion requires an explicit
-dispatch from `main` and approval through that configured environment. It opens a pull request
-containing only the proposed source catalog, so code review remains the final
-authorization step. Pushes and pull requests made with the workflow's
-`GITHUB_TOKEN` start no workflows, so after pushing the promotion branch the job
-dispatches [`free-tests.yml`](../.github/workflows/free-tests.yml) on it
-(`actions: write`); that run reports the required `free-tests` check on the
-branch head. Opening the PR also requires the repository setting **Allow GitHub
-Actions to create and approve pull requests** (Settings → Actions → General →
-Workflow permissions); without it `gh pr create` fails after the push and the
-dispatch, and a maintainer opens the PR from the pushed branch.
-`previousRevision` records the prior compatible catalog for
-rollback and must still equal the current `main` catalog when promotion runs.
+[`cso-scanner-images.yml`](../.github/workflows/cso-scanner-images.yml) は、ディスパッチされたブランチで、読み取り専用の入力と契約の検証を実行できます。イメージの公開、amd64/arm64 のネイティブ認定、証明の検証、埋め込み資産のハッシュ確認、封じ込め、実際のアダプターの実行、そしてカタログの提案の生成は、`cso-scanner-release` 環境を通して、保護された `main` からのみ実行されます。認定や昇格を有効にする前に、リポジトリの `cso-scanner-release` GitHub 環境に、必須のメンテナーのレビュー担当者と、保護された `main` に限定されたデプロイを設定してください。設定されていないと、GitHub は、保護ルールなしに、参照された不足している環境を作成します。昇格には、`main` からの明示的なディスパッチと、その設定済みの環境を通した承認が必要です。昇格は、提案されたソースのカタログだけを含むプルリクエストを開くため、最終的な承認は引き続きコードレビューで行われます。ワークフローの `GITHUB_TOKEN` で行われたプッシュとプルリクエストは、ワークフローを開始しません。そのため、昇格のブランチをプッシュした後、ジョブは [`free-tests.yml`](../.github/workflows/free-tests.yml) をそのブランチでディスパッチします(`actions: write`)。その実行は、ブランチの先頭に対して必須の `free-tests` チェックを報告します。PR を開くには、リポジトリの設定 **Allow GitHub Actions to create and approve pull requests**(Settings → Actions → General → Workflow permissions)も必要です。これがないと、プッシュとディスパッチの後で `gh pr create` が失敗し、メンテナーがプッシュされたブランチから PR を開きます。`previousRevision` は、ロールバックのために以前の互換性のあるカタログを記録します。昇格が実行されるとき、それは依然として現在の `main` のカタログと一致しなければなりません。
 
-Scanner flags follow the primary documentation linked in
-[`scanners.ts`](../lib/cso/scanners.ts). Offline qualification must exercise
-the exact chosen version: OSV's maintainers documented a cache-location
-regression in 2.5.0, which demonstrates why a version string alone is insufficient.
-[OSV issue #2983](https://github.com/google/osv-scanner/issues/2983).
-Trivy uses an explicit memory scan cache alongside read-only baked databases
-and a baked misconfiguration checks bundle. Schemathesis 4.26 and later repeat
-fuzzing until `--max-time` is spent, so the adapter sets that budget to three
-quarters of the scanner deadline and treats a `max_time` stop as complete only
-when every selected operation was exercised.
-[Trivy filesystem reference](https://trivy.dev/docs/v0.68/guide/references/configuration/cli/trivy_filesystem/).
+スキャナーのフラグは、[`scanners.ts`](../lib/cso/scanners.ts) からリンクされた一次ドキュメントに従います。オフラインの認定では、選んだ正確なバージョンを必ず実行しなければなりません。OSV のメンテナーは 2.5.0 でキャッシュの場所の回帰を文書化しており、これはバージョン文字列だけでは不十分であることを示しています([OSV issue #2983](https://github.com/google/osv-scanner/issues/2983))。Trivy は、読み取り専用で同梱されたデータベースおよび同梱された設定ミスのチェックのバンドルとともに、明示的なメモリのスキャンキャッシュを使います([Trivy filesystem reference](https://trivy.dev/docs/v0.68/guide/references/configuration/cli/trivy_filesystem/))。Schemathesis 4.26 以降は `--max-time` が使い切られるまでファジングを繰り返すため、アダプターはその時間予算をスキャナーの期限の 4 分の 3 に設定し、選択されたすべての操作が実行された場合にのみ `max_time` による停止を完了として扱います。

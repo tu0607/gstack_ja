@@ -114,7 +114,7 @@ describe('/autoplan owned reads after the skill turn', () => {
 
   test('Step 1 puts the restore point in the repository\'s git-excluded store, from a subdirectory too', () => {
     const skill = fs.readFileSync(path.join(ROOT, 'autoplan/SKILL.md'), 'utf8');
-    const start = skill.indexOf('```bash\n', skill.indexOf('Fresh RESTORE_PATH')) + 8;
+    const start = skill.indexOf('```bash\n', Math.max(skill.indexOf('Fresh RESTORE_PATH'), skill.indexOf('新しい RESTORE_PATH'))) + 8;
     const block = skill.slice(start, skill.indexOf('\n```', start));
     const home = scratch('autoplan-owned-home-'), repo = scratch('autoplan-owned-git-'), session = path.join(repo, 'packages', 'app');
     fs.mkdirSync(path.join(home, '.claude', 'skills'), { recursive: true }); fs.mkdirSync(session, { recursive: true });

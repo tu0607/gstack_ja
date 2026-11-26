@@ -1,124 +1,61 @@
-# Workflow memory with Memorable (optional, third party)
+# Memorable によるワークフローのメモリ(任意、サードパーティ)
 
-The third time you ask Claude Code to do the same shape of work, it starts
-from nothing again. It re-reads the same files, re-runs the same searches, and
-arrives at the fix it already wrote last month. **Memorable** is a third-party
-CLI that records how a task was done and hands that back the next time you ask
-for something close to it.
+同じ形の作業を Claude Code に頼むのが3回目になると、ゼロから始まってしまいます。同じファイルを読み直し、同じ検索をやり直し、先月自分が書いた修正に、また同じようにたどり着きます。**Memorable** は、タスクをどう行ったかを記録し、次に近い依頼が来たときにそれを返してくれる、サードパーティの CLI です。
 
-gstack does not install it, bundle it, or depend on it. What gstack adds is a
-**bridge**: Memorable's `UserPromptSubmit` hook registered through gstack's own
-hook manager, wrapped in the guarantees gstack gives every other off-machine
-sink. It is off until you turn it on, Claude Code is the only host it works
-with, and it is not available on Windows yet.
+gstack は Memorable をインストールも同梱もせず、依存もしません。gstack が追加するのは**ブリッジ**です。Memorable の `UserPromptSubmit` フックを、gstack 自身のフックマネージャ経由で登録し、gstack がほかのすべてのマシン外への送信先に与える保証で包みます。有効にするまではオフで、Claude Code 以外のホストでは動かず、Windows にはまだ対応していません。
 
-## What you get
+## 得られるもの
 
-- Before each prompt, the hook asks Memorable whether a past session already
-  solved something close to this and, if so, injects that procedure as
-  clearly labelled reference data.
-- An explicit gstack-side consent key, `memorable_recall`, off by default and
-  listed by `gstack-egress grants` with its revoke command.
-- A receipt for every prompt handed to the vendor binary, before the hand-off
-  (`gstack-egress list --sink memorable-recall`). No receipt, no hand-off.
-- A HIGH-tier secret pre-scan: a prompt carrying a live-shaped credential is
-  never handed over.
-- A trust envelope and an 8 KiB cap on whatever comes back, and the vendor can
-  never block a prompt or speak as gstack.
-- The vendor runs in an allowlisted environment (no API keys from your
-  session) inside its own process group, and that whole group is killed when
-  the hook finishes, times out, or is terminated by Claude Code mid-flight.
-  A process the vendor deliberately detaches into its own session (`setsid`)
-  is outside that group and outside this guarantee; that is a choice visible
-  in the vendor's own behaviour, not something gstack can prevent.
-- Registration at the stable install, healing on every `./setup`, survival of
-  `./setup --no-team`, removal by `gstack-uninstall`, and an off switch that
-  works even after Claude Code has rewritten `settings.json`.
+- プロンプトのたびに、フックは Memorable に、過去のセッションで近いことがすでに解決されていないか尋ねます。もしあれば、その手順を、明確にラベル付けされた参考データとして注入します。
+- gstack 側の明示的な同意キー `memorable_recall`。デフォルトはオフで、`gstack-egress grants` が取り消しコマンドとともに一覧表示します。
+- ベンダーのバイナリに渡されるすべてのプロンプトの受領書。引き渡しの前に書かれます(`gstack-egress list --sink memorable-recall`)。受領書がなければ、引き渡しもありません。
+- HIGH のティアのシークレットの事前スキャン。生きた形をした認証情報を含むプロンプトは、決して渡されません。
+- 戻ってくるものに対する信頼のエンベロープと 8 KiB の上限。ベンダーがプロンプトをブロックしたり、gstack を装って発言したりすることはできません。
+- ベンダーは、許可リストで定められた環境(セッションの API キーはなし)の中で、独自のプロセスグループの中で動きます。フックが終了したとき、タイムアウトしたとき、または Claude Code が途中で終了させたときには、そのグループ全体が殺されます。ベンダーが意図的に `setsid` で独自のセッションに分離したプロセスは、そのグループの外にあり、この保証の外にあります。これはベンダー自身の振る舞いに見える選択であり、gstack が防げるものではありません。
+- 安定したインストール先への登録、`./setup` のたびの修復、`./setup --no-team` を生き延びること、`gstack-uninstall` による削除、そして Claude Code が `settings.json` を書き換えた後でも効くオフスイッチ。
 
-## What this is not
+## これではないもの
 
-- Not deterministic replay. It is recalled guidance the model may ignore.
-- Not related to Aside or to browser automation.
-- Not a gstack feature with gstack's guarantees past the process boundary.
-  Everything the `memorable` binary does after gstack hands it a prompt belongs
-  to a closed-source npm package from another vendor.
+- 決定的なリプレイではありません。モデルが無視してもよい、想起されたガイダンスです。
+- Aside やブラウザの自動化とは無関係です。
+- プロセスの境界を越えた先までは、gstack の保証が及ぶ機能ではありません。`memorable` バイナリが、gstack がプロンプトを渡した後にすることはすべて、別のベンダーによるクローズドソースの npm パッケージに属します。
 
-## Two consents, neither implies the other
+## 2つの同意は、互いを含意しない
 
-| Consent | Who sets it | What it controls |
+| 同意 | 誰が設定するか | 何を制御するか |
 |---|---|---|
-| `memorable_recall` (gstack) | `gstack-memorable enable` / `disable` | whether gstack's hook hands prompts to the vendor binary at all |
-| Memorable's own consent | `memorable enable` / `disable` / `forget`, run by you | whether Memorable stores procedures and, per its docs, sends session traces to its extraction API |
+| `memorable_recall`(gstack) | `gstack-memorable enable` / `disable` | gstack のフックが、そもそもプロンプトをベンダーのバイナリに渡すかどうか |
+| Memorable 自身の同意 | あなたが実行する `memorable enable` / `disable` / `forget` | Memorable が手順を保存するかどうか。また、そのドキュメントによれば、セッションのトレースを抽出 API に送るかどうか |
 
-gstack never runs the vendor's consent commands and never reads their state.
-`gstack-memorable enable` prints them so you can run or inspect them yourself.
-Turning the bridge off turns off gstack's hand-off; it does not change what
-Memorable is allowed to do with what it already has.
+gstack は、ベンダーの同意コマンドを実行することも、その状態を読むこともありません。`gstack-memorable enable` は、それらを表示するので、自分で実行するか確認できます。ブリッジをオフにすると、gstack の引き渡しが止まります。Memorable が、すでに持っているものをどう扱ってよいかは変わりません。
 
-## What gstack hands over, and what it can attest
+## gstack が渡すもの、そして gstack が証明できること
 
-| Command | What gstack hands to the vendor binary |
+| コマンド | gstack がベンダーのバイナリに渡すもの |
 |---|---|
-| `gstack-memorable status`, `enable`, `disable` | Nothing. They check that the binary exists; they never execute it. |
-| the hook, on every prompt (gate on) | Claude Code's `UserPromptSubmit` JSON: `session_id`, `cwd`, `transcript_path`, `prompt`. The binary runs with your privileges, so it can read anything you can, including the transcript that path names. |
+| `gstack-memorable status`、`enable`、`disable` | 何もなし。バイナリが存在するかを確認するだけで、実行は決してしません。 |
+| フック(ゲートが on の間、すべてのプロンプト) | Claude Code の `UserPromptSubmit` の JSON: `session_id`、`cwd`、`transcript_path`、`prompt`。バイナリはあなたの権限で動くので、あなたが読めるものなら何でも読めます。そのパスが指す transcript も含みます。 |
 
-The receipt attests exactly those bytes (count and sha256) and names the
-recipient gstack actually ran: `local:<path to the memorable executable>`. It
-does not and cannot attest the vendor's network activity. Memorable's
-documentation states that recall embeds a scrubbed task line through its API
-only when the local lexical match misses, and that capture uploads tool names,
-allowlisted argument fields and a 200-character task line. Those are the
-vendor's claims. The bridge is tested against memorable-cli 0.5.18's hook
-contract; other versions are the vendor's compatibility claim.
+受領書は、まさにそのバイト列(数と sha256)を証明し、gstack が実際に実行した受け手の名前を記録します。`local:<path to the memorable executable>` です。受領書は、ベンダーのネットワーク活動を証明しませんし、証明することもできません。Memorable のドキュメントによれば、想起はローカルの語彙的な一致が外れた場合にのみ、スクラブされたタスクの行を API 経由で埋め込みます。また、キャプチャはツール名、許可リストに載った引数フィールド、そして200文字のタスクの行をアップロードします。これらはベンダーの主張です。このブリッジは、memorable-cli 0.5.18 のフックの契約に対してテストされています。ほかのバージョンについては、ベンダーの互換性の主張になります。
 
-The binary's environment is an allowlist, not your session's: `PATH`, `HOME`,
-user and shell names, locale (`LANG`, `LC_*`), temp directories, the standard
-proxy and TLS variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`,
-`SSL_CERT_FILE`, `SSL_CERT_DIR`, `NODE_EXTRA_CA_CERTS`), the `XDG_*`
-directories, and every `MEMORABLE*` variable. No `ANTHROPIC_API_KEY`, no
-`GSTACK_*`, no `CLAUDE_*` reaches it. Its stderr is kept out of
-`hook-errors.log` whenever the redaction engine finds a HIGH- or MEDIUM-tier
-shape in it (a credential, an email, a phone number), so a vendor that echoes
-its input on an error cannot copy your prompt into a log. The receipt's
-`payload_class` is the token `claude-user-prompt-json->local-vendor-cli`: the
-prompt JSON, handed to the local vendor executable; the network destination is
-unknown to gstack (Memorable states: its embed API, on a local recall miss).
+バイナリの環境は、あなたのセッションの環境ではなく、許可リストです。`PATH`、`HOME`、ユーザー名とシェル名、ロケール(`LANG`、`LC_*`)、一時ディレクトリ、標準のプロキシと TLS の変数(`HTTP_PROXY`、`HTTPS_PROXY`、`NO_PROXY`、`SSL_CERT_FILE`、`SSL_CERT_DIR`、`NODE_EXTRA_CA_CERTS`)、`XDG_*` のディレクトリ、そしてすべての `MEMORABLE*` 変数だけです。`ANTHROPIC_API_KEY` も、`GSTACK_*` も、`CLAUDE_*` も届きません。その stderr は、redaction エンジンが HIGH または MEDIUM のティアの形(認証情報、メールアドレス、電話番号)を見つけた場合は、`hook-errors.log` に入りません。そのため、エラー時に入力をエコーするベンダーが、プロンプトをログにコピーすることはできません。受領書の `payload_class` は、`claude-user-prompt-json->local-vendor-cli` というトークンです。これは、プロンプトの JSON が、ローカルのベンダー実行ファイルに渡されたことを意味します。ネットワークの宛先は gstack にはわかりません(Memorable によれば、ローカルの想起が外れた場合の埋め込み API です)。
 
-The hook skips the hand-off silently (nothing was refused, so nothing is
-logged) when the gate is off or `MEMORABLE=0` is set.
+ゲートがオフのとき、または `MEMORABLE=0` が設定されているときは、フックは引き渡しを黙ってスキップします(拒否されたものはないので、何もログには残りません)。
 
-It refuses the hand-off, with one rate-limited line in
-`~/.gstack/hook-errors.log`, when:
+次の場合は、引き渡しを拒否し、`~/.gstack/hook-errors.log` にレート制限された1行を書きます。
 
-- the vendor binary is missing;
-- the prompt carries a HIGH-tier credential shape (checked on the raw bytes
-  and on the decoded string values, so a JSON-escaped key does not slip by),
-  or is larger than 1 MiB;
-- the repo's per-remote trust policy is `deny` or `read-only` (judged by the
-  session's working directory, so a session that touches other repositories
-  is not covered), or that policy could not be looked up at all (git could
-  not read the repository, the store is unreadable): the lookup fails closed;
-- the receipt cannot be written, or the hook's 4.5 s budget cannot afford the
-  next step (the secret scan of a very large prompt, or the vendor spawn).
+- ベンダーのバイナリがない。
+- プロンプトに HIGH のティアの認証情報の形がある(生のバイト列と、デコードされた文字列の値の両方で確認するので、JSON エスケープされたキーでも見逃されない)、または 1 MiB より大きい。
+- リポジトリのリモートごとの信頼ポリシーが `deny` か `read-only` である(セッションの作業ディレクトリで判断するので、ほかのリポジトリに触れるセッションは対象外になる)。または、そのポリシーをまったく調べられなかった(git がリポジトリを読めない、ストアが読めない)。その場合、調べが失敗したときは閉じる。
+- 受領書が書けない、またはフックの 4.5 秒の予算が次のステップ(非常に大きなプロンプトのシークレットスキャン、またはベンダーの起動)を賄えない。
 
-A receipt whose outcome is missing means the host killed the hook or the clock
-ran out. Read it as unknown, never as success. An outcome of `output-written`
-means gstack wrote enveloped context on its stdout for Claude Code to inject;
-whether Claude used it is not something a hook can know.
+受領書に結果がない場合は、ホストがフックを殺したか、時間切れになったことを意味します。成功ではなく、不明として読んでください。`output-written` の結果は、gstack が Claude Code に注入させるために、エンベロープ付きのコンテキストを標準出力に書いたことを意味します。Claude がそれを使ったかどうかは、フックには知りようがありません。
 
-## What gstack tests, and what is Memorable's claim
+## gstack がテストすること、そして Memorable の主張であること
 
-gstack tests the bridge in `test/gstack-memorable.test.ts`,
-`test/memorable-user-prompt-hook.test.ts` and
-`test/gstack-settings-hook-schema-aware.test.ts`, against a fake vendor: every
-refusal above, the receipt-before-hand-off order, the envelope and cap, the
-environment allowlist, the process-group kill, the identity-based removal
-after Claude Code strips the tag, the sweep exclusion, the uninstall arm, and
-the exit codes. Everything past the process boundary, what Memorable stores,
-where, what it sends, and what `memorable disable` and `memorable forget`
-erase, is Memorable's claim and not ours.
+gstack は、ブリッジを `test/gstack-memorable.test.ts`、`test/memorable-user-prompt-hook.test.ts`、`test/gstack-settings-hook-schema-aware.test.ts` でテストします。偽のベンダーに対して、上記のすべての拒否、受領書を引き渡しの前に書く順序、エンベロープと上限、環境の許可リスト、プロセスグループの停止、Claude Code がタグを取り除いた後の ID ベースの削除、スイープの除外、アンインストールの分岐、終了コードを確認します。プロセスの境界を越えた先、つまり Memorable が何を保存するか、どこに保存するか、何を送るか、`memorable disable` と `memorable forget` が何を消すかは、Memorable の主張であって、私たちのものではありません。
 
-## Turning it on (three steps, the middle one is yours)
+## 有効にする(3つのステップ。真ん中のステップはあなたが行う)
 
 ```bash
 npm i -g memorable-cli          # the CLI, from npm, not from gstack
@@ -126,107 +63,55 @@ memorable login && memorable enable   # the vendor's account and the vendor's co
 gstack-memorable enable         # gstack's gate + the hook, at the stable install
 ```
 
-`enable` refuses, and changes nothing, when the vendor binary is missing, when
-Memorable already registered its own hook (see below), when the stable install
-does not carry this bridge (run `./setup` first), or when `settings.json`
-cannot be read. Claude Code picks up the new hook within a few seconds on
-current versions; if it does not fire, restart the session. Verify with:
+`enable` は、ベンダーのバイナリがない場合、Memorable が自分のフックをすでに登録している場合(下記参照)、安定したインストールがこのブリッジを含んでいない場合(まず `./setup` を実行)、または `settings.json` が読めない場合に、拒否して何も変更しません。Claude Code は、現在のバージョンでは数秒以内に新しいフックを拾います。発火しない場合は、セッションを再起動してください。確認するには次を実行します。
 
 ```bash
 gstack-memorable status
 ```
 
-## If Memorable already registered the hook
+## Memorable がすでにフックを登録している場合
 
-`memorable install-hooks` and `memorable start` register the same
-`UserPromptSubmit` hook under Memorable's own name, outside gstack's table
-(`memorable enable` does not; only those two do). `enable` refuses in that case
-rather than adding a second entry: two entries run the hook twice on every
-prompt, injecting twice and capturing twice against your allowance.
+`memorable install-hooks` と `memorable start` は、同じ `UserPromptSubmit` フックを、gstack のテーブルの外にある Memorable 独自の名前で登録します(`memorable enable` はしません。この2つだけがします)。その場合、`enable` は2つ目のエントリを追加するのではなく、拒否します。2つのエントリがあると、フックはプロンプトごとに2回実行され、2回注入し、あなたの利用枠に対して2回キャプチャしてしまうからです。
 
-To hand it to gstack instead, delete that entry from `~/.claude/settings.json`
-and run `enable` again. Memorable has no command that removes its own hook.
+gstack に任せるには、`~/.claude/settings.json` からそのエントリを削除して、`enable` を再実行してください。Memorable には、自分のフックを削除するコマンドはありません。
 
-## Turning it off
+## オフにする
 
 ```bash
 gstack-memorable disable
 ```
 
-The gate goes off first, so the very next prompt is off even before the entry
-is gone; a prompt already past the gate completes. Then gstack's entry is
-removed by identity (tag or no tag), both results are verified, and any
-partial failure is reported with a non-zero exit. Memorable's own consent and
-whatever it stored are untouched: `memorable disable` stops capture,
-`memorable forget` denies everything, and its own docs say what each erases.
+ゲートが先にオフになるので、エントリがまだ残っていても、次のプロンプトからオフになります。ゲートを通過済みのプロンプトは完了します。そのあと、gstack のエントリが識別情報(タグの有無を問わず)で削除され、両方の結果が検証されます。一部だけ失敗した場合は、ゼロ以外の終了コードで報告されます。Memorable 自身の同意と、保存されているものは変わりません。`memorable disable` はキャプチャを止め、`memorable forget` はすべてを拒否します。何を消すかは、Memorable のドキュメントに書かれています。
 
-The entry also comes out with `gstack-uninstall` (named in its summary) and
-survives `./setup --no-team`, which only tears down team-mode hooks.
+このエントリは、`gstack-uninstall` でも削除されます(その概要に記載されています)。また、`./setup --no-team` も生き延びます。これはチームモードのフックだけを取り除くためです。
 
-## If you run gbrain
+## gbrain を使っている場合
 
-Memorable can keep its procedures in your own gbrain database instead of its
-local store (`memorable init gbrain`, per its docs). That changes where the
-vendor stores things; it does not change anything about this bridge, which
-only ever hands prompts to the local `memorable` binary. gstack's `/setup-gbrain`
-and `/sync-gbrain` are unrelated to it.
+Memorable は、ローカルのストアの代わりに、手順を自分の gbrain データベースに保存できます(`memorable init gbrain`。そのドキュメントによる)。それによって変わるのはベンダーがものを保存する場所だけで、このブリッジについては何も変わりません。このブリッジが渡すのは、ローカルの `memorable` バイナリへのプロンプトだけです。gstack の `/setup-gbrain` と `/sync-gbrain` は、これとは無関係です。
 
-## Troubleshooting
+## トラブルシューティング
 
-- **The hook never fires.** `gstack-memorable status` should show the gate
-  `on` and "registered by gstack". If it shows a mismatch line, follow it.
-  If everything looks right, restart Claude Code once. One known race: Claude
-  Code rewrites `settings.json` on its own schedule, and a rewrite that lands
-  during `enable` can drop the entry after gstack printed `registered`; the
-  hook manager is convergent, not exclusive, so `enable` again (it reports
-  `unchanged` or `registered`) and check `status`.
-- **Nothing is ever recalled.** The hand-offs are happening if
-  `gstack-egress list --sink memorable-recall` shows receipts with
-  `output-written` or `injected=no` outcomes. `injected=no` means the vendor
-  returned nothing: check `memorable status` and `memorable doctor` for
-  login, consent and stored procedures.
-- **Outcomes say `timeout`.** The vendor took longer than the budget allowed
-  (roughly 4 seconds after gstack's own work). That is usually network.
-- **`hook-errors.log` names a refusal.** `refused:redaction-high` means a
-  credential shape was in the prompt; `trust policy ... deny or read-only`
-  means the repo is protected; `receipt-unwritable` means
-  `~/.gstack/security` is not writable.
-- **`enable` says the stable install predates this bridge.** Run `./setup`
-  (or `/gstack-upgrade`) so the hook registered at `~/.claude/skills/gstack`
-  is the code that will run.
+- **フックが一度も発火しない。** `gstack-memorable status` で、ゲートが `on`、「registered by gstack」と表示されるはずです。不一致の行が出た場合は、その指示に従ってください。すべて正しく見えるなら、Claude Code を一度再起動してください。既知の競合が1つあります。Claude Code は `settings.json` を独自のスケジュールで書き換えます。`enable` の最中に書き換えが入ると、gstack が `registered` と表示した後でエントリが消えることがあります。フックマネージャは排他的ではなく収束型なので、もう一度 `enable` を実行し(`unchanged` または `registered` と報告されるはずです)、`status` を確認してください。
+- **何も想起されない。** `gstack-egress list --sink memorable-recall` に `output-written` または `injected=no` の結果を持つ受領書が出ていれば、引き渡しは行われています。`injected=no` は、ベンダーが何も返さなかったという意味です。`memorable status` と `memorable doctor` で、ログイン、同意、保存された手順を確認してください。
+- **結果が `timeout` になる。** ベンダーが、許された予算(gstack 自身の作業の後、約4秒)を超えて時間がかかりました。通常はネットワークの問題です。
+- **`hook-errors.log` に拒否の理由が出る。** `refused:redaction-high` は、プロンプトに認証情報の形があったという意味です。`trust policy ... deny or read-only` は、リポジトリが保護されているという意味です。`receipt-unwritable` は、`~/.gstack/security` が書けないという意味です。
+- **`enable` が「stable install predates this bridge」と言う。** `./setup`(または `/gstack-upgrade`)を実行して、`~/.claude/skills/gstack` に登録されたフックが、実際に動くコードになるようにしてください。
 
-## Under the hood, accurately
+## 正確な仕組み
 
-`bin/gstack-memorable` is the front door. It resolves the vendor CLI from
-`GSTACK_MEMORABLE_BIN`, then `MEMORABLE_BIN`, then `~/.memorable/bin/memorable`,
-then `PATH`, and refuses with a message naming those when it finds none. It
-never executes the binary. It takes a lock for the duration of `enable` and
-`disable`, captures the prior state first, and on a failure restores that
-state rather than an assumed one.
+`bin/gstack-memorable` が入口です。ベンダーの CLI を、`GSTACK_MEMORABLE_BIN`、次に `MEMORABLE_BIN`、次に `~/.memorable/bin/memorable`、次に `PATH` の順に解決し、どれも見つからない場合は、それらの名前を挙げたメッセージで拒否します。バイナリを実行することは決してありません。`enable` と `disable` の実行中はロックを保持し、まず以前の状態を記録し、失敗したときは、想定した状態ではなく、その記録した状態に戻します。
 
-`hosts/claude/hooks/memorable-user-prompt-hook` is the registered command: a
-fail-open bash shim over `memorable-user-prompt-hook.ts`, which runs the
-pipeline described above and always exits 0.
+`hosts/claude/hooks/memorable-user-prompt-hook` は、登録されるコマンドです。`memorable-user-prompt-hook.ts` の上にある、失敗時は開く(fail-open)bash のシムで、上記のパイプラインを実行し、常に終了コード 0 で終わります。
 
-Registration goes through `gstack-settings-hook ensure-event` with a 5 s
-timeout, and the hook has a row in that file's `KNOWN_HOOKS` table, so it is
-identified by its command, never by a tag. Consequences:
+登録は、5 秒のタイムアウト付きで `gstack-settings-hook ensure-event` を通ります。また、このフックはそのファイルの `KNOWN_HOOKS` テーブルに行を持つので、タグではなくコマンドで識別されます。その結果:
 
-- `gstack-settings-hook list-items --event UserPromptSubmit --owned-by
-  gstack-memorable` shows it whether or not the tag survived;
-  `list-sources` shows only tagged entries, so it may not.
-- `prune-stale --repoint` (run by every `./setup`) heals a stale path.
-- `./setup --no-team` excludes it from its sweep; `gstack-uninstall` removes it.
-- `gstack-settings-hook rollback` is a whole-file restore of the last
-  mutation, not a per-hook undo.
+- `gstack-settings-hook list-items --event UserPromptSubmit --owned-by gstack-memorable` は、タグが残っているかどうかにかかわらず、このフックを表示します。`list-sources` はタグ付きのエントリしか表示しないため、表示されないことがあります。
+- `prune-stale --repoint`(すべての `./setup` で実行される)は、古いパスを修復します。
+- `./setup --no-team` は、その掃除の対象から除外します。`gstack-uninstall` は、それを削除します。
+- `gstack-settings-hook rollback` は、最後の変更をファイル全体で元に戻すものであって、フック単位の取り消しではありません。
 
-Windows: not yet. There is no process group to contain the vendor there, so
-`enable` refuses and the hook exits 0. Tracked in TODOS.md.
+Windows: まだ対応していません。そこにはベンダーを囲い込むためのプロセスグループがないため、`enable` は拒否し、フックは終了コード 0 で終わります。TODOS.md で追跡しています。
 
-## Credits
+## クレジット
 
-The integration and its hook contract are by
-[Advaiyt Sane](https://github.com/AdvaiytSane) (@AdvaiytSane) and
-[Nikhil Krishnaswamy](https://github.com/NIkhil-cmd-cmd) (@NIkhil-cmd-cmd)
-at Memorable (#2831). The consent, receipt, envelope and containment layers
-were added in review.
+この連携と、そのフックの契約は、[Advaiyt Sane](https://github.com/AdvaiytSane)(@AdvaiytSane)と [Nikhil Krishnaswamy](https://github.com/NIkhil-cmd-cmd)(@NIkhil-cmd-cmd)が、Memorable で作成しました(#2831)。同意、受領書、エンベロープ、封じ込めの各層は、レビューの中で追加されました。

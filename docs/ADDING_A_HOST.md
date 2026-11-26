@@ -1,289 +1,244 @@
-# Adding a New Host to gstack
+# gstack に新しいホストを追加する
 
-gstack uses a declarative host config system. Each supported AI coding agent
+gstack は宣言的なホスト設定の仕組みを使っています。対応している各 AI コーディングエージェント
 (Claude, Codex, Factory, Kiro, OpenCode, Slate, Cursor, OpenClaw, Hermes,
-GBrain, Copilot, Antigravity) is defined as a typed TypeScript config object built by the
-`defineHost()` factory. Rendering a new host means creating one file and
-re-exporting it: the generator, tests, and validation pick it up. Installing
-it is not free: setup still has one install arm per installable host (see
-"What setup changes on disk" below), so an installable host also needs a setup
-arm, an entry in the install registry tier table, and a certification run
-before it is labelled `full`.
+GBrain, Copilot, Antigravity) は、`defineHost()` ファクトリで作られる型付きの TypeScript 設定オブジェクトとして定義されています。
+新しいホストをレンダリングするには、ファイルを 1 つ作って再エクスポートするだけです。ジェネレーター、テスト、検証はそれを自動的に拾います。
+ただし、インストールには手間がかかります。セットアップにはインストール可能なホストごとに 1 つのインストール分岐が必要 (下の
+「setup が何をディスクに書き込むか」を参照) なので、インストール可能なホストには、セットアップの分岐、
+インストールレジストリのティア表へのエントリ、そして `full` のラベルを付ける前の認定実行も必要です。
 
-## Install ownership rules
+## インストールの所有権ルール
 
-These rules hold for every host, every scope, and every upgrade path
-(`./setup`, `./setup --refresh-registered`, `/gstack-upgrade`, the team-mode
-auto-update). Each refusal names what was left alone, the rule that applied,
-and the exact command to proceed.
+以下のルールは、すべてのホスト、すべてのスコープ、すべてのアップグレード経路 (`./setup`、`./setup --refresh-registered`、`/gstack-upgrade`、
+チームモードの自動更新) に適用されます。各拒否は、何が手つかずのまま残されたか、どのルールが適用されたか、
+そして先に進むための正確なコマンドを示します。
 
-1. **Project-local setup never silently replaces a global install.** Setup
-   run from a project-vendored copy, or from any checkout other than the one a
-   global install links to, leaves that global install alone and prints
-   `./setup --global` as the way to replace it on purpose. (Codex:
-   `setup:186-207`, #2879. Claude: the global `~/.claude/skills/gstack` link.)
-2. **An explicit `--host X` never mutates another host.** `--host codex`
-   writes only Codex's skills directory and the checkout's own `.agents/`
-   render. It does not heal, register, or remove Claude Code hooks in
-   `settings.json`, and it does not touch the Claude gbrain render (#2347).
-   One deliberate exception: the one-time `/claude` → `/claude-code` rename
-   repair (`bin/gstack-migrate-claude-code`) renames gstack-owned entries in
-   every install that shares the checkout.
-3. **Upgrades refresh exactly the registered installs.** Every install setup
-   activates is recorded in the install registry. Upgrades run
-   `./setup --refresh-registered`, which runs setup once per registered host
-   of that checkout (printing the source first) and nothing else. Installs
-   owned by another checkout, and project installs of another project, are
-   listed with the command that refreshes them there; they are never repointed
-   (#1925).
-4. **User-owned files survive.** Setup, `gstack-relink`, and
-   `gstack-uninstall` delete or link over an entry only with proof that gstack
-   created it (the #2119 ownership gate); anything else is reported and left.
+1. **プロジェクトローカルのセットアップが、グローバルインストールを黙って置き換えることはありません。** プロジェクトにベンダリングされたコピーから、
+   またはグローバルインストールがリンクしているチェックアウト以外のチェックアウトから setup を実行した場合、そのグローバルインストールには手を付けず、
+   意図的に置き換える方法として `./setup --global` を表示します。(Codex:
+   `setup:186-207`、#2879。Claude: グローバルの `~/.claude/skills/gstack` リンク。)
+2. **明示的な `--host X` が、別のホストを変更することはありません。** `--host codex` が書き込むのは、Codex のスキルディレクトリと
+   チェックアウト自身の `.agents/` のレンダリングだけです。`settings.json` 内の Claude Code フックを修復、登録、削除することはなく、
+   Claude 向けの gbrain のレンダリングにも触れません (#2347)。
+   例外が 1 つあります。一度だけ行う `/claude` → `/claude-code` の名前変更修復 (`bin/gstack-migrate-claude-code`) は、
+   同じチェックアウトを共有するすべてのインストールで、gstack が所有するエントリの名前を変更します。
+3. **アップグレードは、登録済みのインストールだけを更新します。** セットアップが有効化したインストールはすべて、インストールレジストリに記録されます。
+   アップグレードは `./setup --refresh-registered` を実行します。これは、そのチェックアウトに登録されたホストごとに一度 setup を実行し
+   (実行前にソースを表示します)、それ以外は何もしません。別のチェックアウトが所有するインストールや、別のプロジェクトのプロジェクトインストールは、
+   そこを更新するためのコマンドとともに一覧表示されます。それらが別のものに向け直されることはありません (#1925)。
+4. **ユーザーが所有するファイルは残ります。** セットアップ、`gstack-relink`、`gstack-uninstall` がエントリを削除したりその上にリンクしたりするのは、
+   gstack がそれを作成したという証明がある場合だけです (#2119 の所有権ゲート)。それ以外のものは報告されるだけで、そのまま残されます。
 
-### The install registry
+### インストールレジストリ
 
-`$GSTACK_STATE_ROOT/installs.tsv` (mode 0600) is the one record of installs.
-Only `bin/gstack-install-registry.sh` writes it, under a lock directory with an
-atomic rename. Columns: host, scope (`global`/`project`), project, destination
-(the skills directory the host discovers), install root, source realpath,
-version, prefix setting, render, updated-at. A row publishes only after the
-host arm finished activating. Rows whose install root is gone are dropped
-(`gstack_install_registry_reconcile`) by every refresh and by
-`gstack-uninstall`, so an upgrade never resurrects an uninstalled host.
+`$GSTACK_STATE_ROOT/installs.tsv` (モード 0600) が、インストールの唯一の記録です。書き込みを行うのは `bin/gstack-install-registry.sh` だけで、
+アトミックなリネームを伴うロックディレクトリの下で行われます。列は次のとおりです: ホスト、スコープ (`global`/`project`)、プロジェクト、
+宛先 (ホストが検出するスキルディレクトリ)、インストールルート、ソースの realpath、バージョン、prefix 設定、レンダリング、更新日時。
+行が公開されるのは、ホストの分岐が有効化を終えた後だけです。インストールルートが消えている行は、
+どの更新処理や `gstack-uninstall` でも削除されます (`gstack_install_registry_reconcile`)。そのため、アップグレードによって
+アンインストール済みのホストが復活することはありません。
 
-`./setup --status` prints one row per install (host, tier, scope, result,
-version, destination, source) without building or writing anything, plus any
-pre-registry install it finds on disk, labelled `unregistered` with the
-command that registers it. A Codex install captured by a project-vendored copy
-(#2879) is reported with both choices instead of being repointed. The setup
-summary, the `/gstack-upgrade` summary, and `--status` share one renderer
-(`gstack_install_registry_render`).
+`./setup --status` は、インストールごとに 1 行 (ホスト、ティア、スコープ、結果、
+バージョン、宛先、ソース) を表示します。何もビルドせず、何も書き込みません。ディスク上で見つかったレジストリ導入前のインストールも表示し、
+それには `unregistered` のラベルと、登録するためのコマンドを付けます。プロジェクトベンダリングされたコピー (#2879) によって取り込まれた Codex インストールは、
+向け直されるのではなく、両方の選択肢とともに報告されます。セットアップの要約、`/gstack-upgrade` の要約、`--status` は、
+同じレンダラー (`gstack_install_registry_render`) を共有します。
 
-### Migrations
+### マイグレーション
 
-`gstack-upgrade/migrations/v*.sh` are state-root migrations. Their marker is
-`$GSTACK_STATE_ROOT/.last-setup-version` (read from `~/.gstack` once for
-installs that predate the move). It advances only past migrations that
-succeeded; a failed migration stops the sequence, prints a `failed` row with
-the retry command, and runs again on the next `./setup`. Install and host
-migrations are tracked per install by the registry row's version.
+`gstack-upgrade/migrations/v*.sh` は、state root のマイグレーションです。そのマーカーは
+`$GSTACK_STATE_ROOT/.last-setup-version` です (`~/.gstack` から一度だけ読み込みます。移動前のインストール向けです)。
+マーカーが進むのは、成功したマイグレーションを過ぎたときだけです。失敗したマイグレーションは連鎖を止め、再試行コマンドを添えた `failed` の行を表示し、
+次の `./setup` でもう一度実行されます。インストールごとのマイグレーションとホストごとのマイグレーションは、
+レジストリ行のバージョンで追跡されます。
 
-### What setup changes on disk
+### setup が何をディスクに書き込むか
 
-Inventory of every setup side effect, by phase (line numbers are approximate):
+フェーズごとに、setup の副作用をすべて一覧にしました (行番号はおおよその値です)。
 
-| Phase | Writes | Scope |
+| フェーズ | 書き込み先 | スコープ |
 |---|---|---|
-| Build | `browse/dist`, `design/dist`, `make-pdf/dist`, `bin/gstack-cso-*` in the source checkout | source |
-| Hosts record | `.gstack-installed-hosts` in the source checkout: every host setup installed from it, additive (#1694) | source |
-| Generation | renders for the recorded hosts only (`.agents/`, `.kiro/`, `.factory/`, `.opencode/`, `.cursor/`, `.copilot/`, `.agy/`) in the source checkout; `gstack-patch-names` rewrites Claude `name:` fields in place | source |
-| Render prune | renders of hosts the record does not name: links into the checkout removed, generated files moved to `$GSTACK_STATE_ROOT/backups/host-renders/<ts>-<id>/`, other files kept | source / state root |
-| Chromium | Playwright cache (`~/.cache/ms-playwright`), lock under the state root | machine |
-| Config | `skill_prefix`, `timeline_stop_hook`, team-mode keys in `$GSTACK_STATE_ROOT/config.yaml` | state root |
-| Claude arm | `~/.claude/skills/gstack` link, one dir per skill with a `SKILL.md` link, alias copies | selected host |
-| Codex arm | `${CODEX_HOME:-~/.codex}/skills/gstack` runtime root, `gstack-*` links into `.agents/skills`, `.agents/skills/gstack` sidecar | selected host |
-| Kiro, Factory, OpenCode, Cursor, Copilot, Antigravity arms | the host's `skills/gstack` runtime root (built beside the live one and swapped in) and `gstack-*` links | selected host |
-| OpenCode commands | `~/.config/opencode/commands/gstack-*.md` with a managed marker (#2629); user command files are never touched | selected host |
-| Registry | one row per activated install in `installs.tsv` | state root |
-| Migrations | whatever each `v*.sh` repairs; marker in the state root | state root |
-| Claude hooks | `~/.claude/settings.json` (heal, SessionStart, plan-tune, Stop) — only when Claude is selected | Claude |
-| gbrain | `gbrain-detection.json`; the Claude render in `$GSTACK_STATE_ROOT/render/claude` — only when Claude is selected | state root / Claude |
+| Build | ソースチェックアウト内の `browse/dist`、`design/dist`、`make-pdf/dist`、`bin/gstack-cso-*` | ソース |
+| Hosts record | ソースチェックアウト内の `.gstack-installed-hosts`: setup がそこからインストールしたホストすべて。追加のみ (#1694) | ソース |
+| Generation | 記録されたホストだけのレンダリング (`.agents/`、`.kiro/`、`.factory/`、`.opencode/`、`.cursor/`、`.copilot/`、`.agy/`) をソースチェックアウト内に作成。`gstack-patch-names` が Claude の `name:` フィールドをその場で書き換える | ソース |
+| Render prune | 記録に含まれないホストのレンダリング: チェックアウトへのリンクは削除、生成ファイルは `$GSTACK_STATE_ROOT/backups/host-renders/<ts>-<id>/` に移動、その他のファイルは保持 | ソース / state root |
+| Chromium | Playwright のキャッシュ (`~/.cache/ms-playwright`)、state root 配下のロック | マシン |
+| Config | `$GSTACK_STATE_ROOT/config.yaml` の `skill_prefix`、`timeline_stop_hook`、チームモードのキー | state root |
+| Claude arm | `~/.claude/skills/gstack` のリンク、`SKILL.md` へのリンクを持つスキルごとのディレクトリ、エイリアスのコピー | 選択されたホスト |
+| Codex arm | `${CODEX_HOME:-~/.codex}/skills/gstack` のランタイムルート、`.agents/skills` への `gstack-*` リンク、`.agents/skills/gstack` のサイドカー | 選択されたホスト |
+| Kiro、Factory、OpenCode、Cursor、Copilot、Antigravity の分岐 | そのホストの `skills/gstack` ランタイムルート (稼働中のものの横にビルドされ、差し替えられる) と `gstack-*` のリンク | 選択されたホスト |
+| OpenCode commands | `~/.config/opencode/commands/gstack-*.md` (管理マーカー付き, #2629)。ユーザーのコマンドファイルには決して触れない | 選択されたホスト |
+| Registry | `installs.tsv` に、有効化されたインストールごとに 1 行 | state root |
+| Migrations | 各 `v*.sh` が修復する内容。マーカーは state root にある | state root |
+| Claude hooks | `~/.claude/settings.json` (heal、SessionStart、plan-tune、Stop)。Claude が選択されている場合のみ | Claude |
+| gbrain | `gbrain-detection.json`。Claude のレンダリングは `$GSTACK_STATE_ROOT/render/claude`。Claude が選択されている場合のみ | state root / Claude |
 
-Activation today: on macOS and Linux every install is a set of symlinks into
-the source checkout, so a `git pull` changes the active payload before setup
-runs and "keep the prior payload" means "keep the prior checkout" — which the
-upgrade skill does on the vendored path (`.bak` restore) and records on the
-git path (`PRE_UPGRADE_COMMIT`). On Windows, where setup copies instead of
-linking, every copy is staged as `<dst>.gstack-new.<pid>` and swapped in only
-when complete; an interrupted swap is repaired on the next run (a missing
-destination is restored from `<dst>.gstack-old.<pid>`). Versioned payload
-directories for the symlink platforms are not built yet.
+現時点での有効化: macOS と Linux では、すべてのインストールはソースチェックアウトへのシンボリックリンクの集まりです。
+そのため `git pull` は、setup が走る前に有効なペイロードを変えてしまいます。「以前のペイロードを残す」とは「以前のチェックアウトを残す」という意味になり、
+アップグレードスキルはベンダリングされたパスでは `.bak` からの復元によってそれを行い、git のパスでは `PRE_UPGRADE_COMMIT` に記録します。
+リンクではなくコピーを行う Windows では、すべてのコピーは `<dst>.gstack-new.<pid>` としてステージされ、完了したときだけ差し替えられます。
+中断された差し替えは次回の実行で修復されます (宛先が欠けている場合は `<dst>.gstack-old.<pid>` から復元されます)。
+シンボリックリンクを使うプラットフォーム向けのバージョン付きペイロードディレクトリは、まだビルドされていません。
 
-### Install-context render contract
+### インストールコンテキストのレンダリング契約
 
-Committed renders name each host's default install root. A render for any
-other root (project install, `CLAUDE_CONFIG_DIR`, renamed checkout) is made
-with `gen-skill-docs --host <h> --install-root <abs path> --out-dir <tmp>
---link-root <dir>`: every default-root path becomes the given root, and
-resolvers see it as `TemplateContext.installRoot` (null keeps committed bytes).
-Per-install renders live in `$GSTACK_STATE_ROOT/render/installs/<host>-<id>/`
-(`<id>` keyed by the root's realpath) and are recorded in the registry's render
-column. Setup makes one for a Claude install outside `~/.claude/skills/gstack`
-(renamed checkout, project-vendored copy, `CLAUDE_CONFIG_DIR`) and a global Codex
-install outside `~/.codex/skills/gstack` (`CODEX_HOME`); repo-local Codex installs
-resolve their root at run time. A root that is not a plain path (whitespace,
-shell metacharacters) is named through a `<host>-<id>.root` alias symlink:
-worktree-isolated Claude Code refuses a command path containing a space in any
-quoting.
+コミット済みのレンダリングは、各ホストのデフォルトのインストールルートを指しています。それ以外のルート (プロジェクトインストール、`CLAUDE_CONFIG_DIR`、名前を変えたチェックアウト) 向けのレンダリングは、
+`gen-skill-docs --host <h> --install-root <abs path> --out-dir <tmp>
+--link-root <dir>` で作られます。デフォルトルートのパスはすべて指定されたルートに置き換えられ、
+リゾルバーからは `TemplateContext.installRoot` として見えます (null の場合はコミット済みのバイト列がそのまま使われます)。
+インストールごとのレンダリングは `$GSTACK_STATE_ROOT/render/installs/<host>-<id>/` に置かれます (`<id>` はルートの realpath から決まります)。
+そしてレジストリのレンダリング列に記録されます。セットアップは、`~/.claude/skills/gstack` 以外の場所にある Claude のインストール
+(名前を変えたチェックアウト、プロジェクトにベンダリングされたコピー、`CLAUDE_CONFIG_DIR`) と、
+`~/.codex/skills/gstack` 以外の場所にあるグローバルな Codex のインストール (`CODEX_HOME`) のために、それぞれ 1 つ作ります。
+リポジトリローカルの Codex インストールは、実行時にルートを解決します。プレーンなパスではないルート (空白やシェルのメタ文字を含むもの) は、
+`<host>-<id>.root` というエイリアスのシンボリックリンクを通して指定されます。ワークツリーを分離した Claude Code は、
+どの引用符付けでも、スペースを含むコマンドパスを拒否するためです。
 
-### Host renders in an install (#1694)
+### インストール内のホストのレンダリング (#1694)
 
-A checkout renders skills only for the hosts installed from it.
-`bin/gstack-host-renders.sh` owns the record, `.gstack-installed-hosts` in the
-checkout: setup adds each host it installs and never removes one, so
-`./setup --host codex` keeps a `--host factory` render. The first run after an
-upgrade seeds it from the hosts the checkout already serves (registry rows,
-install roots that resolve to it, host skills that link into its renders, and
-legacy copies with no runtime root). `scripts/build.sh` renders claude plus
-the recorded hosts and prints which hosts and why; a checkout with no record (a
-development checkout) or `GSTACK_RENDER_HOSTS=all` renders every host.
+チェックアウトは、そこからインストールされたホストに対してのみスキルをレンダリングします。
+`bin/gstack-host-renders.sh` が記録を管理します。記録とは、チェックアウト内の `.gstack-installed-hosts` のことです。setup は、
+インストールしたホストを必ず追加し、削除することはありません。そのため `./setup --host codex` を実行しても、`--host factory` のレンダリングは残ります。
+アップグレード後の最初の実行では、記録は、そのチェックアウトがすでに提供しているホストから初期化されます (
+レジストリの行、そのチェックアウトに解決されるインストールルート、そのレンダリングにリンクしているホストのスキル、ランタイムルートを持たない旧式のコピー)。
+`scripts/build.sh` は claude と記録されたホストをレンダリングし、どのホストをなぜレンダリングしたかを表示します。記録のない
+チェックアウト (開発用のチェックアウト) や `GSTACK_RENDER_HOSTS=all` の場合は、すべてのホストをレンダリングします。
 
-Every setup run then prunes the renders of unrecorded hosts with
-`bin/gstack-relink`'s proof rules: a symlink into the checkout (strong proof)
-is removed; a file proven generated (weak proof: the gen-skill-docs banner, the
-generator's exact `openai.yaml` shape, byte identity with the checkout) is
-moved to `$GSTACK_STATE_ROOT/backups/host-renders/<ts>-<id>/`; every other file
-stays where it is, and only directories left empty are removed. The backup's
-`prune.log` lists every path. A gstack-upgrade migration runs
-the same prune for an install upgraded without a setup run. Instruction-only
-hosts (Hermes, OpenClaw, GBrain) are never installed by setup, so a user who
-renders one by hand inside an install adds its name to the record first.
+その後、setup を実行するたびに、記録に含まれないホストのレンダリングを、`bin/gstack-relink` の証明ルールに従って削除します。
+チェックアウトへのシンボリックリンク (強い証明) は削除されます。生成されたものだと証明されたファイル (弱い証明: gen-skill-docs のバナー、
+ジェネレーターの正確な `openai.yaml` の形、チェックアウトとのバイト単位での一致) は、
+`$GSTACK_STATE_ROOT/backups/host-renders/<ts>-<id>/` に移動されます。その他のファイルはそのままの場所に残り、
+空になったディレクトリだけが削除されます。バックアップの `prune.log` には、すべてのパスが記録されます。gstack-upgrade のマイグレーションは、
+setup を実行せずにアップグレードされたインストールに対して、同じ削除処理を行います。指示のみで提供されるホスト (instruction-only: Hermes、OpenClaw、GBrain) は、
+setup によって決してインストールされません。そのため、インストール内で手作業でそれらをレンダリングするユーザーは、先に記録へその名前を追加する必要があります。
 
-## Host tiers and capabilities
+## ホストのティアと機能
 
-Every host declares `tier` and `capabilities` (`scripts/host-config.ts`).
-One vocabulary is used everywhere: `./setup --help`, setup and `--status`
-rows, host errors, and the README host matrix, all checked against
-`hosts/index.ts` by `test/host-config.test.ts`.
+すべてのホストは `tier` と `capabilities` を宣言します (`scripts/host-config.ts`)。
+語彙は 1 つに統一されています。`./setup --help`、setup と `--status` の行、ホストのエラー、README のホスト一覧のすべてで使われ、
+`test/host-config.test.ts` が `hosts/index.ts` と照合します。
 
-| Tier | Meaning |
+| ティア | 意味 |
 |---|---|
-| `full` | Installs, renders, passes the conformance kit, and has a dated certification record below. |
-| `experimental` | Installs and renders and passes the conformance kit; no certification record yet. |
-| `instruction-only` | No install arm. `./setup --host X` prints what to copy and changes nothing. |
+| `full` | インストールされ、レンダリングされ、適合キットに合格し、下に日付入りの認定記録がある。 |
+| `experimental` | インストールされ、レンダリングされ、適合キットに合格する。認定記録はまだない。 |
+| `instruction-only` | インストールの分岐はない。`./setup --host X` は、コピーすべきものを表示するだけで、何も変更しない。 |
 
-Rendering alone never certifies `full`.
+レンダリングだけでは `full` の認定にはなりません。
 
-| Capability | Values | Used for |
+| 機能 | 値 | 用途 |
 |---|---|---|
-| `toolExecution` | boolean | preambles and `bin/` helpers run |
-| `questions` | `native` / `prose` | structured question tool vs plain-text questions |
-| `planMode` | boolean | plan-mode transitions; `false` omits the preamble's plan-mode section |
-| `delegation` | boolean | sub-agents |
-| `browser` | boolean (needs `toolExecution`) | gstack's browser |
-| `safetyHooks` | `enforced` / `advisory` | `/careful`, `/freeze`, `/guard` block (Claude) or only warn |
+| `toolExecution` | boolean | プリアンブルと `bin/` のヘルパーが実行される |
+| `questions` | `native` / `prose` | 構造化された質問ツールか、平文の質問か |
+| `planMode` | boolean | プランモードへの移行。`false` の場合、プリアンブルのプランモードの節を省略する |
+| `delegation` | boolean | サブエージェント |
+| `browser` | boolean (`toolExecution` が必要) | gstack のブラウザ |
+| `safetyHooks` | `enforced` / `advisory` | `/careful`、`/freeze`、`/guard` がブロックする (Claude) か、警告するだけか |
 
-Hosts with `safetyHooks: 'advisory'` get one line at the top of `/careful`,
-`/freeze` and `/guard`: "not enforced on <host>: advisory, not blocked".
+`safetyHooks` が `'advisory'` のホストでは、`/careful`、`/freeze`、`/guard` の先頭に 1 行表示されます。
+「not enforced on <host>: advisory, not blocked」(<host> では強制されない: 助言のみで、ブロックされない) という内容です。
 
-## Certify your host
+<a id="certify-your-host"></a>
+## ホストを認定する
 
-1. Pass the conformance kit: `bun test test/host-conformance.test.ts` installs
-   every installable host into a temp HOME, checks discovery directories, no
-   other host's variant, no duplicates, `./setup --status`, and an upgrade from
-   the previous release's install layout.
-2. Run one representative workflow for real on the host (for example
-   `/review` on a small diff), and an upgrade from an existing install.
-3. Add a row below with the date, host version, gstack version, and where the
-   transcript lives, then set `tier: 'full'`.
+1. 適合キットに合格する: `bun test test/host-conformance.test.ts` は、インストール可能なすべてのホストを一時的な HOME にインストールし、
+   検出ディレクトリ、他のホストの変種がないこと、重複がないこと、`./setup --status`、そして前のリリースのインストールレイアウトからのアップグレードを確認します。
+2. 実際のワークフローを、そのホストで 1 つ実行する (例: 小さな diff に対する `/review`)。さらに、既存のインストールからのアップグレードも行う。
+3. 下の表に行を追加する。日付、ホストのバージョン、gstack のバージョン、トランスクリプトの保存場所を書き、その後 `tier: 'full'` を設定する。
 
-| Host | Date | Host version | gstack version | Evidence |
+| ホスト | 日付 | ホストのバージョン | gstack のバージョン | 証拠 |
 |---|---|---|---|---|
-| claude | 2026-10-02 | Claude Code 2.1.284 (CI image pin) | v1.91.13.0 (1c54555) | gate-tier evals, real Claude Code sessions: https://github.com/garrytan/gstack/actions/runs/37033755821 |
+| claude | 2026-10-02 | Claude Code 2.1.284 (CI イメージの固定版) | v1.91.13.0 (1c54555) | gate ティアの eval、実際の Claude Code セッション: https://github.com/garrytan/gstack/actions/runs/37033755821 |
 
-Codex stays `experimental` until its periodic cases (`codex-discover-skill`,
-`codex-review`) pass on the CI image's pinned Codex CLI and a row is added.
+Codex は、CI イメージに固定された Codex CLI で周期的なケース (`codex-discover-skill`、
+`codex-review`) が合格し、行が追加されるまで `experimental` のままです。
 
-## GitHub Copilot CLI (#393)
+## GitHub Copilot CLI への対応 (#393)
 
-Shipped as `experimental` (`hosts/copilot.ts`, `./setup --host copilot`):
-skills in `~/.copilot/skills/gstack-*`, runtime root `~/.copilot/skills/gstack`
-with a `.source-path` marker so `/gstack-upgrade` finds the checkout, names
-prefixed `gstack-` (Copilot's built-in `/review` would win otherwise),
-`disable-model-invocation: true` on sensitive skills, and a one-paragraph
-tool-name glossary (`ask_user`, `exit_plan_mode`, `task`, `view`, `skill`)
-inserted ahead of the preamble's STATUS rules. A shared directory was not
-enough: Copilot CLI stopped reading `~/.claude/skills` in 1.0.36, gstack never
-writes `~/.agents/skills`, and a Codex render carries Codex paths and the
-Codex model profile.
+`experimental` として出荷 (`hosts/copilot.ts`、`./setup --host copilot`):
+スキルは `~/.copilot/skills/gstack-*` に置かれ、ランタイムルートは `~/.copilot/skills/gstack` で、
+`.source-path` マーカーを持ちます。これにより `/gstack-upgrade` がチェックアウトを見つけられます。名前は `gstack-` で始まり
+(そうしないと Copilot 組み込みの `/review` が優先されてしまいます)、機微なスキルには `disable-model-invocation: true` を付け、
+プリアンブルの STATUS ルールの前に、ツール名の用語集 (`ask_user`、`exit_plan_mode`、`task`、`view`、`skill`) を 1 段落挿入します。
+共有ディレクトリでは不十分でした。Copilot CLI は 1.0.36 から `~/.claude/skills` を読まなくなり、gstack は `~/.agents/skills` に書き込まず、
+Codex のレンダリングには Codex のパスと Codex のモデル設定が含まれているためです。
 
-Disposition of the community attempts:
+コミュニティによる試みの扱い:
 
-| PR | Decision | Why |
+| PR | 判断 | 理由 |
 |---|---|---|
-| #2323 (@andrey-esipov) | Selectively reused, with credit | Kept: `~/.copilot/skills` and `.github/skills` roots, `copilot`-binary detection, `.source-path`, the `gstack-` prefix, the 1024-char description limit, uninstall coverage. Not kept: new schema fields and generator edits (predate `defineHost()`), an unguarded `rm -rf` of the runtime root (#2142), links to `setup`/`scripts`/Claude sources inside a recursively scanned dir, a test-only install backdoor in setup, and a blanket AskUserQuestion → `ask_user` rewrite. |
-| #396 (@ridermw) | Rejected | Sed-rewrites Codex output into a shared `.agents/skills`; its E2E runner copies real `~/.copilot` credentials into a temp HOME. Its session scanner is a candidate for a later `/retro global` change. |
-| #487 (@ridermw) | Rejected | Relies on `~/.claude/skills`, which Copilot CLI no longer reads. |
-| #1852 (@lolisaigao1234) | Rejected | Detects `gh` instead of `copilot`, installs to a directory Copilot does not scan, links `bin` without `lib`. |
+| #2323 (@andrey-esipov) | 一部を再利用 (クレジット付き) | 採用: `~/.copilot/skills` と `.github/skills` のルート、`copilot` バイナリの検出、`.source-path`、`gstack-` のプレフィックス、1024 文字の説明文の制限、アンインストールの対象範囲。不採用: 新しいスキーマのフィールドとジェネレーターの変更 (`defineHost()` より前のもの)、ランタイムルートへの保護のない `rm -rf` (#2142)、再帰的にスキャンされるディレクトリ内の setup/scripts/Claude ソースへのリンク、setup 内のテスト専用のインストール用の裏口、AskUserQuestion → `ask_user` への一律の書き換え。 |
+| #396 (@ridermw) | 却下 | Codex の出力を共有の `.agents/skills` に sed で書き換える。E2E ランナーは、実際の `~/.copilot` の認証情報を一時的な HOME にコピーする。そのセッションスキャナーは、後の `/retro global` の変更候補になりうる。 |
+| #487 (@ridermw) | 却下 | Copilot CLI がもう読まない `~/.claude/skills` に依存している。 |
+| #1852 (@lolisaigao1234) | 却下 | `copilot` ではなく `gh` を検出する。Copilot がスキャンしないディレクトリにインストールする。`lib` を含まずに `bin` をリンクする。 |
 
-Unverified without a real Copilot CLI (why it is not `full`): autopilot may
-answer `ask_user` itself, plan mode blocks mutating shell commands, symlinked
-skill dirs need Copilot CLI 1.0.62 or later, and `COPILOT_HOME` other than
-`~/.copilot` is refused for now.
+実際の Copilot CLI がない状態で未検証の点 (`full` ではない理由): autopilot が `ask_user` に自分で答えてしまうかもしれない、
+プランモードは変更を伴うシェルコマンドをブロックする、シンボリックリンクされたスキルディレクトリには Copilot CLI 1.0.62 以降が必要、
+`~/.copilot` 以外の `COPILOT_HOME` は今のところ拒否される。
 
 ## Antigravity CLI
 
-Shipped as `experimental` (`hosts/agy.ts`, `./setup --host agy`, alias
-`--host antigravity`) for Google's Antigravity CLI. The host is named after the
-`agy` binary: with the longer name, the per-fence runtime prelude was 408 bytes
-against its 400-byte budget (the global root is long); `agy` renders at
-exactly 400, so the next byte added to that prelude must come with a budget
-change. Verified against Google's docs on 2026-10-08:
+Google の Antigravity CLI 向けに `experimental` として出荷 (`hosts/agy.ts`、`./setup --host agy`、エイリアス
+`--host antigravity`)。このホストは `agy` バイナリにちなんで名付けられています。より長い名前にすると、
+プロセスごとのランタイムのプレリュードが 408 バイトになり、400 バイトの予算を超えてしまいました (グローバルルートが長いため)。
+`agy` は正確に 400 でレンダリングされるので、そのプレリュードに次のバイトを加えるなら、予算の変更を伴わなければなりません。
+2026-10-08 に Google のドキュメントで検証:
 
-| Fact | Value | Source |
+| 事実 | 値 | 出典 |
 |---|---|---|
-| Global skills | `~/.gemini/antigravity-cli/skills/<skill>/SKILL.md` | [Agent skills](https://antigravity.google/docs/skills/) (CLI section), [Plugins & skills](https://antigravity.google/docs/cli/plugins/), [Migrating from Gemini CLI](https://antigravity.google/docs/cli/gcli-migration/) |
-| Workspace skills | `.agents/skills/<skill>/SKILL.md` | same pages |
-| Frontmatter | `name` (optional, defaults to the directory), `description` (required) | [Agent skills](https://antigravity.google/docs/skills/) |
-| Description limit | 1024 characters (Agent Skills format) | [What are Agent Skills?](https://cloud.google.com/discover/ai-agent-skills) |
-| Tool names | `run_command`, `view_file`, `write_to_file`, `replace_file_content`, `multi_replace_file_content`, `grep_search`, `find_by_name`, `invoke_subagent`, `ask_question` | [Hooks: supported tools](https://antigravity.google/docs/hooks/) |
-| Plan mode | `agy --mode=plan` / `/plan`, no exit-plan tool | [Execution modes](https://antigravity.google/docs/cli/modes/) |
-| Binary | `agy`, installed to `~/.local/bin/agy`; config in `~/.gemini/antigravity-cli/` | [Installation](https://antigravity.google/docs/cli/install/), [Settings](https://antigravity.google/docs/cli/settings/) |
+| グローバルのスキル | `~/.gemini/antigravity-cli/skills/<skill>/SKILL.md` | [Agent skills](https://antigravity.google/docs/skills/) (CLI の節)、[Plugins & skills](https://antigravity.google/docs/cli/plugins/)、[Migrating from Gemini CLI](https://antigravity.google/docs/cli/gcli-migration/) |
+| ワークスペースのスキル | `.agents/skills/<skill>/SKILL.md` | 同じページ |
+| フロントマター | `name` (任意。デフォルトはディレクトリ名)、`description` (必須) | [Agent skills](https://antigravity.google/docs/skills/) |
+| 説明文の上限 | 1024 文字 (Agent Skills 形式) | [What are Agent Skills?](https://cloud.google.com/discover/ai-agent-skills) |
+| ツール名 | `run_command`、`view_file`、`write_to_file`、`replace_file_content`、`multi_replace_file_content`、`grep_search`、`find_by_name`、`invoke_subagent`、`ask_question` | [Hooks: supported tools](https://antigravity.google/docs/hooks/) |
+| プランモード | `agy --mode=plan` / `/plan`。終了用のツールはない | [Execution modes](https://antigravity.google/docs/cli/modes/) |
+| バイナリ | `agy`。`~/.local/bin/agy` にインストールされ、設定は `~/.gemini/antigravity-cli/` にある | [Installation](https://antigravity.google/docs/cli/install/)、[Settings](https://antigravity.google/docs/cli/settings/) |
 
-What the host does: skills in `~/.gemini/antigravity-cli/skills/gstack-*`,
-runtime root `~/.gemini/antigravity-cli/skills/gstack` with `.source-path` for
-`/gstack-upgrade`, `name:` equal to the `gstack-<skill>` directory (the CLI
-turns each name into a slash command, and has `/plan`, `/diff`, `/skills` and
-other built-ins), frontmatter limited to `name` and `description`, the Gemini
-model overlay, and a one-paragraph tool glossary ahead of the preamble's STATUS
-rules. The glossary also tells the agent to keep reading when `view_file`
-returns only part of a long SKILL.md: users report a first read that stops at
-800 lines ([forum](https://discuss.ai.google.dev/t/make-the-800-line-forced-first-read-in-view-file-configurable-or-opt-out/172257)),
-which Google's docs do not state, so the rendered text names no number.
+このホストの動作: スキルは `~/.gemini/antigravity-cli/skills/gstack-*` に置かれ、
+ランタイムルートは `~/.gemini/antigravity-cli/skills/gstack` で、`/gstack-upgrade` のための `.source-path` を持ちます。`name:` は `gstack-<skill>` のディレクトリと同じにします (
+CLI は各名前をスラッシュコマンドに変換し、`/plan`、`/diff`、`/skills` などの組み込みコマンドがあるため)。フロントマターは `name` と `description` に限定し、
+Gemini のモデルのオーバーレイと、プリアンブルの STATUS ルールの前に置く 1 段落のツール用語集を付けます。
+用語集はまた、`view_file` が長い SKILL.md の一部しか返さない場合に、読み込みを続けるようエージェントに指示します。
+ユーザーからは、最初の読み込みが 800 行で止まるという報告があります ([forum](https://discuss.ai.google.dev/t/make-the-800-line-forced-first-read-in-view-file-configurable-or-opt-out/172257))。
+ただし Google のドキュメントにはその数字は書かれていないため、レンダリングされたテキストには数字を書いていません。
 
-**Shared `~/.gemini`.** Antigravity CLI and Gemini CLI both live under
-`~/.gemini`. Gemini CLI reads `~/.gemini/skills` (and `~/.agents/skills`);
-Antigravity CLI reads `~/.gemini/antigravity-cli/skills`. Setup writes only
-gstack entries in the latter, uninstall removes only gstack-managed entries
-there, and `--host auto` selects Antigravity only for `agy` on `PATH` or an
-existing `~/.gemini/antigravity-cli`, never for a bare `~/.gemini`.
-`test/setup-install-registry.test.ts` holds both directions. Gemini CLI as a
-host is not supported. Two overlaps remain: workspace `.agents/skills` is also
-where a project-local Codex install puts its Codex-flavored `gstack-*`
-skills, which Antigravity will list in that repo, and the Antigravity 2.0 app
-and IDE read `~/.gemini/config/skills`, which this host does not install
-(Google's codelab says that directory also reaches the CLI; the CLI docs do
-not, so setup follows the CLI docs).
+**`~/.gemini` の共有。** Antigravity CLI と Gemini CLI は、どちらも `~/.gemini` の下にあります。Gemini CLI は `~/.gemini/skills` (と `~/.agents/skills`) を読み、
+Antigravity CLI は `~/.gemini/antigravity-cli/skills` を読みます。setup が書き込むのは後者の中の gstack のエントリだけで、
+アンインストールも後者の中の gstack が管理するエントリだけを削除し、`--host auto` は `agy` が `PATH` にあるか既存の
+`~/.gemini/antigravity-cli` がある場合にだけ Antigravity を選び、素の `~/.gemini` では選びません。
+`test/setup-install-registry.test.ts` が両方向を検証します。Gemini CLI は、ホストとしてはサポートされていません。重なりは 2 つ残っています。
+ワークスペースの `.agents/skills` は、プロジェクトローカルの Codex インストールが Codex 向けの `gstack-*` スキルを置く場所でもあるため、
+Antigravity はそのリポジトリでそれらを一覧表示します。また、Antigravity 2.0 のアプリと IDE は `~/.gemini/config/skills` を読みますが、
+このホストはそこにはインストールしません (Google のコードラボでは、そのディレクトリも CLI に届くと書かれていますが、CLI のドキュメントにはそうは書かれていません。
+そのため setup は CLI のドキュメントに従っています)。
 
-Disposition of the community attempts:
+コミュニティによる試みの扱い:
 
-| PR | Decision | Why |
+| PR | 判断 | 理由 |
 |---|---|---|
-| #2134 (@0xshae) | Selectively reused, with credit | Kept: `agy` as the host name and binary, `.agents/skills` as the workspace root, and a `.agy` render directory separate from Codex's `.agents`. Not kept: the hand-written config (predates `defineHost()`), `~/.gemini/config/skills` as the CLI root, and the setup arm without the ownership gates. |
-| #2893 (@ManchalaSashank) | Selectively reused, with credit | Kept: `agy`/`antigravity` as host name and alias in setup and generation, the Gemini overlay, uninstall coverage. Not kept: `~/.gemini/config/skills`, auto-detect on a bare `~/.gemini` (Gemini CLI's directory), `.gemini` as the render directory, and the repo-local `.gemini/skills` sidecar. |
-| #2726 (@voipexpert) | Selectively reused, with credit | Kept: Antigravity's tool names from its own docs, and that `manage_task` (background processes) is not a to-do tool. Not kept: blanket tool-name rewrites (a preamble glossary replaces them) and suppressing outside reviews, which run through the shell. |
-| #2244 (@KiDDarn) | Selectively reused, with credit | Kept: fail the install when no skill was linked. Not kept: the `~/.gemini/config/plugins` plugin layout (CLI plugins live under `~/.gemini/antigravity-cli/plugins` and are installed by `agy plugin install`), the benchmark provider work, and extra frontmatter fields. |
-| #413 (@jnMetaCode) | Rejected | Installs to `~/.gemini/skills` and detects `gemini`: that is Gemini CLI. A comment there (@doogiehowzer) reported the partial `view_file` read the glossary now handles. |
-| #2079 (@FACUTUCCI10) | Rejected | Gemini CLI paths (`~/.gemini/skills`). |
-| #2187 (@NotArsal) | Rejected | Duplicate of #2134 without setup. |
-| #1490 (@7H0M45-4N70NY) | Rejected | `~/.antigravity/skills`, which no Antigravity surface reads. |
-| #565 (@ChetanTekur) | Rejected | Gemini CLI `GEMINI.md` support; Gemini CLI is out of scope. |
+| #2134 (@0xshae) | 一部を再利用 (クレジット付き) | 採用: ホスト名およびバイナリとしての `agy`、ワークスペースのルートとしての `.agents/skills`、Codex の `.agents` とは別の `.agy` レンダリングディレクトリ。不採用: 手書きの設定 (`defineHost()` より前のもの)、CLI のルートとしての `~/.gemini/config/skills`、所有権ゲートのない setup の分岐。 |
+| #2893 (@ManchalaSashank) | 一部を再利用 (クレジット付き) | 採用: setup とレンダリングにおけるホスト名およびエイリアスとしての `agy`/`antigravity`、Gemini のオーバーレイ、アンインストールの対象範囲。不採用: `~/.gemini/config/skills`、素の `~/.gemini` での自動検出 (Gemini CLI のディレクトリ)、レンダリングディレクトリとしての `.gemini`、リポジトリローカルの `.gemini/skills` のサイドカー。 |
+| #2726 (@voipexpert) | 一部を再利用 (クレジット付き) | 採用: Antigravity 自身のドキュメントにあるツール名、および `manage_task` (バックグラウンドプロセス) が to-do ツールではないこと。不採用: 一律のツール名の書き換え (プリアンブルの用語集が代わりを務める)、シェル経由で実行される外部レビューの抑制。 |
+| #2244 (@KiDDarn) | 一部を再利用 (クレジット付き) | 採用: スキルが 1 つもリンクされなかった場合にインストールを失敗させる。不採用: `~/.gemini/config/plugins` のプラグインレイアウト (CLI のプラグインは `~/.gemini/antigravity-cli/plugins` の下にあり、`agy plugin install` でインストールされる)、ベンチマークのプロバイダー作業、追加のフロントマターのフィールド。 |
+| #413 (@jnMetaCode) | 却下 | `~/.gemini/skills` にインストールし、`gemini` を検出する。これは Gemini CLI のもの。そこへのコメント (@doogiehowzer) は、現在の用語集が扱う部分的な `view_file` の読み込みを報告していた。 |
+| #2079 (@FACUTUCCI10) | 却下 | Gemini CLI のパス (`~/.gemini/skills`)。 |
+| #2187 (@NotArsal) | 却下 | setup のない #2134 の重複。 |
+| #1490 (@7H0M45-4N70NY) | 却下 | `~/.antigravity/skills`。Antigravity のどの画面も読まない。 |
+| #565 (@ChetanTekur) | 却下 | Gemini CLI の `GEMINI.md` 対応。Gemini CLI は対象外。 |
 
-Unverified without a real Antigravity CLI (why it is not `full`): that the
-CLI follows symlinked skill directories, that it does not import the runtime
-root's extra markdown files (`ETHOS.md`, `review/*.md`) as skills, the
-partial-read behavior of `view_file` on long skills, `ask_question` option
-handling, and an upgrade from an existing install.
+実際の Antigravity CLI がない状態で未検証の点 (`full` ではない理由): CLI が
+シンボリックリンクされたスキルディレクトリをたどるかどうか、ランタイムルートの追加の Markdown ファイル (`ETHOS.md`、`review/*.md`) を
+スキルとして取り込まないかどうか、長いスキルに対する `view_file` の部分読み込みの挙動、`ask_question` のオプションの扱い、
+既存のインストールからのアップグレード。
 
-## Instruction-only hosts
+## 指示のみのホスト (instruction-only)
 
-OpenClaw, Hermes, Slate and GBrain have no install arm. Hermes stays
-instruction-only until someone certifies a native install (#2826 measured one
-on Hermes 0.21.0): `./setup --host hermes` prints the digest path and the
-generator command, and the Hermes render writes `name: gstack-<skill>` so
-Hermes, which indexes skills by frontmatter name, cannot shadow them (#2825).
+OpenClaw、Hermes、Slate、GBrain にはインストールの分岐がありません。Hermes は、誰かがネイティブのインストールを認定するまで指示のみのまま (instruction-only) です (#2826 は Hermes 0.21.0 で測定しました)。
+`./setup --host hermes` は、ダイジェストのパスとジェネレーターのコマンドを表示します。また、Hermes のレンダリングは `name: gstack-<skill>` を書き込むので、
+フロントマターの名前でスキルを索引する Hermes が、それらを隠してしまうことはありません (#2825)。
 
-## How it works
+## 仕組み
 
 ```
 hosts/
@@ -303,26 +258,24 @@ hosts/
 └── index.ts         # Registry: imports all, derives Host type
 ```
 
-Each config file calls `defineHost()` and exports the resulting `HostConfig`
-object, which tells the generator:
-- Where to put generated skills (paths)
-- How to transform frontmatter (allowlist/denylist fields)
-- What Claude-specific references to rewrite (paths, tool names)
-- What binary to detect for auto-install
-- What resolver sections to suppress
-- What assets to symlink at install time
+各設定ファイルは `defineHost()` を呼び出し、結果の `HostConfig` オブジェクトを export します。これがジェネレーターに次のことを伝えます:
+- 生成されたスキルを置く場所 (パス)
+- フロントマターの変換方法 (許可リスト/拒否リストのフィールド)
+- 書き換える Claude 固有の参照 (パス、ツール名)
+- 自動インストールのために検出するバイナリ
+- 抑制するリゾルバーのセクション
+- インストール時にシンボリックリンクするアセット
 
-The generator, setup script, platform-detect, uninstall, health checks, worktree
-copy, and tests all read from these configs. None of them have per-host code.
+ジェネレーター、セットアップスクリプト、プラットフォーム検出、アンインストール、ヘルスチェック、ワークツリーのコピー、テストはすべてこれらの設定を読みます。
+ホストごとの個別コードは一切ありません。
 
-## Step-by-step: add a new host
+## 手順: 新しいホストを追加する
 
-### 1. Create the config file
+### 1. 設定ファイルを作る
 
-Configs are built with the `defineHost()` factory in `hosts/define-host.ts`.
-You only write the fields that differ from the common external-host defaults;
-everything else is derived from the host name. A fully-default host is two
-fields (see `hosts/slate.ts` or `hosts/cursor.ts`):
+設定は `hosts/define-host.ts` の `defineHost()` ファクトリで作ります。
+外部ホストの共通デフォルトと異なるフィールドだけを書けば十分です。残りはホスト名から導出されます。デフォルトのみのホストは
+フィールド 2 つで済みます (`hosts/slate.ts` または `hosts/cursor.ts` を参照):
 
 ```typescript
 import { defineHost } from './define-host';
@@ -335,55 +288,46 @@ const myhost = defineHost({
 export default myhost;
 ```
 
-That expands to the full `HostConfig` with these defaults:
+これは、次のデフォルト値を持つ完全な `HostConfig` に展開されます:
 
-- `cliCommand: 'myhost'` (the name; binary for `command -v` detection)
+- `cliCommand: 'myhost'` (名前そのもの。`command -v` による検出用のバイナリ)
 - `cliAliases: []`
-- `defaultModel: 'claude'` (model overlay used when generation gets no explicit `--model`; codex overrides to `'gpt'`)
-- `globalRoot` / `localSkillRoot`: `.myhost/skills/gstack`, `hostSubdir`: `.myhost`
-- `usesEnvVars: true` (false only for Claude, which uses literal `~` paths)
-- `frontmatter`: allowlist keeping `name` + `description`, no description limit
-- `generation`: no metadata file, `skipSkills: []` (both outside-review skills are enabled; Claude and Codex explicitly omit their own wrapper)
-- `pathRewrites`: the standard trio derived from the resolved paths
-  (`~/.claude/skills/gstack` → `~/{globalRoot}`, `.claude/skills/gstack` →
-  `{localSkillRoot}`, `.claude/skills` → `{hostSubdir}/skills`)
-- `suppressedResolvers`: the GBrain pair (`GBRAIN_CONTEXT_LOAD`, `GBRAIN_SAVE_RESULTS`)
-- `runtimeRoot`: `sharedRuntimeRoot()`, every file the skills run or read as
-  `$GSTACK_ROOT/<path>` (`bin`, `lib`, the compiled tools, `freeze/bin`, the
-  review checklists and specialists, the jargon list and question registry,
-  the AskUserQuestion docs, the DX Hall of Fame, `VERSION`, and the
-  office-hours and plan-design-review `SKILL.md` copies). It mirrors setup's
-  `_link_runtime_dists` and `_copy_runtime_skill_refs`;
-  `test/runtime-root-assets.test.ts` checks each staged root on disk. A host
-  with extra assets passes them: `sharedRuntimeRoot(['qa/templates'])`.
+- `defaultModel: 'claude'` (明示的な `--model` が渡されなかった場合に使われるモデルのオーバーレイ。codex は `'gpt'` に上書きする)
+- `globalRoot` / `localSkillRoot`: `.myhost/skills/gstack`、`hostSubdir`: `.myhost`
+- `usesEnvVars: true` (Claude のみ false。Claude は `~` の文字どおりのパスを使う)
+- `frontmatter`: `name` と `description` を残す許可リスト。説明文の長さ制限なし
+- `generation`: メタデータファイルなし、`skipSkills: []` (外部レビューのスキルは両方とも有効。Claude と Codex は自分のラッパーを明示的に省く)
+- `pathRewrites`: 解決済みのパスから導出される標準の三つ組
+  (`~/.claude/skills/gstack` → `~/{globalRoot}`、`.claude/skills/gstack` →
+  `{localSkillRoot}`、`.claude/skills` → `{hostSubdir}/skills`)
+- `suppressedResolvers`: GBrain の組 (`GBRAIN_CONTEXT_LOAD`、`GBRAIN_SAVE_RESULTS`)
+- `runtimeRoot`: `sharedRuntimeRoot()`。スキルが `$GSTACK_ROOT/<path>` として実行または読み込むすべてのファイル
+  (`bin`、`lib`、コンパイル済みのツール、`freeze/bin`、レビューのチェックリストと専門家、用語リストと質問レジストリ、
+  AskUserQuestion のドキュメント、DX Hall of Fame、`VERSION`、office-hours と plan-design-review の `SKILL.md` のコピー)。
+  これは setup の `_link_runtime_dists` と `_copy_runtime_skill_refs` を写したものです。
+  `test/runtime-root-assets.test.ts` が、ステージされた各ルートをディスク上で検証します。追加のアセットを持つホストは、それを渡します:
+  `sharedRuntimeRoot(['qa/templates'])`。
 - `install`: `{ linkingStrategy: 'symlink-generated' }`
 - `learningsMode: 'basic'`
 
-Override any field by passing it to `defineHost()`. Two path-rewrite options:
+`defineHost()` にフィールドを渡せば、どのフィールドも上書きできます。パスの書き換えオプションは 2 つあります:
 
-- `extraPathRewrites`: appends entries AFTER the derived trio (e.g. kiro's
-  codex-path cleanup, or `{ from: 'CLAUDE.md', to: 'AGENTS.md' }` for
-  AGENTS.md hosts). Use this when the standard trio is right but you need more.
-- `pathRewrites`: replaces the derived list entirely. Only for non-mechanical
-  cases — codex and factory rewrite the global path to `$GSTACK_ROOT` and add
-  an extra review-path rewrite; claude has an empty list.
+- `extraPathRewrites`: 導出された三つ組の後ろに追加されます (例: kiro の codex パスのクリーンアップ、または AGENTS.md を使うホスト向けの `{ from: 'CLAUDE.md', to: 'AGENTS.md' }`)。標準の三つ組は正しいが、さらに必要な場合に使います。
+- `pathRewrites`: 導出されたリストを完全に置き換えます。機械的に処理できないケースにだけ使います。codex と factory は、グローバルパスを `$GSTACK_ROOT` に書き換え、さらにレビューパスの書き換えを 1 つ追加します。claude は空のリストを持ちます。
 
-The two are mutually exclusive (the factory throws if you pass both).
+この 2 つは互いに排他的です (両方を渡すとファクトリが例外を投げます)。
 
-Shared constants exported from `define-host.ts` for spread-composition:
-`CROSS_MODEL_RESOLVERS` (outside-provider review resolvers plus Review Army,
-suppressed on hosts that opt out; Codex keeps outside reviews and suppresses
-Review Army), `GBRAIN_RESOLVERS` (the default
-suppression pair), and `EXEC_STYLE_TOOL_REWRITES` (the OpenClaw-style
-lowercase-tool rewrites shared by openclaw and gbrain).
+`define-host.ts` から export される共有定数は、スプレッドによる合成に使います。
+`CROSS_MODEL_RESOLVERS` (外部プロバイダーのレビューのリゾルバーと Review Army。オプトアウトしたホストでは抑制される。Codex は外部レビューを残し、Review Army を抑制する)、
+`GBRAIN_RESOLVERS` (デフォルトの抑制の組)、`EXEC_STYLE_TOOL_REWRITES` (openclaw と gbrain が共有する、OpenClaw 形式の小文字のツール書き換え)。
 
-Good examples: `hosts/opencode.ts` (path + extra runtime assets),
-`hosts/factory.ts` (tool rewrites and conditional fields), `hosts/hermes.ts`
-(AGENTS.md host with custom tool rewrites and resolver composition).
+良い例: `hosts/opencode.ts` (パス + 追加のランタイムアセット)、
+`hosts/factory.ts` (ツールの書き換えと条件付きのフィールド)、`hosts/hermes.ts`
+(ツールの書き換えとリゾルバーの合成を備えた AGENTS.md ホスト)。
 
-### 2. Register in the index
+### 2. インデックスに登録する
 
-Edit `hosts/index.ts`:
+`hosts/index.ts` を編集します:
 
 ```typescript
 import myhost from './myhost';
@@ -397,14 +341,14 @@ export const ALL_HOST_CONFIGS: HostConfig[] = [
 export { claude, codex, factory, kiro, opencode, slate, cursor, openclaw, hermes, gbrain, myhost };
 ```
 
-### 3. Add to .gitignore and the render table
+### 3. .gitignore とレンダリング表に追加する
 
-Add `.myhost/` to `.gitignore` (generated skill docs are gitignored), and add
-`myhost:.myhost` to `GSTACK_HOST_RENDER_DIRS` in `bin/gstack-host-renders.sh`
-so an install renders it only when it is installed and prunes it otherwise
-(#1694; `test/host-renders.test.ts` checks the table against `hosts/*.ts`).
+`.myhost/` を `.gitignore` に追加します (生成されたスキルのドキュメントは gitignore されています)。また、
+`bin/gstack-host-renders.sh` の `GSTACK_HOST_RENDER_DIRS` に `myhost:.myhost` を追加します。
+そうすればインストールは、インストールされているときだけそのホストをレンダリングし、そうでなければ削除します
+(#1694。`test/host-renders.test.ts` が、この表を `hosts/*.ts` と照合します)。
 
-### 4. Generate and verify
+### 4. 生成して検証する
 
 ```bash
 # Generate skill docs for the new host
@@ -421,52 +365,51 @@ bun run skill:check
 # Claude install paths are rejected in prose; legitimate Bash fallbacks are allowed.
 ```
 
-### 5. Run tests
+### 5. テストを実行する
 
 ```bash
 bun test test/gen-skill-docs.test.ts
 bun test test/host-config.test.ts
 ```
 
-The parameterized smoke tests automatically pick up the new host. They verify: output exists, no path leakage, valid frontmatter,
-freshness check passes, and outside-review skills match each host's exclusions.
+パラメータ化されたスモークテストは、新しいホストを自動的に拾います。それらは次のことを検証します: 出力が存在すること、パスの漏えいがないこと、フロントマターが有効なこと、
+鮮度チェックに合格すること、そして外部レビューのスキルが各ホストの除外設定と一致すること。
 
-### 6. Update README.md
+### 6. README.md を更新する
 
-Add install instructions for the new host in the appropriate section.
+適切なセクションに、新しいホストのインストール手順を追加します。
 
-## Config field reference
+## 設定フィールドのリファレンス
 
-See `scripts/host-config.ts` for the full `HostConfig` interface with JSDoc
-comments on every field.
+すべてのフィールドの JSDoc コメント付きの完全な `HostConfig` インターフェースは、`scripts/host-config.ts` を参照してください。
 
-Key fields:
+主要なフィールド:
 
-| Field | Purpose |
+| フィールド | 用途 |
 |-------|---------|
-| `tier` | `full`, `experimental`, or `instruction-only` (see Host tiers) |
-| `capabilities` | What the host runtime offers; rendering and docs must not claim more |
-| `frontmatter.nameMatchesDirectory` | Write `gstack-<skill>` into `name:` for hosts that index by frontmatter name |
-| `defaultModel` | Model overlay rendered when generation gets no explicit `--model` (validated against `ALL_MODEL_NAMES` in `scripts/models.ts`) |
-| `frontmatter.mode` | `allowlist` (keep only listed) or `denylist` (strip listed) |
-| `frontmatter.descriptionLimit` | Max chars, `null` for no limit |
-| `frontmatter.descriptionLimitBehavior` | `error` (fail build), `truncate`, `warn` |
-| `frontmatter.conditionalFields` | Add fields based on template values (e.g., sensitive → disable-model-invocation) |
-| `frontmatter.renameFields` | Rename template fields (e.g., voice-triggers → triggers) |
-| `pathRewrites` | Literal replaceAll on content. Order matters. Replaces the derived trio. |
-| `extraPathRewrites` | (defineHost input only) Appended after the derived trio. |
-| `toolRewrites` | Rewrite Claude tool names (e.g., "use the Bash tool" → "run this command") |
-| `suppressedResolvers` | Resolver functions that return empty for this host |
-| `coAuthorTrailer` | Git co-author string for commits |
-| `boundaryInstruction` | Anti-prompt-injection warning for cross-model invocations |
+| `tier` | `full`、`experimental`、`instruction-only` のいずれか (ホストのティアを参照) |
+| `capabilities` | ホストのランタイムが提供するもの。レンダリングとドキュメントは、これより多くを主張してはならない |
+| `frontmatter.nameMatchesDirectory` | フロントマターの名前で索引するホストのために、`name:` に `gstack-<skill>` を書き込む |
+| `defaultModel` | 明示的なモデルが生成時に渡されなかった場合にレンダリングされるモデルのオーバーレイ (`scripts/models.ts` の `ALL_MODEL_NAMES` に対して検証される) |
+| `frontmatter.mode` | `allowlist` (列挙したものだけを残す) または `denylist` (列挙したものを取り除く) |
+| `frontmatter.descriptionLimit` | 最大文字数。制限なしの場合は `null` |
+| `frontmatter.descriptionLimitBehavior` | `error` (ビルドを失敗させる)、`truncate` (切り詰める)、`warn` (警告する) |
+| `frontmatter.conditionalFields` | テンプレートの値に基づいてフィールドを追加する (例: sensitive → disable-model-invocation) |
+| `frontmatter.renameFields` | テンプレートのフィールドの名前を変更する (例: voice-triggers → triggers) |
+| `pathRewrites` | 内容に対するリテラルの replaceAll。順序が重要。導出された三つ組を置き換える |
+| `extraPathRewrites` | (defineHost の入力のみ) 導出された三つ組の後ろに追加される |
+| `toolRewrites` | Claude のツール名を書き換える (例: "use the Bash tool" → "run this command") |
+| `suppressedResolvers` | このホストでは空を返すリゾルバー関数 |
+| `coAuthorTrailer` | コミットの共同作成者の文字列 |
+| `boundaryInstruction` | クロスモデル呼び出しのためのプロンプトインジェクション対策の警告 |
 
-## Validation
+## 検証
 
-The `validateHostConfig()` function in `scripts/host-config.ts` checks:
-- Name: lowercase alphanumeric with hyphens
-- CLI command: alphanumeric with hyphens/underscores
-- `defaultModel`: must be a known model family from `scripts/models.ts` `ALL_MODEL_NAMES`
-- Paths: safe characters only (alphanumeric, `.`, `/`, `$`, `{}`, `~`, `-`, `_`)
-- No duplicate names, hostSubdirs, or globalRoots across configs
+`scripts/host-config.ts` の `validateHostConfig()` 関数は次の点を確認します:
+- 名前: 小文字の英数字とハイフン
+- CLI コマンド: 英数字とハイフン/アンダースコア
+- `defaultModel`: `scripts/models.ts` の `ALL_MODEL_NAMES` にある既知のモデルファミリーであること
+- パス: 安全な文字のみ (英数字、`.`、`/`、`$`、`{}`、`~`、`-`、`_`)
+- 設定間で name、hostSubdir、globalRoot が重複していないこと
 
-Run `bun run scripts/host-config-export.ts validate` to check all configs.
+すべての設定を検証するには `bun run scripts/host-config-export.ts validate` を実行します。

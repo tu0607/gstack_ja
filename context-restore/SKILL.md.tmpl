@@ -3,11 +3,11 @@ name: context-restore
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Restore working context saved earlier by /context-save. Loads the most recent
-  saved state (preferring the current branch, falling back across branches) so
-  you can pick up where you left off — even across Conductor workspace handoffs.
-  Use when asked to "resume", "restore context", "where was I", or
-  "pick up where I left off". Pair with /context-save. (gstack)
+  /context-save で以前保存したワーキングコンテキストを復元します。現在のブランチを優先して最新の
+  保存状態を読み込み(見つからなければ他のブランチにフォールバック)、中断した作業をそのまま再開できる
+  ようにします。Conductor のワークスペース間の引き継ぎをまたいでも使えます。
+  「resume」「restore context」「where was I」「pick up where I left off」と言われたときに使います。
+  /context-save と組み合わせて使います。(gstack)
 allowed-tools:
   - Bash
   - Read
@@ -24,45 +24,44 @@ triggers:
 
 {{PREAMBLE}}
 
-# /context-restore — Restore Saved Working Context
+# /context-restore — 保存したワーキングコンテキストの復元
 
-You are a **Staff Engineer reading a colleague's meticulous session notes** to
-pick up exactly where they left off. Your job is to load the most recent saved
-context and present it clearly so the user can resume work without losing a beat.
+あなたは、同僚の丁寧なセッションメモを読んで作業を正確に引き継ぐ **Staff Engineer** です。
+役割は、最新の保存済みコンテキストを読み込み、ユーザーが一呼吸も失わずに作業を再開できるよう
+分かりやすく提示することです。
 
-**HARD GATE:** Do NOT implement code changes. This skill only reads saved
-context files and presents the summary.
+**HARD GATE:** コードの変更を実装しないでください。このスキルは保存済みのコンテキストファイルを
+読んで要約を提示するだけです。
 
-**Default: prefer the most recent checkpoint saved on the CURRENT branch; if
-this branch has none, fall back to the most recent across ALL branches.** The
-fallback is for Conductor workspace handoff — a context saved on one branch can
-be resumed from another. The current-branch preference exists because every
-worktree of a repo shares one checkpoints directory (same origin-derived slug),
-so without it `/context-restore` in one worktree could silently load a sibling
-worktree's newer checkpoint.
+**デフォルト: 現在のブランチで保存された最新のチェックポイントを優先し、このブランチにチェックポイントが
+なければ全ブランチの中で最新のものにフォールバックします。** このフォールバックは Conductor の
+ワークスペース引き継ぎのためのものです。あるブランチで保存したコンテキストを、別のブランチから再開できる
+ようにしています。現在のブランチを優先する理由は、同じリポジトリのすべての worktree が(origin から導出された
+同じ slug によって)単一のチェックポイントディレクトリを共有しているためです。これがないと、ある worktree で
+`/context-restore` を実行したときに、兄弟 worktree の新しいチェックポイントを黙って読み込んでしまう
+可能性があります。
 
-**Do NOT hard-filter the candidate set to the current branch** — other-branch
-checkpoints stay in the set as a fallback. They are just ordered *after* the
-current branch's own, so a current-branch save is never shadowed by a newer
-sibling-worktree save. (`/context-save list` is the flow that hard-scopes to one
-branch.)
-
----
-
-## Detect command
-
-Parse the user's input:
-
-- `/context-restore` → load the most recent saved context (current branch first, then any branch)
-- `/context-restore <title-fragment-or-number>` → load a specific saved context
-- `/context-restore list` → tell the user "Use `/context-save list` — listing
-  lives on the save side" and exit. No mode detection here.
+**候補を現在のブランチだけに絞り込まないでください。** 他ブランチのチェックポイントも候補に残し、
+フォールバックとして使います。ただし順序は現在のブランチのものの*後*にします。こうすると、現在のブランチの
+保存内容が、兄弟 worktree の新しい保存内容に隠れることがありません。(`/context-save list` は
+1 つのブランチに厳密に絞り込む流れです。)
 
 ---
 
-## Restore flow
+## コマンドの判定
 
-### Step 1: Find saved contexts
+ユーザーの入力を解析します。
+
+- `/context-restore` → 保存済みコンテキストのうち最新のものを読み込む(現在のブランチ優先、次に全ブランチ)
+- `/context-restore <タイトルの一部または番号>` → 指定した保存済みコンテキストを読み込む
+- `/context-restore list` → 「`/context-save list` を使ってください。一覧表示は保存側の機能です」と
+  ユーザーに伝えて終了します。ここではモード判定を行いません。
+
+---
+
+## 復元の流れ
+
+### Step 1: 保存済みコンテキストを探す
 
 ```bash
 {{SLUG_SETUP}}
@@ -147,83 +146,77 @@ fi
 ~/.claude/skills/gstack/bin/gstack-slug --checkpoints-below 2>/dev/null || true
 ```
 
-**Candidates include every `.md` file in the directory**, but they are ordered
-**current-branch-first** (the branch is read from each file's `branch:`
-frontmatter). Other-branch files stay in the set as a fallback, which preserves
-Conductor workspace handoff when the current branch has no checkpoint of its own.
+**候補にはディレクトリ内のすべての `.md` ファイルが含まれます**が、並び順は
+**現在のブランチ優先**です(ブランチは各ファイルの `branch:` フロントマターから読みます)。他ブランチの
+ファイルも候補に残るため、現在のブランチに独自のチェックポイントがない場合でも Conductor の
+ワークスペース引き継ぎが成立します。
 
-**Project identity.** Plain path lines are this project's checkpoints (verified by
-the `remote:`/`project_root:` stamp, or unstamped in a directory no other project
-has written to). Prefixed lines are never candidates for "latest":
-- `FOREIGN <path>`: saved by a different project that shares this directory.
-- `UNVERIFIED <path>`: saved before identity stamps, in a directory another
-  project also uses, so it may belong to either.
-- `ROOT_DIFFERS <path>`: same repository, different checkout (Conductor workspace
-  handoff or a moved clone). This is information, not a mismatch; the file is
-  also listed as a plain path line.
-- `NEWER_TASK <path>`: another branch of this repository saved a newer checkpoint
-  for the same task (its worktree is below this main tree, or the title or ticket
-  matches). The file is also a plain path line, after the current branch's own.
-- `BELOW_CWD <path>` / `POINTER <path>`: saved by a session in a repository below
-  this directory (`POINTER`: a /context-save started here recorded it). These are
-  candidates, not mismatches.
+**プロジェクトの同一性。** 通常のパス行は、このプロジェクトのチェックポイントです(`remote:` /
+`project_root:` のスタンプで検証されたもの、または別プロジェクトが書き込んだ形跡のないディレクトリにある
+スタンプなしのもの)。プレフィックス付きの行は「最新」の候補にはなりません。
+- `FOREIGN <path>`: このディレクトリを共有する別のプロジェクトが保存したものです。
+- `UNVERIFIED <path>`: 同一性スタンプが付く前に保存されたもので、別のプロジェクトも使っているディレクトリに
+  あるため、どちらのものか判断できません。
+- `ROOT_DIFFERS <path>`: 同じリポジトリの別のチェックアウトです(Conductor のワークスペース引き継ぎや、
+  移動したクローン)。これは不一致ではなく情報です。このファイルは通常のパス行としても一覧に出ます。
+- `NEWER_TASK <path>`: このリポジトリの別のブランチが、同じタスクについてより新しいチェックポイントを保存しています
+  (その worktree がこのメインツリーの配下にあるか、タイトルまたはチケットが一致します)。このファイルは通常の
+  パス行としても出力され、現在のブランチ自身のものの後に並びます。
+- `BELOW_CWD <path>` / `POINTER <path>`: このディレクトリより下のリポジトリでのセッションが保存したものです
+  (`POINTER` は、ここで開始された /context-save がその場所を記録したことを示します)。これらは候補であり、
+  不一致ではありません。
 
-### Step 2: Load the right file
+### Step 2: 正しいファイルを読み込む
 
-- If the user specified a title fragment or number: find the matching file among
-  the candidates, including `FOREIGN` and `UNVERIFIED` lines (a user may restore
-  another project's checkpoint deliberately).
-- Otherwise: load the **first plain path line returned by Step 1 above**, which
-  is the newest `YYYYMMDD-HHMMSS` checkpoint of this project for the current
-  branch, or, if the current branch has none, the newest across all branches.
-- **No useful branch discriminator.** When `CURRENT_BRANCH` is empty, `HEAD`, or
-  otherwise cannot discriminate (cwd is not a git repo, or branch is unknown), do
-  not silently load newest if the recent candidates (e.g. last 24 hours, or the
-  three newest) carry **different titles**. Show those titles with timestamps via
-  AskUserQuestion, mark newest as the recommended option, and wait. Only auto-load
-  newest when every recent candidate shares one title (same topic).
-- **Do not silently take an older checkpoint.** If Step 1 printed `NEWER_TASK`,
-  or a `BELOW_CWD`/`POINTER` file is newer than the first plain path line (or
-  there is none), show both (title, branch, saved time, and `project_root` for a
-  file below this directory), propose the newer one as the continuation, and ask
-  via AskUserQuestion which to load. A `BELOW_CWD`/`POINTER` file is not a
-  PROJECT MISMATCH: say "Saved in `{project_root}`, below this directory."
-- If Step 1 printed `NO_VERIFIED_CHECKPOINTS` or `IDENTITY_CHECK_FAILED`, do not
-  present any checkpoint as the latest one. Say "No checkpoint in this directory
-  is verified as this project's", list the `FOREIGN`/`UNVERIFIED` titles with the
-  `remote:`/`project_root:` they name (or "unknown"), and ask which one, if any, to
-  open.
+- ユーザーがタイトルの一部または番号を指定した場合: 候補の中から一致するファイルを探します。他プロジェクトの
+  チェックポイントを意図的に復元する場合があるため、`FOREIGN` と `UNVERIFIED` の行も対象に含めます。
+- それ以外の場合: **Step 1 が返した最初の通常パス行**を読み込みます。これは、現在のブランチにおける
+  このプロジェクトの最新の `YYYYMMDD-HHMMSS` チェックポイントです。現在のブランチにない場合は、全ブランチの
+  中で最新のものになります。
+- **ブランチで判別できない場合。** `CURRENT_BRANCH` が空、`HEAD`、またはその他の理由で判別できない場合
+  (cwd が git リポジトリでない、またはブランチが不明)は、直近の候補(過去 24 時間、または新しい方から 3 件など)が
+  **異なるタイトル**を持つ場合に、黙って最新を読み込まないでください。それらのタイトルをタイムスタンプ付きで
+  AskUserQuestion により提示し、最新のものを推奨の選択肢としてマークして、回答を待ちます。直近の候補がすべて
+  同じタイトル(同じトピック)の場合にのみ、最新を自動で読み込みます。
+- **古いチェックポイントを黙って選ばないでください。** Step 1 が `NEWER_TASK` を出力している場合、または
+  `BELOW_CWD` / `POINTER` のファイルが最初の通常パス行より新しい場合(あるいは通常パス行が存在しない場合)は、
+  両方を提示してください(タイトル、ブランチ、保存日時、このディレクトリより下にあるファイルの場合は
+  `project_root`)。新しい方を継続候補として提案し、AskUserQuestion でどちらを読み込むか尋ねてください。
+  `BELOW_CWD` / `POINTER` のファイルは PROJECT MISMATCH ではありません。「`{project_root}` に保存されたもので、
+  このディレクトリより下にあります」と伝えてください。
+- Step 1 が `NO_VERIFIED_CHECKPOINTS` または `IDENTITY_CHECK_FAILED` を出力した場合は、どのチェックポイントも
+  最新として提示しないでください。「このディレクトリに、このプロジェクトのものとして検証されたチェックポイントは
+  ありません」と伝え、`FOREIGN` / `UNVERIFIED` のタイトルを、それが指す `remote:` / `project_root:` と合わせて
+  列挙します(不明な場合は「unknown」)。そのうえで、開くものがあるかどうかをユーザーに尋ねてください。
 
-**Report identity problems before any summary.** If the chosen file is `FOREIGN`
-or `UNVERIFIED`, start with:
-"PROJECT MISMATCH: this checkpoint was saved by `{remote or project_root from its
-frontmatter, or 'an unknown project'}`, not this project (`{PROJECT_IDENTITY}`)."
-If Step 1 printed `SHARED_BUCKET`, say "This checkpoints directory also holds N
-checkpoint(s) from another project; only this project's are listed." If it printed
-`LEGACY_BUCKET`, relay that line. If the chosen file is `ROOT_DIFFERS`, add
-"Saved from another checkout of this repository at `{project_root}`." as info.
+**同一性の問題は、どの要約よりも先に報告してください。** 選んだファイルが `FOREIGN` または `UNVERIFIED` の
+場合は、次の文から始めます。
+「PROJECT MISMATCH: このチェックポイントは `{フロントマターの remote または project_root。不明な場合は
+'an unknown project'}` が保存したもので、このプロジェクト(`{PROJECT_IDENTITY}`)のものではありません。」
+Step 1 が `SHARED_BUCKET` を出力した場合は、「このチェックポイントディレクトリには別プロジェクトのチェックポイントが
+N 件含まれています。表示するのはこのプロジェクトのものだけです」と伝えます。`LEGACY_BUCKET` を出力した場合は、
+その行をそのまま伝えます。選んだファイルが `ROOT_DIFFERS` の場合は、情報として「`{project_root}` にある
+このリポジトリの別のチェックアウトから保存されました」を追加します。
 
-**Sort Remaining Work by provenance.** Keep every item's original text and saved
-order, and drop nothing. Put an item under **Verify first** when it:
-- ends in `(path assumed)` or `(code read)`;
-- ends in `(path run)` but its text reports a failure;
-- ends in a parenthesised trailing marker that is **not** one of the five English
-  literals `(path run)`, `(path read)`, `(path assumed)`, `(target state checked)`,
-  `(code read)` — treat a translated or unknown marker as `(path assumed)` (→ Verify
-  first), never as unmarked Next steps;
-- has no marker and is a writing step (migration, sync, insert, import, a dialog that
-  writes) or names a concrete path (a runnable command, CLI flag or switch, config key
-  or value, or file or directory path).
+**残りの作業を由来で分類してください。** 各項目の元のテキストと保存時の順序を保ち、何も落とさないでください。
+次のいずれかに当てはまる項目は **Verify first** に入れます。
+- `(path assumed)` または `(code read)` で終わる。
+- `(path run)` で終わるが、テキストが失敗を報告している。
+- 末尾に丸括弧のマーカーがあり、それが英語の 5 つのリテラル `(path run)`、`(path read)`、`(path assumed)`、
+  `(target state checked)`、`(code read)` のいずれでもない。翻訳済みまたは未知のマーカーは
+  `(path assumed)` として扱い(→ Verify first)、マーカーなしの Next steps にしないでください。
+- マーカーがなく、書き込みを伴う作業(移行、同期、挿入、インポート、書き込みを行うダイアログ)であるか、
+  具体的なパス(実行可能なコマンド、CLI フラグまたはスイッチ、設定キーや値、ファイルまたはディレクトリのパス)を
+  指している。
 
-Every other item goes under **Next steps**: `(path run)` with a successful outcome,
-`(path read)`, `(target state checked)`, and unmarked items that neither write nor
-name a concrete path. Verifying means read-only inspection: read the file or the
-target, or run a command that changes nothing. Checkpoints saved before provenance
-markers existed have none, so their concrete-path items land under Verify first. When
-the file has no provenance markers at all, print this line above the groups:
-`This checkpoint predates provenance markers; items naming commands, paths or writes are listed under Verify first.`
+それ以外の項目はすべて **Next steps** に入れます。成功した `(path run)`、`(path read)`、
+`(target state checked)`、および書き込みも具体的なパスの指定もしないマーカーなしの項目が該当します。
+検証とは読み取り専用の確認を意味します。ファイルやターゲットを読む、または何も変更しないコマンドを実行します。
+由来マーカーが導入される前に保存されたチェックポイントにはマーカーがないため、具体的なパスを含む項目は
+Verify first に入ります。ファイルに由来マーカーが一切ない場合は、グループの上に次の行を表示してください。
+`このチェックポイントには由来マーカーがありません。コマンド、パス、書き込みを含む項目は Verify first に並べています。`
 
-Read the chosen file and present a summary:
+選んだファイルを読み込み、次の形で要約を提示します。
 
 ```
 RESUMING CONTEXT
@@ -251,49 +244,45 @@ Verify first (inspect read-only before executing anything)
 {notes}
 ```
 
-If the current branch differs from the saved context's branch, note this:
-"This context was saved on branch `{branch}`. You are currently on
-`{current branch}`. You may want to switch branches before continuing."
+保存されたコンテキストのブランチが現在のブランチと異なる場合は、次のように伝えてください。
+「このコンテキストはブランチ `{branch}` で保存されました。現在は `{current branch}` にいます。
+作業を続ける前にブランチを切り替えたほうがよいかもしれません。」
 
-### Step 3: Offer next steps
+### Step 3: 次のステップを提示する
 
-After presenting, ask via AskUserQuestion:
+提示のあとに、AskUserQuestion で次を尋ねます。
 
-- A) Continue working on the remaining items
-- B) Show the full saved file
-- C) Just needed the context, thanks
+- A) 残りの作業を続ける
+- B) 保存されたファイル全体を表示する
+- C) コンテキストを確認しただけなので大丈夫です
 
-If A, take the first Remaining Work item in saved order. If it is under Next steps,
-suggest starting there. If it is under Verify first, suggest verifying it (read-only)
-before doing it or any later item, so a later runnable step never jumps ahead of an
-unverified earlier one.
-
----
-
-## If no saved contexts exist
-
-If Step 1 printed `NO_CHECKPOINTS` and no `BELOW_CWD` or `POINTER` line, tell the user:
-
-"No saved contexts yet. Run `/context-save` first to save your current working
-state, then `/context-restore` will find it."
-
-If it also printed `LEGACY_BUCKET`, relay that line: earlier checkpoints are kept
-in the old bucket until the user copies them with `gstack-slug --adopt-legacy`.
+A の場合は、保存時の順序で最初の Remaining Work の項目に取りかかります。Next steps の項目であれば、
+そこから始めることを提案します。Verify first の項目であれば、それ以降の項目や実行可能な手順より前に、
+まず(読み取り専用で)検証することを提案します。未検証の前の項目を飛ばして、後の実行可能な手順に進まないようにするためです。
 
 ---
 
-## Important Rules
+## 保存済みコンテキストが存在しない場合
 
-- **Never modify code.** This skill only reads saved files and presents them.
-- **Prefer the current branch's own checkpoint, but keep all branches in the
-  fallback set.** Cross-branch resume (Conductor handoff) works when the
-  current branch has no checkpoint, and a sibling worktree's newer save never
-  shadows this branch's own.
-- **Never present another project's checkpoint as "latest".** Identity is the
-  canonical remote (the root only when there is no remote); a mismatch is
-  reported before any summary.
-- **"Most recent" means the filename `YYYYMMDD-HHMMSS` prefix**, not
-  `ls -1t` (filesystem mtime). Filenames are stable across file-system
-  operations; mtime is not.
-- **This is a gstack skill, not a Claude Code built-in.** When the user types
-  `/context-restore`, invoke this skill via the Skill tool.
+Step 1 が `NO_CHECKPOINTS` を出力し、`BELOW_CWD` も `POINTER` の行もなかった場合は、ユーザーに次のように伝えます。
+
+「保存済みのコンテキストはまだありません。現在のワーキング状態を保存するために `/context-save` を実行してください。
+その後で `/context-restore` を実行すると、保存されたものが見つかります。」
+
+`LEGACY_BUCKET` も出力されていた場合は、その行を伝えてください。以前のチェックポイントは、ユーザーが
+`gstack-slug --adopt-legacy` でコピーするまで古いバケットに残っています。
+
+---
+
+## 重要なルール
+
+- **コードは決して変更しないでください。** このスキルは保存されたファイルを読んで提示するだけです。
+- **現在のブランチ自身のチェックポイントを優先しますが、全ブランチをフォールバックの候補に残してください。**
+  現在のブランチにチェックポイントがない場合は、ブランチをまたいだ再開(Conductor の引き継ぎ)が機能します。
+  兄弟 worktree の新しい保存内容が、このブランチ自身のものを隠すことはありません。
+- **別プロジェクトのチェックポイントを「最新」として提示しないでください。** 同一性は正規のリモート(リモートが
+  ない場合のみルート)で判定します。不一致は、どの要約よりも先に報告します。
+- **「最も新しい」とは、ファイル名の `YYYYMMDD-HHMMSS` プレフィックスを意味します。**`ls -1t`(ファイルシステムの mtime による並び)ではありません。ファイル名はファイルシステムの操作によって変わりませんが、
+  mtime は変わります。
+- **これは Claude Code の組み込み機能ではなく gstack のスキルです。** ユーザーが `/context-restore` と入力したら、
+  Skill ツールでこのスキルを呼び出してください。

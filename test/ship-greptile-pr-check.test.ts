@@ -9,6 +9,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { expectMentions } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const SECTION = fs.readFileSync(path.join(ROOT, 'ship/sections/greptile.md.tmpl'), 'utf8');
@@ -39,12 +40,12 @@ function check(gh: string | null): string {
 describe('/ship Step 10 Greptile PR check', () => {
   test('the PR check precedes the dispatch, and only an existing PR dispatches', () => {
     const checkIdx = SECTION.indexOf('gh pr view --json number');
-    const dispatchIdx = SECTION.indexOf('Dispatch a subagent through Agent');
+    const dispatchIdx = SECTION.indexOf('subagent_type: "general-purpose"');
     expect(checkIdx).toBeGreaterThan(-1);
     expect(dispatchIdx).toBeGreaterThan(checkIdx);
     const between = SECTION.slice(checkIdx, dispatchIdx);
-    expect(between).toContain('Only `PR: exists` dispatches.');
-    expect(between).toContain('"Greptile: not run (<reason>); runs on the PR once it exists"');
+    expectMentions(between, [['`PR: exists`', 'dispatch'], ['`PR: skip (<reason>)`', 'dispatch せず']], 'greptile PR check');
+    expect(between).toContain('Greptile: not run (<reason>); runs on the PR once it exists');
     expect(SECTION).not.toContain('PR: unknown');
   });
 

@@ -57,7 +57,12 @@ const BASELINE_PATH = path.join(REPO_ROOT, 'test', 'fixtures', 'parity-baseline-
 // surfaces). Real bloat is 2-3×; this catches that while not tripping on
 // normal feature scope. The always-loaded catalog cost is enforced
 // separately with a hard ceiling.
-const DEFAULT_RATIO = 1.50;
+//
+// Japanese fork: the baseline fixture holds English byte counts, while the
+// generated SKILL.md files are Japanese (about 3 UTF-8 bytes per character).
+// The same content is up to ~1.9x larger in bytes (careful 1.77x, gstack-upgrade
+// 1.87x), so the ratio is 2.0 to keep tripping on real (2-3x) bloat only.
+const DEFAULT_RATIO = 2.0;
 const RATIO = Number(process.env.GSTACK_SIZE_BUDGET_RATIO) || DEFAULT_RATIO;
 
 interface Regression {

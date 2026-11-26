@@ -1,21 +1,21 @@
-# Fork-port residual evaluation: provenance
+# フォーク移植の残件評価: 出典情報
 
-Evaluated 2026-09-02. Read-only; see REPORT.md for the maintainer-facing result.
+2026-09-02 に評価。読み取り専用です。メンテナー向けの結果は REPORT.md を参照してください。
 
-| Ref | SHA |
+| 参照 | SHA |
 |---|---|
-| time-attack/gstack main (fork tip) | `0aca1f77dec3766c1627e219653ab181d380b542` |
-| garrytan/gstack main (upstream HEAD at evaluation) | `0d1bd5616c0ef096bb7ccee336f63c60ee408618` (v1.79.0.0) |
-| merge-base | `7c9df1c568a9ea745508f679a329332b2c338063` |
+| time-attack/gstack main(フォークの先端) | `0aca1f77dec3766c1627e219653ab181d380b542` |
+| garrytan/gstack main(評価時の上流 HEAD)(v1.79.0.0) | `0d1bd5616c0ef096bb7ccee336f63c60ee408618` |
+| マージベース | `7c9df1c568a9ea745508f679a329332b2c338063` |
 
-## Files
+## ファイル
 
-| File | sha256 | What |
+| ファイル | sha256 | 内容 |
 |---|---|---|
-| REPORT.md | `087a8476c3bb8d081626ee55eff00845a18ef2e8cbec049ce1c63ec860a33bb4` | eight-section report (shortlist, contested, defer, skip, absorbed, PR dispositions, port order) |
-| residual-index-lite.json | `a342e6cd7b57e08b05ad2355e04765e995496dbf7bbb65399ea38c8a4b344644` | 287 residual items: cross-reference status, panel verdict, refuter pointer |
-| records-other.json | `b13e64596bee93ceffb4161d30dc30f9cc6f5fd2db3dd0184bc31187b328a19f` | 128 items already absorbed / superseded / not applicable, one-line evidence each |
-| refuters.json | `4c7740a2f5bd0978f564468cab18d9a5945cb2a38108759a23d74900f2af2b0f` | 48 adversarial refuter verdicts on the top-ranked candidates |
-| summary.json | `53b3c9c45f62d49166c5cd36a1ef383da60cd899b7e2110851b13f94731db1dc` | counts |
+| REPORT.md | `087a8476c3bb8d081626ee55eff00845a18ef2e8cbec049ce1c63ec860a33bb4` | 8 節からなるレポート(候補リスト、争点、保留、見送り、取り込み済み、PR の処置、移植の順序) |
+| residual-index-lite.json | `a342e6cd7b57e08b05ad2355e04765e995496dbf7bbb65399ea38c8a4b344644` | 残件 287 件: 相互参照の状態、パネルの判定、反証者への参照 |
+| records-other.json | `b13e64596bee93ceffb4161d30dc30f9cc6f5fd2db3dd0184bc31187b328a19f` | すでに取り込み済み/置き換え済み/該当なしの 128 件。各 1 行の根拠つき |
+| refuters.json | `4c7740a2f5bd0978f564468cab18d9a5945cb2a38108759a23d74900f2af2b0f` | 上位候補 48 件に対する敵対的反証者の判定 |
+| summary.json | `53b3c9c45f62d49166c5cd36a1ef383da60cd899b7e2110851b13f94731db1dc` | 件数 |
 
-Method: two research workflows (sweep + cross-reference + panel; refute + synthesize + fact-check), then a CEO review (HOLD SCOPE), an eng review, and two Codex outside-voice passes. The full-text residual index (2.9MB) was not committed; the lite index carries every id, status, verdict, and truncated residual text.
+方法: 2 つの調査ワークフロー(スイープ + 相互参照 + パネル、反証 + 統合 + 事実確認)を実施し、その後に CEO レビュー(HOLD SCOPE)、エンジニアリングレビュー、Codex による外部の意見を 2 回行いました。残件の全文インデックス(2.9MB)はコミットしていません。軽量インデックスには、すべての ID、状態、判定、反証の参照、切り詰めた残件のテキストが含まれています。

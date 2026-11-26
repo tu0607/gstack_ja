@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 // Execute the documented capture, so the example cannot drift from its tests.
 const template = readFileSync(join(import.meta.dir, '../health/SKILL.md.tmpl'), 'utf8');
-const capture = template.split('## Step 2: Run Tools')[1].match(/```bash\n([\s\S]*?)```/)![1];
+const capture = template.split('## Step 2: ツールを実行する')[1].match(/```bash\n([\s\S]*?)```/)![1];
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {

@@ -10,6 +10,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'child_process';
+import { expectMentions } from './helpers/prompt-structure';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -62,7 +63,8 @@ describe('every installed-skill render carries the plan-mode arg', () => {
 });
 
 describe('gstack-relink router re-render', () => {
-  const BINS = ['gstack-config', 'gstack-relink', 'gstack-patch-names', 'gstack-state-root.sh', 'gstack-install-registry.sh'];
+  // gstack-path-spelling.sh is sourced by the registry helper; macOS bash 3.2 aborts on a missing sourced file even under `|| true`.
+  const BINS = ['gstack-config', 'gstack-relink', 'gstack-patch-names', 'gstack-state-root.sh', 'gstack-install-registry.sh', 'gstack-path-spelling.sh'];
   const SAFE = '## Plan Mode Safe Operations';
 
   function relinkFixture() {
@@ -119,7 +121,8 @@ describe('gstack-relink router re-render', () => {
     const { run, router, alias, asAlias } = relinkFixture();
     run('gstack-config', 'set', 'disabled_skills', 'ship');
     run('gstack-relink');
-    expect(router()).toContain('Disabled on this install (never invoke or suggest them): `/ship`.');
+    // The generator inserts the notice under the router's route heading (gen-skill-docs.ts omitDisabledSkills).
+    expectMentions(router(), [['このインストールでは無効', '`/ship`']], 'router');
     expect(alias()).toBe(asAlias(router()));
   });
 });

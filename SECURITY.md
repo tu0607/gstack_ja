@@ -1,32 +1,20 @@
-# Security Policy
+# セキュリティポリシー
 
-## Reporting a vulnerability
+## 脆弱性の報告
 
-Please report security vulnerabilities privately, not in public issues,
-pull requests, or discussions.
+セキュリティの脆弱性は、公開の Issue、PR、ディスカッションではなく、非公開で報告してください。
 
-**Preferred:** use GitHub private vulnerability reporting:
+**推奨:** GitHub の非公開脆弱性報告機能を使ってください:
 <https://github.com/garrytan/gstack/security/advisories/new>
 
-Include what you can: the affected file, skill, or command; the gstack
-version (`cat VERSION` in your install, or the `/gstack-upgrade` output);
-steps to reproduce; and the impact you observed.
+可能な範囲で、次の情報を含めてください。影響を受けるファイル、skill、またはコマンド。gstack のバージョン(インストール先で `cat VERSION` を実行するか、`/gstack-upgrade` の出力)。再現手順。確認された影響。
 
-**If that link does not work:** open a minimal public issue titled
-"Request for a private security contact". Do not include any technical
-details, affected files, or proof of concept in it. A maintainer will reply
-with a private channel, and you can send the details there.
+**そのリンクが機能しない場合:** 「Request for a private security contact」というタイトルで、最小限の公開 Issue を開いてください。技術的な詳細、影響を受けるファイル、再現コードは一切含めないでください。メンテナーが非公開の連絡手段を返信しますので、詳細はそちらで送ってください。
 
-## Scope
+## 対象範囲
 
-gstack is a set of skills, scripts, and helper binaries that run on your own
-machine with your own credentials. Reports about the code in this repository
-are in scope: the skill templates and generated `SKILL.md` files, `bin/`,
-`lib/`, `browse/`, `scripts/`, the installer (`setup`), and the GitHub Actions
-workflows. Vulnerabilities in third-party tools gstack drives (Claude Code,
-Codex, gbrain, scanners, browsers) should go to those projects.
+gstack は、あなた自身のマシンで、あなた自身の認証情報を使って動く、skill・スクリプト・ヘルパーのバイナリの集まりです。このリポジトリのコードに関する報告は対象になります。対象は、skill のテンプレートと生成された `SKILL.md` ファイル、`bin/`、`lib/`、`browse/`、`scripts/`、インストーラー(`setup`)、GitHub Actions のワークフローです。gstack が操作するサードパーティのツール(Claude Code、Codex、gbrain、スキャナー、ブラウザ)の脆弱性は、それぞれのプロジェクトに報告してください。
 
-## Supported versions
+## サポートされているバージョン
 
-Fixes land on `main` and ship in the next release. Run `/gstack-upgrade` to
-get them; older versions are not patched separately.
+修正は `main` に入り、次のリリースで提供されます。修正を受けるには `/gstack-upgrade` を実行してください。古いバージョンは個別にはパッチされません。

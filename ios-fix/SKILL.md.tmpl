@@ -3,18 +3,17 @@ name: ios-fix
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Autonomous iOS bug fixer. Takes a bug found by /ios-qa, reads the source,
-  writes the fix, rebuilds, redeploys, and verifies the fix on the real
-  device. Closes the loop: find bug → fix bug → confirm fix — zero human
-  intervention. Captures the pre-bug state snapshot as a regression test
-  fixture, so the bug can never recur silently.
-  Use when /ios-qa reports a bug and you want it fixed automatically, or
-  when asked to "fix this iOS bug", "patch the iPhone app", or "auto-fix
-  the iOS issue". (gstack)
+  自律型の iOS バグ修正ツールです。/ios-qa が見つけたバグを受け取り、ソースを読み、修正を書き、
+  再ビルドし、再デプロイして、実機上で修正を検証します。バグの発見 → 修正 → 修正の確認という
+  ループを人手の介入なしで閉じます。バグが起きる直前の状態のスナップショットを回帰テストの
+  フィクスチャとして保存するので、同じバグが静かに再発することはありません。
+  /ios-qa がバグを報告し、それを自動で修正してほしいとき、または
+  「この iOS バグを直して」「iPhone アプリにパッチを当てて」「iOS の問題を自動修正して」
+  と依頼されたときに使います。(gstack)
 voice-triggers:
-  - "fix the iOS bug"
-  - "patch the iPhone app"
-  - "auto-fix the iOS issue"
+  - "iOS のバグを直して"
+  - "iPhone アプリにパッチ"
+  - "iOS の問題を自動修正"
 allowed-tools:
   - Bash
   - Read
@@ -31,73 +30,56 @@ triggers:
 
 {{PREAMBLE}}
 
-# Autonomous iOS bug fixer
+# 自律型 iOS バグ修正ツール
 
-## Iron Law
+## 鉄則
 
-**NO FIX WITHOUT A REPRODUCING SNAPSHOT.** Before editing any Swift source,
-the agent MUST capture a `GET /state/snapshot` that reproduces the bug.
-That snapshot becomes a regression test fixture (`test/fixtures/ios-fix/`).
-A fix that lands without a reproducing snapshot is a fix you'll be re-fixing
-in three months.
+**再現スナップショットなしに修正しない。** Swift のソースを編集する前に、エージェントはバグを再現する `GET /state/snapshot` を必ず取得しなければなりません。そのスナップショットが回帰テストのフィクスチャ(`test/fixtures/ios-fix/`)になります。再現スナップショットなしに入った修正は、3 か月後にまた直すことになる修正です。
 
-## Phase 1: Reproduce the bug
+## フェーズ 1: バグを再現する
 
-1. Read the `/ios-qa` finding (bug description, screenshot, suspected
-   accessibility-tree node).
-2. Bring the device into the bug state via `POST /tap`, `/swipe`, `/type`,
-   or `POST /state/<key>` (snapshot-eligible fields only).
-3. Capture `GET /state/snapshot` → write to
-   `test/fixtures/ios-fix/<bug-slug>-pre.json`.
-4. Capture `GET /screenshot` → write to
-   `test/fixtures/ios-fix/<bug-slug>-pre.png`.
-5. Persist a one-line description of what's wrong + expected behavior.
+1. `/ios-qa` の指摘事項(バグの説明、スクリーンショット、疑わしいアクセシビリティツリーのノード)を読みます。
+2. `POST /tap`、`/swipe`、`/type`、または `POST /state/<key>`(スナップショット対象のフィールドのみ)を使って、デバイスをバグの状態にします。
+3. `GET /state/snapshot` を取得し、`test/fixtures/ios-fix/<bug-slug>-pre.json` に書き出します。
+4. `GET /screenshot` を取得し、`test/fixtures/ios-fix/<bug-slug>-pre.png` に書き出します。
+5. 何が問題で、期待される動作が何かを 1 行の説明として保存します。
 
-## Phase 2: Locate root cause
+## フェーズ 2: 根本原因を特定する
 
-Per `/investigate`'s Iron Law: no fix without root cause. The agent reads the
-Swift source, traces from the buggy screen back to the view model, the data
-flow, and the state mutation. Identify the smallest change that fixes the
-behavior.
+`/investigate` の鉄則に従い、根本原因なしに修正しません。エージェントは Swift のソースを読み、バグのある画面からビューモデル、データの流れ、状態の変更までをたどります。動作を直す最小限の変更を特定します。
 
-Use AskUserQuestion if there are multiple plausible root causes — let the
-user pick the one to fix.
+もっともらしい根本原因が複数ある場合は AskUserQuestion を使い、どれを修正するかをユーザーに選んでもらいます。
 
-## Phase 3: Apply fix
+## フェーズ 3: 修正を適用する
 
-1. Edit Swift source. Keep the diff minimal.
-2. Rebuild: `xcodebuild -scheme <SchemeName>
-   -destination 'platform=iOS,id=<UDID>' build install`.
-3. Daemon detects the rebuild and reconnects the StateServer tunnel.
-4. Re-deploy. The same boot-token rotation flow runs.
+1. Swift のソースを編集します。差分は最小限に保ちます。
+2. 再ビルドします: `xcodebuild -scheme <SchemeName>
+   -destination 'platform=iOS,id=<UDID>' build install`。
+3. デーモンが再ビルドを検知し、StateServer のトンネルに再接続します。
+4. 再デプロイします。同じブートトークンのローテーションのフローが実行されます。
 
-## Phase 4: Verify
+## フェーズ 4: 検証する
 
-1. `POST /state/restore` with the pre-bug snapshot → reproduces the state.
-2. Take a fresh screenshot. Compare against
-   `test/fixtures/ios-fix/<bug-slug>-pre.png`.
-3. If the bug visibly persists, the fix didn't work — revert and try again
-   (max 3 iterations before escalating to the user).
-4. If the bug is gone, capture `<bug-slug>-post.png` for the regression test.
+1. バグ前のスナップショットを使って `POST /state/restore` を呼びます → 状態が再現されます。
+2. 新しいスクリーンショットを撮ります。`test/fixtures/ios-fix/<bug-slug>-pre.png` と比較します。
+3. バグが目に見えて残っている場合、修正は効いていません。元に戻して再試行します(ユーザーにエスカレーションする前に最大 3 回まで)。
+4. バグが消えていれば、回帰テスト用に `<bug-slug>-post.png` を取得します。
 
-## Phase 5: Add regression test
+## フェーズ 5: 回帰テストを追加する
 
-Write a regression test with the project's own test runner and conventions
-(the test command in CLAUDE.md; if it has none, ask the user and record the
-answer there). The test:
+プロジェクト自身のテストランナーと規約を使って回帰テストを書きます(テストコマンドは CLAUDE.md にあります。ない場合はユーザーに尋ね、その答えを同じ場所に記録します)。テストは次を行います:
 
-1. Loads the pre-bug snapshot.
-2. Restores it via `POST /state/restore`.
-3. Asserts the post-fix behavior on a real device, skipped when no device is
-   connected.
+1. バグ前のスナップショットを読み込みます。
+2. `POST /state/restore` で復元します。
+3. 実機上で修正後の動作をアサートします。実機が接続されていない場合はスキップします。
 
-Commit the snapshot fixture + test file alongside the fix.
+スナップショットのフィクスチャとテストファイルを、修正と一緒にコミットします。
 
-## Failure modes
+## 失敗パターン
 
-| Symptom | Action |
+| 症状 | 対処 |
 |---|---|
-| 3 iterations, bug still present | STOP, report to user with current best hypothesis |
-| `409 schema_mismatch` on /state/restore after rebuild | Regenerate accessors with `/ios-sync` (`gstack-ios-qa-regen`), re-snapshot |
-| Device disconnects mid-fix | Daemon auto-reconnects; resume from Phase 4 |
-| Build fails | Revert Swift edits; investigate compile error before re-applying fix |
+| 3 回繰り返してもバグが残っている | 中止し、現時点での最有力の仮説とともにユーザーに報告する |
+| 再ビルド後、/state/restore が `409 schema_mismatch` を返す | `/ios-sync`(`gstack-ios-qa-regen`)でアクセサを再生成し、スナップショットを取り直す |
+| 修正の途中でデバイスが切断される | デーモンが自動で再接続するので、フェーズ 4 から再開する |
+| ビルドが失敗する | Swift の編集を元に戻し、修正を再適用する前にコンパイルエラーを調べる |

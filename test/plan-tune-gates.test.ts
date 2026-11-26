@@ -194,15 +194,15 @@ describe('v1.49 gate prose survives in skill template', () => {
   const tmpl = fs.readFileSync(SKILL_TMPL, 'utf-8');
 
   test('Consent gate condition is present', () => {
-    expect(tmpl).toMatch(/Consent gate/i);
+    expect(tmpl).toMatch(/同意のゲート/);
     expect(tmpl).toMatch(/question-tuning-prompted/);
     expect(tmpl).toMatch(/question_tuning.*false/);
   });
 
   test('Setup gate condition is present', () => {
-    expect(tmpl).toMatch(/Setup gate/i);
+    expect(tmpl).toMatch(/セットアップのゲート/);
     expect(tmpl).toMatch(/declared-setup-prompted/);
-    expect(tmpl).toMatch(/declared.*empty/i);
+    expect(tmpl).toMatch(/declared.*(empty|空)/i);
   });
 
   test('marker writes documented for both gates', () => {

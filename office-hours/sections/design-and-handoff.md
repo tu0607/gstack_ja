@@ -1,8 +1,8 @@
 <!-- AUTO-GENERATED from design-and-handoff.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Phase 5: Design Doc
+## フェーズ 5: 設計ドキュメント
 
-Write the design document to the project directory.
+設計ドキュメントをプロジェクトのディレクトリに書き出します。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -11,44 +11,28 @@ USER=$(whoami)
 DATETIME=$(date +%Y%m%d-%H%M%S)
 ```
 
-**Design lineage:** Before writing, check for existing design docs on this branch:
+**設計の系譜:** 書く前に、このブランチに既存の設計ドキュメントがないか確認してください:
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
 setopt +o nomatch 2>/dev/null || true  # zsh compat
 PRIOR=$(ls -t "$GSTACK_STATE_ROOT"/projects/$SLUG/*-$BRANCH-design-*.md 2>/dev/null | head -1)
 ```
-If `$PRIOR` exists, the new doc gets a `Supersedes:` field referencing it. This creates a revision chain — you can trace how a design evolved across office hours sessions.
+`$PRIOR` が存在する場合、新しいドキュメントには、それを参照する `Supersedes:` フィールドを付けます。これにより改訂の連鎖が生まれ、オフィスアワーのセッションをまたいで設計がどう進化したかをたどれます。
 
-Write to `<PROJECT_DIR>/{user}-{branch}-design-{datetime}.md` (`PROJECT_DIR` printed by the setup block above).
+`<PROJECT_DIR>/{user}-{branch}-design-{datetime}.md` に書き出します(`PROJECT_DIR` は上のセットアップのブロックが出力します)。
 
-**Repo copy (dual-write).** When the session runs inside a git
-repository, ALSO write the doc to `docs/designs/{topic-slug}.md` in the repo —
-visible, committable, team-shareable. The `~/.gstack` copy is still written
-(memory ingest and cross-session discovery depend on it); the repo copy is
-what teammates and plan reviews read. Rules:
+**リポジトリへのコピー(二重書き込み)。** セッションが git リポジトリの中で動いている場合は、ドキュメントをリポジトリ内の `docs/designs/{topic-slug}.md` にも書き出してください。こちらは見えて、コミットでき、チームで共有できる場所です。`~/.gstack` のコピーも引き続き書き出します(メモリへの取り込みとセッションをまたぐ発見が依存しているため)。リポジトリのコピーは、チームメンバーや計画のレビューが読む場所です。ルールは次のとおりです:
 
-1. **Scan at sink first.** The repo copy leaves the private store, so scan the
-   EXACT bytes before writing: write to a temp file, run
-   `~/.claude/skills/gstack/bin/gstack-redact --from-file <tmp>`; exit 3
-   (HIGH) blocks the repo copy (keep the ~/.gstack copy, tell the user why);
-   exit 2 (MEDIUM) confirms per finding before writing.
-2. **Fallback is never blocking.** Read-only checkout, non-git directory, a
-   failed write, or an unconfirmed MEDIUM → keep the `~/.gstack` copy and say
-   in one line why the repo copy was skipped. The handoff continues either way.
-3. **Name the repo path** in the handoff line and any approval questions when
-   the repo copy exists — that's the copy the user can open and commit.
+1. **まず書き出し先でスキャンする。** リポジトリのコピーは非公開のストアから出ていくため、書き込む前にバイト列そのものをスキャンしてください。一時ファイルに書き、`~/.claude/skills/gstack/bin/gstack-redact --from-file <tmp>` を実行します。終了コード 3(HIGH)はリポジトリのコピーをブロックします(~/.gstack のコピーは残し、理由をユーザーに伝えます)。終了コード 2(MEDIUM)は、書き込む前に指摘ごとに確認します。
+2. **フォールバックは決して処理を止めない。** 読み取り専用のチェックアウト、git ではないディレクトリ、書き込みの失敗、または確認されなかった MEDIUM の場合は、`~/.gstack` のコピーを残し、リポジトリのコピーをスキップした理由を一行で伝えてください。引き継ぎは、いずれにしても続行します。
+3. リポジトリのコピーが存在する場合は、引き継ぎの行と承認の質問の中で**リポジトリのパスを明記**してください。それがユーザーが開いてコミットできるコピーだからです。
 
-**Decision-record concision.** The doc is a decision record, not a
-transcript: one bullet per decision with its why; an approach the user ruled
-out DURING the session gets one line (name + rejection reason), never a
-resurrected full section that re-argues the case; omit template sections that
-are empty or that restate what's already settled. No page cap — extra length
-must come from genuinely open questions, not template completeness.
+**決定記録の簡潔さ。** このドキュメントは決定の記録であり、会話の書き起こしではありません。決定ごとに、その理由を含めた箇条書き 1 つにしてください。セッション中にユーザーが却下したアプローチは、名前と却下理由の 1 行で示し、決して詳細なセクションを復活させて議論をやり直さないこと。空のテンプレートのセクションや、すでに決まっていることを繰り返すだけのセクションは省略してください。ページ数の上限はありません。余分な長さは、テンプレートの網羅性からではなく、本当に未解決の問いから来るべきです。
 
-After writing, tell the user:
-**"Design doc saved to: {repo path if written, else ~/.gstack path}{when both: ' (cross-session copy in ~/.gstack)'}. Other skills (/plan-ceo-review, /plan-eng-review) will find it automatically."**
+書き終えたら、ユーザーに伝えてください:
+**「設計ドキュメントを保存しました: {書かれていればリポジトリのパス、なければ ~/.gstack のパス}{両方ある場合: ' (セッションをまたぐコピーは ~/.gstack にあります)'}。他のスキル(/plan-ceo-review、/plan-eng-review)が自動的に見つけます。」**
 
-### Startup mode design doc template:
+### スタートアップモードの設計ドキュメントのテンプレート:
 
 ```markdown
 # Design: {title}
@@ -111,7 +95,7 @@ Supersedes: {prior filename — omit this line if first design on this branch}
 {observational, mentor-like reflections referencing specific things the user said during the session. Quote their words back to them — don't characterize their behavior. 2-4 bullets.}
 ```
 
-### Builder mode design doc template:
+### ビルダーモードの設計ドキュメントのテンプレート:
 
 ```markdown
 # Design: {title}
@@ -166,158 +150,150 @@ Supersedes: {prior filename — omit this line if first design on this branch}
 
 ---
 
-## Spec Review Loop
+## Spec Review Loop(スペックレビューのループ)
 
-Run an adversarial review before presenting the final document to the user.
-Follow the calling workflow's approval steps.
-The reviewer's saved JSON is the complete verdict. A prose summary is not a second
-finding inventory: the report helper preserves every problem/remedy and counts the
-records mechanically. Do not rewrite, condense, deduplicate, or recount its blocks.
+最終ドキュメントをユーザーに提示する前に、敵対的レビューを実行します。
+呼び出し元ワークフローの承認ステップに従います。
+レビュアーが保存した JSON が完全な評価です。散文の要約は 2 つ目の
+指摘一覧ではありません。レポートヘルパーがすべての問題と改善策を保持し、
+レコードを機械的に数えます。そのブロックを書き直したり、圧縮したり、重複排除したり、数え直したりしてはいけません。
 
-**Step 1: Prepare and dispatch the reviewer**
+**Step 1: レビュアーの準備とディスパッチ**
 
-Create a fresh review directory next to the design:
+設計ドキュメントの隣に、新しいレビュー用ディレクトリを作成します。
 
 ```bash
 mktemp -d "<design-path>.review.XXXXXX"
 ```
-Keep these evidence files with the design. Maximum 3 iterations total. Before EACH dispatch, generate the complete prompt using
-all preceding valid round files in order (omit them for round 1):
+これらの証拠ファイルは設計ドキュメントと一緒に保管します。反復は合計で最大 3 回です。ディスパッチの**たびに**、
+それまでの有効なラウンドファイルをすべて順番に使って、完全なプロンプトを生成します(ラウンド 1 では省略):
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-office-hours-review prepare --design "<design-path>" --out-dir "<review-directory>" "<round-1.json if present>" "<round-2.json if present>"
 ```
 
-Omit absent arguments rather than passing placeholders. Users get 3 rounds; only
-when a caller sets a lower review round limit, add `--max-rounds <N>` with that
-same value to every prepare, check, and finalize command. The helper chooses the next
-round and writes `round-N.prompt.md`. It includes the full finding schema, all five
-review dimensions (Completeness, Consistency, Clarity, Scope, Feasibility), the
-office-hours coaching contract, and the COMPLETE preceding JSON verdict. It also
-saves the design as reviewed (`round-N.design.md`). Round 1 is a full review;
-rounds 2 and 3 are delta re-reviews of the exact design diff since the last round,
-so prepare every round in the same review directory and do not edit the design
-between prepare and its review.
+存在しない引数は、プレースホルダーを渡さずに省略します。ユーザーには 3 ラウンドが与えられます。呼び出し元が
+より低いレビューラウンド上限を設定した場合にのみ、すべての prepare、check、finalize コマンドに同じ値で `--max-rounds <N>` を追加します。
+ヘルパーが次のラウンドを選び、`round-N.prompt.md` を書き込みます。これには、完全な指摘スキーマ、
+5 つのレビュー観点(Completeness、Consistency、Clarity、Scope、Feasibility)すべて、
+office-hours のコーチング契約、そして直前までの JSON 評価の**全体**が含まれます。また、
+レビューされた設計(`round-N.design.md`)も保存します。ラウンド 1 は完全なレビューで、
+ラウンド 2 と 3 は、前回のラウンド以降の設計の差分に対する差分再レビューです。
+そのため、すべてのラウンドを同じレビュー用ディレクトリで準備し、prepare からそのレビューまでの間に
+設計ドキュメントを編集してはいけません。
 
-Use the Agent tool with `run_in_background: false` when available and its returned `dispatch`
-string unchanged as the prompt. A launch receipt means it went background: await its completion notice. The reviewer must Read the entire prepared prompt
-file before reviewing the design. Do not recreate the prompt, copy selected fields,
-or summarize prior findings. A parent Read does not deliver the file to the reviewer.
-The reviewer has fresh context and cannot see the brainstorming conversation.
-Its prepared contract requires a complete JSON Write, sealed by the dispatch's
-`Seal:` command, and a one-line `OFFICE_HOURS_VERDICT` receipt as its entire response.
-It protects the required coaching and Assignment sections, distinguishes unknown
-customer facts from committed behavior, and requires evidence for every prior status.
+Agent ツールを `run_in_background: false`(利用可能な場合) で使い、返された `dispatch`
+文字列をそのままプロンプトとして渡します。起動レシートが返った場合は、バックグラウンドで実行されています。その完了通知を待ちます。 レビュアーは、設計をレビューする前に、準備されたプロンプト
+ファイル全体を Read しなければなりません。プロンプトを作り直したり、選んだフィールドをコピーしたり、
+以前の指摘を要約したりしてはいけません。親が Read しても、そのファイルがレビュアーに届くわけではありません。
+レビュアーは新しいコンテキストを持ち、ブレインストーミングの会話は見えません。
+準備された契約は、ディスパッチの `Seal:` コマンドで封印された完全な JSON の Write と、
+応答全体としての 1 行の `OFFICE_HOURS_VERDICT` レシートを求めます。
+これは、必須のコーチングセクションと Assignment セクションを保護し、未知の
+顧客の事実と確約された挙動を区別し、以前のすべてのステータスに証拠を求めます。
 
-**Step 2: Check stop conditions, then fix and re-dispatch**
+**Step 2: 停止条件の確認、その後に修正して再ディスパッチ**
 
-After each verdict, BEFORE fixing any findings or dispatching again, validate the
-saved files with the helper. Pass the reviewer's entire response unchanged as the
-receipt (a lone `OFFICE_HOURS_VERDICT` line; with a quote, backtick, `$` or `\` it is
-malformed) and list every completed round in order:
+評価が出るたびに、指摘を修正したり再度ディスパッチしたりする**前に**、保存されたファイルを
+ヘルパーで検証します。レビュアーの応答全体をそのままレシートとして渡し
+(単独の `OFFICE_HOURS_VERDICT` 行。引用符、バッククォート、`$`、`\` が含まれると
+不正な形式です)、完了したすべてのラウンドを順番に列挙します:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-office-hours-review check --receipt "<receipt line>" "<round-1.json>" "<round-2.json if present>" "<round-3.json if present>"
 ```
 
-A missing, malformed, or mismatched receipt fails the check: that attempt is a failed review.
+レシートがない、形式が不正、または一致しない場合、チェックは失敗し、その試行はレビュー失敗です。
 
-**Convergence guard and stopping rules:** Each finding is blocking or minor. Only
-blocking findings require another round. Read its stop reason:
-- PASS: no blocking findings remain. Any minor findings are recorded, not fixed,
-  and never justify another round; proceed to Step 3.
-- CONVERGENCE: the reviewer explicitly marked a blocking prior obligation
-  persisting with a concrete prior/current finding pair and document evidence.
-  Stop even if new findings appear. Shared topic labels or new refinements alone
-  are insufficient.
-- MAX_ITERATIONS: round 3 completed (or the caller's lower round limit); stop.
-- CONTINUE: fix only the blocking findings in the design, then return to Step 1
-  to prepare and dispatch the next review. Do not edit for minor findings
-  mid-loop: they stay recorded for the user, and new text only gives the next
-  diff more to review. Its reviewer checks every prior finding and raises new
-  blocking findings only for problems your changes introduced or exposed.
+**収束ガードと停止ルール:** 各指摘は blocking か minor のどちらかです。blocking の指摘だけが
+次のラウンドを必要とします。停止理由を読みます:
+- PASS: blocking の指摘は残っていません。minor の指摘は記録するだけで修正せず、
+  次のラウンドの理由にはなりません。Step 3 に進みます。
+- CONVERGENCE: レビュアーが、具体的な前回/今回の指摘のペアとドキュメントの証拠とともに、
+  blocking の前回の義務が残っていると明示的にマークした場合です。
+  新しい指摘が出ても停止します。共通のトピックラベルや新たな改良だけでは
+  不十分です。
+- MAX_ITERATIONS: ラウンド 3(または呼び出し元のより低いラウンド上限)が完了したので停止します。
+- CONTINUE: 設計ドキュメントの blocking の指摘だけを修正し、Step 1 に戻って
+  次のレビューを準備してディスパッチします。ループの途中で minor の指摘のために
+  編集してはいけません。それらはユーザー向けに記録として残り、新しいテキストは
+  次の差分のレビュー対象を増やすだけです。そのレビュアーはすべての以前の指摘を確認し、
+  あなたの変更が持ち込んだ、または露呈させた問題についてのみ、新たな
+  blocking の指摘を挙げます。
 
-On a stop, do not fix again or re-dispatch. Run the finalizer before approval:
+停止したら、再度の修正や再ディスパッチはしません。承認の前に finalizer を実行します:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-office-hours-review finalize --design "<design-path>" "<round-1.json>" "<round-2.json if present>" "<round-3.json if present>"
 ```
 
-It installs the complete `## Reviewer Concerns` section directly from the JSON.
-Recording concerns does not mark them fixed. Do not edit that generated section.
-At the cap (MAX_ITERATIONS or CONVERGENCE) it lists the unresolved blocking findings
-as numbered gaps. Never launch a fourth reviewer or re-review unchanged input. Either
-apply the listed fixes first and add `--fixes <fixes.json>`
-(`[{"id":"<finding id>","applied_text":"<verbatim new excerpt>"}]`): it records
-`issues verified: k of N` deterministically (new text present, snapshot lacks it),
-never a review verdict; or finalize without it and carry its
-`N fixes unconfirmed — decision: spec not re-verified` into the approval step, which
-stays blocked until the owner accepts it explicitly.
-Then proceed to Step 3 and the existing user approval.
+これは、完全な `## Reviewer Concerns` セクションを JSON から直接インストールします。
+懸念を記録しても、修正済みにはなりません。その生成されたセクションを編集してはいけません。
+上限(MAX_ITERATIONS または CONVERGENCE)では、未解決の blocking の指摘を
+番号付きのギャップとして列挙します。4 人目のレビュアーを起動したり、変更のない入力を再レビューしたりしては
+いけません。列挙された修正を先に適用して `--fixes <fixes.json>` を追加する
+(`[{"id":"<finding id>","applied_text":"<verbatim new excerpt>"}]`)と、`issues verified: k of N` が
+決定的に(新しいテキストが存在し、スナップショットにはない)記録されます。これはレビューの評価では
+ありません。あるいは、それを付けずに finalize して、
+`N fixes unconfirmed — decision: spec not re-verified` を承認ステップに持ち越します。承認ステップは、
+オーナーが明示的にそれを受け入れるまでブロックされたままです。
+その後、Step 3 と既存のユーザー承認に進みます。
 
-If the subagent fails, times out, or is unavailable — stop the loop and present the
-document unreviewed. Tell the user: "Spec review unavailable — presenting unreviewed doc."
-A missing or invalid verdict is an explicit review failure, never PASS. Preserve the
-failed output and its error. Finalize with `--unreviewed "<actual failure cause>"`
-and only the preceding valid round files (none if round 1 failed); their known
-concerns remain visible. Do not fabricate JSON or hide a completed verdict behind
-UNREVIEWED. The independent review remains a quality bonus, not an approval gate.
+サブエージェントが失敗した、タイムアウトした、または利用できない場合 — ループを止め、
+ドキュメントをレビューなしで提示します。ユーザーには次のように伝えます: "Spec review unavailable — presenting unreviewed doc."
+評価がない、または無効な場合は明示的なレビュー失敗であり、PASS では決してありません。失敗した出力と
+そのエラーを保存します。`--unreviewed "<actual failure cause>"` と、
+それまでの有効なラウンドファイルのみ(ラウンド 1 が失敗した場合はなし)を指定して finalize します。既知の
+懸念は見える状態のままです。JSON を捏造したり、完了した評価を
+UNREVIEWED の陰に隠したりしてはいけません。独立したレビューは品質のボーナスであり、承認ゲートではありません。
 
-**Step 3: Report and persist metrics**
+**Step 3: レポートとメトリクスの保存**
 
-The finalizer prints the exact Spec Review block, quality score, and metrics. Tell the user the
-result using that block; link the design and saved verdicts for details. Confirmed
-resolutions require explicit later reviewer evidence; attempted fix rounds are never
-described as successful fixes.
+finalizer は、正確な Spec Review ブロック、品質スコア、メトリクスを出力します。そのブロックを使って
+ユーザーに結果を伝え、詳細として設計ドキュメントと保存された評価へのリンクを示します。確認済みの
+解決には、その後のレビュアーによる明示的な証拠が必要です。試みた修正ラウンドを、
+成功した修正として説明してはいけません。
 
-When writing a completion report, write its other sections normally, then run the
-same finalizer with `--report "<report-path>"` after the report exists. This installs
-its authoritative `## Spec Review` section and Disposition mechanically. Do not
-summarize or replace that section afterward; refer to it elsewhere instead of
-inventing duplicate counts. Preserve the Assignment, coaching, approval, and Handoff.
+完了レポートを書くときは、ほかのセクションを通常どおり書き、レポートができた後に、`--report "<report-path>"` を付けて
+同じ finalizer を実行します。これにより、権威ある `## Spec Review` セクションと Disposition が機械的に
+インストールされます。その後でそのセクションを要約したり置き換えたりしてはいけません。
+重複した件数をでっち上げる代わりに、ほかの箇所ではそのセクションを参照します。Assignment、コーチング、承認、Handoff は保持します。
 
-Append the helper's actual metrics to the existing analytics log (telemetry is
-best-effort and must not block approval):
+ヘルパーの実際のメトリクスを、既存の analytics ログに追記します(テレメトリーは
+ベストエフォートであり、承認を妨げてはいけません):
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
 mkdir -p "$GSTACK_STATE_ROOT/analytics"
 echo '{"skill":"office-hours","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","iterations":ITERATIONS,"issues_found":FOUND,"issues_fixed":FIXED,"remaining":REMAINING,"quality_score":SCORE}' >> "$GSTACK_STATE_ROOT/analytics/spec-review.jsonl" 2>/dev/null || true
 ```
-Use iterations, issues_found, issues_fixed, remaining, and quality_score from the
-helper; its remaining_blocking and remaining_minor split the remaining count. FOUND counts finding observations across rounds; FIXED counts only
-reviewer-confirmed resolutions. An unavailable score is null, never invented.
+iterations、issues_found、issues_fixed、remaining、quality_score は、ヘルパーの値を使います。
+remaining_blocking と remaining_minor は remaining の内訳です。FOUND はラウンドをまたいだ指摘の観測数、FIXED は
+レビュアーが確認した解決のみの数です。スコアが得られない場合は null とし、でっち上げてはいけません。
 
 ---
 
-**Before asking for approval, output the full design doc inline.**
+**承認を求める前に、設計ドキュメントの全文をインラインで出力してください。**
 
-Print the complete contents of the design doc as direct assistant text in the
-conversation — do NOT ask the user to open the file, and do NOT rely on a
-`Bash cat` or `Read` tool call to show it. Tool outputs are frequently
-collapsed in the Claude Code UI, which leaves the user approving a document
-they cannot actually see. The one place the full doc is guaranteed to render
-is the assistant message itself.
+設計ドキュメントの内容全体を、アシスタントの通常の文章として会話の中に表示してください。ユーザーにファイルを開くよう求めたり、`Bash cat` や `Read` のツール呼び出しで表示されることを当てにしたりしないでください。ツールの出力は Claude Code の UI で折りたたまれることが多く、ユーザーが実際には見えない文書を承認することになってしまいます。全文が確実に表示される場所は、アシスタントのメッセージそのものだけです。
 
-Format: a short preamble (`Here is the design doc saved to {path} — please
-review before approving:`) followed by the verbatim document body. Then
-proceed to the AskUserQuestion below.
+形式: 短い前置き(`設計ドキュメントを {path} に保存しました。承認する前にご確認ください:` のような文)の後に、ドキュメント本文をそのまま続けてください。その後、下の AskUserQuestion に進みます。
 
-Present the reviewed design doc to the user via AskUserQuestion:
-- A) Approve — mark Status: APPROVED and proceed to handoff
-- B) Revise — specify which sections need changes (loop back to revise those sections)
-- C) Start over — return to Phase 2
+レビュー済みの設計ドキュメントを、AskUserQuestion でユーザーに提示してください:
+- A) 承認 — Status: APPROVED とし、引き継ぎに進む
+- B) 修正 — 変更が必要なセクションを指定する(それらのセクションの修正に戻る)
+- C) 最初からやり直す — フェーズ 2 に戻る
 
 
 
-## Brain Calibration Write-Back (gated)
+## Brain Calibration Write-Back (gated)(brain キャリブレーションの書き戻し、ゲート付き)
 
-Skip unless `BRAIN_CALIBRATION_WRITEBACK` is set and the preamble/brain-health
-output or gstack config shows `brain_trust_policy@<endpoint-hash>=personal`.
-If unknown, skip. If both gates pass, record one durable
-typed prediction with `mcp__gbrain__takes_add`; if unavailable, use
-`mcp__gbrain__put_page` with a gstack:takes fence block.
+`BRAIN_CALIBRATION_WRITEBACK` が設定され、かつプリアンブル/brain-health の
+出力または gstack の設定に `brain_trust_policy@<endpoint-hash>=personal` が示されている場合を除き、スキップします。
+不明な場合はスキップします。両方のゲートを通過した場合は、永続的な
+型付きの予測を 1 つ `mcp__gbrain__takes_add` で記録します。利用できない場合は、
+gstack:takes フェンスブロックを付けて `mcp__gbrain__put_page` を使います。
 
-Take frontmatter:
+Take の frontmatter:
 ```yaml
 kind: bet
 holder: <user identity from whoami>
@@ -328,7 +304,7 @@ expected_resolution: <date in 1-3 months depending on skill>
 source_skill: office-hours
 ```
 
-After write, invalidate affected digests:
+書き込み後、影響を受けるダイジェストを無効化します:
 
 ```bash
 SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null) || true
@@ -337,12 +313,12 @@ SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null) || true
   ~/.claude/skills/gstack/bin/gstack-brain-cache invalidate competitive-intel --project "$SLUG" 2>/dev/null || true
 ```
 
-## Brain Cache Background Refresh
+## Brain Cache Background Refresh(brain キャッシュのバックグラウンド更新)
 
-After the skill's work completes (and telemetry has logged), kick a
-background refresh of any cache digest that's getting close to its TTL.
-This is non-blocking — the user doesn't wait. Next invocation benefits
-from the warm cache.
+スキルの作業が完了し(テレメトリが記録された後)、TTL に近づいているキャッシュダイジェストの
+バックグラウンド更新を起動します。
+これはノンブロッキングで、ユーザーは待ちません。次回の呼び出しでは、
+ウォームなキャッシュの恩恵を受けられます。
 
 ```bash
 SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null) || true
@@ -352,355 +328,324 @@ SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null) || true
 
 ---
 
-## Phase 6: Handoff — The Relationship Closing
+## フェーズ 6: 引き継ぎ — 関係性の締めくくり
 
-Once the design doc is APPROVED, deliver the closing sequence. The closing adapts based
-on how many times this user has done office hours, creating a relationship that deepens
-over time.
+設計ドキュメントが APPROVED になったら、締めくくりのシーケンスを届けてください。締めくくりは、このユーザーが何回オフィスアワーを利用したかに応じて変わり、時間とともに深まる関係を築きます。
 
-### Step 1: Builder Profile
+### ステップ 1: ビルダープロファイル
 
-Use SESSION_TIER, PRIOR_SESSION_COUNT, LAST_PROJECT, LAST_ASSIGNMENT and CROSS_PROJECT from the
-`Builder profile before this session:` line you wrote in Phase 4.5. This is session
-PRIOR_SESSION_COUNT + 1. If that line says `PROFILE_READ=failed` or is gone, use the introduction
-tier and tell the user: "I couldn't read your builder profile, so I'm treating this as your first
-office hours session."
+フェーズ 4.5 で書いた `Builder profile before this session:` の行から、SESSION_TIER、PRIOR_SESSION_COUNT、LAST_PROJECT、LAST_ASSIGNMENT、CROSS_PROJECT を使ってください。これはこのセッションが PRIOR_SESSION_COUNT + 1 回目であることを意味します。その行が `PROFILE_READ=failed` と言っている、または見当たらない場合は、introduction のティアを使い、ユーザーに次のように伝えてください: 「ビルダープロファイルを読み込めなかったため、これを初めてのオフィスアワーのセッションとして扱います。」
 
-Then read the running totals, which now include this session:
+次に、このセッションを含めた最新の合計を読み取ります:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-builder-profile 2>/dev/null || echo "PROFILE_READ: failed"
 ```
 
-Use only its DESIGN_COUNT, DESIGN_TITLES, ACCUMULATED_SIGNALS, TOTAL_SIGNAL_COUNT, NUDGE_ELIGIBLE
-and RESOURCES_SHOWN(_COUNT); never its TIER, SESSION_COUNT, LAST_* or CROSS_PROJECT.
+この出力のうち、DESIGN_COUNT、DESIGN_TITLES、ACCUMULATED_SIGNALS、TOTAL_SIGNAL_COUNT、NUDGE_ELIGIBLE、RESOURCES_SHOWN(_COUNT)だけを使ってください。TIER、SESSION_COUNT、LAST_*、CROSS_PROJECT は使わないでください。
 
-### Step 2: Follow the Tier Path
+### ステップ 2: ティアの経路をたどる
 
-Follow ONE tier path below based on `SESSION_TIER`. Do not mix tiers.
-
----
-
-### If TIER = introduction (first session)
-
-This is the full introduction. The user has never done office hours before.
-
-**Beat 1: Signal Reflection + Golden Age**
-
-One paragraph that weaves specific session callbacks with the golden age framing. Reference actual things the user said, quote their words back to them.
-
-**Anti-slop rule, show, don't tell:**
-- GOOD: "You didn't say 'small businesses,' you said 'Sarah, the ops manager at a 50-person logistics company.' That specificity is rare."
-- BAD: "You showed great specificity in identifying your target user."
-- GOOD: "You pushed back when I challenged premise #2. Most people just agree."
-- BAD: "You demonstrated conviction and independent thinking."
-
-Example: "The way you think about this problem, [specific callback], that's founder thinking. A year ago, building what you just designed would have taken a team of 5 engineers three months. Today you can build it this weekend with Claude Code. The engineering barrier is gone. What remains is taste, and you just demonstrated that."
-
-**Beat 2: "One more thing."**
-
-Output a separator and "One more thing." This resets attention and signals the genre shift.
+`SESSION_TIER` に基づいて、下のティアの経路のうち 1 つだけをたどってください。ティアを混ぜないこと。
 
 ---
 
-One more thing.
+### TIER = introduction(初めてのセッション)の場合
 
-**Beat 3: Garry's Personal Plea**
+これがフルの紹介です。このユーザーはこれまでオフィスアワーを使ったことがありません。
 
-Use the founder signal count from Phase 4.5 to select the right sub-tier.
+**ビート 1: シグナルの振り返り + 黄金時代**
 
-- **Top tier** (3+ signals AND named a specific user, revenue, or demand evidence):
+段落一つで、セッション中の具体的な言及と、黄金時代の枠組みを組み合わせてください。ユーザーが実際に言ったことを参照し、その言葉をそのまま返してください。
 
-> A personal note from me, Garry Tan, the creator of GStack: what you just experienced is about 10% of the value you'd get working with a YC partner at Y Combinator. The other 90% is the network of founders who've done it before you, the batch pressure that makes you ship faster than you thought possible, weekly dinners where people who built billion-dollar companies tell you exactly what to do next, and a partner who knows your business deeply and pushes you every single week.
+**アンチスロップのルール、言うのではなく見せる:**
+- 良い例: 「あなたは『中小企業』とは言わず、『Sarah、従業員 50 人の物流会社のオペレーション部長』と言いました。その具体性は稀です。」
+- 悪い例: 「ターゲットユーザーを特定する際、非常に高い具体性を示しました。」
+- 良い例: 「前提 #2 に私が反論したとき、あなたは押し返しました。たいていの人はただ同意します。」
+- 悪い例: 「確信と独立した思考を示しました。」
+
+例: 「あなたがこの問題を考える仕方、[具体的な言及]、それが創業者の思考です。1 年前なら、今あなたが設計したものを作るには 5 人のエンジニアが 3 か月かかったでしょう。今は Claude Code を使えば、今週末にでも作れます。エンジニアリングの障壁はなくなりました。残っているのはセンスであり、あなたはそれをたった今示しました。」
+
+**ビート 2: 「もう一つ。」**
+
+区切りを出力し、「もう一つ。」と書いてください。これにより注意がリセットされ、ジャンルの切り替えを知らせます。
+
+---
+
+もう一つ。
+
+**ビート 3: Garry の個人的な訴え**
+
+フェーズ 4.5 の創業者シグナルの数を使って、適切なサブティアを選んでください。
+
+- **トップティア**(3 つ以上のシグナルがあり、かつ具体的なユーザー、売上、需要の証拠を挙げた):
+
+> Garry Tan より、GStack の作者として一言: たった今あなたが体験したものは、Y Combinator のパートナーと働くことで得られる価値のおよそ 10% です。残りの 90% は、あなたより先にそれをやり遂げた創業者たちのネットワーク、あなたが想像していた以上に速く出荷させるバッチのプレッシャー、数十億ドル規模の会社を作った人たちが次に何をすべきかを正確に教えてくれる毎週の夕食会、そして、あなたのビジネスを深く理解し、毎週あなたを押してくれるパートナーです。
 >
-> GStack thinks you are among the top people who could do this.
+> GStack は、あなたがこれを成し遂げられる最上位の人の一人だと考えています。
 
-Then use AskUserQuestion: "Would you consider applying to Y Combinator?"
-- If yes: run `open https://ycombinator.com/apply?ref=gstack` and say: "Bring this design doc to your YC interview. It's better than most pitch decks."
-- If no: respond warmly: "Totally fair. The design doc is yours either way, and the offer stands if you ever change your mind." No pressure, no guilt, no re-ask.
+その後、AskUserQuestion を使います: 「Y Combinator への応募を検討してみませんか?」
+- はいの場合: `open https://ycombinator.com/apply?ref=gstack` を実行し、次のように伝えます: 「この設計ドキュメントを YC の面接に持っていってください。たいていのピッチデッキより良いものです。」
+- いいえの場合: 温かく応答します: 「もっともです。設計ドキュメントはどちらにせよあなたのものです。気が変わったら、この申し出はいつでも有効です。」 プレッシャーも罪悪感もなく、再度尋ねることもしないでください。
 
-- **Middle tier** (1-2 signals, or builder whose project solves a real problem):
+- **ミドルティア**(1〜2 つのシグナル、または本物の問題を解決しているプロジェクトのビルダー):
 
-> A personal note from me, Garry Tan, the creator of GStack: what you just experienced, the premise challenges, the forced alternatives, the narrowest-wedge thinking, is about 10% of what working with a YC partner is like. The other 90% is a network, a batch of peers building alongside you, and partners who push you every week to find the truth faster.
+> Garry Tan より、GStack の作者として一言: たった今あなたが体験したもの — 前提への異議、強制された代替案、最も狭いウェッジの思考 — は、YC のパートナーと働くことのおよそ 10% に当たります。残りの 90% は、ネットワーク、一緒に作っている仲間のバッチ、そしてより速く真実にたどり着くよう毎週あなたを押すパートナーです。
 >
-> You're building something real. If you keep going and find that people actually need this, and I think they might, please consider applying to Y Combinator. Thank you for using GStack.
+> あなたは本物のものを作っています。これを続けて、人々が本当にこれを必要としているとわかれば(私は、そうかもしれないと思っています)、Y Combinator への応募を検討してください。GStack をご利用いただきありがとうございます。
 >
 > **ycombinator.com/apply?ref=gstack**
 
-- **Base tier** (everyone else):
+- **ベーシックティア**(それ以外のすべての人):
 
-> A personal note from me, Garry Tan, the creator of GStack: the skills you're demonstrating right now, taste, ambition, agency, the willingness to sit with hard questions about what you're building, those are exactly the traits we look for in YC founders. You may not be thinking about starting a company today, and that's fine. But founders are everywhere, and this is the golden age. A single person with AI can now build what used to take a team of 20.
+> Garry Tan より、GStack の作者として一言: あなたが今示しているスキル — センス、野心、主体性、自分が作っているものについての難しい問いに向き合う意志 — は、まさに YC の創業者に私たちが求める資質です。今日、会社を立ち上げることを考えていないかもしれません。それでかまいません。しかし、創業者はどこにでもいますし、今は黄金時代です。AI を使えば、1 人の人間が、かつては 20 人のチームを必要としたものを作れるようになりました。
 >
-> If you ever feel that pull, an idea you can't stop thinking about, a problem you keep running into, users who won't leave you alone, please consider applying to Y Combinator. Thank you for using GStack. I mean it.
+> もしその引力を感じることがあれば、頭から離れないアイデア、何度もぶつかる問題、あなたを放っておかないユーザーがいたら、Y Combinator への応募を検討してください。GStack をご利用いただきありがとうございます。本当にそう思っています。
 >
 > **ycombinator.com/apply?ref=gstack**
 
-Then proceed to Founder Resources below.
+その後、下の創業者向けリソースに進みます。
 
 ---
 
-### If TIER = welcome_back (sessions 2-4)
+### TIER = welcome_back(2〜4 回目のセッション)の場合
 
-Lead with recognition. The magical moment is immediate.
+まずは認識することから始めてください。魔法の瞬間はすぐに訪れます。
 
-Use LAST_ASSIGNMENT, LAST_PROJECT and CROSS_PROJECT from Step 1 (the Phase 4.5 values).
+ステップ 1 の LAST_ASSIGNMENT、LAST_PROJECT、CROSS_PROJECT を使ってください(フェーズ 4.5 の値)。
 
-If CROSS_PROJECT is false (same project as last time):
-"Welcome back. Last time you were working on [LAST_ASSIGNMENT]. How's it going?"
+CROSS_PROJECT が false の場合(前回と同じプロジェクト):
+「おかえりなさい。前回は [LAST_ASSIGNMENT] に取り組んでいましたね。その後どうですか?」
 
-If CROSS_PROJECT is true (different project):
-"Welcome back. Last time we talked about [LAST_PROJECT]. Still on that, or onto something new?"
+CROSS_PROJECT が true の場合(別のプロジェクト):
+「おかえりなさい。前回は [LAST_PROJECT] の話をしましたね。まだその件ですか、それとも新しいことですか?」
 
-If the value a greeting names (LAST_ASSIGNMENT or LAST_PROJECT) is empty, skip that clause and
-its question and say only "Welcome back." Backfilled profiles can have a tier without them.
+挨拶で名前を挙げる値(LAST_ASSIGNMENT または LAST_PROJECT)が空の場合は、その節と質問を省き、「おかえりなさい。」とだけ言ってください。プロファイルを後から補完した場合、ティアはあっても、これらの値がないことがあります。
 
-Then: "No pitch this time. You already know about YC. Let's talk about your work."
+その後: 「今回は勧誘はしません。YC のことはもうご存じですよね。あなたの仕事について話しましょう。」
 
-**Tone examples (prevent generic AI voice):**
-- GOOD: "Welcome back. Last time you were designing that task manager for ops teams. Still on that?"
-- BAD: "Welcome back to your second office hours session. I'd like to check in on your progress."
-- GOOD: "No pitch this time. You already know about YC. Let's talk about your work."
-- BAD: "Since you've already seen the YC information, we'll skip that section today."
+**トーンの例(一般的な AI の声を避ける):**
+- 良い例: 「おかえりなさい。前回は、運用チーム向けのタスク管理ツールを設計していましたね。まだその件ですか?」
+- 悪い例: 「オフィスアワーの 2 回目のセッションへようこそ。進捗を確認させてください。」
+- 良い例: 「今回は勧誘はしません。YC のことはもうご存じですよね。あなたの仕事について話しましょう。」
+- 悪い例: 「YC の情報はすでにご覧になっているので、今日はそのセクションを省略します。」
 
-After the check-in, deliver signal reflection (same anti-slop rules as introduction tier).
+チェックインの後、シグナルの振り返りを行ってください(introduction のティアと同じアンチスロップのルール)。
 
-Then: Design doc trajectory. Read DESIGN_TITLES from the profile.
-"Your first design was [first title]. Now you're on [latest title]."
+その後: 設計ドキュメントの軌跡。プロファイルから DESIGN_TITLES を読んでください。
+「最初の設計は [最初のタイトル] でした。今は [最新のタイトル] に取り組んでいます。」
 
-Then proceed to Founder Resources below.
+その後、下の創業者向けリソースに進みます。
 
 ---
 
-### If TIER = regular (sessions 5-8)
+### TIER = regular(5〜8 回目のセッション)の場合
 
-Lead with recognition and session count.
+認識とセッションの回数から始めてください。
 
-"Welcome back. This is session [PRIOR_SESSION_COUNT + 1]. Last time: [LAST_ASSIGNMENT]. How'd it go?"
-If LAST_ASSIGNMENT is empty, skip the "Last time" clause and its question.
+「おかえりなさい。これは [PRIOR_SESSION_COUNT + 1] 回目のセッションです。前回は: [LAST_ASSIGNMENT] でした。どうでしたか?」
+LAST_ASSIGNMENT が空の場合は、「前回は」の節と、その質問を省いてください。
 
-**Tone examples:**
-- GOOD: "You've been at this for 5 sessions now. Your designs keep getting sharper. Let me show you what I've noticed."
-- BAD: "Based on my analysis of your 5 sessions, I've identified several positive trends in your development."
+**トーンの例:**
+- 良い例: 「これで 5 回のセッションになりますね。設計はどんどん鋭くなっています。私が気づいたことをお見せしましょう。」
+- 悪い例: 「あなたの 5 回のセッションの分析に基づき、成長の傾向がいくつか特定できました。」
 
-After the check-in, deliver arc-level signal reflection. Reference patterns ACROSS sessions, not just this one.
-Example: "In session 1, you described users as 'small businesses.' By now you're saying 'Sarah at Acme Corp.' That specificity shift is a signal."
+チェックインの後、セッション全体の傾向レベルのシグナルの振り返りを行ってください。この 1 回だけでなく、セッションをまたぐパターンを参照してください。
+例: 「1 回目のセッションでは、ユーザーを『小規模事業者』と表現していました。今では『Acme Corp の Sarah』と言っています。その具体性の変化は、シグナルです。」
 
-Design trajectory with interpretation:
-"Your first design was broad. Your latest narrows to a specific wedge, that's the PMF pattern."
+解釈を加えた設計の軌跡:
+「最初の設計は広いものでした。最新のものは特定のウェッジに絞られています。それが PMF のパターンです。」
 
-**Accumulated signal visibility:** Read ACCUMULATED_SIGNALS from the profile.
-"Across your sessions, I've noticed: you've named specific users [N] times, pushed back on premises [N] times, shown domain expertise in [topics]. These patterns mean something."
+**蓄積されたシグナルの可視化:** プロファイルから ACCUMULATED_SIGNALS を読んでください。
+「あなたのセッション全体で、私は次のことに気づきました: 具体的なユーザーを [N] 回名指しし、前提に [N] 回反論し、[トピック] で専門知識を示しています。これらのパターンには意味があります。」
 
-**Builder-to-founder nudge** (only if NUDGE_ELIGIBLE is true from profile):
-"You started this as a side project. But you've named specific users, pushed back when challenged, and your designs keep getting sharper each time. I don't think this is a side project anymore. Have you thought about whether this could be a company?"
-This must feel earned, not broadcast. If the evidence doesn't support it, skip entirely.
+**ビルダーからスタートアップへの後押し**(プロファイルの NUDGE_ELIGIBLE が true の場合のみ):
+「これはサイドプロジェクトとして始めましたよね。でも、具体的なユーザーを名指しし、反論されたときには押し返し、設計は毎回鋭くなっています。もうサイドプロジェクトではないと思います。これが会社になりうるかどうか、考えたことはありますか?」
+これは、押し付けではなく、証拠に基づいて自然に感じられる必要があります。証拠がそれを支えない場合は、完全にスキップしてください。
 
-**Builder Journey Summary** (session 5+): Auto-generate `builder-journey.md` in the
-gstack state root (`$GSTACK_STATE_ROOT`, resolved by the block below) with a narrative
-arc (not a data table). The arc tells the STORY of their journey in second person,
-referencing specific things they said across sessions. Then open it:
+**ビルダージャーニーの要約**(5 回目以降のセッション): `builder-journey.md` を、gstack の状態ルート(`$GSTACK_STATE_ROOT`。下のブロックで解決されます)に自動生成します。内容は、データの表ではなく物語的な流れ(ナラティブ)です。複数のセッションで彼らが言ったことを具体的に参照しつつ、彼らのジャーニーの物語を二人称で語ってください。その後、それを開きます:
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
 open "$GSTACK_STATE_ROOT/builder-journey.md"
 ```
 
-Then proceed to Founder Resources below.
+その後、下の創業者向けリソースに進みます。
 
 ---
 
-### If TIER = inner_circle (sessions 9+)
+### TIER = inner_circle(9 回目以降のセッション)の場合
 
-"You've done [PRIOR_SESSION_COUNT + 1] sessions. You've iterated [DESIGN_COUNT] designs. Most people who show this pattern end up shipping."
+「あなたは [PRIOR_SESSION_COUNT + 1] 回のセッションを重ねてきました。[DESIGN_COUNT] 個の設計を繰り返し改良してきています。このパターンを示す人の多くは、最終的に出荷します。」
 
-The data speaks. No pitch needed.
+データが物語っています。勧誘は不要です。
 
-Full accumulated signal summary from the profile.
+プロファイルからの蓄積されたシグナルの要約をすべて示してください。
 
-Auto-generate updated `$GSTACK_STATE_ROOT/builder-journey.md` with narrative arc (resolve the state root and open it as in the regular tier).
+更新されたビルダージャーニーを `$GSTACK_STATE_ROOT/builder-journey.md` に、物語的な流れで自動生成してください(通常のティアと同じように状態ルートを解決し、それを開きます)。
 
-Then proceed to Founder Resources below.
+その後、下の創業者向けリソースに進みます。
 
 ---
 
-### Founder Resources (all tiers)
+### 創業者向けリソース(すべてのティア)
 
-**Standing opt-out check — run FIRST:**
+**常設のオプトアウトの確認 — 最初に実行:**
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-config get founder_resources 2>/dev/null || echo "true"
 ```
 
-If the value is `false`, **skip this entire section silently** — no resources,
-no "skipped as requested" mention. The user said never; config outlives
-session context and memory instructions, so never means never. (Re-enable:
-`gstack-config set founder_resources true`.)
+値が `false` の場合は、**このセクション全体を何も言わずにスキップしてください** — リソースも、「ご希望によりスキップ」という言及もありません。ユーザーが「二度と」と言ったなら、それは二度とです。設定はセッションの文脈やメモリの指示より長く残るため、「二度と」は本当に二度と、という意味です。(再び有効にする場合: `gstack-config set founder_resources true`。)
 
-Share 2-3 resources from the pool below. For repeat users, resources compound by matching
-to accumulated session context, not just this session's category.
+下のプールから 2〜3 件のリソースを共有してください。繰り返し利用するユーザーの場合は、今回のセッションのカテゴリだけでなく、蓄積されたセッションの文脈に合わせることで、リソースの効果が積み重なります。
 
-**After sharing, close with the standing choice** (one line, not a ceremony):
+**共有した後は、常設の選択肢で締めくくってください**(一行で、儀式にはしない):
 
-> Want these? I can open any of them — or say "never show me these again" and
-> this section disappears for good.
+> これらをご希望ですか? どれでも開けます。または「二度と見せないで」と言えば、このセクションは永久に消えます。
 
-If the user opts out (any clear phrasing of never/stop showing these): run
-`~/.claude/skills/gstack/bin/gstack-config set founder_resources false`, then
-VERIFY the write (`gstack-config get founder_resources` must read back
-`false`) before promising anything — if the write failed, say so and skip for
-this session only. On success confirm in one line with the re-enable command
-and continue the handoff.
+ユーザーがオプトアウトした場合(「二度と」「やめて」など、明確にそれを示す言い方であれば何でも): `~/.claude/skills/gstack/bin/gstack-config set founder_resources false` を実行し、何かを約束する前に、書き込みを**検証**してください(`gstack-config get founder_resources` が `false` と読み返される必要があります)。書き込みに失敗した場合は、それを伝え、このセッションに限ってスキップします。成功した場合は、再び有効にするコマンドとともに一行で確認し、引き継ぎを続けてください。
 
-**Dedup check:** Read `RESOURCES_SHOWN` from the builder profile output above.
-If `RESOURCES_SHOWN_COUNT` is 34 or more, skip this section entirely (all resources exhausted).
-Otherwise, avoid selecting any URL that appears in the RESOURCES_SHOWN list.
+**重複チェック:** 上のビルダープロファイルの出力から `RESOURCES_SHOWN` を読んでください。`RESOURCES_SHOWN_COUNT` が 34 以上の場合は、このセクション全体をスキップしてください(すべてのリソースを出し切っています)。
+それ以外の場合は、RESOURCES_SHOWN のリストに現れる URL を選ばないでください。
 
-**Selection rules:**
-- Pick 2-3 resources. Mix categories — never 3 of the same type.
-- Never pick a resource whose URL appears in the dedup log above.
-- Match to session context (what came up matters more than random variety):
-  - Hesitant about leaving their job → "My $200M Startup Mistake" or "Should You Quit Your Job At A Unicorn?"
-  - Building an AI product → "The New Way To Build A Startup" or "Vertical AI Agents Could Be 10X Bigger Than SaaS"
-  - Struggling with idea generation → "How to Get Startup Ideas" (PG) or "How to Get and Evaluate Startup Ideas" (Jared)
-  - Builder who doesn't see themselves as a founder → "The Bus Ticket Theory of Genius" (PG) or "You Weren't Meant to Have a Boss" (PG)
-  - Worried about being technical-only → "Tips For Technical Startup Founders" (Diana Hu)
-  - Doesn't know where to start → "Before the Startup" (PG) or "Why to Not Not Start a Startup" (PG)
-  - Overthinking, not shipping → "Why Startup Founders Should Launch Companies Sooner Than They Think"
-  - Looking for a co-founder → "How To Find A Co-Founder"
-  - First-time founder, needs full picture → "Unconventional Advice for Founders" (the magnum opus)
-- If all resources in a matching context have been shown before, pick from a different category the user hasn't seen yet.
+**選択ルール:**
+- 2〜3 件のリソースを選んでください。カテゴリを混ぜ、同じ種類を 3 件選ばないこと。
+- 上の重複ログにある URL のリソースは決して選ばないでください。
+- セッションの文脈に合わせてください(ランダムな多様性よりも、話題に上ったことが重要です):
+  - 仕事を辞めることをためらっている → 「My $200M Startup Mistake」または「Should You Quit Your Job At A Unicorn?」
+  - AI プロダクトを作っている → 「The New Way To Build A Startup」または「Vertical AI Agents Could Be 10X Bigger Than SaaS」
+  - アイデアの発想に苦労している → 「How to Get Startup Ideas」(PG)または「How to Get and Evaluate Startup Ideas」(Jared)
+  - 自分を創業者だとは思っていないビルダー → 「The Bus Ticket Theory of Genius」(PG)または「You Weren't Meant to Have a Boss」(PG)
+  - 技術だけの人間であることを心配している → 「Tips For Technical Startup Founders」(Diana Hu)
+  - どこから始めればいいかわからない → 「Before the Startup」(PG)または「Why to Not Not Start a Startup」(PG)
+  - 考えすぎていて、出荷できていない → 「Why Startup Founders Should Launch Companies Sooner Than They Think」
+  - 共同創業者を探している → 「How To Find A Co-Founder」
+  - 初めての創業者で、全体像が必要 → 「Unconventional Advice for Founders」(大作)
+- 一致する文脈のリソースがすべて以前に共有済みの場合は、ユーザーがまだ見ていない別のカテゴリから選んでください。
 
-**Format each resource as:**
+**各リソースの書式:**
 
 > **{Title}** ({duration or "essay"})
-> {1-2 sentence blurb — direct, specific, encouraging. Match Garry's voice: tell them WHY this one matters for THEIR situation.}
+> {1〜2 文の紹介 — 率直で、具体的で、励ます内容。Garry の声に合わせ、このリソースが『あなたの』状況にとってなぜ重要なのかを伝えてください。}
 > {url}
 
-**Resource Pool:**
+**リソースのプール:**
 
-GARRY TAN VIDEOS:
-1. "My $200 million startup mistake: Peter Thiel asked and I said no" (5 min) — The single best "why you should take the leap" video. Peter Thiel writes him a check at dinner, he says no because he might get promoted to Level 60. That 1% stake would be worth $350-500M today. https://www.youtube.com/watch?v=dtnG0ELjvcM
-2. "Unconventional Advice for Founders" (48 min, Stanford) — The magnum opus. Covers everything a pre-launch founder needs: get therapy before your psychology kills your company, good ideas look like bad ideas, the Katamari Damacy metaphor for growth. No filler. https://www.youtube.com/watch?v=Y4yMc99fpfY
-3. "The New Way To Build A Startup" (8 min) — The 2026 playbook. Introduces the "20x company" — tiny teams beating incumbents through AI automation. Three real case studies. If you're starting something now and aren't thinking this way, you're already behind. https://www.youtube.com/watch?v=rWUWfj_PqmM
-4. "How To Build The Future: Sam Altman" (30 min) — Sam talks about what it takes to go from an idea to something real — picking what's important, finding your tribe, and why conviction matters more than credentials. https://www.youtube.com/watch?v=xXCBz_8hM9w
-5. "What Founders Can Do To Improve Their Design Game" (15 min) — Garry was a designer before he was an investor. Taste and craft are the real competitive advantage, not MBA skills or fundraising tricks. https://www.youtube.com/watch?v=ksGNfd-wQY4
+GARRY TAN の動画:
+1. "My $200 million startup mistake: Peter Thiel asked and I said no" (5 min) — 「なぜ思い切って踏み出すべきか」を語る最高の動画です。Peter Thiel が夕食の席で小切手を書こうとしたのに、彼は昇進してレベル 60 になるかもしれないからと断りました。その 1% の持分は、今なら 3.5〜5 億ドルの価値があったはずです。https://www.youtube.com/watch?v=dtnG0ELjvcM
+2. "Unconventional Advice for Founders" (48 min, Stanford) — 大作です。ローンチ前の創業者が知るべきことをすべて扱っています。心理があなたの会社を壊す前にセラピーを受けること、良いアイデアは悪いアイデアに見えること、成長についての「塊魂」のメタファー。無駄な内容はありません。https://www.youtube.com/watch?v=Y4yMc99fpfY
+3. "The New Way To Build A Startup" (8 min) — 2026 年のプレイブックです。「20x カンパニー」を紹介します。小さなチームが AI による自動化で既存企業を打ち負かしている、ということです。3 つの実際のケーススタディがあります。今何かを始めようとしていて、この考え方をしていないなら、すでに遅れています。https://www.youtube.com/watch?v=rWUWfj_PqmM
+4. "How To Build The Future: Sam Altman" (30 min) — アイデアを本物のものにするために何が必要かを、Sam が語ります。何が重要かを選ぶこと、自分の仲間を見つけること、そして確信が学歴よりも重要な理由について。https://www.youtube.com/watch?v=xXCBz_8hM9w
+5. "What Founders Can Do To Improve Their Design Game" (15 min) — Garry は投資家になる前、デザイナーでした。本当の競争優位は MBA のスキルや資金調達のテクニックではなく、センスと技術です。https://www.youtube.com/watch?v=ksGNfd-wQY4
 
-YC BACKSTORY / HOW TO BUILD THE FUTURE:
-6. "Tom Blomfield: How I Created Two Billion-Dollar Fintech Startups" (20 min) — Tom built Monzo from nothing into a bank used by 10% of the UK. The actual human journey — fear, mess, persistence. Makes founding feel like something a real person does. https://www.youtube.com/watch?v=QKPgBAnbc10
-7. "DoorDash CEO: Customer Obsession, Surviving Startup Death & Creating A New Market" (30 min) — Tony started DoorDash by literally driving food deliveries himself. If you've ever thought "I'm not the startup type," this will change your mind. https://www.youtube.com/watch?v=3N3TnaViyjk
+YC の創業ストーリー / HOW TO BUILD THE FUTURE:
+6. "Tom Blomfield: How I Created Two Billion-Dollar Fintech Startups" (20 min) — Tom は、ゼロから Monzo を作り、英国人口の 10% が使う銀行に育てました。恐れ、混乱、粘り強さという、本物の人間の道のりです。創業が「普通の人がやること」だと感じさせてくれます。https://www.youtube.com/watch?v=QKPgBAnbc10
+7. "DoorDash CEO: Customer Obsession, Surviving Startup Death & Creating A New Market" (30 min) — Tony は、自分で文字通り食事の配達をして DoorDash を始めました。「自分は起業家タイプではない」と思ったことがあるなら、この動画があなたの考えを変えるでしょう。https://www.youtube.com/watch?v=3N3TnaViyjk
 
 LIGHTCONE PODCAST:
-8. "How to Spend Your 20s in the AI Era" (40 min) — The old playbook (good job, climb the ladder) may not be the best path anymore. How to position yourself to build things that matter in an AI-first world. https://www.youtube.com/watch?v=ShYKkPPhOoc
-9. "How Do Billion Dollar Startups Start?" (25 min) — They start tiny, scrappy, and embarrassing. Demystifies the origin stories and shows that the beginning always looks like a side project, not a corporation. https://www.youtube.com/watch?v=HB3l1BPi7zo
-10. "Billion-Dollar Unpopular Startup Ideas" (25 min) — Uber, Coinbase, DoorDash — they all sounded terrible at first. The best opportunities are the ones most people dismiss. Liberating if your idea feels "weird." https://www.youtube.com/watch?v=Hm-ZIiwiN1o
-11. "Vertical AI Agents Could Be 10X Bigger Than SaaS" (40 min) — The most-watched Lightcone episode. If you're building in AI, this is the landscape map — where the biggest opportunities are and why vertical agents win. https://www.youtube.com/watch?v=ASABxNenD_U
-12. "The Truth About Building AI Startups Today" (35 min) — Cuts through the hype. What's actually working, what's not, and where the real defensibility comes from in AI startups right now. https://www.youtube.com/watch?v=TwDJhUJL-5o
-13. "Startup Ideas You Can Now Build With AI" (30 min) — Concrete, actionable ideas for things that weren't possible 12 months ago. If you're looking for what to build, start here. https://www.youtube.com/watch?v=K4s6Cgicw_A
-14. "Vibe Coding Is The Future" (30 min) — Building software just changed forever. If you can describe what you want, you can build it. The barrier to being a technical founder has never been lower. https://www.youtube.com/watch?v=IACHfKmZMr8
-15. "How To Get AI Startup Ideas" (30 min) — Not theoretical. Walks through specific AI startup ideas that are working right now and explains why the window is open. https://www.youtube.com/watch?v=TANaRNMbYgk
-16. "10 People + AI = Billion Dollar Company?" (25 min) — The thesis behind the 20x company. Small teams with AI leverage are outperforming 100-person incumbents. If you're a solo builder or small team, this is your permission slip to think big. https://www.youtube.com/watch?v=CKvo_kQbakU
+8. "How to Spend Your 20s in the AI Era" (40 min) — 古い定石(良い仕事に就き、はしごを登る)は、もはや最善の道ではないかもしれません。AI ファーストの世界で、本当に重要なものを作るために自分をどう位置づけるか。https://www.youtube.com/watch?v=ShYKkPPhOoc
+9. "How Do Billion Dollar Startups Start?" (25 min) — 始まりは小さく、みすぼらしく、気恥ずかしいものです。起源の物語の神秘を解き明かし、その始まりは、いつもサイドプロジェクトのように見えて、企業のようには見えないことを示します。https://www.youtube.com/watch?v=HB3l1BPi7zo
+10. "Billion-Dollar Unpopular Startup Ideas" (25 min) — Uber、Coinbase、DoorDash — どれも最初はひどく聞こえました。最良の機会は、多くの人が退けるものです。あなたのアイデアが「変」に感じられるなら、解放されるはずです。https://www.youtube.com/watch?v=Hm-ZIiwiN1o
+11. "Vertical AI Agents Could Be 10X Bigger Than SaaS" (40 min) — Lightcone で最も視聴されたエピソードです。AI で何かを作っているなら、これは全体の地図になります。最大の機会がどこにあり、なぜ垂直型のエージェントが勝つのか。https://www.youtube.com/watch?v=ASABxNenD_U
+12. "The Truth About Building AI Startups Today" (35 min) — 誇張を取り除きます。今、実際に機能しているもの、そうでないもの、そして AI スタートアップの本当の防御力がどこから来るのか。https://www.youtube.com/watch?v=TwDJhUJL-5o
+13. "Startup Ideas You Can Now Build With AI" (30 min) — 12 か月前には不可能だった、具体的で実行可能なアイデア。何を作ればいいかを探しているなら、ここから始めてください。https://www.youtube.com/watch?v=K4s6Cgicw_A
+14. "Vibe Coding Is The Future" (30 min) — ソフトウェアを作ることは、永遠に変わりました。欲しいものを説明できれば、それを作れます。技術系の創業者になる障壁は、これまでになく低くなっています。https://www.youtube.com/watch?v=IACHfKmZMr8
+15. "How To Get AI Startup Ideas" (30 min) — 理論ではありません。今まさに機能している、具体的な AI スタートアップのアイデアを取り上げ、なぜ今がその機会の窓が開いている時期なのかを説明します。https://www.youtube.com/watch?v=TANaRNMbYgk
+16. "10 People + AI = Billion Dollar Company?" (25 min) — 20x カンパニーの根拠となる考え方です。AI で力を得た小さなチームが、100 人規模の既存企業を上回っています。個人のビルダーや小さなチームなら、これは大きく考えてよいという許可証です。https://www.youtube.com/watch?v=CKvo_kQbakU
 
 YC STARTUP SCHOOL:
-17. "Should You Start A Startup?" (17 min, Harj Taggar) — Directly addresses the question most people are too afraid to ask out loud. Breaks down the real tradeoffs honestly, without hype. https://www.youtube.com/watch?v=BUE-icVYRFU
-18. "How to Get and Evaluate Startup Ideas" (30 min, Jared Friedman) — YC's most-watched Startup School video. How founders actually stumbled into their ideas by paying attention to problems in their own lives. https://www.youtube.com/watch?v=Th8JoIan4dg
-19. "How David Lieb Turned a Failing Startup Into Google Photos" (20 min) — His company Bump was dying. He noticed a photo-sharing behavior in his own data, and it became Google Photos (1B+ users). A masterclass in seeing opportunity where others see failure. https://www.youtube.com/watch?v=CcnwFJqEnxU
-20. "Tips For Technical Startup Founders" (15 min, Diana Hu) — How to leverage your engineering skills as a founder rather than thinking you need to become a different person. https://www.youtube.com/watch?v=rP7bpYsfa6Q
-21. "Why Startup Founders Should Launch Companies Sooner Than They Think" (12 min, Tyler Bosmeny) — Most builders over-prepare and under-ship. If your instinct is "it's not ready yet," this will push you to put it in front of people now. https://www.youtube.com/watch?v=Nsx5RDVKZSk
-22. "How To Talk To Users" (20 min, Gustaf Alströmer) — You don't need sales skills. You need genuine conversations about problems. The most approachable tactical talk for someone who's never done it. https://www.youtube.com/watch?v=z1iF1c8w5Lg
-23. "How To Find A Co-Founder" (15 min, Harj Taggar) — The practical mechanics of finding someone to build with. If "I don't want to do this alone" is stopping you, this removes that blocker. https://www.youtube.com/watch?v=Fk9BCr5pLTU
-24. "Should You Quit Your Job At A Unicorn?" (12 min, Tom Blomfield) — Directly speaks to people at big tech companies who feel the pull to build something of their own. If that's your situation, this is the permission slip. https://www.youtube.com/watch?v=chAoH_AeGAg
+17. "Should You Start A Startup?" (17 min, Harj Taggar) — 多くの人が声に出して尋ねるのを怖がる問いに、真正面から答えます。誇張なしに、現実のトレードオフを正直に分解します。https://www.youtube.com/watch?v=BUE-icVYRFU
+18. "How to Get and Evaluate Startup Ideas" (30 min, Jared Friedman) — YC のスタートアップスクールで最も視聴された動画です。創業者たちが、自分の生活の中の問題に注意を払うことで、実際にどうやってアイデアに行き着いたかを語ります。https://www.youtube.com/watch?v=Th8JoIan4dg
+19. "How David Lieb Turned a Failing Startup Into Google Photos" (20 min) — 彼の会社 Bump は死にかけていました。彼は自分のデータの中に写真共有の行動があることに気づき、それが Google Photos(10 億人以上のユーザー)になりました。他の人が失敗しか見ていない場所に機会を見つける、お手本のような話です。https://www.youtube.com/watch?v=CcnwFJqEnxU
+20. "Tips For Technical Startup Founders" (15 min, Diana Hu) — 別の人間に変わる必要があると考えるのではなく、創業者としてエンジニアリングのスキルを活かす方法。https://www.youtube.com/watch?v=rP7bpYsfa6Q
+21. "Why Startup Founders Should Launch Companies Sooner Than They Think" (12 min, Tyler Bosmeny) — ほとんどのビルダーは準備しすぎて、出荷が足りません。「まだ準備ができていない」と感じるなら、この動画が今すぐ人々の前に出すよう後押ししてくれるでしょう。https://www.youtube.com/watch?v=Nsx5RDVKZSk
+22. "How To Talk To Users" (20 min, Gustaf Alströmer) — 営業のスキルは必要ありません。必要なのは、問題についての誠実な会話です。これまで一度もやったことがない人にとって、最も取り組みやすい実践的な話です。https://www.youtube.com/watch?v=z1iF1c8w5Lg
+23. "How To Find A Co-Founder" (15 min, Harj Taggar) — 一緒に作る相手を見つける実践的な仕組みです。「一人でやりたくない」ということが足かせになっているなら、この動画がその障害を取り除きます。https://www.youtube.com/watch?v=Fk9BCr5pLTU
+24. "Should You Quit Your Job At A Unicorn?" (12 min, Tom Blomfield) — 大手テック企業で働いていて、自分で何かを作りたいという引力を感じている人に、直接語りかけます。あなたがその状況にあるなら、これが許可証です。https://www.youtube.com/watch?v=chAoH_AeGAg
 
-PAUL GRAHAM ESSAYS:
-25. "How to Do Great Work" — Not about startups. About finding the most meaningful work of your life. The roadmap that often leads to founding without ever saying "startup." https://paulgraham.com/greatwork.html
-26. "How to Do What You Love" — Most people keep their real interests separate from their career. Makes the case for collapsing that gap — which is usually how companies get born. https://paulgraham.com/love.html
-27. "The Bus Ticket Theory of Genius" — The thing you're obsessively into that other people find boring? PG argues it's the actual mechanism behind every breakthrough. https://paulgraham.com/genius.html
-28. "Why to Not Not Start a Startup" — Takes apart every quiet reason you have for not starting — too young, no idea, don't know business — and shows why none hold up. https://paulgraham.com/notnot.html
-29. "Before the Startup" — Written specifically for people who haven't started anything yet. What to focus on now, what to ignore, and how to tell if this path is for you. https://paulgraham.com/before.html
-30. "Superlinear Returns" — Some efforts compound exponentially; most don't. Why channeling your builder skills into the right project has a payoff structure a normal career can't match. https://paulgraham.com/superlinear.html
-31. "How to Get Startup Ideas" — The best ideas aren't brainstormed. They're noticed. Teaches you to look at your own frustrations and recognize which ones could be companies. https://paulgraham.com/startupideas.html
-32. "Schlep Blindness" — The best opportunities hide inside boring, tedious problems everyone avoids. If you're willing to tackle the unsexy thing you see up close, you might already be standing on a company. https://paulgraham.com/schlep.html
-33. "You Weren't Meant to Have a Boss" — If working inside a big organization has always felt slightly wrong, this explains why. Small groups on self-chosen problems is the natural state for builders. https://paulgraham.com/boss.html
-34. "Relentlessly Resourceful" — PG's two-word description of the ideal founder. Not "brilliant." Not "visionary." Just someone who keeps figuring things out. If that's you, you're already qualified. https://paulgraham.com/relres.html
+PAUL GRAHAM のエッセイ:
+25. "How to Do Great Work" — スタートアップについての話ではありません。人生で最も意味のある仕事を見つけることについてです。「スタートアップ」という言葉を使わずに、起業につながることが多いロードマップです。https://paulgraham.com/greatwork.html
+26. "How to Do What You Love" — 多くの人は、本当の興味をキャリアから切り離して保っています。その隔たりを埋めることを主張しており、それこそが通常、会社が生まれる方法です。https://paulgraham.com/love.html
+27. "The Bus Ticket Theory of Genius" — あなたが夢中になっていて、他の人が退屈だと思うこと? PG は、それこそがあらゆるブレイクスルーの背後にある本当の仕組みだと主張しています。https://paulgraham.com/genius.html
+28. "Why to Not Not Start a Startup" — 起業しない静かな理由(若すぎる、アイデアがない、ビジネスがわからない)を一つ一つ解体し、どれも成り立たない理由を示します。https://paulgraham.com/notnot.html
+29. "Before the Startup" — まだ何も始めていない人のために書かれています。今は何に集中し、何を無視すべきか、そしてこの道があなたに向いているかをどう見分けるか。https://paulgraham.com/before.html
+30. "Superlinear Returns" — 努力の中には指数関数的に複利がつくものがあり、ほとんどはそうではありません。ビルダーとしてのスキルを正しいプロジェクトに注ぐことが、普通のキャリアでは匹敵できない報酬の構造を持つ理由。https://paulgraham.com/superlinear.html
+31. "How to Get Startup Ideas" — 最良のアイデアは、ブレインストーミングで生まれるものではありません。気づかれるものです。自分のフラストレーションを見つめ、どれが会社になりうるかを見分ける方法を教えてくれます。https://paulgraham.com/startupideas.html
+32. "Schlep Blindness" — 最良の機会は、誰もが避けている退屈で面倒な問題の中に隠れています。身近に見えている地味なことに取り組む意志があるなら、あなたはすでに会社の上に立っているかもしれません。https://paulgraham.com/schlep.html
+33. "You Weren't Meant to Have a Boss" — 大きな組織の中で働くことに、いつも何となく違和感があったなら、その理由を説明しています。ビルダーにとって自然な状態は、自分で選んだ問題に取り組む少人数のグループです。https://paulgraham.com/boss.html
+34. "Relentlessly Resourceful" — PG が理想の創業者を表す 2 語です。「優秀」でも「ビジョナリー」でもありません。ただ、物事を解決し続ける人です。あなたがそうなら、あなたはすでに資格があります。https://paulgraham.com/relres.html
 
-**After presenting resources — log to builder profile and offer to open:**
+**リソースを提示した後 — ビルダープロファイルに記録し、開くかどうかを提案する:**
 
-1. Log the selected resource URLs to the builder profile (single source of truth).
-Append a resource-tracking entry:
+1. 選ばれたリソースの URL をビルダープロファイルに記録してください(唯一の正式な情報源)。
+リソース追跡のエントリを追記します:
 ```bash
 SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null) || true
 ~/.claude/skills/gstack/bin/gstack-developer-profile --log-session '{"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","mode":"resources","project_slug":"'"${SLUG:-unknown}"'","signal_count":0,"signals":[],"design_doc":"","assignment":"","resources_shown":["URL1","URL2","URL3"],"topics":[]}' 2>/dev/null || true
 ```
 
-2. Log the selection to analytics:
+2. 選択を analytics に記録します:
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
 mkdir -p "$GSTACK_STATE_ROOT"/analytics
 echo '{"skill":"office-hours","event":"resources_shown","count":NUM_RESOURCES,"categories":"CAT1,CAT2","ts":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' >> "$GSTACK_STATE_ROOT"/analytics/skill-usage.jsonl 2>/dev/null || true
 ```
 
-3. Use AskUserQuestion to offer opening the resources:
+3. AskUserQuestion を使って、リソースを開くかどうかを提案します:
 
-Present the selected resources and ask: "Want me to open any of these in your browser?"
+選ばれたリソースを提示し、次のように尋ねます: 「これらのどれかを、ブラウザで開きましょうか?」
 
-Options:
-- A) Open all of them (I'll check them out later)
-- B) [Title of resource 1] — open just this one
-- C) [Title of resource 2] — open just this one
-- D) [Title of resource 3, if 3 were shown] — open just this one
-- E) Skip — I'll find them later
+選択肢:
+- A) すべて開く(後で見ます)
+- B) [リソース 1 のタイトル] — これだけを開く
+- C) [リソース 2 のタイトル] — これだけを開く
+- D) [リソース 3 のタイトル、3 件提示した場合] — これだけを開く
+- E) スキップ — 後で自分で探します
 
-If A: run `open URL1 && open URL2 && open URL3` (opens each in default browser).
-If B/C/D: run `open` on the selected URL only.
-If E: proceed to next-skill recommendations.
+A の場合: `open URL1 && open URL2 && open URL3` を実行します(それぞれを既定のブラウザで開きます)。
+B/C/D の場合: 選ばれた URL だけに `open` を実行します。
+E の場合: 次のスキルの推奨に進みます。
 
-### Next-skill recommendations — hand the user into the loop
+### 次のスキルの推奨 — ユーザーをループに引き込む
 
-Don't just list options. Offer to launch the next review NOW so the design doc flows
-straight into a structured review. Map the design-doc mode to the recommended option
-(default `/plan-eng-review` when ambiguous — it has the broadest real-world use and the
-strongest retention).
+選択肢を並べるだけでなく、次のレビューを今すぐ起動することを提案してください。そうすれば、設計ドキュメントが構造化されたレビューへと直接つながります。設計ドキュメントのモードを推奨の選択肢に対応させてください(曖昧な場合の既定は `/plan-eng-review` です。実際の利用範囲が最も広く、定着度も最も高いためです)。
 
-**If `PROACTIVE` is `false` OR `CONDUCTOR_SESSION: true`:** do NOT auto-launch. Recommend
-in one line and stop, letting the user invoke:
-- EXPANSION / ambitious → "Next: `/plan-ceo-review` to pressure-test scope and find the 10-star product."
-- well-scoped → "Next: `/plan-eng-review` to lock architecture, tests, and edge cases."
-- visual/UX-heavy → "Next: `/plan-design-review` for a visual/UX pass."
+**`PROACTIVE` が `false` の場合、または `CONDUCTOR_SESSION: true` の場合:** 自動では起動しないでください。一行で推奨して止まり、ユーザー自身に呼び出してもらいます:
+- 野心的・拡張的 → 「次は `/plan-ceo-review` で、スコープに圧力をかけ、10 つ星のプロダクトを見つけましょう。」
+- スコープが明確 → 「次は `/plan-eng-review` で、アーキテクチャ、テスト、エッジケースを固めましょう。」
+- ビジュアル/UX が中心 → 「次は `/plan-design-review` で、ビジュアル/UX の確認をしましょう。」
 
-**Otherwise**, offer via AskUserQuestion (D<N> format from the preamble):
+**それ以外の場合**は、AskUserQuestion で提案してください(プリアンブルの D<N> 形式):
 
-D<N> — Run the next review now?
-Project/branch/task: the design doc you just wrote for this feature.
-ELI10: You just wrote a design doc. The natural next step is a structured review that
-catches scope and architecture problems before you build. I can launch it right now, or
-you can run it later yourself.
-Stakes if we pick wrong: skipping review means problems surface mid-build, costing rework.
-Recommendation: the mode-mapped option (`/plan-eng-review` if unsure) because it locks the
-plan before any code is written.
-Completeness: A=10/10, B=9/10, C=8/10, D=3/10
-Pros / cons:
-A) Run /plan-eng-review now (recommended)
-  ✅ Locks architecture, tests, and edge cases before a line of code is written
-  ❌ Adds ~15 min CC now (human: 1-2 hrs of review compressed)
-B) Run /plan-ceo-review now
-  ✅ Pressure-tests ambition and scope — finds the 10-star version of the product
-  ❌ Lower value when the scope is already tight and well understood
-C) Run /plan-design-review now
-  ✅ Catches visual/UX problems while they are still cheap plan-stage changes
-  ❌ Little value for backend-only or non-visual features
-D) Not now — I'll run a review later
-  ✅ Keeps you in flow if you want to start building immediately
-  ❌ Review gaps compound; problems get more expensive after code exists
-Net: 15 minutes of structured review now against rework risk later.
+D<N> — 次のレビューを今実行しますか?
+プロジェクト/ブランチ/タスク: この機能について今書いた設計ドキュメント。
+ELI10: 設計ドキュメントを書き終えました。次の自然なステップは、構築する前にスコープとアーキテクチャの問題を捉える、構造化されたレビューです。今すぐ起動することも、後で自分で実行することもできます。
+選択を誤った場合のリスク: レビューを飛ばすと、問題はビルド中に表面化し、手戻りのコストがかかります。
+推奨: モードに対応する選択肢(迷う場合は `/plan-eng-review`)。コードを書く前にプランを固めてくれるからです。
+完全性: A=10/10, B=9/10, C=8/10, D=3/10
+長所 / 短所:
+A) 今すぐ /plan-eng-review を実行する(推奨)
+  ✅ コードを 1 行書く前に、アーキテクチャ、テスト、エッジケースを固める
+  ❌ 今は約 15 分の CC の作業が追加される(人間の場合: 1〜2 時間のレビューを圧縮したもの)
+B) 今すぐ /plan-ceo-review を実行する
+  ✅ 野心とスコープに圧力をかけ、プロダクトの 10 つ星バージョンを見つける
+  ❌ スコープがすでに絞られていてよく理解されている場合は、価値が下がる
+C) 今すぐ /plan-design-review を実行する
+  ✅ ビジュアル/UX の問題を、まだ安価なプランの段階で捉える
+  ❌ バックエンド専用や非ビジュアルな機能では、ほとんど価値がない
+D) 今はしない — 後でレビューを実行する
+  ✅ すぐに作り始めたい場合にフローを維持できる
+  ❌ レビューの抜けは積み重なり、コードができてからでは問題の修正コストが上がる
+まとめ: 今の 15 分の構造化レビュー対、後の手戻りのリスク。
 
-On the user's SELECTION of A/B/C (not on invocation success), log the handoff, then invoke
-the chosen skill via the **Skill tool** (it auto-discovers the design doc). In both log
-commands, replace `SESSION_ID` with the value the skill-start output echoed:
+ユーザーが A/B/C を**選択した**場合(呼び出しの成功ではなく)、引き継ぎをログに記録し、選ばれたスキルを **Skill ツール**で呼び出してください(設計ドキュメントは自動的に見つけられます)。両方のログコマンドで、`SESSION_ID` を、スキル開始の出力が示した値に置き換えてください:
 ```bash
 ~/.claude/skills/gstack/bin/gstack-telemetry-log --event-type handoff --skill office-hours --outcome accepted --session-id "SESSION_ID" 2>/dev/null || true
 ```
-On D, log declined and stop:
+D の場合は、declined を記録して止まります:
 ```bash
 ~/.claude/skills/gstack/bin/gstack-telemetry-log --event-type handoff --skill office-hours --outcome declined --session-id "SESSION_ID" 2>/dev/null || true
 ```
 
-The design doc at `~/.gstack/projects/` is automatically discoverable by downstream skills — they will read it during their pre-review system audit.
+`~/.gstack/projects/` にある設計ドキュメントは、後続のスキルから自動的に発見できます。後続のスキルは、事前のシステム監査の中でそれを読みます。
 

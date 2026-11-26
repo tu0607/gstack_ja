@@ -1,213 +1,130 @@
-## Review preparation
+## レビューの準備
 
-Follow the blocks below in order after startup. Confidence Calibration and
-Decision procedure are reference rules, not additional review passes.
+起動後、以下のブロックを順番に従ってください。Confidence Calibration と Decision procedure は参照ルールであり、追加のレビュー工程ではありません。
 
-## Review record and write policy
+## Review record and write policy(レビュー記録と書き込みポリシー)
 
-- **Target:** the plan, diff or code path selected at the Scope gate. It stays fixed.
-- **Working plan:** the proposed work and its current approvals. For a plan target,
-  start with that plan; for code, build a remedy plan from the findings. This is
-  review content, not permission to edit implementation or create another file.
-- **Report file:** the one destination for the working plan, findings, decision
-  ledger and final structured report. It may be the selected plan or a separate file.
+- **ターゲット:** Scope gate で選択されたプラン、差分、またはコードパス。これは固定のままです。
+- **作業プラン:** 提案された作業と、その現在の承認状況。プランがターゲットの場合は、そのプランから始めます。コードの場合は、指摘事項から修正プランを作成します。これはレビューの内容であり、実装の編集や別のファイルの作成を許可するものではありません。
+- **レポートファイル:** 作業プラン、指摘事項、決定台帳、最終的な構造化レポートの保存先。選択されたプラン自体にすることも、別ファイルにすることもできます。
 
-| Target | Evidence to examine |
+| ターゲット | 確認すべき根拠 |
 |---|---|
-| Plan or design document | Proposed paths, checked against existing interfaces and tests |
-| Branch diff | Changed behavior and surrounding code, traced from entry points |
-| Specific file or directory | Existing behavior and relevant callers/tests |
+| プランまたは設計ドキュメント | 提案されたパスを、既存のインターフェースとテストに照らして確認 |
+| ブランチの差分 | 変更された振る舞いと周辺コード。エントリポイントから追跡 |
+| 特定のファイルまたはディレクトリ | 既存の振る舞い、関連する呼び出し元やテスト |
 
-When Test review or Outside Voice refers to the plan, use the current working
-plan and this target evidence. Trace current behavior and proposed changes
-separately. Include actual decisions in Outside Voice's bounded input.
+Test review や Outside Voice がプランを参照する場合は、現在の作業プランとこのターゲットの根拠を使ってください。現在の振る舞いと提案された変更は別々に追跡します。Outside Voice の限定された入力には、実際に行われた決定を含めてください。
 
-Choose the **report file** before any ledger write:
-1. Use the output/report path explicitly requested by the user.
-2. Otherwise use the selected plan file, if there is one.
-3. Otherwise use `$GSTACK_STATE_ROOT/projects/$SLUG/$BRANCH-eng-review-{YYYYMMDD-HHMMSS}.md`, adding a suffix on collision. Obtain assignments from `~/.claude/skills/gstack/bin/gstack-paths` and `~/.claude/skills/gstack/bin/gstack-slug`; failed commands or missing values make this path unavailable.
+台帳への書き込みの前に、**レポートファイル**を選んでください:
+1. ユーザーが明示的に求めた出力/レポートのパスを使う。
+2. それ以外で、選択されたプランファイルがあればそれを使う。
+3. それ以外は `$GSTACK_STATE_ROOT/projects/$SLUG/$BRANCH-eng-review-{YYYYMMDD-HHMMSS}.md` を使う。衝突した場合はサフィックスを付ける。割り当ては `~/.claude/skills/gstack/bin/gstack-paths` と `~/.claude/skills/gstack/bin/gstack-slug` から取得する。コマンドが失敗した場合や値が欠けている場合、このパスは使えない。
 
-Never substitute an unrelated active plan or silently replace a requested destination.
+無関係な有効プランに置き換えたり、要求された保存先を黙って差し替えたりしないでください。
 
-**Check each artifact and parent directory's permission before writing.** Honor
-user and host limits, including active-plan-only restrictions. Permission for one
-path authorizes no other; implementation edits require explicit authority.
+**書き込みの前に、各成果物と親ディレクトリの権限を確認してください。** ユーザーとホストの制限を守ってください。アクティブなプランのみに限定する制限も含みます。1 つのパスの許可は、ほかのパスを許可するものではありません。実装の編集には明示的な権限が必要です。
 
-| Artifact | Destination | If writing is forbidden |
+| 成果物 | 保存先 | 書き込みが禁止されている場合 |
 |---|---|---|
-| Working plan, ledger and complete review report | Selected report file | Ask for a permitted destination if the user can supply one; wait without completion telemetry. If none is permitted, use **Read-only review** below, then **Report-back outcome**. |
-| QA Test Plan and task JSONL | Discovery paths below | Present each completely as **not persisted** and continue. |
-| TODOS.md | The project's TODO file | Present accepted TODO content as **not persisted** and continue. |
-| Required Review Log | The helper's state location | Present its fields as **not persisted**; at Review Log, use **Report-back outcome** instead of publishing a saved review. The final gate cannot pass without this log. |
-| Best-effort metadata/learning logs | Helper-defined locations | Skip forbidden writes; otherwise keep their best-effort behavior. |
+| 作業プラン、台帳、完全なレビューレポート | 選択されたレポートファイル | ユーザーが許可された保存先を指定できる場合は、その保存先を求める。完了テレメトリを出さずに待つ。許可された保存先がない場合は、以下の **Read-only review** を使い、その後 **Report-back outcome** に進む。 |
+| QA テスト計画とタスク JSONL | 以下の検出パス | それぞれを **not persisted** として完全に提示し、続行する。 |
+| TODOS.md | プロジェクトの TODO ファイル | 承認された TODO の内容を **not persisted** として提示し、続行する。 |
+| 必須のレビューログ | ヘルパーの状態の保存場所 | そのフィールドを **not persisted** として提示する。レビューログの段階では、保存済みのレビューを公開する代わりに **Report-back outcome** を使う。このログがなければ最終ゲートは通過できない。 |
+| ベストエフォートのメタデータ/学習ログ | ヘルパーが定める場所 | 禁止された書き込みはスキップする。それ以外は、ベストエフォートの動作を維持する。 |
 
-QA Test Plan/task JSONL keep discovery paths `$GSTACK_STATE_ROOT/projects/{slug}/`:
-`{user}-{branch}-eng-review-test-plan-{datetime}.md` and
-`tasks-eng-review-{datetime}.jsonl`. Keep their formats; do not relocate.
+QA テスト計画/タスク JSONL は、検出パス `$GSTACK_STATE_ROOT/projects/{slug}/` を維持します:
+`{user}-{branch}-eng-review-test-plan-{datetime}.md` と
+`tasks-eng-review-{datetime}.jsonl`。形式を維持し、場所を移動しないでください。
 
-**First report save:** Name the fixed target in the report header. Read an
-existing destination and preserve its content. For a new file, create permitted
-parent directories, then write that header, an unchanged copy of the original
-plan (for plan targets), and the scope record or ledger being saved. Recheck option 3's collision before
-creation; use a suffix rather than overwrite. Findings and fixes first enter
-through Scope Challenge C's ledger saves, never earlier. Put records before an existing `## GSTACK REVIEW REPORT`, or
-at EOF if absent; create that terminal report only at Plan File Review Report.
+**最初のレポート保存:** レポートのヘッダーに、固定されたターゲットを明記してください。既存の保存先は読み込み、その内容を保持します。新しいファイルの場合は、許可された親ディレクトリを作成し、そのヘッダー、元のプランの変更していないコピー(プランがターゲットの場合)、保存するスコープ記録または台帳を書き込みます。作成の前に、選択肢 3 の衝突を再確認してください。上書きせず、サフィックスを使います。指摘事項と修正は、まず Scope Challenge C の台帳の保存を通してのみ入り、それより前には入れません。記録は既存の `## GSTACK REVIEW REPORT` の前に置き、存在しない場合は EOF に置きます。その最終レポートは Plan File Review Report の段階でのみ作成してください。
 
-**Write routes.** A forbidden write follows its row above.
-- **Read-only review:** At each scope/decision record save, present the complete
-  record, grid and authorized amendments as **not persisted** instead. At both
-  pre-question and post-answer verification gates, perform the same comparisons
-  on that presentation instead of a saved Read. This supports chat review, never
-  the saved-report gate.
-- **Failed permitted save** (error or failed Read-back): use **Recovery routing →
-  Repairable write/read failure**, never the routes above. Do not ask from an
-  unsaved record; an unrecovered failed write blocks the review.
+**書き込みの経路。** 禁止された書き込みは、上の該当する行に従います。
+- **Read-only review:** 各スコープ/決定記録の保存時には、完全な記録、グリッド、許可された修正を、代わりに **not persisted** として提示します。質問の前と回答後の両方の検証ゲートでは、保存済みの読み込みの代わりに、その提示内容に対して同じ比較を行います。これはチャットでのレビューを支えるもので、保存済みレポートのゲートは通しません。
+- **許可された保存の失敗**(エラーまたは読み戻しの失敗): 上記の経路ではなく、**Recovery routing → Repairable write/read failure** を使ってください。保存されていない記録から質問しないでください。回復されなかった書き込みの失敗は、レビューをブロックします。
 
 {{LEARNINGS_SEARCH}}
 
-## Retrospective learning
-History paths by review target:
-- Plan: named existing paths. Mark named future paths `not available`; missing
-  history proves nothing about proposed behavior. Never invent paths.
-- Branch diff: changed files.
-- File/directory: selected path.
+## 振り返りによる学習
+レビューのターゲットごとの履歴パス:
+- プラン: 指定された既存のパス。指定された将来のパスは `not available` と記してください。履歴がないことは、提案された振る舞いについて何も証明しません。パスを作り出さないでください。
+- ブランチの差分: 変更されたファイル。
+- ファイル/ディレクトリ: 選択されたパス。
 
-Run `git log --oneline -- <paths>` and `git log --grep=revert --oneline -- <paths>`.
-Check recurring issues and reversals.
+`git log --oneline -- <paths>` と `git log --grep=revert --oneline -- <paths>` を実行してください。
+繰り返し発生する問題と取り消しを確認します。
 
-**Plan-review evidence:** Implementation/validation steps are proposals. Calibrate
-findings below: quote the motivating plan requirement (file:line) and check existing interfaces
-where applicable. Do not require future code or call a proposed regression observed.
-Code-specific examples concern existing code.
+**プランレビューの根拠:** 実装/検証のステップは提案にすぎません。以下の指摘を調整してください。プランの動機となる要件(file:line)を引用し、該当する場合は既存のインターフェースを確認します。将来のコードを要求したり、提案された回帰を観測済みとみなしたりしないでください。コード固有の例は既存のコードに関するものです。
 
-Bounded probes address named current-behavior/interface uncertainties. Report
-evidence, limits, unknowns and future verification. Complete the review without
-building proposed code. Keep suppressed findings for the output appendix.
+限定されたプローブは、指定された現在の振る舞い/インターフェースの不確実性に対応します。根拠、限界、未知の点、将来の検証を報告してください。提案されたコードを構築せずに、レビューを完了させてください。抑制された指摘は、出力の付録のために残しておいてください。
 
 {{CONFIDENCE_CALIBRATION}}
 
-## Decision procedure
+## Decision procedure(決定の手順)
 
-Use this transaction for findings from Scope Challenge, Sections 1–4, Outside
-Voice, late changes and TODO choices. Finish one choice before the next.
+Scope Challenge、セクション 1〜4、Outside Voice、途中の変更、TODO の選択による指摘には、このトランザクションを使ってください。一つの選択を終えてから、次に進みます。
 
-Context Recovery/prerequisites, Prior Learnings configuration and the initial
-target selector use their own menus, without a pre-answer ledger. Scope Challenge
-B also uses its own selectors and post-answer scope record. These selections
-approve no engineering remedy; navigation likewise grants no implementation scope.
+Context Recovery/前提条件、Prior Learnings の設定、初期のターゲットセレクターは、それぞれ独自のメニューを使い、回答前の台帳は使いません。Scope Challenge B も独自のセレクターと回答後のスコープ記録を使います。これらの選択はエンジニアリング上の是正を承認しません。同様に、次の手順の選択(ナビゲーション)は実装のスコープを与えません。
 
-Use the preamble's tool resolution, failure fallback and authorized auto-decision
-rules. Use Review record and write policy for every save below.
+ホストのツール解決、失敗時のフォールバック、承認された自動判断のルールを使ってください。以下のすべての保存には、Review record and write policy を使います。
 
-### Prepare an unanswered choice
+### 未回答の選択を準備する
 
-**Establish current state.**
+**現在の状態を確定する。**
 
-Read the request, source and actual answers. Give each finding a number, severity,
-confidence, file:line and reviewer. Record two separate facts:
-- **Plan baseline:** the last approved value, exact scope and answer reference;
-  if nothing was approved, record the original proposal.
-- **Runtime evidence:** what existing code or a probe shows. Mark unverified
-  behavior unknown.
+リクエスト、ソース、実際の回答を読みます。各指摘に番号、重大度、確信度、file:line、レビュー担当者を付けます。次の 2 つの事実を別々に記録してください:
+- **プランの基準線:** 最後に承認された値、正確なスコープ、回答の参照。何も承認されていなければ、元の提案を記録します。
+- **実行時の根拠:** 既存のコードやプローブが示すもの。検証されていない振る舞いは不明とマークします。
 
-Approval does not prove deployed behavior, and observed behavior does not grant
-approval. Drafts, recommendations and reviewer agreement grant neither. For a
-factual correction that changes no behavior, record the correction and evidence;
-no question or comparison grid is needed.
+承認は、デプロイされた振る舞いを証明しません。また、観測された振る舞いは承認を与えません。ドラフト、推奨案、レビュー担当者の同意も、どれも承認を与えません。振る舞いを変えない事実の訂正については、訂正と根拠を記録します。質問や比較グリッドは不要です。
 
-If an exact prior approval covers the work, cite its answer and disposition.
-Carry its necessary code, tests, documentation and later-discovered required
-proof forward without asking again. Otherwise leave the remedy pending. Reopen
-an approved choice only for a concrete new risk, contradictory evidence or a
-changed assumption. Explain the reason and retain earlier values, complete
-briefs and answers in History. Record remaining unknowns and uncertain risks.
-If no new answer is needed, continue the calling section; otherwise prepare one
-pending choice below.
+正確な過去の承認が作業を対象にしている場合は、その回答と処理を引用してください。必要なコード、テスト、ドキュメント、後から判明した必須の証明を、再度質問せずに引き継ぎます。それ以外は、是正を保留のままにしてください。承認済みの選択を再度開くのは、具体的な新しいリスク、矛盾する根拠、または変わった前提がある場合に限ります。理由を説明し、以前の値、完全なブリーフ、回答を History に残してください。残っている未知の点と不確かなリスクを記録します。新しい回答が不要であれば、呼び出し元のセクションを続けます。そうでなければ、下の保留中の選択を一つ準備してください。
 
-**Separate independent choices.**
+**独立した選択を分ける。**
 
-Before drafting options, list each current value and proposed change: behavior,
-approach, guarantee or bound. Include response timing, resources, lifetimes and
-optional verification method or depth. Give each bound a measure and unit.
+選択肢を作る前に、現在の各値と提案された変更を列挙してください: 振る舞い、アプローチ、保証または上限。応答のタイミング、リソース、寿命、任意の検証方法や深さも含めます。各上限には、測定方法と単位を付けてください。
 
-Give independently selectable changes separate IDs. If the user can accept one
-while another stays approved or undecided, they are separate choices even in the
-same finding, function or patch. A reopened choice keeps its ID and receives the
-next continuous `D<N>` question number.
+独立して選択できる変更には、別々の ID を付けます。ユーザーが一方を承認し、もう一方が承認済みのまま、または未決定のままになりうる場合は、同じ指摘、関数、パッチの中にあっても別々の選択です。再度開かれた選択は ID を維持し、次の連続した `D<N>` の質問番号を受け取ります。
 
-Keep one behavior with its necessary code, tests and documentation. Alternative
-mechanisms for that fixed behavior belong in one question; independently
-selectable runtime outcomes do not. Optional depths of one verification form
-one choice. Separate instrumentation, follow-ups, guarantees and policies need
-their own choices, and their tests wait for approval.
+一つの振る舞いは、必要なコード、テスト、ドキュメントと一緒に扱います。その固定された振る舞いに対する代替の仕組みは一つの質問にまとめます。独立して選択できる実行時の結果は、別々にします。一つの検証方法の任意の深さは、一つの選択とみなします。計測、フォローアップ、保証、ポリシーは、それぞれ独自の選択を必要とし、そのテストは承認を待ちます。
 
-**Compare one choice.**
+**一つの選択を比較する。**
 
-Select one pending ID. Prepare its question in this order:
+保留中の ID を一つ選びます。その質問を次の順序で準備します:
 
-**Draft the native fields:** build `currentDecision`:
-- `question`: the complete D-numbered preamble brief, including Project, ELI10,
-  Stakes, Recommendation and applicable completeness/net fields.
-- `header`: the exact native header.
-- `options`: every exact label and full description.
+**ネイティブのフィールドを作成する:** `currentDecision` を構築します:
+- `question`: プロジェクト、ELI10、Stakes、Recommendation、該当する完全性/正味のフィールドを含む、D 番号付きのプリアンブルのブリーフ全文。
+- `header`: 正確なネイティブのヘッダー。
+- `options`: すべての正確なラベルと完全な説明。
 
-Put the problem and file:line in the native fields. Offer 2–3 options, including
-do-nothing when reasonable; Outside Voice retains its four-option menu.
-Each option must explain human/CC effort, risk and maintenance. Tie the
-recommendation to the engineering preferences; prefer complete coverage when
-extra CC effort is marginal. Make the header and every label final before saving:
-within the host's stated length limits, or under 5 words each when none are stated.
-Put details in descriptions.
+問題と file:line はネイティブのフィールドに入れてください。合理的な場合は何もしない案を含め、2〜3 個の選択肢を提示します。ただし Outside Voice は 4 つの選択肢のメニューを維持します。
+各選択肢は、人間/CC の作業量、リスク、保守について説明する必要があります。推奨案はエンジニアリングの好みと結びつけてください。追加の CC の作業量がわずかな場合は、完全なカバレッジを優先します。保存する前に、ヘッダーとすべてのラベルを確定させてください。ホストが示す長さの上限内に収めるか、上限が示されていない場合は各 5 語未満にします。詳細は説明文に入れてください。
 
-For one fixed approved contract, coverage choices vary implementation or proof
-depth. Apply the preamble's Completeness scores or kind-note accordingly.
-Test-review scores rate existing/proposed tests, not answer status.
+一つの固定された承認済みの契約に対して、カバレッジの選択肢は実装や証明の深さを変えます。プリアンブルの Completeness のスコアや種類の注記を、それに応じて適用してください。テストレビューのスコアは、既存/提案されたテストを評価するものであり、回答の状態ではありません。
 
-**Audit the commitments.** Build a separate **comparison grid** for the whole
-brief. Give every selectable
-behavior, approach, guarantee or bound a row. Show its concrete current value,
-each option's value and work, and any approval citation. Include shared, fixed
-and pending choices.
+**コミットメントを監査する。** ブリフ全体について、別の **comparison grid** を作成します。選択可能なすべての振る舞い、アプローチ、保証、上限に行を一つ割り当てます。その具体的な現在の値、各選択肢の値と作業量、および承認の引用を示してください。共有された、固定された、保留中の選択をすべて含めます。
 
-Use these three checks for every column:
-1. Vary only this choice: every column repeats each other approved value
-   unchanged and leaves each other pending choice pending. A value shared by all
-   options still needs approval if it is new.
-2. Treat necessary implementation and proof of an approved contract as common
-   work. Cite its answer instead of creating another approval row. Never cut an
-   established contract or its required proof.
-3. An Investigate/Defer option must bound the investigation and name what stays
-   unchanged or pending. It approves no implementation, including a conditional
-   fix. Keep that remedy pending.
+すべての列について、次の 3 つのチェックを行ってください:
+1. この選択だけを変える: すべての列で、ほかの承認済みの値は変えずに繰り返し、ほかの保留中の選択は保留のままにします。すべての選択肢に共通する値でも、新しいものであれば承認が必要です。
+2. 承認済みの契約の必要な実装と証明は共通の作業として扱います。その回答を引用し、別の承認行は作らないでください。確立された契約や、その必要な証明を削らないでください。
+3. Investigate/Defer の選択肢は、調査の範囲を限定し、何が変わらず、何が保留のままかを明記しなければなりません。条件付きの修正を含め、実装は一切承認しません。その是正は保留のままにしてください。
 
-**Reconcile before saving.** Compare each option's full label and description
-with every row in its grid column. They must make the same commitments and retain
-the same conditions. Put all deliberation in the native question/descriptions;
-a saved-only Pros/cons block cannot supply missing decision context. Repair
-contradictions now. If you discover another independent choice, separate it and
-rebuild this comparison before saving or sending the question.
+**保存前に整合させる。** 各選択肢の完全なラベルと説明を、グリッドの列のすべての行と比べてください。同じコミットメントを示し、同じ条件を保持している必要があります。すべての検討内容はネイティブの質問/説明に入れてください。保存された Pros/cons ブロックだけでは、不足している決定の文脈を補えません。矛盾はその場で修正してください。ほかの独立した選択を見つけた場合は、それを分け、質問を保存または送信する前に、この比較を作り直してください。
 
-For example, jitter and a delay cap can be chosen independently. A menu of “both / cap only / neither” bundles them by omitting “jitter only.” Ask about jitter first:
+例えば、ジッターと遅延の上限は独立に選択できます。「両方 / 上限のみ / どちらもなし」というメニューは「ジッターのみ」を省くことで両者をまとめてしまいます。まずジッターについて質問してください:
 
-| Choice | Current | A | B |
+| 選択 | 現在 | A | B |
 |---|---|---|---|
-| R1 jitter | unspecified, pending | on | off |
-| R2 delay cap | unspecified, pending | unspecified, pending | unspecified, pending |
+| R1 ジッター | 未指定、保留中 | on | off |
+| R2 遅延の上限 | 未指定、保留中 | 未指定、保留中 | 未指定、保留中 |
 
-After the jitter answer, carry that value into both options of the later cap question.
+ジッターの回答後、その値を後の上限の質問の両方の選択肢に引き継いでください。
 
-**Pending-record checkpoint.**
+**保留中の記録のチェックポイント。**
 
-Save the record, complete grid and exact `currentDecision` using the report
-placement above. Include every native field, the recommendation
-and all options. A–D record selectors are ledger notation only: if a saved label
-already starts `A)`/`B)`/`C)`/`D)`, keep that one prefix; otherwise add it. Compare
-the label separately from that notation by removing the selector before matching.
+上記のレポートの配置を使い、記録、完全なグリッド、正確な `currentDecision` を保存します。すべてのネイティブのフィールド、推奨案、すべての選択肢を含めてください。A〜D の記録用セレクターは台帳の表記にすぎません。保存されたラベルがすでに `A)`/`B)`/`C)`/`D)` で始まっている場合は、その接頭辞を一つだけ残します。そうでなければ付けてください。照合する前に、セレクターを取り除いて、この表記とは別にラベルを比較します。
 
-When revising, replace the whole current payload for this record: comparison
-grid, question, header, options, state, actual answer and accepted scope. Keep
-other choices' headings, content and approvals intact; move superseded payloads
-to History. Do not leave duplicate Question, Header or Options fields.
+改訂する場合は、この記録の現在のペイロード全体を置き換えてください: 比較グリッド、質問、ヘッダー、選択肢、状態、実際の回答、承認されたスコープ。ほかの選択の見出し、内容、承認はそのまま保持し、置き換えられたペイロードは History に移します。Question、Header、Options のフィールドを重複させないでください。
 
 ```markdown
 ## Decision ledger
@@ -232,384 +149,266 @@ Accepted scope: <exact approved work; none if no change approved>
 History: <earlier values, briefs, answers and reason for reopening>
 ```
 
-Check the Write/Edit result, then use Read to fetch the entire saved record.
-Compare every native field with `currentDecision` and the whole saved grid with
-the prepared comparison.
-Read after the final edit, even if Edit says the content is current in context.
-Grep, chat references, summaries and planned writes do not verify the record.
-Repair any difference and repeat the complete Read before asking. A failed save
-blocks the question; unreadable or unverifiable records use **Recovery routing**.
+Write/Edit の結果を確認し、その後 Read で保存された記録全体を取得してください。各ネイティブのフィールドを `currentDecision` と比べ、保存されたグリッド全体を準備した比較と比べます。
+Edit が内容はコンテキスト内で最新だと示していても、最後の編集の後に読み込んでください。Grep、チャットでの参照、要約、予定された書き込みは、記録を検証しません。差異があれば修正し、質問する前に完全な Read を繰り返してください。保存に失敗した場合は質問をブロックします。読めない、または検証できない記録は **Recovery routing** を使います。
 
-If any payload field changes, including a shortened label or formatting edit,
-rebuild the comparison, replace the whole saved payload and Read it again. An older
-comparison or a critic's advice cannot substitute for this verification.
+短縮されたラベルや書式の編集を含め、ペイロードのフィールドが一つでも変わった場合は、比較を作り直し、保存されたペイロード全体を置き換えてから、もう一度読み込んでください。古い比較や批評家の助言は、この検証の代わりにはなりません。
 
-### Send once and wait
+### 一度送信して待つ
 
-Send `AskUserQuestion({ questions: [currentDecision] })` only after the pending-record checkpoint passes. Send one
-question object for one choice; other IDs wait. Copy the verified question,
-header, labels and descriptions literally. Do not add or strip brief paragraphs
-or rebuild options. Authorized prose and auto-decisions use this same verified
-brief with the preamble's rendering and answer rules.
-When Question Tuning is enabled, copying the verified question preserves its
-`<gstack-qid:{question_id}>` marker.
+保留中の記録のチェックポイントを通過した後にのみ、`AskUserQuestion({ questions: [currentDecision] })` を送信してください。一つの選択に対して質問オブジェクトを一つ送ります。ほかの ID は待機します。検証済みの質問、ヘッダー、ラベル、説明を一字一句そのままコピーしてください。ブリーフの段落を追加または削除したり、選択肢を作り直したりしないでください。承認された文章と自動判断も、プリアンブルの表示と回答のルールを使い、この検証済みのブリーフを使います。
+Question Tuning が有効な場合、検証済みの質問をコピーすると、その `<gstack-qid:{question_id}>` マーカーが保持されます。
 
-**STOP until the actual answer arrives.** Do not apply a remedy, make another
-call, start the next section or call ExitPlanMode while the choice awaits an
-answer. An obvious fix still needs an answer unless exact prior approval covers it.
+**実際の回答が届くまで STOP。** 選択が回答を待っている間は、是正を適用したり、別の呼び出しをしたり、次のセクションを開始したり、ExitPlanMode を呼び出したりしないでください。明白な修正であっても、正確な過去の承認が対象でない限り、回答が必要です。
 
-### Record the answer
+### 回答を記録する
 
-Read the selected saved label, full description and grid column together. Carry
-all commitments, conditions, unchanged values and pending choices forward. If
-they conflict or bundle independent choices, preserve the actual answer, explain
-the conflict and return to **Prepare an unanswered choice** for a new verified
-brief and another answer. Do not reinterpret a caption,
-drop a commitment or advance with conflicting approvals.
+選択された保存済みのラベル、完全な説明、グリッドの列を一緒に読みます。すべてのコミットメント、条件、変わらない値、保留中の選択を引き継いでください。それらが矛盾している場合、または独立した選択をまとめている場合は、実際の回答を保持し、矛盾を説明して、新しい検証済みのブリーフと別の回答を得るために **未回答の選択を準備する** に戻ってください。キャプションを解釈し直したり、コミットメントを落としたり、矛盾する承認を抱えたまま進んだりしないでください。
 
-Replace the whole adjacent `State` / `Actual answer` / `Accepted scope` block
-after the options. Use the actual option and answer reference. Set State to
-`approved` for accepted scope or `pending` for an unresolved remedy. Each field
-must occur once outside History. Preserve the options and move superseded states
-to History. If older fields are separated, consolidate all three and remove their
-old occurrences in the same edit; never update only the answer/scope tail.
+選択肢の後にある隣接する `State` / `Actual answer` / `Accepted scope` のブロック全体を置き換えてください。実際の選択肢と回答の参照を使います。承認されたスコープには State を `approved` に、未解決の是正には `pending` に設定します。各フィールドは History の外に一度だけ現れなければなりません。選択肢は保持し、置き換えられた状態は History に移します。古いフィールドが分かれている場合は、3 つすべてをまとめ、同じ編集で古い出現箇所を削除してください。回答とスコープの末尾だけを更新しないでください。
 
-Use a scoped Edit to save this record and only the authorized working-plan
-amendments. Leave other choices unchanged.
+スコープされた Edit を使って、この記録と承認された作業プランの修正だけを保存します。ほかの選択は変更しないでください。
 
-Check the save result, then Read the entire resolution block, including State.
-Verify that its unique state, actual answer and accepted scope match the complete
-selected option and grid column. An answer-only search or current-in-context hint
-cannot replace Read. Correct any discrepancy before advancing; apply the write
-policy to failures.
+保存結果を確認し、その後 State を含む解決ブロック全体を Read してください。その一意の状態、実際の回答、承認されたスコープが、選択された選択肢の全体とグリッドの列に一致することを確認します。回答だけの検索や、コンテキスト内の最新であるというヒントは Read の代わりになりません。先へ進む前に差異を修正し、失敗には書き込みポリシーを適用してください。
 
-For the next choice, use the updated working plan and answer; when finished,
-continue the calling section. Keep chosen values
-fixed in later questions, and explain when a choice has become irrelevant rather
-than asking it again. Start the next section only when no answer is pending in
-this section. Keep unresolved risks and verification visible; resolve risk and
-safety choices before readiness. /autoplan uses its authorized decisions and
-audit trail, leaving User Challenges for its final gate.
+次の選択については、更新された作業プランと回答を使います。終わったら、呼び出し元のセクションを続けます。後の質問でも確定した値は固定したままにし、選択が無関係になった場合は、再度質問せずにその理由を説明してください。このセクションで回答が保留中でない場合にのみ、次のセクションを開始します。未解決のリスクと検証は見える状態に保ち、準備完了の前にリスクと安全性に関する選択を解決してください。/autoplan は承認された決定と監査証跡を使い、User Challenges は最終ゲートに残します。
 
-## Scope Challenge
+## Scope Challenge(スコープチャレンジ)
 
-### A. Assess the target
+### A. ターゲットを評価する
 
-Complete these checks before the complexity decision in B. Do not apply scope
-changes or write findings into the plan yet.
+B の複雑さの決定の前に、これらのチェックを完了させてください。まだスコープの変更を適用したり、指摘をプランに書き込んだりしないでください。
 
-- **What already solves each sub-problem?** Inspect helpers, libraries, callers and reusable outputs: behavior and dependency/deployment boundaries. Cite authored sources; label proposed callers with their motivating plan requirement and assumptions.
-- **What minimum changes achieve the goal?** Flag work deferrable without blocking it; challenge scope creep.
-- **Complexity check:** Count the selected work, not files read only as evidence:
-  for a plan, its proposed changed files and new classes/services; for a diff,
-  changed files and classes/services introduced by that diff; for a file/directory,
-  files in that selected scope and any explicitly proposed new classes/services.
-  Count each once, label estimates, and seek fewer moving parts. Use these counts in B.
-- **Search check:** For each new architectural pattern, infrastructure component
-   or concurrency approach, research built-ins, current practice and pitfalls
-   through Aside (entrypoint readiness), one read-only request per pattern.
-   Prompt file text (create, write and send it with the Web research runs in Aside blocks in SKILL.md):
+- **各サブ問題を既に解決しているものは何か?** ヘルパー、ライブラリ、呼び出し元、再利用可能な出力を調べてください。振る舞い、依存関係とデプロイの境界を確認します。作成されたソースを引用し、提案された呼び出し元には、その動機となるプランの要件と前提を付けてください。
+- **目的を達成する最小の変更は何か?** ブロックせずに延期できる作業にフラグを付け、スコープの膨張に異議を唱えます。
+- **複雑さのチェック:** 根拠としてのみ読んだファイルではなく、選択された作業を数えます。
+  プランの場合は、提案された変更ファイルと新しいクラス/サービス。差分の場合は、変更されたファイルと、その差分が導入するクラス/サービス。ファイル/ディレクトリの場合は、選択されたスコープ内のファイルと、明示的に提案された新しいクラス/サービス。それぞれを一度だけ数え、推定値にはラベルを付け、動く部分を減らすことを目指します。これらの数を B で使います。
+- **検索のチェック:** 新しいアーキテクチャのパターン、インフラのコンポーネント、並行処理のアプローチごとに、Aside(エントリポイントの準備状況)を通して、組み込み機能、現在の実践、落とし穴を調べます。パターンごとに読み取り専用のリクエストを一つ出します。
+   プロンプト本文(SKILL.md の Web research runs in Aside ブロックで送信するもの):
    `{framework} {pattern} built-in, {pattern} best practice {current year}, and {framework} {pattern} pitfalls. Reply with up to 8 bullets, each with its source URL.`
 
-   If Aside is unavailable, use host WebSearch for these queries. With neither,
-   skip and note: "Search unavailable — proceeding with in-distribution knowledge only."
+   Aside が利用できない場合は、これらのクエリにホストの WebSearch を使います。どちらも利用できない場合は、スキップして次のように記してください: 「Search unavailable — proceeding with in-distribution knowledge only.」
 
-   Prefer available built-ins. Label recommendations **[Layer 1]**, **[Layer 2]**,
-   **[Layer 3]** or **[EUREKA]** per Search Before Building; explain departures
-   from standard practice.
-- **TODOS cross-reference:** Read existing `TODOS.md`: what blocks this plan,
-   fits this PR without expanding scope, or needs a new TODO?
+   利用可能な組み込み機能を優先します。推奨案には、Search Before Building に従って **[Layer 1]**、**[Layer 2]**、**[Layer 3]** または **[EUREKA]** のラベルを付けます。標準的な実践から外れる場合は、その理由を説明してください。
+- **TODOS の相互参照:** 既存の `TODOS.md` を読みます: このプランを妨げるもの、スコープを広げずにこの PR に収まるもの、新しい TODO が必要なものは何か?
 
-- **Completeness check:** Full tests, edges and errors cost 10-100x less with AI.
-   Prefer completeness when a shortcut saves only CC+gstack minutes. Boil the ocean.
+- **完全性のチェック:** 完全なテスト、エッジケース、エラー処理は、AI を使えば 10〜100 倍安く済みます。近道が CC+gstack の数分しか節約しない場合は、完全性を優先してください。湖を煮立たせる(妥協せず完全にやる)。
 
-- **Distribution check:** For new artifacts, verify build/publish CI/CD, target
-   OS/architectures and download/install channels. Put deferrals in "NOT in scope".
+- **配布のチェック:** 新しい成果物については、ビルド/公開の CI/CD、対象の OS/アーキテクチャ、ダウンロード/インストールの経路を確認してください。延期する項目は 「スコープ外」 に入れます。
 
 {{PLAN_REALITY_ROWS:eng}}
 
-### B. Resolve complexity selectors
+### B. 複雑さのセレクターを解決する
 
-With fewer than 8 files AND fewer than 2 new classes/services, skip B's questions
-and go directly to **C. Resolve findings**.
-At 8+ files or 2+ new classes/services, STOP before Section 1. Use the
-preamble's decision-brief format for this complexity gate, in this order:
+8 ファイル未満かつ新しいクラス/サービスが 2 個未満であれば、B の質問は飛ばして **C. 指摘を解決する** に直接進みます。
+8 ファイル以上、または新しいクラス/サービスが 2 個以上の場合は、セクション 1 の前に STOP してください。この複雑さのゲートには、プリアンブルの決定ブリーフの形式を、次の順序で使います:
 
-Initial scope selectors need no grid or **pre-answer** ledger write. Ask and
-wait before changes.
+最初のスコープのセレクターには、グリッドも **回答前** の台帳への書き込みも必要ありません。変更の前に、質問して待ってください。
 
-1. Explain the complexity. Ask each proposed feature cut/deferral separately;
-   wait before changing scope.
-2. Always resolve the structure question when this gate trips, even with no cuts,
-   as question_id `plan-eng-review-structure` (no per-plan slug); `AUTO_DECIDE`
-   picks the recommendation. Compare only the file/class arrangement, labeled
-   `Original arrangement` and `Smaller arrangement`, with files/classes per
-   option. Both retain
-   the same approved feature list, contracts and approved
-   security/error/test/performance fixes. Include `Pending remedies not decided here: <ids>` in the
-   question; unapproved fixes stay pending. If no smaller arrangement preserves
-   these commitments, explain that and offer confirmation of the original
-   arrangement or a pause to investigate a smaller one. Wait for the answer.
-   A pause leaves the arrangement undecided: investigate only the agreed question,
-   then return to the selector. Do not continue to C until it is settled.
-3. Save the actual feature and structure answers as one scope record: `feature
-   answers: <refs>; structure: <A/B + ref>; accepted scope: <exact scope>;
-   pending remedies: <ids or none>`.
+1. 複雑さを説明します。提案された機能の削減/延期を、それぞれ別々に質問します。スコープを変更する前に待ちます。
+2. このゲートが発動したときは、削減がなくても、必ず構造の質問を解決します。question_id は `plan-eng-review-structure`(プランごとのスラッグなし)とします。`AUTO_DECIDE` が推奨案を選びます。ファイル/クラスの配置のみを比較し、`Original arrangement` と `Smaller arrangement` とラベルを付け、各選択肢のファイル/クラス数を示します。両方とも、同じ承認済みの機能リスト、契約、承認済みのセキュリティ/エラー/テスト/パフォーマンスの修正を維持します。質問には `Pending remedies not decided here: <ids>` を含めてください。承認されていない修正は保留のままにします。これらのコミットメントを維持する、より小さい配置がない場合は、その旨を説明し、元の配置の確認か、より小さい配置を調べるための一時停止を提案します。回答を待ちます。
+   一時停止は配置を未決定のままにします。合意された質問だけを調べ、その後セレクターに戻ってください。解決されるまで C に進まないでください。
+3. 実際の機能と構造の回答を一つのスコープ記録として保存します: `feature answers: <refs>; structure: <A/B + ref>; accepted scope: <exact scope>; pending remedies: <ids or none>`。
 
-This is a post-answer scope summary, not a remedy's pending ledger record.
-Save it under the write policy and Read it back against the actual answers;
-on the permitted read-only route, present and verify it as **not persisted**.
-Do not invent a pre-answer record afterward. A failed save or Read blocks advancement.
+これは回答後のスコープの要約であり、是正の保留中の台帳の記録ではありません。
+書き込みポリシーに従って保存し、実際の回答と照らして読み戻して検証してください。許可された読み取り専用の経路では、**not persisted** として提示して検証します。
+回答の後に、回答前の記録を作り直さないでください。保存または読み込みに失敗した場合は、先へ進めません。
 
-After verification, apply only accepted scope changes. Do not re-argue reduction
-or skip approved components. Continue to **C. Resolve findings**.
+検証の後は、承認されたスコープの変更だけを適用します。削減の議論を蒸し返したり、承認済みのコンポーネントを省略したりしないでください。**C. 指摘を解決する** に進みます。
 
-### C. Resolve findings
+### C. 指摘を解決する
 
-Run C whether B was completed or skipped.
+B を完了した場合もスキップした場合も、C を実行してください。
 
-1. Present numbered Scope Challenge findings with calibrated severity, confidence
-   and source; use "No issues found" for an empty list.
-2. Resolve each remedy through Decision procedure, reusing exact answers.
-   Findings and scope answers approve no remedies.
-3. Report accepted/rejected/deferred/pending dispositions from those answers.
+1. 番号付きの Scope Challenge の指摘を、調整された重大度、確信度、出典とともに提示します。一覧が空の場合は "No issues found" と書きます。
+2. Decision procedure を通して各是正を解決し、正確な回答を再利用します。指摘やスコープの回答は、どの是正も承認しません。
+3. それらの回答から、受け入れ/却下/延期/保留の処理を報告します。
 
-Record the Scope Challenge result from actual accepted changes: with a scope
-reduction, `scope reduced per recommendation`; otherwise `scope accepted as-is`,
-including when B was skipped. A smaller arrangement that preserves scope is not
-a scope reduction. This result supplies MODE; it approves no pending remedy.
-Keep it current if later approved choices change scope.
-Continue to Section 1 only when no answer is pending.
+Scope Challenge の結果は、実際に受け入れた変更から記録してください。スコープを削減した場合は `scope reduced per recommendation`、そうでなければ `scope accepted as-is` とします。B をスキップした場合もこれに含みます。スコープを維持したまま、より小さい配置にしても、スコープの削減にはなりません。この結果は MODE を決めるもので、保留中の是正を承認するものではありません。
+後から承認された選択がスコープを変えた場合は、この結果を最新に保ってください。
+回答が保留中でない場合にのみ、セクション 1 に進みます。
 
 {{PLAN_REALITY_ROWS:deep}}
 
-## Review Sections (after scope is agreed)
+## Review Sections(レビューのセクション。スコープが合意された後)
 
-Evaluate Architecture → Code Quality → Tests → Performance. Never condense,
-abbreviate or skip a section, including strategy/spec/infra plans.
+Architecture → Code Quality → Tests → Performance の順に評価します。戦略、仕様、インフラのプランも含め、セクションを要約、省略、または飛ばさないでください。
 
-After each of Sections 1–4, resolve new or reopened choices through Decision
-procedure, report findings and dispositions, then continue. Per section, output
-every main-report finding in the Confidence Calibration format, most severe first
-(or "No issues found"), one question per new or reopened choice, then `Dispositions:` (accepted, rejected,
-deferred or pending, with D-number or answer) for each finding.
+セクション 1〜4 のそれぞれの後に、新しいまたは再度開かれた選択を Decision procedure で解決し、指摘と処理を報告してから続けます。セクションごとに、メインレポートのすべての指摘を Confidence Calibration の形式で、重大なものから順に出力します(または "No issues found")。新しいまたは再度開かれた選択ごとに一つの質問を出し、その後、各指摘について `Dispositions:`(受け入れ、却下、延期、保留。D 番号または回答を付ける)を出力します。
 
-### 1. Architecture review
-Evaluate:
-* System/component boundaries, dependencies and coupling.
-* Data flow, bottlenecks, scaling and single points of failure.
-* Security: auth, data access and API boundaries.
-* Key flows needing ASCII diagrams in plans/code.
-* One realistic production failure per new path/integration; does the plan handle it?
-* **Distribution architecture:** New artifacts' build, publish and update paths; included or deferred CI/CD.
+### 1. アーキテクチャのレビュー
+評価項目:
+* システム/コンポーネントの境界、依存関係、結合。
+* データフロー、ボトルネック、スケーリング、単一障害点。
+* セキュリティ: 認証、データアクセス、API の境界。
+* プラン/コードで ASCII 図が必要な主要なフロー。
+* 新しいパス/連携ごとに、現実的な本番障害を一つ挙げる。プランはそれを扱えているか?
+* **配布のアーキテクチャ:** 新しい成果物のビルド、公開、更新の経路。CI/CD を含めるか、延期するか。
 
-### 2. Code quality review
-Evaluate:
-* Organization and module structure.
-* Shared-code opportunities in the target and related callers, using the rubric below. No standalone history/PR sweep or quotas. Check proposed caller assumptions against existing interfaces.
-* Explicitly flag error handling gaps and missing edge cases.
-* Technical debt, fragility and needless complexity per engineering preferences.
-* Accuracy of touched files' ASCII diagrams.
+### 2. コード品質のレビュー
+評価項目:
+* 構成とモジュール構造。
+* 対象および関連する呼び出し元における共通コードの機会。以下の基準を使う。単独の履歴/PR の走査やノルマは行わない。提案された呼び出し元の前提を、既存のインターフェースと照らして確認する。
+* エラー処理の欠落とエッジケースの不足を明示的に指摘する。
+* エンジニアリングの好みに照らした技術的負債、脆さ、不要な複雑さ。
+* 変更されたファイルの ASCII 図の正確さ。
 
 {{SHARED_LIBS_RUBRIC}}
 
-Use Decision procedure for new/reopened extraction choices; scope approval does not approve extraction.
+新しいまたは再度開かれた抽出の選択には Decision procedure を使ってください。スコープの承認は、抽出を承認するものではありません。
 
-### 3. Test review
+### 3. テストのレビュー
 
-For shared-code changes, audit existing/missing shared-contract tests (behavior,
-errors, side effects, boundaries) and each migrated caller's integration/differences.
-Rejected extractions still need coverage for real duplicated-code defects.
+共通コードの変更については、既存/欠落している共有契約のテスト(振る舞い、エラー、副作用、境界)と、移行された各呼び出し元の統合/差異を監査してください。
+却下された抽出でも、実際に重複したコードの欠陥については、カバレッジが必要です。
 
 {{TEST_COVERAGE_AUDIT_PLAN}}
 
-After **Add missing tests to the plan** resolves test/eval decisions and the Test Plan Artifact is saved or presented, report the Test review findings and their dispositions and continue to Performance review.
+**Add missing tests to the plan** がテストと評価の決定を解決し、テスト計画の成果物が保存または提示された後、テストのレビューの指摘とその処理を報告し、パフォーマンスのレビューに進みます。
 
-### 4. Performance review
-Evaluate:
-* N+1 queries and database access patterns.
-* Memory usage.
-* Caching opportunities.
-* Slow or complex paths.
+### 4. パフォーマンスのレビュー
+評価項目:
+* N+1 クエリとデータベースアクセスのパターン。
+* メモリ使用量。
+* キャッシュの機会。
+* 遅い、または複雑なパス。
 
-On per-request or looped paths, check queries in loops, unbounded
-queries or caches, missing indexes, whole-file loads and blocking calls without
-timeouts. Give each finding's scale (rows, requests/s, bytes) or mark it
-unknown; never invent benchmarks.
+リクエストごとのパス、またはループ内のパスでは、ループ内のクエリ、上限のないクエリやキャッシュ、インデックスの欠落、ファイル全体の読み込み、タイムアウトのないブロッキング呼び出しを確認してください。各指摘には規模(行数、リクエスト/秒、バイト数)を付けるか、不明とマークしてください。ベンチマークを作り出さないでください。
 
 {{CODEX_PLAN_REVIEW}}
 
-### Continue after Outside Voice
+### Outside Voice の後の続行
 
-Finish the Outside Voice branch. Only completed reviews enter Cross-model tension. Record the actual coverage, including disabled or unavailable outcomes, in the Completion summary, then continue below.
+Outside Voice の分岐を完了させてください。完了したレビューだけがモデル間の緊張関係に入ります。無効化されたもの、または利用できなかったものを含め、実際のカバレッジを Completion summary に記録してから、以下に進みます。
 
-## Final planning decisions
+## 最終的な計画上の決定
 
-After Sections 1–4 and Outside Voice, resolve the TODO choices, then check Approval readiness before Required outputs.
+セクション 1〜4 と Outside Voice の後、TODO の選択を解決し、Required outputs の前に Approval readiness を確認してください。
 
-### TODOS.md updates
-Review every potential TODO. Reuse an exact prior disposition under Decision procedure; ask about each unanswered proposal in its own AskUserQuestion. Never batch TODOs or silently skip them. Use `~/.claude/skills/gstack/review/TODOS-format.md`.
+### TODOS.md の更新
+潜在的な TODO をすべて確認してください。Decision procedure に従って、正確な過去の処理を再利用します。回答されていない提案は、それぞれ独立した AskUserQuestion で質問します。TODO をまとめたり、黙って飛ばしたりしないでください。`~/.claude/skills/gstack/review/TODOS-format.md` を使います。
 
-For each TODO, record **What**, **Why**, **Pros**, **Cons** (cost/complexity/risk),
-**Context** (motivation, current state, where to start in 3 months), and
-**Depends on / blocked by** (prerequisites/order).
+各 TODO について、**What**(何を)、**Why**(なぜ)、**Pros**(利点)、**Cons**(欠点:コスト/複雑さ/リスク)、**Context**(動機、現状、3 か月後に着手する場所)、**Depends on / blocked by**(前提/順序)を記録します。
 
-Then present options: **A)** Add to TODOS.md **B)** Skip — not valuable enough **C)** Build it now in this PR instead of deferring.
+そのうえで選択肢を提示します: **A)** TODOS.md に追加する **B)** スキップ — 価値が十分でない **C)** 延期せず、この PR で今すぐ作る。
 
-Option C records accepted implementation scope; still do not edit product code.
+選択肢 C は、受け入れた実装のスコープを記録します。それでも製品のコードは編集しないでください。
 
 {{PLAN_REVIEW_APPROVAL_CHECK}}
 
-## Required outputs
+## Required outputs(必須の出力)
 
-After Approval readiness passes, follow this finish sequence using the reference
-sections below; those references are not another review cycle.
+Approval readiness を通過した後、以下の参照セクションを使って完了のシーケンスに従ってください。これらの参照は、別のレビューの周期ではありません。
 
-For recovery or changed outputs, use the entrypoint's **Recovery routing**.
-Reuse a successful Review Log only for unchanged saved outputs; changed outputs
-must pass steps 1–4 again.
+回復や変更された出力の場合は、エントリポイントの **Recovery routing** を使います。成功した レビューログ は、変更されていない保存済みの出力に対してのみ再利用します。変更された出力は、手順 1〜4 をもう一度通す必要があります。
 
-1. **Prepare the review body.** Complete the working plan, Implementation Tasks
-   and Completion summary below. Leave choices pending according to each record's
-   current State, actual answer and accepted scope. Save permitted auxiliary artifacts under the write policy.
-   Check the Test Plan already produced in Test review; update that artifact only
-   if later approved decisions changed its requirements. Do not recreate unchanged output.
-2. **Save and Read back.** Use Plan File Review Report to save the complete body
-   and terminal `## GSTACK REVIEW REPORT`; pass its Read-back gate. Forbidden
-   persistence uses **Report-back outcome**; an unrecovered save requires
-   **Blocked outcome**, not logging.
-3. **Log the saved review.** Run Review Log with saved Completion summary values.
-   If the required log is forbidden, show fields as not persisted and take **Report-back outcome**;
-   failures use the write policy's recovery.
-4. **Publish.** Display the Review Readiness Dashboard, then present the saved
-   Completion summary to the user.
-5. **Choose navigation.** Use Next Steps — Review Chaining; wait for its answer.
-   A substantive change follows
-   **Recovery routing → Late change or missing work** before navigation resumes.
-6. **Finish.** Run Learning hooks, including gated Brain Calibration Write-Back;
-   then return to the entrypoint's Section self-check and read-only EXIT PLAN MODE GATE in
-   every host mode. Only after both pass, run success telemetry and cache refresh;
-   call ExitPlanMode only in host plan mode.
+1. **レビュー本文を準備する。** 下の作業プラン、Implementation Tasks、Completion summary を完成させます。各記録の現在の State、実際の回答、承認されたスコープに従い、選択は保留のままにします。許可された補助成果物は、書き込みポリシーに従って保存します。
+   Test review ですでに作成されたテスト計画を確認します。後の承認された決定でその要件が変わった場合にのみ、その成果物を更新してください。変更のない出力は作り直さないでください。
+2. **保存と読み戻し。** Plan File Review Report を使い、完全な本文と最終的な `## GSTACK REVIEW REPORT` を保存します。その読み戻しのゲートを通します。保存が禁止されている場合は **Report-back outcome** を使います。回復されなかった保存には、ログの記録ではなく **Blocked outcome** が必要です。
+3. **保存されたレビューを記録する。** 保存済みの Completion summary の値を使って レビューログ を実行します。必須のログが禁止されている場合は、フィールドを not persisted として表示し、**Report-back outcome** を使います。失敗した場合は、書き込みポリシーの回復に従います。
+4. **公開する。** Review Readiness Dashboard を表示し、その後、保存された Completion summary をユーザーに提示します。
+5. **次の手順(ナビゲーション)を選ぶ。** 次のステップ — レビューの連鎖 を使い、その回答を待ちます。実質的な変更があった場合は、次の手順(ナビゲーション)を再開する前に **Recovery routing → Late change or missing work** に従います。
+6. **完了する。** ゲート付きの Brain Calibration Write-Back を含め、Learning hooks を実行します。その後、エントリポイントのセクションの自己チェックと、すべてのホストモードでの読み取り専用の EXIT PLAN MODE GATE に戻ります。両方を通過した後にのみ、成功のテレメトリとキャッシュの更新を実行し、ExitPlanMode はホストがプランモードの場合にのみ呼び出します。
 
-### Output reference — review body
+### 出力リファレンス — レビュー本文
 
-Place `Suppressed findings` as a body appendix before the terminal
-`## GSTACK REVIEW REPORT`; nothing follows that terminal report.
+`Suppressed findings` は、最終的な `## GSTACK REVIEW REPORT` の前に、本文の付録として置いてください。その最終レポートの後には何も続けません。
 
-### "NOT in scope" section
-List considered work that was explicitly deferred, with one sentence explaining each deferral.
+### 「スコープ外」セクション
+延期が明示的に決まった検討済みの作業を一覧にし、各延期について 1 文で理由を説明します。
 
-### "What already exists" section
-Link existing solutions and distinguish reuse/rebuilding. For accepted shared-code
-choices, reference their Code Quality/Test decisions and complete rubric evidence.
-Explain safer separation or net growth; never re-ask settled remedies.
+### 「既存のもの」セクション
+既存のソリューションにリンクし、再利用と再構築を区別します。受け入れた共通コードの選択については、その Code Quality/Test の決定と、基準の根拠を完全に示したものを参照してください。より安全な分離や正味の増加を説明します。解決済みの是正を再度尋ねないでください。
 
-### Diagrams
-Diagram non-trivial flows, states and pipelines in ASCII. Name files needing inline
-diagrams for complex model, service or mixin behavior.
+### 図
+複雑ではないフロー、状態、パイプラインを ASCII で図にします。複雑なモデル、サービス、mixin の振る舞いについてインラインの図が必要なファイルを挙げてください。
 
-### Failure modes
-For each new diagrammed path, name a realistic production failure, its test/error
-handling coverage, and whether users see a clear error or a silent failure.
+### 障害モード
+図にした新しいパスごとに、現実的な本番障害、そのテスト/エラー処理のカバレッジ、そして、ユーザーに明確なエラーが見えるか、それとも黙って失敗するかを挙げてください。
 
-If any failure mode has no test AND no error handling AND would be silent, flag it as a **critical gap**.
+障害モードに、テストもエラー処理もなく、かつ黙って失敗するものがあれば、それを **critical gap** として指摘してください。
 
-### Worktree parallelization strategy
+### ワークツリーの並列化戦略
 
-Group implementation into parallel git worktrees (`isolation: "worktree"`) or workspaces.
-With one primary module or fewer than 2 independent workstreams, write:
-"Sequential implementation, no parallelization opportunity." Otherwise give a
-**Dependency table** by module, not guessed file:
+実装を並列の git ワークツリー(`isolation: "worktree"`)またはワークスペースにまとめます。主要なモジュールが 1 つ、または独立したワークストリームが 2 つ未満の場合は、次のように書きます: 「Sequential implementation, no parallelization opportunity.」(逐次実装、並列化の機会なし)。それ以外の場合は、推測したファイルではなく、モジュールごとの **依存関係の表** を示します:
 
-| Step | Modules touched | Depends on |
+| ステップ | 変更するモジュール | 依存先 |
 |------|----------------|------------|
-| (step name) | (directories/modules, NOT specific files) | (other steps, or —) |
+| (ステップ名) | (ディレクトリ/モジュール。特定のファイルではない) | (ほかのステップ、または —) |
 
-**Parallel lanes:** disjoint modules together; shared modules sequentially, dependencies
-later (`Lane A: step1 → step2 (shared models/)` / `Lane B: step3 (independent)`).
-**Execution order:** launch/wait points ("Launch A + B. Merge both. Then C.").
-**Conflict flags:** cross-lane shared modules to sequence or coordinate.
+**並列レーン:** 互いに素なモジュールは一緒に、共有モジュールは順番に、依存関係は後に配置します(`Lane A: step1 → step2 (shared models/)` / `Lane B: step3 (independent)`)。
+**実行順序:** 起動と待機のポイント(「A と B を起動。両方をマージ。その後 C。」)。
+**競合の警告:** レーン間の共有モジュール。順序を決めるか、調整が必要なもの。
 
 {{TASKS_SECTION_EMIT:eng-review}}
 
-### Unresolved decisions
-List unanswered/interrupted choices as "Unresolved decisions that may bite you later",
-with IDs and missing answers. Never silently default. Count each once, excluding
-prior reviews; the terminal report adds those separately.
+### 未解決の決定事項
+回答されていない、または中断された選択を、「後で問題になりうる未解決の決定事項」として ID と不足している回答付きで一覧にします。黙ってデフォルト値を採用しないでください。各項目は一度だけ数え、以前のレビューは除外します。最終レポートでは、それらを別に加算します。
 
-### Completion summary
-From final decisions/outputs; publish after report Read-back and Review Log:
-- Step 0: Scope Challenge — ___ (scope accepted as-is / scope reduced per recommendation)
+### Completion summary(完了サマリー)
+最終的な決定/出力から作成します。レポートの読み戻しと レビューログの後に公開します:
+- Step 0: Scope Challenge — ___(scope accepted as-is / scope reduced per recommendation)
 {{PLAN_REALITY_ROWS:summary}}
-- Architecture Review: ___ issues found
-- Code Quality Review: ___ issues found
-- Test Review: diagram produced, ___ gaps identified
-- Performance Review: ___ issues found
-- NOT in scope: written
-- What already exists: written
-- TODOS.md updates: ___ items proposed to user
-- Failure modes: ___ critical gaps flagged
-- Unresolved decisions: ___ in this review
-- Outside voice: recorded provider, completed / unavailable / disabled / skipped (reason)
-- Parallelization: ___ lanes, ___ parallel / ___ sequential
-- Lake Score: X/Y = answers picking a 10/10 option / answers scored for Completeness; N/A if Y=0.
+- アーキテクチャのレビュー: ___ 件の問題を検出
+- コード品質のレビュー: ___ 件の問題を検出
+- テストのレビュー: 図を作成、___ 件のギャップを特定
+- パフォーマンスのレビュー: ___ 件の問題を検出
+- NOT in scope: 記載済み
+- What already exists: 記載済み
+- TODOS.md の更新: ___ 件をユーザーに提案
+- 障害モード: ___ 件の critical gap を指摘
+- 未解決の決定事項: このレビューで ___ 件
+- Outside voice: 記録されたプロバイダー、completed / unavailable / disabled / skipped(理由)
+- 並列化: ___ レーン、___ 並列 / ___ 逐次
+- Lake Score: X/Y = 10/10 の選択肢を選んだ回答 / 完全性で採点された回答。Y=0 の場合は N/A。
 
 {{PLAN_FILE_REVIEW_REPORT}}
 
-## Review Log
+## レビューログ
 
-Use these commands in finish step 3, after successful Read-back. Both logs follow the write policy: required review log, best-effort decision log.
+読み戻しに成功した後、完了の手順 3 でこれらのコマンドを使ってください。どちらのログも書き込みポリシーに従います。必須のレビューログと、ベストエフォートの決定ログです。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-eng-review","timestamp":"TIMESTAMP","status":"STATUS","unresolved":N,"critical_gaps":N,"issues_found":N,"mode":"MODE","commit":"COMMIT"}' || exit $?
 ~/.claude/skills/gstack/bin/gstack-decision-log '{"decision":"Eng review (MODE): ARCH_SUMMARY","rationale":"KEY_DECISION","scope":"branch","source":"skill","confidence":8}' 2>/dev/null || true
 ```
 
-Second command: `ARCH_SUMMARY` = findings/dispositions; `KEY_DECISION` = durable
-architecture choice. Omit it when none exists.
+2 つ目のコマンド: `ARCH_SUMMARY` = 指摘と処理の要約。`KEY_DECISION` = 持続的なアーキテクチャの選択。該当するものがなければ省略します。
 
-- **TIMESTAMP**: current ISO 8601 datetime
-- **STATUS**: "clean" if `issues_found=0`, `unresolved=0` and `critical_gaps=0`; else "issues_open". Count resolved findings too; "issues_open" can mean mapped work, not failure.
-- **unresolved**: this review's "Unresolved decisions" count; do not include prior reviews
-- **critical_gaps**: number from "Failure modes: ___ critical gaps flagged"
-- **issues_found**: four-section count only (Architecture + Code Quality + Performance + Test gaps). Report Scope Challenge and Outside Voice findings separately.
-- **MODE**: FULL_REVIEW for the Scope Challenge result "scope accepted as-is"; SCOPE_REDUCED for "scope reduced per recommendation".
-- **COMMIT**: output of `git rev-parse --short HEAD`
+- **TIMESTAMP**: 現在の ISO 8601 形式の日時
+- **STATUS**: `issues_found=0`、`unresolved=0`、`critical_gaps=0` の場合は "clean"。それ以外は "issues_open"。解決済みの指摘も数えます。"issues_open" は、失敗ではなく対応付けられた作業があることを意味する場合があります。
+- **unresolved**: このレビューの「未解決の決定事項」の件数。以前のレビューは含めないでください。
+- **critical_gaps**: "Failure modes: ___ critical gaps flagged" の数値
+- **issues_found**: 4 つのセクションの件数のみ(アーキテクチャ + コード品質 + パフォーマンス + テストのギャップ)。Scope Challenge と Outside Voice の指摘は別に報告します。
+- **MODE**: Scope Challenge の結果が "scope accepted as-is" の場合は FULL_REVIEW、"scope reduced per recommendation" の場合は SCOPE_REDUCED。
+- **COMMIT**: `git rev-parse --short HEAD` の出力
 
-Only a successful required log permits publication as a saved review.
+必須のログの記録に成功した場合にのみ、保存されたレビューとして公開できます。
 
 {{REVIEW_DASHBOARD}}
 
-## Next Steps — Review Chaining
+## 次のステップ — レビューの連鎖
 
-In finish step 5, offer applicable routes from the published dashboard:
-- **A) Run /plan-design-review:** unreviewed UI scope (frontend, CSS, views or
-  interactions in the diagram/findings).
-- **B) Run /plan-ceo-review:** optionally, an unreviewed significant product change
-  (new user-facing features, changed direction or substantial scope expansion).
-- **C) Ready to implement — run /ship when done**
+完了の手順 5 では、公開されたダッシュボードから該当する経路を提示します:
+- **A) /plan-design-review を実行:** まだレビューされていない UI の範囲(図や指摘にあるフロントエンド、CSS、ビュー、操作)。
+- **B) /plan-ceo-review を実行:** 任意。まだレビューされていない重要な製品の変更(ユーザー向けの新機能、方向性の変更、大きなスコープの拡大)。
+- **C) 実装の準備完了 — 完了したら /ship を実行**
 
-Flag stale CEO/design reviews from contradictory assumptions or significant commit
-drift. If no further review is needed or `skip_eng_review: true`, state
-"All relevant reviews complete. Run /ship when ready."
+矛盾する前提や大きなコミットのずれから、古くなった CEO/design のレビューを指摘してください。これ以上のレビューが不要な場合、または `skip_eng_review: true` の場合は、「関連するレビューはすべて完了。準備ができたら /ship を実行してください。」と述べます。
 
-AskUserQuestion with only the applicable options. This is **navigation only**:
-copy the working plan's task prerequisites, dependencies and execution order
-without adding or strengthening them in the question or descriptions. A test
-required before editing one function does not make every independent lane wait.
-A next-step answer approves no implementation change.
+該当する選択肢だけを付けて AskUserQuestion を使ってください。これは**次の手順の選択のみ**です。作業プランのタスクの前提条件、依存関係、実行順序は、質問や説明文に追加したり強めたりせずにコピーしてください。ある関数を編集する前に必要なテストがあっても、独立したすべてのレーンを待たせるわけではありません。
+次のステップの回答は、実装の変更を承認するものではありません。
 
-When the user chooses C: {{IMPLEMENTATION_MODEL_HANDOFF}}
+ユーザーが C を選んだ場合: {{IMPLEMENTATION_MODEL_HANDOFF}}
 
-## Learning hooks
+## Learning hooks(学びのフック)
 
-In finish step 6, keep the working plan/approvals fixed. Review operational learnings
-per preamble; use Capture Learnings below for other discoveries. Never log twice.
+完了の手順 6 では、作業プラン/承認を固定したままにします。プリアンブルに従って運用上の学習を振り返ります。それ以外の発見については、以下の Capture Learnings を使ってください。同じものを二度記録しないでください。
 
 {{LEARNINGS_LOG}}
 
 {{GBRAIN_SAVE_RESULTS}}
 
-**Calibration gate status:** No supported preamble/config produces `BRAIN_CALIBRATION_WRITEBACK`. Skip unless that source explicitly enables it. Personal trust/MCP availability cannot enable it; never set it yourself.
+**キャリブレーションのゲートの状態:** 対応しているプリアンブル/設定では `BRAIN_CALIBRATION_WRITEBACK` は生成されません。そのソースが明示的に有効にしていない限りスキップしてください。個人の信頼や MCP の利用可否では有効にできません。自分でこの値を設定しないでください。
 
 {{BRAIN_WRITE_BACK}}

@@ -42,7 +42,7 @@ export function freeTextFileBash(files: FreeTextFile[]): string {
   ].join('\n');
 }
 
-export const FREE_TEXT_WRITE_RULE = 'Write the text into each printed file with your file-write tool (Claude Code\'s Write tool needs a Read of the empty file first), exactly as it should appear. The text never goes into a shell command, heredoc or quoted argument. If a write fails or is refused, do not send: print the cause, the file path and the command below for sending by hand.';
+export const FREE_TEXT_WRITE_RULE = '出力された各ファイルに、ファイル書き込みツール(Claude Code の Write ツールは、先に空ファイルを Read する必要があります)で、そのまま表示されるべき内容を書き込みます。テキストをシェルコマンド、ヒアドキュメント、引用符付き引数に入れてはいけません。書き込みが失敗または拒否された場合は送信せず、原因、ファイルパス、手動送信用の下記コマンドを表示します。';
 
 /**
  * First lines of a later block: rebuild each path from the printed basename

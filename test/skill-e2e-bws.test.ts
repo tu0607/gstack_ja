@@ -90,7 +90,7 @@ Report what each command returned.`,
     const skillMd = fs.readFileSync(path.join(ROOT, 'browse', 'SKILL.md'), 'utf-8');
     // The `$B` setup lives in the Browser fallback section since Aside became
     // the primary driver: slice from its heading to the next heading.
-    const setupStart = skillMd.indexOf('### Find the `$B` binary');
+    const setupStart = skillMd.indexOf('### `$B` バイナリを探す');
     const nextH3 = skillMd.indexOf('\n### ', setupStart + 1);
     const nextH2 = skillMd.indexOf('\n## ', setupStart + 1);
     const setupEnd = [nextH3, nextH2].filter((i) => i > setupStart).sort((a, b) => a - b)[0] ?? skillMd.length;
@@ -128,7 +128,7 @@ Report whether it worked.`,
     const skillMd = fs.readFileSync(path.join(ROOT, 'browse', 'SKILL.md'), 'utf-8');
     // The `$B` setup lives in the Browser fallback section since Aside became
     // the primary driver: slice from its heading to the next heading.
-    const setupStart = skillMd.indexOf('### Find the `$B` binary');
+    const setupStart = skillMd.indexOf('### `$B` バイナリを探す');
     const nextH3 = skillMd.indexOf('\n### ', setupStart + 1);
     const nextH2 = skillMd.indexOf('\n## ', setupStart + 1);
     const setupEnd = [nextH3, nextH2].filter((i) => i > setupStart).sort((a, b) => a - b)[0] ?? skillMd.length;
@@ -169,7 +169,7 @@ Report the exact output. Do NOT try to fix or install anything — just report w
     const skillMd = fs.readFileSync(path.join(ROOT, 'browse', 'SKILL.md'), 'utf-8');
     // The `$B` setup lives in the Browser fallback section since Aside became
     // the primary driver: slice from its heading to the next heading.
-    const setupStart = skillMd.indexOf('### Find the `$B` binary');
+    const setupStart = skillMd.indexOf('### `$B` バイナリを探す');
     const nextH3 = skillMd.indexOf('\n### ', setupStart + 1);
     const nextH2 = skillMd.indexOf('\n## ', setupStart + 1);
     const setupEnd = [nextH3, nextH2].filter((i) => i > setupStart).sort((a, b) => a - b)[0] ?? skillMd.length;

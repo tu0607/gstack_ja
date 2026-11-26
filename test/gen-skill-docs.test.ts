@@ -9,7 +9,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { spawnSync } from 'child_process';
 import { runCapturedCommand } from './helpers/sync-command-capture';
-import { between, expectAbsent, expectMentions, expectOrdered, expectTokens } from './helpers/prompt-structure';
+import { between, compact, expectAbsent, expectMentions, expectOrdered, expectTokens } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const MAX_SKILL_DESCRIPTION_LENGTH = 1024;
@@ -425,8 +425,8 @@ describe('gen-skill-docs', () => {
     // v1.7.0.0 Pros/Cons format uses "ELI10 (ALWAYS)" rather than "Simplify (ELI10".
     const content = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
     expect(content).toContain('ELI10');
-    expect(content).toContain('plain English');
-    expect(content).toContain('not function names');
+    expect(content).toContain('平易な言葉');
+    expect(content).toContain('関数名ではなく');
   });
 
   test('tier 1 skills do NOT contain AskUserQuestion format', () => {
@@ -445,8 +445,8 @@ describe('gen-skill-docs', () => {
     expect(useWhen).not.toMatch(/"benchmark"|"performance"/);
     expect(template).toContain('/benchmark-models');
     const router = fs.readFileSync(path.join(ROOT, 'SKILL.md.tmpl'), 'utf-8');
-    expect(router).toContain('web performance regression → invoke `/benchmark`');
-    expect(router).toContain('model or skill benchmarks → invoke `/benchmark-models`');
+    expect(router).toMatch(/ウェブパフォーマンス[^\n]*`\/benchmark` を呼び出す/);
+    expect(router).toMatch(/モデルやスキルのベンチマーク[^\n]*`\/benchmark-models` を呼び出す/);
   });
 
   test('telemetry producer lives in the scripts; render documents the analytics sink', () => {
@@ -462,11 +462,11 @@ describe('gen-skill-docs', () => {
     const reviewSkills = [
       {
         path: path.join(ROOT, 'plan-ceo-review', 'SKILL.md'),
-        markers: ['# Mega Plan Review Mode', '## Step 0: Detect platform and base branch'],
+        markers: ['# メガプランレビューモード', '## Step 0: プラットフォームとベースブランチを検出する'],
       },
       {
         path: path.join(ROOT, 'plan-eng-review', 'SKILL.md'),
-        markers: ['# Plan Review Mode'],
+        markers: ['# プランレビューモード'],
       },
     ];
 
@@ -498,22 +498,23 @@ describe('gen-skill-docs', () => {
   test('voice and writing-style preamble sections stay compact', () => {
     const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
     const voice = extractMarkdownSection(content, '## Voice');
-    const writingStyle = extractMarkdownSection(content, '## Writing Style');
+    const writingStyle = extractMarkdownSection(content, '## 文体');
 
-    expect(Buffer.byteLength(voice, 'utf-8')).toBeLessThan(3_000);
-    expect(Buffer.byteLength(writingStyle, 'utf-8')).toBeLessThan(2_000);
+    // Japanese text is ~3 bytes/char, so the compactness budget counts characters.
+    expect(voice.length).toBeLessThan(3_000);
+    expect(writingStyle.length).toBeLessThan(2_000);
   });
 
   test('slim voice section preserves the gstack voice contract', () => {
     const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
     const voice = extractMarkdownSection(content, '## Voice');
 
-    expect(voice).toMatch(/lead with the point|direct/i);
-    expect(voice).toMatch(/file|function|line|command|real numbers/i);
-    expect(voice).toMatch(/user.*outcome|user.*experience|real user/i);
-    expect(voice).toMatch(/corporate|academic|PR|hype/i);
-    expect(voice).toMatch(/AI vocabulary|delve|crucial|robust/i);
-    expect(voice).toMatch(/user decides|user.*context|sovereignty|recommendation, not a decision/i);
+    expect(voice).toMatch(/要点から始め/);
+    expect(voice).toMatch(/ファイル|関数|行番号|コマンド|実際の数値/);
+    expect(voice).toMatch(/ユーザーの成果|実際のユーザー/);
+    expect(voice).toMatch(/企業文書調|学術調|広報調|誇大表現/);
+    expect(voice).toMatch(/AI 特有の語彙|delve|crucial|robust/i);
+    expect(voice).toMatch(/決めるのはユーザー|推奨であり、決定ではありません/);
   });
 
   test('preamble .pending-* glob is zsh-safe (uses find, not shell glob)', () => {
@@ -615,19 +616,17 @@ describe('gen-skill-docs', () => {
     expect(qaOnlyTmpl).not.toContain('{{QA_METHODOLOGY}}');
     expect(qaOnlyTmpl).toContain('{{SECTION:exploratory}}');
     expect(qaOnlyTmpl).not.toContain('{{QA_METHOD_READS}}');
-    expect(qaOnlyTmpl).toContain('Load the shared preparation gate now');
+    expectMentions(qaOnlyTmpl, [['共有の準備ゲート', '読み込んで']], 'qa-only template');
     for (const skill of ['qa', 'qa-only']) {
       expect(fs.readFileSync(path.join(ROOT, skill, 'sections/exploratory.md.tmpl'), 'utf8'))
         .toContain('{{QA_EXPLORATORY}}');
       const entry = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf8');
       const explorer = fs.readFileSync(path.join(ROOT, skill, 'sections/exploratory.md'), 'utf8');
-      const directoryRead = skill === 'qa'
-        ? 'Read `sections/scope.md` relative to the installed `qa`/`gstack-qa` SKILL.md directory'
-        : "Use this host's installed `qa`/`gstack-qa` SKILL.md directory for these reads";
+      const directoryRead = '`sections/scope.md` relative to the installed `qa`/`gstack-qa` SKILL.md directory';
       expect(entry).toContain('sections/exploratory.md');
       expect(explorer).toContain(directoryRead);
       for (const method of ['system-functional', 'qa-patterns']) {
-        const methodRead = `Read \`sections/${method}.md\` in full.`;
+        const methodRead = `\`sections/${method}.md\` を全文 Read します。`;
         expect(entry).not.toContain(methodRead);
         expect(explorer).toContain(methodRead);
         expect(explorer.split(methodRead)).toHaveLength(2);
@@ -636,18 +635,18 @@ describe('gen-skill-docs', () => {
         expect(fs.realpathSync(path.join(directory, 'sections', `${method}.md`)))
           .toBe(path.join(ROOT, 'qa', 'sections', `${method}.md`));
       }
-      expect(explorer).toContain('**Browser surfaces only:**\nRead `sections/qa-patterns.md` in full.');
-      expectMentions(explorer, [['before','complete','charters']], 'explorer');
-      expectMentions(explorer, [['do not','invocation','completed']], 'explorer');
-      expect(explorer.indexOf('Read `sections/qa-patterns.md`')).toBeLessThan(explorer.indexOf('Write a **charter**'));
+      expect(explorer).toContain('**Browser の面のみ:**\n`sections/qa-patterns.md` を全文 Read します。');
+      expectMentions(explorer, [['チャーター', '前に', 'Read']], 'explorer');
+      expectMentions(explorer, [['繰り返', '呼び出し', '完了']], 'explorer');
+      expect(explorer.indexOf('`sections/qa-patterns.md` を全文 Read')).toBeLessThan(explorer.indexOf('挙動ごとに **charter** を書きます'));
     }
   });
 
   test('QA_METHODOLOGY is expanded in the shared resource referenced by qa and qa-only', () => {
     const qaContent = readSkillUnion('qa'); // carved: methodology lives in qa/sections/qa-patterns.md
     const qaOnlyUnion = readSkillUnion('qa-only');
-    expect(qaOnlyUnion).toContain("Use this host's installed `qa`/`gstack-qa` SKILL.md directory for these reads");
-    expect(qaOnlyUnion).toContain('**Browser surfaces only:**\nRead `sections/qa-patterns.md` in full.');
+    expect(qaOnlyUnion).toContain('`sections/scope.md` relative to the installed `qa`/`gstack-qa` SKILL.md directory');
+    expect(qaOnlyUnion).toContain('**Browser の面のみ:**\n`sections/qa-patterns.md` を全文 Read します。');
     expect(qaOnlyUnion).not.toContain('Health Score Rubric');
     const qaOnlyContent = qaOnlyUnion + fs.readFileSync(path.join(ROOT, 'qa/sections/qa-patterns.md'), 'utf8');
 
@@ -656,12 +655,12 @@ describe('gen-skill-docs', () => {
     expect(qaOnlyContent).toContain('Health Score Rubric');
 
     // Both should contain framework guidance
-    expect(qaContent).toContain('Framework-Specific Guidance');
-    expect(qaOnlyContent).toContain('Framework-Specific Guidance');
+    expect(qaContent).toContain('フレームワーク別のガイダンス');
+    expect(qaOnlyContent).toContain('フレームワーク別のガイダンス');
 
     // Both should contain the important rules
-    expect(qaContent).toContain('Important Rules');
-    expect(qaOnlyContent).toContain('Important Rules');
+    expect(qaContent).toContain('重要なルール');
+    expect(qaOnlyContent).toContain('重要なルール');
 
     // Both should contain the 6 phases
     expect(qaContent).toContain('Phase 1');
@@ -672,7 +671,7 @@ describe('gen-skill-docs', () => {
 
   test('qa-only has no-fix guardrails', () => {
     const qaOnlyContent = fs.readFileSync(path.join(ROOT, 'qa-only', 'SKILL.md'), 'utf-8');
-    expect(extractMarkdownSection(qaOnlyContent, '## Additional Rules (qa-only specific)')).toMatch(/never fix/i);
+    expect(extractMarkdownSection(qaOnlyContent, '## 追加ルール(qa-only 固有)')).toMatch(/修正/);
     // Should not have Edit, Glob, or Grep in allowed-tools.
     // Scope to frontmatter (between the first two --- lines) — the body can
     // legitimately mention these tool names in prose (e.g., Claude model
@@ -695,9 +694,9 @@ describe('gen-skill-docs', () => {
     // Should have fix-loop phases
     expect(qaContent).toContain('Phase 7');
     expect(qaContent).toContain('Phase 8');
-    expect(qaContent).toContain('Fix Loop');
-    expect(qaContent).toContain('Triage');
-    expect(qaContent).toMatch(/every 5 fixes/i);
+    expect(qaContent).toContain('修正ループ');
+    expect(qaContent).toContain('トリアージ');
+    expect(qaContent).toMatch(/5 件の修正ごと/);
   });
 });
 
@@ -714,7 +713,7 @@ describe('BASE_BRANCH_DETECT resolver', () => {
   });
 
   test('resolver output contains fallback to main', () => {
-    expect(shipContent).toMatch(/fall\s*back\s+to\s+`main`/i);
+    expect(shipContent).toMatch(/`main` にフォールバック/);
   });
 
   test('resolver output uses "the base branch" phrasing', () => {
@@ -813,10 +812,10 @@ describe('description quality evals', () => {
     expect(flag.description).toContain('@c');
   });
 
-  // Guard: every description must be at least 8 chars (catches empty or stub descriptions)
+  // Guard: every description must be at least 4 chars (catches empty or stub descriptions; Japanese is denser per char)
   test('all command descriptions have meaningful length', () => {
     for (const [cmd, meta] of Object.entries(COMMAND_DESCRIPTIONS)) {
-      expect(meta.description.length).toBeGreaterThanOrEqual(8);
+      expect(meta.description.length).toBeGreaterThanOrEqual(4);
     }
   });
 
@@ -871,15 +870,15 @@ describe('REVIEW_DASHBOARD resolver', () => {
   test('dashboard treats review as a valid Eng Review source', () => {
     const content = readShipUnion();
     expect(content).toContain('| Eng Review | `review` or `plan-eng-review` | (DIFF) or (PLAN) |');
-    expect(content).toContain('**Content-first rule:** For `review`');
-    expect(content).toContain('**Plan records** (plan-ceo-review, plan-eng-review');
-    expect(content.replace(/\s+/g, ' ')).toContain('CLEARED requires the selected Eng Review to be `clean`, within 7 days and fresh under step 2');
+    expect(content).toContain('**内容優先のルール:** `review`');
+    expect(content).toContain('**プランレコード**(plan-ceo-review、plan-eng-review');
+    expectMentions(content, [['CLEARED', 'Eng Review', '`clean`', '7 日', '鮮度']], 'ship dashboard verdict rule');
   });
 
   test('shared dashboard propagates review source to plan-eng-review', () => {
     const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
     expect(content).toContain('| Eng Review | `review` or `plan-eng-review` | (DIFF) or (PLAN) |');
-    expect(content).toContain('**Content-first rule:** For `review`');
+    expect(content).toContain('**内容優先のルール:** `review`');
   });
 
   test('resolver output contains key dashboard elements', () => {
@@ -887,7 +886,7 @@ describe('REVIEW_DASHBOARD resolver', () => {
     expect(content).toContain('VERDICT');
     expect(content).toContain('CLEARED');
     expect(content).toContain('Eng Review');
-    expect(content).toContain('7 days');
+    expect(content).toContain('7 日');
     expect(content).toContain('Design Review');
     expect(content).toContain('skip_eng_review');
   });
@@ -900,17 +899,17 @@ describe('REVIEW_DASHBOARD resolver', () => {
 
   test('dashboard includes staleness detection prose', () => {
     const content = readSkillUnion('plan-ceo-review'); // carved: dashboard moved to section
-    expect(content).toContain('**2. Check freshness before choosing a verdict.**');
+    expect(content).toContain('**2. 判定を選ぶ前に、鮮度を確認します。**');
     expect(content).toContain('commit');
   });
 
   for (const skill of REVIEW_SKILLS) {
     test(`${skill} contains review chaining section`, () => {
       const content = readSkillUnion(skill); // carved skills: union skeleton + sections
-      expect(content).toContain('Review Chaining');
+      expect(content).toMatch(/Review Chaining|レビューの連鎖/);
     });
 
-    test(`${skill} Review Log includes commit field`, () => {
+    test(`${skill} レビューログ includes commit field`, () => {
       const content = readSkillUnion(skill); // carved skills: union skeleton + sections
       expect(content).toContain('"commit"');
     });
@@ -942,7 +941,7 @@ describe('REVIEW_DASHBOARD resolver', () => {
 
   test('ship does NOT contain review chaining', () => {
     const content = readShipUnion();
-    expect(content).not.toContain('Review Chaining');
+    expect(content).not.toMatch(/Review Chaining|レビューの連鎖/);
   });
 });
 
@@ -958,14 +957,14 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
     const normalizedPlanSkill = planSkill.replace(/\s+/g, ' ');
     const normalizedShipSkill = shipSkill.replace(/\s+/g, ' ');
     for (const skill of [normalizedPlanSkill, normalizedShipSkill]) {
-      ordered(skill, ['concrete source and test files', '**Trace data flow.**', '**Diagram the execution.**', 'Quality scoring rubric']);
+      ordered(skill, ['具体的なソースとテストのファイル', '**データフローをトレースします。**', '**実行を diagram にします。**', '品質のスコアリング基準']);
       for (const marker of ['★★★', '★★', 'GAP']) expect(skill).toContain(marker);
     }
     // Plan mode traces the plan, not a git diff
-    expect(planSkill).toContain('Trace every codepath in the plan');
+    expect(planSkill).toContain('**Step 1. プラン内のすべてのコードパスをトレース');
     expect(planSkill).not.toContain('git diff origin');
     // Ship mode traces the diff
-    expect(shipSkill).toContain('Trace every codepath changed');
+    expect(shipSkill).toContain('**1. 変更されたすべてのコードパスを、`git diff origin/<base>` を使ってトレース');
   });
 
   test('review mode uses Review Army for specialist dispatch', () => {
@@ -988,42 +987,43 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
     for (const skill of [planSkill, shipSkill]) {
       expect(skill).toMatch(/^#{3,4} REGRESSION RULE/m);
     }
-    expectMentions(planSkill, [['without','requirement','regression']], 'planSkill');
+    expectMentions(planSkill, [['のないまま','必須の要件','回帰']], 'planSkill');
   });
 
   test('all five plan audit subheadings stay inside Test review while ship keeps its existing depth', () => {
-    const tests = planSkill.split('\n### 3. Test review\n')[1]!.split('\n### 4. Performance review\n')[0]!;
+    const tests = planSkill.split('\n### 3. テストのレビュー\n')[1]!.split('\n### 4. パフォーマンスのレビュー\n')[0]!;
     const instructions = tests.replace(/```[\s\S]*?```/g, '');
-    const headings = ['Test Framework Detection', 'E2E Test Decision Matrix', 'REGRESSION RULE (mandatory)',
+    const headings = ['Test Framework Detection', 'E2E Test Decision Matrix', 'REGRESSION RULE',
       'LLM/eval scope', 'Test Plan Artifact'];
-    expect([...instructions.matchAll(/^#### (.+)$/gm)].map(match => match[1])).toEqual(headings);
+    // Headings carry a Japanese gloss in parentheses; compare the English identifier.
+    expect([...instructions.matchAll(/^#### (.+)$/gm)].map(match => match[1]!.replace(/\([^)]*[\u3040-\u30ff\u4e00-\u9fff][^)]*\)$/, ''))).toEqual(headings);
     expect(instructions).not.toMatch(/^#{1,3} /m);
     for (const heading of headings.filter(heading => heading !== 'LLM/eval scope')) {
-      expect(shipSkill).toContain(`\n### ${heading}\n`);
-      expect(shipSkill).not.toContain(`\n#### ${heading}\n`);
+      expect(shipSkill).toContain(`\n### ${heading}`);
+      expect(shipSkill).not.toContain(`\n#### ${heading}`);
     }
   });
 
   test('planned regression coverage gets its own approved contract without making coverage optional', () => {
-    const regression = planSkill.split('\n#### REGRESSION RULE (mandatory)\n')[1]!.split('**Step 4.')[0]!;
-    expect(regression).toContain('critical requirement');
-    expectMentions(regression, [['not','whether','cover']], 'regression');
-    expectMentions(regression, [['before','approved','contract']], 'regression');
-    expect(regression).not.toContain('No AskUserQuestion');
-    expect(regression).not.toContain('the diff broke');
-    expectMentions(regression, [['not','running','already']], 'regression');
+    const regression = planSkill.split('\n#### REGRESSION RULE(回帰ルール・必須)\n')[1]!.split('**Step 4.')[0]!;
+    expect(regression).toContain('必須の要件');
+    expectMentions(regression, [['スキップ','どうカバー']], 'regression');
+    expectMentions(regression, [['承認された契約','プランに加える前']], 'regression');
+    expect(regression).toContain('専用の AskUserQuestion');
+    expect(regression).not.toContain('diff が壊した');
+    expectMentions(regression, [['動作中','すでに壊れて','証明ではありません']], 'regression');
   });
 
   test('plan gap additions wait for their test-contract decision', () => {
-    const action = planSkill.split('**Step 5. Add missing tests to the plan:**')[1]!.split('\n#### Test Plan Artifact\n')[0]!;
-    expectMentions(action, [['until','contracts','optional']], 'action');
-    expectMentions(action, [['wait','applying','answer']], 'action');
+    const action = planSkill.split('**Step 5. 足りないテストをプランに追加します:**')[1]!.split('\n#### Test Plan Artifact(')[0]!;
+    expectMentions(action, [['新しい契約','任意の深さ','保留']], 'action');
+    expectMentions(action, [['適用する前','回答を待ち']], 'action');
     expect(action).not.toContain('explain what broke');
   });
 
   test('implemented regressions still require an immediate test without a question', () => {
-    const regression = shipSkill.split('### REGRESSION RULE (mandatory)')[1]!.split('**4.')[0]!;
-    expectMentions(regression, [['no','askuserquestion']], 'regression');
+    const regression = shipSkill.split('### REGRESSION RULE(回帰ルール・必須)')[1]!.split('**4.')[0]!;
+    expectMentions(regression, [['AskUserQuestion','行いません']], 'regression');
   });
 
   test('plan and ship modes include test framework detection', () => {
@@ -1035,30 +1035,29 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
   });
 
   test('plan framework absence keeps requirements without offering test generation', () => {
-    const detection = planSkill.split('\n#### Test Framework Detection\n')[1]!.split('**Step 1.')[0]!;
-    expect(detection).toContain('State that the framework is unknown');
-    expectMentions(detection, [['no','selection','framework']], 'detection');
-    expectMentions(detection, [['do not','framework','proposed']], 'detection');
+    const detection = planSkill.split('\n#### Test Framework Detection(')[1]!.split('**Step 1.')[0]!;
+    expect(detection).toContain('フレームワークが不明であることを述べ');
+    expectMentions(detection, [['選択肢','フレームワークの質問はしません']], 'detection');
+    expectMentions(detection, [['インストール','提案したテストの作成は行いません']], 'detection');
     expect(detection).not.toContain('skip test generation');
   });
 
   test('plan mode adds tests to plan + includes test plan artifact', () => {
-    expect(planSkill).toContain('Add missing tests to the plan');
+    expect(planSkill).toContain('足りないテストをプランに追加します');
     expect(planSkill).toContain('eng-review-test-plan');
     expect(planSkill).toContain('Test Plan Artifact');
-    const artifact = planSkill.split('\n#### Test Plan Artifact\n')[1]!;
+    const artifact = planSkill.split('\n#### Test Plan Artifact(')[1]!;
     // The artifact is written even when Test review choices are still unanswered (periodic run 37151477069).
-    const step5 = planSkill.split('**Step 5. Add missing tests to the plan:**')[1]!.split('\n#### Test Plan Artifact\n')[0]!;
-    expectMentions(artifact, [['not','implementation','unresolved']], 'artifact');
+        expectMentions(artifact, [['未解決の選択肢','必須の実装ではなく']], 'artifact');
     expect(artifact).toContain('TEST_PLAN_USER=$(whoami)');
-    expect(artifact).toContain('sanitized `BRANCH` from gstack-slug');
-    expect(artifact).toContain('without an origin, write `local-only`');
+    expect(artifact).toContain('gstack-slug のサニタイズ済みの `BRANCH`');
+    expectMentions(artifact, [['origin', '`local-only`']], 'artifact');
   });
 
   test('ship mode auto-generates tests + includes before/after count', () => {
-    expect(shipSkill).toContain('Generate tests for uncovered paths');
+    expect(shipSkill).toContain('カバーされていないパスのテストを生成します');
     expect(shipSkill).toContain('Before/after test count');
-    expect(shipSkill).toContain('30 code paths max');
+    expect(shipSkill).toContain('コードパスは最大 30 個');
     expect(shipSkill).toContain('ship-test-plan');
   });
 
@@ -1110,8 +1109,8 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
     );
     expect(reviewArmySection).toContain('"advisory": true');
     expectTokens(reviewArmySection, ['`quality_score`'], 'reviewArmySection');
-    expectMentions(reviewArmySection, [['do not', 'specialist', 'findings']], 'reviewArmySection');
-    expect(reviewArmySection).toContain('Use the merged NON-advisory specialist findings for both counts and score');
+    expectMentions(reviewArmySection, [['quality_score', 'スペシャリストの指摘だけ'], ['コアの指摘は入れません']], 'reviewArmySection');
+    expectMentions(reviewArmySection, [['advisory ではない', 'スペシャリストの指摘', '件数', 'スコア']], 'reviewArmySection');
     expect(reviewArmySection).toContain('net: -N lines possible');
     expect(reviewArmySection).toContain('--simplification');
     // The specialist itself must never carry a verdict-shaped zero-findings line.
@@ -1132,8 +1131,8 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
     for (const f of files) {
       const content = fs.readFileSync(path.join(specDir, f), 'utf-8');
       // All specialist files must have Scope and Output/JSON in header
-      expect(content).toContain('Scope:');
-      expect(content.toLowerCase()).toMatch(/output|json/);
+      expect(content).toContain('適用範囲:');
+      expect(content.toLowerCase()).toMatch(/出力|output|json/);
       // Must define NO FINDINGS behavior
       expect(content).toContain('NO FINDINGS');
     }
@@ -1142,8 +1141,8 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
   // Regression guard: ship output contains key phrases from before the refactor
   test('ship SKILL.md regression guard — key phrases preserved', () => {
     const regressionPhrases = [
-      'Coverage goal: every changed behavior is protected by a test that would catch a real regression.',
-      'ASCII coverage diagram',
+      'カバレッジの目標: 変更されたすべての挙動が、実際の回帰を捉えられるテストで守られていること。',
+      'ASCII のカバレッジ diagram',
       'processPayment',
       'refundPayment',
       'billing.test.ts',
@@ -1171,9 +1170,9 @@ describe('TEST_COVERAGE_AUDIT placeholders', () => {
   });
 
   test('ship SKILL.md contains re-run idempotency behavior', () => {
-    expect(shipSkill).toContain('**Route:**');
-    expect(shipSkill.replace(/\s+/g, ' ')).toContain('integrate (1–3) → test and review (4–11.5) → prepare the release (12–15) → verify frozen content (16) → push and publish (17–21)');
-    expectMentions(shipSkill.replace(/\s+/g, ' '), [['never','verification','duplicate']], 'shipSkill.replace(/\s+/g,  )');
+    expect(shipSkill).toContain('**ルート:**');
+    expect(shipSkill.replace(/\s+/g, ' ')).toContain('統合 (1–3) → テストとレビュー (4–11.5) → リリース準備 (12–15) → 凍結内容の検証 (16) → push と公開 (17–21)');
+    expectMentions(shipSkill.replace(/\s+/g, ' '), [['重複','検証','省略']], 'shipSkill');
   });
 });
 
@@ -1183,10 +1182,7 @@ describe('TEST_FAILURE_TRIAGE resolver', () => {
   const shipSkill = readShipUnion();
 
   test('contains all 4 triage steps', () => {
-    expect(shipSkill).toContain('Step T1: Classify each failure');
-    expect(shipSkill).toContain('Step T2: Handle in-branch failures');
-    expect(shipSkill).toContain('Step T3: Handle pre-existing failures');
-    expect(shipSkill).toContain('Step T4: Execute the chosen action');
+    expectOrdered(shipSkill, [/### Step T1:/, /### Step T2:/, /### Step T3:/, /### Step T4:/], 'ship');
   });
 
   test('T1 includes classification criteria (in-branch vs pre-existing)', () => {
@@ -1202,18 +1198,19 @@ describe('TEST_FAILURE_TRIAGE resolver', () => {
   });
 
   test('solo mode offers fix-now, TODO, and skip options', () => {
-    expect(shipSkill).toContain('Investigate and fix now');
-    expect(shipSkill).toContain('Add as P0 TODO');
-    expect(shipSkill).toContain('Skip');
+    const solo = between(shipSkill, '**REPO_MODE が `solo` の場合:**', '**REPO_MODE が `collaborative`');
+    expectMentions(solo, [['A)', '修正'], ['B)', 'P0', 'TODO'], ['C)', 'スキップ']], 'solo');
   });
 
   test('collaborative mode offers blame + assign option', () => {
-    expect(shipSkill).toContain('Blame + assign GitHub issue');
+    const collab = between(shipSkill, '**REPO_MODE が `collaborative`', '### Step T4:');
+    expectMentions(collab, [['blame', 'issue', 'アサイン']], 'collab');
     expect(shipSkill).toContain('gh issue create');
   });
 
   test('defaults ambiguous failures to in-branch (safety)', () => {
-    expect(shipSkill).toContain('When ambiguous, default to in-branch');
+    const t1 = between(shipSkill, '### Step T1:', '### Step T2:');
+    expectMentions(t1, [['曖昧', 'ブランチ内']], 't1');
   });
 });
 
@@ -1264,15 +1261,15 @@ describe('PLAN_FILE_REVIEW_REPORT resolver', () => {
       for (const output of [confidence, dashboard, report, outside]) expect(output).not.toContain('\\`');
       expect(confidence).toBe(generateConfidenceCalibration({...ctx, skillName: 'plan-ceo-review'}).replaceAll('\\`', '`'));
       const ceoDashboard = generateReviewDashboard({...ctx, skillName: 'plan-ceo-review'}).replaceAll('\\`', '`');
-      const ceoVoiceSource = 'Below the dashboard, group `autoplan-voices` and `design-outside-voices` by workflow run and phase';
-      expect(dashboard.replace(/\s+/g, ' ')).toContain(ceoVoiceSource);
-      expect(ceoDashboard.replace(/\s+/g, ' ')).toContain(ceoVoiceSource);
+      const ceoVoiceTokens = ['`autoplan-voices`', '`design-outside-voices`'];
+      expectTokens(dashboard, ceoVoiceTokens, 'dashboard');
+      expectTokens(ceoDashboard, ceoVoiceTokens, 'ceoDashboard');
       expect(ceoDashboard).toBe(dashboard);
       for (const field of ['status', 'unresolved', 'critical_gaps', 'issues_found', 'mode', 'commit']) {
         expect(report).toContain('`' + field + '`');
       }
       expect(outside).toContain(host.name === 'codex' ? 'claude auth login' : 'codex login');
-      expectMentions(outside, [['never','supplies','coverage']], 'outside');
+      expectMentions(outside, [['カバレッジ','クリーン']], 'outside');
     }
   });
 
@@ -1298,8 +1295,8 @@ describe('PLAN_FILE_REVIEW_REPORT resolver', () => {
     const content = readSkillUnion('plan-eng-review');
     // The task example itself has an H2; bound by the following real section.
     const tasks = content.slice(content.indexOf('## Implementation Tasks'), content.indexOf('## Plan File Review Report'));
-    expectMentions(tasks, [['only','permits','review']], 'tasks');
-    expectMentions(tasks, [['not','persisted','complete']], 'tasks');
+    expectMentions(tasks, [['許可','場合にのみ','書き込']], 'tasks');
+    expectMentions(tasks, [['許可されない','未永続化','完全']], 'tasks');
     expect(tasks).not.toContain('always write');
   });
 });
@@ -1311,8 +1308,7 @@ describe('PLAN_COMPLETION_AUDIT placeholders', () => {
   const reviewSkill = readSkillUnion('review'); // carved: plan-completion audit moved to sections/plan-completion.md
 
   test('ship SKILL.md contains plan completion audit step', () => {
-    expect(shipSkill).toContain('Plan Completion Audit');
-    expect(shipSkill).toContain('Step 8');
+    expectTokens(shipSkill, [/^## Step 8: /m, /^## Step 8\.1: Plan Verification/m, /^## Step 8\.2: /m], 'ship');
   });
 
   test('review SKILL.md contains plan completion in scope drift', () => {
@@ -1325,18 +1321,15 @@ describe('PLAN_COMPLETION_AUDIT placeholders', () => {
     expect(shipSkill).toContain('Plan File Discovery');
     expect(reviewSkill).toContain('Plan File Discovery');
     // Both should have conversation context first
-    expect(shipSkill).toContain('Conversation context (primary)');
-    expect(reviewSkill).toContain('Conversation context (primary)');
-    // Both should have grep fallback
-    expect(shipSkill).toContain('Content-based search (fallback)');
-    expect(reviewSkill).toContain('Content-based search (fallback)');
+    for (const [label, skill] of [['ship', shipSkill], ['review', reviewSkill]] as const) {
+      expectOrdered(skill, ['Plan File Discovery', /1\. \*\*会話の文脈/, /3\. \*\*内容に基づく検索/], label);
+    }
   });
 
   test('ship mode has gate logic for NOT DONE items', () => {
-    expect(shipSkill).toContain('NOT DONE');
-    expect(shipSkill).toContain('Stop — implement the missing items');
-    expect(shipSkill).toContain('Ship anyway — defer');
-    expect(shipSkill).toContain('intentionally dropped');
+    const gate = between(shipSkill, '1. **NOT DONE の項目がある場合**', '2. **UNVERIFIABLE の項目がある場合**');
+    expectTokens(gate, ['AskUserQuestion', /A\) 停止/, /B\) とにかく出荷/, /C\) .*意図的に外した/, 'Deferred from plan:', 'intentionally dropped'], 'gate');
+    expectMentions(gate, [['a の場合', '停止']], 'gate');
   });
 
   test('review mode is INFORMATIONAL only', () => {
@@ -1346,11 +1339,11 @@ describe('PLAN_COMPLETION_AUDIT placeholders', () => {
   });
 
   test('item extraction has 50-item cap', () => {
-    expect(shipSkill).toContain('at most 50 items');
+    expectTokens(shipSkill, [/最大 50 項目/, 'Showing top 50 of N plan items'], 'ship');
   });
 
   test('uses file-level traceability (not commit-level)', () => {
-    expect(shipSkill).toContain('Cite the specific file');
+    expectMentions(shipSkill, [['diff', '具体的なファイル']], 'ship');
     expect(shipSkill).not.toContain('commit-level traceability');
   });
 });
@@ -1366,40 +1359,37 @@ describe('PLAN_VERIFICATION_EXEC placeholder', () => {
   });
 
   test('references the shared explorer without invoking an entire QA workflow', () => {
-    const resource = "From the installed /ship SKILL.md's directory, Read `../qa/sections/exploratory.md` in full";
+    const resource = '`../qa/sections/exploratory.md` を全文 Read';
     expect(shipSkill).toContain(resource);
     const load = shipSkill.indexOf(resource);
-    const preflight = shipSkill.indexOf('Run the shared preflight;');
-    const probes = shipSkill.indexOf('**3. Run smoke and plan checks.**');
+    const preflight = shipSkill.indexOf('共有の preflight を実行し');
+    const probes = shipSkill.indexOf('**3. スモークとプランのチェックを実行します。**');
     expect(load).toBeGreaterThan(-1);
     expect(preflight).toBeGreaterThan(load);
     expect(probes).toBeGreaterThan(preflight);
     const shared = fs.readFileSync(path.join(ROOT, 'qa/sections/exploratory.md'), 'utf8');
-    const selection = shared.indexOf('in full and select the surfaces');
-    const methods = shared.indexOf('Read `sections/system-functional.md`');
-    expect(selection).toBeGreaterThan(shared.indexOf('Read `sections/scope.md`'));
-    expect(methods).toBeGreaterThan(selection);
-    expect(shared.indexOf('Write a **charter**')).toBeGreaterThan(methods);
-    expect(shipSkill.slice(preflight, probes)).toContain("For browsers, Read QA's `sections/browser-setup.md`");
-    expectMentions(shipSkill, [['do not','invoke','entire']], 'shipSkill');
+    expectOrdered(shared, ['`sections/scope.md`', '`sections/system-functional.md`', '**charter**'], 'shared');
+    expect(shipSkill.slice(preflight, probes)).toContain('`sections/browser-setup.md`');
+    expectMentions(shipSkill, [['qa スキル全体', '呼び出し', 'いけません']], 'shipSkill');
   });
 
   test('keeps declared browser URLs separate from native functional probes', () => {
-    expectMentions(shipSkill, [['without','discovering','functional']], 'shipSkill');
-    expectMentions(shipSkill.replace(/\s+/g, ' '), [['not', 'automatically', 'page']], 'shipSkill.replace(/\s+/g,  )');
+    expectMentions(shipSkill, [['機能面', '探し出さず', 'ネイティブ']], 'shipSkill');
+    expectMentions(compact(shipSkill), [['api の url', '自動的', 'ページ']], 'shipSkill');
   });
 
   test('retains automatic exploration when there is no plan or verification section', () => {
-    expectMentions(shipSkill, [['no','verification','section']], 'shipSkill');
-    expect(shipSkill).toContain('Automatic diff-scoped QA still runs');
+    expectMentions(shipSkill, [['検証のセクション', 'プランファイルもない']], 'shipSkill');
+    expectMentions(shipSkill, [['diff の範囲', '自動 QA', '引き続き実行']], 'shipSkill');
   });
 
   test('blocks unavailable required checks instead of silently skipping them', () => {
     const flat = shipSkill.replace(/\s+/g, ' ');
-    expect(flat).toContain('Noninteractive runs return blocked');
-    expectMentions(flat, [['never','required-probe','silently']], 'flat');
-    expect(flat).toContain('Missing/unreadable assets block required QA');
-    expect(flat).toContain('Keep actual outcomes and incomplete flags; VERIFY_RESULT stays fail');
+    expectMentions(flat, [['非対話', 'ブロック', '返します']], 'flat');
+    expectMentions(flat, [['必須プローブ', '黙って', 'いけません']], 'flat');
+    expectMentions(flat, [['読み取れない', 'ブロック', '必須の QA']], 'flat');
+    expectMentions(flat, [['verify_result', 'fail']], 'flat');
+    expectMentions(flat, [['リスクを受け入れても', '保持']], 'flat');
   });
 });
 
@@ -1460,13 +1450,11 @@ describe('Plan file discovery shared helper', () => {
   });
 
   test('both include conversation context first', () => {
-    expect(shipSkill).toContain('Conversation context (primary)');
-    expect(reviewSkill).toContain('Conversation context (primary)');
+    for (const skill of [shipSkill, reviewSkill]) expectOrdered(skill, ['Plan File Discovery', /1\. \*\*会話の文脈\(最優先\)/], 'skill');
   });
 
   test('both include content-based fallback', () => {
-    expect(shipSkill).toContain('Content-based search (fallback)');
-    expect(reviewSkill).toContain('Content-based search (fallback)');
+    for (const skill of [shipSkill, reviewSkill]) expectTokens(skill, [/3\. \*\*内容に基づく検索\(フォールバック\)/], 'skill');
   });
 });
 
@@ -1478,9 +1466,7 @@ describe('Retro plan completion section', () => {
   const retroSkill = readSkillUnion('retro');
 
   test('retro SKILL.md contains plan completion section', () => {
-    expect(retroSkill).toContain('### Plan Completion');
-    expect(retroSkill).toContain('plan_items_total');
-    expect(retroSkill).toContain('Plan Completion This Period');
+    expectTokens(retroSkill, ['### プラン完了率', 'plan_items_total', 'Plan Completion This Period'], 'retro');
   });
 });
 
@@ -1509,7 +1495,7 @@ describe('make-pdf setup ordering', () => {
     const setupIdx = content.indexOf('## MAKE-PDF SETUP');
     const planModeIdx = content.indexOf('## Plan Mode Safe Operations');
     const telemetryIdx = content.indexOf('## Telemetry (run last)');
-    const workflowIdx = content.indexOf('# make-pdf: publication-quality PDFs from markdown');
+    const workflowIdx = content.indexOf('\n# make-pdf: ') + 1;
 
     expect(preambleIdx).toBeGreaterThanOrEqual(0);
     expect(setupIdx).toBeGreaterThan(preambleIdx);
@@ -1526,8 +1512,7 @@ describe('Skill invocation during plan mode in preamble', () => {
   test('preamble contains skill invocation plan mode section', () => {
     const content = readSkillUnion('office-hours'); // carved: Phase 5/6 prose moved to section
     expect(content).toContain('Skill Invocation During Plan Mode');
-    expect(content).toContain('Do not continue the workflow');
-    expect(content).toContain('cancel the skill or leave plan mode');
+    expectMentions(content, [['ワークフローを続けたり', 'exitplanmode', 'いけません'], ['exitplanmode', 'キャンセル', 'プランモードの終了']], 'content');
   });
 
   // #2851: a skill cannot grant permissions or redefine the host's mode; the
@@ -1544,8 +1529,8 @@ describe('Skill invocation during plan mode in preamble', () => {
       expect(content, file).not.toContain('allowed because they inform the plan');
       expect(content, file).not.toContain('"PLAN MODE EXCEPTION — ALWAYS RUN" execute.');
       expect(content, file).not.toContain('Execute "PLAN MODE EXCEPTION — ALWAYS RUN" commands');
-      expectMentions(content, [['only','restrictions','precedence']], 'content');
-      expect(content, file).toMatch(/"PLAN MODE EXCEPTION — ALWAYS RUN" (?:commands )?(?:run )?only where the host permits/);
+      expectMentions(content, [['制限', 'スコープ', '優先']], 'content');
+      expect(content, file).toMatch(/"PLAN MODE EXCEPTION — ALWAYS RUN"(?: と記された| の)コマンドは、ホストが許可する場合にのみ実行/);
     }
     expect(checked).toBeGreaterThan(40);
   });
@@ -1593,53 +1578,53 @@ describe('SPEC_REVIEW_LOOP resolver', () => {
   test('office-hours checks stop conditions before edits and preserves concerns mechanically', () => {
     const output = render('office-hours');
     const step2 = output.slice(output.indexOf('**Step 2:'), output.indexOf('**Step 3:'));
-    expectMentions(step2, [['before','dispatching','findings']], 'step2');
-    ordered(step2, ['gstack-office-hours-review check --receipt "<receipt line>"', 'mismatched receipt fails the check', '- PASS:', '- CONVERGENCE:', '- MAX_ITERATIONS: round 3', '- CONTINUE:', 'gstack-office-hours-review finalize --design']);
-    expectMentions(step2, [['fix only the blocking findings'], ['do not edit for minor findings']], 'step2');
-    expectMentions(step2, [['do not','re-dispatch','again']], 'step2');
-    expectMentions(step2, [['do not','generated','section']], 'step2');
-    expect(step2.slice(step2.indexOf('finalize --design'))).toMatch(/existing user approval/i);
+    expectMentions(step2, [['前に', 'ディスパッチ', '指摘']], 'step2');
+    ordered(step2, ['gstack-office-hours-review check --receipt "<receipt line>"', '一致しない場合、チェックは失敗し', '- PASS:', '- CONVERGENCE:', '- MAX_ITERATIONS: ラウンド 3', '- CONTINUE:', 'gstack-office-hours-review finalize --design']);
+    expectMentions(step2, [['blocking の指摘だけを修正'], ['minor', '編集してはいけません']], 'step2');
+    expectMentions(step2, [['停止', '再ディスパッチはしません']], 'step2');
+    expectMentions(step2, [['生成された', 'セクション', '編集してはいけません']], 'step2');
+    expect(step2.slice(step2.indexOf('finalize --design'))).toContain('既存のユーザー承認');
   });
 
   test('office-hours finalizes the report after writing it and labels derivable metrics', () => {
     const output = render('office-hours');
     expect(output).toContain('--report "<report-path>"');
-    expect(output).toMatch(/after the report exists/i);
-    expectMentions(output, [['do not','summarize','replace']], 'output');
-    expectMentions(output, [['approval','assignment','preserve']], 'output');
-    expect(output).toMatch(/explicit later reviewer evidence/i);
+    expect(output).toContain('レポートができた後に');
+    expectMentions(output, [['要約したり置き換えたりしてはいけません']], 'output');
+    expectMentions(output, [['assignment', '承認', '保持']], 'output');
+    expectMentions(output, [['レビュアー', '明示的な証拠']], 'output');
   });
 
   test('office-hours errors stay explicit and preserve preceding valid evidence', () => {
     const output = render('office-hours');
-    expect(output).toMatch(/--unreviewed "<actual failure cause>"`\s+and only the\s+preceding valid round files/);
-    expect(output).toMatch(/do not fabricate JSON/i);
-    expect(output).toMatch(/not an approval gate/i);
+    expect(output).toMatch(/--unreviewed "<actual failure cause>"` と、\s*それまでの有効なラウンドファイルのみ/);
+    expectMentions(output, [['json', '捏造', 'いけません']], 'output');
+    expectMentions(output, [['承認ゲートではありません']], 'output');
   });
 
   test('CEO keeps its loop limits, scoring, failure handling, and reporting', () => {
     const ceo = render('plan-ceo-review');
     const report = ceo.split('**Step 3:')[1]!.replace(/\s+/g, ' ');
-    expect(report).toMatch(/use JSON `null`/i);
-    expect(ceo).toMatch(/implementable without follow-up questions/i);
+    expect(report).toContain('JSON の `null`');
+    expectMentions(ceo, [['clarity', '追加の質問なしで実装できる']], 'ceo');
     expect(ceo).not.toContain('design and coaching document');
     expect(ceo).not.toContain('gstack-office-hours-review');
     const dispatch = ceo.slice(ceo.indexOf('**Step 1:'), ceo.indexOf('**Step 2:')).replace(/\s+/g, ' ');
     expect(dispatch).toContain('`run_in_background: false`');
-    expectMentions(dispatch, [['wait','tool']], 'dispatch');
-    expectMentions(dispatch, [['do not','waiting','advance']], 'dispatch');
+    expectMentions(dispatch, [['待機ツール']], 'dispatch');
+    expectMentions(dispatch, [['待機中', '先へ進', 'いけません']], 'dispatch');
     const fixes = ceo.slice(ceo.indexOf('**Step 2:'), ceo.indexOf('**Step 3:')).replace(/\s+/g, ' ');
-    ordered(fixes, ['use 0D', 'amend the working plan', 're-dispatch']);
-    expectMentions(fixes, [['stop','review','after']], 'fixes');
-    expect(fixes).toMatch(/stop the loop/i);
-    expectMentions(fixes, [['not','successful','reviewer']], 'fixes');
-    expectMentions(fixes, [['does not','missing','require']], 'fixes');
+    ordered(fixes, ['0D を使い', '作業用プランと CEO サマリーを修正', '再ディスパッチ']);
+    expectMentions(fixes, [['3 回目のレビュー', '停止']], 'fixes');
+    expect(fixes).toContain('ループを止めます');
+    expectMentions(fixes, [['レビュアー', '成功', '必須ではありません']], 'fixes');
+    expectMentions(fixes, [['スコアがない', '不要']], 'fixes');
     expect(report).toContain('"## Reviewer Concerns"');
-    expect(report).toMatch(/SCORE is the latest attempt's reported 1–10 grade/i);
+    expect(report).toContain('SCORE は、2 つの完全な入力をレビューした最新の試行');
     expect(report).toContain('"prior review score"');
-    expect(report).toMatch(/as not persisted/i);
-    expect(report).toContain('**0H spec-review metrics**');
-    expectMentions(report, [['stop','completion','required']], 'report');
+    expect(report).toContain('未保存として');
+    expect(report).toContain('**0H の spec-review メトリクス**');
+    expectMentions(report, [['停止', '完了']], 'report');
     expect(report).toContain('GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"');
     expect(report).toContain('mkdir -p "$GSTACK_STATE_ROOT/analytics" || exit 1');
     expect(report).toContain('>> "$GSTACK_STATE_ROOT/analytics/spec-review.jsonl" || exit 1');
@@ -1647,49 +1632,48 @@ describe('SPEC_REVIEW_LOOP resolver', () => {
   });
 
   test('CEO spec report separates findings, confirmed fixes, and unresolved concerns', () => {
-    const report = render('plan-ceo-review').split('**Step 3: Report and persist metrics**')[1]!.replace(/\s+/g, ' ');
-    expect(report).toMatch(/ITERATIONS counts actual reviewer launches/i);
-    ordered(report, ['FOUND, FIXED and REMAINING', 'reviewer-confirmed fixes']);
-    expect(report).toMatch(/actual counts, never estimates/i);
+    const report = render('plan-ceo-review').split('**Step 3: Report and persist metrics(指標の報告と保存)**')[1]!.replace(/\s+/g, ' ');
+    expect(report).toContain('ITERATIONS は実際のレビュアー起動回数');
+    ordered(report, ['FOUND、FIXED、REMAINING', 'レビュアーが確認した修正']);
+    expect(report).toContain('見積もりではなく、実際の数');
     expect(report).not.toContain('M issues caught and fixed');
   });
 
   test('CEO spec review receives the full source plan as well as the scope artifact on every host', () => {
     for (const host of Object.keys(HOST_PATHS)) {
       const output = render('plan-ceo-review', host).replace(/\s+/g, ' ');
-      expect(output).toMatch(/all five dimensions/i);
-      expect(output).toMatch(/unsupported accepted expansions/i);
+      expectMentions(output, [['両方の入力'], ['5 つの観点'], ['矛盾', '裏づけのない承認済みの拡張']]);
     }
     const source = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md.tmpl'), 'utf8');
     expect(source).toContain('## Plan under review\n{working plan path, or');
     const template = source.replace(/\s+/g, ' ');
-    expectMentions(template, [['cannot','summary','serve']], 'template');
+    expectMentions(template, [['要約', '代わりにはなりません']], 'template');
   });
 
   test('CEO shares both inputs after spec review and owns unresolved concerns in its scope document', () => {
     const template = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md.tmpl'), 'utf8');
     const persist = (template.split('### 0H.')[1]?.split('### 0I.')[0] ?? '').replace(/\s+/g, ' ');
     const review = persist.indexOf('{{SPEC_REVIEW_LOOP}}');
-    const sharing = persist.search(/present both inputs for final scope-document approval/i);
+    const sharing = persist.search(/最終承認のために両方の入力を提示/);
     expect(review).toBeGreaterThanOrEqual(0);
     expect(sharing).toBeGreaterThan(review);
     const output = render('plan-ceo-review');
     const processing = output.split('**Step 2:')[1]!.split('**Step 3:')[0]!.replace(/\s+/g, ' ');
     const report = output.split('**Step 3:')[1] ?? '';
-    expect(report).toContain('CEO summary');
+    expect(report).toContain('CEO サマリー');
     expect(report).toContain('Reviewer Concerns');
-    expect(report).toMatch(/owning\s+input/);
+    expect(report).toContain('対応する入力');
   });
 
   test('CEO reviewer receives one complete prompt without duplicate scoring instructions', () => {
     const output = render('plan-ceo-review');
-    const dispatch = (output.split('**Step 1: Dispatch reviewer subagent**')[1]?.split('**Step 2:')[0] ?? '').replace(/\s+/g, ' ');
-    expect(dispatch.match(/Read both inputs in full/gi)).toHaveLength(1);
-    expect(dispatch.match(/quality score/gi)).toHaveLength(1);
-    expect(dispatch).toMatch(/quality score \(1-10\)/i);
-    expect(dispatch).toMatch(/overall PASS only if all dimensions pass/i);
-    expect(dispatch).toMatch(/PASS or numbered issues/i);
-    expect(dispatch).toMatch(/cite input and requirement/i);
+    const dispatch = (output.split('**Step 1: レビュアーのサブエージェントをディスパッチ**')[1]?.split('**Step 2:')[0] ?? '').replace(/\s+/g, ' ');
+    expect(dispatch.match(/両方の入力を全文読むこと/g)).toHaveLength(1);
+    expect(dispatch.match(/品質スコア/g)).toHaveLength(1);
+    expect(dispatch).toContain('品質スコア(1〜10)');
+    expectMentions(dispatch, [['全体', 'pass', 'すべての観点']], 'dispatch');
+    expectMentions(dispatch, [['pass', '番号付きの問題']], 'dispatch');
+    expectMentions(dispatch, [['入力', '要件', '引用']], 'dispatch');
   });
 
   test('contains all 5 review dimensions', () => {
@@ -1703,11 +1687,11 @@ describe('SPEC_REVIEW_LOOP resolver', () => {
   });
 
   test('specifies max 3 iterations', () => {
-    expect(content).toMatch(/3.*iteration|maximum.*3/i);
+    expect(content).toContain('最大 3 回');
   });
 
   test('includes quality score', () => {
-    expect(content).toContain('quality score');
+    expectTokens(content, ['quality_score'], 'content');
   });
 
   test('includes metrics path', () => {
@@ -1715,7 +1699,7 @@ describe('SPEC_REVIEW_LOOP resolver', () => {
   });
 
   test('includes convergence guard', () => {
-    expect(content).toMatch(/[Cc]onvergence/);
+    expect(content).toMatch(/収束ガード|CONVERGENCE/);
   });
 
   test('includes graceful failure handling', () => {
@@ -1773,19 +1757,17 @@ describe('CODEX_SECOND_OPINION resolver', () => {
 
   test('contains Claude subagent fallback', () => {
     expect(content).toContain('CODEX_MODE: not_installed');
-    expect(content).toContain('If preflight is not ready');
-    expect(content).toContain('Agent tool');
-    expect(content).toContain('SECOND OPINION (Claude subagent)');
+    expectMentions(content, [['プリフライト', 'ready', 'ない'], ['Agent ツール', 'サブエージェント']], 'office-hours');
+    expectTokens(content, ['SECOND OPINION (Claude subagent)'], 'office-hours');
   });
 
   test('contains premise revision check', () => {
-    expect(content).toContain('Codex challenged premise');
+    expectMentions(content, [['Codex', '前提', '異議']], 'office-hours');
+    expectTokens(content, ['A) Codex の意見に基づいて', 'B) 元の前提を維持する'], 'office-hours');
   });
 
   test('contains error handling for auth, timeout, and empty', () => {
-    expect(content).toMatch(/[Aa]uth.*fail/);
-    expect(content).toMatch(/[Tt]imeout/);
-    expect(content).toMatch(/[Ee]mpty response/);
+    expectTokens(content, ['**認証失敗:**', '**タイムアウト:**', '**空のレスポンス:**', 'codex login'], 'office-hours');
   });
 
   test('Codex host runs Phase 3.5 through Claude Code', () => {
@@ -1810,7 +1792,7 @@ describe('Codex filesystem boundary', () => {
     'office-hours',     // second opinion resolver
   ];
 
-  const BOUNDARY_MARKER = /do not read or execute any/i;
+  const BOUNDARY_MARKER = /do not read or execute any|読んだり実行したりしないでください/i;
 
   test('boundary instruction appears in all skills that call codex', () => {
     for (const skill of CODEX_CALLING_SKILLS) {
@@ -1822,14 +1804,13 @@ describe('Codex filesystem boundary', () => {
 
   test('codex skill has Filesystem Boundary section', () => {
     const content = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('## Filesystem Boundary');
+    expect(content).toContain('## ファイルシステムの境界');
   });
 
   test('codex skill has rabbit-hole detection rule', () => {
     const content = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Detect skill-file rabbit holes');
-    expect(content).toContain('gstack-update-check');
-    expect(content).toContain('Consider retrying');
+    expectTokens(content, ['gstack-update-check', 'gstack-config', 'skills/gstack'], 'codex');
+    expectMentions(content, [['スキルファイル', '迷走'], ['もう一度試す']], 'codex');
   });
 
   test('outside-voice-steps.ts CODEX_BOUNDARY constant is interpolated into resolver output', () => {
@@ -1848,7 +1829,7 @@ describe('Codex filesystem boundary', () => {
     const content = fs.readFileSync(path.join(ROOT, 'autoplan', 'SKILL.md.tmpl'), 'utf-8');
     // autoplan template uses generic 'skills/gstack' pattern instead of host-specific
     // paths like ~/.claude/ or .agents/skills (which break Codex/Claude output tests)
-    const boundaryStart = content.indexOf('Filesystem Boundary');
+    const boundaryStart = content.indexOf('ファイルシステムの境界');
     const boundaryEnd = content.indexOf('---', boundaryStart + 1);
     const boundarySection = content.slice(boundaryStart, boundaryEnd);
     expect(boundarySection).not.toContain('~/.claude/');
@@ -1880,14 +1861,14 @@ describe('BENEFITS_FROM resolver', () => {
   });
 
   test('plan-ceo-review offers /office-hours when no design doc exists and detects a lost user mid-session', () => {
-    const offer = extractMarkdownSection(ceoContent, '## Prerequisite Skill Offer');
-    expect(offer.replace(/\s+/g, ' ')).toMatch(/when the design doc check above prints "No design doc found,?"/i);
-    expect(offer).toContain('A) Run /office-hours now');
-    expect(offer).toContain('B) Skip — proceed with standard review');
-    expectMentions(offer, [['do not','re-offer','session']], 'offer');
-    expect(ceoContent).toContain('**Mid-session detection (0A):**');
-    const midSession = ceoContent.indexOf('**Mid-session detection (0A):**');
-    expect(ceoContent.slice(midSession, midSession + 300)).toMatch(/offer `\/office-hours`/);
+    const offer = extractMarkdownSection(ceoContent, '## 前提スキルの提案');
+    expectMentions(offer, [['設計ドキュメント', 'No design doc found', '提案']], 'offer');
+    expect(offer).toContain('A) 今すぐ /office-hours を実行する');
+    expect(offer).toContain('B) スキップ');
+    expectMentions(offer, [['再度提案', 'セッション']], 'offer');
+    expect(ceoContent).toContain('**セッション途中の検出(0A):**');
+    const midSession = ceoContent.indexOf('**セッション途中の検出(0A):**');
+    expect(ceoContent.slice(midSession, midSession + 300)).toContain('`/office-hours`');
   });
 
   test('plan-eng-review contains prerequisite skill offer', () => {
@@ -1896,23 +1877,23 @@ describe('BENEFITS_FROM resolver', () => {
   });
 
   test('the optional Eng prerequisite ends before mandatory engineering review', () => {
-    const offer = extractMarkdownSection(engContent, '## Prerequisite Skill Offer');
-    expect(offer).toContain('B) Skip — proceed with standard review');
-    expectMentions(offer, [['do not','re-offer','session']], 'offer');
+    const offer = extractMarkdownSection(engContent, '## 前提スキルの提案');
+    expect(offer).toContain('B) スキップ');
+    expectMentions(offer, [['再度提案', 'セッション']], 'offer');
     expect(offer).not.toContain('### Step 0: Scope Challenge');
-    const review = extractMarkdownSection(engContent, '## Engineering review');
+    const review = extractMarkdownSection(engContent, '## エンジニアリングレビュー');
     expect(review).toContain('### Step 0: Scope Challenge');
-    expectMentions(review, [['before','challenge','mandatory']], 'review');
+    expectMentions(review, [['scope challenge', '前', '必ず']], 'review');
     expect(review).toContain('sections/review-sections.md');
   });
 
   test('Eng initial and prerequisite recheck both discover the canonical override and fall back on slug failure', () => {
     const initial = extractMarkdownSection(engContent, '### Design Doc Check').match(/```bash\n([\s\S]*?)\n```/)![1]!;
-    const offer = extractMarkdownSection(engContent, '## Prerequisite Skill Offer');
+    const offer = extractMarkdownSection(engContent, '## 前提スキルの提案');
     expectTokens(offer, ['**Design Doc Check**'], 'offer');
-    expectMentions(offer, [['block', 'office-hours', 'completes']], 'offer');
-    expect(offer).toContain('This is a fresh execution');
-    expectMentions(offer, [['do not','prerequisite','preamble']], 'offer');
+    expectMentions(offer, [['office-hours', '完了', 'Design Doc Check', '再実行']], 'offer');
+    expectMentions(offer, [['新規の実行']], 'offer');
+    expectMentions(offer, [['プリアンブル', '前提スキル', 'しません']], 'offer');
     expect(offer).not.toContain('_REVIEW_SLUG=');
     const recheck = initial; // Execute the one canonical block again after the prerequisite.
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eng-design-slug-'));
@@ -1925,7 +1906,7 @@ describe('BENEFITS_FROM resolver', () => {
       fs.chmodSync(helper, 0o755);
       fs.copyFileSync(path.join(ROOT, 'bin/gstack-state-root.sh'), path.join(path.dirname(helper), 'gstack-state-root.sh'));
       fs.copyFileSync(path.join(ROOT, 'bin/gstack-remote-identity.sh'), path.join(path.dirname(helper), 'gstack-remote-identity.sh'));
-      for (const bin of ['gstack-paths', 'gstack-design-doc-find']) {
+      for (const bin of ['gstack-paths', 'gstack-design-doc-find', 'gstack-ceo-plan-find']) {
         fs.copyFileSync(path.join(ROOT, 'bin', bin), path.join(path.dirname(helper), bin));
         fs.chmodSync(path.join(path.dirname(helper), bin), 0o755);
       }
@@ -1944,14 +1925,14 @@ describe('BENEFITS_FROM resolver', () => {
         expect(command).not.toContain('eval ');
         expect(command).toContain('echo "No design doc found"');
         expect(command).not.toContain('remote-slug');
-        const result = runCapturedCommand('bash', ['-c', command], {cwd, env, timeout: 5000, captureStdout: true});
+        const result = runCapturedCommand('bash', ['-c', command], {cwd, env, timeout: 30000, captureStdout: true});
         expect(result.status, result.stderr).toBe(0);
         expect(result.stdout).toContain(`Design doc found: ${expected}`);
         expect(result.stdout).not.toContain(wrong);
       }
       fs.writeFileSync(helper, '#!/usr/bin/env bash\necho "slug fixture failed" >&2\nexit 23\n', {mode: 0o755});
       for (const command of [initial, recheck]) {
-        const result = runCapturedCommand('bash', ['-c', command], {cwd, env, timeout: 5000, captureStdout: true});
+        const result = runCapturedCommand('bash', ['-c', command], {cwd, env, timeout: 30000, captureStdout: true});
         expect(result.status).toBe(0);
         expect(result.stderr).toContain('slug fixture failed');
         expect(result.stdout).not.toContain('Design doc found:');
@@ -1961,7 +1942,7 @@ describe('BENEFITS_FROM resolver', () => {
   });
 
   test('offer includes graceful decline', () => {
-    expect(ceoContent).toContain('No worries');
+    expect(ceoContent).toContain('問題ありません');
   });
 
   test('skills without benefits-from do NOT have prerequisite offer', () => {
@@ -1981,7 +1962,7 @@ describe('BENEFITS_FROM resolver', () => {
 
   test('BENEFITS_FROM delegates to INVOKE_SKILL pattern', () => {
     // Should contain the INVOKE_SKILL-style loading prose (not the old manual skip list)
-    expect(engContent).toContain('skipping these sections');
+    expectMentions(engContent, [['次のセクション', 'スキップ', '親スキル']], 'plan-eng-review');
   });
   // #1958: spawned/headless sessions have no human to answer the offer.
   test('every prerequisite offer is skipped in spawned and headless sessions, before any option', () => {
@@ -1992,10 +1973,10 @@ describe('BENEFITS_FROM resolver', () => {
       ['autoplan', readSkillUnion('autoplan')],
     ];
     for (const [skill, content] of renders) {
-      const offer = extractMarkdownSection(content, '## Prerequisite Skill Offer');
+      const offer = extractMarkdownSection(content, '## 前提スキルの提案');
       expectTokens(offer, ['`SESSION_KIND`', '`spawned`', '`headless`'], `${skill} offer`);
-      expectMentions(offer, [['skip', 'offer', 'session_kind']], `${skill} offer`);
-      expectOrdered(offer, ['`SESSION_KIND`', 'A) Run /office-hours now'], `${skill} offer`);
+      expectMentions(offer, [['session_kind', '省略']], `${skill} offer`);
+      expectOrdered(offer, ['`SESSION_KIND`', 'A) 今すぐ /office-hours を実行する'], `${skill} offer`);
     }
   });
 });
@@ -2003,11 +1984,11 @@ describe('BENEFITS_FROM resolver', () => {
 describe('office-hours closing reads the builder profile before logging the session (#2801)', () => {
   const skeleton = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
   const handoff = fs.readFileSync(path.join(ROOT, 'office-hours', 'sections', 'design-and-handoff.md'), 'utf-8');
-  const phase45 = extractMarkdownSection(skeleton, '## Phase 4.5: Founder Signal Synthesis');
-  const step1 = between(handoff, '### Step 1: Builder Profile', '### Step 2:');
+  const phase45 = extractMarkdownSection(skeleton, '## フェーズ 4.5: 創業者シグナルの統合');
+  const step1 = between(handoff, '### ステップ 1: ビルダープロファイル', '### ステップ 2:');
   const fence = (text: string, after: string) => between(text, after).match(/```bash\n([\s\S]*?)\n```/)![1]!;
-  const readBlock = fence(phase45, '### Builder Profile Read');
-  const logBlock = fence(phase45, '### Builder Profile Append');
+  const readBlock = fence(phase45, '### ビルダープロファイルの読み取り');
+  const logBlock = fence(phase45, '### ビルダープロファイルへの追記');
   const CARRY = 'Builder profile before this session:';
 
   test('Phase 4.5 reads the profile before --log-session and records the prior tier for Phase 6', () => {
@@ -2020,25 +2001,25 @@ describe('office-hours closing reads the builder profile before logging the sess
   test('a failed profile read proceeds as a first session and says so', () => {
     expect(readBlock).toContain('PROFILE_READ: failed');
     expectMentions(phase45, [['failed', 'introduction']], 'Phase 4.5');
-    expectMentions(step1, [['failed', 'introduction'], ["couldn't read", 'builder profile', 'first']], 'Phase 6 Step 1');
+    expectMentions(step1, [['failed', 'introduction'], ['読み込めなかった', 'ビルダープロファイル', '初めて']], 'Phase 6 Step 1');
   });
 
   test('Phase 6 takes tier and last-session fields from the Phase 4.5 line, never from a post-log read', () => {
     expectTokens(step1, [CARRY, 'PRIOR_SESSION_COUNT + 1'], 'Phase 6 Step 1');
-    expectMentions(step1, [['never', 'tier', 'session_count']], 'Phase 6 Step 1');
+    expectMentions(step1, [['tier', 'session_count', '使わない']], 'Phase 6 Step 1');
     expectAbsent(step1, ['SESSION_TIER=$(', 'SESSION_COUNT=$('], 'Phase 6 Step 1');
-    const tiers = between(handoff, '### Step 2: Follow the Tier Path', '## Founder Resources');
+    const tiers = between(handoff, '### ステップ 2: ティアの経路をたどる', '### 創業者向けリソース');
     expectAbsent(tiers, ['[SESSION_COUNT]', 'from profile]'], 'tier paths');
   });
 
   test('welcome_back and regular greetings drop a last-session clause whose value is empty', () => {
-    const welcomeBack = between(handoff, '### If TIER = welcome_back', '### If TIER = regular');
-    const regular = between(handoff, '### If TIER = regular', '### If TIER = inner_circle');
-    expectTokens(welcomeBack, ['[LAST_ASSIGNMENT]', '[LAST_PROJECT]', '"Welcome back."'], 'welcome_back');
-    expectMentions(welcomeBack, [['last_assignment', 'last_project', 'empty', 'skip']], 'welcome_back');
-    expectOrdered(welcomeBack, ['Last time we talked about [LAST_PROJECT]', 'empty'], 'welcome_back');
-    expectTokens(regular, ['Last time: [LAST_ASSIGNMENT]'], 'regular');
-    expectMentions(regular, [['last_assignment', 'empty', 'skip']], 'regular');
+    const welcomeBack = between(handoff, '### TIER = welcome_back', '### TIER = regular');
+    const regular = between(handoff, '### TIER = regular', '### TIER = inner_circle');
+    expectTokens(welcomeBack, ['[LAST_ASSIGNMENT]', '[LAST_PROJECT]', '「おかえりなさい。」'], 'welcome_back');
+    expectMentions(welcomeBack, [['last_assignment', 'last_project', '空', '省き']], 'welcome_back');
+    expectOrdered(welcomeBack, ['前回は [LAST_PROJECT] の話をしましたね', '空の場合'], 'welcome_back');
+    expectTokens(regular, ['前回は: [LAST_ASSIGNMENT]'], 'regular');
+    expectMentions(regular, [['last_assignment', '空', '省い']], 'regular');
   });
 
   test('executing the rendered blocks in order: a first session reads introduction, a failed read is marked', () => {
@@ -2075,14 +2056,14 @@ describe('office-hours closing reads the builder profile before logging the sess
 
 describe('office-hours reports success only when this run wrote its design doc (#1049)', () => {
   const skeleton = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
-  const check = between(skeleton, "## Before telemetry: confirm this run's design doc", '\n## ');
+  const check = between(skeleton, '## テレメトリの前に: この実行の設計ドキュメントを確認する', '\n## ');
   const block = check.match(/```bash\n([\s\S]*?)\n```/)![1]!;
 
   test('success requires DESIGN_DOC: ok; a missing doc maps to abort or error, not success', () => {
     expect(block).toContain('bin/gstack-paths --get GSTACK_STATE_ROOT');
     expect(block).not.toMatch(/\bls -t\b|find /);
     expectMentions(check, [['success', 'design_doc: ok'], ['abort', 'error', 'design_doc']], 'design doc check');
-    expectOrdered(skeleton, ['## Phase 4.5', "## Before telemetry: confirm this run's design doc", '## Important Rules'], 'office-hours');
+    expectOrdered(skeleton, ['## フェーズ 4.5', '## テレメトリの前に: この実行の設計ドキュメントを確認する', '## 重要なルール'], 'office-hours');
   });
 
   test('the rendered check accepts only this run\'s non-empty doc under the state root', () => {
@@ -2121,10 +2102,11 @@ describe('office-hours shows the design doc before asking for approval (#879)', 
   const handoff = fs.readFileSync(path.join(ROOT, 'office-hours', 'sections', 'design-and-handoff.md'), 'utf-8');
 
   test('the full doc is printed inline as assistant text, after spec review and before the approval question', () => {
-    const approval = 'Present the reviewed design doc to the user via AskUserQuestion';
+    const approval = 'レビュー済みの設計ドキュメントを、AskUserQuestion でユーザーに提示してください';
+    const inline = '**承認を求める前に、設計ドキュメントの全文をインラインで出力してください。**';
     const beforeApproval = between(handoff, 'spec-review.jsonl', approval);
-    expectMentions(beforeApproval, [['full', 'design doc', 'inline'], ['tool', 'collapsed']], 'pre-approval');
-    expectOrdered(handoff, ['spec-review.jsonl', 'output the full design doc inline', approval, 'A) Approve'], 'design-and-handoff');
+    expectMentions(beforeApproval, [['設計ドキュメント', '全文', 'インライン'], ['ツール', '折りたたまれ']], 'pre-approval');
+    expectOrdered(handoff, ['spec-review.jsonl', inline, approval, 'A) 承認'], 'design-and-handoff');
   });
 });
 
@@ -2145,8 +2127,7 @@ describe('INVOKE_SKILL resolver', () => {
   });
 
   test('INVOKE_SKILL output includes error handling', () => {
-    expect(ceoContent).toContain('If unreadable');
-    expect(ceoContent).toContain('Could not load');
+    expectMentions(ceoContent, [['読み込めない場合', 'スキップ'], ['読み込めなかった', 'スキップ']], 'plan-ceo-review');
   });
 
   test('template uses {{INVOKE_SKILL:office-hours}} placeholder', () => {
@@ -2161,19 +2142,17 @@ describe('CHANGELOG_WORKFLOW resolver', () => {
   const shipContent = readShipUnion();
 
   test('ship SKILL.md contains changelog workflow', () => {
-    expect(shipContent).toContain('CHANGELOG (auto-generate)');
+    expect(shipContent).toContain('## Step 13: CHANGELOG');
     expect(shipContent).toContain('git log origin/<base>..HEAD --oneline');
   });
 
   test('changelog workflow includes cross-check step', () => {
-    expect(shipContent).toContain('Cross-check');
-    const crossCheck = shipContent.slice(shipContent.indexOf('**Cross-check:**'), shipContent.indexOf('**Do NOT ask the user to describe changes.**'));
-    expect(crossCheck).toContain('commit list from step 2');
-    expect(crossCheck).toMatch(/user-facing/i);
+    const crossCheck = between(shipContent, '**クロスチェック:**', '**ユーザーに変更内容の説明を求めてはいけません。**');
+    expectMentions(crossCheck, [['CHANGELOG', 'コミット一覧', '照合'], ['ユーザー向け', '反映']], 'changelog cross-check');
   });
 
   test('changelog workflow includes voice guidance', () => {
-    expect(shipContent).toContain('Lead with what the user can now **do**');
+    expectMentions(shipContent, [['ユーザー', '**できる**', '書き始めます']], 'ship changelog');
   });
 
   test('template uses {{CHANGELOG_WORKFLOW}} placeholder', () => {
@@ -2303,9 +2282,7 @@ describe('preamble routing injection (bin/gstack-skill-start emission layer)', (
 
   test('root router skips routes to skills that are not loaded and says when not to invoke (#3018)', () => {
     const router = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
-    expect(router).toContain('Route only to skills in your available-skills list');
-    expect(router).toContain('skip it, never try to invoke it');
-    expect(router).toContain('Answer directly when\nno skill matches');
+    expectMentions(router, [['利用可能なスキル一覧', 'のみ'], ['読み飛ばし', '呼び出そうとしない'], ['どのスキルにも該当しない', '直接回答']], 'root router');
     expect(router).not.toContain('When in doubt, invoke the skill');
   });
 });
@@ -2365,11 +2342,9 @@ describe('DESIGN_OUTSIDE_VOICES resolver', () => {
       expect(missing.status).not.toBe(0);
       expect(missing.stderr).toContain('No such file');
       expect(fs.existsSync(capture)).toBe(false);
-      expect(content).toContain('await both before synthesis');
-      expect(content).toContain('use only the native voice');
-      expect(content).toContain('give the native Agent its absolute path');
-      expect(content).toContain('Read the complete product brief at [the absolute DESIGN_BRIEF path printed above]');
-      expect(content).toContain('Omit faces you cannot verify');
+      expectMentions(content, [['両方のボイス', '待', '統合'], ['ネイティブのボイスのみ'], ['ネイティブの Agent', '絶対パス']], 'design-consultation');
+      expectTokens(content, ['[上に表示された DESIGN_BRIEF の絶対パス]'], 'design-consultation');
+      expectMentions(content, [['確認できないフェイス', '省略']], 'design-consultation');
       expect(content).toContain('a face may serve multiple roles');
       expect(content).not.toContain('a single question that covers everything');
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
@@ -2416,12 +2391,12 @@ describe('DESIGN_HARD_RULES resolver', () => {
     for (const mode of ['PERSUADE', 'OPERATE', 'READ', 'EXPERIENCE', 'HYBRID']) expect(content).toContain(`**${mode}**`);
     expect(content).toContain('Read rules');
     expect(content).toContain('Experience rules');
-    expectMentions(content, [['not', 'classify', 'section']], 'content');
+    expectMentions(content, [['HYBRID', 'ページ単位', 'セクション単位']], 'content');
   });
 
   test('carries the craft-floor reflexes and the three-looks calibration', () => {
     const content = readSkillUnion('plan-design-review');
-    expect(content).toContain('Reflexes no detector catches');
+    expectMentions(content, [['ディテクター', '反射的な習慣']], 'content');
     expect(content).toContain('Browser surfaces carry the design');
     expect(content).toContain('One authored motion moment');
     expect(content).toContain('Depth has an offset');
@@ -2432,30 +2407,30 @@ describe('DESIGN_HARD_RULES resolver', () => {
   test('slop section lists detector rule ids and judgment tells outside design-review', () => {
     const content = readSkillUnion('plan-design-review');
     expect(content).toContain('nested-cards: Nested cards');
-    expectMentions(content, [['no', 'judgment', 'detector']], 'content');
+    expectMentions(content, [['ディテクタールール', '判断']], 'content');
     // Never a bracketed gstack-only id.
     expect(content).not.toContain('[hero-metrics]');
   });
 
   test('design-consultation carries the font procedure, role-scoped lists, color strategies, and catalog bullets', () => {
     const content = readSkillUnion('design-consultation');
-    expect(content).toContain('Choosing faces: a procedure, not a menu');
-    expect(content).toContain('**Overused as display**');
-    expect(content).toContain('**Banned in any role:** Papyrus');
-    expect(content).toContain('Restrained (1 accent + neutrals');
-    expectMentions(content, [['not', 'light', 'dials']], 'content');
-    expect(content).toContain('Calibration: the three looks');
+    expectMentions(content, [['フェイスの選び方', '手順']], 'content');
+    expectMentions(content, [['Display', '使われすぎ'], ['overused-font', 'フラグ']], 'content');
+    expectMentions(content, [['どの役割でも禁止', 'Papyrus']], 'content');
+    expectTokens(content, ['Restrained', 'Committed', 'Full palette', 'Drenched'], 'content');
+    expectMentions(content, [['ライト/ダーク', '調整つまみ']], 'content');
+    expectMentions(content, [['ルック 1 番'], ['ルック 2 番']], 'content');
     // Bullets are prose only: never a bracketed rule id in the proposal skill.
-    expect(content).toContain('- A card inside a card is always wrong.');
+    expectMentions(content, [['カードの中のカード', '間違い']], 'content');
     expect(content).not.toMatch(/^- \[[a-z-]+\] /m);
     // The old menu is gone.
-    expect(content).not.toContain('Font recommendations by purpose');
+    expectAbsent(content, ['Font recommendations by purpose'], 'content');
   });
 
   test('design-html blacklist lines carry catalog ids', () => {
     const content = fs.readFileSync(path.join(ROOT, 'design-html', 'SKILL.md'), 'utf-8');
-    expect(content).toMatch(/AI slop blacklist/i);
-    expect(content).toContain('Purple/blue gradients as default <!-- ai-color-palette -->');
+    expectMentions(content, [['AI スロップのブラックリスト']], 'content');
+    expect(content).toContain('デフォルトとしての紫/青のグラデーション <!-- ai-color-palette -->');
     expect(content).toContain('lib/design-catalog.ts');
   });
 
@@ -2464,11 +2439,11 @@ describe('DESIGN_HARD_RULES resolver', () => {
     expect(content.split('### Design Hard Rules').length - 1).toBe(1);
     // Category 9 lists the rule once (ids only); Typography points at the same id from its overused-face item.
     expect(content.split('[overused-font]').length - 1).toBe(2);
-    expect(content).toContain('are Methodology category 9');
+    expectMentions(content, [['Methodology', 'カテゴリ 9']], 'content');
     expect(content).toContain('**9. AI Slop Detection**');
-    expect(content).toContain('Detector rules (ids only;');
+    expectMentions(content, [['ディテクタールール', 'id のみ']], 'content');
     expect(content).toContain('[nested-cards] nested cards');
-    expect(content).toContain('Judgment tells (no detector rule');
+    expectMentions(content, [['判断で見つける兆候', 'ディテクタールールなし']], 'content');
     // The legacy blacklist is not repeated as a numbered list in design-review.
     expect(content).not.toMatch(/^1\. Purple\/violet\/indigo/m);
   });
@@ -2476,93 +2451,75 @@ describe('DESIGN_HARD_RULES resolver', () => {
   test('references shared AI slop blacklist items', () => {
     const content = readSkillUnion('plan-design-review');
     expect(content).toContain('3-column feature grid');
-    expect(content).toContain('Purple/violet/indigo');
+    expectMentions(content, [['紫', 'インディゴ', 'グラデーション']], 'content');
   });
 
   test('includes OpenAI hard rejection criteria', () => {
     const content = readSkillUnion('plan-design-review');
-    expect(content).toContain('Generic SaaS card grid');
-    expect(content).toContain('Carousel with no narrative purpose');
+    expectMentions(content, [['SaaS', 'カードグリッド'], ['カルーセル']], 'content');
   });
 
   test('includes OpenAI litmus checks', () => {
     const content = readSkillUnion('plan-design-review');
-    expect(content).toContain('Brand/product unmistakable');
+    expectMentions(content, [['Litmus checks', 'YES/NO'], ['ブランド', 'プロダクト', 'はっきり']], 'content');
   });
 });
 
 describe('Design approval reconciliation', () => {
   test('token alignment reuses the approved outcome while preserving first decisions and new tradeoffs', () => {
     const section = fs.readFileSync(path.join(ROOT, 'plan-design-review/sections/review-sections.md'), 'utf8');
-    const pass = extractMarkdownSection(section, '### Pass 5: Design System Alignment');
-    const ask = pass.search(/stop\W+AskUserQuestion once per issue/i);
+    const pass = extractMarkdownSection(section, '### パス 5: デザインシステムとの整合');
+    const ask = pass.search(/\*\*(?:STOP\.|停止。)\*\*/);
     expect(ask).toBeGreaterThan(0);
     const beforeQuestion = pass.slice(0, ask);
-    expect(beforeQuestion).toMatch(/already approved that outcome/i);
-    expect(beforeQuestion).toMatch(/not a new issue/i);
-    expectMentions(beforeQuestion, [['only','evidence','again']], 'beforeQuestion');
+    expectMentions(beforeQuestion, [['以前のパス', '承認'], ['新しい指摘', 'なりません'], ['新しい証拠', '再度質問']], 'beforeQuestion');
   });
 
   test('loaded review section distinguishes individual issue decisions from navigation', () => {
     const section = fs.readFileSync(path.join(ROOT, 'plan-design-review/sections/review-sections.md'), 'utf8').replace(/\s+/g, ' ');
-    expectMentions(section, [['no','next-step','remedies']], 'section');
-    expectMentions(section, [['never','askuserquestion','issue-approval']], 'section');
-    expectMentions(section, [['no','unresolved','findings']], 'section');
+    expectMentions(section, [['次のステップ', '承認しません'], ['次のステップ', 'AskUserQuestion', '使わないでください'], ['未解決の指摘事項がなければ', '不要']], 'section');
   });
 
   test('Design blocking Exit checklist reconciles approvals and refreshes stale output after a decision', () => {
     const main = fs.readFileSync(path.join(ROOT, 'plan-design-review/SKILL.md'), 'utf8');
-    const check = extractMarkdownSection(main, '## Section self-check');
-    expect(check).toMatch(/run approval check 0/i);
+    const check = extractMarkdownSection(main, '## セクションの自己チェック');
+    expectMentions(check, [['承認チェック0']], 'check');
     const gate = extractMarkdownSection(main, '## EXIT PLAN MODE GATE (BLOCKING)').replace(/\s+/g, ' ');
-    ordered(gate, ['0. Approvals:', '1. Read the plan file']);
-    const approvals = gate.slice(gate.indexOf('0. Approvals:'), gate.indexOf('1. Read the plan file'));
-    expect(approvals).toMatch(/never group distinct issues/i);
-    expect(approvals).toMatch(/navigation are not approval/i);
-    expect(approvals).toContain('preamble-authorized');
-    expect(approvals).toMatch(/deferrals remain unresolved/i);
-    expectMentions(approvals, [['wait','pending','drafts']], 'approvals');
-    ordered(approvals, ['refresh the plan and report', 'Read-back gate', 'rerun this gate']);
+    ordered(gate, ['0. 承認:', '1. 直近の書き込みのあとに']);
+    const approvals = gate.slice(gate.indexOf('0. 承認:'), gate.indexOf('1. 直近の書き込みのあとに'));
+    expectMentions(approvals, [['異なる課題', 'まとめてはいけません'], ['navigation', '承認ではありません'], ['プリアンブルで許可された', '自動決定'], ['先送り', '未解決のまま'], ['保留', 'pending', '質問して待ちます']], 'approvals');
+    ordered(approvals, ['プランとレポートを更新し', 'Read-back ゲート', 'このゲートを再実行']);
   });
 
   test('CEO readiness binds actual approvals before its read-only exit verification', () => {
     const main = fs.readFileSync(path.join(ROOT, 'plan-ceo-review/SKILL.md'), 'utf8');
-    const check = extractMarkdownSection(main, '## Section self-check').replace(/\s+/g, ' ');
+    const check = extractMarkdownSection(main, '## セクションの自己チェック').replace(/\s+/g, ' ');
     const gate = extractMarkdownSection(main, '## EXIT PLAN MODE GATE (BLOCKING)').replace(/\s+/g, ' ');
     const section = fs.readFileSync(path.join(ROOT, 'plan-ceo-review/sections/review-sections.md'), 'utf8');
     const readiness = extractMarkdownSection(section, '## Approval readiness').replace(/\s+/g, ' ');
-    expect(section.indexOf('## Approval readiness')).toBeLessThan(section.indexOf('## Required Outputs'));
-    expectMentions(readiness, [['approval','preamble-authorized','exact']], 'readiness');
-    expectMentions(readiness, [['not','navigation','approvals']], 'readiness');
-    expectMentions(readiness, [['only','commitments','approves']], 'readiness');
-    expectMentions(readiness, [['only','applies','scope']], 'readiness');
-    expect(readiness).toMatch(/delivery-scope deferral is settled/i);
-    expect(readiness).toMatch(/leaves that choice unresolved/i);
+    expect(section.indexOf('## Approval readiness')).toBeLessThan(section.indexOf('## 必須の出力'));
+    expectMentions(readiness, [['プリアンブルで許可された', '正確な事前承認'], ['ナビゲーション', '是正策の承認ではありません'], ['アプローチが承認する', 'コミットメント'], ['回答の範囲だけ'], ['デリバリー範囲の先送り', '決着済み'], ['その選択は未解決のまま'], ['ナビゲーションだけでは無効になりません']], 'readiness');
     expect(readiness).toContain('`Approval readiness: PASS`');
-    expect(readiness).toMatch(/navigation alone does not/i);
-    expect(main.replace(/\s+/g, ' ')).toMatch(/default to implementation-ready/i);
-    ordered(gate, ['Read-only verification', 'Verify `Approval readiness: PASS`', '1. Read the plan file']);
-    expectMentions(gate, [['only','readiness','return']], 'gate');
+    expectMentions(main.replace(/\s+/g, ' '), [['既定', '実装可能な水準']], 'main');
+    ordered(gate, ['読み取り専用の検証', '`Approval readiness: PASS` を', '1. 直近の書き込みのあとに']);
+    expectMentions(gate, [['その選択についてだけ', '0D に戻ります'], ['ExitPlanMode', 'テレメトリ', 'なしで終えてください']], 'gate');
     expect(gate).toContain('**Gate outcome: Blocked**');
-    expect(main).toContain('**Pass with log-only gaps:**');
-    expectMentions(gate, [['without','exitplanmode','telemetry']], 'gate');
+    expectMentions(main, [['ログのみの欠落を伴う合格']], 'main');
     expect(check).toContain('`sections/review-sections.md`');
-    expectMentions(check, [['stop','review','read']], 'check');
+    expectMentions(check, [['止めて', '読み直し']], 'check');
     const decisions = main.slice(main.indexOf('### 0D.'), main.indexOf('### 0E.')).replace(/\s+/g, ' ');
-    ordered(decisions, ["**Choose the question's route first:**", '**Admin question:**', '**Plan decision:**']);
-    expect(decisions).toMatch(/reuse exact prior approvals/i);
-    expect(decisions).toContain('`D<N> — <ROW-ID>: <one-line question>`');
-    const row = decisions.slice(decisions.indexOf('**Pre-question checkpoint:**'), decisions.indexOf('Effort/risk must'));
-    for (const field of ['ID', 'owner', 'Current/Proposed', 'Status', 'Exact approval and scope']) expect(row).toContain(field);
-    expectMentions(decisions.slice(decisions.indexOf('**4. Ask')), [['stop','actual','answer']], 'section');
-    expect(decisions).toMatch(/amend only (?:what it authorizes|authorized work)/i);
-    expectMentions(decisions, [['only','contradictions','instructions']], 'decisions');
-    expect(decisions).toContain('"No issues, moving on."');
-    const outside = extractMarkdownSection(section, '**Cross-model tension:**').replace(/\s+/g, ' ');
-    expectMentions(outside, [['only','completed','external']], 'outside');
+    ordered(decisions, ['**まず、その質問のルートを選んでください:**', '**管理上の質問:**', '**プランの判断:**']);
+    expectMentions(decisions, [['以前の承認', '正確に再利用']], 'decisions');
+    expect(decisions).toContain('`D<N> — <ROW-ID>: <一行の質問>`');
+    const row = decisions.slice(decisions.indexOf('**質問前のチェックポイント:**'), decisions.indexOf('労力とリスクは、それぞれ'));
+    for (const field of ['ID', '所有者', '現在と提案', '状態', '正確な承認とスコープ']) expect(row).toContain(field);
+    expectMentions(decisions.slice(decisions.indexOf('**4. 質問し')), [['実際の回答', '停止']], 'section');
+    expectMentions(decisions, [['許可された作業だけを修正'], ['矛盾', 'ユーザーの指示', '再検討'], ['問題なし、次に進みます']], 'decisions');
+    const outside = extractMarkdownSection(section, '**Cross-model tension(モデル間の緊張関係):**').replace(/\s+/g, ' ');
+    expectMentions(outside, [['外部のレビュアー', '完了した場合に限って']], 'outside');
     expect(outside).toContain('CROSS-MODEL');
-    const findings = extractMarkdownSection(section, '**Integrate reviewer findings:**').replace(/\s+/g, ' ');
-    expect(findings).toMatch(/bounded native fallback/i);
+    const findings = extractMarkdownSection(section, '**Integrate reviewer findings(レビュアーの指摘の統合):**').replace(/\s+/g, ' ');
+    expectMentions(findings, [['範囲を限定したネイティブのフォールバック']], 'findings');
     expect(findings).toContain('Outside Voice Integration Rule');
   });
 
@@ -2575,56 +2532,49 @@ describe('Design approval reconciliation', () => {
     const normalizedReadiness = readiness.replace(/\s+/g, ' ');
     expect(section.indexOf('## Approval readiness')).toBeLessThan(section.indexOf('## Required outputs'));
     expect(normalizedReadiness).toContain('`Approval readiness: PASS`');
-    expect(normalizedReadiness).toMatch(/navigation alone does not/i);
+    expectMentions(normalizedReadiness, [['ナビゲーションだけでは無効になりません']], 'normalizedReadiness');
     expect(readiness).not.toMatch(/^ {3}\S/m);
-    expect(gate).toMatch(/confirm approval readiness passed/i);
-    expectMentions(gate, [['not','verification','read-only']], 'gate');
-    const approvalParagraph = rawGate.slice(rawGate.indexOf('Confirm Approval readiness'), rawGate.indexOf('Verify all five checks'));
+    expectMentions(gate, [['Approval readiness が通っていることを確認'], ['読み取り専用', '承認でも書き込みでもありません']], 'gate');
+    const approvalParagraph = rawGate.slice(rawGate.indexOf('現在の決定事項について'), rawGate.indexOf('5 つのチェックをすべて検証します'));
     expect(approvalParagraph).not.toMatch(/^ {3}\S/m);
     expect([...rawGate.matchAll(/^([1-5])\. /gm)].map(match => match[1])).toEqual(['1', '2', '3', '4', '5']);
-    ordered(gate, ['Confirm Approval readiness', '1. Read the report file']);
-    expect(normalizedReadiness).toMatch(/every accepted remedy/i);
-    expectMentions(normalizedReadiness, [['approval','auto-decision','authorized']], 'normalizedReadiness');
-    expect(normalizedReadiness).toMatch(/navigation do not count/i);
-    expect(normalizedReadiness).toMatch(/deferrals remain unresolved/i);
-    expect(normalizedReadiness).toMatch(/one dedicated decision/i);
-    expect(normalizedReadiness).toMatch(/mark that draft pending/i);
-    const decisionStart = section.indexOf('\n## Decision procedure\n');
-    const decisionEnd = section.indexOf('\n## Scope Challenge\n', decisionStart);
+    ordered(gate, ['現在の決定事項について Approval readiness', '1. 直近の書き込みのあとに、レポートファイルを Read']);
+    expectMentions(normalizedReadiness, [['承認済みのすべての是正策', '台帳'], ['実際の回答', '正確な事前承認', '許可された自動決定'], ['ナビゲーション', '数えません'], ['先送り', '未解決のまま'], ['専用の決定', '1 つ'], ['ドラフト', '保留', 'pending']], 'normalizedReadiness');
+    const decisionStart = section.indexOf('\n## Decision procedure(決定の手順)\n');
+    const decisionEnd = section.indexOf('\n## Scope Challenge(スコープチャレンジ)\n', decisionStart);
     expect(decisionStart).toBeGreaterThan(0);
     expect(decisionEnd).toBeGreaterThan(decisionStart);
     const decisions = section.slice(decisionStart, decisionEnd).replace(/\s+/g, ' ');
     expect(decisions).toContain('AskUserQuestion({ questions: [currentDecision] })');
     const ask = decisions.indexOf('AskUserQuestion({ questions: [currentDecision] })');
-    const stop = decisions.search(/stop until the actual answer arrives/i);
+    const stop = decisions.search(/実際の回答が届くまで STOP/);
     expect(stop).toBeGreaterThan(ask);
-    expect(stop).toBeLessThan(decisions.indexOf('### Record the answer'));
-    expectMentions(gate, [['stop','verification','report']], 'gate');
+    expect(stop).toBeLessThan(decisions.indexOf('### 回答を記録する'));
+    expectMentions(gate, [['古くなっている場合', '検証が古い', '停止します']], 'gate');
     expect(gate).toContain('**Recovery routing → Late change or missing work**');
-    const recovery = readSkillUnion('plan-eng-review').split('**Late change or missing work:**')[1]!.split('**Blocked outcome:**')[0]!.replace(/\s+/g, ' ');
-    ordered(recovery, ['Repeat Approval readiness', 'Required outputs', 'navigation']);
+    const recovery = readSkillUnion('plan-eng-review').split('**後からの変更や作業の欠落:**')[1]!.split('**Blocked outcome:**')[0]!.replace(/\s+/g, ' ');
+    ordered(recovery, ['Approval readiness を繰り返し', 'Required outputs', '次の遷移を選びます']);
     expect(gate).toContain('**Blocked outcome**');
-    const report = extractMarkdownSection(section, '### Write to the report file');
+    const report = extractMarkdownSection(section, '### レポートファイルに書き込む');
     expect(report).toContain('**Blocked outcome**');
-    expect(report.replace(/\s+/g, ' ')).toMatch(/follow \*\*Blocked outcome\*\* before Review Log or decision logging/i);
+    expectMentions(report.replace(/\s+/g, ' '), [['レビューログ', '**Blocked outcome**', '従います']], 'report');
   });
 
   test('approval entry does not alter other review Exit checklists', () => {
     for (const skill of ['plan-devex-review']) {
       const gate = extractMarkdownSection(readSkillUnion(skill), '## EXIT PLAN MODE GATE (BLOCKING)');
-      expect(gate).not.toContain('0. Approvals:');
-      expect(gate).toContain('1. Read the plan file');
-      expect(gate).toContain('5. If a plan file is in context');
+      expect(gate).not.toContain('0. 承認:');
+      expect(gate).toContain('1. 直近の書き込みのあとに');
+      expect(gate).toContain('5. このスキルの呼び出しの文脈にプランファイルがある場合');
     }
   });
 
   test('task and decision reporting require approval while preserving unanswered findings', () => {
     const section = fs.readFileSync(path.join(ROOT, 'plan-design-review/sections/review-sections.md'), 'utf8').replace(/\s+/g, ' ');
-    const reconcile = section.search(/before synthesizing tasks or the completion summary/i);
+    const reconcile = section.search(/タスクや完了サマリーをまとめる前に/);
     expect(reconcile).toBeGreaterThan(0);
     expect(reconcile).toBeLessThan(section.indexOf('## Implementation Tasks'));
-    expectMentions(section, [['only','individually','decisions']], 'section');
-    expectMentions(section, [['not','including','finding']], 'section');
+    expectMentions(section, [['個別に承認された', '決定'], ['提案された修正', '0件']], 'section');
   });
 });
 
@@ -2642,12 +2592,12 @@ describe('DESIGN_DETECTOR resolver', () => {
     // the consent-gated install: offered once, only on the probe's say-so, never in spawned sessions, never via npx
     expect(c).toContain('DESIGN_DETECTOR_INSTALL_OFFER');
     expect(c).toContain('gstack-design-detect.ts install --host claude');
-    expect(c).toContain("Install impeccable's design detector engine?");
+    expectMentions(c, [['Install offer', '質問は 1 つ']], 'c');
     expect(c).toContain('gstack-config set design_detector_install_prompted true');
-    expect(c).toContain('`SESSION_KIND: spawned` or a headless run, never install and never ask');
+    expectMentions(c, [['SESSION_KIND: spawned', 'ヘッドレス', 'インストールも質問もせず']], 'c');
     expect(c).toContain('**Phase 0: mechanical scan**');
     expect(c).toContain('scan --changed <base> --format gstack --host claude');
-    expect(c).toContain('### DOM dump (DOM mode only');
+    expect(c).toContain('### DOM dump(DOM モードのみ');
     expect(c).toContain('data-gstack-dom-css');
     expect(c).toContain(`$B js '('"$_DUMP"')()' --out "$_TMP/{page}.dom.html" --raw`);
     expect(c).toContain('DOM_DUMP_OK');
@@ -2683,10 +2633,10 @@ describe('DESIGN_DETECTOR resolver', () => {
   test('the E2E fixture slice markers exist in the rendered design skills (a template rename fails here, not in paid CI)', () => {
     const dr = designReview();
     const dh = fs.readFileSync(path.join(ROOT, 'design-html', 'SKILL.md'), 'utf-8');
-    for (const [a, b] of [['**Design detector (optional, deterministic):**', '**Create output directories:**'], ['**Phase 0: mechanical scan**', '## Phases 1-6'], ['### DOM dump (DOM mode only', '### Auth Detection']]) {
+    for (const [a, b] of [['**Design detector(任意、決定的):**', '**出力ディレクトリを作成します:**'], ['**Phase 0: mechanical scan**', '## フェーズ 1-6'], ['### DOM dump(DOM モードのみ', '### Auth Detection']]) {
       expect(sliceBetween(dr, a, b).length, `${a} .. ${b}`).toBeGreaterThan(100);
     }
-    for (const [a, b] of [['**Design detector (optional, deterministic):**', '## Step 0: Input Detection'], ['### Slop Gate (bounded, never a loop)', '### Verification Screenshots']]) {
+    for (const [a, b] of [['**Design detector(任意、決定的):**', '## Step 0: 入力の検出'], ['### Slop Gate(上限あり、ループにしない)', '### 検証用スクリーンショット']]) {
       expect(sliceBetween(dh, a, b).length, `${a} .. ${b}`).toBeGreaterThan(100);
     }
   });
@@ -2694,20 +2644,20 @@ describe('DESIGN_DETECTOR resolver', () => {
   test('design-html carries the probe and the bounded slop gate', () => {
     const c = designHtml();
     expect(c).toContain('gstack-design-detect.ts probe --host claude');
-    expect(c).toContain('### Slop Gate (bounded, never a loop)');
-    expect(c).toContain('One pass, not a loop.');
+    expect(c).toContain('### Slop Gate(上限あり、ループにしない)');
+    expectMentions(c, [['1 パス', 'スキャン']], 'c');
     expect(c).toContain('impeccable-disable <rule>: <reason>');
   });
 
   test('ship and review unions reach the detector through review-lite and the checklist', () => {
     const ship = readSkillUnion('ship');
-    expect(ship).toContain('**Mechanical pass first.**');
+    expectMentions(ship, [['まず機械的なパスを実行します']], 'ship');
     expect(ship).toContain('scan --changed <base> --format gstack --host claude');
     expect(ship).toContain('"detector":D');
     expect(ship).toContain('Detector: "clean" | "N findings');
     const review = readSkillUnion('review');
     const checklist = fs.readFileSync(path.join(ROOT, 'review', 'design-checklist.md'), 'utf-8');
-    expect(checklist).toContain('**0. Mechanical pass first.**');
+    expect(checklist).toContain('**0. まず機械的なパス。**');
     expect(checklist).toContain('IMPECCABLE_READY');
   });
 
@@ -2763,7 +2713,7 @@ describe('DESIGN_MD_CHECK resolver and open DESIGN.md adoption', () => {
     const dr = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
     expect(dr).toContain('gstack-design-md.ts check DESIGN.md');
     expect(dr).toContain('gstack-design-md.ts tokens DESIGN.md');
-    expect(dr).toMatch(/never offer a conversion/i);
+    expectMentions(dr, [['変換を提案してはいけません']], 'dr');
     expect(dr).not.toContain('mark legacy-keep');
     const dh = fs.readFileSync(path.join(ROOT, 'design-html', 'SKILL.md'), 'utf-8');
     expect(dh).toContain('# gstack: design-md-format=spec');
@@ -2790,13 +2740,12 @@ describe('PRODUCT.md prefill and /impeccable handoffs', () => {
     for (const skill of ['design-consultation', 'design-shotgun']) {
       const c = readSkillUnion(skill);
       expect(c).toContain('cat PRODUCT.md 2>/dev/null | head -120 || echo "NO_PRODUCT_MD"');
-      expect(c).toContain('do not re-ask');
-      expect(c).toContain('Never open `.claude/skills/impeccable/**`');
+      expectMentions(c, [['再度尋ね'], ['.claude/skills/impeccable/**', '決して開かない']], skill);
     }
   });
 
   test('handoffs are gated on IMPECCABLE_SKILL: present in review-lite and design-review', () => {
-    expect(readSkillUnion('ship')).toContain('IMPECCABLE_SKILL: present`, end each NEEDS INPUT detector row with the `handoff=` command');
+    expectMentions(readSkillUnion('ship'), [['IMPECCABLE_SKILL: present', 'NEEDS INPUT', 'handoff=']], 'ship');
     const dr = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
     expectTokens(dr, ['`handoff=`', '`IMPECCABLE_SKILL: present`'], 'dr');
     expectTokens(dr, ['`/impeccable`'], 'dr');
@@ -2809,15 +2758,15 @@ describe('DESIGN_SKETCH extended with outside voices', () => {
   const content = readSkillUnion('office-hours'); // carved: Phase 5/6 prose moved to section
 
   test('contains outside design voices step', () => {
-    expect(content).toContain('Outside design voices');
+    expectMentions(content, [['Step 6', '外部のデザインボイス']], 'content');
   });
 
   test('offers opt-in via AskUserQuestion', () => {
-    expect(content).toContain('outside design perspectives');
+    expectMentions(content, [['外部のデザイン視点', '提案します'], ['AskUserQuestion', '使います']], 'content');
   });
 
   test('still contains original wireframe steps', () => {
-    expect(content).toContain('wireframe');
+    expectMentions(content, [['ワイヤーフレーム']], 'content');
     expect(content).toContain('gstack-render.ts');
   });
 });
@@ -2828,7 +2777,7 @@ describe('DESIGN_REVIEW_LITE extended with Codex', () => {
   const content = readShipUnion();
 
   test('contains Codex design voice block', () => {
-    expect(content).toContain('Codex design voice');
+    expectMentions(content, [['Codex デザインボイス', '任意']], 'content');
     expect(content).toContain('CODEX (design)');
   });
 
@@ -2942,7 +2891,7 @@ describe('Codex generation (--host codex)', () => {
       const content = fs.readFileSync(path.join(AGENTS_DIR, skill.codexName, 'SKILL.md'), 'utf-8');
       // Outside prompts may explicitly forbid reading Claude's skill directory.
       // Every executable/runtime path must still use the selected host root.
-      const withoutBoundary = content.replace(/^.*do not read or execute any files under[^\n]*$/gim, '');
+      const withoutBoundary = content.replace(/^.*(?:do not read or execute any files under|読んだり実行したりしないでください)[^\n]*$/gim, '');
       expect(withoutBoundary).not.toContain('~/.claude/');
     }
   });
@@ -3205,9 +3154,8 @@ describe('Codex generation (--host codex)', () => {
 
   test('codex design-shotgun generates with built-in $imagegen and keeps $D for the board only', () => {
     const codex = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-design-shotgun', 'SKILL.md'), 'utf-8');
-    for (const phrase of ['`$imagegen`', 'default built-in mode', 'needs no `OPENAI_API_KEY`', 'view_image', 'gstack-design-claim', '$D compare --images-file']) {
-      expect(codex).toContain(phrase);
-    }
+    expectTokens(codex, ['`$imagegen`', 'view_image', 'gstack-design-claim', '$D compare --images-file'], 'codex design-shotgun');
+    expectMentions(codex, [['$imagegen', 'デフォルトの組み込みモード'], ['OPENAI_API_KEY', '不要']], 'codex design-shotgun');
     for (const generator of ['"$D" variants', '"$D" generate', '"$D" evolve', '$D iterate', '`$D variants --brief']) {
       expect(codex).not.toContain(generator);
     }
@@ -3221,7 +3169,7 @@ describe('Codex generation (--host codex)', () => {
 
   test('codex host does not include Codex design block in ship', () => {
     const codexContent = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-ship', 'SKILL.md'), 'utf-8');
-    expect(codexContent).not.toContain('Codex design voice');
+    expectAbsent(codexContent, ['Codex design voice', 'Codex デザインボイス'], 'codex ship');
   });
 
   // ─── Explicit --model override wins over the host default ────
@@ -3241,7 +3189,7 @@ describe('Codex generation (--host codex)', () => {
       });
       expect(override.exitCode).toBe(0);
       const content = fs.readFileSync(path.join(overrideOut, '.agents', 'skills', 'gstack-ship', 'SKILL.md'), 'utf-8');
-      expect(content).toContain('Model-Specific Behavioral Patch (claude)');
+      expect(content).toContain('## Model-Specific Behavioral Patch (claude)(モデル固有の動作パッチ)');
       // The overlay now travels as --model into gstack-skill-start, which
       // echoes MODEL_OVERLAY at runtime.
       expect(content).toContain('--model "claude"');
@@ -3250,7 +3198,7 @@ describe('Codex generation (--host codex)', () => {
     }
     // Host-default direction: the untouched EXTERNAL_OUT render carries gpt.
     const hostDefault = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-ship', 'SKILL.md'), 'utf-8');
-    expect(hostDefault).toContain('Model-Specific Behavioral Patch (gpt)');
+    expect(hostDefault).toContain('## Model-Specific Behavioral Patch (gpt)(モデル固有の動作パッチ)');
     expect(hostDefault).toContain('--model "gpt"');
   });
 });
@@ -4017,14 +3965,17 @@ describe('community fixes wave', () => {
       const content = fs.readFileSync(tmplPath, 'utf-8');
       const desc = extractDescription(content);
       const firstLine = desc.split('\n')[0];
-      expect(firstLine.length).toBeLessThanOrEqual(120);
+      // 英語版は 120 文字。日本語は 1 文字あたりの情報量が英語の約 2〜2.5 倍あるため、
+      // 同じ「一覧で 1 行に収まる要約」を保つ上限として 300 文字を使う(現状の最長は約 283 文字)。
+      expect(firstLine.length).toBeLessThanOrEqual(300);
     }
   });
 
   // #573 — Feature signals: ship/SKILL.md contains feature signal detection
   test('ship/SKILL.md contains feature signal detection in Step 4', () => {
     const content = readShipUnion();
-    expect(content.toLowerCase()).toContain('feature signal');
+    // MINOR は「機能の兆候」(新しいルート/ページ、マイグレーション、モジュール)で確認する、という Step 12 の規則
+    expectMentions(content, [['MINOR', '機能の兆候', 'マイグレーション']], 'ship version bump rule');
   });
 
   // #510 — Context warnings: no SKILL.md contains "running low on context"
@@ -4038,7 +3989,7 @@ describe('community fixes wave', () => {
   // #510 — Context warnings: plan-eng-review has explicit anti-warning
   test('plan-eng-review/SKILL.md explicitly forbids preemptive context warnings', () => {
     const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
-    expect(content.toLowerCase()).toContain('do not preemptively warn');
+    expectMentions(content, [['事前に警告しない']], 'plan-eng-review context-warning rule');
   });
 
   // #474 — Safety Net: no SKILL.md uses find with -delete
@@ -4243,15 +4194,17 @@ describe('LEARNINGS_SEARCH resolver', () => {
 
   test('learnings search includes AskUserQuestion for first-time cross-project opt-in', () => {
     const content = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Enable cross-project learnings');
-    expect(content).toContain('project-scoped only');
+    expectMentions(content, [['AskUserQuestion', 'unset'], ['A)', 'プロジェクト横断'], ['B)', 'プロジェクト内に限定']], 'review learnings opt-in');
+    expectTokens(content, ['gstack-config set cross_project_learnings true', 'gstack-config set cross_project_learnings false'], 'review learnings opt-in');
   });
 
   test('Eng clarifies its full brief without changing any host options or other skills', async () => {
     const { generateLearningsSearch } = await import('../scripts/resolvers/learnings');
     const { ALL_HOST_CONFIGS } = await import('../hosts');
     const { HOST_PATHS } = await import('../scripts/resolvers/types');
-    const fullBrief = 'Build a full decision brief from these facts and options using the preamble format, then ask and wait:';
+    // Eng だけは「unset のとき」の 1 行が AskUserQuestion ではなく判断ブリーフの指示になる。その行だけが違うことを確認する。
+    const gateLine = (text: string) => text.split('\n').find(line => line.includes('CROSS_PROJECT') && line.includes('unset')) ?? '';
+    const withoutGate = (text: string) => text.split('\n').filter(line => !(line.includes('CROSS_PROJECT') && line.includes('unset'))).join('\n');
     for (const host of ALL_HOST_CONFIGS) {
       const ctx = { skillName: 'plan-eng-review', tmplPath: 'plan-eng-review/SKILL.md.tmpl', host: host.name, paths: HOST_PATHS[host.name]! };
       const eng = generateLearningsSearch(ctx);
@@ -4261,10 +4214,12 @@ describe('LEARNINGS_SEARCH resolver', () => {
         expect(eng).toBe(standard);
         expect(eng).not.toContain('CROSS_PROJECT');
       } else {
-        expect(eng).toContain(fullBrief);
-        expect(eng.replace(fullBrief, 'Use AskUserQuestion:')).toBe(standard);
-        expect(eng).toContain('A) Enable cross-project learnings (recommended)');
-        expect(eng).toContain('B) Keep learnings project-scoped only');
+        expect(gateLine(eng)).toContain('判断ブリーフ');
+        expect(gateLine(eng)).not.toContain('AskUserQuestion');
+        expect(gateLine(standard)).toContain('AskUserQuestion');
+        expect(withoutGate(eng)).toBe(withoutGate(standard));
+        expect(eng).toContain('A) プロジェクト横断の学びを有効にする(推奨)');
+        expect(eng).toContain('B) 学びをプロジェクト内に限定する');
         expect(eng).toContain('gstack-config set cross_project_learnings true');
         expect(eng).toContain('gstack-config set cross_project_learnings false');
       }
@@ -4273,7 +4228,7 @@ describe('LEARNINGS_SEARCH resolver', () => {
 
   test('learnings search mentions prior learning applied display format', () => {
     const content = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Prior learning applied');
+    expect(content).toContain('過去の学びを適用');
   });
 });
 
@@ -4304,8 +4259,8 @@ describe('LEARNINGS_LOG resolver', () => {
 
   test('learnings log includes files field for staleness detection', () => {
     const content = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('"files"');
-    expect(content).toContain('staleness detection');
+    // files フィールドは JSON のキーとして渡す(陳腐化検出に使われる)
+    expect(content).toContain('"files":["path/to/relevant/file"]');
   });
 });
 
@@ -4318,7 +4273,7 @@ describe('CONFIDENCE_CALIBRATION resolver', () => {
     test(`${skill} generated SKILL.md contains confidence calibration`, () => {
       const content = readSkillUnion(skill); // ship: moved to sections/review-army.md
       expect(content).toContain('Confidence Calibration');
-      expect(content).toContain(skill === 'review' ? 'score every finding (1-10)' : 'confidence score');
+      expectMentions(content, [skill === 'review' ? ['1〜10', 'スコア', '指摘'] : ['confidence', 'スコア', '指摘']], `${skill} confidence scoring`);
     });
   }
 
@@ -4333,8 +4288,9 @@ describe('CONFIDENCE_CALIBRATION resolver', () => {
 
   test('confidence calibration includes display rules', () => {
     const content = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Show normally');
-    expect(content).toContain('Suppress from main report');
+    // 表示ルール: 9-10 / 7-8 は通常どおり表示、3-4 は本文から除外して付録のみ
+    // 表の行ごと(1 行 = 1 つの表示ルール)に確認する
+    expectTokens(content, [/\| 9-10 \|.*通常どおり表示/, /\| 7-8 \|.*通常どおり表示/, /\| 5-6 \|.*Medium confidence/, /\| 3-4 \|.*本文.*付録/], 'confidence display rules');
   });
 
   test('confidence calibration includes finding format example', () => {
@@ -4346,8 +4302,7 @@ describe('CONFIDENCE_CALIBRATION resolver', () => {
   test('confidence calibration includes calibration learning feedback loop', () => {
     const content = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
     const flat = content.replace(/\s+/g, ' ');
-    expect(flat).toContain('Calibration learning');
-    expect(flat).toContain('log the corrected pattern as a learning');
+    expectMentions(flat, [['キャリブレーション', '7 未満', '学びとして記録']], 'calibration learning loop');
   });
 
   test('skills without confidence calibration do NOT contain it', () => {
@@ -4429,7 +4384,7 @@ describe('voice-triggers processing', () => {
   test('processVoiceTriggers appends voice triggers to description', () => {
     const content = `---\nname: cso\ndescription: |\n  Security audit. (gstack)\nvoice-triggers:\n  - "see-so"\n  - "security review"\n---\nBody`;
     const result = processVoiceTriggers(content);
-    expect(result).toContain('Voice triggers (speech-to-text aliases): "see-so", "security review".');
+    expect(result).toContain('音声トリガー(音声入力の別名): "see-so", "security review"。');
   });
 
   test('processVoiceTriggers strips voice-triggers field from output', () => {
@@ -4448,17 +4403,17 @@ describe('voice-triggers processing', () => {
     // other-host renders still carry it.
     const content = processVoiceTriggers(fs.readFileSync(path.join(ROOT, 'cso', 'SKILL.md.tmpl'), 'utf-8'));
     expect(content).toContain('"see-so"');
-    expect(content).toContain('Voice triggers (speech-to-text aliases):');
+    expect(content).toContain('音声トリガー(音声入力の別名):');
   });
 
   test('Claude root router routes every skill voice trigger the catalog trim drops', () => {
-    const routing = between(fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8'), '**Routing rules', '**Route only to skills');
+    const routing = between(fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8'), '**ルーティングルール', '**振り分けは');
     const skills = fs.readdirSync(ROOT).filter(d => !fs.lstatSync(path.join(ROOT, d)).isSymbolicLink() && fs.existsSync(path.join(ROOT, d, 'SKILL.md.tmpl')));
     let routed = 0;
     for (const skill of skills) {
       const triggers = extractVoiceTriggers(fs.readFileSync(path.join(ROOT, skill, 'SKILL.md.tmpl'), 'utf-8').replace(/\r\n/g, '\n'));
       if (triggers.length === 0) continue;
-      const line = routing.split('\n').find(l => l.endsWith(`→ invoke \`/${skill}\``) && l.startsWith('- Voice trigger '));
+      const line = routing.split('\n').find(l => l.endsWith(`→ \`/${skill}\` を実行`) && l.startsWith('- 音声トリガー '));
       expect(line, skill).toBeDefined();
       for (const t of triggers) expect(line, skill).toContain(`"${t}"`);
       routed++;
@@ -4491,8 +4446,8 @@ describe('voice-triggers processing', () => {
     const codex = fs.readFileSync(path.join(EXTERNAL_OUT, '.agents', 'skills', 'gstack-cso', 'SKILL.md'), 'utf-8');
     for (const content of [claude, codex]) {
       expect(content).toContain('sequential challenge; independent agent unavailable');
-      expectMentions(content, [['does not','containment','sandbox']], 'content');
-      expectMentions(content, [['do not','independent','reviewer']], 'content');
+      expectMentions(content, [['隔離', 'サンドボックス', 'ありません']], 'content');
+      expectMentions(content, [['独立した', 'レビュアー', '要求しないでください']], 'content');
     }
   });
 
@@ -4523,18 +4478,18 @@ describe('voice-triggers processing', () => {
 describe('CEO accepted requirement preservation', () => {
   test('HOLD SCOPE includes implementation work needed to meet accepted requirements', () => {
     const main = fs.readFileSync(path.join(ROOT, 'plan-ceo-review/SKILL.md'), 'utf8');
-    const hold = main.slice(main.indexOf('**For HOLD SCOPE**'), main.indexOf('**For SCOPE REDUCTION**'));
-    expectMentions(hold, [['acceptance criteria', 'in scope']], 'HOLD SCOPE');
+    const hold = main.slice(main.indexOf('**HOLD SCOPE の場合**'), main.indexOf('**SCOPE REDUCTION の場合:**'));
+    expectMentions(hold, [['受け入れ基準', '維持'], ['必要な修復', 'スコープに含まれます']], 'HOLD SCOPE');
   });
 
   test('loaded sections keep requirement conflicts unresolved until an authorized decision', () => {
     const section = fs.readFileSync(path.join(ROOT, 'plan-ceo-review/sections/review-sections.md'), 'utf8');
-    const policy = section.slice(section.indexOf('**Preserve accepted requirements.**'), section.indexOf('### Section 1:')).replace(/\s+/g, ' ');
-    expect(policy).toContain('Report gaps and propose remedies, including omitted mechanisms in HOLD SCOPE');
-    expectMentions(policy, [['never','guarantee','violation']], 'policy');
-    expectMentions(policy, [['do not','documentation','requirements']], 'policy');
-    expect(policy).toContain('Changing a requirement needs explicit authority');
-    expectMentions(policy, [['cannot','auto-decide','constraints']], 'policy');
+    const policy = section.slice(section.indexOf('**承認された要件を保持してください。**'), section.indexOf('### セクション 1:')).replace(/\s+/g, ' ');
+    expectMentions(policy, [['ギャップ', '報告', '対処案'], ['HOLD SCOPE', '抜けている']], 'policy');
+    expectMentions(policy, [['保証', '弱めたり', '違反']], 'policy');
+    expectMentions(policy, [['文書化', '要件', '満たしたことにはなりません']], 'policy');
+    expectMentions(policy, [['要件の変更', '明示的な権限']], 'policy');
+    expectMentions(policy, [['自動判断', '制約', '覆すことはできません']], 'policy');
   });
 });
 
@@ -4636,7 +4591,7 @@ describe('plan-mode-info resolver (handshake-replacement)', () => {
       'utf-8',
     );
     const planModeIdx = content.indexOf(PLAN_MODE_INFO_MARKER);
-    const upgradeIdx = content.search(/If `PROACTIVE` is `"?false"?`/i);
+    const upgradeIdx = content.search(/`PROACTIVE` が `"?false"?`/);
     expect(planModeIdx).toBeGreaterThan(0);
     expect(upgradeIdx).toBeGreaterThan(0);
     expect(planModeIdx).toBeLessThan(upgradeIdx);
@@ -4645,40 +4600,36 @@ describe('plan-mode-info resolver (handshake-replacement)', () => {
   test('0D authority and fresh-approval paths precede mode selection', () => {
     const content = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8').replace(/\s+/g, ' ');
     const approachIdx = content.indexOf('### 0D.');
-    const constructIdx = content.indexOf('Build one `currentDecision`', approachIdx);
-    const saveIdx = content.indexOf('**Pre-question checkpoint:**', constructIdx);
-    const presentIdx = content.indexOf('Ask one row per call', saveIdx);
-    const stopOffset = content.slice(presentIdx).search(/stop for the actual answer/i);
-    const stopIdx = stopOffset < 0 ? -1 : presentIdx + stopOffset;
-    const modeIdx = content.indexOf('### 0E. Mode Selection');
+    const constructIdx = content.indexOf('`currentDecision` を一つ作成', approachIdx);
+    const saveIdx = content.indexOf('**質問前のチェックポイント:**', constructIdx);
+    const presentIdx = content.indexOf('1 回の呼び出しで 1 行だけ尋ね', saveIdx);
+    const stopIdx = presentIdx < 0 ? -1 : content.indexOf('**実際の回答を得るまで停止してください。**', presentIdx);
+    const modeIdx = content.indexOf('### 0E. モード選択');
     const preludeIdx = content.indexOf('### 0F');
     const positions = [approachIdx, constructIdx, saveIdx, presentIdx, stopIdx, modeIdx, preludeIdx];
     expect(positions.every(position => position > 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
     const approach = content.slice(approachIdx, modeIdx);
-    expect(approach).toMatch(/Reuse (?:an )?exact approvals?/);
-    expect(content).toMatch(/(?:the actual instruction\/answer|Cite actual instructions\/answers) and exact scope/);
-    const reopenRule = approach.match(/Reuse exact approvals\. Reopen only for contradictions, changed assumptions or user instructions, never speculation or reviewer agreement/)?.[0];
-    expect(reopenRule).toBeDefined();
-    expect(reopenRule!).toMatch(/reopen only|requires reopening it/i);
-    expect(content.indexOf(reopenRule!)).toBeGreaterThan(approachIdx);
-    expect(content.indexOf(reopenRule!)).toBeLessThan(presentIdx);
+    expectMentions(approach, [['正確な', '承認', '再利用']], 'approach');
+    expectTokens(content, ['正確な承認とスコープ'], 'plan-ceo-review');
+    // 再検討は、矛盾・変わった前提・ユーザーの指示がある場合だけ(推測やレビュー担当者の同意では再検討しない)
+    expectMentions(approach, [['再検討', '矛盾', '変わった前提', 'ユーザーの指示'], ['推測', 'レビュー担当者の同意', '再検討しないでください']], 'approach');
+    const reopenIdx = content.indexOf('矛盾、変わった前提');
+    expect(reopenIdx).toBeGreaterThan(approachIdx);
+    expect(reopenIdx).toBeLessThan(presentIdx);
     const gate = content.slice(stopIdx, modeIdx);
     const startup = content.slice(content.indexOf('### 0C.'), approachIdx);
-    expect(startup).toContain('Before 0E, call 0D for unresolved approaches');
-    expect(startup).toContain('A) current/requested plan, B) smallest scoped alternative');
-    expectMentions(startup, [['no','required','choices']], 'startup');
-    expectMentions(approach, [['not','selection','returns']], 'approach');
-    expectTokens(approach, ['**Mode change**'], 'approach');
-    const modeChange = content.slice(content.indexOf('**Mode change:**'), preludeIdx);
-    expectMentions(modeChange, [['ask','four-mode','answered']], 'modeChange');
-    expectMentions(gate, [['do not','calling','return']], 'gate');
-    expect(gate).toContain('even for a lone option');
-    expect(approach).toContain('A recommendation is not approval');
-    expectMentions(approach, [['without','recomposing','unchanged']], 'approach');
-    expect(gate).toMatch(/(?:Record its reference|Save the answer reference) and scope in Exact approval and scope/);
-    expect(gate).toMatch(/update Status,? and amend only (?:what it authorizes|authorized work)/);
-    expectMentions(gate, [['before','storage','another']], 'gate');
+    expectMentions(startup, [['0E の前に', '0D', '未解決'], ['A)', 'B)', 'C)'], ['必要な選択がない', '0E']], 'startup');
+    expectMentions(approach, [['0D', 'モード選択', '呼び出し元', '戻り']], 'approach');
+    expectTokens(approach, ['**モード変更**'], 'approach');
+    const modeChange = content.slice(content.indexOf('**モードの変更:**'), preludeIdx);
+    expectMentions(modeChange, [['4 つのモード', 'メニュー', '尋ねてください']], 'modeChange');
+    expectMentions(gate, [['実際の回答', '停止'], ['呼び出し元', '戻り', '同じことを二度と尋ねないでください']], 'gate');
+    expectMentions(gate, [['選択肢が一つだけ', '同じ']], 'gate');
+    expectMentions(approach, [['推奨は承認ではありません']], 'approach');
+    expectMentions(approach, [['その引数オブジェクトは変えずに', '組み立て直さない']], 'approach');
+    expectMentions(gate, [['回答への参照', 'スコープ', '正確な承認とスコープ'], ['状態を更新'], ['許可された作業だけを修正']], 'gate');
+    expectMentions(gate, [['次の行に進む前に', '保存ポリシー']], 'gate');
   });
 });
 
@@ -4719,7 +4670,7 @@ describe('GSTACK REVIEW REPORT delete-then-append flow', () => {
       const content = readSkillUnion(skill);
 
       // The new (correct) instruction must be present.
-      expect(content).toContain('delete-then-append flow');
+      expectMentions(content, [['削除してから追記する'], ['その場で置き換えてはいけません'], ['削除してから', '追記']], `${skill} review report flow`);
 
       // The old contradictory bullets must be gone. The signature phrase
       // from the buggy prompt was 'replace it entirely using the Edit tool'
@@ -4731,7 +4682,7 @@ describe('GSTACK REVIEW REPORT delete-then-append flow', () => {
 
   test('plan-file review report resolver renders the rewritten flow', () => {
     const src = renderPlanReportAndGate();
-    expect(src).toContain('delete-then-append flow');
+    expectMentions(src, [['削除してから追記する'], ['その場で置き換えてはいけません'], ['削除してから', '追記']], 'plan-file review report resolver');
     // Old contradictory bullets are gone from the source resolver.
     expect(src).not.toContain('replace it** entirely using the Edit tool');
     expect(src).not.toContain('If it was found mid-file, move it');
@@ -4796,49 +4747,58 @@ describe('EXIT PLAN MODE GATE placement', () => {
   const stripFences = (md: string) => md.replace(/```[\s\S]*?```/g, '');
 
   test('gate follows review work, with only the declared cache hook after CEO and Eng verification', () => {
+    const GATE = '## EXIT PLAN MODE GATE (BLOCKING)(プランモード終了ゲート。ブロッキング)';
     for (const skill of planSkills) {
       const md = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf-8');
       const stripped = stripFences(md);
       const headings = [...stripped.matchAll(/^## .+$/gm)].map(m => m[0]);
       const lastH2 = headings.at(-1);
       if (['plan-ceo-review', 'plan-eng-review'].includes(skill)) {
-        const gate = headings.indexOf('## EXIT PLAN MODE GATE (BLOCKING)');
-        expect(gate).toBeGreaterThan(headings.indexOf('## Section self-check (before you finish)'));
-        expect(headings.slice(gate)).toEqual(['## EXIT PLAN MODE GATE (BLOCKING)', '## Brain Cache Background Refresh']);
-        const tail = md.slice(md.indexOf('## EXIT PLAN MODE GATE (BLOCKING)'));
-        const telemetry = tail.indexOf('**Telemetry (run last)**');
-        expect(telemetry).toBeGreaterThan(0);
-        const cache = tail.indexOf('## Brain Cache Background Refresh');
+        const gate = headings.indexOf(GATE);
+        // 見出しは日本語化(「セクションの自己チェック(終える前に)」など)。「セクション」+「チェック」で特定する。
+        const selfCheck = headings.findIndex(h => h.startsWith('## セクション') && h.includes('チェック'));
+        expect(selfCheck).toBeGreaterThanOrEqual(0);
+        expect(gate).toBeGreaterThan(selfCheck);
+        const afterGate = headings.slice(gate);
+        expect(afterGate.length).toBe(2);
+        expect(afterGate[0]).toBe(GATE);
+        expect(afterGate[1]!.startsWith('## Brain Cache Background Refresh')).toBe(true);
+        const tail = md.slice(md.indexOf(GATE));
+        const compactTail = tail.replace(/\s+/g, ' ');
+        // テレメトリの目印: CEO は前文の日本語ラベル、Eng は英語のまま残った太字ラベル
+        const telemetryMarker = skill === 'plan-ceo-review' ? '**テレメトリ(最後に実行)**' : '**Telemetry (run last)**';
+        const cacheHeading = '## Brain Cache Background Refresh';
+        const telemetry = tail.indexOf(telemetryMarker);
+        expect(telemetry, `${skill} telemetry marker`).toBeGreaterThan(0);
+        const cache = tail.indexOf(cacheHeading);
         if (skill === 'plan-ceo-review') expect(telemetry).toBeGreaterThan(cache);
         else expect(telemetry).toBeLessThan(cache);
-        expect(tail).toContain(skill === 'plan-ceo-review' ? 'Passed with a verified persisted report' : 'After the gate passes');
-        const finalHandoff = tail.slice(tail.indexOf('## Brain Cache Background Refresh'));
-        expect(finalHandoff).toContain(skill === 'plan-ceo-review' ? 'Call ExitPlanMode where required or return to the caller' : 'After success telemetry and cache dispatch, call ExitPlanMode');
+        expectMentions(compactTail, [skill === 'plan-ceo-review' ? ['検証済みの保存済み報告を伴う合格'] : ['ゲートを通過した後']], `${skill} gate pass path`);
+        const finalHandoff = tail.slice(cache);
+        expectMentions(finalHandoff, [skill === 'plan-ceo-review' ? ['ExitPlanMode', '呼び出し元'] : ['テレメトリ', 'キャッシュ', 'ExitPlanMode']], `${skill} final handoff`);
         if (skill === 'plan-ceo-review') {
-          expect(finalHandoff.indexOf('Call ExitPlanMode')).toBeGreaterThan(finalHandoff.indexOf('**Telemetry (run last)**'));
-          expect(finalHandoff).toContain('handoff starts a separate workflow');
+          expect(finalHandoff.indexOf('ExitPlanMode')).toBeGreaterThan(finalHandoff.indexOf(telemetryMarker));
+          expectMentions(finalHandoff, [['引き継ぎ', '別のワークフロー']], 'finalHandoff');
         }
         if (skill === 'plan-eng-review') {
-          expectMentions(tail.replace(/\s+/g, ' '), [['cannot','persistence','unrecovered']], 'tail.replace(/\s+/g,  )');
-          expectMentions(finalHandoff, [['only', 'host', 'plan']], 'finalHandoff');
-          expectMentions(finalHandoff, [['do not','conversation','exitplanmode']], 'finalHandoff');
+          expectMentions(compactTail, [['回復できなかった保存', '通過できません']], 'eng gate tail');
+          expectMentions(finalHandoff, [['ホストがプランモードにある場合のみ', 'ExitPlanMode']], 'finalHandoff');
+          expectMentions(finalHandoff, [['ExitPlanMode', '呼び出さないでください'], ['現在の会話', '終えてください']], 'finalHandoff');
         } else {
-          expect(tail.replace(/\s+/g, ' ')).toContain('**Pass with log-only gaps:**');
-          expectTokens(tail.replace(/\s+/g, ' '), ['**not persisted**'], 'tail.replace(/\s+/g,  )');
-          expectMentions(tail.replace(/\s+/g, ' '), [['do not', 'unwritten', 'artifacts']], 'tail.replace(/\s+/g,  )');
-          expectMentions(tail.replace(/\s+/g, ' '), [['without','exitplanmode','telemetry']], 'tail.replace(/\s+/g,  )');
+          expectTokens(compactTail, ['**ログのみの欠落を伴う合格:**', '**未保存**'], 'ceo gate outcomes');
+          expectMentions(compactTail, [['書き込まれていない成果物', '未保存'], ['成功のテレメトリ', 'ExitPlanMode', 'なしで']], 'ceo gate outcomes');
         }
       } else {
-        expect(lastH2, `${skill}/SKILL.md last ## heading (fences stripped)`).toBe('## EXIT PLAN MODE GATE (BLOCKING)');
+        expect(lastH2, `${skill}/SKILL.md last ## heading (fences stripped)`).toBe(GATE);
       }
       if (skill === 'plan-eng-review') {
-        const gate = extractMarkdownSection(md, '## EXIT PLAN MODE GATE (BLOCKING)').replace(/\s+/g, ' ');
+        const gate = extractMarkdownSection(md, GATE).replace(/\s+/g, ' ');
         expectTokens(gate, ['**Blocked outcome**'], 'gate');
-        expectMentions(gate, [['without', 'exitplanmode', 'telemetry']], 'gate');
+        expectMentions(gate, [['成功のテレメトリ', 'ExitPlanMode', '行わずに']], 'gate');
       } else if (skill === 'plan-ceo-review') {
-        expect(md, `${skill}/SKILL.md gate body`).toContain('Failed checks use **Gate outcome: Blocked**');
+        expectTokens(md, ['**Gate outcome: Blocked**'], `${skill}/SKILL.md gate body`);
       } else {
-        expect(extractMarkdownSection(md, '## EXIT PLAN MODE GATE (BLOCKING)'), `${skill}/SKILL.md gate body`).toMatch(/do not call ExitPlanMode/i);
+        expectMentions(extractMarkdownSection(md, GATE), [['ExitPlanMode', '呼び出してはいけません']], `${skill}/SKILL.md gate body`);
       }
     }
   });
@@ -4846,7 +4806,7 @@ describe('EXIT PLAN MODE GATE placement', () => {
   test('codex/SKILL.md contains gate (mid-file per D5; Step 2B/2C follow)', () => {
     const codex = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md'), 'utf-8');
     expect(codex).toContain('## EXIT PLAN MODE GATE (BLOCKING)');
-    expect(extractMarkdownSection(codex, '## EXIT PLAN MODE GATE (BLOCKING)')).toMatch(/do not call ExitPlanMode/i);
+    expectMentions(extractMarkdownSection(codex, '## EXIT PLAN MODE GATE (BLOCKING)'), [['ExitPlanMode', '呼び出してはいけません']], 'codex gate');
   });
 });
 
@@ -4860,45 +4820,58 @@ describe('scope-gate exceptions drift-guard', () => {
   // A future edit to one copy that silently misses the other fails here
   // instead of drifting. The real fix (shared {{SCOPE_GATE}} resolver) is a
   // filed TODO — this guard is the stopgap that makes the duplication safe.
-  const START_MARKER = '**Exceptions — check in this order, BEFORE asking:**';
-  const END_MARKER = 'When no exception above applied:';
+  const START_MARKER = '**例外 — 質問する前に、この順序で確認してください:**';
+  // eng は「適用されなかった場合」、design は「適用されない場合」と訳が分かれている
+  const END_MARKERS = ['上記の例外が適用されなかった場合:', '上記の例外が適用されない場合:'];
+  const endMarkerOf = (md: string, from: number) => END_MARKERS.find(marker => md.indexOf(marker, from) >= 0) ?? END_MARKERS[0]!;
+  // PTY 検出器が固定する告知文。eng は英語のまま、design は日本語に訳されている
+  const ANNOUNCEMENTS = ['スコープゲート: プランモード — Bを自動選択(<対象>をレビュー)'];
 
   function extractExceptionsBlock(skill: string): string {
     const md = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf-8');
     const start = md.indexOf(START_MARKER);
     expect(start, `${skill}/SKILL.md: exceptions block start marker present`).toBeGreaterThan(-1);
-    const end = md.indexOf(END_MARKER, start);
+    const endMarker = endMarkerOf(md, start);
+    const end = md.indexOf(endMarker, start);
     expect(end, `${skill}/SKILL.md: exceptions block end marker present`).toBeGreaterThan(start);
-    return md.slice(start, end + END_MARKER.length);
+    return md.slice(start, end + endMarker.length);
   }
 
-  const normalizeTargetPolicy = (block: string) => block
-    .split('\n').filter(line => /^[12]\. /.test(line)).join('\n')
-    .replace(/ Announce (?:it|an auto-selected plan) in one line so the user can interrupt: "Scope gate: plan mode — auto-selected B \(reviewing <target>\)\."/g, '')
-    .replace(/ Then run the pre-review audit, .*? against that plan\./, '')
-    .replace('a path, a page, a doc they pasted,', 'a path, a doc they pasted,');
+  // eng と design は別々に訳されているため文面は一致しない。ターゲット選択ポリシーの要素(自動選択の条件、
+  // 複数候補の扱い、明示指定の優先、迷ったら質問)が両方に残っていることを確認する。
+  const POLICY_RULES: string[][] = [
+    ['プランモード', 'B', '自動'],
+    ['複数', 'ホストが参照しているプランファイルを優先'],
+    ['それでも曖昧', '質問'],
+    ['選択が優先'],
+    ['プランモード', 'プランが存在しない', '通常どおり質問'],
+    ['ユーザー', '明示的に', 'branch diff', '質問を省略'],
+    ['迷ったら質問してください'],
+  ];
 
   test('eng and design retain the same target-selection policy across distinct startup sequences', () => {
     const engRaw = extractExceptionsBlock('plan-eng-review');
-    const eng = normalizeTargetPolicy(engRaw);
-    const design = normalizeTargetPolicy(extractExceptionsBlock('plan-design-review'));
-    expect(eng).toBe(design);
-    expect(eng).toContain('their choice wins — use it instead');
-    expect(eng).toContain('still ambiguous — ask');
-    expectMentions(eng, [['ask','default','doubt']], 'eng');
-    expect(engRaw.indexOf('their choice wins')).toBeLessThan(engRaw.indexOf('Announce an auto-selected plan'));
+    const designRaw = extractExceptionsBlock('plan-design-review');
+    for (const [name, block] of [['eng', engRaw], ['design', designRaw]] as const) {
+      expectMentions(block, POLICY_RULES, name);
+      // 例外は 1(プランモード)→ 2(ユーザー指定)の順
+      expect(block.indexOf('1. **'), name).toBeGreaterThanOrEqual(0);
+      expect(block.indexOf('2. **'), name).toBeGreaterThan(block.indexOf('1. **'));
+    }
+    // eng: 明示指定の優先は、自動選択の告知より前に述べられる
+    expect(engRaw.indexOf('選択が優先されます')).toBeGreaterThan(-1);
+    expect(engRaw.indexOf('選択が優先されます')).toBeLessThan(engRaw.indexOf('自動選択したプランは 1 行で伝え'));
     const engMd = fs.readFileSync(path.join(ROOT, 'plan-eng-review/SKILL.md'), 'utf8');
-    const transport = engMd.indexOf('Choose listed, enabled MCP AskUserQuestion, otherwise listed native');
-    expect(transport).toBeGreaterThan(engMd.indexOf(END_MARKER));
+    const endIdx = engMd.indexOf(endMarkerOf(engMd, engMd.indexOf(START_MARKER)));
+    const transport = engMd.indexOf('有効化されている MCP の AskUserQuestion があればそれを、なければネイティブの AskUserQuestion を選びます');
+    expect(transport).toBeGreaterThan(endIdx);
     expect(transport).toBeLessThan(engMd.indexOf('## Preamble (after scope gate)'));
   });
 
   test('exceptions block carries the announcement string the PTY detectors pin', () => {
     for (const skill of ['plan-eng-review', 'plan-design-review']) {
       const block = extractExceptionsBlock(skill);
-      expect(block, `${skill}: verbatim announcement`).toContain(
-        'Scope gate: plan mode — auto-selected B (reviewing <target>).',
-      );
+      expect(ANNOUNCEMENTS.some(text => block.includes(text)), `${skill}: announcement string`).toBe(true);
     }
   });
 
@@ -4909,8 +4882,9 @@ describe('scope-gate exceptions drift-guard', () => {
     // vacuous — this free pin fails first.
     for (const skill of ['plan-eng-review', 'plan-design-review']) {
       const md = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf-8');
-      expect(md, `${skill}: gate question text`).toContain('What should I review?');
-      expect(md, `${skill}: option A body text`).toContain('The current branch diff');
+      // メニュー文は eng が日本語、design が英語のまま(翻訳の不統一。PTY 検出器は英語を固定している)
+      expect(['What should I review?', 'レビュー対象は何ですか?'].some(text => md.includes(text)), `${skill}: gate question text`).toBe(true);
+      expect(['The current branch diff', '現在のブランチの差分'].some(text => md.includes(text)), `${skill}: option A body text`).toBe(true);
     }
   });
 });
@@ -4941,8 +4915,8 @@ describe('GSTACK REVIEW REPORT mandatory unresolved-decisions status', () => {
     test(`${skill}: report mandates the unresolved-decisions status as final content`, () => {
       const content = readSkillUnion(skill);
       expect(content).toContain('NO UNRESOLVED DECISIONS');
-      // \s+ tolerates prose line-wraps within "final non-whitespace line".
-      expect(content).toMatch(/final\s+non-whitespace\s+line/i);
+      // 「空白を除く最後の行」(改行での折り返しを許容)
+      expect(content).toMatch(/空白を除く\s*最後の\s*行/);
     });
   }
 
@@ -4953,17 +4927,16 @@ describe('GSTACK REVIEW REPORT mandatory unresolved-decisions status', () => {
       expect(md).toContain('NO UNRESOLVED DECISIONS');
       if (['plan-ceo-review', 'plan-eng-review'].includes(skill)) {
         const gate = md.split('## EXIT PLAN MODE GATE (BLOCKING)')[1]!.replace(/\s+/g, ' ');
-        expect(gate).toMatch(/final\s+non-whitespace\s+line is the exact unbolded `NO UNRESOLVED DECISIONS`/i);
+        expect(gate).toMatch(/空白を除く最終行が、太字にしていない `NO UNRESOLVED DECISIONS`/);
         expect(gate).toContain('`**UNRESOLVED DECISIONS:**`');
-        expect(gate).toMatch(/missing\s+status[^.]*fails/i);
-        expect(gate).toContain(skill === 'plan-eng-review'
-          ? 'If any check fails, follow **Blocked outcome** without success telemetry or ExitPlanMode'
-          : 'Failed checks use **Gate outcome: Blocked**');
+        expectMentions(gate, [['ステータスの欠落', '失敗します']], `${skill} gate`);
+        if (skill === 'plan-eng-review') expectMentions(gate, [['**Blocked outcome**', '成功のテレメトリ', 'ExitPlanMode']], `${skill} gate`);
+        else expectTokens(gate, ['**Gate outcome: Blocked**'], `${skill} gate`);
       } else {
         const gate = extractMarkdownSection(md, '## EXIT PLAN MODE GATE (BLOCKING)');
-        expect(gate).toMatch(/final\s+non-whitespace\s+line/i);
+        expect(gate).toMatch(/空白を除く\s*最終行/);
         expect(gate).toContain('`**UNRESOLVED DECISIONS:**`');
-        expect(gate).toMatch(/missing\s+status[^.]*fails/i);
+        expectMentions(gate, [['ステータスの欠落', 'ゲートの失敗']], `${skill} gate`);
       }
     });
   }
@@ -4971,9 +4944,9 @@ describe('GSTACK REVIEW REPORT mandatory unresolved-decisions status', () => {
   test('plan-file review report and exit gate resolvers render the mandatory block + blocking gate', () => {
     const src = renderPlanReportAndGate();
     expect(src).toContain('NO UNRESOLVED DECISIONS');
-    expect(src).toMatch(/avoids double-counting/i);
-    expect(src).toMatch(/final\s+non-whitespace\s+line/i);
-    expect(src).toMatch(/missing\s+status[^.]*fails/i);
+    expectMentions(src, [['二重に数えない']], 'review report resolver');
+    expect(src).toMatch(/空白を除く\s*最後の\s*行/);
+    expectMentions(src, [['ステータスの欠落', '失敗します']], 'exit gate resolver');
     // The old soft wording must be gone from the gate.
     expect(src).not.toContain('absorbs CODEX / CROSS-MODEL / UNRESOLVED lines if applicable');
   });

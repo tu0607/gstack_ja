@@ -9,6 +9,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { outsideVoiceCommand, outsideVoicePreflight } from '../scripts/resolvers/outside-voice';
+import { expectMentions } from './helpers/prompt-structure';
 import { RESOLVERS } from '../scripts/resolvers/index';
 import { generateAdversarialStep, generateCodexDocReview, generateCodexPlanReview, generateCodexSecondOpinion } from '../scripts/resolvers/outside-voice-steps';
 import { generateDesignOutsideVoices } from '../scripts/resolvers/design';
@@ -123,17 +124,16 @@ const marker = (state: string) => path.join(state, '.model-policy-notice-v1');
 describe('plan-review role membership in shared generators', () => {
   test('role failures relay source-aware repairs while legacy native-setting advice stays no-role', () => {
     const role = outsideVoicePreflight(ctxFor('autoplan', 'claude', HOST_PATHS.claude), { disabledBehavior: 'codex-only', role: 'plan-review' });
-    expect(role).toContain('source-specific Repair/HINT lines');
-    expect(role).toContain('policy, auth or model selection');
-    expect(role).not.toContain('or config.toml `model`');
+    expectMentions(role, [['Repair/HINT', 'ソース固有'], ['ロール', 'ポリシー', '認証', 'モデルの選択']], 'role');
+    expect(role).not.toContain('config.toml の `model`');
     const legacy = outsideVoicePreflight(ctxFor('review', 'claude', HOST_PATHS.claude), { disabledBehavior: 'codex-only' });
-    expect(legacy).toContain('or config.toml `model`');
+    expect(legacy).toContain('config.toml の `model`');
   });
 
   test('readiness guidance never assigns quota meaning to the whole review exit status', () => {
     const role = outsideVoicePreflight(ctxFor('autoplan', 'claude', HOST_PATHS.claude), { disabledBehavior: 'codex-only', role: 'plan-review' });
     expect(role).not.toContain('its exit 1, 2 or 4 is');
-    expect(role).toContain("never infer quota from the review block's exit status");
+    expectMentions(role, [['レビューブロックの終了ステータス', 'クォータを推測してはいけません']], 'role');
     const result = run('claude', home(), { FAKE_RESPONSE: 'Recommendation: proceed because this is a synthetic incomplete-format response.' });
     expect(result.status).toBe(4);
     expect(result.stdout).toContain('OUTSIDE_STATUS: unverified');
@@ -196,11 +196,11 @@ describe('plan-review role membership in shared generators', () => {
         outsideVoicePreflight(ctxFor('plan-eng-review', host, HOST_PATHS.claude), { disabledBehavior: 'skip-all', role: 'plan-review' }),
       ]) {
         expect(text).not.toMatch(/probe-model|without overriding either/);
-        expect(text).toContain('[policy](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md)');
+        expect(text).toContain('](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md)');
       }
     }
     const noRoleSpec = RESOLVERS.OUTSIDE_PREFLIGHT(ctxFor('spec', 'claude', HOST_PATHS.claude), ['opt-in']);
-    expect(noRoleSpec).toContain('without overriding either');
+    expectMentions(noRoleSpec, [['認証', '設定されたモデルの有効性', '実際の呼び出し時'], ['どちらも上書きしません']], 'noRoleSpec');
     expect(noRoleSpec).not.toContain('probe-model');
     expect(noRoleSpec).not.toContain('model-policy.md');
     const probeLoop = '_CODEX_PO=$("$_CODEX_PROBE" probe-model $_CODEX_KIND); _CODEX_MP=$?';
@@ -553,12 +553,14 @@ describe('Claude plan-review invocation emits one selected model or none', () =>
 describe('manual /codex entry: explicit role only, paid probe only for the dispatched model', () => {
   const skill = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md.tmpl'), 'utf8');
   test('manual model recovery distinguishes role pins from native no-role settings', () => {
-    const recovery = skill.slice(skill.indexOf('Recovery, in order:'), skill.indexOf('- **`VERDICT: unavailable`:'));
-    expect(recovery).toContain('With `--role plan-review`');
-    expect(recovery).toContain('tier pins outrank native settings');
-    expect(recovery).toContain('only in `host` mode');
-    expect(recovery).toContain('Without a role');
-    expect(recovery).toContain('do not silently substitute');
+    const recovery = skill.slice(skill.indexOf('回復の手順は次の順序です'), skill.indexOf('- **`VERDICT: unavailable`:'));
+    expectMentions(recovery, [
+      ['`--role plan-review`', 'ティアのピン留め', 'ネイティブの設定より優先'],
+      ['`model`/`review_model`', '`host` モード'],
+      ['ロールがない場合', 'GSTACK_CODEX_MODEL', 'ネイティブの設定'],
+      ['ロールがある場合', '明示的な上書き'],
+      ['黙って置き換えてはいけません'],
+    ], 'recovery');
   });
   const preflight = skill.match(/```bash\n(_CODEX_PROBE=[^\n]*\n_CODEX_ROLE=''[\s\S]*?)\n```/)![1]!
     .replace('{{OUTSIDE_SELF_GUARD:codex}}', RESOLVERS.OUTSIDE_SELF_GUARD(ctxFor('codex', 'claude', HOST_PATHS.claude), ['codex']));
@@ -574,7 +576,7 @@ describe('manual /codex entry: explicit role only, paid probe only for the dispa
   };
 
   test('Step 0.5 probes the native model without a role and makes no model call with it', () => {
-    expect(skill).toContain('[Policy setup](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md)');
+    expect(skill).toContain('](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md)');
     const plain = shell(home(), withEffort(preflight, ''));
     expect(plain.status).toBe(0);
     expect(plain.stdout).toContain('MODEL_OK');
@@ -722,9 +724,9 @@ describe('implementation handoff recommendation', () => {
     expect(generateImplementationModelHandoff(ctxFor('spec', 'codex'))).toContain('resolve --role implementation --provider openai`');
     const other = generateImplementationModelHandoff(ctxFor('plan-eng-review', 'kiro' as Host));
     expect(other).toContain('resolve --role implementation`');
-    expect(other).toContain('one per provider');
+    expect(other).toContain('プロバイダごとに 1 つ');
     for (const text of [other]) {
-      expect(text).toContain('cannot change this session');
+      expectMentions(text, [['gstack', 'このセッションのモデルを変更できません']], 'text');
       expect(text).not.toMatch(/claude-|gpt-/);
     }
   });

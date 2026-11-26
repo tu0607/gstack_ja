@@ -10,163 +10,163 @@ Conventions:
 
 ## Skills
 
-- [/autoplan](autoplan/SKILL.md): Auto-review pipeline — reads the full CEO, design, eng, and DX review skills from disk and runs them sequentially with auto-decisions using 6 decision principles.
-- [/benchmark](benchmark/SKILL.md): Web performance regression detection.
-- [/benchmark-models](benchmark-models/SKILL.md): Cross-model benchmark for gstack skills.
-- [/browse](browse/SKILL.md): Drive a real browser through Aside: open a page, read it, click through a flow, take screenshots, check console errors.
-- [/canary](canary/SKILL.md): Post-deploy canary monitoring.
-- [/careful](careful/SKILL.md): Safety guardrails for destructive commands.
-- [/codex](codex/SKILL.md): OpenAI Codex CLI wrapper — three modes.
-- [/context-restore](context-restore/SKILL.md): Restore working context saved earlier by /context-save.
-- [/context-save](context-save/SKILL.md): Save working context.
-- [/cso](cso/SKILL.md): Security audit: supported static findings; qualified profiles add reproduction and repair candidates.
-- [/design-consultation](design-consultation/SKILL.md): Design consultation: understands your product, researches the landscape, proposes a complete design system (aesthetic, typography, color, layout, spacing, motion), and generates font+color preview pages.
-- [/design-html](design-html/SKILL.md): Design finalization: generates production-quality Pretext-native HTML/CSS.
-- [/design-review](design-review/SKILL.md): Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems, AI slop patterns, and slow interactions — then fixes them.
-- [/design-shotgun](design-shotgun/SKILL.md): Design shotgun: generate multiple AI design variants, open a comparison board, collect structured feedback, and iterate.
-- [/deslop-shared-libs](deslop-shared-libs/SKILL.md): Find worthwhile shared-code extractions in recent work.
-- [/devex-review](devex-review/SKILL.md): Live developer experience audit.
-- [/diagram](diagram/SKILL.md): Turn an English description (or mermaid source) into a diagram triplet: the source, an editable .excalidraw file you can open on excalidraw.com, and rendered SVG + PNG.
-- [/document-generate](document-generate/SKILL.md): Generate missing documentation from scratch for a feature, module, or entire project.
-- [/document-release](document-release/SKILL.md): Release documentation audit.
-- [/eval-plan](eval-plan/SKILL.md): Preregister a paid eval (bars, arms, decoys, stop rules), dry-run it at zero cost, then run a three-item priced pilot whose spend table gates approval.
-- [/freeze](freeze/SKILL.md): Restrict file edits to a specific directory for the session.
-- [/gstack](SKILL.md): Router for the gstack skill suite.
-- [/gstack-upgrade](gstack-upgrade/SKILL.md): Upgrade gstack to the latest version.
-- [/guard](guard/SKILL.md): Full safety mode: destructive command warnings + directory-scoped edits.
-- [/health](health/SKILL.md): Code quality dashboard.
-- [/investigate](investigate/SKILL.md): Systematic debugging with root cause investigation.
-- [/ios-clean](ios-clean/SKILL.md): Remove the DebugBridge SPM package and all #if DEBUG wiring from an iOS app.
-- [/ios-design-review](ios-design-review/SKILL.md): Visual design audit for iOS apps on real hardware.
-- [/ios-fix](ios-fix/SKILL.md): Autonomous iOS bug fixer.
-- [/ios-qa](ios-qa/SKILL.md): Live-device iOS QA for SwiftUI apps.
-- [/ios-sync](ios-sync/SKILL.md): Regenerate the iOS debug bridge against the latest upstream gstack templates.
-- [/land-and-deploy](land-and-deploy/SKILL.md): Land and deploy workflow.
-- [/landing-report](landing-report/SKILL.md): Read-only queue dashboard for workspace-aware ship.
-- [/learn](learn/SKILL.md): Manage project learnings.
-- [/make-pdf](make-pdf/SKILL.md): Turn any markdown file into a publication-quality PDF.
-- [/office-hours](office-hours/SKILL.md): YC Office Hours — two modes.
-- [/open-gstack-browser](open-gstack-browser/SKILL.md): Launch GStack Browser — AI-controlled Chromium with the sidebar extension baked in.
-- [/pair-agent](pair-agent/SKILL.md): Pair a remote AI agent with your browser.
-- [/plan-ceo-review](plan-ceo-review/SKILL.md): CEO/founder-mode plan review.
-- [/plan-design-review](plan-design-review/SKILL.md): Designer's eye plan review — interactive, like CEO and Eng review.
-- [/plan-devex-review](plan-devex-review/SKILL.md): Interactive developer experience plan review.
-- [/plan-eng-review](plan-eng-review/SKILL.md): Eng manager-mode plan review.
-- [/plan-tune](plan-tune/SKILL.md): Self-tuning question sensitivity + developer psychographic for gstack (v1: observational).
-- [/qa](qa/SKILL.md): Fix browser/API/CLI/job/worker/webhook bugs.
-- [/qa-only](qa-only/SKILL.md): Report browser/API/CLI/job/worker/webhook bugs.
-- [/retro](retro/SKILL.md): Weekly engineering retrospective.
-- [/review](review/SKILL.md): Pre-landing PR review.
-- [/scrape](scrape/SKILL.md): Pull data from a web page through the Aside browser — your real, already signed-in sessions.
-- [/setup-browser-cookies](setup-browser-cookies/SKILL.md): Import cookies from your real Chromium browser into the headless browse session.
-- [/setup-deploy](setup-deploy/SKILL.md): Configure deployment settings for /land-and-deploy.
-- [/setup-gbrain](setup-gbrain/SKILL.md): Set up gbrain for this coding agent: install the CLI, initialize a local PGLite or Supabase brain, register MCP, capture per-remote trust policy.
-- [/ship](ship/SKILL.md): Ship workflow: detect + merge base branch, run tests, review diff, bump VERSION, update CHANGELOG, commit, push, create PR.
-- [/skillify](skillify/SKILL.md): Codify the most recent successful /scrape flow into a permanent browser-skill on disk.
-- [/spec](spec/SKILL.md): Turn vague intent into a precise, executable spec in five phases.
-- [/sync-gbrain](sync-gbrain/SKILL.md): Keep gbrain current with this repo's code and refresh agent search guidance in CLAUDE.md.
-- [/test-audit](test-audit/SKILL.md): Find low-value or duplicate tests and the test-only code they keep alive.
-- [/unfreeze](unfreeze/SKILL.md): Clear the freeze boundary set by /freeze, allowing edits to all directories again.
+- [/autoplan](autoplan/SKILL.md): 自動レビューパイプラインです。CEO、デザイン、エンジニアリング、DX の各レビュースキルをディスクから読み込み、 6 つの判断原則を使った自動判断で順番に実行します。好みに関わる判断(近い選択肢、境界線上のスコープ、 外部レビューとの不一致)は、最後の承認ゲートで提示します。コマンドは 1 つで、完全にレビュー済みの計画が出力されます。 「auto review」「autoplan」「run all reviews」「review this plan automatically」「make the decisions for me」と依頼されたときに使用します。 ユーザーが計画ファイルを持っていて、途中の 15〜30 個の質問に答えずにレビューを一通り行いたい場合は、自分から提案してください。(gstack)
+- [/benchmark](benchmark/SKILL.md): Web パフォーマンスの回帰検出。ページ読み込み時間、Core Web Vitals、リソースサイズのベースラインを確立します。 PR ごとに変更前後を比較し、パフォーマンスの推移を時系列で追跡します。 Use when: "web performance benchmark", "page speed", "lighthouse", "web vitals", "bundle size", "load time".
+- [/benchmark-models](benchmark-models/SKILL.md): gstack スキル向けのクロスモデルベンチマークです。同じプロンプトを Claude、 GPT (Codex CLI 経由)、Gemini に並べて実行し、速度、トークン、コストを比較します。 必要に応じて LLM ジャッジによる品質も比較します。「このスキルには結局どのモデルが最適か?」という問いに、 雰囲気ではなくデータで答えます。ウェブページのパフォーマンスを測る /benchmark とは別物です。 次のような場合に使用します: 「benchmark models」「compare models」「which model is best for X」「cross-model comparison」「model shootout」。(gstack)
+- [/browse](browse/SKILL.md): Aside 経由で実際のブラウザを操作します。ページを開いて読み取り、操作フローを順にたどり、スクリーンショットを撮り、コンソールエラーを確認します。サイトを開く、ページをテストする、スクリーンショットを撮る、フローを実際に使ってみる(dogfood)よう求められたときに使います。(gstack)
+- [/canary](canary/SKILL.md): デプロイ後のカナリア監視。稼働中のアプリを見張り、コンソールエラー、パフォーマンスの回帰、ページの失敗を検出します。 定期的にスクリーンショットを撮り、デプロイ前のベースラインと比較して、異常があれば通知します。 Use when: "monitor deploy", "canary", "post-deploy check", "watch production", "verify deploy".
+- [/careful](careful/SKILL.md): 破壊的なコマンドに対する安全ガードレール。rm -rf、DROP TABLE、 force-push、git reset --hard、kubectl delete などの破壊的な操作の前に警告します。 警告はそれぞれユーザーが上書きできます。本番環境に触れるとき、稼働中のシステムをデバッグするとき、 共有環境で作業するときに使います。「be careful」「safety mode」「prod mode」「careful mode」と言われたときにも使います。(gstack)
+- [/codex](codex/SKILL.md): OpenAI Codex CLI のラッパー — 3 つのモード。コードレビュー: codex review による独立した差分レビューと合否ゲート。 チャレンジ: コードを壊そうとする敵対的なモード。相談: フォローアップのためにセッションの継続性を持って何でも Codex に質問できます。 「200 IQ の自閉的な開発者」によるセカンドオピニオンです。"codex review"、 "codex challenge"、"ask codex"、"second opinion"、"consult codex" と言われたときに使います。(gstack)
+- [/context-restore](context-restore/SKILL.md): /context-save で以前保存したワーキングコンテキストを復元します。現在のブランチを優先して最新の 保存状態を読み込み(見つからなければ他のブランチにフォールバック)、中断した作業をそのまま再開できる ようにします。Conductor のワークスペース間の引き継ぎをまたいでも使えます。 「resume」「restore context」「where was I」「pick up where I left off」と言われたときに使います。 /context-save と組み合わせて使います。(gstack)
+- [/context-save](context-save/SKILL.md): ワーキングコンテキストを保存します。git の状態、下した判断、残りの作業を記録するので、 後からどのセッションでも作業を取りこぼさずに再開できます。 「save progress」「save state」「context save」「save my work」と言われたときに使います。 後で再開するには /context-restore と組み合わせて使います。 (gstack)
+- [/cso](cso/SKILL.md): セキュリティ監査: 対応している静的な検出結果を報告し、認定されたプロファイルでは再現と修正候補を追加します。(gstack) 使用場面: "security audit"、"threat model"、"OWASP"、"CSO review"、"recheck a vulnerability" と言われたとき。
+- [/design-consultation](design-consultation/SKILL.md): デザインの相談: プロダクトを理解し、市場を調査したうえで、完全なデザインシステム(雰囲気、タイポグラフィ、カラー、 レイアウト、余白、モーション)を提案し、フォントとカラーのプレビューページを生成します。プロジェクトのデザインの 唯一の正となる情報源として DESIGN.md を作成します。既存のサイトの場合は、代わりに /plan-design-review を使って システムを推定してください。「design system」「brand guidelines」「create DESIGN.md」と言われたときに使います。 既存のデザインシステムや DESIGN.md がない新規プロジェクトの UI を始めるときには、積極的に提案してください。(gstack)
+- [/design-html](design-html/SKILL.md): デザインの仕上げ: Pretext ネイティブの本番品質な HTML/CSS を生成します。 /design-shotgun の承認済みモックアップ、/plan-ceo-review の CEO プラン、 /plan-design-review のデザインレビューの文脈、またはユーザーの説明からゼロで作る場合に対応します。 テキストは実際に折り返し直され、高さは計算され、レイアウトは動的になります。 オーバーヘッドは 30KB、依存関係はゼロです。スマートな API ルーティングにより、 デザインの種類ごとに適切な Pretext パターンを選びます。次のような場合に使います: "finalize this design"、"turn this into HTML"、"build me a page"、"implement this design"、 または任意の計画系スキルの後。ユーザーがデザインを承認した場合や計画が用意できた場合は、 積極的に提案してください。(gstack)
+- [/design-review](design-review/SKILL.md): デザイナーの目による QA: 視覚的な不整合、スペーシングの問題、階層の問題、 AI スロップのパターン、遅いインタラクションを見つけ、そして修正します。ソースコードで 問題を反復的に修正し、各修正をアトミックにコミットして、修正前後のスクリーンショットで再検証します。 実装前の計画モードのデザインレビューには /plan-design-review を使ってください。 "audit the design"、"visual QA"、"check if it looks good"、"design polish" と言われたときに使います。 ビジュアルの不整合に言及したとき、またはライブサイトの見た目を磨きたいときは、積極的に提案してください。(gstack)
+- [/design-shotgun](design-shotgun/SKILL.md): デザインのショットガン: 複数の AI デザインのバリアントを生成し、比較ボードを開き、 構造化されたフィードバックを集めて、反復します。いつでも実行できる単独のデザイン探索です。 "explore designs"、"show me options"、"design variants"、"visual brainstorm"、 "I don't like how this looks" と言われたときに使います。 ユーザーが UI の機能を説明したものの、それがどう見えるかまだ見ていない場合は、積極的に提案してください。(gstack)
+- [/deslop-shared-libs](deslop-shared-libs/SKILL.md): 最近の作業の中から、共有コードへの切り出しに値するものを見つけます。 /deslop-shared-libs、$deslop-shared-libs、またはコードの共有対象を探す依頼に使います。 提案のみを行います。(gstack)
+- [/devex-review](devex-review/SKILL.md): ライブの開発者体験 (DX) の監査。Aside ブラウザで実際に開発者体験をテストします。 ドキュメントを巡回し、はじめの手順を試し、TTHW を計測し、エラーメッセージをスクリーンショットで撮り、 CLI のヘルプテキストを評価します。証拠付きの DX スコアカードを作成します。 スコアが存在する場合は /plan-devex-review のスコアと比較します (ブーメラン: 計画では 3 分、現実は 8 分)。 "test the DX"、"DX audit"、"developer experience test"、"try the onboarding" と言われたときに使います。 開発者向けの機能を出荷した後は、積極的に提案してください。(gstack)
+- [/diagram](diagram/SKILL.md): 英語の説明 (または mermaid のソース) を、図の 3 点セットに変換します。 ソース、excalidraw.com で開ける編集可能な .excalidraw ファイル、 レンダリングされた SVG + PNG です。SVG/PNG はすっきりした mermaid のスタイル、 .excalidraw は手描きの雰囲気を持ちます。完全にオフラインで動作します。 "make a diagram"、"draw the architecture"、"create a flowchart"、"diagram this"、 "visualize this flow" と言われたときに使います。(gstack)
+- [/document-generate](document-generate/SKILL.md): 機能、モジュール、またはプロジェクト全体について、不足しているドキュメントをゼロから生成します。 Diataxis フレームワーク (チュートリアル / ハウツー / リファレンス / 解説) を使い、 完全で構造化されたドキュメントを作成します。単独で呼び出すことも、/document-release が カバレッジの不足を見つけたときに呼び出されることもあります。"write docs"、"generate documentation"、 "document this feature"、"create a tutorial"、"explain this module" と言われたときに使います。(gstack)
+- [/document-release](document-release/SKILL.md): リリース後のドキュメント監査。関連するプロジェクトドキュメントを読み、差分と照合したうえで、 Diataxis のカバレッジマップ(reference/how-to/tutorial/explanation)を作成します。 README/ARCHITECTURE/CONTRIBUTING/CLAUDE.md を出荷された内容に合わせて更新し、 アーキテクチャ図のずれを検出し、CHANGELOG の文章を sell-test ルーブリックで整え、 TODOS を整理し、必要に応じて VERSION を上げます。ドキュメントの負債は PR 本文に示します。 「update the docs」「sync documentation」「post-ship docs」と依頼されたとき、 またはマージ前にドキュメント監査を提案すべきときに使います。(gstack)
+- [/eval-plan](eval-plan/SKILL.md): 有償の評価を事前登録し(合格基準、アーム、デコイ、停止ルール)、コストゼロでドライランを行ってから、 支出表が承認を左右する 3 件の価格付きパイロットを実行します。(gstack)
+- [/freeze](freeze/SKILL.md): セッション中のファイル編集を特定のディレクトリに制限します。許可されたパスの外への Edit、 Write、NotebookEdit をブロックします。デバッグ中に無関係なコードを誤って「修正」するのを防ぐとき、 または変更を 1 つのモジュールに絞りたいときに使います。「freeze」「restrict edits」「only edit this folder」 「lock down edits」と依頼されたときに使います。(gstack)
+- [/gstack](SKILL.md): gstack スキルスイートのルーターです。gstack へのあらゆるリクエストを適切なスキルに振り分けます (計画、レビュー、QA、出荷、デバッグ、ドキュメント、セキュリティ、デザイン)。QA は意図に応じて振り分け、 ブラウザ操作は /browse に回します。スキル名を指定せずに gstack を呼び出したとき、または 「どの gstack スキルが合うか?」と尋ねられたときに使用します。(gstack)
+- [/gstack-upgrade](gstack-upgrade/SKILL.md): gstack を最新バージョンにアップグレードします。グローバルインストールかベンダリングされたインストールかを検出し、 アップグレードを実行して、新しい内容を表示します。「upgrade gstack」「update gstack」「get latest version」 と依頼されたときに使います。
+- [/guard](guard/SKILL.md): 完全な安全モード: 破壊的なコマンドの警告と、ディレクトリ単位の編集制限を組み合わせます。 /careful(rm -rf、DROP TABLE、force-push などの前に警告)と、 /freeze(指定したディレクトリの外での編集をブロック)を併用します。本番環境に触れる場合や、 稼働中のシステムをデバッグする場合に、最大限の安全性を得るために使います。「guard mode」「full safety」 「lock it down」「maximum safety」と依頼されたときに使います。(gstack)
+- [/health](health/SKILL.md): コード品質のダッシュボード。既存のプロジェクトのツール(型チェッカー、リンター、 テストランナー、未使用コードの検出、シェルリンター)をまとめて実行し、重み付けした 0〜10 の総合スコアを算出し、 時間の経過に伴う傾向を追跡します。次のように依頼されたときに使います:「health check」「code quality」 「how healthy is the codebase」「run all checks」「quality score」。(gstack)
+- [/investigate](investigate/SKILL.md): 根本原因の調査を伴う体系的なデバッグ。4 つのフェーズ: 調査、分析、仮説、実装。 鉄則: 根本原因がわかるまで修正しない。「debug this」「fix this bug」「why is this broken」 「investigate this error」「root cause analysis」と依頼されたときに使います。 ユーザーがエラー、500 エラー、スタックトレース、想定外の振る舞い、「昨日は動いていた」と報告したとき、 または何かが動かなくなった理由をトラブルシュートしているときは、 積極的にこのスキルを呼び出します(自分で直接デバッグしないこと)。(gstack)
+- [/ios-clean](ios-clean/SKILL.md): iOS アプリから DebugBridge SPM パッケージと、すべての #if DEBUG の配線を削除します。 /ios-qa によってインストールされた StateServer、DebugOverlay、アクセサのコード生成出力、 およびアプリ側のフックを片付けます。これは利便性のためのラッパーです。 安全上重要な経路は、構造的な Release ビルドのガード(Package.swift の条件付き指定と、 CI の swift build -c release チェック)です。 「iOS のデバッグブリッジを削除して」「DebugBridge を削除」「gstack の iOS 計測を取り除いて」 と依頼されたときに使います。(gstack)
+- [/ios-design-review](ios-design-review/SKILL.md): 実機上の iOS アプリに対するビジュアルデザイン監査です。/ios-qa と同じ StateServer を使って 実機の iPhone に接続し、すべての画面をスクリーンショットで撮り、Apple HIG、DESIGN.md、 デザインのベストプラクティスに照らして評価します。各項目を 0〜10 で採点し、 「何があれば 10 になるか」という観点で示します。ブラウザ版の /plan-design-review に相当します。 実装前の計画段階のデザインレビューには /plan-design-review を、ライブの Web ビジュアル監査には /design-review を使ってください。 「iOS のデザインをレビューして」「iPhone アプリの見た目を監査して」「iOS アプリのデザイン QA をして」 と依頼されたときに使います。(gstack)
+- [/ios-fix](ios-fix/SKILL.md): 自律型の iOS バグ修正ツールです。/ios-qa が見つけたバグを受け取り、ソースを読み、修正を書き、 再ビルドし、再デプロイして、実機上で修正を検証します。バグの発見 → 修正 → 修正の確認という ループを人手の介入なしで閉じます。バグが起きる直前の状態のスナップショットを回帰テストの フィクスチャとして保存するので、同じバグが静かに再発することはありません。 /ios-qa がバグを報告し、それを自動で修正してほしいとき、または 「この iOS バグを直して」「iPhone アプリにパッチを当てて」「iOS の問題を自動修正して」 と依頼されたときに使います。(gstack)
+- [/ios-qa](ios-qa/SKILL.md): SwiftUI アプリ向けの実機 iOS QA です。USB CoreDevice の IPv6 トンネル経由で実機の iPhone または iPad に接続し、 Swift のソースを読んで各画面を把握した上で、ビジョン駆動のエージェントループを実行します: スクリーンショット → 分析 → 判断 → 操作 → 検証 → 繰り返し。すべての操作は、テスト対象アプリに組み込まれた StateServer への HTTP で行われます。任意で Tailscale 経由にデバイスを公開でき、リモートのエージェント (OpenClaw、Codex、HTTP に対応した任意のエージェント)が、ハードウェアに触れることなくどこからでも iOS QA を実行できます。 「ios qa」「iPhone アプリをテストして」「iPad アプリをテストして」「デバイス上のバグを探して」 「iOS アプリを QA して」と依頼されたときに使います。(gstack)
+- [/ios-sync](ios-sync/SKILL.md): 最新の upstream gstack テンプレートに合わせて iOS のデバッグブリッジを再生成します。 StateServer.swift、DebugOverlay.swift、Package.swift、および型付きの @Observable 状態アクセサを更新します。 gstack をアップグレードした後、またはアクセサの対象にする必要のある新しい ViewModel やプロパティを 追加した後に使います。 「iOS のデバッグブリッジを再同期して」「iOS のアクセサを再生成して」「gstack の iOS 計測を更新して」 と依頼されたときに使います。(gstack)
+- [/land-and-deploy](land-and-deploy/SKILL.md): マージとデプロイのワークフローです。PR をマージし、CI とデプロイの完了を待ち、 カナリアチェックで本番の健全性を検証します。/ship が PR を作成した後に引き継ぎます。 次のような依頼で使います: 「merge」「land」「deploy」「merge and verify」「land it」「ship it to production」 (gstack)
+- [/landing-report](landing-report/SKILL.md): ワークスペース対応の ship のための読み取り専用のキューダッシュボードです。現在どの VERSION の枠が オープンな PR によって確保されているか、どの兄弟の Conductor ワークスペースに近いうちに出荷されそうな WIP 作業があるか、そして次に /ship がどの枠を選ぶかを表示します。変更は一切行わず、スナップショットを 表示するだけです。「landing report」「what's in the queue」「show me open PRs」「which version do I claim next」 などと言われたときに使います。(gstack)
+- [/learn](learn/SKILL.md): プロジェクトの学習内容を管理します。セッションをまたいで gstack が学んだ内容を、確認、検索、整理、 エクスポートします。「what have we learned」「show learnings」「prune stale learnings」「export learnings」 と言われたときに使います。過去のパターンについて尋ねられた場合や、「didn't we fix this before?」と ユーザーが疑問に思った場合には、積極的に提案してください。
+- [/make-pdf](make-pdf/SKILL.md): 任意のマークダウンファイルを出版品質の PDF に変換します。1 インチの正しい余白、賢い改ページ、ページ番号、 表紙、柱(ヘッダー)、カーリークォートとエムダッシュ、クリッカブルな目次、斜めの DRAFT 透かしに対応します。 下書き用の成果物ではなく、完成品の成果物です。「make a PDF」「export to PDF」「turn this markdown into a PDF」 「generate a document」と言われたときに使います。(gstack)
+- [/office-hours](office-hours/SKILL.md): YC Office Hours — 2 つのモードがあります。スタートアップモードでは、需要の現実、現状維持、切実な具体性、 最も狭いウェッジ、観察、将来との適合性を明らかにする 6 つの問いを投げかけます。ビルダーモードは、サイドプロジェクト、 ハッカソン、学習、オープンソース向けの設計思考のブレインストーミングです。設計ドキュメントを保存します。 「brainstorm this」「I have an idea」「help me think through this」「office hours」「is this worth building」と 言われたときに使います。新しいプロダクトのアイデアを説明された場合、何かが作る価値があるかを尋ねられた場合、 まだ存在しないものの設計判断を検討したい場合、またはコードを書く前にコンセプトを探っている場合は、 ユーザーに直接答えるのではなく、積極的にこのスキルを呼び出してください。 /plan-ceo-review や /plan-eng-review の前に使います。(gstack)
+- [/open-gstack-browser](open-gstack-browser/SKILL.md): GStack Browser を起動します。サイドバー拡張を組み込んだ AI 制御の Chromium です。 表示されるブラウザウィンドウで、すべての操作をリアルタイムで確認できます。 サイドバーにはライブのアクティビティフィードとチャットが表示されます。アンチボット対策のステルス機能を内蔵しています。 次のような依頼で使います: "open gstack browser", "launch browser", "connect chrome", "open chrome", "real browser", "launch chrome", "side panel", "control my browser"。
+- [/pair-agent](pair-agent/SKILL.md): リモートの AI エージェントをあなたのブラウザとペアリングします。コマンドを 1 つ実行すると、セットアップキーを生成し、 もう一方のエージェントが接続するための手順を表示します。OpenClaw、 Hermes、Codex、Cursor、または HTTP リクエストを送れるあらゆるエージェントで動作します。リモートのエージェントは、 デフォルトで独自のタブとページへのフルアクセスを得ます(ペアリングの儀式そのものが信頼の境界です。--restrict で絞り込めます)。 次のような依頼で使います: "pair agent", "connect agent", "share browser", "remote browser", "let another agent use my browser", "give browser access"。(gstack)
+- [/plan-ceo-review](plan-ceo-review/SKILL.md): CEO/創業者モードのプランレビュー。問題を考え直し、10 つ星のプロダクトを見つけ、 前提に異議を唱え、より良いプロダクトになるならスコープを広げます。4 つのモード: SCOPE EXPANSION(大きく夢を見る)、SELECTIVE EXPANSION(スコープを保ちつつ拡張を選んで採用)、 HOLD SCOPE(最大限の厳密さ)、SCOPE REDUCTION(本質だけに削ぎ落とす)。 次のような依頼で使います: "think bigger", "expand scope", "strategy review", "rethink this", "is this ambitious enough"。 ユーザーがプランのスコープや野心を問い直しているとき、またはプランがもっと大きく考えられそうに感じられるときは、積極的に提案してください。(gstack)
+- [/plan-design-review](plan-design-review/SKILL.md): デザイナーの視点による計画レビュー。CEOレビューやエンジニアリングレビューと同様に対話形式で進みます。 各デザイン項目を0〜10で評価し、10点になるための条件を説明したうえで、10点になるよう計画を修正します。プランモードでも動作します。公開サイトのビジュアル監査には /design-review を使ってください。「review the design plan」や「design critique」と依頼されたときに使います。 UI/UXの要素を含む計画があり、実装前にレビューすべきと判断される場合は、積極的に提案してください。(gstack)
+- [/plan-devex-review](plan-devex-review/SKILL.md): 対話形式の開発者体験(DX)の計画レビュー。開発者のペルソナを掘り下げ、競合と比較し、マジカルモーメントを設計し、採点の前に摩擦のポイントを追跡します。3つのモード: DX EXPANSION(競争優位の獲得)、DX POLISH(すべての接点を磨き上げる)、DX TRIAGE(致命的なギャップだけ)。 「DX review」「developer experience audit」「devex review」「API design review」と依頼されたときに使います。 API、CLI、SDK、ライブラリ、プラットフォーム、ドキュメントなど、開発者向けの製品の計画があれば、積極的に提案してください。(gstack)
+- [/plan-eng-review](plan-eng-review/SKILL.md): エンジニアリングマネージャーモードのプランレビュー。実行計画をロックインします — アーキテクチャ、 データフロー、図、エッジケース、テストカバレッジ、パフォーマンス。明確な推奨案を添えて 対話形式で問題を一つずつ確認します。「アーキテクチャをレビューして」「エンジニアリングレビュー」 「計画をロックインして」と依頼されたときに使用します。ユーザーがプランや設計ドキュメントを持っていて コーディングを始めようとしているときには、実装前にアーキテクチャの問題を見つけるため積極的に提案してください。(gstack)
+- [/plan-tune](plan-tune/SKILL.md): gstack の自己調整型の質問の感度と開発者の心理特性(v1: 観察のみ)。 gstack の各スキルで発生する AskUserQuestion のプロンプトを確認し、質問ごとの設定 (never-ask / always-ask / ask-only-for-one-way)を行い、二重のトラックの プロファイル(申告内容と、行動から示唆される内容)を確認し、質問チューニングの有効/無効を切り替えます。 対話型のインターフェースで、CLI の構文は不要です。 「質問をチューニングして」「それはもう聞かないで」「質問が多すぎる」「プロファイルを見せて」 「何を聞かれたか見せて」「バイブを見せて」「開発者プロファイル」「質問チューニングを切って」と 依頼されたときに使用します。(gstack) 同じ gstack の質問が以前にも出ていると言われたとき、または推奨案を何度も手動で上書きしていると 分かったときには、積極的に提案してください。
+- [/qa](qa/SKILL.md): ブラウザ/API/CLI/ジョブ/ワーカー/Webhook のバグを修正します。 検証済みの修正をアトミックにコミットします。「qa」「QA」「このサイトをテストして」「バグを見つけて」 「テストして修正して」「壊れている部分を直して」と依頼されたときに使用します。 機能の準備ができたと言われたとき、または「これは動く?」と聞かれたときには、積極的に提案してください。 3 つの階層があります: Quick(critical/high のみ)、Standard(+ medium)、Exhaustive(+ cosmetic)。 契約の結果またはブラウザのヘルススコア、修正の根拠、リリース可否の要約を作成します。報告のみのモードには /qa-only を使ってください。(gstack)
+- [/qa-only](qa-only/SKILL.md): ブラウザ/API/CLI/ジョブ/ワーカー/Webhook のバグを報告します。契約の根拠やブラウザのスコア、再現手順を含む 構造化されたレポートを作成しますが、何も修正しません。「バグだけ報告して」「qa report only」 「テストするが修正はしない」と依頼されたときに使用します。修正・検証までを行うフルのループには /qa を使ってください。 コードの変更なしでバグレポートが欲しいと分かったときには、積極的に提案してください。(gstack)
+- [/retro](retro/SKILL.md): 週次のエンジニアリング振り返り。コミット履歴、作業パターン、コード品質の指標を分析し、 過去の履歴と傾向の追跡を行います。チーム対応: 担当者ごとの貢献を、称賛と成長の機会とともに 内訳として示します。「weekly retro」「what did we ship」「engineering retrospective」と 頼まれたときに使います。週やスプリントの終わりには積極的に提案してください。(gstack)
+- [/review](review/SKILL.md): マージ前の PR レビュー。ベースブランチとの差分を分析し、SQL の安全性、LLM の信頼境界違反、 条件付きの副作用、その他の構造的な問題を確認します。「review this PR」「code review」 「pre-landing review」「check my diff」と頼まれたときに使います。変更をマージ・取り込もうとしている ときには積極的に提案してください。(gstack)
+- [/scrape](scrape/SKILL.md): Aside ブラウザ(お使いの実際のサインイン済みセッション)経由で Web ページからデータを取得します。読み取り専用で、結果は1つの JSON ドキュメントとして返します。「scrape」「get data from」「pull」「extract from」「what's on」でページの内容を取得するよう求められたときに使用します。(gstack)
+- [/setup-browser-cookies](setup-browser-cookies/SKILL.md): 実際の Chromium ブラウザから Cookie をヘッドレスのブラウズセッションに取り込みます。インタラクティブなピッカー UI が開き、取り込むCookieのドメインを選択できます。認証が必要なページで QA テストを行う前に使用します。「import cookies」「login to the site」「authenticate the browser」と求められたときに使用します。(gstack)
+- [/setup-deploy](setup-deploy/SKILL.md): /land-and-deploy 用のデプロイ設定を構成します。デプロイ先プラットフォーム(Fly.io、Render、Vercel、Netlify、Heroku、GitHub Actions、カスタム)、本番 URL、ヘルスチェックのエンドポイント、デプロイ状態の確認コマンドを検出します。設定は CLAUDE.md に書き込まれるため、以降のデプロイはすべて自動化されます。 次のように求められたときに使用します: "setup deploy"、"configure deployment"、"set up land-and-deploy"、"how do I deploy with gstack"、"add deploy config"。
+- [/setup-gbrain](setup-gbrain/SKILL.md): このコーディングエージェント用に gbrain をセットアップします。CLI のインストール、ローカルの PGLite または Supabase のブレインの初期化、MCP の登録、リモートごとの信頼ポリシーの記録を行います。ゼロの状態から「gbrain が動いていて、このエージェントから呼び出せる」状態まで、1つのコマンドで完了します。 次のように求められたときに使用します: "setup gbrain"、"connect gbrain"、"start gbrain"、"install gbrain"、"configure gbrain for this machine"。(gstack)
+- [/ship](ship/SKILL.md): Shipワークフロー: ベースブランチの検出とマージ、テストの実行、差分のレビュー、VERSION の更新、 CHANGELOG の更新、コミット、プッシュ、PR の作成。「ship」「deploy」「push to main」 「create a PR」「merge and push」「get it deployed」と求められたときに使います。 コードの準備ができたと伝えられたとき、デプロイについて尋ねられたとき、コードを上げたいと言われたとき、 PR の作成を求められたときは、このスキルを積極的に起動してください(直接 push/PR しないこと)。(gstack)
+- [/skillify](skillify/SKILL.md): 直近に成功した /scrape のフローを、永続的なブラウザスキルとしてディスクに固定化します。同じ意図で後から /scrape を呼び出すと、ページを再度操作する代わりに、固定化されたスクリプトを約 200ms で実行します。 会話をさかのぼり、script.ts + script.test.ts + フィクスチャを合成し、一時ディレクトリでテストを実行して、コミットする前に確認します。 「skillify」「codify」「save this scrape」「make this permanent」と言われたときに使います。(gstack)
+- [/spec](spec/SKILL.md): 曖昧な意図を、5 つのフェーズを経て正確で実行可能な仕様に変換します。Issue を登録し、必要に応じて新しいワークツリーで Claude Code エージェントを起動し、マージ時に /ship が元の issue をクローズできるようにします。 「spec this out」「file an issue」「write up a ticket」「make this a GitHub issue」「turn this into a backlog item」と言われたときに使います。 (gstack)
+- [/sync-gbrain](sync-gbrain/SKILL.md): gbrain を本リポジトリのコードに合わせて最新の状態に保ち、CLAUDE.md 内のエージェント向け検索ガイダンスを更新します。gstack-gbrain-sync オーケストレーターをラップし、状態の確認、ネイティブなコードサーフェスの登録、機能チェック、判定ブロックの出力を行います。何度実行しても結果が変わらず(再実行可能・冪等)、次のような場合に使用します: "sync gbrain"、"refresh gbrain"、"re-index this repo"、"gbrain search isn't finding things"。(gstack)
+- [/test-audit](test-audit/SKILL.md): コストに見合わない価値しか持たないテスト、重複したテスト、そしてそれらだけが生かしているテスト専用のコードを見つけます。承認したバッチだけを変更し、それ以外は報告のみです。/test-audit で使用します。(gstack)
+- [/unfreeze](unfreeze/SKILL.md): /freeze で設定された編集境界を解除し、すべてのディレクトリで再び編集できるようにします。セッションを終えずに編集範囲を広げたいときに使用します。「unfreeze」「unlock edits」「remove freeze」「allow all edits」と依頼された場合に使用します。(gstack)
 
 ## Browse Commands
 
 Run with `browse <command> [args]`. Full reference: `browse/SKILL.md`.
 
 ### Extraction
-- `archive [path]`: Save complete page as MHTML via CDP.
-- `download <url|@ref> [path] [--base64] [--navigate]`: Download URL or media element to disk using browser cookies.
-- `scrape <images|videos|media> [--selector sel] [--dir path] [--limit N]`: Bulk download all media from page to --dir (default: <temp>/browse-scrape-<timestamp>).
+- `archive [path]`: CDP でページ全体を MHTML として保存します。既定のパス: <temp>/browse-archive-<timestamp>.mhtml。保存したパス、サイズ、MHTML マーカーを返します。
+- `download <url|@ref> [path] [--base64] [--navigate]`: ブラウザの Cookie を使って、URL またはメディア要素をディスクにダウンロードします。既定のパス: <temp>/browse-download-<timestamp>.<ext>。--base64 は書き込まず data:<mime>;base64,...
+- `scrape <images|videos|media> [--selector sel] [--dir path] [--limit N]`: ページのメディアをすべて --dir(既定: <temp>/browse-scrape-<timestamp>)に一括ダウンロードします。ファイルに加え、元の URL、サイズ、種類、成功/失敗の件数を持つ manifest.json を書き出します。--limit の既定は 50、上限は 200 です。
 
 ### Inspection
-- `attrs <sel|@ref>`: Element attributes as JSON
-- `cdp <Domain.method> [json-params]`: Raw Chrome DevTools Protocol method dispatch.
-- `console [--clear|--errors]`: Console messages (--errors filters to error/warning)
-- `cookies`: All cookies as JSON
-- `css <sel> <prop>`: Computed CSS value
-- `dialog [--clear]`: Captured alert/confirm/prompt messages as text/JSON events.
-- `eval <file> [--out <file>] [--raw]`: Run JavaScript from a file in the page context and return result as string.
-- `inspect [selector] [--all] [--history]`: Deep CSS inspection via CDP.
-- `is <prop> <sel|@ref>`: State check on element.
-- `js <expr> [--out <file>] [--raw]`: Run inline JavaScript expression in the page context and return result as string.
-- `network [--clear]`: Captured network requests as lines with method, status, resource type, and URL.
-- `perf`: Page load timings as JSON-ish milliseconds for navigation/load phases
-- `storage  |  storage set <key> <value>`: Read both localStorage and sessionStorage as JSON.
-- `ux-audit`: Extract page structure for UX behavioral analysis — site ID, nav, headings, text blocks, interactive elements.
+- `attrs <sel|@ref>`: 要素の属性を JSON で
+- `cdp <Domain.method> [json-params]`: 生の Chrome DevTools Protocol メソッドのディスパッチ。既定で拒否: `browse/src/cdp-allowlist.ts`(CDP_ALLOWLIST 定数)に列挙されたメソッドだけが到達可能で、それ以外のメソッドは 403 になります。許可リストの各エントリはスコープ(タブかブラウザか)と出力(信頼するか信頼しないか)を宣言し、信頼しないメソッド(データ流出の形をしたもの。例: Network.getResponseBody)の出力は UNTRUSTED エンベロープで包まれます。許可されたメソッドを調べるには `browse/src/cdp-allowlist.ts` を読みます。例: `$B cdp Page.getLayoutMetrics`。
+- `console [--clear|--errors]`: コンソールメッセージ(--errors で error/warning に絞り込み)
+- `cookies`: すべての Cookie を JSON で
+- `css <sel> <prop>`: 計算済みの CSS 値
+- `dialog [--clear]`: 取得した alert/confirm/prompt のメッセージを、テキスト/JSON イベントで。--clear でダイアログのバッファを空にします。
+- `eval <file> [--out <file>] [--raw]`: ファイルの JavaScript をページのコンテキストで実行し、結果を文字列で返します。パスは /tmp または cwd 配下に解決される必要があります(トラバーサル不可)。複数行のスクリプトには eval、1 行のものには js を使います。--out <file> を付けると結果をディスクに書き出します(base64 の data URL は --raw がなければバイト列にデコード)。--out を付けた呼び出しは WRITE になります(書き込みスコープが必要で、トンネル経由では許可されません)。
+- `inspect [selector] [--all] [--history]`: CDP による CSS の詳細な検査。既定では 1 つのセレクタを検査し、一致した要素、ルールのカスケード全体、ボックスモデル、計算済みスタイルを返します。--all は検査可能なすべての要素の要約を返し、--history は過去のスタイル変更/検査の状態を返します。
+- `is <prop> <sel|@ref>`: 要素の状態チェック。有効な <prop> の値: visible、hidden、enabled、disabled、checked、editable、focused(大文字小文字を区別)。<sel> は CSS セレクタ、または直前の snapshot の @ref トークン(例: @e3、@c1)を受け付けます。セレクタが期待される場所では、ref をセレクタと同様に使えます。
+- `js <expr> [--out <file>] [--raw]`: ページのコンテキストでインラインの JavaScript 式を実行し、結果を文字列で返します。サンドボックスは eval と同じで、違いは js がインラインの式を受け取り、eval がファイルを読む点だけです。--out <file> を付けると、結果は返さずディスクに書き出します(base64 の data URL は --raw がなければ生のバイト列にデコード)。ローカルの描画結果を PNG にラスタライズする用途に最適で、数 MB を CLI 経由で戻さずに済みます。--out を付けた呼び出しは WRITE になります(書き込みスコープが必要で、トンネル経由では許可されません)。
+- `network [--clear]`: 取得したネットワークリクエストを、メソッド、ステータス、リソース種別、URL の行で。--clear で取得済みバッファを空にします。
+- `perf`: ナビゲーション/読み込み各フェーズのページ読み込み時間を、JSON 風のミリ秒で
+- `storage  |  storage set <key> <value>`: localStorage と sessionStorage の両方を JSON で読み取ります。"set <key> <value>" を付けると localStorage にだけ書き込みます(このコマンドでは sessionStorage は読み取り専用。設定するには `js sessionStorage.setItem(...)` を使います)。
+- `ux-audit`: UX の挙動分析のためにページ構造(サイト ID、ナビゲーション、見出し、テキストブロック、インタラクティブ要素)を抽出します。エージェントが解釈するための JSON を返します。
 
 ### Interaction
-- `cleanup [--ads] [--cookies] [--sticky] [--social] [--overlays] [--clutter] [--all]`: Remove page clutter by hiding matched elements.
-- `click <sel>`: Click element
-- `cookie <name>=<value>`: Set cookie on current page domain
-- `cookie-import <json>`: Import cookies from JSON file
-- `cookie-import-browser [browser] [--domain d] [--profile p] [--all] [--clear-storage] [--verify-auth]`: Copy cookies from chrome, chromium, brave, edge, Windows-only opera, opera-gx, or macOS-only comet, arc, dia.
-- `dialog-accept [text]`: Auto-accept next alert/confirm/prompt.
-- `dialog-dismiss`: Auto-dismiss next dialog
-- `fill <sel> <val>`: Fill input
-- `header <name>:<value>`: Set custom request header (colon-separated, sensitive values auto-redacted)
-- `hover <sel>`: Hover element
-- `press <key>`: Press a Playwright keyboard key against the focused element.
-- `scroll [sel|@ref]`: With a selector, smooth-scrolls the element into view.
-- `select <sel> <val>`: Select dropdown option by value, label, or visible text
-- `style <sel> <prop> <value> | style --undo [N]`: Modify CSS property on element (with undo support)
-- `type [--selector <sel>] [--] <text>`: Send keystrokes to the focused element, or to <sel> with --selector (focuses it first).
-- `upload <sel> <file> [file2...]`: Upload file(s)
-- `useragent <string>`: Set user agent
-- `viewport [<WxH>|auto] [--scale <n>]`: Set viewport size and optional deviceScaleFactor (1-3, for retina screenshots).
-- `wait <sel|--networkidle|--load>`: Wait for element, network idle, or page load (timeout: 15s)
+- `cleanup [--ads] [--cookies] [--sticky] [--social] [--overlays] [--clutter] [--all]`: 一致した要素を隠して、ページの邪魔なものを取り除きます。フラグなしでは --all が既定です。--all は広告、Cookie、固定表示、ソーシャル、オーバーレイ、その他の邪魔なものを含み、個別のフラグでカテゴリを絞れます。取り除いた要素の数を返します。
+- `click <sel>`: 要素をクリック
+- `cookie <name>=<value>`: 現在のページのドメインに Cookie を設定
+- `cookie-import <json>`: JSON ファイルから Cookie をインポート
+- `cookie-import-browser [browser] [--domain d] [--profile p] [--all] [--clear-storage] [--verify-auth]`: chrome、chromium、brave、edge、Windows 限定の opera、opera-gx、macOS 限定の comet、arc、dia から Cookie をコピーします。ブラウザを省略すると従来どおり comet になるため、対象のブラウザは明示的に選んでください。--domain は現在のページが一致している必要があります。スコープのフラグがなければピッカーを開きます。--profile はコピー元のディレクトリで、曖昧なプロファイルは選択が必要です。--all は期限切れでない Cookie をすべて明示的に選び、--domain や --clear-storage とは併用できません。--clear-storage を指定しない限りストレージは保持されます(指定すると、取得したオリジンの localStorage(コンテキストのタブ間で共有)と対象タブの sessionStorage をリセット)。--verify-auth は、起動前にデーモンの GSTACK_COOKIE_AUTH_SELECTOR と GSTACK_COOKIE_AUTH_EXPECTED_IDENTITY を必要とし、設定がなければ変更前に拒否します。検証済みとは、Cookie の件数や HTTP 200 ではなく、可視の識別情報が正確に一致することを意味します。Windows のネイティブ抽出は、適格性の確認が済むまで無効のままです。
+- `dialog-accept [text]`: 次の alert/confirm/prompt を自動で承諾します。任意のテキストは prompt の応答として送られます
+- `dialog-dismiss`: 次のダイアログを自動で閉じる
+- `fill <sel> <val>`: 入力欄に入力
+- `header <name>:<value>`: カスタムのリクエストヘッダーを設定(コロン区切り、機密性の高い値は自動で伏せ字)
+- `hover <sel>`: 要素にホバー
+- `press <key>`: フォーカスされた要素に Playwright のキーボードキーを押します。名前は大文字小文字を区別します: Enter、Tab、Escape、ArrowUp/Down/Left/Right、Backspace、Delete、Home、End、PageUp、PageDown。修飾キーは + で組み合わせます: Shift+Enter、Control+A、Meta+K。印字可能な 1 文字(a、A、1)も使えます。キーの全一覧: https://playwright.dev/docs/api/class-keyboard#keyboard-press
+- `scroll [sel|@ref]`: セレクタを指定すると、その要素が見えるまでスムーズにスクロールします。未指定ならページの最下部へ移動します。--by/--to の量指定はありません。ピクセル単位で正確にスクロールするには `js window.scrollTo(0, N)` を使います。
+- `select <sel> <val>`: ドロップダウンの選択肢を、値、ラベル、または表示テキストで選択
+- `style <sel> <prop> <value> | style --undo [N]`: 要素の CSS プロパティを変更(元に戻す機能つき)
+- `type [--selector <sel>] [--] <text>`: フォーカスされた要素に、または --selector で指定した <sel>(先にフォーカスします)にキー入力を送ります。-- で始まるテキストは -- 区切りの後に置きます。
+- `upload <sel> <file> [file2...]`: ファイルをアップロード
+- `useragent <string>`: ユーザーエージェントを設定
+- `viewport [<WxH>|auto] [--scale <n>]`: ビューポートのサイズと、任意の deviceScaleFactor(1〜3、retina スクリーンショット用)を設定します。--scale はコンテキストの再構築が必要です。`auto`(別名 `reset`)は固定を解除します: headed ではウィンドウに再び追従し、headless では 1280x720 に戻ります。
+- `wait <sel|--networkidle|--load>`: 要素、ネットワークのアイドル、またはページの読み込みを待ちます(タイムアウト: 15 秒)
 
 ### Meta
-- `chain  (JSON via stdin)`: Run a sequence of commands from JSON on stdin.
-- `domain-skill save|list|show|edit|promote-to-global|rollback|rm <host?>`: Per-site notes the agent writes for itself.
-- `frame <sel|@ref|--name n|--url pattern|main>`: Switch command context to an iframe, or `main` to return to the top page.
-- `inbox [--clear]`: List sidebar inbox messages from the visible browser extension as JSON/text; --clear removes them after reading.
-- `skill list|show|run|test|rm <name?> [--arg k=v]... [--timeout=Ns]`: Run a browser-skill: deterministic Playwright script that drives the daemon over loopback HTTP.
-- `watch [stop]`: Start passive observation mode: records periodic snapshots while the user browses and blocks mutation commands.
+- `chain  (JSON via stdin)`: 標準入力の JSON からコマンドの列を実行します。配列の配列を 1 つ渡し、内側の各配列は [cmd, ...args] です。出力はコマンドごとに 1 つの JSON 結果です。JSON 配列(例: `[["goto","https://example.com"],["text","h1"]]`)を `$B chain` にパイプすると、goto、続いて text コマンドの順に実行します。最初のエラーで停止します。
+- `domain-skill save|list|show|edit|promote-to-global|rollback|rm <host?>`: エージェントが自分のために書く、サイトごとのメモ。ホストはアクティブなタブから導出します。ライフサイクル: `save` は隔離状態のメモを追加し、プロンプトインジェクション分類器に検出されないまま 3 回成功して使われると、メモは自動的に "active" に昇格し、`promote-to-global` でグローバル層(マシン全体、全プロジェクト)に引き上げます。分類器のフラグは L4 のプロンプトインジェクションスキャンが自動で設定し、エージェントが手動で設定することはありません。`list` / `show` で確認し、`edit` で修正し、`rollback` で降格し、`rm` で墓標化します。
+- `frame <sel|@ref|--name n|--url pattern|main>`: コマンドのコンテキストを iframe に切り替えるか、`main` で最上位のページに戻します。<sel> は CSS、@ref は snapshot 由来、--name はフレーム名の完全一致、--url pattern はフレームの URL への部分一致です。
+- `inbox [--clear]`: 可視のブラウザ拡張機能のサイドバー受信箱のメッセージを JSON/テキストで一覧表示します。--clear は読み取り後に削除します。
+- `skill list|show|run|test|rm <name?> [--arg k=v]... [--timeout=Ns]`: browser-skill を実行します。ループバック HTTP 経由でデーモンを操作する、決定的な Playwright スクリプトです。3 層の探索(プロジェクト > グローバル > 同梱)。起動したスクリプトは、起動ごとのスコープ付きトークン(読み取り+書き込みのみ)を受け取り、デーモンのルートトークンは決して受け取りません。
+- `watch [stop]`: 受動的な観察モードを開始します。ユーザーがブラウズする間、定期的に snapshot を記録し、変更を伴うコマンドをブロックします。watch stop で観察を終了し、集めた snapshot の要約を返します。
 
 ### Navigation
-- `back`: History back
-- `forward`: History forward
-- `goto <url>`: Navigate to URL (http://, https://, or file:// scoped to cwd/TEMP_DIR)
-- `load-html <file> [--wait-until load|domcontentloaded|networkidle] [--tab-id <N>]  |  load-html --from-file <payload.json> [--tab-id <N>]`: Load HTML via setContent.
-- `reload`: Reload page
-- `url`: Print current URL
+- `back`: 履歴を戻る
+- `forward`: 履歴を進む
+- `goto <url>`: URL へ移動します(http://、https://、または cwd/TEMP_DIR 内に限定した file://)
+- `load-html <file> [--wait-until load|domcontentloaded|networkidle] [--tab-id <N>]  |  load-html --from-file <payload.json> [--tab-id <N>]`: setContent で HTML を読み込みます。safe-dirs 配下のファイルパス(検証あり)、または大きなインライン HTML 用に {"html":"...","waitUntil":"..."} を持つ --from-file <payload.json> を受け付けます(Windows の argv でも安全)。
+- `reload`: ページを再読み込み
+- `url`: 現在の URL を表示
 
 ### Reading
-- `accessibility`: Full ARIA tree
-- `data [--jsonld|--og|--meta|--twitter]`: Structured data: JSON-LD, Open Graph, Twitter Cards, meta tags
-- `forms`: Form fields as JSON
-- `html [selector]`: innerHTML of selector (throws if not found), or full page HTML if no selector given
-- `links`: All links as "text → href"
-- `media [--images|--videos|--audio] [selector]`: All media elements (images, videos, audio) with URLs, dimensions, types
-- `text [selector|@ref]`: Cleaned visible page text, or cleaned text for a CSS selector/@ref when one is provided
+- `accessibility`: ARIA ツリー全体
+- `data [--jsonld|--og|--meta|--twitter]`: 構造化データ: JSON-LD、Open Graph、Twitter Cards、meta タグ
+- `forms`: フォームのフィールドを JSON で
+- `html [selector]`: セレクタの innerHTML(見つからなければエラー)。セレクタ未指定ならページ全体の HTML
+- `links`: すべてのリンクを「text → href」の形式で
+- `media [--images|--videos|--audio] [selector]`: すべてのメディア要素(画像、動画、音声)と URL、寸法、種類
+- `text [selector|@ref]`: 整形した可視ページテキスト。CSS セレクタ/@ref を指定した場合は、その要素の整形テキスト
 
 ### Server
-- `connect [--supervise]`: Launch headed Chromium with Chrome extension; --supervise keeps the CLI attached and respawns a crashed server
-- `disconnect`: Disconnect headed browser, return to headless mode
-- `focus [@ref]`: Bring headed browser window to foreground (macOS)
-- `handoff [message]`: Open visible Chrome at current page for user takeover
-- `memory [--json]`: Snapshot Bun heap + per-tab JS heap + Chromium process tree + bounded buffer sizes.
-- `restart`: Restart server
-- `resume`: Re-snapshot after user takeover, return control to AI
-- `state save|load <name>`: Save/load browser state (cookies + URLs)
-- `status`: Health check
-- `stop`: Shutdown server
+- `connect [--supervise]`: Chrome 拡張機能つきの headed Chromium を起動します。--supervise は CLI をつないだままにして、クラッシュしたサーバーを再起動します
+- `disconnect`: headed ブラウザを切断し、headless モードに戻す
+- `focus [@ref]`: headed ブラウザのウィンドウを前面に出す(macOS)
+- `handoff [message]`: ユーザーが引き継げるように、現在のページで可視の Chrome を開く
+- `memory [--json]`: Bun のヒープ、タブごとの JS ヒープ、Chromium のプロセスツリー、上限付きバッファのサイズのスナップショット。--json で JSON 出力。
+- `restart`: サーバーを再起動
+- `resume`: ユーザーの引き継ぎ後に snapshot を取り直し、制御を AI に戻す
+- `state save|load <name>`: ブラウザの状態(Cookie + URL)を保存/読み込み
+- `status`: ヘルスチェック
+- `stop`: サーバーを停止
 
 ### Snapshot
-- `snapshot [flags]`: Accessibility tree with @e refs for element selection.
+- `snapshot [flags]`: 要素選択用の @e ref を持つアクセシビリティツリー。フラグ: -i インタラクティブのみ、-c コンパクト、-d N 深さ制限、-s sel スコープ、-D 直前との差分、-a 注釈付きスクリーンショット、-o path 出力先、-C cursor-interactive の @c ref
 
 ### Tabs
-- `closetab [id]`: Close tab
-- `newtab [url] [--json]`: Open new tab.
-- `tab <id>`: Switch to tab
-- `tab-each <command> [args...]`: Run a command on every open tab.
-- `tabs`: List open tabs
+- `closetab [id]`: タブを閉じる
+- `newtab [url] [--json]`: 新しいタブを開きます。--json を付けると、プログラム用(make-pdf)に {"tabId":N,"url":...} を返します。
+- `tab <id>`: タブを切り替え
+- `tab-each <command> [args...]`: 開いているすべてのタブでコマンドを実行します。タブごとの結果を JSON で返します。
+- `tabs`: 開いているタブを一覧表示
 
 ### Visual
-- `diff <url1> <url2>`: Text diff between pages
-- `pdf [path] [--format letter|a4|legal] [--width <dim> --height <dim>] [--margins <dim>] [--margin-top <dim> --margin-right <dim> --margin-bottom <dim> --margin-left <dim>] [--header-template <html>] [--footer-template <html>] [--page-numbers] [--tagged] [--outline] [--print-background] [--prefer-css-page-size] [--toc] [--tab-id <N>]  |  pdf --from-file <payload.json> [--tab-id <N>]`: Save the current page as PDF.
-- `prettyscreenshot [--scroll-to sel|text] [--cleanup] [--hide sel...] [--width px] [path]`: Clean screenshot with optional cleanup, scroll positioning, and element hiding
-- `responsive [prefix]`: Screenshots at mobile (375x812), tablet (768x1024), desktop (1280x720).
-- `screenshot [--selector <css>] [--viewport] [--clip x,y,w,h] [--base64] [selector|@ref] [path]`: Save screenshot.
+- `diff <url1> <url2>`: ページ間のテキスト差分
+- `pdf [path] [--format letter|a4|legal] [--width <dim> --height <dim>] [--margins <dim>] [--margin-top <dim> --margin-right <dim> --margin-bottom <dim> --margin-left <dim>] [--header-template <html>] [--footer-template <html>] [--page-numbers] [--tagged] [--outline] [--print-background] [--prefer-css-page-size] [--toc] [--tab-id <N>]  |  pdf --from-file <payload.json> [--tab-id <N>]`: 現在のページを PDF として保存します。既定のパス: <temp>/browse-page.pdf。<dim> は 1in、72pt、25mm、2.54cm のような CSS 単位を受け付け、数字だけならピクセルです。ページレイアウト(--format、--width、--height、--margins、--margin-*)、構造(--toc は Paged.js を少し待ちます)、ブランディング(--header-template、--footer-template、--page-numbers)、アクセシビリティ(--tagged、--outline)、大きなペイロード用の --from-file <payload.json> に対応します。特定のタブを対象にするには --tab-id <N> を使います。
+- `prettyscreenshot [--scroll-to sel|text] [--cleanup] [--hide sel...] [--width px] [path]`: 任意のクリーンアップ、スクロール位置の指定、要素の非表示つきの、きれいなスクリーンショット
+- `responsive [prefix]`: モバイル(375x812)、タブレット(768x1024)、デスクトップ(1280x720)のスクリーンショット。{prefix}-mobile.png などの名前で保存します。
+- `screenshot [--selector <css>] [--viewport] [--clip x,y,w,h] [--base64] [selector|@ref] [path]`: スクリーンショットを保存します。既定のパス: <temp>/browse-screenshot.png。既定はページ全体の撮影で、--viewport はビューポートだけを撮影します。--selector は特定の要素を対象にし、--clip は x,y,width,height のピクセルを使います。--base64 は書き込まず data:image/png;base64,...
 
 ## More
 

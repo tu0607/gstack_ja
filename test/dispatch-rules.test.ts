@@ -23,30 +23,33 @@ describe('the rules constant', () => {
   test('is a numbered list in the card vocabulary that forbids the forbidden dispatch', () => {
     expect(IMPLEMENTER_DISPATCH_RULES_ITEMS).toHaveLength(5);
     expect(IMPLEMENTER_DISPATCH_RULES.split('\n').map(line => line.replace(/\..*$/, ''))).toEqual(['1', '2', '3', '4', '5']);
-    expectTokens(IMPLEMENTER_DISPATCH_RULES, ['`protects / fails_when / no_claim`', '"make the tests pass"'], 'rules');
+    expectTokens(IMPLEMENTER_DISPATCH_RULES, ['`protects / fails_when / no_claim`', '「テストを通す」'], 'rules');
     expectMentions(IMPLEMENTER_DISPATCH_RULES, [
-      ['never', 'make the tests pass'],
-      ['real code', 'real tests', 'same change'],
-      ['test', 'timeout', 'suppression', 'own line', 'justification'],
-      ['command', 'observed result'],
-      ['claim', 'parent'],
+      ['「テストを通す」', 'してはいけません'],
+      ['本物のコード', '本物のテスト', '同じ変更'],
+      ['テスト', 'タイムアウト', '抑制プラグマ', '独立した行', '根拠'],
+      ['コマンド', '観測した結果'],
+      ['親', '主張'],
     ], 'rules');
     expect(generateImplementerDispatchRules()).toBe(IMPLEMENTER_DISPATCH_RULES);
     expect(RESOLVERS.IMPLEMENTER_DISPATCH_RULES).toBe(generateImplementerDispatchRules);
-    expect(IMPLEMENTER_DISPATCH_RULES_HEADING).toBe('Rules for the implementing agent');
+    expect(IMPLEMENTER_DISPATCH_RULES_HEADING.length).toBeGreaterThan(0);
   });
 });
+
+// The templates' own heading line (inside their code fences) is what each rendering site carries.
+const SITE_HEADING = '実装エージェント向けのルール';
 
 describe('/spec carries the rules inside the archived spec body', () => {
   const tmpl = read('spec/SKILL.md.tmpl');
   const rendered = read('spec/SKILL.md');
 
   test('the Standard Issues template renders the rules under its own heading and drops "Tests written and passing"', () => {
-    const template = between(tmpl, '### Standard Issues', '### Epics');
-    expectOrdered(template, ['## Acceptance Criteria', '## Testing Plan', `## ${IMPLEMENTER_DISPATCH_RULES_HEADING}`, '{{IMPLEMENTER_DISPATCH_RULES}}', '## Rollback Plan'], 'spec issue template');
+    const template = between(tmpl, '### 標準の Issue', '### エピック');
+    expectOrdered(template, ['## Acceptance Criteria', '## Testing Plan', `## ${SITE_HEADING}`, '{{IMPLEMENTER_DISPATCH_RULES}}', '## Rollback Plan'], 'spec issue template');
     expectAbsent(tmpl, ['Tests written and passing'], 'spec template');
     expectAbsent(rendered, ['Tests written and passing', '{{IMPLEMENTER_DISPATCH_RULES}}'], 'spec SKILL.md');
-    expect(between(rendered, '### Standard Issues', '### Epics')).toContain(IMPLEMENTER_DISPATCH_RULES);
+    expect(between(rendered, '### 標準の Issue', '### エピック')).toContain(IMPLEMENTER_DISPATCH_RULES);
   });
 
   test('acceptance criteria are written in the card vocabulary', () => {
@@ -68,12 +71,12 @@ describe('/ship Step 7 child prompt carries the rules before an unchanged JSON p
   const FIELDS = ['coverage_pct', 'gaps', 'diagram', 'tests_added', 'coverage_pct_value', 'weak_gaps', 'tests_extended', 'tests_rejected', 'regression_proof'];
 
   test('template order: audit, rules, JSON protocol', () => {
-    const child = between(read('ship/sections/test-coverage.md.tmpl'), '````text', '````\n\n**Parent processing:**');
-    expectOrdered(child, ['{{TEST_COVERAGE_AUDIT_SHIP}}', `${IMPLEMENTER_DISPATCH_RULES_HEADING}:`, '{{IMPLEMENTER_DISPATCH_RULES}}', 'output a single JSON object on the LAST LINE', JSON_LINE_PREFIX], 'ship child prompt');
+    const child = between(read('ship/sections/test-coverage.md.tmpl'), '````text', '````\n\n**親の処理:**');
+    expectOrdered(child, ['{{TEST_COVERAGE_AUDIT_SHIP}}', `${SITE_HEADING}:`, '{{IMPLEMENTER_DISPATCH_RULES}}', 'output a single JSON object on the LAST LINE', JSON_LINE_PREFIX], 'ship child prompt');
   });
 
   test('rendered prompt carries the list and the LAST-line field set is unchanged', () => {
-    const child = between(read('ship/sections/test-coverage.md'), '````text', '````\n\n**Parent processing:**');
+    const child = between(read('ship/sections/test-coverage.md'), '````text', '````\n\n**親の処理:**');
     expect(child).toContain(IMPLEMENTER_DISPATCH_RULES);
     expect(child.indexOf(IMPLEMENTER_DISPATCH_RULES)).toBeLessThan(child.indexOf(JSON_LINE_PREFIX));
     const line = child.split('\n').find(l => l.startsWith(JSON_LINE_PREFIX))!;

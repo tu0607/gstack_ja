@@ -40,13 +40,13 @@ function readMd(): string {
 
 describe("PR #1620 §4a-postfail in land-and-deploy template", () => {
   test("§4a-postfail header present in template", () => {
-    expect(readTmpl()).toMatch(/### 4a-postfail: Post-failure PR-state check/);
+    expect(readTmpl()).toMatch(/### 4a-postfail: /);
   });
 
   test("§4a-postfail comes before §4a (Merge queue detection)", () => {
     const body = readTmpl();
     const postfail = body.indexOf("### 4a-postfail:");
-    const queue = body.indexOf("### 4a: Merge queue detection");
+    const queue = body.indexOf("### 4a: ");
     expect(postfail).toBeGreaterThan(-1);
     expect(queue).toBeGreaterThan(-1);
     expect(postfail).toBeLessThan(queue);
@@ -54,7 +54,7 @@ describe("PR #1620 §4a-postfail in land-and-deploy template", () => {
 
   test("any non-zero merge exit queries authoritative state before retrying", () => {
     const body = readTmpl().replace(/\s+/g, " ");
-    expect(body).toMatch(/non-zero exit from `gh pr merge`, query authoritative PR state before retrying/i);
+    expectMentions(body, [['`gh pr merge`', '非ゼロ', '権威ある', '照会', 'リトライ']], 'body');
   });
 
   test("Authoritative state query includes auto request and queue membership", () => {
@@ -77,10 +77,9 @@ describe("PR #1620 §4a-postfail in land-and-deploy template", () => {
 
   test("MERGED worktree cleanup is non-destructive (uncommitted-work guard)", () => {
     const body = readTmpl();
-    expect(body).toMatch(/uncommitted work/);
-    expectMentions(body, [['stop', 'worktree', 'removing']], 'body');
-    expect(body).toMatch(/do not use `--force`/i);
-    expectMentions(body, [['do not', 'primary', 'working']], 'body');
+    expectMentions(body, [['コミットされていない作業', '何も削除せず', 'worktree', '停止']], 'body');
+    expectMentions(body, [['`--force`', '使わない']], 'body');
+    expectMentions(body, [['メインの作業ツリー', '削除しない']], 'body');
   });
 
   test("MERGED branch continues to §4b CI auto-deploy detection", () => {
@@ -107,15 +106,15 @@ describe("PR #1620 §4a-postfail in land-and-deploy template", () => {
     expect(body).not.toMatch(/git ls-remote --heads origin/);
     expect(body).not.toMatch(/git push origin --delete/);
     // Confirm-first: deletion is offered, never unilateral.
-    expect(body).toMatch(/Delete it\?/);
+    expectMentions(body, [['削除しますか', '確認']], 'body');
   });
 
   test("MERGED branch reconciliation distinguishes branch-absent from check-failed", () => {
     const body = readTmpl();
     // exit 0 + empty output = already clean (idempotent re-runs)...
-    expect(body).toMatch(/already been cleaned up/i);
+    expectMentions(body, [['終了コード 0', '出力が空', 'すでに存在しません']], 'body');
     // ...non-zero exit = unknown state, never read as a clean branch.
-    expectMentions(body, [['never', 'failed', 'branch']], 'body');
+    expectMentions(body, [['失敗した確認', 'クリーンなブランチ', '読まない']], 'body');
   });
 
   test("OPEN branch checks autoMergeRequest before treating as failure", () => {
@@ -130,15 +129,15 @@ describe("PR #1620 §4a-postfail in land-and-deploy template", () => {
 
   test("Hard rule: no replay after MERGED and only one guarded direct fallback", () => {
     const body = readTmpl().replace(/\s+/g, " ");
-    expect(body).toMatch(/never replay a merge after MERGED/i);
-    expect(body).toMatch(/one direct fallback/i);
-    expectMentions(body, [['no', 'fallback', 'attempt']], 'body');
-    expect(body).toMatch(/confirmed OPEN, no auto request and no queue entry/i);
+    expectMentions(body, [['MERGED', '決して', 'マージを再実行しない']], 'body');
+    expectMentions(body, [['1 回だけ', '直接マージ', 'フォールバック']], 'body');
+    expectMentions(body, [['直接の試行', 'フォールバックはありません']], 'body');
+    expectMentions(body, [['OPEN', '自動リクエストなし', 'キューエントリなし']], 'body');
   });
 
   test("Generated merge-and-deploy.md carries the §4a-postfail section (atomic regen per T-Codex-3)", () => {
     const md = readMd();
-    expect(md).toMatch(/### 4a-postfail: Post-failure PR-state check/);
+    expect(md).toMatch(/### 4a-postfail: /);
     expect(md).toMatch(/state == "MERGED"/);
     expect(md).toMatch(/headRepositoryOwner\.login/);
     expect(md).not.toMatch(/git ls-remote --heads origin/);

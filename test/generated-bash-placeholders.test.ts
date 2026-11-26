@@ -215,9 +215,9 @@ describe('test-failure issues through the real generated triage text', () => {
   test('the generated ship section carries the same text, with no literal \\n or nested triple backticks', () => {
     const section = fs.readFileSync(path.join(ROOT, 'ship/sections/tests.md'), 'utf8');
     expect(section).toContain(postBlock);
-    expect(text).not.toContain('\\n\\n**Error:**');
+    expect(text).not.toContain('\\n\\n**エラー:**');
     expect(postBlock).not.toContain('```');
-    expect(text).toMatch(/\*\*Error:\*\*\n~~~\n<first 10 lines of the failure>\n~~~/);
+    expect(text).toMatch(/\*\*エラー:\*\*\n~~~\n<first 10 lines of the failure>\n~~~/);
   });
 
   for (const platform of ['github', 'gitlab'] as const) {

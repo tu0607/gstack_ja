@@ -7,13 +7,14 @@ import type { EvalTestEntry } from './eval-store';
 
 export const HEALTH_EVAL_ID = 'health-reporting';
 export const HEALTH_EVAL_SECTIONS = [
-  'Step 1: Detect Health Stack',
-  'Step 2: Run Tools',
-  'Step 3: Score Each Category',
-  'Step 4: Present Dashboard',
-  'Step 5: Persist to Health History',
-  'Step 6: Trend Analysis + Recommendations',
-  'Important Rules',
+  // Step prefixes (findSection falls back to startsWith), so the localized title may change.
+  'Step 1:',
+  'Step 2:',
+  'Step 3:',
+  'Step 4:',
+  'Step 5:',
+  'Step 6:',
+  '重要なルール',
 ];
 
 const PRIOR_HISTORY = JSON.stringify({

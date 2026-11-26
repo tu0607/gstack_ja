@@ -59,7 +59,7 @@ esac
   });
   it("the offer is gated on the probe: out_of_scope reports the cause instead of asking", () => {
     const tmpl = readFileSync(TEMPLATE, "utf-8");
-    expect(tmpl).toContain("If `CODE_SCOPE == out_of_scope`, do not offer a build");
-    expect(tmpl).toContain("If `CYCLE == never` AND `CODE_SCOPE` is `ready` or `unknown`");
+    expect(tmpl).toContain("`CODE_SCOPE == out_of_scope` の場合は、構築を提案しないでください");
+    expect(tmpl).toContain("`CYCLE == never` かつ `CODE_SCOPE` が `ready` または `unknown`");
   });
 });

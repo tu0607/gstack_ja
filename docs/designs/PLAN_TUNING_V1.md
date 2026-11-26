@@ -1,89 +1,89 @@
-# Plan Tuning v1 — Design Doc
+# Plan Tuning v1 — 設計ドキュメント
 
-**Status:** Approved for implementation (2026-04-18)
-**Branch:** garrytan/plan-tune-skill
-**Authors:** Garry Tan (user), with AI-assisted reviews from Claude Opus 4.7 + OpenAI Codex gpt-5.4
-**Supersedes scope:** adds writing-style + LOC-receipts layer on top of [PLAN_TUNING_V0.md](./PLAN_TUNING_V0.md) (observational substrate). V0 remains in place unchanged.
-**Related:** [PACING_UPDATES_V0.md](./PACING_UPDATES_V0.md) — extracted pacing overhaul, V1.1 plan.
+**ステータス:** 実装として承認済み(2026-04-18)
+**ブランチ:** garrytan/plan-tune-skill
+**作成者:** Garry Tan(ユーザー)。AI によるレビューは Claude Opus 4.7 + OpenAI Codex gpt-5.4 による。
+**スコープの置き換え:** [PLAN_TUNING_V0.md](./PLAN_TUNING_V0.md)(観察のためのサブストレート)の上に、文章スタイルと LOC レシートの層を加える。V0 はそのまま残す。
+**関連:** [PACING_UPDATES_V0.md](./PACING_UPDATES_V0.md) — 切り出されたペーシングの見直し、V1.1 の計画。
 
-## What this document is
+## このドキュメントについて
 
-A canonical record of what /plan-tune v1 is, what it is NOT, what we considered, and why we made each call. Committed to the repo so future contributors (and future Garry) can trace reasoning without archeology. Supersedes any per-user local plan artifacts.
+/plan-tune v1 が何であり、何でないか、何を検討し、なぜそれぞれの判断をしたかの正式な記録。将来のコントリビューター(および未来の Garry)が、古い資料を掘り起こさずに理由をたどれるように、リポジトリにコミットしている。ユーザーごとのローカルの計画の成果物は、すべてこれで置き換える。
 
-## Credit
+## クレジット
 
-This plan exists because of **[Louise de Sadeleer](https://x.com/LouiseDSadeleer/status/2045139351227478199)**, who sat through a complete gstack run as a non-technical user and told us the truth about how it feels. Her specific feedback:
+この計画は **[Louise de Sadeleer](https://x.com/LouiseDSadeleer/status/2045139351227478199)** のおかげで生まれた。彼女は非技術者として gstack の一連の実行に最後まで付き合い、それがどう感じられたかを率直に教えてくれた。彼女のフィードバックは次のとおり。
 
-1. "I was getting a bit tired after a while and it felt a little bit rigid." — *pacing/fatigue*
-2. "I'm just gonna say yes yes yes" (during architecture review). — *disengagement*
-3. "What I find funny is his emphasis on how many lines of code he produces. AI has produced for him of course." — *LOC framing*
-4. "As a non-engineer this is a bit complicated to understand." — *jargon density + outcome framing*
+1. 「しばらくすると少し疲れてきたし、ちょっと堅苦しく感じた。」 — *ペーシング/疲労*
+2. 「I'm just gonna say yes yes yes」(アーキテクチャのレビュー中)。 — *関与の低下*
+3. 「彼が自分が書いたコードの行数を強調しているのが面白い。もちろん AI が彼のために生み出したものなのに。」 — *LOC の枠組み*
+4. 「エンジニアでない私には、これは少し分かりにくい。」 — *専門用語の密度 + 結果の枠組み*
 
-V1 addresses #3 and #4 directly: jargon-glossing + outcome-framed writing that reads like a real person wrote it for the reader, plus a defensible LOC reframe. Louise's #1 and #2 (pacing/fatigue) require a separate design round — extracted to [PACING_UPDATES_V0.md](./PACING_UPDATES_V0.md) as the V1.1 plan.
+V1 は #3 と #4 に直接対応する。用語の説明と、結果を中心にした文章で、実在の人が読み手のために書いたように読めるものにする。そして LOC の枠組みを、根拠のあるものに改める。Louise の #1 と #2(ペーシング/疲労)には、別のデザインのラウンドが必要。[PACING_UPDATES_V0.md](./PACING_UPDATES_V0.md) に V1.1 の計画として切り出した。
 
-## The feature, in one paragraph
+## 機能の概要(1段落)
 
-gstack skill output is the product. If the prose doesn't read well for a non-technical founder, they check out of the review and click "yes yes yes." V1 adds a writing-style standard that applies to every tier ≥ 2 skill: jargon glossed on first use (from a curated ~50-term list), questions framed in outcome terms ("what breaks for your users if...") not implementation terms, short sentences, concrete nouns. Power users who want the tighter V0 prose can set `gstack-config set explain_level terse`. Binary switch, no partial modes. Plus: the README's "600,000+ lines of production code" framing — rightly called out as LOC vanity by Louise — gets replaced with a real computed 2013-vs-2026 pro-rata multiple from an `scc`-backed script, with honest caveats about public-vs-private repo visibility.
+gstack のスキルの出力こそがプロダクトである。文章が非技術者の創業者にとって読みにくければ、彼らはレビューから離脱し、「yes yes yes」とクリックしてしまう。V1 は、tier ≥ 2 のすべてのスキルに適用される文章スタイルの基準を加える。用語は初めて出てきたときに説明する(厳選された約 50 語のリストから)。質問は「ユーザーに何が起きると困るか」といった結果の観点で書き、実装の用語では書かない。文は短く、名詞は具体的にする。V0 のより簡潔な文章を望むパワーユーザーは、`gstack-config set explain_level terse` を設定できる。バイナリのスイッチであり、中間のモードはない。さらに README にある「製品コード 60 万行以上」という枠組みは、Louise に LOC の誇示だと指摘されたため、`scc` を使った、2013 年と 2026 年の按分の倍率の計算値に置き換える。公開リポジトリと非公開リポジトリの可視性についての正直な注意書きを添える。
 
-## Why we're building the smaller version
+## なぜより小さいバージョンにしたのか
 
-V1 went through four substantial scope revisions over multiple review passes. Final scope is smaller than any intermediate version because each review pass caught real problems.
+V1 は、複数のレビューを経て、4 回の大きなスコープの見直しを経験した。最終的なスコープは、どの中間バージョンよりも小さい。レビューのパスを重ねるたびに、本当の問題が見つかったからだ。
 
-**Revision 1 — Four-level experience axis (rejected).** Original proposal: ask users on first run whether they're an experienced dev, an engineer-without-solo-experience, non-technical-who-shipped-on-a-team, or non-technical-entirely. Skills adapt per level. Rejected during CEO review's premise-challenge step because (a) the onboarding ask adds friction at exactly the moment V1 is trying to reduce it, (b) "what level am I?" is itself a confusing question for the users who most need help, (c) technical expertise isn't one-dimensional (designer level A on CSS, level D on deploy), (d) engineers benefit from the same writing standards non-technical users do.
+**見直し 1 — 4 段階の経験の軸(却下)。** 元の提案: 初回実行時に、ユーザーに自分が経験豊富な開発者か、単独での経験がないエンジニアか、チームで出荷した非技術者か、完全な非技術者かを尋ねる。スキルは各レベルに適応する。CEO レビューの前提の挑戦の段階で却下された。理由: (a) オンボーディングの質問が、V1 がまさに摩擦を減らそうとしている瞬間に、摩擦を増やす。(b)「自分はどのレベルか」は、もっとも助けを必要とするユーザーにとって、それ自体が分かりにくい質問である。(c) 技術の専門性は一次元ではない(CSS では設計者のレベル A、デプロイではレベル D、ということがある)。(d) エンジニアも、非技術者と同じ文章の基準の恩恵を受ける。
 
-**Revision 2 — ELI10 by default, terse opt-out (accepted).** Every skill's output defaults to the writing standard. Power users who want V0 prose set `explain_level: terse`. Codex Pass 1 caught critical gaps (static-markdown gating, host-aware paths, README update mechanism) — all three integrated.
+**見直し 2 — ELI10 がデフォルト、terse で無効化(採用)。** すべてのスキルの出力は、文章の基準をデフォルトとする。V0 の文章を望むパワーユーザーは `explain_level: terse` を設定する。Codex の第 1 パスは、重大な欠陥(静的な Markdown のゲート、ホストごとのパス、README の更新の仕組み)を指摘した。3 つすべてを取り込んだ。
 
-**Revision 3 — ELI10 + review-pacing overhaul (proposed, scoped back).** Added a pacing workstream: rank findings, auto-accept two-way doors, max 3 AskUserQuestion prompts per phase, Silent Decisions block with flip-command. Intended to address Louise's #1 and #2 directly. Eng review Pass 2 caught scoring-formula and path-consistency bugs. Eng review Pass 3 + Codex Pass 2 surfaced 10+ structural gaps in the pacing workstream that couldn't be fixed via plan-text editing.
+**見直し 3 — ELI10 + レビューのペーシングの見直し(提案、後に縮小)。** ペーシングの作業を追加した。指摘を順位付けし、二択のドアを自動承認し、フェーズごとに AskUserQuestion を最大 3 件に制限し、Silent Decisions ブロックと flip コマンドを用意する。Louise の #1 と #2 に直接対応することを意図していた。エンジニアリングレビューの第 2 パスで、スコアリングの計算式とパスの一貫性のバグが見つかった。エンジニアリングレビューの第 3 パスと Codex の第 2 パスで、ペーシングの作業に 10 件以上の構造的な欠陥が見つかった。それらは計画の文章の編集では直せなかった。
 
-**Revision 4 — ELI10 + LOC only (final).** User chose scope reduction: ship V1 with writing style + LOC receipts, defer pacing to V1.1 via [PACING_UPDATES_V0.md](./PACING_UPDATES_V0.md). This is the approved V1 scope.
+**見直し 4 — ELI10 + LOC のみ(最終)。** ユーザーはスコープの縮小を選んだ。V1 は文章スタイルと LOC のレシートだけを出荷し、ペーシングは [PACING_UPDATES_V0.md](./PACING_UPDATES_V0.md) を通じて V1.1 に延期する。これが承認された V1 のスコープ。
 
-The through-line: every review pass correctly narrowed the ambition until the remaining scope had no structural gaps. Matches the CEO review skill's SCOPE REDUCTION mode, arrived at late via engineering review rather than early via strategic choice.
+一貫したテーマは次のとおり。各レビューのパスは、残りのスコープに構造的な欠陥がなくなるまで、野心を正しく狭めていった。CEO レビューのスコープ縮小モードに合致するが、戦略的な選択によって早い段階で行われたのではなく、エンジニアリングレビューを通じて遅い段階で行われた。
 
-## v1 Scope (what we're building now)
+## v1 のスコープ(今回作るもの)
 
-1. **Writing Style section in preamble** (`scripts/resolvers/preamble.ts`). Six rules: jargon-gloss on first use per skill invocation, outcome framing, short sentences / concrete nouns / active voice, decisions close with user impact, gloss-on-first-use-unconditional (even if user pasted the term), user-turn override (user says "be terse" → skip for that response).
-2. **Jargon boundary via repo-owned list** (`scripts/jargon-list.json`). ~50 curated high-frequency technical terms. Terms not on the list are assumed plain-English enough. Terms inlined into generated SKILL.md prose at `gen-skill-docs` time (zero runtime cost).
-3. **Terse opt-out** (`gstack-config set explain_level terse`). Binary: `default` vs `terse`. Terse skips the Writing Style block entirely and uses V0 prose style.
-4. **Host-aware preamble echo.** `_EXPLAIN_LEVEL=$(${binDir}/gstack-config get explain_level 2>/dev/null || echo "default")`. Host-portable via existing V0 `ctx.paths.binDir` pattern.
-5. **gstack-config validation.** Document `explain_level: default|terse` in header. Whitelist values. Warn on unknown with specific message + default to `default`.
-6. **LOC reframe in README.** Remove "600,000+ lines of production code" hero framing. Insert `<!-- GSTACK-THROUGHPUT-PLACEHOLDER -->` anchor. Build-time script replaces anchor with computed multiple + caveat.
-7. **`scc`-backed throughput script** (`scripts/garry-output-comparison.ts`). For each of 2013 + 2026, enumerate Garry-authored public commits, extract added lines from `git diff`, classify via `scc --stdin` (or regex fallback). Output `docs/throughput-2013-vs-2026.json` with per-language breakdown + caveats.
-8. **`scc` as standalone install script** (`scripts/setup-scc.sh`). Not a `package.json` dependency (truly optional — 95% of users never run throughput). OS-detects and runs `brew install scc` / `apt install scc` / prints GitHub releases link.
-9. **README update pipeline** (`scripts/update-readme-throughput.ts`). Reads `docs/throughput-2013-vs-2026.json` if present, replaces the anchor with computed number. If missing, writes `GSTACK-THROUGHPUT-PENDING` marker that CI rejects — forces contributor to run the script before commit.
-10. **/retro adds logical SLOC + weighted commits above raw LOC.** Raw LOC stays for context but is visually demoted.
-11. **Upgrade migration** (`gstack-upgrade/migrations/v<VERSION>.sh`). One-time post-upgrade interactive prompt offering to restore V0 prose via `explain_level: terse` for users who prefer it. Flag-file gated.
-12. **Documentation.** CLAUDE.md gains a Writing Style section (project convention). CHANGELOG.md gets V1 entry (user-facing narrative, mentions scope reduction + V1.1 pacing). README.md gets a Writing Style explainer section (~80 words). CONTRIBUTING.md gains a note on jargon-list maintenance (PRs to add/remove terms).
-13. **Tests.** 6 new test files + extension of existing `gen-skill-docs.test.ts`. All gate tier except LLM-judge E2E (periodic).
-14. **V0 dormancy negative tests.** Assert 5D dimension names and 8 archetype names don't appear in default-mode skill output. Prevents V0 psychographic machinery from leaking into V1.
-15. **V1 and V1.1 design docs.** PLAN_TUNING_V1.md (this file). PACING_UPDATES_V0.md (V1.1 plan, created during V1 implementation from the extracted appendix). TODOS.md P0 entry.
+1. **プリアンブルの文章スタイルのセクション**(`scripts/resolvers/preamble.ts`)。6 つのルール: スキル呼び出しごとに、用語は初めて出てきた箇所で説明する。結果の枠組み。短い文、具体的な名詞、能動態。決定は、ユーザーへの影響で締めくくる。用語は、ユーザーが貼り付けていても、初出では無条件に説明する。ユーザーのターンによる上書き(ユーザーが「簡潔に」と言えば、その応答では省く)。
+2. **リポジトリが管理する用語リスト**(`scripts/jargon-list.json`)。厳選された約 50 語の、頻出の技術用語。リストにない用語は、平易な英語とみなす。用語は `gen-skill-docs` の時点で生成された SKILL.md の文章にインライン化する(実行時のコストはゼロ)。
+3. **terse による無効化**(`gstack-config set explain_level terse`)。二値: `default` と `terse`。terse では文章スタイルのブロック全体を省き、V0 の文体を使う。
+4. **ホストを意識したプリアンブルのエコー。** `_EXPLAIN_LEVEL=$(${binDir}/gstack-config get explain_level 2>/dev/null || echo "default")`。既存の V0 の `ctx.paths.binDir` のパターンを通じて、ホストに依存しない。
+5. **gstack-config の検証。** ヘッダーに `explain_level: default|terse` を文書化する。値をホワイトリストで検証する。未知の値は、具体的なメッセージとともに警告し、`default` にフォールバックする。
+6. **README の LOC の枠組みの変更。** 「60 万行以上の製品コード」というヒーローの枠組みを削除する。`<!-- GSTACK-THROUGHPUT-PLACEHOLDER -->` のアンカーを挿入する。ビルド時のスクリプトがアンカーを、計算された倍率と注意書きに置き換える。
+7. **`scc` を使ったスループットのスクリプト**(`scripts/garry-output-comparison.ts`)。2013 年と 2026 年のそれぞれについて、Garry が書いた公開コミットを列挙し、`git diff` から追加された行を抽出し、`scc --stdin`(または正規表現のフォールバック)で分類する。`docs/throughput-2013-vs-2026.json` に、言語ごとの内訳と注意書きを出力する。
+8. **`scc` の単独のインストールスクリプト**(`scripts/setup-scc.sh`)。`package.json` の依存関係にはしない(本当に任意。ユーザーの 95% はスループットを実行しない)。OS を検出し、`brew install scc` / `apt install scc` を実行するか、GitHub のリリースへのリンクを表示する。
+9. **README の更新パイプライン**(`scripts/update-readme-throughput.ts`)。`docs/throughput-2013-vs-2026.json` があれば読み込み、アンカーを計算された数値に置き換える。なければ、CI が拒否する `GSTACK-THROUGHPUT-PENDING` のマーカーを書く。これにより、コミット前にコントリビューターがスクリプトを実行することを強制する。
+10. **/retro に、論理的な SLOC と重み付けしたコミットを、生の LOC より上に加える。** 生の LOC は文脈のために残すが、視覚的には目立たなくする。
+11. **アップグレードの移行**(`gstack-upgrade/migrations/v<VERSION>.sh`)。アップグレード後に一度だけ、対話的なプロンプトを出す。V0 の文章に戻したいユーザー向けに、`explain_level: terse` を提案する。フラグファイルで実行を制御する。
+12. **文書化。** CLAUDE.md に文章スタイルのセクションを加える(プロジェクトの規約)。CHANGELOG.md に V1 のエントリを加える(ユーザー向けの語り口で、スコープの縮小と V1.1 のペーシングに触れる)。README.md に文章スタイルの説明セクションを加える(約 80 語)。CONTRIBUTING.md に、用語リストの維持についての注記を加える(用語の追加・削除の PR)。
+13. **テスト。** 新しいテストファイル 6 件と、既存の `gen-skill-docs.test.ts` の拡張。LLM ジャッジによる E2E を除き、すべて gate tier(LLM ジャッジは periodic)。
+14. **V0 の休眠状態の否定テスト。** 5D の次元名と 8 つのアーキタイプ名が、デフォルトモードのスキルの出力に現れないことを確認する。V0 の心理特性の仕組みが V1 に漏れ出すのを防ぐ。
+15. **V1 と V1.1 の設計ドキュメント。** PLAN_TUNING_V1.md(この文書)。PACING_UPDATES_V0.md(V1.1 の計画。V1 の実装中に、抽出した付録から作成)。TODOS.md の P0 のエントリ。
 
-## Deferred
+## 延期
 
-**To V1.1 (explicit, with dedicated design doc):**
-- Review pacing overhaul (ranking, auto-accept, max-3-per-phase, Silent Decisions block, flip mechanism). Reasoning: see [PACING_UPDATES_V0.md](./PACING_UPDATES_V0.md) §"Why it's extracted." Has 10+ structural gaps unfixable via prose-only changes.
-- Preamble first-run meta-prompt audit (lake intro, telemetry, proactive, routing). Louise saw all of them on first run; they count against fatigue. V1.1 considers suppressing until session N.
+**V1.1 へ(明示的に、専用の設計ドキュメントとともに):**
+- レビューのペーシングの見直し(順位付け、自動承認、フェーズごとに最大 3 件、Silent Decisions ブロック、flip の仕組み)。理由: [PACING_UPDATES_V0.md](./PACING_UPDATES_V0.md) の「抽出された理由」を参照。計画文だけでは直せない 10 件以上の構造的な欠陥がある。
+- プリアンブルの初回メタプロンプトの監査(Lake の紹介、テレメトリ、proactive、ルーティング)。Louise は初回実行時にそのすべてを見た。それらは疲労として数えられる。V1.1 は、N 回目のセッションまで抑制することを検討する。
 
-**To V2 (or later):**
-- Confusion-signal detection from question-log driving on-the-fly translation offers.
-- 5D psychographic-driven skill adaptation (V0 E1 item).
-- /plan-tune narrative + /plan-tune vibe (V0 E3 item).
-- Per-skill or per-topic explain levels.
-- Team profiles.
-- AST-based "delivered features" metric.
+**V2 へ(またはそれ以降):**
+- question-log からの混乱のシグナルの検出。オンザフライの翻訳の提案を引き起こす。
+- 5D の心理特性に基づくスキルの適応(V0 E1 の項目)。
+- /plan-tune narrative + /plan-tune vibe(V0 E3 の項目)。
+- スキルごと、またはトピックごとの説明レベル。
+- チームのプロファイル。
+- AST ベースの「配送された機能」の指標。
 
-## Rejected entirely (considered, not doing)
+## 完全に却下(検討したが、やらないもの)
 
-- **Four-level declared experience axis (A/B/C/D).** Rejected during CEO review premise-challenge. See "Why we're building the smaller version" above.
-- **ELI10 as a new resolver file (`scripts/resolvers/eli10-writing.ts`).** Codex Pass 1 caught the conflict with existing "smart 16-year-old" framing in preamble's AskUserQuestion Format section. Fold into existing preamble instead.
-- **Runtime suppression of the Writing Style block.** Codex Pass 1 caught that `gen-skill-docs` produces static Markdown — runtime `EXPLAIN_LEVEL=terse` can't hide content already baked in. Solution: conditional prose gate (prose convention, same category as V0's `QUESTION_TUNING` gate).
-- **Middle writing mode between default and terse.** Revision 3 proposed "terse = no glosses but keep outcome framing." Codex Pass 2 caught the contradiction with migration messaging. Binary wins: terse = V0 prose, full stop.
-- **User-editable jargon list at runtime.** Revision 3 proposed `~/.gstack/jargon-list.json` as user override. Codex Pass 2 caught the contradiction with gen-time inlining. Resolved: repo-owned only, PRs to add/remove, regenerate to take effect.
-- **`devDependencies.optional` field in package.json.** Not a real npm/bun field. Eng review Pass 2 caught. Standalone install script instead.
-- **Using the same string as replacement anchor AND CI-reject marker in README.** Eng review Pass 2 / Codex Pass 2 caught that this makes the pipeline destroy its own update path. Two-string solution: `GSTACK-THROUGHPUT-PLACEHOLDER` (anchor, stays across runs) vs `GSTACK-THROUGHPUT-PENDING` (explicit "build didn't run" marker that CI rejects).
-- **"Every technical term gets a gloss" as acceptance criterion.** Codex Pass 2 caught the contradiction with the curated-list rule. Acceptance rewritten to match rule: "every term on `scripts/jargon-list.json` that appears gets a gloss."
-- **Acceptance criterion "≤ 12 AskUserQuestion prompts per /autoplan."** Removed from V1 — that target requires the pacing overhaul now in V1.1.
+- **4 段階の宣言された経験の軸(A/B/C/D)。** CEO レビューの前提の挑戦で却下。上の「なぜより小さいバージョンにしたのか」を参照。
+- **新しいリゾルバーファイルとしての ELI10(`scripts/resolvers/eli10-writing.ts`)。** Codex の第 1 パスが、プリアンブルの AskUserQuestion の書式のセクションにある既存の「賢い 16 歳」という枠組みとの衝突を指摘。代わりに既存のプリアンブルに組み込む。
+- **実行時の文章スタイルのブロックの抑制。** Codex の第 1 パスが、`gen-skill-docs` は静的な Markdown を出力することを指摘。一度焼き込まれた内容は、後から隠せない。解決策: 条件付きの文章のゲート(V0 の `QUESTION_TUNING` のゲートと同じ種類の、プロンプトの約束事)。
+- **デフォルトと terse の中間の文章モード。** 改訂 3 では「terse = 用語の説明はないが、結果の枠組みは残す」と提案された。Codex の第 2 パスが、移行のメッセージとの矛盾を指摘。二値にする。terse = V0 の文章、それだけ。
+- **実行時にユーザーが編集できる用語リスト。** 改訂 3 では、`~/.gstack/jargon-list.json` をユーザーの上書きとして提案された。Codex の第 2 パスが、生成時のインライン化との矛盾を指摘。解決: リポジトリが管理するものだけ。PR で追加・削除し、再生成して反映する。
+- **`package.json` の `devDependencies.optional` フィールド。** npm/bun の正式なフィールドではない。エンジニアリングレビューの第 2 パスが指摘。代わりに単独のインストールスクリプトにする。
+- **README の置き換えアンカーと CI の拒否マーカーに同じ文字列を使うこと。** エンジニアリングレビューの第 2 パスと Codex の第 2 パスが、パイプラインが自分自身の更新の経路を壊すことを指摘。2 つの文字列による解決: `GSTACK-THROUGHPUT-PLACEHOLDER`(アンカー、実行をまたいで安定)と `GSTACK-THROUGHPUT-PENDING`(ビルドが実行されなかったことを示す明示的なマーカー。CI が拒否する)。
+- **受け入れ基準「すべての技術用語に説明をつける」。** Codex の第 2 パスが、厳選リストの規則との矛盾を指摘。基準を規則に合うように書き直した: 「`scripts/jargon-list.json` にある用語で、出現するものはすべて説明がつく」。
+- **受け入れ基準「/autoplan ごとに AskUserQuestion は 12 件以下」。** V1 から削除。この目標には、いま V1.1 にあるペーシングの見直しが必要。
 
-## Architecture
+## アーキテクチャ
 
 ```
 ~/.gstack/
@@ -109,7 +109,7 @@ gstack-upgrade/migrations/
   v<VERSION>.sh                     # NEW: V0 → V1 interactive prompt
 ```
 
-### Data flow
+### データフロー
 
 ```
 User runs tier-≥2 skill
@@ -138,7 +138,7 @@ V0 QUESTION_TUNING + question-log + preferences unchanged
 Output to user (gloss-on-first-use, outcome-framed, short sentences; or V0 prose if terse)
 ```
 
-### Data flow: throughput script (build-time)
+### データフロー: スループットのスクリプト(ビルド時)
 
 ```
 bun run build
@@ -156,82 +156,82 @@ bun run scripts/garry-output-comparison.ts
    └── Write docs/throughput-2013-vs-2026.json (per-language + caveats)
 ```
 
-## Security + privacy
+## セキュリティとプライバシー
 
-- **No new user data.** V1 extends preamble prose + config key. No new personal data collected.
-- **No runtime file reads of sensitive data.** Jargon list is a repo-committed curated list.
-- **Migration script is one-shot.** Flag-file prevents re-fire.
-- **scc runs on public repos only.** No access to private work.
+- **新しいユーザーデータはなし。** V1 はプリアンブルの文章と設定キーを拡張するだけ。個人データは新たに収集しない。
+- **機微なデータの実行時の読み取りはなし。** 用語リストは、リポジトリにコミットされた厳選されたリスト。
+- **移行スクリプトは一度きり。** フラグファイルによって、再実行を防ぐ。
+- **scc は公開リポジトリにのみ実行する。** 非公開の作業へのアクセスはない。
 
-## Decisions log (with pros/cons)
+## 決定のログ(長所と短所つき)
 
-### Decision A: Four-level experience axis vs. ELI10 by default — ANSWER: ELI10 BY DEFAULT
+### 決定 A: 4 段階の経験の軸 vs. デフォルトとしての ELI10 — 答え: デフォルトとしての ELI10
 
-**Four-level axis (rejected):** Ask users to self-identify as A/B/C/D on first run. Skills adapt per level.
-- Pros: Explicit user sovereignty. Power users get V0 behavior.
-- Cons: Adds onboarding friction. Forces users to label themselves. Technical expertise isn't one-dimensional. Engineers benefit from the same writing standards non-technical users do.
+**4 段階の軸(却下):** 初回実行時に、ユーザーに A/B/C/D で自己申告させる。スキルはレベルごとに適応する。
+- 長所: 明示的なユーザーの主権。パワーユーザーは V0 の振る舞いを得られる。
+- 短所: オンボーディングの摩擦が増える。ユーザーに自分をラベル付けさせる。技術の専門性は一次元ではない。エンジニアも、非技術者と同じ文章の基準の恩恵を受ける。
 
-**ELI10 by default with terse opt-out (chosen):** Every skill's output defaults to the writing standard. Power users set `explain_level: terse`.
-- Pros: No onboarding question. Good writing benefits everyone. Power users still have an escape hatch.
-- Cons: Silently changes V0 behavior on upgrade → requires migration prompt.
+**terse で無効化する ELI10 がデフォルト(採用):** すべてのスキルの出力は、文章の基準をデフォルトとする。パワーユーザーは `explain_level: terse` を設定する。
+- 長所: オンボーディングの質問がない。良い文章は全員の恩恵になる。パワーユーザーにも逃げ道がある。
+- 短所: アップグレード時に V0 の振る舞いが黙って変わる → 移行のプロンプトが必要。
 
-### Decision B: New resolver file vs. extend existing preamble — ANSWER: EXTEND EXISTING
+### 決定 B: 新しいリゾルバーファイル vs. 既存のプリアンブルを拡張 — 答え: 既存を拡張
 
-**New resolver (rejected):** `scripts/resolvers/eli10-writing.ts` as a separate generator.
-- Pros: Modular.
-- Cons (Codex #7): Conflicts with existing "smart 16-year-old" framing in preamble's AskUserQuestion Format section. Two sources of truth.
+**新しいリゾルバー(却下):** `scripts/resolvers/eli10-writing.ts` を別の生成器として作る。
+- 長所: モジュール化できる。
+- 短所(Codex #7): プリアンブルの AskUserQuestion の書式にある既存の「賢い 16 歳」という枠組みと衝突する。情報源が二つになる。
 
-**Extend preamble (chosen):** Writing Style section added to `scripts/resolvers/preamble.ts` directly below AskUserQuestion Format.
-- Pros: One source of truth. Composes with existing rules.
-- Cons: `preamble.ts` grows.
+**プリアンブルを拡張(採用):** `scripts/resolvers/preamble.ts` に、AskUserQuestion の書式のすぐ下に、文章スタイルのセクションを直接加える。
+- 長所: 情報源が一つ。既存のルールと組み合わさる。
+- 短所: `preamble.ts` が大きくなる。
 
-### Decision C: Runtime suppression vs. conditional prose gate — ANSWER: CONDITIONAL PROSE GATE
+### 決定 C: 実行時の抑制 vs. 条件付きの文章のゲート — 答え: 条件付きの文章のゲート
 
-**Runtime suppression (rejected):** Preamble read of `explain_level` triggers suppression logic.
-- Pros: Simpler mental model.
-- Cons (Codex #1): `gen-skill-docs` produces static Markdown. Once baked, content can't be retroactively hidden. Runtime suppression is fictional.
+**実行時の抑制(却下):** プリアンブルが `explain_level` を読み、抑制のロジックを発動させる。
+- 長所: メンタルモデルが単純。
+- 短所(Codex #1): `gen-skill-docs` は静的な Markdown を出力する。一度焼き込まれると、内容を後から隠すことはできない。実行時の抑制は作り話である。
 
-**Conditional prose gate (chosen):** "Skip this block if EXPLAIN_LEVEL: terse OR user says 'be terse' this turn." Prose convention; agent obeys or disobeys at runtime.
-- Pros: Testable. Matches V0's `QUESTION_TUNING` pattern. Honest about the mechanism.
-- Cons: Depends on agent prose compliance (no hard runtime gate).
+**条件付きの文章のゲート(採用):** 「EXPLAIN_LEVEL: terse のとき、またはユーザーがこのターンで『簡潔に』と言ったときは、このブロックを省く」。プロンプトの約束事。エージェントが実行時に従うか、従わないか。
+- 長所: テストできる。V0 の `QUESTION_TUNING` のパターンと一致する。仕組みについて正直である。
+- 短所: エージェントがプロンプトに従うことに依存する(実行時の強制はない)。
 
-### Decision D: Jargon list location — runtime-user-editable vs. repo-owned gen-time — ANSWER: REPO-OWNED GEN-TIME
+### 決定 D: 用語リストの場所 — 実行時にユーザーが編集可能 vs. リポジトリが管理し生成時に適用 — 答え: リポジトリが管理し生成時に適用
 
-**User-editable at runtime (rejected):** `~/.gstack/jargon-list.json` overrides `scripts/jargon-list.json`.
-- Pros: User can add terms specific to their domain.
-- Cons (Codex #4, Pass 2): Gen-time inlining means user edits require regeneration. Contradiction.
+**実行時にユーザーが編集可能(却下):** `~/.gstack/jargon-list.json` が `scripts/jargon-list.json` を上書きする。
+- 長所: ユーザーが自分の分野に特有の用語を追加できる。
+- 短所(Codex #4、第 2 パス): 生成時のインライン化では、ユーザーの編集には再生成が必要。矛盾する。
 
-**Repo-owned, gen-time inlined (chosen):** `scripts/jargon-list.json` only. PRs to add/remove. `bun run gen:skill-docs` inlines terms into preamble prose.
-- Pros: One source of truth. Zero runtime cost. Composable with existing build.
-- Cons: Users can't add terms locally. Mitigation: documented in CONTRIBUTING.md; PRs accepted.
+**リポジトリが管理し、生成時にインライン化(採用):** `scripts/jargon-list.json` のみ。追加・削除は PR で行う。`bun run gen:skill-docs` が用語をプリアンブルの文章にインライン化する。
+- 長所: 情報源が一つ。実行時のコストがゼロ。既存のビルドと組み合わさる。
+- 短所: ユーザーはローカルで用語を追加できない。緩和策: CONTRIBUTING.md に文書化する。PR を受け付ける。
 
-### Decision E: Pacing overhaul in V1 vs. V1.1 — ANSWER: V1.1 (extracted)
+### 決定 E: V1 でのペーシングの見直し vs. V1.1 — 答え: V1.1(切り出し)
 
-**Pacing in V1 (rejected):** Bundle ranking + auto-accept + Silent Decisions + max-3-per-phase cap + flip mechanism.
-- Pros: Addresses Louise's fatigue directly.
-- Cons (Eng review Pass 3 + Codex Pass 2): 10+ structural gaps unfixable via plan-text editing. Session-state model undefined. `phase` field missing from question-log. Registry doesn't cover dynamic review findings. Flip mechanism has no implementation. Migration prompt itself is an interrupt. First-run preamble prompts also count. Pacing as prose can't invert existing ask-per-section execution order.
+**V1 でのペーシング(却下):** ランキング、自動承認、Silent Decisions、フェーズごとに最大 3 件の上限、flip の仕組みをまとめて入れる。
+- 長所: Louise の疲労に直接対応する。
+- 短所(エンジニアリングレビューの第 3 パス + Codex の第 2 パス): 計画の文章の編集では直せない 10 件以上の構造的な欠陥。セッション状態のモデルが未定義。question-log に `phase` フィールドがない。レジストリがレビューの動的な指摘をカバーしない。flip の仕組みに実装がない。移行のプロンプトそのものが割り込みになる。初回のプリアンブルのプロンプトも数に入る。ペーシングを散文で書いても、既存の順次の質問の実行順序は反転できない。
 
-**Extract to V1.1 (chosen):** Ship ELI10 + LOC in V1. Pacing gets its own design round with full review cycle.
-- Pros: Ships V1 honestly. Gives V1.1 real baseline data from V1 usage (Louise's V1 transcript). Matches SCOPE REDUCTION mode from CEO review.
-- Cons: Louise's fatigue complaint isn't fully addressed until V1.1. Mitigation: V1 still improves her experience via writing quality; V1.1 follows up with pacing.
+**V1.1 へ切り出す(採用):** V1 では ELI10 と LOC を出荷する。ペーシングは、完全なレビューのサイクルを伴う独自のデザインのラウンドを経る。
+- 長所: V1 を誠実に出荷できる。V1 の利用から、V1.1 のための実際のベースラインデータ(Louise の V1 のトランスクリプト)が得られる。CEO レビューのスコープ縮小モードに一致する。
+- 短所: Louise の疲労の不満は、V1.1 まで完全には解決しない。緩和策: V1 でも文章の質を通じて彼女の体験は改善する。V1.1 でペーシングを追って対応する。
 
-### Decision F: README update mechanism — single string vs. two-string — ANSWER: TWO-STRING
+### 決定 F: README の更新の仕組み — 単一の文字列 vs. 二つの文字列 — 答え: 二つの文字列
 
-**Single string (rejected):** `<!-- GSTACK-THROUGHPUT-MULTIPLE: N× -->` as both replacement anchor AND CI-reject marker.
-- Pros: Simple.
-- Cons (Codex Pass 2): Pipeline breaks on itself — CI rejects commits containing the marker, but the marker IS the anchor.
+**単一の文字列(却下):** `<!-- GSTACK-THROUGHPUT-MULTIPLE: N× -->` を、置き換えのアンカーと CI の拒否マーカーの両方として使う。
+- 長所: 単純。
+- 短所(Codex 第 2 パス): パイプラインが自分自身を壊す。CI はマーカーを含むコミットを拒否するが、マーカーこそがアンカーである。
 
-**Two-string (chosen):** `GSTACK-THROUGHPUT-PLACEHOLDER` (anchor, stable) + `GSTACK-THROUGHPUT-PENDING` (explicit missing-build marker, CI rejects).
-- Pros: Anchor persists; CI catches actual failure state.
-- Cons: Two symbols to remember.
+**二つの文字列(採用):** `GSTACK-THROUGHPUT-PLACEHOLDER`(アンカー、安定)+ `GSTACK-THROUGHPUT-PENDING`(ビルドが実行されなかったことを示す明示的なマーカー。CI が拒否する)。
+- 長所: アンカーは残る。CI は実際の失敗の状態を捉える。
+- 短所: 覚える記号が二つある。
 
-## Review record
+## レビューの記録
 
-| Review | Runs | Status | Key findings integrated |
+| レビュー | 実行回数 | ステータス | 取り込んだ主な指摘 |
 |---|---|---|---|
-| CEO Review | 1 | CLEAR (HOLD SCOPE) | Premise pivot: four-level axis → ELI10 by default. Cross-model tensions resolved via explicit user choice. |
-| Codex Review | 2 | ISSUES_FOUND + drove scope reduction | Pass 1: 25 findings, 3 critical blockers (static-markdown, host-paths, README mechanism). Pass 2: 20 findings on revised plan, drove V1.1 extraction. |
-| Eng Review | 3 | CLEAR (SCOPE_REDUCED) | Pass 1: critical gaps + 3 decisions (all A). Pass 2: scoring-formula bug, path contradiction, fake `devDependencies.optional` field. Pass 3: identified pacing structural gaps, drove extraction. |
-| DX Review | 1 | CLEAR (TRIAGE) | 3 critical (docs plan, upgrade migration, hero moment). 9 auto-accepted as Silent DX Decisions. |
+| CEO レビュー | 1 | CLEAR(スコープを維持) | 前提の転換: 4 段階の軸 → デフォルトとしての ELI10。クロスモデルの対立は、ユーザーの明示的な選択によって解決。 |
+| Codex レビュー | 2 | ISSUES_FOUND + スコープ縮小を促した | 第 1 パス: 25 件の指摘、重大な障害 3 件(静的な Markdown、ホストのパス、README の仕組み)。第 2 パス: 修正後の計画に対する 20 件の指摘。V1.1 への切り出しを促した。 |
+| Eng レビュー | 3 | CLEAR(スコープ縮小済み) | 第 1 パス: 重大なギャップ + 3 件の判断(すべて A)。第 2 パス: スコアリングの計算式のバグ、パスの矛盾、存在しない `devDependencies.optional` フィールド。第 3 パス: ペーシングの構造的な欠陥を特定し、切り出しを促した。 |
+| DX レビュー | 1 | CLEAR(トリアージ) | 重大 3 件(文書の計画、アップグレードの移行、ヒーローの瞬間)。9 件を自動承認し、Silent DX Decisions とした。 |
 
-Review report persisted in `~/.gstack/` via `gstack-review-log`. Plan file retained with full history at `~/.claude/plans/system-instruction-you-are-working-transient-sunbeam.md`.
+レビューのレポートは、`gstack-review-log` を通じて `~/.gstack/` に保存する。全履歴を含む計画ファイルは `~/.claude/plans/system-instruction-you-are-working-transient-sunbeam.md` に残す。

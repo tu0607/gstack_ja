@@ -422,7 +422,7 @@ describe('gstack-gbrain-source-wireup — ZeroEntropy sunset advisory (#2365)', 
 
   test('advisory docs entry exists (USING_GBRAIN_WITH_GSTACK.md content pin)', () => {
     const doc = fs.readFileSync(path.join(ROOT, 'USING_GBRAIN_WITH_GSTACK.md'), 'utf-8');
-    expect(doc).toContain('September 4, 2026');
+    expect(doc).toContain('2026 年 9 月 4 日');
     expect(doc).toContain('#2365');
   });
 });

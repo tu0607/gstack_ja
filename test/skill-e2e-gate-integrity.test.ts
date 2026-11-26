@@ -97,7 +97,7 @@ describeIfSelected('Review gate integrity E2E', ['review-gate-integrity'], () =>
 
     fs.writeFileSync(
       path.join(dir, 'review-SKILL.md'),
-      extractSkillSections(path.join(ROOT, 'review'), [...REVIEW_E2E_SECTIONS, 'Step 3.5: Diff scans']),
+      extractSkillSections(path.join(ROOT, 'review'), [...REVIEW_E2E_SECTIONS, 'Step 3.5: 差分のスキャン']),
     );
     fs.copyFileSync(path.join(ROOT, 'review', 'checklist.md'), path.join(dir, 'review-checklist.md'));
     fs.copyFileSync(path.join(ROOT, 'review', 'gate-integrity.md'), path.join(dir, 'review-gate-integrity.md'));

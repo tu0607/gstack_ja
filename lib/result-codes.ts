@@ -110,12 +110,12 @@ export const RESULT_CODES = {
   GATE_REV_STALE: {
     anchor: 'gate-rev-stale',
     summary: 'the reply answers an older revision of the gate list',
-    fix: 'render the current gate list, read it, and reply with its gate_rev',
+    fix: '現在のゲート一覧をレンダリングして読み、その gate_rev を指定して返信してください',
   },
   GATE_REPLY_UNPARSED: {
     anchor: 'gate-reply-unparsed',
     summary: 'part of the reply matched no gate item or option, so nothing was applied',
-    fix: 'reply with `rec`, `as-is`, `<id><option>` tokens (for example `d3b uc1a`), or `rec except <tokens>`; bare yes/no is ambiguous',
+    fix: '`rec`、`as-is`、`<id><option>` のトークン(例: `d3b uc1a`)、または `rec except <tokens>` で返信してください。yes/no だけの返信は曖昧です',
   },
   ANSWER_BY_REQUIRED: {
     anchor: 'answer-by-required',
@@ -278,52 +278,52 @@ export const RESULT_CODES = {
   EXECUTION_UNKNOWN: {
     anchor: 'execution-unknown',
     summary: 'an attempt was dispatched but never reached a terminal record, so the provider may have finished and charged',
-    fix: 'submit the result file if the reviewer finished (`gstack-autoplan submit ... --attempt <id>`), or redispatch explicitly with `gstack-autoplan next --redispatch <id>`; nothing is redispatched automatically',
+    fix: 'レビュアーが完了していれば結果ファイルを submit(`gstack-autoplan submit ... --attempt <id>`)するか、`gstack-autoplan next --redispatch <id>` で明示的に再ディスパッチしてください。自動で再ディスパッチされることはありません',
   },
   RUN_LOCKED: {
     anchor: 'run-locked',
     summary: 'another gstack-autoplan process owns this run directory',
-    fix: 'wait for it to exit, or if its pid is gone run `gstack-autoplan resume --out <dir>` to take ownership',
+    fix: 'そのプロセスの終了を待つか、pid がすでに存在しない場合は `gstack-autoplan resume --out <dir>` を実行して所有権を引き継いでください',
   },
   RUN_NOT_INITIALIZED: {
     anchor: 'run-not-initialized',
     summary: 'the run directory has no run.json written by gstack-autoplan',
-    fix: 'start with `gstack-autoplan next --plan <file> --out <dir>` (the first call initializes the run)',
+    fix: '`gstack-autoplan next --plan <file> --out <dir>` から始めてください(最初の呼び出しが実行を初期化します)',
   },
   PHASE_NOT_AWAITING: {
     anchor: 'phase-not-awaiting',
     summary: 'the submitted phase or voice is not waiting for a result',
-    fix: 'run `gstack-autoplan status --out <dir>` and submit for the attempt `next` printed',
+    fix: '`gstack-autoplan status --out <dir>` を実行し、`next` が出力した試行に対して submit してください',
   },
   ATTEMPT_MISMATCH: {
     anchor: 'attempt-mismatch',
     summary: 'the attempt id does not name the open attempt for this phase and voice, or it was already submitted',
-    fix: 'pass the attempt id `next` printed for this voice; a result is bound exactly once',
+    fix: 'このボイスについて `next` が出力した試行 ID を渡してください。結果が紐づけられるのは 1 回だけです',
   },
   RESULT_RECEIPT_MISSING: {
     anchor: 'result-receipt-missing',
     summary: 'the result file does not start with the full-read receipt `INPUT: <phase> <snapshot sha256>` for this attempt',
-    fix: 'the reviewer must read the prompt file through EOF and begin its result with the INPUT line the prompt names; a result for another snapshot is refused',
+    fix: 'レビュアーはプロンプトファイルを EOF まで読み、プロンプトが示す INPUT 行で結果を始めなければなりません。別のスナップショットの結果は拒否されます',
   },
   RESULT_FINDINGS_MISSING: {
     anchor: 'result-findings-missing',
     summary: 'the result file has no valid canonical findings block (a ```gstack-findings fence of JSONL rows)',
-    fix: 'end the review with one ```gstack-findings fence, one JSON object per line with at least severity and title; `[]` rows are not findings, an empty fence means no findings',
+    fix: 'レビューの最後に ```gstack-findings フェンスを 1 つ置き、1 行につき JSON オブジェクト 1 つ(最低限 severity と title を含める)で終えてください。`[]` の行は指摘ではなく、フェンスが空なら指摘なしを意味します',
   },
   MODEL_FAMILY_CONFLICT: {
     anchor: 'model-family-conflict',
     summary: 'the outside model is in the same family as the native reviewer, or its family is unknown',
-    fix: 'pass `--model <id>` of a different family (anthropic, openai, google, xai, deepseek, qwen, zai, moonshot, meta, mistral); a same-family result is not an outside voice',
+    fix: '別のファミリー(anthropic、openai、google、xai、deepseek、qwen、zai、moonshot、meta、mistral)の `--model <id>` を渡してください。同じファミリーの結果は外部ボイスではありません',
   },
   SPEND_CAP_EXCEEDED: {
     anchor: 'spend-cap-exceeded',
     summary: 'spent + reserved + the next estimate would exceed the spend cap',
-    fix: 'raise `--spend-cap`, settle or release unsettled attempts, or stop; unknown charges count as their reservation',
+    fix: '`--spend-cap` を引き上げるか、未精算の試行を精算または解放するか、停止してください。金額が不明な請求は予約額として数えられます',
   },
   CONSENSUS_MISSING: {
     anchor: 'consensus-missing',
     summary: 'a closed prior phase has no consensus record to include in the Eng dispatch',
-    fix: 'resume the run so the phase closes through reconciliation; the Eng prompt is never sent without every prior phase summary',
+    fix: '実行を resume して、突き合わせ(reconciliation)を経てフェーズを閉じてください。それ以前のすべてのフェーズ要約がそろうまで、Eng のプロンプトは送られません',
   },
   OUTSIDE_RUNNER_UNAVAILABLE: {
     anchor: 'outside-runner-unavailable',
@@ -532,12 +532,12 @@ export const RESULT_CODES = {
   PLAN_SECTIONS_INVALID: {
     anchor: 'plan-sections-invalid',
     summary: 'the plan does not have exactly one non-empty `## Implementation plan` section followed by one `## Review record` section',
-    fix: 'add the missing heading, or rerun the first `gstack-autoplan next` with --scaffold to review a scaffolded copy (your plan file is never edited); duplicate, reversed or empty sections are fixed by hand',
+    fix: '足りない見出しを追加するか、最初の `gstack-autoplan next` を --scaffold 付きで再実行して、足場を付けたコピーをレビューしてください(プランファイル自体は編集されません)。重複、順序の逆転、空のセクションは手で直してください',
   },
   PLAN_AMEND_PENDING: {
     anchor: 'plan-amend-pending',
     summary: 'the owner accepted plan changes at the gate that the plan has not absorbed yet',
-    fix: 'edit the plan, then `gstack-autoplan revise --out <dir> --plan <file> --incorporates <decision id,...>`; settle a packaging or ordering change with `gstack-autoplan revise --out <dir> --settle <id>`; or drop one with `gstack-autoplan revise --out <dir> --withdraw <decision id>`',
+    fix: 'プランを編集してから `gstack-autoplan revise --out <dir> --plan <file> --incorporates <decision id,...>` を実行してください。パッケージングまたは順序の変更は `gstack-autoplan revise --out <dir> --settle <id>` で完了扱いにでき、不要な変更は `gstack-autoplan revise --out <dir> --withdraw <decision id>` で取り下げられます',
   },
   AMENDMENT_UNKNOWN: {
     anchor: 'amendment-unknown',
@@ -547,17 +547,17 @@ export const RESULT_CODES = {
   AMENDMENT_NOT_SETTLEABLE: {
     anchor: 'amendment-not-settleable',
     summary: '`revise --settle` named an accepted change that needs a plan edit (its item changes scope, cost or direction, or names no packaging/ordering change), or the plan has edits no revise has recorded',
-    fix: 'edit the plan, then `gstack-autoplan revise --out <dir> --plan <file> --incorporates <decision id>` (add `--settle <id>` to settle packaging/ordering changes in the same call); settle alone only on the plan the run already reviews',
+    fix: 'プランを編集してから `gstack-autoplan revise --out <dir> --plan <file> --incorporates <decision id>` を実行してください(同じ呼び出しでパッケージング/順序の変更も完了扱いにするには `--settle <id>` を追加します)。`--settle` だけを使えるのは、実行がすでにレビューしているプランに対してのみです',
   },
   GATE_REC_STALE: {
     anchor: 'gate-rec-stale',
     summary: 'a `rec` reply was rendered before `gstack-autoplan recommend` changed the recommendations it takes, or the gate predates `rec` (a gate.json without rec_rev, rendered when `all` left changes pending)',
-    fix: 'render the gate again (`gstack-gate render <dir>/gate.json --all`), relay it, and answer with the printed `--rec-hash`',
+    fix: 'ゲートを再度レンダリング(`gstack-gate render <dir>/gate.json --all`)して中継し、出力された `--rec-hash` を付けて回答してください',
   },
   CHECKPOINT_INVALID: {
     anchor: 'checkpoint-invalid',
     summary: 'no autoplan checkpoint generation can be restored: a manifest is unreadable, a listed file is missing, escapes the generation (by path or symlink) or does not match its sha256, or the staged run does not validate',
-    fix: 'run `gstack-autoplan checkpoints --from <dir>` to see each generation\'s hash status and restore an intact one; nothing was written to --out',
+    fix: '`gstack-autoplan checkpoints --from <dir>` を実行して各世代のハッシュの状態を確認し、損なわれていない世代を復元してください。--out には何も書き込まれていません',
   },
   CHECKPOINT_OVERLAP: {
     anchor: 'checkpoint-overlap',
@@ -572,17 +572,17 @@ export const RESULT_CODES = {
   OWNER_REPLY_REQUIRED: {
     anchor: 'owner-reply-required',
     summary: 'an agent answered the gate (`--by agent:<id>`) without the owner\'s verbatim reply',
-    fix: 'pass the owner\'s words exactly with `--owner-reply "<text>"`, `--owner-reply -` (stdin) or `--owner-reply-file <path>`',
+    fix: 'オーナーの言葉をそのまま、`--owner-reply "<text>"`、`--owner-reply -`(標準入力)、または `--owner-reply-file <path>` で渡してください',
   },
   GATE_OWNER_REPLY_MISMATCH: {
     anchor: 'gate-owner-reply-mismatch',
     summary: 'the owner\'s verbatim reply parses under the gate grammar but resolves to different choices than the relayed tokens',
-    fix: 'relay exactly what the owner chose (or their reply itself, e.g. `--reply rec`); ask the owner when their words and the tokens disagree',
+    fix: 'オーナーが選んだ内容をそのまま中継するか(または返信そのものを、例: `--reply rec`)、オーナーの言葉とトークンが食い違う場合はオーナーに確認してください',
   },
   GSTACK_VERSION_CHANGED: {
     anchor: 'gstack-version-changed',
     summary: 'the run directory was written by a different gstack version',
-    fix: 'nothing to do for an older run (journaled forward migrations ran); a run written by a newer gstack needs that gstack: upgrade with bin/gstack-upgrade',
+    fix: '古い実行には何も必要ありません(記録された前方マイグレーションが実行済みです)。新しい gstack が書いた実行には、その gstack が必要です。bin/gstack-upgrade でアップグレードしてください',
   },
   ARTIFACT_GATE_UNSETTLED: {
     anchor: 'artifact-gate-unsettled',

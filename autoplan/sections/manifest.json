@@ -8,43 +8,43 @@
       "id": "ceo-phase",
       "file": "ceo-phase.md",
       "title": "Phase 1: CEO review (strategy & scope) \u2014 override rules, dual voices, required outputs",
-      "trigger": "starting Phase 1 (CEO review \u2014 always runs, after the Phase 0.5 preflight)"
+      "trigger": "Phase 1(CEO レビュー。Phase 0.5 のプリフライトの後に必ず実行)の開始"
     },
     {
       "id": "design-phase",
       "file": "design-phase.md",
       "title": "Phase 2: design review \u2014 override rules, dual voices, 7-pass checklist",
-      "trigger": "starting Phase 2 (design review \u2014 ONLY if UI scope was detected in Phase 0; skip the read entirely otherwise)"
+      "trigger": "Phase 2(デザインレビュー。Phase 0 で UI スコープを検出した場合のみ。それ以外は読み込み自体を省略)の開始"
     },
     {
       "id": "eng-phase",
       "file": "eng-phase.md",
       "title": "Phase 3: eng review + dual voices \u2014 override rules, test review, required outputs",
-      "trigger": "starting Phase 3 (eng review \u2014 always runs, after all earlier applicable phases have closed)"
+      "trigger": "Phase 3(エンジニアリングレビュー。先行する該当フェーズがすべて閉じた後に必ず実行)の開始"
     },
     {
       "id": "dx-phase",
       "file": "dx-phase.md",
       "title": "Phase 2.5: DX review \u2014 override rules, dual voices, 8-dimension scorecard",
-      "trigger": "starting Phase 2.5 (DX review \u2014 ONLY if developer-facing scope was detected in Phase 0; skip the read entirely otherwise)"
+      "trigger": "Phase 2.5(DX レビュー。Phase 0 で開発者向けスコープを検出した場合のみ。それ以外は読み込み自体を省略)の開始"
     },
     {
       "id": "phase-close",
       "file": "phase-close.md",
       "title": "Close the current review phase \u2014 current readback, reconciliation and visible completion",
-      "trigger": "closing a review phase, after its reviews finish and before announcing completion or loading the next phase (read afresh at each exit)"
+      "trigger": "レビューフェーズの終了(レビューが終わった後、完了の通知または次のフェーズの読み込みより前。終了のたびに読み直す)"
     },
     {
       "id": "tasks-aggregator",
       "file": "tasks-aggregator.md",
       "title": "Phase 4: Implementation Tasks aggregator (builds $AGGREGATED_TASKS for the gate)",
-      "trigger": "presenting the Final Approval Gate (Phase 4) \u2014 the aggregator computes $AGGREGATED_TASKS that the gate message substitutes"
+      "trigger": "最終承認ゲート(Phase 4)の提示(アグリゲーターがゲートメッセージに差し込む $AGGREGATED_TASKS を計算する)"
     },
     {
       "id": "unattended",
       "file": "unattended.md",
       "title": "Unattended profile: parent-driven next/submit loop, gate answers, export, terminal line",
-      "trigger": "the preamble echoed `SESSION_KIND: unattended` (read before Phase 1 and at the Phase 4 gate)"
+      "trigger": "プリアンブルが `SESSION_KIND: unattended` を出力した場合の対応(Phase 1 の前と、Phase 4 のゲートで読む)"
     }
   ]
 }

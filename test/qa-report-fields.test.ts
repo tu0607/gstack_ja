@@ -10,9 +10,8 @@ describe('QA report fields are defined where they are used', () => {
   test('/qa defines every placeholder in its project outcome filename', () => {
     // 37186854666 qa/SKILL.md workflow sample 2: "an undefined `{user}` in the outcome filename".
     const body = read('qa/SKILL.md.tmpl');
-    const start = body.indexOf('-test-outcome-{datetime}.md');
-    const sentence = body.slice(start, body.indexOf('**Per-issue additions:**', start)).replace(/\s+/g, ' ');
-    for (const source of ['`git config user.name`', '`git branch --show-current`', '`unknown-user`', '`detached`', 'UTC `YYYYMMDDTHHMMSSZ`'])
+    const sentence = body.split('\n').find(line => line.includes('-test-outcome-{datetime}.md'))!.replace(/\s+/g, ' ');
+    for (const source of ['`git config user.name`', '`git branch --show-current`', '`unknown-user`', '`detached`', 'UTC の `YYYYMMDDTHHMMSSZ`'])
       expect(sentence).toContain(source);
   });
 
@@ -24,7 +23,7 @@ describe('QA report fields are defined where they are used', () => {
     expect(rules).toContain('**Guarded command time**');
     for (const template of ['qa/templates/functional-report-template.md', 'qa/templates/qa-report-template.md']) {
       const text = read(template);
-      expect(text, template).toMatch(/Probe budget \/ guarded command time/i);
+      expect(text, template).toMatch(/プローブの予算 \/ コマンドの実行時間/);
       expect(text, template).not.toMatch(/\|\s*\**Duration\b/);
     }
   });

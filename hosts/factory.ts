@@ -1,4 +1,4 @@
-import { defineHost } from './define-host';
+import { defineHost, japaneseToolRewrites } from './define-host';
 
 const factory = defineHost({
   name: 'factory',
@@ -28,6 +28,7 @@ const factory = defineHost({
     { from: '.claude/skills', to: '.factory/skills' },
   ],
   toolRewrites: {
+    ...japaneseToolRewrites({ bash: 'コマンドの実行', write: 'ファイルの作成', read: 'ファイルの読み取り', edit: 'ファイルの編集', agent: 'サブエージェントへの委任' }),
     'use the Bash tool': 'run this command',
     'use the Write tool': 'create this file',
     'use the Read tool': 'read the file',

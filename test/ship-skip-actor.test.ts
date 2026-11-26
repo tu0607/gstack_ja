@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import type { HookCallback, Query, SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { QueryProvider } from './helpers/agent-sdk-runner';
 import type { EvalTestEntry } from './helpers/eval-store';
+import { expectMentions } from './helpers/prompt-structure';
 import { createShipSkipFixture, runShipSkipActor, shipSkipWorkflow } from './helpers/ship-skip-actor';
 import { CAPTURE_MS } from './helpers/eval-budgets';
 import { DEFAULT_SHARD_TIMEOUT_MS, retriesForFiles } from '../scripts/test-paid-shards';
@@ -216,7 +217,7 @@ test('registered native callback, real logger and routing adapter retain a bound
     expect(retained.evidence.persisted.completed).toBe(false);
     expect(retained.evidence.product).toBe(retained.evidence.originalProduct);
     expect(retained.evidence.receipts.map((row: any) => row.action)).toEqual(['read', 'persist', 'rediscover', 'advance']);
-    expect(retained.workflow).toContain('Only unmatched or reopened findings remain queued');
+    expectMentions(retained.workflow, [['照合されなかった', '再オープン', 'AUTO-FIX', 'ASK']], 'retained workflow');
     expect(retained.attempts[0].events.filter((event: any) => event.type === 'user').length).toBeGreaterThan(0);
   } finally { fs.rmSync(artifacts, { recursive: true, force: true }); }
 });
@@ -494,9 +495,9 @@ test('fixture ships actual generated decision sections and isolates all model wr
   const fixture = createShipSkipFixture(workflow);
   try {
     expect(fs.readFileSync(fixture.workflowPath, 'utf8')).toBe(workflow);
-    for (const marker of ['### Step 9.3:', '## Step 9.4:', '### Finish the adversarial phase', 'gstack-review-log', '--finish REVIEW_START']) expect(workflow).toContain(marker);
-    expect(workflow).not.toContain('### Decide whether to repeat Step 9');
-    expect(workflow).not.toContain('### Refresh learnings');
+    for (const marker of ['### Step 9.3:', '## Step 9.4:', '### 敵対的フェーズを終える', 'gstack-review-log', '--finish REVIEW_START']) expect(workflow).toContain(marker);
+    expect(workflow).not.toContain('### Step 9 を繰り返すかどうか判断する');
+    expect(workflow).not.toContain('### このブランチの目玉機能について学習内容を更新する');
     expect(fixture.prompt).toContain('earlier reviewers and the rediscovery are explicitly synthetic fixture inputs');
     expect(fixture.prompt).toContain('persist completed:false and converged:false');
     expect(fixture.prompt).toContain('No product writes, direct receipt/config access');

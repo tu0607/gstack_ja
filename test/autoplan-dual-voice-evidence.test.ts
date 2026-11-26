@@ -1,5 +1,5 @@
 import {afterEach, expect, test} from 'bun:test';
-import {chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {chmodSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -12,7 +12,7 @@ afterEach(()=>{for(const dir of owned.splice(0))rmSync(dir,{recursive:true,force
 const use=(id:string,name:string,input:any,session='parent')=>({type:'assistant',session_id:session,message:{content:[{type:'tool_use',id,name,input}]}});
 const ack=(id:string,content:string,is_error=false,session='parent')=>({type:'user',session_id:session,message:{content:[{type:'tool_result',tool_use_id:id,content,is_error}]}});
 function fixture(plan?:string){
- const dir=mkdtempSync(join(tmpdir(),'autoplan-dual-evidence-'));owned.push(dir);
+ const dir=realpathSync(mkdtempSync(join(tmpdir(),'autoplan-dual-evidence-')));owned.push(dir);
  const active=join(dir,'active.md'),restore=join(dir,'restore.md');
  writeFileSync(active,'## Implementation plan\n'+(plan??'# Greet\nPrint hello.\n\n')+'## Review record\n');writeFileSync(restore,plan??'# Greet\nPrint hello.\n');
  const method=prepareMethodology('ceo',join(ROOT,'plan-ceo-review/SKILL.md'),restore);

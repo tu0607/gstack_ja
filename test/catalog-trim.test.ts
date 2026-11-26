@@ -100,18 +100,17 @@ describe('splitCatalogDescription', () => {
 
   test('extracts voice-triggers line when present', () => {
     const desc =
-      'Quick fix. Use when asked to fix the bug. ' +
-      'Voice triggers (speech-to-text aliases): "fix it", "patch this", "make it work". ' +
-      '(gstack)';
+      'Quick fix. Use when asked to fix the bug. (gstack)\n' +
+      '音声トリガー(音声入力の別名): "fix it", "patch this", "make it work"。';
 
     const parts = splitCatalogDescription(desc);
 
     expect(parts.lead).toBe('Quick fix.');
-    expect(parts.voiceLine).toContain('Voice triggers');
+    expect(parts.voiceLine).toContain('音声トリガー');
     expect(parts.voiceLine).toContain('"fix it"');
     expect(parts.routingProse).toContain('Use when asked to fix');
     // Voice line should NOT leak into routing
-    expect(parts.routingProse).not.toContain('speech-to-text');
+    expect(parts.routingProse).not.toContain('音声');
   });
 
   test('handles description without (gstack) tag', () => {

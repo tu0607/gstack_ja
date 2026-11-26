@@ -61,19 +61,21 @@ describe("office-hours section gates on the key (#538)", () => {
 
   test("the opt-out check precedes any resource content", () => {
     const gate = src.indexOf("gstack-config get founder_resources");
-    const pool = src.indexOf("Resource Pool");
+    const pool = src.indexOf("リソースのプール");
     expect(gate).toBeGreaterThan(-1);
     expect(pool).toBeGreaterThan(-1);
     expect(gate).toBeLessThan(pool);
   });
 
   test("skip is silent and permanent — never means never", () => {
-    expect(src).toContain("skip this entire section silently");
+    // Same sentence: skip the entire section silently when the key is false.
+    expect(src.split(/(?<=[。.])|\n/).some(l => l.includes("`false`") && l.includes("セクション全体") && l.includes("何も言わずにスキップ"))).toBe(true);
     expect(src).toContain("gstack-config set founder_resources true");
   });
 
   test("the opt-out write is verified before any promise (R6)", () => {
-    expect(src).toContain("VERIFY the write");
-    expect(src).toMatch(/read back\s*\n?`false`/);
+    expect(src).toContain("gstack-config set founder_resources false");
+    // The write is verified (read back as `false`) before any promise is made.
+    expect(src).toMatch(/書き込みを\*\*検証\*\*してください[\s\S]{0,120}`gstack-config get founder_resources`[\s\S]{0,40}`false`/);
   });
 });

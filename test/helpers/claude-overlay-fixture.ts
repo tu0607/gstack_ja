@@ -15,7 +15,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Fixture, put, runSetup } from './install-fixture';
 
-export const MARKER = 'Effort-match the step';
+export const MARKER = '作業の手順に工数を合わせます';
 
 /** The fixture's bun, plus a switch that fails every out-dir render. */
 export function failableBun(f: Fixture) {

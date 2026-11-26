@@ -144,7 +144,7 @@ Fixes so far: 3 (1 reverted). Remaining: FINDING-004 through FINDING-008.
     } });
     const B = resolveBrowseBin();
     try {
-      const skill = extractSkillSections(path.join(ROOT, 'design-review'), ['Browser fallback: gstack', 'Phase 8: Fix Loop']);
+      const skill = extractSkillSections(path.join(ROOT, 'design-review'), ['Browser fallback: gstack', 'フェーズ 8: 修正ループ']);
       fs.writeFileSync(path.join(root, 'design-review-fix-loop.md'), applyArm(skill, safetyRule('design-review-risk-stop'), arm));
 
       const result = await runSkillTest({

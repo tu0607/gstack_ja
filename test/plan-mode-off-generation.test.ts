@@ -15,8 +15,8 @@ import * as path from 'path';
 import { runGeneration } from '../scripts/gen-skill-docs';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-const SAFE = '## Plan Mode Safe Operations\n';
-const INVOCATION = '## Skill Invocation During Plan Mode\n\n';
+const SAFE = '## Plan Mode Safe Operations(プランモードで安全な操作)\n';
+const INVOCATION = '## Skill Invocation During Plan Mode(プランモード中のスキル呼び出し)\n\n';
 
 let tmp: string;
 let skills: string[];

@@ -3,13 +3,12 @@ name: qa
 preamble-tier: 4
 version: 2.0.0
 description: |
-  Fix browser/API/CLI/job/worker/webhook bugs.
-  Commit verified fixes atomically. Use when asked to "qa", "QA", "test this site", "find bugs",
-  "test and fix", or "fix what's broken".
-  Proactively suggest when the user says a feature is ready for testing
-  or asks "does this work?". Three tiers: Quick (critical/high only),
-  Standard (+ medium), Exhaustive (+ cosmetic). Produces contract outcomes or browser health scores,
-  fix evidence, and a ship-readiness summary. For report-only mode, use /qa-only. (gstack)
+  ブラウザ/API/CLI/ジョブ/ワーカー/Webhook のバグを修正します。
+  検証済みの修正をアトミックにコミットします。「qa」「QA」「このサイトをテストして」「バグを見つけて」
+  「テストして修正して」「壊れている部分を直して」と依頼されたときに使用します。
+  機能の準備ができたと言われたとき、または「これは動く?」と聞かれたときには、積極的に提案してください。
+  3 つの階層があります: Quick(critical/high のみ)、Standard(+ medium)、Exhaustive(+ cosmetic)。
+  契約の結果またはブラウザのヘルススコア、修正の根拠、リリース可否の要約を作成します。報告のみのモードには /qa-only を使ってください。(gstack)
 voice-triggers:
   - "quality check"
   - "test the app"
@@ -35,7 +34,7 @@ triggers:
 
 {{GBRAIN_CONTEXT_LOAD}}
 
-# /qa: Test → Fix → Verify
+# /qa: テスト → 修正 → 検証
 
 ---
 
@@ -43,63 +42,57 @@ triggers:
 
 ---
 
-## Setup
+## セットアップ
 
 {{SECTION:scope}}
 
-**Parse the user's request for these parameters:**
+**ユーザーのリクエストから、次のパラメーターを解析してください:**
 
-| Parameter | Default | Override example |
+| パラメーター | デフォルト | 上書きの例 |
 |-----------|---------|-----------------:|
-| Target | (infer from request/repository or ask) | Browser URL, API route, CLI command, job, worker or webhook |
-| Tier | Standard | `--quick`, `--exhaustive` |
-| Mode | full | `--quick`, `--regression <previous-report-or-baseline>` |
+| Target | (リクエストやリポジトリから推定するか、尋ねる) | ブラウザの URL、API のルート、CLI コマンド、ジョブ、ワーカー、Webhook |
+| Tier | Standard | `--quick`、`--exhaustive` |
+| Mode | full | `--quick`、`--regression <previous-report-or-baseline>` |
 | Output dir | `.gstack/qa-reports/` | `Output to /tmp/qa` |
-| Scope | Selected target (or diff-scoped) | `Focus on duplicate webhook delivery` |
-| Auth | Isolated synthetic identity for functional probes | Browser session handling lives in browser setup; never request credentials in chat |
+| Scope | 選択された対象(または差分のスコープ) | `Focus on duplicate webhook delivery` |
+| Auth | 機能の確認には分離された合成アイデンティティ | ブラウザのセッションの扱いはブラウザのセットアップにある。チャットで認証情報を要求しないこと |
 
-**Tiers determine which issues get fixed:**
-- **Quick:** Fix critical + high severity only
-- **Standard:** + medium severity (default)
-- **Exhaustive:** + low/cosmetic severity
+**階層によって、どの問題を修正するかが決まります:**
+- **Quick:** critical と high の重大度のみを修正
+- **Standard:** + medium の重大度(デフォルト)
+- **Exhaustive:** + low/cosmetic の重大度
 
-`--quick` sets both the Quick fix tier and Quick exploration; `--exhaustive` changes only the fix tier.
-Regression mode preserves the selected fix tier.
-If both `--quick` and `--regression` are supplied, ask which exploration mode to use
-before setup or probes. Keep the selected fix tier; this choice concerns exploration only.
+`--quick` は、Quick の修正階層と Quick の探索の両方を設定します。`--exhaustive` は修正階層のみを変更します。
+Regression モードでは、選択された修正階層を維持します。
+`--quick` と `--regression` の両方が指定された場合は、セットアップやプローブの前に、どの探索モードを使うかをユーザーに尋ねてください。選択された修正階層は維持します。この選択は探索にのみ関係します。
 
-**On a feature branch without an explicit scope:** Use diff-aware testing of changed
-and adjacent behavior. Select the surface first; absence of a URL never forces a browser.
+**明示的なスコープのない機能ブランチの場合:** 変更された箇所と隣接する振る舞いについて、差分を意識したテストを使ってください。まず対象を選択してください。URL がないことが、ブラウザを強制することはありません。
 
-**Check for clean working tree:**
+**作業ツリーがクリーンであることを確認:**
 
 ```bash
 git status --porcelain
 ```
 
-If dirty, **STOP** and use AskUserQuestion. Explain that a clean tree keeps QA fixes atomic:
-- A) Commit all current changes with a descriptive message before QA (recommended).
-- B) Stash changes, run QA, then pop the stash.
-- C) Abort for manual cleanup.
+ツリーが汚れている場合は **STOP** し、AskUserQuestion を使ってください。クリーンなツリーは QA の修正をアトミックに保つ、と説明してください:
+- A) QA の前に、現在のすべての変更を説明的なメッセージでコミットする(推奨)。
+- B) 変更をスタッシュし、QA を実行してから、スタッシュを pop する。
+- C) 手動でのクリーンアップのために中止する。
 
-Execute only the user's choice before continuing setup.
+セットアップを続ける前に、ユーザーの選択だけを実行してください。
 
-**Prepare report artifacts before browser setup.** Resolve any supplied prior report
-and baseline paths before writing. Select the output override or `.gstack/qa-reports`.
-Create that directory if absent. Use the directory as `REPORT_DIR`
-only when it is empty; otherwise choose a fresh owned run subdirectory.
-Use `run-YYYYMMDDTHHMMSSZ` in UTC, adding a suffix on collision. Keep all local evidence there.
-Never overwrite previous reports, baselines, screenshots or exploration notes.
-A caller's fixed artifact paths and permissions take precedence; if preserving them
-safely is impossible, report the output blocker rather than expanding write authority.
+**ブラウザのセットアップの前に、レポートの成果物を準備してください。** 書き込みの前に、指定された以前のレポートとベースラインのパスを解決します。出力先の上書きを選ぶか、`.gstack/qa-reports` を選びます。
+そのディレクトリが存在しなければ作成します。ディレクトリが空の場合にのみ、それを `REPORT_DIR` として使ってください。空でない場合は、新しく所有する実行用のサブディレクトリを選んでください。
+UTC の `run-YYYYMMDDTHHMMSSZ` を使い、衝突した場合はサフィックスを付けます。すべてのローカルの根拠をそこに保管してください。
+以前のレポート、ベースライン、スクリーンショット、探索メモは決して上書きしないでください。
+呼び出し元が指定した固定の成果物のパスと権限が優先されます。それらを安全に保持できない場合は、書き込みの権限を広げるのではなく、出力のブロッカーとして報告してください。
 
-**Browser surface only:** load its setup; functional-only runs skip this section.
+**ブラウザの対象のみ:** そのセットアップを読み込みます。機能のみの実行では、このセクションをスキップします。
 
 {{SECTION:browser-setup}}
 
-**Browser surface only:** check the test framework and use the existing bootstrap
-offer if needed. Functional targets use supported native tests or report the gap;
-they do not load this browser bootstrap or generate CI.
+**ブラウザの対象のみ:** テストフレームワークを確認し、必要であれば既存のブートストラップの提案を使ってください。機能の対象では、サポートされているネイティブのテストを使うか、そのギャップを報告します。
+これらのブラウザ用のブートストラップを読み込んだり、CI を生成したりはしません。
 
 {{SECTION:test-bootstrap}}
 
@@ -107,83 +100,72 @@ they do not load this browser bootstrap or generate CI.
 
 {{LEARNINGS_SEARCH:query=qa testing bug regression flake fixture}}
 
-## Test Plan Context
+## Test Plan Context(テストプランの文脈)
 
-Prefer the richer of recent project test plans and plans in conversation over git diff:
+git の差分より、プロジェクトの最近のテスト計画と、会話にある計画のうち、より内容の豊富なものを優先してください:
 
-1. **Project-scoped test plans:** Find the latest for this repo:
+1. **プロジェクトスコープのテスト計画:** このリポジトリの最新のものを探します:
    ```bash
    GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
    setopt +o nomatch 2>/dev/null || true  # zsh compat
    {{SLUG_EVAL}}
    ls -t "$GSTACK_STATE_ROOT"/projects/$SLUG/*-test-plan-*.md 2>/dev/null | head -1
    ```
-2. **Conversation context:** Prior `/plan-eng-review` or `/plan-ceo-review` test plans.
-3. Fall back to git diff only if neither exists.
+2. **会話の文脈:** 以前の `/plan-eng-review` または `/plan-ceo-review` のテスト計画。
+3. どちらも存在しない場合にのみ、git の差分に戻ります。
 
 ---
 
-## Phases 1-6: QA Baseline
+## Phases 1-6: QA のベースライン
 
-Follow the shared section's ordered preparation, then run its probe loop.
-Inside that loop, browser runs apply qa-patterns.md's numbered Phases 1-6 as techniques,
-and functional runs apply system-functional.md's contract map; neither is a separate workflow.
+共有セクションの順序付けられた準備に従い、そのプローブのループを実行してください。
+そのループの中で、ブラウザの実行では qa-patterns.md の番号付きの Phases 1-6 を手法として適用し、機能の実行では system-functional.md の契約マップを適用します。どちらも独立したワークフローではありません。
 
 {{SECTION:exploratory}}
 
-Report baseline findings before fixing. Keep browser scores and functional outcomes separate.
+修正の前に、ベースラインの指摘を報告してください。ブラウザのスコアと機能の結果は、分けて保持してください。
 
 ---
 
-## Output Structure
+## 出力の構造
 
-Under `$REPORT_DIR`, write `qa-report-{target}-{YYYY-MM-DD}.md` and the browser's
-`baseline.json`. Browser `{target}` is a safe hostname.
-Browser evidence goes in `screenshots/`: `initial.jpg`,
-`issue-NNN-step-N.jpg`, `issue-NNN-result.jpg`, annotated `issue-NNN.png` and
-`issue-NNN-after.jpg` (Phase 5 is the before). Functional reports use a safe command/service
-label and sanitized command/request/state evidence.
+`$REPORT_DIR` の下に、`qa-report-{target}-{YYYY-MM-DD}.md` とブラウザの `baseline.json` を書き込みます。ブラウザの `{target}` は安全なホスト名です。
+ブラウザの根拠は `screenshots/` に保存します: `initial.jpg`、
+`issue-NNN-step-N.jpg`、`issue-NNN-result.jpg`、注釈付きの `issue-NNN.png`、`issue-NNN-after.jpg`(Phase 5 が修正前)。機能のレポートでは、安全なコマンド/サービスのラベルと、サニタイズされたコマンド/リクエスト/状態の根拠を使います。
 
 ---
 
-## Phase 7: Triage
+## Phase 7: トリアージ
 
-Sort issues by severity and apply the selected fix tier. Mark lower-tier issues and
-those not fixable from source (third-party widgets, infrastructure) as "deferred."
+問題を重大度で並べ替え、選択された修正階層を適用します。より低い階層の問題と、ソースからは修正できないもの(サードパーティのウィジェット、インフラ)には「deferred」(延期)とマークしてください。
 
-### Refresh learnings for the component/page where the bug lives
+### バグがあるコンポーネント/ページの学習内容を更新する
 
-Before the fix loop, search again for the buggy component/page. Use ONE noun containing
-only letters, digits or hyphens (e.g., `checkout-button`, `payment`), never a path,
-quotes, whitespace or other punctuation; simplify to an alphanumeric stem if needed.
+修正ループの前に、バグのあるコンポーネント/ページを改めて検索してください。名詞は 1 つだけ使い、文字、数字、ハイフンのみを含めてください(例: `checkout-button`、`payment`)。パス、引用符、空白、その他の句読点は決して含めないでください。必要であれば、英数字の語幹に単純化してください。
 
 ```bash
 { _LE=$(~/.claude/skills/gstack/bin/gstack-learnings-search --query "<your-keyword>" --limit 5 2>&1 >&3 3>&-); _LR=$?; } 3>&1
 [ "$_LR" = 0 ] || { _LE=${_LE%%$'\n'*}; echo "LEARNINGS: unavailable (${_LE:-exit $_LR})"; }
 ```
 
-Name an applicable learning in one sentence, or continue if none applies.
+該当する学習内容があれば 1 文で名前を挙げ、なければ続けてください。
 
 ---
 
-## Phase 8: Fix Loop
+## Phase 8: 修正ループ
 
-For each fixable issue, in severity order:
+修正可能な問題ごとに、重大度の順に:
 
-### 8a. Diagnose and reproduce
+### 8a. 診断と再現
 
-Use the shared loop's causal hypothesis and minimized replay, recording actual versus
-documented behavior before edits. Modify only responsible files. Environment failures
-and unclear contracts never authorize repair.
+共有ループの因果の仮説と、最小化されたリプレイを使い、編集の前に、実際の振る舞いと文書化された振る舞いを記録してください。責任のあるファイルだけを変更します。環境の失敗や不明確な契約では、修復は決して許可されません。
 
-### 8a.5. Regression test before repair
+### 8a.5. 修復の前に回帰テストを書く
 
 {{TEST_VALUE_BAR:qa}}
 
-Extend an existing table or fixture when one covers the boundary; never add a production
-seam for the test. Match 2-3 nearby tests' naming, imports, assertions and fixtures, and detect the command that runs them. Reproduce the failure
-in a new native test. Run its detected command before repair; prove the defect caused its
-failure, not a bad fixture, import or service. Attribute it in the language's comment syntax:
+境界をカバーする既存の表またはフィクスチャがあれば、それを拡張してください。テストのために本番のシームを追加しないでください。近くにある 2〜3 個のテストの命名、インポート、アサーション、フィクスチャに合わせ、それらを実行するコマンドを検出します。
+新しいネイティブのテストで失敗を再現してください。修復の前に、検出したコマンドを実行し、その失敗が不良なフィクスチャ、インポート、サービスではなく、欠陥によるものだと証明してください。言語のコメント構文で、次のように帰属を示します:
 
 ```text
 // Regression: ISSUE-NNN — short defect description
@@ -191,106 +173,93 @@ failure, not a bad fixture, import or service. Attribute it in the language's co
 // Report: .gstack/qa-reports/qa-report-{target}-{date}.md
 ```
 
-A clear, healthy uncovered contract may gain a passing test without product edits.
+明確で健全なカバーされていない契約には、製品の編集なしに、合格するテストを追加してもかまいません。
 
-Apply the shared exploratory section's native unit/integration/E2E rules.
-CSS-only defects may use browser evidence. Missing infrastructure stays coverage debt.
+共有の探索セクションのネイティブのユニット/統合/E2E のルールを適用してください。
+CSS のみの欠陥では、ブラウザの根拠を使ってかまいません。インフラが欠けている場合は、カバレッジの負債として扱います。
 
-Use the component's name and native extension in auto-incrementing `{name}.regression-N.test.{ext}`.
-Set N to max number + 1, starting at 1; never replace an existing file.
-Keep valid red regressions; narrowly correct a proved
-fixture/test error or report the unresolved bug.
+コンポーネントの名前とネイティブの拡張子を使い、自動で増分する `{name}.regression-N.test.{ext}` を使ってください。N は最大の番号 + 1 とし、1 から始めます。既存のファイルは決して置き換えないでください。
+有効な赤の回帰テストは残してください。証明された誤りがフィクスチャやテストにある場合は、それだけを最小限に修正するか、未解決のバグとして報告してください。
 
-### 8b. Fix
+### 8b. 修正
 
-Read the surrounding source and make the **minimal fix**. No unrelated refactors or features.
+周囲のソースを読み、**最小限の修正** を行ってください。関係のないリファクタリングや機能追加はしないでください。
 
-### 8c. Re-test
+### 8c. 再テスト
 
-Re-run the regression, original failing probe and adjacent happy path. Inspect each
-final state; acceptance alone cannot verify a worker repair. Failed/unavailable rechecks stay unresolved:
-try one revised minimal fix, else classify it reverted.
+回帰テスト、元の失敗したプローブ、隣接する正常系のパスを再実行してください。各最終状態を確認します。受け入れだけでは、ワーカーの修復を検証できません。失敗した、または利用できない再確認は未解決のままにします。改訂した最小限の修正を一度試し、それでもだめなら、差し戻されたものとして分類します。
 
-For browser defects only:
+ブラウザの欠陥だけに、次を適用します:
 
 {{SECTION:browser-verify}}
 
-### 8d. Commit verified work
+### 8d. 検証済みの作業をコミットする
 
 ```bash
 git add <only-verified-source-and-regression-files>
 git commit -m "fix(qa): ISSUE-NNN — short description"
 ```
 
-Commit each verified fix with its regression, never unrelated fixes. Leave unresolved
-repairs and valid red regressions/evidence uncommitted; tell the user what remains.
+検証済みの修正ごとに、その回帰テストと一緒にコミットしてください。関係のない修正は決してコミットしないでください。未解決の修復や有効な赤の回帰テスト/根拠は、コミットせずに残し、何が残っているかをユーザーに伝えてください。
 
-### 8e. Classify
+### 8e. 分類
 
-- **verified**: passed 8c (native regression when available); disclose missing test coverage
-- **best-effort**: fix applied but couldn't fully verify (e.g., needs auth state, external service)
-- **reverted**: regression detected or finding unresolved → undo only this run's repair (revert its commit if already committed), retain the valid regression/evidence, and mark the issue "deferred". Never discard user changes.
+- **verified**: 8c に合格(利用可能な場合はネイティブの回帰テスト)。テストのカバレッジが欠けている場合はそれを開示する。
+- **best-effort**: 修正は適用したが、完全には検証できなかった(例: 認証の状態、外部サービスが必要)。
+- **reverted**: 回帰が検出された、または指摘が未解決 → この実行の修復のみを元に戻す(すでにコミットされている場合はそのコミットを revert する)。有効な回帰テストや根拠は残し、その問題を「deferred」とマークする。ユーザーの変更は決して破棄しないこと。
 
-### 8e.5. Regression Test record
+### 8e.5. 回帰テストの記録
 
-Record the test created before repair in 8a.5 and its re-test result from 8c:
-file, command, attribution, tested boundary, value card and red/green evidence, or why it is deferred.
-This step records results; it does not create another test.
-Healthy-contract commits use `test(qa): regression test for {contract}`.
-**Self-regulation exclusion:** test-only commits do not count toward the stop rule in 8f.
+8a.5 で修復の前に作成したテストと、8c の再テストの結果を記録します:
+ファイル、コマンド、帰属、テストした境界、価値カード、赤/緑の根拠、または延期の理由。
+この手順は結果を記録するもので、別のテストを作成するものではありません。
+健全な契約のコミットには `test(qa): regression test for {contract}` を使います。
+**自己規制の除外:** テストのみのコミットは、8f の停止ルールには数えません。
 
-### 8f. Self-Regulation (STOP AND EVALUATE)
+### 8f. 自己規制(STOP して評価する)
 
-Every 5 fixes, and after any revert, check whether the loop is doing more harm than
-good. **STOP immediately** after two reverts or one edit to a file unrelated to the
-finding. Also stop when fixes keep spanning many files or only Low issues remain.
-Show the user what you've done so far and ask whether to continue.
+5 件の修正ごとに、そして差し戻しの後にはいつでも、ループが良い結果よりも害をもたらしていないかを確認してください。2 件の差し戻し、または指摘と無関係なファイルへの 1 回の編集の後は、**すぐに STOP** してください。修正が多くのファイルにまたがり続ける場合、または低い重大度の問題しか残っていない場合も停止します。
+これまでに行ったことをユーザーに示し、続けるかどうかを尋ねてください。
 
-**Hard cap: 50 fixes.** After 50 fixes, stop regardless of remaining issues.
+**上限: 修正 50 件。** 50 件の修正の後は、残りの問題に関係なく停止してください。
 
 ---
 
-## Phase 9: Final QA
+## Phase 9: 最終 QA
 
-Re-run affected contracts and adjacent happy paths on the final inputs.
-Caller-required rechecks cannot be skipped as unaffected. For browser
-surfaces, recheck affected pages and compute the final health score. Warn prominently
-about a worse score or regressed contract; blocked/inconclusive rechecks never verify repairs.
+最終的な入力に対して、影響を受けた契約と隣接する正常系のパスを再実行してください。
+呼び出し元が必要とする再確認を、影響を受けないとして飛ばすことはできません。ブラウザの対象では、影響を受けたページを再確認し、最終的なヘルススコアを計算します。スコアが悪化した場合、または契約が回帰した場合は、目立つように警告してください。ブロックされた、または結論が出ていない再確認は、修復を検証することは決してありません。
 
 ---
 
-## Phase 10: Report
+## Phase 10: レポート
 
-Write the Output Structure report locally and copy the same content to project context:
+出力の構造のレポートをローカルに書き込み、同じ内容をプロジェクトのコンテキストにもコピーしてください:
 ```bash
 {{SLUG_SETUP}}
 ```
-Write to `<PROJECT_DIR>/{user}-{branch}-test-outcome-{datetime}.md` (`PROJECT_DIR` printed above)
-from `git config user.name`, `git branch --show-current` (else `unknown-user`, `detached`;
-non-alphanumerics → `-`) and UTC `YYYYMMDDTHHMMSSZ`.
+`git config user.name`、`git branch --show-current`(不明な場合は `unknown-user`、`detached`。英数字以外は `-` に置換)と、UTC の `YYYYMMDDTHHMMSSZ` から、`<PROJECT_DIR>/{user}-{branch}-test-outcome-{datetime}.md`(上で表示された `PROJECT_DIR`)に書き込みます。
 
-**Per-issue additions:**
-- Fix Status: verified / best-effort / reverted / deferred
-- Commit SHA (if fixed)
-- Files Changed (if fixed)
-- Before/After evidence: screenshots for browser, outputs/requests/durable state for functional
+**問題ごとの追加項目:**
+- 修正ステータス: verified / best-effort / reverted / deferred
+- コミットの SHA(修正された場合)
+- 変更されたファイル(修正された場合)
+- 修正前/修正後の根拠: ブラウザならスクリーンショット、機能なら出力/リクエスト/永続的な状態
 
-**Summary:** total issues, verified/best-effort/reverted fixes and deferred issues.
-For browser coverage include the score delta. For functional coverage include
-passing/failing/blocked/not-run contracts, permanent regressions and remaining risks,
-never a score. Keep mixed results separate.
+**要約:** 問題の総数、verified/best-effort/reverted の修正と deferred の問題。
+ブラウザのカバレッジでは、スコアの差分を含めてください。機能のカバレッジでは、合格/失敗/ブロック/未実行の契約、恒久的な回帰、残っているリスクを含めてください。スコアは決して示さないこと。混合の結果は分けて保持してください。
 
-**PR Summary:** one line, "QA found N issues, fixed M, health score X → Y."
-Functional targets: contract outcomes, not a score.
+**PR の要約:** 1 行で、「QA found N issues, fixed M, health score X → Y.」
+機能の対象: スコアではなく、契約の結果。
 
 ---
 
-## Phase 11: TODOS.md Update
+## Phase 11: TODOS.md の更新
 
-If the repo has a `TODOS.md`:
+リポジトリに `TODOS.md` がある場合:
 
-1. **New deferred bugs** → add as TODOs with severity, category, and repro steps
-2. **Fixed bugs that were in TODOS.md** → annotate with "Fixed by /qa on {branch}, {date}"
+1. **新しく延期されたバグ** → 重大度、カテゴリ、再現手順を付けて TODO として追加する
+2. **TODOS.md にあった、修正済みのバグ** → 「Fixed by /qa on {branch}, {date}」と注記する
 
 ---
 
@@ -298,8 +267,8 @@ If the repo has a `TODOS.md`:
 
 {{GBRAIN_SAVE_RESULTS}}
 
-## Additional Rules (qa-specific)
+## Additional Rules (qa-specific)(追加のルール。qa 固有)
 
-**Outside an explicitly approved browser bootstrap:** Only create tests through authorized codification in Phase 8a.5. Never modify CI configuration or weaken existing tests; use new native test files.
+**明示的に承認されたブラウザのブートストラップの外では:** Phase 8a.5 で明文化された承認がある手順によってのみテストを作成してください。CI の設定を変更したり、既存のテストを弱めたりは決してしないでください。新しいネイティブのテストファイルを使ってください。
 
-When in doubt, stop and ask.
+迷ったら、止まって尋ねてください。

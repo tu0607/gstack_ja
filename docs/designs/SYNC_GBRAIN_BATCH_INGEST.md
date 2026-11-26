@@ -1,138 +1,86 @@
-# /sync-gbrain batch ingest migration
+# /sync-gbrain バッチ取り込みの移行
 
-**Status:** Implemented on garrytan/dublin-v1 (D1-D8 decisions land in this PR)
-**Branch:** garrytan/dublin-v1
-**Owner:** Garry Tan
-**Triggered by:** /investigate run, 2026-05-09
-**Estimated effort:** human ~3 days / CC+gstack ~2 hr
-**Files touched:** 4 source + 1 test = 5 total (under estimate)
+**ステータス:** garrytan/dublin-v1 で実装済み(D1-D8 の判断をこの PR に含める)
+**ブランチ:** garrytan/dublin-v1
+**担当:** Garry Tan
+**きっかけ:** 2026-05-09 の /investigate の実行
+**見積もり工数:** 人間 約3日 / CC+gstack 約2時間
+**変更ファイル:** ソース 4 件 + テスト 1 件 = 計 5 件(見積もりより少ない)
 
-## Decisions (post-review)
+## 判断(レビュー後)
 
-This doc captures the original architecture. Final architecture lands per
-the 8 review decisions captured in
-`/Users/garrytan/.claude/plans/purrfect-tumbling-quiche.md`:
+このドキュメントは、当初のアーキテクチャを記録している。最終的なアーキテクチャは、次の8件のレビュー判断に従う(`/Users/garrytan/.claude/plans/purrfect-tumbling-quiche.md` に記録)。
 
-- **D1** hierarchical staging dir (mkdir -p per slug segment) — kept
-- **D2** cut over + delete legacy in same PR (no `--legacy-ingest` flag) — kept
-- **D3** scan source-file first, stage only clean — kept
-- **D4** ~~three-state OK/DEGRADED/ERR verdict~~ COLLAPSED to OK/ERR per
-  Codex finding 7 (gbrain content_hash idempotency makes the third state
-  redundant)
-- **D5** ~~skip_reason field in state schema~~ DROPPED per Codex finding 7
-  (re-runs are cheap; no need for permanent skip-tracking)
-- **D6** trust gbrain's content_hash idempotency; drop bookkeeping
-  scaffolding (skip_reason, three-state, SIGTERM checkpoint)
-- **D7** per-file failure detection via `~/.gbrain/sync-failures.jsonl`
-  (byte-offset snapshot + appended-only read)
-- **D8** bundle 3 in-scope pre-existing fixes: F6 atomic saveState
-  (tmp+rename), F8 isolated-stage benchmark, F9 full-file sha256 hash
-  (no more 1MB cap)
+- **D1** 階層化したステージングディレクトリ(スラッグのセグメントごとに mkdir -p)— 採用
+- **D2** 切り替えと同じ PR で旧方式を削除(`--legacy-ingest` フラグは作らない)— 採用
+- **D3** 元のソースファイルを先にスキャンし、クリーンなものだけをステージする — 採用
+- **D4** ~~三状態の OK/DEGRADED/ERR の判定~~ Codex の指摘 7 により OK/ERR の二状態に統合(gbrain の content_hash による冪等性があるため、第三の状態は不要)
+- **D5** ~~状態スキーマの skip_reason フィールド~~ Codex の指摘 7 により削除(再実行は安いので、永続的なスキップ管理は不要)
+- **D6** gbrain の content_hash による冪等性を信頼し、帳簿の仕組み(skip_reason、三状態、SIGTERM のチェックポイント)は削除する
+- **D7** `~/.gbrain/sync-failures.jsonl` によるファイル単位の失敗検出(バイトオフセットのスナップショットと追記のみの読み取り)
+- **D8** スコープ内の既存の不具合を 3 件まとめて修正: F6 アトミックな saveState(tmp + rename)、F8 隔離ステージングのベンチマーク、F9 ファイル全体の sha256 ハッシュ(1MB の上限を撤廃)
 
-## Verified from gbrain source
+## gbrain のソースで検証済み
 
-Three properties verified by reading `~/git/gbrain/src/`:
+`~/git/gbrain/src/` を読んで、3 つの性質を確認した。
 
-- **Idempotency** at `core/import-file.ts:242-243, :478` — content_hash
-  check, skip if unchanged, overwrite if changed.
-- **Frontmatter parity** at `core/import-file.ts:228, 297, 410-422` —
-  title/type/tags honored; auto-inference only when frontmatter absent.
-- **Path-authoritative slug** at `core/sync.ts:260` (`slugifyPath`),
-  enforced at `core/import-file.ts:429`.
-- **Per-file failures surface** at `commands/import.ts:308-310`,
-  comment at `:28`: "callers can gate state advances" — the
-  intentional API for what D7 uses.
+- **冪等性**: `core/import-file.ts:242-243, :478` — content_hash を確認し、変わっていなければスキップ、変わっていれば上書き。
+- **frontmatter の整合**: `core/import-file.ts:228, 297, 410-422` — title/type/tags を反映する。frontmatter がないときだけ自動推論する。
+- **パスを正とするスラッグ**: `core/sync.ts:260`(`slugifyPath`)、`core/import-file.ts:429` で適用される。
+- **ファイル単位の失敗の表面化**: `commands/import.ts:308-310`。`:28` のコメントは「callers can gate state advances」。D7 が使う意図された API である。
 
-## Performance: planned vs measured (post 2026-05-10 perf review)
+## 性能: 計画と計測値(2026-05-10 の性能レビュー後)
 
-| Metric | Plan target | Measured | Verdict |
+| 指標 | 計画の目標 | 計測値 | 判定 |
 |---|---|---|---|
-| Prepare phase on 5135 files | — | <10s | FAST |
-| `gbrain import` on 5135 files | — | >10 min | gbrain-side perf issue, filed |
-| Loop / hang (original bug) | never | never | FIXED |
-| Memory ingest exits null on SIGTERM | no | no — state writes succeed; child gbrain dies with parent | FIXED |
-| FILE_TOO_LARGE blocks last_commit | no | no — failed paths excluded via D7 | FIXED |
+| 5135 ファイルでの準備フェーズ | — | <10s | 速い |
+| 5135 ファイルでの `gbrain import` | — | >10 分 | gbrain 側の性能問題、起票済み |
+| ループ/ハング(当初のバグ) | なし | なし | 修正済み |
+| SIGTERM でメモリの取り込みが null で終了 | なし | なし — 状態の書き込みは成功。子の gbrain は親とともに終了する | 修正済み |
+| FILE_TOO_LARGE が last_commit を止める | なし | なし — 失敗したパスは D7 で除外される | 修正済み |
 
-**Initial perf miss + correction.** The first cold-run measurement
-(~12 min) was dominated by 1841 sequential gitleaks subprocess spawns
-at ~256ms each — a redundant security gate. The cross-machine
-exfiltration boundary is `gstack-brain-sync` (bin/gstack-brain-sync:78-110,
-regex-based secret scan on staged diff before `git commit`). Scanning
-every source file before ingest into a LOCAL PGLite doesn't change
-exposure — the secret already lives on disk in plaintext. We made
-per-file gitleaks opt-in via `--scan-secrets`. Default is off. That
-cut the prepare phase from ~12 min to under 10 seconds.
+**当初の性能の見込み違いと修正。** 最初のコールドランの計測(約 12 分)の大半は、1841 回の逐次的な gitleaks サブプロセスの起動(それぞれ約 256ms)に費やされていた。これは冗長なセキュリティゲートだった。クロスマシンの流出の境界は `gstack-brain-sync`(bin/gstack-brain-sync:78-110、コミット前にステージされた差分を正規表現でシークレットスキャンする)である。ローカルの PGLite に取り込む前に、すべてのソースファイルをスキャンしても、露出は変わらない。シークレットは既にディスク上に平文で存在しているからだ。そこで、ファイルごとの gitleaks はオプトインにし、既定ではオフにした。これにより準備フェーズは約 12 分から 10 秒未満になった。
 
-The remaining cold-run cost is `gbrain import` itself, which scales
-worse than linear on large staging dirs (10s for 501 files; >10 min
-for 5031). That's a gbrain-side perf issue, not gstack architecture.
-Filed as a TODO; the fix likely lives in gbrain's content_hash check
-loop or auto-link reconciliation phase.
+残りのコールドランのコストは、`gbrain import` 自体である。大きなステージングディレクトリでは、線形より悪くスケールする(501 ファイルで 10 秒、5031 ファイルで 10 分超)。これは gstack の設計ではなく、gbrain 側の性能問題である。TODO として起票済み。修正は gbrain の content_hash チェックのループか、自動リンクの調整フェーズにある可能性が高い。
 
-## F9 hash migration (one-time cliff)
+## F9 のハッシュ移行(一度きりの切り替え)
 
-F9 switched `fileSha256` from a 1MB-capped hash to full-file. Existing state
-entries from before this change carry the old 1MB-capped hash. For any file
-whose mtime hasn't changed, `fileChangedSinceState` returns false at the
-mtime check and the new hash is never computed — so unchanged files behave
-identically. For any file whose mtime DOES change after upgrade, the
-full-file hash is recomputed and (correctly) treated as changed, then
-re-imported. The `gbrain doctor` probe report's `updated_count` may show
-inflated numbers on the first run post-upgrade because every touched file
-crosses the algorithm boundary. No data loss, but worth knowing.
+F9 は `fileSha256` を、1MB で上限を設けたハッシュからファイル全体のハッシュに切り替えた。この変更より前の既存の状態エントリは、古い 1MB 上限のハッシュを持つ。mtime が変わっていないファイルでは、`fileChangedSinceState` が mtime のチェックで false を返すため、新しいハッシュは計算されない。そのため、変更のないファイルは以前と同じように動く。アップグレード後に mtime が変わったファイルでは、ファイル全体のハッシュが再計算され、(正しく)変更ありとみなされて再インポートされる。`gbrain doctor` のプローブレポートの `updated_count` は、アップグレード後の最初の実行で水増しされて見えるかもしれない。触れたファイルはすべてアルゴリズムの境界をまたぐからだ。データの損失はないが、知っておく価値はある。
 
-## Follow-ups (filed as TODOs)
+## 後続の作業(TODO として起票)
 
-1. **gbrain import perf on large dirs** — investigate why 5031 files
-   take >10 min when 501 takes 10s. Likely culprits: N+1 SQL for
-   `getPage(slug)` content_hash check, per-page auto-link reconciliation,
-   FTS index updates without batching. Lives in gbrain, not gstack.
-2. **Optional: source-file changed-detection cache** — even with the
-   prepare phase fast, walking 5031 files takes some time. Caching
-   the "no changes since last successful import" state at the
-   batch level (not per-file) would skip the prepare phase entirely
-   on a no-op incremental run.
+1. **大きなディレクトリでの gbrain import の性能** — 501 ファイルは 10 秒なのに、5031 ファイルで 10 分超かかる理由を調べる。考えられる原因: `getPage(slug)` による content_hash チェックでの N+1 の SQL、ページごとの自動リンクの調整、バッチ化されていない FTS インデックスの更新。gstack ではなく gbrain の中にある問題。
+2. **任意: ソースファイルの変更検出キャッシュ** — 準備フェーズが速くなっても、5031 ファイルを歩くにはそれなりの時間がかかる。最後に成功した取り込み以降に変更がない状態を、バッチ単位(ファイル単位ではない)でキャッシュすれば、変更のない増分実行では準備フェーズを丸ごと省略できる。
 
-## Problem
+## 課題
 
-`/sync-gbrain` memory stage takes 35 minutes on a fresh PGLite and exits null,
-losing all progress. Subsequent runs redo the same 35 minutes. Observed in
-two consecutive runs (gbrain 0.30.0 broken-postgres run: 712s exit-null;
-gbrain 0.31.2 PGLite run: 2100s exit-null with 501 pages actually persisted).
+`/sync-gbrain` のメモリ段階は、新しい PGLite では 35 分かかり、null で終了して進捗をすべて失う。続けて実行すると、同じ 35 分をやり直す。2 回の連続した実行で観測された(gbrain 0.30.0 の broken-postgres での実行: 712 秒で null 終了、gbrain 0.31.2 の PGLite での実行: 2100 秒で null 終了、ただし 501 ページは実際に保存されていた)。
 
-## Root cause (from /investigate)
+## 根本原因(/investigate より)
 
-Two compounding bugs in `bin/gstack-memory-ingest.ts`:
+`bin/gstack-memory-ingest.ts` には、重なり合う 2 つのバグがある。
 
-1. **Subprocess-per-file architecture.** The ingest loop at line 911 walks
-   1,841 files in `~/.gstack/projects/` and spawns two subprocesses per file:
-   - `gitleaks detect --no-git --source <path>` — 46ms cold start (`lib/gstack-memory-helpers.ts:157`)
-   - `gbrain put <slug>` — 329ms cold start (`bin/gstack-memory-ingest.ts:823`)
-   - Per-file floor: 375ms × 1841 = 690s (11.5 min) of pure subprocess startup
-     before any actual work happens.
+1. **ファイルごとのサブプロセス構成。** 911 行目の取り込みループは、`~/.gstack/projects/` の 1,841 ファイルを歩き、ファイルごとに 2 つのサブプロセスを起動する。
+   - `gitleaks detect --no-git --source <path>` — コールドスタート 46ms(`lib/gstack-memory-helpers.ts:157`)
+   - `gbrain put <slug>` — コールドスタート 329ms(`bin/gstack-memory-ingest.ts:823`)
+   - ファイルごとの下限: 375ms × 1841 = 690 秒(11.5 分)。実際の作業の前に、サブプロセスの起動だけで費やされる。
+2. **kill で保存されないタイムアウト。** `bin/gstack-gbrain-sync.ts:442` のオーケストレーターは 35 分のタイムアウトを課している。発火すると、`spawnSync` は `result.status === null` を返し、子は SIGTERM を受け取る。メモリ内の取り込み状態は `~/.gstack/.transcript-ingest-state.json` に書き出されない。次の実行は同じ未進行の状態から始まる。これが、毎回すべてをやり直す現象を説明する。
 
-2. **Kill-no-save timeout.** Orchestrator at `bin/gstack-gbrain-sync.ts:442`
-   enforces a 35-min timeout. When it fires, `spawnSync` returns
-   `result.status === null`, the child gets SIGTERM, and the in-memory
-   ingest state never flushes to `~/.gstack/.transcript-ingest-state.json`.
-   Next run starts from the same un-progressed state — explains the
-   redo-everything pattern.
+## 現場の数値
 
-## Numbers from the field
-
-| Metric | Value | Source |
+| 指標 | 値 | 出典 |
 |---|---|---|
-| Files in walkAllSources | 1,841 | `find ~/.gstack/projects -type f \( -name "*.md" -o -name "*.jsonl" \)` |
-| `gbrain put` cold start | 329ms | `time (echo "test" \| gbrain put _bench)` |
-| `gitleaks detect` cold start | 46ms | `time gitleaks detect --no-git --source <small-file>` |
-| Theoretical floor (subprocess only) | 690s / 11.5 min | 375ms × 1841 |
-| Observed run time | 2100s / 35 min | matches orchestrator timeout exactly |
-| Pages actually persisted | 501 | gbrain sources list page_count |
-| PGLite growth during run | 290 → 386 MB | `du -sh ~/.gbrain/brain.pglite` |
+| walkAllSources のファイル数 | 1,841 | `find ~/.gstack/projects -type f \( -name "*.md" -o -name "*.jsonl" \)` |
+| `gbrain put` のコールドスタート | 329ms | `time (echo "test" \| gbrain put _bench)` |
+| `gitleaks detect` のコールドスタート | 46ms | `time gitleaks detect --no-git --source <small-file>` |
+| 理論上の下限(サブプロセスのみ) | 690 秒 / 11.5 分 | 375ms × 1841 |
+| 実際の実行時間 | 2100 秒 / 35 分 | オーケストレーターのタイムアウトと正確に一致 |
+| 実際に保存されたページ数 | 501 | gbrain sources list page_count |
+| 実行中の PGLite の増加 | 290 → 386 MB | `du -sh ~/.gbrain/brain.pglite` |
 
-## Proposed architecture
+## 提案するアーキテクチャ
 
-Replace the per-file subprocess loop with a **prepare-then-batch** pipeline:
+サブプロセスごとの逐次ループを、**準備してからバッチ処理する**パイプラインに置き換える。
 
 ```
 walkAllSources(ctx)
@@ -146,61 +94,48 @@ walkAllSources(ctx)
   → cleanup staging dir
 ```
 
-### Why `gbrain import <dir>` is the right batch path
+### `gbrain import <dir>` が正しいバッチの経路である理由
 
-- Already shipped in gbrain CLI (verified: `gbrain --help` shows `import <dir> [--no-embed]`).
-- Walks dir in-process inside gbrain's own runtime — no subprocess fan-out.
-- Honors gbrain's batch-size and embedding-batch tuning.
-- gbrain v0.31.2 import did 501 pages + 2906 chunks in 10 seconds during the
-  observed run; the slow part was OUR per-file `gbrain put` loop above it.
+- gbrain の CLI にすでに実装されている(検証済み: `gbrain --help` に `import <dir> [--no-embed]` が出る)。
+- gbrain 自身のランタイムの中でプロセス内にディレクトリを歩くため、サブプロセスの分岐がない。
+- gbrain のバッチサイズと埋め込みのバッチ調整を活かせる。
+- 観測された実行では、gbrain v0.31.2 の import は 10 秒で 501 ページと 2906 チャンクを処理した。遅かったのは、上にある当方の**ページごとの `gbrain put` ループ**だった。
 
-### What we keep that the current code does right
+### 現行コードが正しく行っていて、維持するもの
 
-- **Custom YAML frontmatter injection** (title, type, tags) — preserved by
-  writing prepared .md files with frontmatter into the staging dir.
-- **Secret scanning** — preserved, but moved to ONE `gitleaks detect --source <staging-dir>`
-  call after prepare, before import. Files with findings get redacted or
-  excluded; staging dir guarantees gitleaks sees only the prepared content,
-  not internal gbrain state.
-- **Partial-transcript detection** — preserved in prepare stage; partial
-  files still get a `partial: true` field in frontmatter.
-- **Unattributed-transcript filtering** — preserved in prepare stage.
-- **Per-file mtime + sha256 state tracking** — preserved; the prepare stage
-  records what got staged, the import-success result records what landed.
-- **Incremental mode** — `fileChangedSinceState` check stays at the top of
-  the prepare loop.
+- **カスタムの YAML frontmatter の注入**(title、type、tags)— frontmatter 付きの準備済み .md をステージングディレクトリに書き出すことで維持する。
+- **シークレットのスキャン** — 維持するが、準備の後、取り込みの前に、`gitleaks detect --source <staging-dir>` を 1 回だけ呼ぶ形に移す。検出のあったファイルは、既存のリダクションのポリシー(`lib/gstack-memory-helpers.ts`)に従って、編集するか除外する。ステージングディレクトリは、gitleaks が見るのは準備済みの内容だけで、gbrain の内部状態は見えないことを保証する。
+- **部分的なトランスクリプトの検出** — 準備フェーズで維持する。部分的なファイルには引き続き frontmatter に `partial: true` を付ける。
+- **帰属できないトランスクリプトのフィルタリング** — 準備フェーズで維持する。
+- **ファイルごとの mtime + sha256 の状態管理** — 維持する。準備フェーズはステージされたものを記録し、取り込みの成功結果は実際に保存されたものを記録する。
+- **増分モード** — `fileChangedSinceState` のチェックは、準備ループの先頭に残す。
 
-## Migration steps
+## 移行の手順
 
-### Step 1: extract `preparePages` from current ingest loop
+### 手順 1: 現行の取り込みループから `preparePages` を抽出する
 
-Take everything in `ingestPass` (lines 899-988 of `bin/gstack-memory-ingest.ts`)
-between the walk and the `gbrainPutPage` call. Move into a new function
-`preparePages(args, ctx, state) → { staged: PreparedPage[], skipped, failed }`.
+`bin/gstack-memory-ingest.ts` の `ingestPass`(899-988 行)のうち、歩く処理と `gbrainPutPage` の呼び出しの間にあるものをすべて取り出し、新しい関数 `preparePages(args, ctx, state) → { staged: PreparedPage[], skipped, failed }` に移す。
 
-Output: list of `{ slug, body, source_path, mtime_ns, sha256, partial }`
-where `body` is the full markdown including frontmatter.
+出力: `{ slug, body, source_path, mtime_ns, sha256, partial }` のリスト。`body` は frontmatter を含む完全な markdown である。
 
-### Step 2: add staging dir writer
+### 手順 2: ステージングディレクトリへの書き出しを追加する
 
-Pure function: `writeStaged(prepared, stagingDir) → { written, errors }`.
-Filename: `${slug}.md`. Idempotent overwrite.
+純粋関数: `writeStaged(prepared, stagingDir) → { written, errors }`。
+ファイル名: `${slug}.md`。冪等な上書き。
 
-Staging dir lifecycle:
-- Created at `~/.gstack/.staging-ingest-${pid}-${ts}/`
-- Cleaned in `finally` block, even on SIGTERM
-- One staging dir per ingest pass — never reused across runs
+ステージングディレクトリのライフサイクル:
+- `~/.gstack/.staging-ingest-${pid}-${ts}/` に作成する
+- `finally` ブロックで、SIGTERM の場合も含めて削除する
+- 取り込みパスごとに 1 つのステージングディレクトリを使い、実行をまたいで再利用しない
 
-### Step 3: single gitleaks pass
+### 手順 3: gitleaks を 1 回だけ実行する
 
-Replace per-file `secretScanFile(path)` calls with one call after prepare:
-`gitleaks detect --no-git --source <staging-dir> --report-format json --report-path -`.
+準備の後に 1 回呼ぶ形に、ファイルごとの `secretScanFile(path)` の呼び出しを置き換える。
+`gitleaks detect --no-git --source <staging-dir> --report-format json --report-path -`。
 
-Parse JSON output, build `Map<slug, findings[]>`. Files with findings get
-removed from staging dir before import (or sanitized in place per existing
-redaction policy in `lib/gstack-memory-helpers.ts`).
+JSON の出力を解析し、`Map<slug, findings[]>` を作る。検出のあったファイルは、取り込みの前にステージングディレクトリから取り除く(または、`lib/gstack-memory-helpers.ts` の既存のリダクションのポリシーに従ってその場で浄化する)。
 
-### Step 4: replace `gbrainPutPage` loop with single import call
+### 手順 4: `gbrainPutPage` のループを、取り込みの呼び出し 1 回に置き換える
 
 ```typescript
 const importResult = spawnSync("gbrain", ["import", stagingDir], {
@@ -209,17 +144,15 @@ const importResult = spawnSync("gbrain", ["import", stagingDir], {
 });
 ```
 
-Parse stdout for the `Import complete` line and the `failed` count.
+stdout を解析し、`Import complete` の行と `failed` の件数を取り出す。
 
-### Step 5: persist state on partial success
+### 手順 5: 部分的な成功のときに状態を保存する
 
-If gbrain import reports `imported=N, failed=M`, save state for the N
-successful slugs (not all of them). Failures stay un-state'd so they retry
-next run, but successes don't redo.
+gbrain import が `imported=N, failed=M` を報告したら、成功した N 件のスラッグの状態を保存する(すべてではない)。失敗したものは状態に記録せず、次回の実行で再試行させる。成功したものはやり直さない。
 
-### Step 6: SIGTERM handler in `gstack-memory-ingest.ts`
+### 手順 6: `gstack-memory-ingest.ts` に SIGTERM ハンドラを追加する
 
-Wrap `main()` in:
+`main()` を次のように包む。
 ```typescript
 let interrupted = false;
 const flush = () => {
@@ -233,100 +166,66 @@ process.on("SIGTERM", flush);
 process.on("SIGINT", flush);
 ```
 
-This unblocks the kill-no-save bug independently — even if the batch import
-runs over the orchestrator timeout, state from the prepare stage survives.
+これは、kill で保存されないバグを独立して解消する。バッチの取り込みがオーケストレーターのタイムアウトを超えても、準備段階の状態は残る。
 
-### Step 7: orchestrator update
+### 手順 7: オーケストレーターを更新する
 
-In `bin/gstack-gbrain-sync.ts:444`:
-- Change `result.status === 0` to `result.status === 0 || (parsedSummary.imported > 0 && parsedSummary.imported >= parsedSummary.skipped + parsedSummary.failed)`.
-  Treat partial success (most pages imported) as OK, not ERR.
-- Surface `failed_count` and `partial_blockers` in the stage summary so the
-  user sees `Memory ... OK 487/501 imported (14 FILE_TOO_LARGE)` instead
-  of `ERR exited null`.
+`bin/gstack-gbrain-sync.ts:444` で:
+- `result.status === 0` を `result.status === 0 || (parsedSummary.imported > 0 && parsedSummary.imported >= parsedSummary.skipped + parsedSummary.failed)` に変える。部分的な成功(大半のページが取り込まれた)は、ERR ではなく OK とみなす。
+- 段階のサマリーに `failed_count` と `partial_blockers` を出し、ユーザーが `ERR exited null` ではなく `Memory ... OK 487/501 imported (14 FILE_TOO_LARGE)` を見られるようにする。
 
-### Step 8: handle FILE_TOO_LARGE specifically
+### 手順 8: FILE_TOO_LARGE を個別に扱う
 
-When gbrain reports FILE_TOO_LARGE, log to a new
-`~/.gstack/.ingest-skip-list.json` so the next prepare stage skips that file
-entirely. Avoids re-staging a file that will always fail. User can review
-the skip list with a new `gstack-memory-ingest --skip-list` flag.
+gbrain が FILE_TOO_LARGE を報告したら、新しい `~/.gstack/.ingest-skip-list.json` に記録する。次の準備フェーズは、そのファイルを完全にスキップする。常に失敗するファイルを再びステージしないためである。ユーザーは、新しい `gstack-memory-ingest --skip-list` フラグで一覧を確認できる。
 
-## Test plan
+## テスト計画
 
-1. **Unit (free, runs in `bun test`):**
-   - `preparePages` against fixture corpus of 50 files: assert YAML correct,
-     partial detection works, unattributed filtered.
-   - `writeStaged` overwrite idempotency.
-   - SIGTERM handler flush behavior using a child-process test harness.
+1. **単体テスト(無料、`bun test` で実行):**
+   - 50 ファイルのフィクスチャコーパスに対する `preparePages`。YAML が正しいこと、部分的な検出が動くこと、帰属できないものがフィルタされることを確認する。
+   - `writeStaged` の上書きの冪等性。
+   - 子プロセスのテストハーネスを使った SIGTERM ハンドラの flush の動作。
 
-2. **Integration (free, runs in `bun test`):**
-   - End-to-end: prepare → gitleaks → gbrain import on a temp PGLite,
-     assert page_count matches imported count.
-   - Partial-success path: inject a deliberate FILE_TOO_LARGE; assert
-     successes still state'd, failure logged to skip list.
-   - State preservation across SIGTERM: spawn ingest, kill at midpoint,
-     restart, assert resumed state.
+2. **インテグレーションテスト(無料、`bun test` で実行):**
+   - エンドツーエンド: 準備 → gitleaks → 一時的な PGLite への gbrain import。page_count が取り込み件数と一致することを確認する。
+   - 部分的な成功の経路: FILE_TOO_LARGE を意図的に注入する。成功したものは状態に残り、失敗がスキップリストに記録されることを確認する。
+   - SIGTERM をまたぐ状態の保持: ingest を起動し、途中で kill し、再起動して、再開された状態を確認する。
 
-3. **Benchmark gate (periodic, paid):**
-   - Cold run on 1841-file fixture: assert under 8 min.
-   - Incremental run (no changes): assert under 60 sec.
-   - Test fixture: copy of `~/.gstack/projects/` snapshot for repeatable timing.
+3. **ベンチマークのゲート(定期実行、有料):**
+   - 1841 ファイルのフィクスチャでのコールドラン: 8 分未満であることを確認する。
+   - 増分ラン(変更なし): 60 秒未満であることを確認する。
+   - テスト用フィクスチャ: 繰り返し可能な計測のため、`~/.gstack/projects/` のスナップショットをコピーしたもの。
 
-## Rollback strategy
+## ロールバック戦略
 
-- New `--legacy-ingest` flag on `gstack-memory-ingest` keeps the old
-  per-file path callable for one release cycle.
-- If batch path regresses on a real corpus, set
-  `gstack-config set memory_ingest_path legacy` to revert without redeploy.
-- Remove flag + legacy path one minor version after confirming batch is stable.
+- 新しい `--legacy-ingest` フラグを `gstack-memory-ingest` に追加し、古いファイルごとの経路を 1 リリースサイクルの間だけ呼べるようにする。
+- 実際のコーパスでバッチの経路が後退した場合は、`gstack-config set memory_ingest_path legacy` を設定すれば、再デプロイなしで戻せる。
+- バッチが安定したと確認できたら、フラグとレガシーの経路を 1 つ後のマイナーバージョンで削除する。
 
-## Risks & open questions for plan-eng-review
+## plan-eng-review に向けたリスクと未解決の問い
 
-1. **gbrain import idempotency on overlapping slugs.** If a previous run
-   wrote slug X to PGLite with old content, does `gbrain import` of
-   updated-X overwrite or duplicate? Need to test before relying on it.
+1. **overlapping スラッグでの gbrain import の冪等性。** 以前の実行がスラッグ X を古い内容で PGLite に書いていた場合、更新された X の `gbrain import` は上書きするのか、重複させるのか。依存する前に検証が必要。
 
-2. **Frontmatter injection inside `gbrain import` parser.** Current code
-   knows how to inject title/type/tags into existing frontmatter blocks
-   (line 794-821). Does `gbrain import` honor those fields the same way
-   `gbrain put` does? Verify in unit test.
+2. **gbrain import のパーサーでの frontmatter の注入。** 現行のコードは、既存の frontmatter ブロックに title/type/tags を注入する方法を知っている(794-821 行)。`gbrain import` は、`gbrain put` と同じようにこれらのフィールドを反映するか。単体テストで検証する。
 
-3. **Staging dir disk pressure.** 1841 files × avg ~50KB = ~92MB of
-   staging .md content. Acceptable on dev machines but worth knowing.
-   Alternative: stream prepared content to a tar piped to import (if gbrain
-   supports it) — likely not, ignore for V1.
+3. **ステージングディレクトリのディスクへの負荷。** 1841 ファイル × 平均約 50KB = 約 92MB のステージング用 .md の内容。開発用マシンでは許容できるが、知っておく価値はある。代替案: gbrain が対応していれば、準備した内容を tar にまとめて import にパイプで渡す。ただし対応していない可能性が高いため、V1 では無視する。
 
-4. **Cross-worktree concurrency.** `~/.gstack/.staging-ingest-${pid}-${ts}/`
-   is pid-namespaced so two concurrent /sync-gbrain runs don't collide.
-   But the orchestrator already holds a lock at `~/.gstack/.sync-gbrain.lock`
-   so this is belt-and-suspenders. Keep it.
+4. **ワークツリーをまたいだ同時実行。** `~/.gstack/.staging-ingest-${pid}-${ts}/` は pid で名前空間を分けているため、同時に実行される 2 つの /sync-gbrain が衝突しない。ただし、オーケストレーターはすでに `~/.gstack/.sync-gbrain.lock` でロックを取っているため、これは念のための保険である。保持する。
 
-5. **The "memory ingest exited null" message.** After this change, the
-   orchestrator might still see status=null on real OOM kills or SIGKILL.
-   Should the verdict block be more honest? E.g.,
-   `ERR memory: killed by signal SIGTERM at 35:00 (timeout)`.
+5. **「memory ingest exited null」というメッセージ。** この変更の後も、オーケストレーターは実際の OOM kill や SIGKILL の場合には status=null を見るかもしれない。判定のブロックをもっと正直にするべきか。例: `ERR memory: killed by signal SIGTERM at 35:00 (timeout)`。
 
-6. **Should we deprecate `gbrain put` for memory entirely?** The legacy
-   path exists for V1.5's `put_file` migration plan. With batch import
-   working, do we still need single-page put as a fallback for ad-hoc
-   ingestion? Probably yes (for `~/.gstack/.transcript-ingest-state.json`
-   updates triggered outside the orchestrator), but worth confirming.
+6. **メモリに対して `gbrain put` を完全に廃止すべきか。** レガシーの経路は、V1.5 の `put_file` 移行計画のために残っている。バッチの import が動けば、オーケストレーターの外から起動される `~/.gstack/.transcript-ingest-state.json` の更新や、アドホックな取り込みのために、単一ページの put をフォールバックとして残す必要があるか。おそらく必要だが、確認する価値はある。
 
-## What this isn't
+## これが対象でないもの
 
-- Not a gbrain CLI change. All work is in gstack.
-- Not a CLAUDE.md voice/UX change.
-- Not a new user-facing feature. CHANGELOG entry will read: "Memory ingest
-  is ~10× faster on cold runs and survives interruption."
+- gbrain CLI の変更ではない。作業はすべて gstack 内で行う。
+- CLAUDE.md の声や UX の変更ではない。
+- ユーザー向けの新機能でもない。CHANGELOG のエントリは「Memory ingest is ~10× faster on cold runs and survives interruption.」とする。
 
-## Acceptance criteria
+## 受け入れ基準
 
-- Cold `/sync-gbrain` on 1841 files completes in under 8 minutes.
-- Incremental `/sync-gbrain` (no file changes) completes in under 60 seconds.
-- SIGTERM mid-run flushes state; next run resumes without redoing
-  successfully-imported files.
-- FILE_TOO_LARGE failures don't block sync.last_commit advancement.
-- All existing test fixtures (transcripts, learnings, design-docs, ceo-plans)
-  ingest correctly with full frontmatter.
-- No regression on partial-transcript or unattributed-transcript handling.
+- 1841 ファイルでのコールドの `/sync-gbrain` が 8 分未満で完了する。
+- 増分の `/sync-gbrain`(ファイルの変更なし)が 60 秒未満で完了する。
+- 実行中の SIGTERM で状態が flush され、次回の実行は取り込み済みのファイルをやり直さずに再開する。
+- FILE_TOO_LARGE の失敗が sync.last_commit の前進を妨げない。
+- 既存のすべてのテストフィクスチャ(トランスクリプト、learnings、design-docs、ceo-plans)が、完全な frontmatter 付きで正しく取り込まれる。
+- 部分的なトランスクリプトと帰属できないトランスクリプトの扱いに回帰がない。

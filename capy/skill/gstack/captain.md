@@ -1,38 +1,24 @@
-# Working under a Captain: approvals, plan asks and merge asks
+# キャプテンの下での作業: 承認、プランの確認、マージの依頼
 
-This file belongs to gstack's Capy skill (the folder the owner copies into their Drive). It describes how a
-Capy thread running gstack asks for decisions, records answers and asks for a merge. The rules apply whether
-the thread reports to a Captain (a crew thread) or straight to a person. `gstack-skill-start` prints the
-short form as the `capy-asks` block whenever `GSTACK_CAPY=1` (the Capy launch line sets it).
-`GSTACK_CAPY_ASKS=0` drops that block for one session.
+このファイルは gstack の Capy スキル(オーナーが Drive にコピーするフォルダ)に属します。Capy のスレッドが gstack を動かしているときに、判断を求め、回答を記録し、マージを依頼する方法を説明します。このルールは、スレッドがキャプテン(クルースレッド)に報告する場合も、人に直接報告する場合も同じように適用されます。`gstack-skill-start` は、`GSTACK_CAPY=1` のとき(Capy の起動行がこれを設定します)、短い形式を `capy-asks` のブロックとして表示します。`GSTACK_CAPY_ASKS=0` を設定すると、そのセッションではこのブロックを出しません。
 
-## 1. How approvals work, per thread
+## 1. スレッドごとの承認の仕組み
 
-- **One path.** A crew thread asks its Captain: a needs-you report through Capy's agent channel, never a
-  question to the person. The Captain relays it in plain language and sends back the person's exact words.
-  A thread with no Captain asks the person directly with a Capy question. Either way, never use a bare
-  question, gate codes or slot numbers.
-- **Scope.** An answer covers the thread and scope it was asked for. It is not a blanket approval for
-  later work.
-- **Standing approvals** are the ones the Captain lists in its own rules, for example "merge when green,
-  through a merge train", "paid eval gates are pre-approved" or "a single-case flaky rerun". Cite the rule
-  (with its date and words) instead of asking again. gstack ships no standing approvals of its own.
-- **Always a fresh ask:**
-  - a product or behaviour decision;
-  - spend over a stated cap;
-  - anything published outside the repository (advisories, releases, posts);
-  - a change to a threshold, budget, trial count or test kind;
-  - closing someone's contribution without landing it;
-  - anything destructive or irreversible.
-- **What a gstack workflow does in Capy.** Launched with `GSTACK_SESSION_KIND=unattended`, a workflow takes
-  each recommended option, writes everything else as a pending gate item, and stops. Your job is to carry
-  those pending items to the Captain or person in the shape below, then feed the answer back.
+- **一本化されている。** クルースレッドは、キャプテンに尋ねます。Capy のエージェントチャネルを通した「要対応」の報告であり、人に質問することはありません。キャプテンが平易な言葉で人に伝え、その人の正確な返答を送り返します。キャプテンのいないスレッドは、Capy の質問で人に直接尋ねます。どちらの場合も、「ゲートのコード」や「スロット番号」だけを示す裸の質問をしてはいけません。
+- **スコープ。** 回答は、尋ねられたスレッドとスコープにだけ適用されます。後の作業にまで及ぶ包括的な承認ではありません。
+- **標準承認**は、キャプテンが自身のルールに挙げているものです。例としては「マージトレインを通して、緑になったらマージ」「有料の評価ゲートは事前承認済み」「単一ケースのフレーキーの再実行」があります。その際はルール(日付と文言付き)を引用し、改めて尋ねないでください。gstack は独自の標準承認を持ちません。
+- **必ず新たに確認するもの:**
+  - 製品や挙動の判断
+  - 宣言された上限を超える支出
+  - リポジトリの外に公開されるもの(アドバイザリ、リリース、投稿)
+  - しきい値、予算、試行回数、テストの種類の変更
+  - 誰かの貢献を取り込まずに閉じること
+  - 破壊的または不可逆なもの
+- **gstack のワークフローが Capy で行うこと。** `GSTACK_SESSION_KIND=unattended` で起動されると、ワークフローは推奨の選択肢を取り、それ以外の項目を保留のゲート項目として書き出し、停止します。あなたの仕事は、その保留項目を以下の形でキャプテンか人に届け、その回答をワークフローに返すことです。
 
-## 2. The approval record
+## 2. 承認の記録
 
-Every answer gets a row: the date, what was asked, the person's exact words, who said them (and who relayed
-them), what the answer covers, what is still pending, and the outcome (approved, rejected, pending, or a
-cited standing approval).
+すべての回答には、1 行の記録が必要です。日付、何が尋ねられたか、その人の正確な言葉、誰が言ったか(誰が中継したか)、回答がどこまでを対象とするか、何がまだ保留か、結果(承認、却下、保留、または引用された標準承認)を書きます。
 
 ```bash
 gstack-approvals add --ask "Spend up to \$40 on a paid eval rerun for the ship cases" \
@@ -43,48 +29,29 @@ gstack-approvals import --autoplan <run dir> --by Garry   # after gstack-autopla
 gstack-approvals render                                    # the ## Approvals section
 ```
 
-- **Where it lives.** `<state root>/projects/<slug>/approvals/<branch key>.jsonl`, one file per branch,
-  because one thread ships one branch. On Capy the state root is thrown away with the machine, so every write
-  is also mirrored to the private project-user Drive folder (`<drive>/approvals/<slug>/`), or to
-  `GSTACK_APPROVALS_DIR`. `GSTACK_APPROVALS_MIRROR=0` turns the mirror off. Reads merge both copies, and
-  `gstack-approvals sync` restores the local copy.
-- **The durable copies** are the `## Approvals` sections in the thread's report and in the PR body. Paste
-  `render` output into them; never type rows by hand.
-- **Secret-free.** Every field passes gstack's secret scanner before it is written. A hit refuses the row
-  (`APPROVAL_RECORD_SECRET`, which names the field and rule, never the text). Write `[redacted]` in place of
-  the secret, or ask the person to restate.
-- **Display only.** The rendered table escapes mentions, links, images, HTML and anything shaped like an
-  `Approved by … via …` citation. gstack's enforced approval classes still need their own citation line
-  (docs/ship-policy.md#approval-classes).
-- An empty table means "No approvals recorded". On a fresh Capy machine with no record and no mirror it says
-  "Record unavailable" instead (`APPROVAL_RECORD_UNAVAILABLE`), because a lost record is not an empty one.
+- **保存場所。** `<state root>/projects/<slug>/approvals/<branch key>.jsonl` です。ブランチごとに 1 ファイルです。1 つのスレッドは 1 つのブランチを出荷するためです。Capy では、状態のルートはマシンと一緒に破棄されるため、すべての書き込みは、プライベートなプロジェクトユーザーの Drive フォルダ(`<drive>/approvals/<slug>/`)か、`GSTACK_APPROVALS_DIR` にもミラーされます。`GSTACK_APPROVALS_MIRROR=0` でミラーを無効にできます。読み取りは両方のコピーを統合します。`gstack-approvals sync` でローカルのコピーを復元できます。
+- **永続的なコピー**は、スレッドの報告と PR の本文にある `## Approvals` のセクションです。`render` の出力を貼り付けてください。行を手で入力してはいけません。
+- **シークレットを含まない。** すべてのフィールドは、書き込まれる前に gstack のシークレットスキャナーを通ります。ヒットすると、その行は拒否されます(`APPROVAL_RECORD_SECRET`。フィールドとルールの名前は示しますが、本文は示しません)。シークレットの代わりに `[redacted]` と書くか、その人に言い直してもらってください。
+- **表示用のみ。** 描画された表は、メンション、リンク、画像、HTML、そして `Approved by … via …` に似た引用を、すべてエスケープします。gstack が強制する承認の種類には、それ自身の引用行が必要です(docs/ship-policy.md#approval-classes)。
+- 表が空なら「No approvals recorded」(承認の記録なし)を意味します。記録もミラーもない新しい Capy マシンでは、代わりに「Record unavailable」(記録を利用できない)と表示されます(`APPROVAL_RECORD_UNAVAILABLE`)。記録が失われたことは、空であることとは違うからです。
 
-## 3. Plan approvals: the shape
+## 3. プランの承認: 形式
 
-Every plan or gate you bring for approval has these parts, in this order, written so someone outside the
-project can follow it:
+承認のために出すすべてのプランやゲートには、次の要素がこの順番で含まれている必要があります。プロジェクトの外の人にも分かるように書いてください。
 
-1. **Before → after.** What the user or maintainer sees today and after, with concrete examples: a command
-   and its output, a screen, a cost or time number.
-2. **Why it matters.** Who is hurt today and how much, with numbers where possible.
-3. **What caused this work.** The trigger: an issue or PR link, a failed run, a user report, or the
-   person's request, quoted.
-4. **Big decisions.** For each: the options considered, the pick and why, and what would flip it.
-5. **What we need from you.** One decision, the options and their costs, the pick, and the one-word reply.
-   The recommended reply is the default (`rec` for an autoplan gate). Never offer "the plan as first
-   written" as the default.
+1. **Before → after(変更前後)。** 今、ユーザーやメンテナーが見ているものと、変更後に見えるものを、具体例で示します。コマンドとその出力、画面、コストや時間の数字などです。
+2. **なぜ重要か。** 今、誰がどれだけ困っているか。可能な限り数字で示します。
+3. **この作業の原因。** きっかけです。issue や PR のリンク、失敗した実行、ユーザーからの報告、あるいはその人の依頼を引用して示します。
+4. **大きな判断。** それぞれについて、検討した選択肢、選んだもの、その理由、何があれば覆るかを示します。
+5. **あなたに必要なこと。** 決めるべきこと一つ、選択肢とそのコスト、選んだもの、そして一語の返答です。推奨の返答が既定値です(autoplan のゲートなら `rec`)。「最初に書かれたとおりのプラン」を既定値として提示してはいけません。
 
-For an autoplan run, write parts 1 to 4 as `## Before → after`, `## Why it matters`,
-`## What caused this work` and `## Big decisions` sections in the plan. Then, at the gate:
+autoplan の実行では、パート 1 から 4 をプランの中に `## Before → after`、`## Why it matters`、`## What caused this work`、`## Big decisions` のセクションとして書きます。そのうえでゲートでは次を実行します:
 
 ```bash
 gstack-owner-brief render --captain --out <run dir>
 ```
 
-It prints a header line ("Decision needed … Reply **rec** …"), the four plan sections (each capped, with a
-pointer to the plan for the rest), and "What we need from you", which lists every choice `rec` takes, in
-words. The last line, "For the relaying agent", carries the run, `gate_rev`, `rec_hash` and the exact
-`gstack-autoplan answer` command. Relay everything above that line. When the reply comes back:
+これは、ヘッダー行(「Decision needed … Reply **rec** …」)、4 つのプランのセクション(それぞれ上限付きで、残りはプランを指す)、そして「What we need from you」を出力します。最後のものは、`rec` が選ぶすべての選択肢を言葉で並べます。最後の行「For the relaying agent」には、実行、`gate_rev`、`rec_hash`、そして正確な `gstack-autoplan answer` のコマンドが入っています。その行より上はすべて中継してください。返答が戻ってきたら:
 
 ```bash
 gstack-autoplan answer --out <run dir> --gate-rev <n> --reply rec --rec-hash <h> \
@@ -92,30 +59,21 @@ gstack-autoplan answer --out <run dir> --gate-rev <n> --reply rec --rec-hash <h>
 gstack-approvals import --autoplan <run dir> --by <name>
 ```
 
-If the person answers in words ("split it into two PRs"), map the words to tokens, answer, and confirm in one
-line what you recorded ("Recorded: split into two PRs; everything else as recommended"). A plan missing a
-section renders "Not ready for approval" with no reply invitation, and exits 1 (`CAPTAIN_BRIEF_INCOMPLETE`):
-add the sections, run `gstack-autoplan revise --plan <file>`, and render again. For a decision that is not an
-autoplan gate, write the same five parts by hand.
+その人が言葉で答えた場合(「2 つの PR に分けて」など)は、言葉を対応するトークンにマッピングして回答し、記録した内容を一行で確認します(「Recorded: split into two PRs; everything else as recommended」(記録: 2 つの PR に分割。それ以外は推奨どおり))。セクションが欠けているプランは、「Not ready for approval」(承認の準備ができていない)と表示され、返答の案内は出ず、終了コード 1(`CAPTAIN_BRIEF_INCOMPLETE`)で終わります。セクションを追加し、`gstack-autoplan revise --plan <file>` を実行して、もう一度 render してください。autoplan のゲートではない判断については、同じ 5 つの要素を手で書いてください。
 
-## 4. Merge asks: the shape
+## 4. マージの依頼: 形式
 
-Every PR you send READY on, and the READY report itself, has:
+READY を送るすべての PR と、READY の報告そのものには、次の要素があります:
 
-1. **What changed.** One to three before/after images, highest-signal first, each with a one-line caption
-   (what changed and why) and a collapsed text version under it.
-   - UI: screenshots at the base and on the branch, the same size.
-   - Skill or prompt: `gstack-pr-shots --path <file> --heading "<section>" --caption "<…>"`.
-   - CLI: `gstack-pr-shots --before <capture> --after <capture> --kind terminal --caption "<…>"`, where the
-     captures are files inside the repository.
-   - Internal: the source section or test output that best shows the change.
-   `gstack-pr-shots` reads text only, runs nothing, refuses secret-matching input, and prints `SHOT_PNG:`.
-   With no browser that line says `unavailable`: screenshot the printed `shot.html` with your own browser.
-   Upload each PNG with Capy's PR asset tool (`tools.pr.uploadAsset`), only for public repositories, and embed
-   the URL it returns with the caption as alt text.
-2. **Why.** The cause and the effect the user will see, in two or three sentences.
-3. **Approvals.** `gstack-approvals render`.
-4. **Evidence.** Checks green at the head, gate or train results, flaky cases.
+1. **What changed(何が変わったか)。** 前後の画像を 1 から 3 枚、重要度の高い順に示します。それぞれに 1 行のキャプションを付けます(何が変わり、なぜか)。その下には、折りたたんだテキスト版を置きます。
+   - UI: ベースとブランチの両方のスクリーンショット。サイズは同じにします。
+   - スキルやプロンプト: `gstack-pr-shots --path <file> --heading "<section>" --caption "<…>"`。
+   - CLI: `gstack-pr-shots --before <capture> --after <capture> --kind terminal --caption "<…>"`。キャプチャはリポジトリ内のファイルです。
+   - 内部: 変更を最もよく示すソースのセクションやテストの出力。
+   `gstack-pr-shots` はテキストだけを読み、何も実行せず、シークレットに一致する入力を拒否し、`SHOT_PNG:` を表示します。ブラウザがない場合、その行は `unavailable` と表示されます。その場合は、表示された `shot.html` を自分のブラウザでスクリーンショットしてください。各 PNG は、Capy の PR アセットツール(`tools.pr.uploadAsset`)でアップロードしてください。公開リポジトリの場合に限ります。返された URL を、キャプションを代替テキストとして添えて埋め込んでください。
+2. **Why(なぜ)。** 原因と、ユーザーが見る効果を、2〜3 文で示します。
+3. **Approvals(承認)。** `gstack-approvals render`。
+4. **Evidence(証拠)。** ヘッドで緑になったチェック、ゲートやトレインの結果、フレーキーなケース。
 
-The READY report attaches the key image (Capy message attachment), so the Captain can show it inline.
-/ship does all of this when `GSTACK_CAPY=1` (its `capy-pr` section). Outside Capy, the PR body is unchanged.
+READY の報告には、主要な画像を添付してください(Capy のメッセージの添付)。キャプテンがそれをインラインで表示できるようにするためです。
+/ship は `GSTACK_CAPY=1` のとき、これらすべてを行います(その `capy-pr` セクション)。Capy の外では、PR の本文は変わりません。

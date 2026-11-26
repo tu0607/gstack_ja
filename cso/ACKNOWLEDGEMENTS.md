@@ -1,17 +1,17 @@
-# CSO research and source versions
+# CSO の調査と参照バージョン
 
-CSO v3 separates supported static evidence, reproduction, proposed repair candidates, and current-source closure. The design is informed by [Mozilla's account of hardening Firefox](https://hacks.mozilla.org/2026/05/behind-the-scenes-hardening-firefox/) and [Codex Security's research-preview description](https://openai.com/index/codex-security-now-in-research-preview/): application context and reproducible verification inform the workflow. Their results are not measurements of CSO.
+CSO v3 は、裏付けのある静的な証拠、再現、修正候補、現行ソースでのクローズを分けて扱います。この設計は、[Mozilla による Firefox の強化の舞台裏](https://hacks.mozilla.org/2026/05/behind-the-scenes-hardening-firefox/) と [Codex Security のリサーチプレビューの説明](https://openai.com/index/codex-security-now-in-research-preview/) を参考にしています。アプリケーションの文脈と再現可能な検証によってワークフローを補強します。ただし、これらの結果は CSO の測定値ではありません。
 
-The domain instructions in `sections/audit-phases.md.tmpl` identify the versions they use:
+`sections/audit-phases.md.tmpl` のドメイン別の指示は、使用するバージョンを明記しています:
 
-- [OWASP Top 10:2025](https://owasp.org/Top10/2025/0x00_2025-Introduction/), including exceptional conditions and the revised supply-chain category.
-- [OWASP API Top 10:2023](https://owasp.org/API-Security/editions/2023/en/0x11-t10/).
-- Selected controls from [ASVS 5.0.0](https://owasp.org/www-project-application-security-verification-standard/); requirement IDs must carry their version.
-- [OWASP LLM Top 10 2026](https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/) and [Agentic Applications Top 10 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/), inspected September 9, 2026. Audits record the actual artifact/version used, rather than inferring content from a release announcement.
-- [MCP security guidance dated 2026-07-28](https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices).
+- [OWASP Top 10:2025](https://owasp.org/Top10/2025/0x00_2025-Introduction/)。例外的な状況と、改訂されたサプライチェーンのカテゴリを含みます。
+- [OWASP API Top 10:2023](https://owasp.org/API-Security/editions/2023/en/0x11-t10/)。
+- [ASVS 5.0.0](https://owasp.org/www-project-application-security-verification-standard/) から選んだコントロール。要件 ID にはバージョンを必ず付けます。
+- [OWASP LLM Top 10 2026](https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/) と [Agentic Applications Top 10 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/)。2026年9月9日に確認しています。監査では、リリースの発表から内容を推測するのではなく、実際に使った成果物とバージョンを記録します。
+- [2026-07-28 付けの MCP セキュリティガイダンス](https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices)。
 
-Execution details follow primary documentation: [Bun compiled executables](https://bun.com/docs/bundler/executables), [Docker contexts](https://docs.docker.com/engine/manage-resources/contexts/), [container networking](https://docs.docker.com/engine/network/), [Docker logging](https://docs.docker.com/engine/logging/configure/), [npm ci](https://docs.npmjs.com/cli/v11/commands/npm-ci/), [uv CLI](https://docs.astral.sh/uv/reference/cli/), and [RubyGems commands](https://guides.rubygems.org/command-reference/#gem-fetch). Compiling alone does not suppress Bun configuration or runtime injection variables. Offline dependency preparation must exclude local Python builds during acquisition and defer Gemfile evaluation until offline execution.
+実行の詳細は一次資料に従います。[Bun のコンパイル済み実行ファイル](https://bun.com/docs/bundler/executables)、[Docker のコンテキスト](https://docs.docker.com/engine/manage-resources/contexts/)、[コンテナのネットワーク](https://docs.docker.com/engine/network/)、[Docker のログ](https://docs.docker.com/engine/logging/configure/)、[npm ci](https://docs.npmjs.com/cli/v11/commands/npm-ci/)、[uv CLI](https://docs.astral.sh/uv/reference/cli/)、[RubyGems のコマンド](https://guides.rubygems.org/command-reference/#gem-fetch) です。コンパイルしただけでは、Bun の設定や実行時に注入される変数は抑制されません。オフラインの依存関係の準備では、取得の段階でローカルの Python ビルドを除外し、Gemfile の評価はオフラインでの実行まで遅らせる必要があります。
 
-Earlier CSO work drew on [Trail of Bits' skills](https://github.com/trailofbits/skills) for context building and variant analysis, [Sentry's skills](https://github.com/getsentry/skills) for research before reporting, and the broader community's security-skill reviews. v3 replaces inherited blanket false-positive exclusions and numerical confidence gates with explicit attacker/control/impact evidence and independent challenge.
+以前の CSO の作業では、コンテキストの構築とバリアント分析に [Trail of Bits のスキル](https://github.com/trailofbits/skills) を、報告前の調査に [Sentry のスキル](https://github.com/getsentry/skills) を参考にしました。また、コミュニティ全体のセキュリティスキルのレビューにも助けられました。v3 では、継承していた一律の誤検知除外と数値の信頼度のしきい値を、明示的な攻撃者・コントロール・影響の証拠と、独立した異議申し立てに置き換えました。
 
-CSO accuracy, recall, setup success, and repair correctness are release measurements, not inherited vendor benchmark claims. Qualification requires matched models/budgets, held-out assertions, supported setup failures counted as misses, and zero falsely certified repairs. The presence of documentation or an adapter does not mean its runtime image or release gates have passed.
+CSO の正確性、再現率、セットアップの成功率、修正の正しさは、リリース時の測定値であり、ベンダーのベンチマークを引き継いだものではありません。認定には、モデルと予算をそろえること、保留された検証用のアサーションを使うこと、サポートされているセットアップの失敗を見逃しとして数えること、そして誤って認定された修正がゼロであることが必要です。ドキュメントやアダプターが存在することは、そのランタイムイメージやリリースゲートが通過したことを意味しません。

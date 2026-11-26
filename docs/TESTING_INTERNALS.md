@@ -1,723 +1,153 @@
-# Testing internals: env keys, hermetic E2E
+# テストの内部: 環境変数のキーと隔離された E2E
 
-Moved verbatim from CLAUDE.md (token-load reduction). Read this before
-writing or debugging E2E tests, passing `env:` to a runner, or touching
-`test/helpers/hermetic-env.ts`.
+CLAUDE.md から、トークン読み込みを減らすために原文のまま移したものです。E2E テストを書いたりデバッグしたりする前、`env:` をランナーに渡す前、または `test/helpers/hermetic-env.ts` に触れる前に読んでください。
 
-**Env keys in Conductor workspaces.** The `GSTACK_*` env-shim (v1.39.2.0+,
-`lib/conductor-env-shim.ts`) promotes `GSTACK_ANTHROPIC_API_KEY` /
-`GSTACK_OPENAI_API_KEY` to their canonical names inside gstack's TS binaries.
-Tests run through gstack entrypoints inherit this promotion automatically.
-Don't echo the key value to stdout, logs, or shell history. The historical
-"never pass `env:` to `runAgentSdkTest`" rule is retired: the failure was
-partial-env replacement (the SDK's `Options.env` REPLACES the child's entire
-environment, so an object without the key broke auth). The runner now always
-passes a COMPLETE hermetic env with per-test `env:` merged last, so per-test
-overrides are safe; ambient `process.env.ANTHROPIC_API_KEY` mutation also
-still works (the env builder reads process.env at call time).
+**Conductor のワークスペースでの環境変数のキー。** `GSTACK_*` の env-shim(v1.39.2.0 以降、`lib/conductor-env-shim.ts`)は、`GSTACK_ANTHROPIC_API_KEY` と `GSTACK_OPENAI_API_KEY` を、gstack の TS バイナリの内側で正規の名前に昇格させます。gstack のエントリポイントを通るテストは、この昇格を自動的に引き継ぎます。キーの値を、標準出力、ログ、シェルの履歴にエコーしないでください。`runAgentSdkTest` に `env:` を渡すことを禁じていた古いルールは廃止されました。失敗の原因は、部分的な環境の置き換えでした(SDK の `Options.env` は子プロセスの環境全体を置き換えるため、キーのないオブジェクトを渡すと認証が壊れていました)。現在、ランナーは常に完全な隔離環境を渡し、テストごとの `env:` は最後にマージされるので、テストごとの上書きは安全です。プロセスの `process.env.ANTHROPIC_API_KEY` を直接変更する方法も、引き続き動きます(環境の構築は呼び出し時に process.env を読むため)。
 
-**Hermetic local E2E (default).** Every E2E runner (claude -p, PTY, Agent
-SDK, codex, gemini) spawns children through `test/helpers/hermetic-env.ts`:
-allowlist-scrubbed env (operator `CONDUCTOR_*`, `CLAUDE_*`, `GSTACK_*`,
-`MCP_*`, `GBRAIN_*`, and credentials like `GH_TOKEN` never reach children),
-a fresh seeded `CLAUDE_CONFIG_DIR` (no operator `~/.claude` CLAUDE.md /
-MCP servers / skills), a temp `GSTACK_HOME`, and `--strict-mcp-config`.
-Local eval signal matches CI. Debug against real operator state with
-`EVALS_HERMETIC=0` (restores the legacy env AND drops the strict-MCP flag).
-Per-test `env:` overrides merge last, so deliberate contamination
-(`CONDUCTOR_WORKSPACE_PATH`, per-test `GSTACK_HOME`) keeps working. The
-hermetic config dir seeds NO skills by default; a PTY test that types a
-`/skill` slash command must pass `seedSkills: true` to the PTY runner, which
-points the child's `CLAUDE_CONFIG_DIR` at `hermeticSkillsConfigDir()` — a
-seeded registry that symlinks the LIVE working tree's SKILL.md files (by
-design: the skills ARE the subject under test; a snapshot would measure stale
-copies). Wiring is pinned by `test/hermetic-wiring.test.ts` (static tripwire),
-two gate-tier canaries in `test/skill-e2e-hermetic-canary.test.ts`, and the
-seeding tripwires in `test/hermetic-skills-seeding.test.ts` /
-`test/pty-skill-seeding-wiring.test.ts`.
+**隔離されたローカル E2E(既定).** すべての E2E ランナー(claude -p、PTY、Agent SDK、codex、gemini)は、子プロセスを `test/helpers/hermetic-env.ts` を通して起動します。環境の許可リストで洗浄されており(`CONDUCTOR_*`、`CLAUDE_*`、`GSTACK_*`、`MCP_*`、`GBRAIN_*` といった、オペレーターの環境変数や、`GH_TOKEN` などの認証情報は子プロセスに届きません)、新しく種を入れた `CLAUDE_CONFIG_DIR`(オペレーターの `~/.claude` の CLAUDE.md、MCP サーバー、スキルは含まれません)、一時的な `GSTACK_HOME`、そして `--strict-mcp-config` を使います。そのため、ローカルの eval のシグナルは CI と一致します。オペレーターの実際の状態に対してデバッグするには、`EVALS_HERMETIC=0` を使います(従来の環境を復元し、strict-MCP フラグも外します)。テストごとの `env:` の上書きは最後にマージされるので、意図的な混入(`CONDUCTOR_WORKSPACE_PATH`、テストごとの `GSTACK_HOME`)も引き続き機能します。隔離された設定ディレクトリは、既定ではスキルを一切入れません。`/skill` のスラッシュコマンドを入力する PTY テストは、PTY ランナーに `seedSkills: true` を渡さなければなりません。これにより、子プロセスの `CLAUDE_CONFIG_DIR` は `hermeticSkillsConfigDir()` を指すようになります。これは、ライブの作業ツリーの SKILL.md ファイルにシンボリックリンクを張った、種付け済みのレジストリです(テスト対象そのものがスキルなので、これは意図的です。スナップショットだと古いコピーを測ってしまいます)。配線は、`test/hermetic-wiring.test.ts`(静的な tripwire)、`test/skill-e2e-hermetic-canary.test.ts` の 2 つの gate レベルのカナリア、そして `test/hermetic-skills-seeding.test.ts` / `test/pty-skill-seeding-wiring.test.ts` の種付けの tripwire によって固定されています。
 
-Seeded planning sessions also receive an isolated runtime home through
-`test/helpers/hermetic-skill-runtime.ts`, so absolute lazy-section paths resolve
-to the working tree under test. Explicit per-test home overrides remain intact.
-Autoplan resolves each review skill from its own installed host registry.
+種付けされた計画セッションは、`test/helpers/hermetic-skill-runtime.ts` を通して、隔離されたランタイムのホームも受け取ります。これにより、絶対パスの遅延セクションが、テスト対象の作業ツリーに解決されます。明示的なテストごとのホームの上書きは、そのまま残ります。Autoplan は、各レビュースキルを、それぞれのホストの登録簿から解決します。
 
-**Interactive planning evidence.** Native plan-review count drivers use
-`observeScreen: true` and await `currentScreen()` before choosing an input. The
-existing xterm dependency interprets cursor moves and erases; old menus in the
-raw stream cannot establish a current prompt. Snapshots preserve
-`terminal.raw.log`, `terminal.visible.log`, and `terminal.screen.log` separately.
-Setting `EVALS_RUN_ID` or `GSTACK_EVAL_DIR` retains these snapshots; an output
-directory without a run ID gets a stable, unique local ID for that writer.
-Completed native transcript calls establish question counts and phase coverage.
-Report-aware count tests also require a fresh, complete report and native
-completion evidence before accepting a completion heading.
+**対話型の計画の証拠。** ネイティブの計画レビューのカウント用ドライバーは、`observeScreen: true` を使い、入力を選ぶ前に `currentScreen()` を await します。既存の xterm の依存関係は、カーソルの移動と消去を解釈します。生のストリームに残った古いメニューは、現在のプロンプトを証明できません。スナップショットは、`terminal.raw.log`、`terminal.visible.log`、`terminal.screen.log` をそれぞれ保存します。`EVALS_RUN_ID` または `GSTACK_EVAL_DIR` を設定すると、これらのスナップショットが保持されます。実行 ID のない出力ディレクトリには、そのライターごとに安定した一意のローカル ID が与えられます。完了したネイティブのトランスクリプトの呼び出しが、質問の数とフェーズのカバレッジを確定させます。レポートを意識したカウントのテストは、完了の見出しを受け入れる前に、新しく完全なレポートと、ネイティブの完了の証拠の両方を要求します。
 
-The periodic first-question matrix uses `test/helpers/auq-native-capture.ts`
-to match the first public `PreToolUse` AskUserQuestion payload to its current
-native display. It grades that question's exact public fields without answering
-it or reading model transcripts. `question_captured` records
-`workflowCompleted: false`. With `GSTACK_EVAL_DIR`, `EVALS_RUN_ID`, or an explicit
-run ID, `native-auq/<run-id>/<test>-<suffix>/capture.json` under the eval directory
-retains the public payload, bounded current viewport, and capture outcome.
-CEO mode selection uses the actual SDK `AskUserQuestion` permission callback
-in `auq-sdk-capture.ts`, with the existing 12-turn and 240-second limits. It
-captures the public question and stops without submitting an answer; its
-`question_captured` outcome also records `workflowCompleted: false`. The retained
-capture survives fixture cleanup. Provider refusals and malformed questions
-remain failures. Section-loading captures retain their noninteractive contract.
+定期実行の最初の質問のマトリクスは、`test/helpers/auq-native-capture.ts` を使って、最初の公開の `PreToolUse` の AskUserQuestion のペイロードを、その現在のネイティブの表示に対応づけます。そのうえで、その質問の公開フィールドを、答えずに、またモデルのトランスクリプトを読まずに採点します。`question_captured` は `workflowCompleted: false` を記録します。`GSTACK_EVAL_DIR`、`EVALS_RUN_ID`、または明示的な実行 ID を指定すると、eval ディレクトリ配下の `native-auq/<run-id>/<test>-<suffix>/capture.json` に、公開のペイロード、範囲の限られた現在のビューポート、キャプチャの結果が保持されます。CEO モードの選択は、`auq-sdk-capture.ts` の実際の SDK の `AskUserQuestion` の権限コールバックを使います。既存の 12 ターンと 240 秒の上限があります。公開の質問を捕らえ、答えを送信せずに止まります。その `question_captured` の結果も `workflowCompleted: false` を記録します。保存されたキャプチャは、フィクスチャのクリーンアップの後も残ります。プロバイダーの拒否や不正な質問は、引き続き失敗です。セクションの読み込みのキャプチャは、非対話型の契約を保持します。
 
-Shared-code revalidation fixtures pair public tool calls with their successful
-results to verify that the current trusted start record was inspected before
-completion. A discovered path in tool output counts; a path mentioned only in
-instructions or narration does not. Saved public captures cover absolute and
-relative paths and discovery followed by a read. The revalidation prompt supplies
-the path to the trusted start-record directory and declares the existing turn
-limit. It asks the agent to batch independent reads and retrieve the complete
-final record; every source, approval, persistence, and completion check still applies. The
-path-boundary fixtures use this same execution contract for symlinks, submodules,
-ignored files, index flags, and legacy or filtered evidence. Their skip actor
-accepts an explicit no-change choice; a preservation word inside an option that
-also approves changes cannot authorize edits. Captured native questions exercise
-the actual answer callback, and native turn-limit failures still fail even after
-a question was answered.
+共有コードの再検証のフィクスチャは、公開のツール呼び出しを、その成功した結果と対にして、最後に信頼された開始レコードが、完了の前に検査されたことを検証します。ツールの出力に現れたパスは数えられます。指示やナレーションの中だけに出てくるパスは数えられません。保存された公開のキャプチャは、絶対パスと相対パス、そして発見の後の読み取りをカバーします。再検証のプロンプトは、信頼された開始レコードのディレクトリへのパスを与え、既存のターン上限を宣言します。また、独立した読み取りをまとめて行い、完全な最終レコードを取得するよう求めます。すべての source、承認、永続化、完了のチェックは引き続き適用されます。パスの境界のフィクスチャは、この同じ実行契約を、シンボリックリンク、サブモジュール、無視されるファイル、インデックスのフラグ、古いまたはフィルタ済みの証拠について使います。そのスキップの行為者は、明示的な「変更なし」の選択を受け入れます。変更の承認も含む選択肢の中にある「保存」の語は、編集を許可できません。キャプチャされたネイティブの質問は、実際の回答のコールバックを使います。ネイティブのターン上限による失敗は、質問に答えた後でも、引き続き失敗です。
 
-The engineering and DX finding fixtures check coverage of their seeded issues
-rather than cap the total number of review questions. Each decision needs a
-distinct, completed native question with an offered answer; accepting, rejecting,
-or deferring a recommendation all count as reviewing it. Engineering's mandatory
-legacy regression tests also need affirmative plan or public-narration evidence.
-Additional useful questions are allowed within the existing time limits. Generic
-question counts remain diagnostic, and a fresh final review report is required.
+エンジニアリングと DX の指摘のフィクスチャは、レビューの質問の総数を上限にするのではなく、埋め込まれた問題のカバレッジを確認します。それぞれの判断には、回答が提示された、明確で完了したネイティブの質問が 1 つ必要です。推奨を受け入れる、却下する、保留するのいずれも、レビューしたものとして数えられます。エンジニアリングの必須の旧バージョンの回帰テストには、計画上または公開のナレーション上の、肯定的な証拠も必要です。ほかに役立つ質問は、既存の時間制限の範囲内で許されます。一般的な質問数は、診断のためだけに残します。また、新しい最終レビューのレポートが必須です。
 
-E2E tests stream progress in real-time (tool-by-tool via `--output-format stream-json
---verbose`). Results are persisted to `~/.gstack/projects/<slug>/evals/` (legacy
-fallback `~/.gstack-dev/evals/`) with auto-comparison
-against the previous finalized run (in-flight `_partial` files are never used as
-a baseline, so a run can't compare against itself).
+E2E テストは、ツールごとにリアルタイムで進捗を流します(`--output-format stream-json --verbose` を使用)。結果は `~/.gstack/projects/<slug>/evals/`(旧来のフォールバックは `~/.gstack-dev/evals/`)に保存され、直前の確定した実行と自動的に比較されます。進行中の `_partial` ファイルは、ベースラインとして決して使われません。そのため、実行が自分自身と比較されることはありません。
 
-The periodic overlay fixtures use a versioned behavior gate with efficacy
-reported separately. See [Overlay benchmark contract v4](OVERLAY_BENCHMARK_CONTRACT.md)
-for exact correctness requirements, retired fanout cases, immutable evidence,
-and the limits of a passing result. Under v4 a completed wrong answer is a
-measured correctness result in either arm (`taskCorrect: false` with
-`answerError`); only an overlay-ON wrong answer fails the case, so an
-overlay-OFF wrong answer stays in the comparison. v3 verdicts keep their
-original meaning.
+定期実行のオーバーレイのフィクスチャは、バージョン管理された振る舞いのゲートを使い、効果は別に報告します。正確な正しさの要件、廃止されたファンアウトのケース、不変の証拠、合格した結果の限界については、[オーバーレイ・ベンチマークの契約 v4](OVERLAY_BENCHMARK_CONTRACT.md) を参照してください。v4 では、完了した誤答は、どちらのアームでも測定された正しさの結果です(`taskCorrect: false` と `answerError`)。ケースを失敗させるのは、オーバーレイ ON の誤答だけです。そのため、オーバーレイ OFF の誤答は比較に残ります。v3 の判定は、元の意味を保ちます。
 
-## Coverage ownership
+## カバレッジの所有
 
-[The test portfolio audit](TEST_PORTFOLIO.md) separates deterministic harness
-checks, prompt judges, live first-question captures, completed workflows and
-platform integrations. Shared setup is reusable; evidence with different
-scenario or independent-trial requirements is not. It records the preserved
-coverage and measured component savings from the test-speed refactor.
+[テストポートフォリオの監査](TEST_PORTFOLIO.md)は、決定論的なハーネスの確認、プロンプトのジャッジ、ライブの最初の質問のキャプチャ、完了したワークフロー、プラットフォームの統合を区別します。共有のセットアップは再利用できます。ただし、シナリオや独立した試行の要件が異なる証拠は、共有できません。この文書は、保たれたカバレッジと、テスト速度のリファクタリングによって測定された構成要素の節約を記録しています。
 
-## Runners: how the suites execute (2026-08 overhaul)
+## ランナー: スイートの実行方法(2026-08 の全面改修)
 
-**Aside-only E2E tests self-skip without a live Aside; browser-driving tests
-run on either engine.** Every skill that opens a web page drives the Aside AI
-browser first (`scripts/resolvers/aside.ts`) and falls back to gstack's own
-browse engine when Aside is absent (and Chromium bootstrapped). The cases that
-need Aside itself (`test/skill-e2e-aside.test.ts`, `design-review-fix` in
-`test/skill-e2e-design.test.ts`) call `asideAvailable()` from
-`test/helpers/aside-available.ts` (the same probe the skills run in BROWSER
-SETUP) and skip when the `aside` CLI or the Aside app is absent. CI runners have
-no Aside, so those run only on macOS dev machines and sit in the periodic tier;
-set `GSTACK_SKIP_ASIDE=1` to force the skip locally (which also exercises the
-fallback hand-off). The qa E2E files (`test/skill-e2e-qa-workflow.test.ts`,
-`test/skill-e2e-qa-bugs.test.ts`) gate on `asideAvailable() ||
-fs.existsSync(browseBin)`: the skill's own BROWSER SETUP picks the engine, so
-on a Mac they drive Aside and on Linux CI they drive the built browse binary,
-skipping only when neither exists. The `$B`-driven E2E cases and `browse/test/`
-run on every platform as before, so Linux CI proves the fallback engine live.
+**Aside だけの E2E テストは、ライブの Aside がなければ自己スキップします。ブラウザを操作するテストは、どちらのエンジンでも動きます。** ウェブページを開くすべてのスキルは、まず Aside ブラウザ(`scripts/resolvers/aside.ts`)を操作し、Aside がない場合(Chromium がブートストラップ済みであることが前提)は gstack 独自のブラウズエンジンにフォールバックします。Aside 自体を必要とするケース(`test/skill-e2e-aside.test.ts`、`test/skill-e2e-design.test.ts` の `design-review-fix`)は、`test/helpers/aside-available.ts` の `asideAvailable()` を呼び出します(スキルがブラウザのセットアップで使うのと同じ探査です)。`aside` CLI または Aside アプリがない場合はスキップします。CI のランナーには Aside がないため、それらは macOS の開発マシンでだけ実行され、定期実行の階層に置かれます。ローカルで強制的にスキップするには `GSTACK_SKIP_ASIDE=1` を設定します(これはフォールバックの引き継ぎも検証します)。qa の E2E ファイル(`test/skill-e2e-qa-workflow.test.ts`、`test/skill-e2e-qa-bugs.test.ts`)は、`asideAvailable() || fs.existsSync(browseBin)` をゲートにします。スキル自身のブラウザのセットアップがエンジンを選ぶので、Mac では Aside を操作し、Linux の CI では構築済みの browse バイナリを操作します。どちらもない場合にだけスキップします。`$B` を使う E2E のケースと `browse/test/` は、これまでどおりすべてのプラットフォームで動くので、Linux の CI がフォールバックのエンジンをライブで証明します。
 
-**Bootstrap dependency retention is opt-in qualification, not the behavior test.**
-`qa-bootstrap` still runs its original unpinned Vitest installation and assertions
-on macOS and Linux, including documented unsharded commands. Only a Linux paid
-shard runner issues the owned retention scope: it binds each actual fixture and
-native lifetime, retains locks, package manifests and the installed file/link
-inventory, and acknowledges capture before deleting the fixture. The outer
-runner also captures evidence when a callback is killed. Incomplete capture
-fails qualification and preserves the source fixture as well as partial evidence.
-Other platforms explicitly report retention as unavailable and still execute the
-native behavior test. A run without the runner-issued scope earns no retained
-dependency qualification credit; candidate acceptance requiring that evidence
-must use the Linux sharded path and verify every attempt's complete capture,
-acknowledgment and cleanup fallback. A passing unsharded or macOS behavior test
-does not substitute for that evidence.
+**ブートストラップの依存関係の保持は、振る舞いのテストではなく、オプトインの認定です。** `qa-bootstrap` は、文書化された無分割のコマンドを含め、macOS と Linux で、元のピン留めされていない Vitest のインストールとアサーションを実行し続けます。ランナーが発行する保持スコープを使うのは、Linux の有償シャードのランナーだけです。そのスコープは、実際のフィクスチャとネイティブの寿命を結びつけ、ロック、パッケージのマニフェスト、インストール済みのファイルとリンクの一覧を保持し、フィクスチャを削除する前にキャプチャの確認応答を行います。外側のランナーは、コールバックが強制終了されたときにも証拠をキャプチャします。キャプチャが不完全な場合は認定が失敗し、部分的な証拠とともに元のフィクスチャも保存されます。ほかのプラットフォームは、保持が利用できないことを明示的に報告し、それでもネイティブの振る舞いのテストを実行します。ランナーが発行したスコープがない実行では、依存関係の保持による認定のクレジットは得られません。その証拠を必要とする候補の受け入れは、Linux のシャード経路を使い、すべての試行について、キャプチャの完全性、確認応答、クリーンアップのフォールバックを検証しなければなりません。シャードなしの実行、または macOS での合格した振る舞いのテストは、その証拠の代わりにはなりません。
 
-**The renderer picks the same way, so the render gates are engine-agnostic.**
-`/make-pdf`, `/diagram`, and design previews print and screenshot their local
-HTML through `lib/aside-render.ts` / `bin/gstack-render.ts`, which render in
-Aside when `probeAside()` says `READY` and through the browse engine otherwise.
-make-pdf's `*-gate.test.ts` and `test/skill-e2e-diagram.test.ts` (periodic,
-paid) gate on `browserAvailable()` (`test/helpers/browser-available.ts`:
-`asideAvailable() || resolveBrowseBin() !== null`) — on a Mac they print
-through Aside, on Linux CI through the browse binary `bun run build:gates`
-compiles, and they skip only when neither exists. Only
-`test/aside-render.test.ts`'s two live Aside cases (a full round-trip and a
-late-readiness `--wait-expr` poll) are Aside-only: its option
-mapping and generated-script pins run everywhere, and its fake-executable cases
-drive both engines hermetically (fake `aside` / `browse` scripts on PATH pin
-probe classification, the stdout contract, loopback-server policy, the timeout
-kill, engine choice and the mid-run fallback). `test/gstack-render-cli.test.ts`
-does the same for `bin/gstack-render.ts` with `GSTACK_SKIP_ASIDE=1` and
-`GSTACK_BROWSE_BIN` pointed at a fake daemon that logs every argv line. A green
-gate on Linux proves the fallback engine, not Aside; the Mac run is the Aside
-evidence.
-The browse-binary leg presumes Chromium bootstrapped: `resolveBrowseBin()`
-only checks that the binary (or the `find-browse` shim) exists, never that
-Chromium can launch, so on an install where the best-effort Chromium step
-was skipped (`GSTACK_SKIP_PLAYWRIGHT=1`) or failed, these gates run and fail
-at browser launch instead of skipping. Fix the bootstrap (or move the binary
-aside) before running them locally; CI always installs Chromium first.
-`test/dom-dump-hygiene.test.ts` is the one free-suite case on the same leg: it
-runs `lib/dom-dump.js` (the rendered-DOM dump `/design-review` hands the design
-detector) inside a real Chromium page through the built browse binary, so it
-self-skips when the binary is absent and, because a cold Chromium launch is
-load-sensitive on a busy dev box, runs only in CI or on explicit opt-in
-(`GSTACK_DOM_DUMP_HYGIENE=1`).
+**レンダラーも同じ方法で選ばれるので、描画のゲートはエンジンに依存しません。** `/make-pdf`、`/diagram`、デザインのプレビューは、ローカルの HTML を、`lib/aside-render.ts` / `bin/gstack-render.ts` を通して印刷またはスクリーンショットします。`probeAside()` が `READY` を返すと Aside で描画し、それ以外は browse エンジンで描画します。make-pdf の `*-gate.test.ts` と `test/skill-e2e-diagram.test.ts`(定期実行、有償)は、`browserAvailable()`(`test/helpers/browser-available.ts`: `asideAvailable() || resolveBrowseBin() !== null`)をゲートにします。Mac では Aside で印刷し、Linux の CI では `bun run build:gates` がコンパイルした browse バイナリで印刷し、どちらもない場合にだけスキップします。Aside だけが必要なのは、`test/aside-render.test.ts` の 2 つのライブの Aside のケース(完全な往復と、遅い準備を待つ `--wait-expr` のポーリング)だけです。そのオプションの対応付けと生成されたスクリプトの固定はどこでも動きます。フェイク実行可能ファイルのケースは、両方のエンジンを隔離環境で動かします(PATH 上のフェイクの `aside` / `browse` スクリプトが、探査の分類、標準出力の契約、ループバックのサーバーのポリシー、タイムアウトによる強制終了、エンジンの選択、実行中のフォールバックを固定します)。`test/gstack-render-cli.test.ts` は、`GSTACK_SKIP_ASIDE=1` と、すべての argv 行を記録するフェイクのデーモンを指す `GSTACK_BROWSE_BIN` を使って、`bin/gstack-render.ts` に対して同じことを行います。Linux で緑のゲートが証明するのはフォールバックのエンジンであり、Aside ではありません。Aside の証拠は Mac での実行です。
 
-**Free suite (`bun run test:free`).** `scripts/test-free-shards.ts` runs N
-concurrent shard processes (serial within each) with strict-output
-classification per shard. Local defaults use the available CPU affinity
-(which Bun also bounds by a container's cgroup CPU quota), floored at one and
-capped at 16 on Linux and six on macOS and Windows; `GSTACK_FREE_JOBS` remains
-an explicit override.
-This does not change the separate CI machine count. Full-suite shards are packed by RECORDED PER-FILE
-DURATIONS (LPT, `packShardsByDuration`) when the committed seed
-`scripts/free-test-durations.json` exists — refresh it with
-`bun run test:ubicloud --record-durations`, which times each file in its own
-child on a VM with the CI lane's environment and copies the seed back; see
-[Free suite duration seed](#free-suite-duration-seed). Missing seed → silent hash-shard fallback; corrupt seed → one warning +
-fallback; unknown files get 99th-percentile pessimism, and both full-suite and
-`--ci-plan` runs name them on stderr so a new slow file cannot silently become
-the long pole. Packed
-shards get duration-aware walls (`max(base, predicted × 3, files × 5s)`). The
-legacy `--shards N --shard i` path keeps stable hash indices. Required CI uses
-one duration-packed `--ci-plan`, 20 ordinary `--ci-run` shards plus a separate
-exclusive-fixture shard, and a `--ci-verify` aggregate. CI shards still run on
-independent machines without ordering unrelated jobs. The public
-`TREE_MUTATING` map now classifies exclusive host-state fixtures; its sole
-entry is `test/bootstrap-retention.test.ts`, whose same-UID nondumpable actors
-affect host-wide procfs permission checks. Locally, this file runs only after
-all parallel shards settle, and cancellation prevents that final phase from
-starting. No selected files, retries, budgets, or receipt requirements are
-removed. Former generator mutators still render into private output directories;
-this serial phase protects process visibility, not in-place doc generation.
+browse バイナリの経路は、Chromium がブートストラップ済みであることを前提にします。`resolveBrowseBin()` が確認するのは、バイナリ(または `find-browse` のシム)が存在することだけで、Chromium が起動できることは確認しません。そのため、ベストエフォートの Chromium の手順が省略された(`GSTACK_SKIP_PLAYWRIGHT=1`)か失敗したインストールでは、これらのゲートはスキップされず、ブラウザの起動で失敗します。ローカルで実行する前に、ブートストラップを直すか(バイナリを脇に移すかして)ください。CI では、必ず先に Chromium をインストールします。`test/dom-dump-hygiene.test.ts` は、同じ経路にある無料スイートのケースの 1 つです。`lib/dom-dump.js`(`/design-review` がデザイン検出器に渡す描画済み DOM のダンプ)を、ビルド済みの browse バイナリを通して、本物の Chromium のページの中で実行します。そのため、バイナリがなければ自己スキップします。また、負荷の高い開発マシンでは Chromium のコールドスタートが負荷に影響されやすいので、CI でのみ、または明示的なオプトイン(`GSTACK_DOM_DUMP_HYGIENE=1`)のときにだけ実行されます。
 
-Full child output is retained in private files under `.context/free-test-logs/`,
-outside each shard's temporary cleanup directory. The runner prints the path at
-launch and completion. Losing the log fails the run even when the child exits
-successfully. A redirected log directory is rejected before launching a child.
-On failure, read that log first: the recovery message distinguishes incomplete
-capture, unconfirmed cleanup, deadline expiry and a test/module failure. Fix the
-demonstrated cause before rerunning. A focused `bun test` command is offered only
-when every failure is attributable to existing selected files; it proves that
-repair, not completion of the original selection. Preserve failed attempts when
-sharing results, and inspect logs for private data before sharing them.
+**無料スイート(`bun run test:free`).** `scripts/test-free-shards.ts` は、N 個の並行するシャードプロセスを実行します(各シャードの中では直列)。シャードごとに厳格な出力の分類を行います。ローカルの既定値は、利用可能な CPU のアフィニティ(Bun は、コンテナの cgroup の CPU クオータによっても制限されます)を使い、下限は 1、上限は Linux で 16、macOS と Windows で 6 です。`GSTACK_FREE_JOBS` は明示的な上書きとして残ります。
+これは、CI のマシン数とは別です。フルスイートのシャードは、コミット済みのシード `scripts/free-test-durations.json` が存在する場合、記録されたファイルごとの時間(LPT、`packShardsByDuration`)でパックされます。このシードは `bun run test:ubicloud --record-durations` で更新します。このコマンドは、CI レーンと同じ環境の VM 上で、各ファイルをそれぞれの子プロセスで計時し、シードをコピーバックします。詳しくは [無料スイートの期間シード](#free-suite-duration-seed) を参照してください。シードがない場合は、黙ってハッシュによるシャード分割にフォールバックします。シードが壊れている場合は、警告を 1 回出してフォールバックします。不明なファイルには 99 パーセンタイルの悲観的な値が割り当てられ、フルスイートと `--ci-plan` の両方の実行で、それらの名前が stderr に出ます。そのため、新しく遅いファイルが、黙って最も遅いものになることはありません。パックされたシャードには、所要時間に応じたウォール時間が与えられます(`max(base, predicted × 3, files × 5s)`)。旧来の `--shards N --shard i` の経路は、安定したハッシュの索引を保ちます。必須の CI は、所要時間でパックされた 1 つの `--ci-plan`、20 個の通常の `--ci-run` シャード、そして別の排他的なフィクスチャのシャード、および `--ci-verify` の集約を使います。CI のシャードは、無関係なジョブを順序立てずに、独立したマシンで実行されます。公開の `TREE_MUTATING` のマップは、排他的なホストの状態のフィクスチャを分類します。その唯一のエントリは `test/bootstrap-retention.test.ts` で、同じ UID の non-dumpable なアクターが、ホスト全体の procfs の権限チェックに影響します。ローカルでは、このファイルは、すべての並列シャードが落ち着いた後にだけ実行されます。キャンセルされると、この最後の段階は開始されません。選択されたファイル、再試行、予算、レシートの要件は、何も削除されません。以前の生成のミューテーターは、引き続き非公開の出力ディレクトリに描画します。この直列の段階は、プロセスの可視性を守るものであり、その場でのドキュメントの生成を守るものではありません。
 
-Before publication, classify new deterministic regressions for quick feedback.
-Refresh the timing seed with the existing recorder on fixed inputs; do not edit
-source while tests run. Critical boundary controls belong in `QUICK_CORE` when
-their feedback cost is justified. Other measured files qualify at two seconds
-or less; slow and unmeasured files remain outside quick, not outside full tests.
-Report cold setup separately from warm execution, while retaining failed-attempt,
-retry and cleanup time in the total cost.
+子プロセスの出力全体は、各シャードの一時的なクリーンアップのディレクトリの外にある、非公開のファイル `.context/free-test-logs/` に保持されます。ランナーは、起動時と完了時にそのパスを表示します。ログを失うと、子プロセスが正常終了していても、実行は失敗になります。ログのディレクトリがリダイレクトされている場合は、子プロセスを起動する前に拒否されます。失敗した場合は、まずそのログを読んでください。回復のメッセージは、キャプチャの不完全さ、クリーンアップの未確認、期限切れ、テストやモジュールの失敗を区別します。再実行する前に、示された原因を直してください。フォーカスされた `bun test` のコマンドが提示されるのは、すべての失敗が既存の選択されたファイルに起因する場合だけです。これは、その修復を証明するものであり、元の選択の完了を証明するものではありません。結果を共有するときは、失敗した試行を残しておき、ログを共有する前に、非公開のデータが含まれていないか確認してください。
 
-**PTY fixture timing.** Plan-count sessions wake on terminal output or exit,
-with at least 250ms between expensive observations and a 2s fallback for
-transcript or hook changes that produce no terminal output. New output batches
-settle for 250ms before observation so split terminal redraws cannot route input
-from their first chunk. Input debounces,
-permission guards, and the real CLI's 8s startup grace are unchanged. Synthetic
-CLIs can pass `startupReadyMarker` to `runPlanSkillCounting` and emit that exact
-marker after installing their input handlers; a missing marker fails before
-any command is sent. The marker wait stays inside the existing startup and
-total-run deadlines. `test/pty-output-wake.test.ts` covers output, silent waits,
-exit, close, missing readiness, split redraws, and continuous redraws. Close and output waits
-cancel their losing deadlines so completed workers can exit immediately.
+公開の前に、新しい決定論的な回帰を、すばやいフィードバックのために分類します。既存のレコーダーを、固定された入力で使ってタイミングのシードを更新します。テストの実行中にソースを編集しないでください。重要な境界のコントロールは、フィードバックのコストが正当化される場合、`QUICK_CORE` に入れます。ほかの計測済みのファイルは、2 秒以下であればクイックに入ります。遅いファイルと計測されていないファイルは、フルテストの外ではなく、クイックの外に置かれます。コールドのセットアップは、ウォールの実行とは別に報告します。ただし、失敗した試行、再試行、クリーンアップの時間は、合計コストに含めてください。
 
-The UI-positive design gate commits the supplied plan as `review-input.md`
-before the first model turn. It requires an acknowledged Design focus/rating
-question followed by an answered native finding about concrete UI behavior;
-setup and outside-review choices cannot satisfy that sequence. Its declared
-board actor submits feedback before acknowledging it. The final proof uses
-the full native question, not the truncated diagnostic snippet, and proposal
-text mentioning "no UI scope" is not treated as an exit verdict. Unknown-command
-failures must name the invoked slash command; a child tool rejecting `--help`
-is not a skill registration failure. Periodic seeded-finding classifiers
-separately verify fixture-owned findings.
+**PTY フィクスチャのタイミング。** 計画カウントのセッションは、ターミナルの出力または終了で目を覚まし、高コストな観測の間には少なくとも 250ms を空け、トランスクリプトやフックの変化で端末の出力がない場合は 2 秒のフォールバックを使います。新しい出力のバッチは、観測の前に 250ms 落ち着くのを待つので、分割された端末の再描画が、最初のチャンクから入力を誤ったルートに送ることはありません。入力のデバウンス、権限のガード、実際の CLI の 8 秒の起動の猶予は変更しません。合成 CLI は、入力ハンドラーをインストールした後に、その正確なマーカーを出力することで、`runPlanSkillCounting` に `startupReadyMarker` を渡せます。マーカーがない場合は、コマンドを送る前に失敗します。マーカーの待機は、既存の起動と全体の期限の内側で行われます。`test/pty-output-wake.test.ts` は、出力、無音の待機、終了、クローズ、準備の欠如、分割された再描画、連続した再描画をカバーします。クローズと出力の待機は、負けた側の期限をキャンセルするので、完了したワーカーはすぐに終了できます。
 
-**Paid suite (sharded runner, local AND CI).** `scripts/test-paid-shards.ts`
-is the single selection engine: 1 file per shard, `EVALS_JOBS` shard
-processes × `EVALS_CONCURRENCY` within-shard, per-shard `GSTACK_EVAL_DIR`,
-full-stream spooling to per-shard log files (path printed at START and on
-failure), never-started/timed-out taxonomy, and parent-computed diff
-selection propagated to children via `EVALS_SELECTION_JSON` (fail-open: a
-child that can't parse it recomputes locally with one warning). Paid evals
-never retry, except the gate's one [flaky rerun](#flaky-reruns); each case's kind
-fixes its trials before the run (see "Eval verdict policy" below). Files in `CASE_SHARDED_FILES` run one registered case per
-process (`<file>#<case id>`, an exact `--test-name-pattern`, exactly one executed
-case), so a long file of short cases spreads across runners and each case gets
-its own SDK semaphore. `test/carve-section-loading.test.ts` is one of them: it registers
-one periodic case per carved skill (`carve-section-loading-<skill>`, each with
-its own touchfiles and history). Run one case with
-`bun run scripts/test-paid-shards.ts --tier periodic --case carve-section-loading-<skill>`.
-Trial telemetry rides the store: every recorded test carries its 1-based
-`attempt` plus, on an isolated trial shard, its `case_id`, `kind`, `trial`,
-`panel` and `policy_version`, and each lane's report uploads one
-`trial-outcomes` JSONL line per trial. `bun run eval:pass-rates`
-turns that history into per-case pass rates
-(see "Pass-rate history" below; free-suite flakes are a separate record, see
-[Flake ledger](#flake-ledger)). Census integrity is
-enforced from the free suite: every `E2E_TOUCHFILES` / `LLM_JUDGE_TOUCHFILES`
-key must name a living paid test (`test/touchfiles.test.ts`'s reverse
-invariant), and `git show <sha>:path` fixtures are banned — vendor the bytes
-instead (`test/git-ref-fixture-tripwire.test.ts`).
+UI が肯定的なデザインのゲートは、提示された計画を、最初のモデルのターンの前に `review-input.md` としてコミットします。承認されたデザインのフォーカス/評価の質問が必要で、その後に、具体的な UI の振る舞いについての、回答されたネイティブの指摘が必要です。セットアップと外部レビューの選択は、この順序を満たせません。その宣言されたボードのアクターは、確認応答の前にフィードバックを送信します。最終的な証明には、切り詰められた診断用のスニペットではなく、完全なネイティブの質問を使います。「UI のスコープなし」と書かれた提案のテキストは、終了の判定として扱いません。未知のコマンドの失敗は、呼び出されたスラッシュコマンドの名前を挙げなければなりません。子のツールが `--help` を拒否しても、それはスキルの登録の失敗ではありません。定期実行の種付けされた指摘の分類器は、フィクスチャが所有する指摘を別途検証します。
 
-Functional QA and documentation acceptance require an explicit `EVALS_RUN_ID`;
-`GSTACK_EVAL_DIR` alone does not satisfy their evidence-ownership guard. For each
-local invocation, supply a fresh ID to the documented detached runner:
+**有償スイート(シャード化されたランナー、ローカルと CI の両方).** `scripts/test-paid-shards.ts` は、唯一の選択エンジンです。1 ファイルにつき 1 シャード。`EVALS_JOBS` のシャードプロセス × シャード内の `EVALS_CONCURRENCY`。シャードごとに `GSTACK_EVAL_DIR`。出力全体を、シャードごとのログファイルに流し込みます(パスは開始時と失敗時に表示されます)。また、開始されなかったもの/タイムアウトした、の分類を行います。親が計算した diff の選択は、`EVALS_SELECTION_JSON` を通して子に伝えられます(フェイルオープン: 解析できない子は、1 回の警告とともにローカルで再計算します)。有償の eval は、ゲートの 1 回の[不安定な再実行](#flaky-reruns)を除き、決して再試行しません。各ケースの種類が、実行前に試行回数を決めます(下記「Eval の判定ポリシー」を参照)。`CASE_SHARDED_FILES` のファイルは、登録された 1 つのケースをプロセスごとに実行します(`<file>#<case id>`、正確な `--test-name-pattern`、ちょうど 1 つのケースが実行される)。これにより、短いケースの多い長いファイルは、複数のランナーに分散され、各ケースが独自の SDK のセマフォを持ちます。`test/carve-section-loading.test.ts` はその 1 つです。切り出したスキルごとに、定期実行のケースを 1 つ登録します(`carve-section-loading-<skill>`。それぞれが独自のタッチファイルと履歴を持ちます)。1 つのケースを実行するには、`bun run scripts/test-paid-shards.ts --tier periodic --case carve-section-loading-<skill>` を使います。
+
+試行のテレメトリーは、ストアを通して流れます。記録されたすべてのテストは、1 から始まる `attempt` を持ち、隔離された試行のシャード上では、さらに `case_id`、`kind`、`trial`、`panel`、`policy_version` を持ちます。各レーンのレポートは、試行ごとに 1 行の `trial-outcomes` JSONL をアップロードします。`bun run eval:pass-rates` は、その履歴を、ケースごとの合格率に変換します(下記「合格率の履歴」を参照)。無料スイートの不安定性は別の記録です([フレイクの台帳](#flake-ledger) を参照)。カバレッジの整合性は、無料スイートから強制されます。`E2E_TOUCHFILES` / `LLM_JUDGE_TOUCHFILES` のすべてのキーは、生きている有償のテストを指していなければなりません(`test/touchfiles.test.ts` の逆方向の不変条件)。また、`git show <sha>:path` のフィクスチャは禁止されています。代わりに、バイト列をそのまま同梱してください(`test/git-ref-fixture-tripwire.test.ts`)。
+
+機能の QA とドキュメントの受け入れには、明示的な `EVALS_RUN_ID` が必要です。`GSTACK_EVAL_DIR` だけでは、証拠の所有を守るガードを満たしません。ローカルで呼び出すたびに、文書化された分離されたランナーに、新しい ID を渡してください。
 
 ```bash
 EVALS_RUN_ID="local-$(bun -e 'console.log(crypto.randomUUID())')" bun run eval:bg:pr
 ```
 
-Neither package scripts nor `gstack-detach` invent this identity. CI's PR/manual
-slices, periodic slices and weekly gate census supply an ID bound to the workflow
-run, attempt, job and slice. Existing slice artifacts retain per-shard snapshots;
-separate always-run `native-captures-<EVALS_RUN_ID>` artifacts retain project/legacy
-`e2e-runs` and `evals/qa-callers` evidence for 90 days. These diagnostic artifacts
-are not collector results and do not establish that an unfinished test passed.
+パッケージのスクリプトも `gstack-detach` も、この ID を自動生成しません。CI の PR/手動のスライス、定期実行のスライス、週次のゲートの census は、ワークフローの実行、試行、ジョブ、スライスに結び付いた ID を提供します。既存のスライスの成果物は、シャードごとのスナップショットを保持します。別途、常に実行される `native-captures-<EVALS_RUN_ID>` の成果物は、プロジェクトやレガシーの `e2e-runs` と `evals/qa-callers` の証拠を 90 日間保持します。これらの診断用の成果物は、コレクターの結果ではなく、完了していないテストが合格したことを証明するものでもありません。
 
-**Fast PR profile and evidence reuse.** `test:pr` selects the changed cases in
-`scripts/test-pr-profile.ts` plus every changed quality judge. `--profile full`
-retains the broad census; no case IDs or tier assignments are removed. The plan
-records both E2E and judge selections and lists deferred coverage. Executors
-receive those selections separately and the report checks actual executed case
-counts. Unknown source dependencies restore the broad gate (see
-[PR paid lane fallback](#pr-paid-lane-fallback)); unmapped prompts
-without registered coverage require full validation. Known broad-only prompt
-changes are explicitly deferred, not counted as PR passes. Weekly/manual runs of
-`evals-periodic.yml` execute both complete censuses fresh; manual `evals.yml`
-runs the broad gate. This deliberately moves some defect detection later.
+**高速な PR のプロファイルと証拠の再利用。** `test:pr` は、`scripts/test-pr-profile.ts` で変更されたケースと、変更されたすべての品質ジャッジを選びます。`--profile full` は、広い census を保持します。ケース ID も階層の割り当ても削除されません。計画には、E2E とジャッジの両方の選択が記録され、延期されたカバレッジが一覧されます。実行者はそれらの選択を別々に受け取り、レポートは実際に実行されたケースの数を確認します。不明なソースの依存関係は、広いゲートを復元します([PR の有償レーンのフォールバック](#pr-paid-lane-fallback) を参照)。登録されたカバレッジのない、対応づけられていないプロンプトは、完全な検証を必要とします。既知の広いだけのプロンプトの変更は、明示的に延期され、PR の合格としては数えられません。週次/手動の `evals-periodic.yml` の実行では、両方の完全な census が新しく実行されます。手動の `evals.yml` は広いゲートを実行します。これは、一部の欠陥の検出を意図的に後ろへずらします。
 
-`scripts/eval-input-cache.ts` accepts only complete, clean, first-attempt passes
-with matching before/after inputs. The audited workflow-judge adapter hashes the
-actual expanded prompt, source/fixture/rubric/runner closure, installed SDK,
-model parameters and runtime. Missing/unknown inputs force execution. Receipts
-are scoped to the same repository and PR, expire after 24 hours, and contain
-public scores and provenance rather than prompts or secrets. Of the 17 cases
-using `runWorkflowJudge`, 16 are eligible; the cookie workflow's custom input
-does not match the cache adapter and stays fresh, as do the other 11 quality cases.
-CI supplies the scoped cache/runtime configuration; local runs are fresh by
-default. Cached scores must
-pass current assertions; reused records retain their original source and time
-and cannot renew the receipt. `scripts/e2e-shard-reuse.ts` extends the same receipts
-to PR-profile E2E shards (paid evals never retry, so a pass is structurally a
-first attempt): the identity hashes the test's import closure, every tracked file
-matched by the touchfiles of every case the file registers plus the global
-touchfiles, the runner/workflow/setup actions, the child's environment pins, the
-CI image and Claude CLI version, and the shard's case ids, pattern, wall and
-concurrency. A computed registration, an unmatched touchfile pattern, a retrying
-file, a preload option or a custom endpoint makes the shard ineligible. A reused
-shard reports `reused` with its source run and writes `execution: "reused"`
-collector records; the report rejects reused outcomes outside the fast PR profile.
-`EVALS_FRESH=1`, periodic, marathon and release validation bypass both lookup and publishing.
+`scripts/eval-input-cache.ts` は、クリーンで、完全で、初回試行で合格した実行結果だけを受け付け、実行前後の入力が一致している場合に限ります。監査済みのワークフロー判定アダプタは、展開後の実際のプロンプト、ソース/フィクスチャ/ルーブリック/ランナーのクロージャ、インストール済みの SDK、モデルパラメータ、ランタイムをハッシュします。入力が欠けている、または不明な場合は、必ず実行します。レシートは同じリポジトリと同じ PR にスコープされ、24 時間で失効します。プロンプトやシークレットは含まず、公開スコアと由来情報だけを含みます。`runWorkflowJudge` を使う 17 件のケースのうち、16 件が対象になります。cookie ワークフローのカスタム入力はキャッシュアダプタと一致しないため新規実行のままで、他の 11 件の品質ケースも同様です。CI はスコープ付きのキャッシュ/ランタイム設定を与えます。ローカル実行は、デフォルトでは新規実行です。キャッシュされたスコアは、現在のアサーションに合格しなければなりません。再利用されたレコードは元のソースと時刻を保持し、レシートを延長することはできません。
 
-**Free test timing and isolation.** `test:quick` is an explicitly partial measured
-subset for edit feedback. `test` remains complete local acceptance with its
-bounded worker pool. The CI planner inventories every free file and packs them
-using `scripts/free-test-durations.json`; each machine runs its assigned shard
-serially. Plans and receipts bind the source revision, complete inventory and
-strict outcomes; missing, duplicate or mismatched receipts fail the required
-aggregate. The existing maximum five-file flaky retry allowance applies across
-the entire lane, not separately to every machine. Refresh the full timing list
-with `bun run test:ubicloud --record-durations`. Profiling records failures faithfully
-and is separate from final release acceptance.
+`scripts/e2e-shard-reuse.ts` は、同じレシートの仕組みを PR プロファイルの E2E シャードにも広げます(有料評価はリトライしないため、合格は構造上、初回試行の合格になります)。識別子は次の要素をハッシュします。テストの import クロージャ。そのファイルが登録する各ケースの touchfiles、およびグローバル touchfiles にマッチするすべての追跡ファイル。ランナー/ワークフロー/セットアップのアクション。子プロセスの環境ピン。CI イメージと Claude CLI のバージョン。そしてシャードのケース ID、パターン、壁時計時間(wall)、並行数です。計算によって決まる登録、どのファイルともマッチしない touchfile パターン、リトライするファイル、preload オプション、カスタムエンドポイントがあるシャードは、対象外になります。再利用されたシャードは `reused` と元の実行を報告し、`execution: "reused"` の収集レコードを書きます。レポートは、高速な PR プロファイルの外にある再利用結果を拒否します。`EVALS_FRESH=1` の場合、および定期実行、marathon、リリース検証では、参照と公開の両方をバイパスします。
 
-**CI planner/executor/report.** `--emit-plan <path> --slice-budget S --jobs J`
-(CI) or `--slices K` (local) computes selection + the slice plan ONCE (killing
-per-slice selector divergence);
-`--plan <path> --slice i` executors consume the manifest and write
-slice-result artifacts; `--report <dir>` reconciles them FAIL-CLOSED (a slice
-whose artifact never landed, or a planned shard nobody reported, is a
-failure). Budget mode (`packBySliceBudget`) places shards longest-recorded-first
-into the fullest slice whose estimated wall on J FIFO workers stays within S
-seconds, else a new slice; a shard with no recorded wall weighs the whole budget
-(its own runner), a shard longer than the budget runs alone, and overlays keep
-one final one-at-a-time slice. The manifest's `plan` records each slice estimate
-and its own CI job ceiling in `sliceCiTimeoutMinutes`: max(2 × slice budget, the
-slice's longest shard supervised wall, the serialized overlay envelope) + 20
-minutes setup (`CI_SETUP_ALLOWANCE_MINUTES`); `ciTimeoutMinutes` is the largest of
-them. CI derives the matrix (`[range(1; .sliceCount + 1)]`) from the manifest and
-indexes each slice's ceiling as its job timeout
-(`fromJSON(needs.plan-slices.outputs.slice_timeouts)[matrix.slice]`). Executors
-refuse an `EVALS_JOBS` other than the planned J and run their shards longest first.
+**無料テストの所要時間と分離。** `test:quick` は、編集時のフィードバック用に計測された、明示的に部分的なサブセットです。`test` は、有界なワーカープールを使う完全なローカル受け入れテストのままです。CI プランナーはすべての無料ファイルを棚卸しし、`scripts/free-test-durations.json` を使って詰め込みます。各マシンは割り当てられたシャードを直列に実行します。プランとレシートは、ソースのリビジョン、完全な棚卸し、厳密な結果に紐づけられます。欠落、重複、または不一致のレシートがあれば、必須の集計は失敗します。既存の「最大 5 ファイルのフレーキーリトライ」の許容量は、マシンごとではなくレーン全体に適用されます。所要時間の完全な一覧は、`bun run test:ubicloud --record-durations` で更新してください。プロファイリングは失敗を忠実に記録し、最終的なリリース受け入れとは別扱いです。
 
-Each executor's first step records its job start (`GSTACK_SLICE_JOB_STARTED_AT`).
-The slice deadline is that start + the slice ceiling − a 5-minute upload reserve:
-after it the executor starts no more shards. A shard that never started reports
-`not_run` (INFRA, `never-started`); a shard still running is killed and reports
-`hung` (TIMEOUT, `timed-out`). The executor checkpoints `slice-N.json` after every
-shard start and finish, so a job killed before its final write reports from the
-checkpoint (`slice N/M ended before its final result …: TIMEOUT`), never as a
-missing slice. `--slices K` keeps the supervised round-robin
-baseline re-packed by recorded times for local runs. Durations are recorded per
-tier (a file's gate and periodic cases differ); refresh one tier from a
-downloaded report directory with `--report <dir> --write-durations`. Under `EVALS_ALL` the hollow-shard guard marks exit-0 shards with
-ZERO executed tests `passed-empty` (a failure) — census-health, not just
-test runs. evals.yml runs the sliced gate lane per PR — the ONLY paid lane
-since the legacy 17-row matrix (22.6 min/$21 per PR serialized ahead of the
-slices) was deleted after demonstrated parity; its
-`KNOWN_MATRIX_GAPS`/`KNOWN_TIER_UNSET` ratchets retired with it and
-`test/evals-workflow-wiring.test.ts` pins the surviving wiring (slice-count
-agreement, tier consistency, the shared register-skills composite with its
-fail-fast verification loop). Tier `marathon` (complete start-to-finish flows)
-is selected positively: a file enters the marathon plan only when it declares
-`describeE2ETier('marathon')` or registers a marathon-tier case, and the gate and
-periodic planners exclude marathon-only files; `evals-marathon.yml` runs them
-weekly and on dispatch, fresh, one file per runner, with its own fail-closed
-report and tracking issue, and nothing requires it. evals-periodic.yml runs ALL
-periodic-tier files weekly (the coverage contract) minus the reasoned
-exclusions in `test/helpers/periodic-exclude-data.ts` (reason + tracking
-required per entry; removal re-activates the file), plus a weekly
-`EVALS_ALL` gate census. A red census writes one report on every ref, to the
-step summary and the `census-report-a<attempt>` artifact: the run's branch, sha
-and event, both lanes' summaries, every pass-rate alarm line, the red ledger
-and session headroom (`eval:pass-rates --reds` / `--headroom --runs 10 --branch
-<ref>`), the all-green estimate and a link to the red-census guide, with
-report-derived text passed through `scripts/lib/published-text.ts`. Only a run
-on `refs/heads/main` comments on (or opens) the one tracking issue and closes it
-on the next green run; the marathon lane does the same with its own issue and
-`marathon-report-a<attempt>` artifact. `test/evals-tracking-issue.test.ts`
-pins the main-only guard and runs both report scripts. The host-run Codex job
-also carries the live Codex multi-block case (`codex-multiblock-live`: `./setup
---host codex` from the job's checkout into a fresh `CODEX_HOME`, the router in
-`codex debug prompt-input`, and a later /learn block rooted by its own
-prelude), and the periodic lane runs the design default-model smoke
-(`design-model-smoke`), a visible SKIPPED with no coverage credit when
-`OPENAI_API_KEY` is absent. The CI
-image pins the claude CLI to an exact version (`.github/docker/Dockerfile.ci`,
-enforced by `test/ci-image-cli-pin.test.ts` — bumps ride PRs that run the PTY
-gate), and every eval-store run records `claude --version`, resolved once in
-the runner parent and handed to shard children as `GSTACK_CLAUDE_CLI_VERSION`
-(never spawned on a test thread), so a TUI-drift flake hunt is a grep, not
-archaeology.
+**CI のプランナー/エグゼキュータ/レポート。** `--emit-plan <path> --slice-budget S --jobs J`(CI)または `--slices K`(ローカル)は、選択とスライス計画を一度だけ計算します(スライスごとの選択のずれを防ぎます)。`--plan <path> --slice i` のエグゼキュータはマニフェストを読み込み、スライス結果のアーティファクトを書きます。`--report <dir>` はそれらを fail-closed で突き合わせます(アーティファクトが届かないスライス、または誰も報告しなかった計画済みのシャードは失敗になります)。予算モード(`packBySliceBudget`)は、シャードを記録された実行時間の長い順に、J 個の FIFO ワーカーで推定 wall が S 秒以内に収まる最も埋まったスライスへ配置します。収まらなければ新しいスライスを作ります。記録された wall がないシャードは予算全体の重みを持ち(自分専用のランナーになります)、予算より長いシャードは単独で実行されます。オーバーレイは、最後に 1 つずつ直列に実行されるスライスにまとめられます。マニフェストの `plan` は、各スライスの推定値と、そのスライス専用の CI ジョブ上限 `sliceCiTimeoutMinutes` を記録します。その値は、max(2 × スライス予算、スライス内で最も長いシャードの監視された wall、直列化されたオーバーレイの合計時間) + 20 分のセットアップ時間(`CI_SETUP_ALLOWANCE_MINUTES`)です。`ciTimeoutMinutes` はそれらの最大値です。CI はマニフェストから行列(`[range(1; .sliceCount + 1)]`)を導出し、各スライスの上限をジョブのタイムアウトとして参照します(`fromJSON(needs.plan-slices.outputs.slice_timeouts)[matrix.slice]`)。エグゼキュータは、計画された J と異なる `EVALS_JOBS` を拒否し、シャードを長いものから順に実行します。
+
+各エグゼキュータは最初のステップで、ジョブの開始時刻を記録します(`GSTACK_SLICE_JOB_STARTED_AT`)。スライスの締切は、その開始時刻 + スライスの上限 − 5 分のアップロード予備時間です。締切を過ぎると、エグゼキュータは新しいシャードを開始しません。一度も開始されなかったシャードは `not_run`(INFRA、`never-started`)と報告されます。まだ実行中のシャードは強制終了され、`hung`(TIMEOUT、`timed-out`)と報告されます。エグゼキュータは、シャードの開始と終了のたびに `slice-N.json` をチェックポイントとして保存します。そのため、最終書き込みの前にジョブが強制終了されても、チェックポイントから報告されます(`slice N/M ended before its final result …: TIMEOUT`)。スライスが欠落しているとはみなされません。`--slices K` は、ローカル実行のために、記録された時間に基づいて再パックされた、監視付きのラウンドロビンのベースラインを維持します。所要時間は層ごとに記録されます(ファイルのゲート用ケースと定期用ケースでは所要時間が異なるためです)。層単位で更新するには、ダウンロードしたレポートディレクトリから `--report <dir> --write-durations` を使います。`EVALS_ALL` の下では、ホロー・シャードのガードが、終了コードが 0 でもテストを 1 件も実行していないシャードを `passed-empty`(失敗)にします。これは、テストの実行だけでなく、棚卸しの健全性も確認するためです。
+
+evals.yml は、PR ごとにスライス化されたゲートのレーンを実行します。これが唯一の有料レーンです。以前の 17 行の行列(スライスの前に直列で 22.6 分/PR、$21 かかっていました)は、同等性が実証された後に削除されました。その `KNOWN_MATRIX_GAPS`/`KNOWN_TIER_UNSET` の固定値も一緒に廃止されました。`test/evals-workflow-wiring.test.ts` は、残っている配線(スライス数の一致、層の一貫性、共有の register-skills コンポジット、その fail-fast 検証ループ)を固定します。層 `marathon`(開始から終了までの完全なフロー)は明示的に選択されます（宣言された場合のみ）。ファイルが marathon 計画に入るのは、`describeE2ETier('marathon')` を宣言するか、marathon 層のケースを登録している場合に限ります。ゲートと定期の計画では、marathon だけのファイルは除外されます。`evals-marathon.yml` は、毎週と dispatch 時に、新しい状態で、1 ランナーにつき 1 ファイルずつ、これらを実行します。これには独自の fail-closed のレポートと追跡 Issue があります。これを必須とするものはありません。evals-periodic.yml は、毎週すべての定期層ファイルを実行します(カバレッジの契約です)。ただし `test/helpers/periodic-exclude-data.ts` の理由付きの除外(各エントリに理由と追跡先が必要で、除外を削除するとそのファイルが再び有効になります)は除きます。さらに、毎週の `EVALS_ALL` ゲート棚卸しも実行します。赤い棚卸しがあると、どの ref でもレポートが 1 つ書き出されます。レポートはステップサマリと `census-report-a<attempt>` アーティファクトに出ます。内容は、実行のブランチ、sha、イベント、両レーンのサマリ、すべての合格率アラート行、赤の台帳、セッションの余力(`eval:pass-rates --reds` / `--headroom --runs 10 --branch <ref>`)、全緑の見積もり、赤い棚卸しのガイドへのリンクです。レポートから生成されたテキストは `scripts/lib/published-text.ts` を通ります。追跡 Issue に(新規作成または)コメントするのと、次の緑の実行で閉じるのは、`refs/heads/main` での実行だけです。marathon レーンは、独自の Issue と `marathon-report-a<attempt>` アーティファクトで同じことを行います。`test/evals-tracking-issue.test.ts` は、main 限定のガードを固定し、両方のレポートスクリプトを実行します。ホスト実行の Codex ジョブには、ライブの Codex マルチブロックのケース(`codex-multiblock-live`)も含まれます。これは、ジョブのチェックアウトから新しい `CODEX_HOME` に対して `./setup --host codex` を実行し、`codex debug prompt-input` でルーターを確認し、後続の /learn ブロックを独自のプレリュードで特定するものです。定期レーンでは、デザインのデフォルトモデルのスモークテスト(`design-model-smoke`)も実行します。`OPENAI_API_KEY` がない場合は、カバレッジの加点なしで SKIPPED と明示的に表示されます。CI イメージは claude CLI を正確なバージョンに固定します(`.github/docker/Dockerfile.ci`。`test/ci-image-cli-pin.test.ts` が強制します。バージョンの更新は PTY ゲートを実行する PR で行います)。さらに、eval-store の実行ごとに `claude --version` が記録されます。このバージョンは、ランナーの親プロセスで一度だけ解決され、シャードの子プロセスに `GSTACK_CLAUDE_CLI_VERSION` として渡されます(テストのスレッドでは決して起動されません)。そのため、TUI のドリフトによるフレーキーの原因調査は、考古学ではなく grep で済みます。
 
 <a id="eval-verdict-policy"></a>
-**Eval verdict policy** (`EVAL_POLICY` version 2 in
-`test/helpers/periodic-exclude-data.ts`; version 1 pre-registered 2026-09-29,
-version 2 approved 2026-10-04 with the decision memo in
-[test-audit-2026-10.md](test-audit-2026-10.md)). Paid evals
-never retry, except the gate's one [flaky rerun](#flaky-reruns). Each live case has exactly one kind in `E2E_KINDS`
-(`test/helpers/touchfiles-data.ts`; `test/eval-kinds.test.ts` enforces coverage),
-and the kind fixes its trials before the run:
+**評価の判定ポリシー**(`test/helpers/periodic-exclude-data.ts` 内の `EVAL_POLICY` バージョン 2。バージョン 1 は 2026-09-29 に事前登録され、バージョン 2 は 2026-10-04 に承認されました。決定メモは [test-audit-2026-10.md](test-audit-2026-10.md) にあります)。有料評価は、ゲートの 1 回の[フレーキーの再実行](#flaky-reruns)を除き、リトライしません。ライブの各ケースには `E2E_KINDS`(`test/helpers/touchfiles-data.ts`。`test/eval-kinds.test.ts` がカバレッジを強制します)の種類が必ず 1 つ割り当てられ、その種類が実行前に試行回数を確定させます。
 
-- `rule` (default): one trial; any failed assertion fails the verdict. For
-  cases where nothing stochastic decides the verdict, or where it checks a
-  contract the product must meet every run.
-- `behavior`: a panel of `n = 3` independent trials, launched together as
-  isolated case shards on different slices (key `<file>#<id>~t<N>`). All three
-  always run: no early stop and no conditional extra trial. PASS when at least
-  `k = 2` pass and no trial violated a contract (`expectContract()` stamps
-  `failure_class: 'contract'`). Each behavior case names its tolerated deviation
-  in `BEHAVIOR_WHY` and must have a literal registration so it can run alone.
-- `judge`: an LLM judge scoring a fixed input. `judgePanel()`
-  (`test/helpers/llm-judge.ts`) draws 3 samples of the same prompt concurrently
-  inside the unchanged `JUDGE_MS`; numeric dimensions gate on the per-dimension
-  median of exactly 3 samples, so at least 2 of 3 must meet the unchanged
-  threshold (`judgePanelMedian()`; no dimension compensates for another, and
-  any other sample count fails closed), booleans on a strict majority. Panel
-  logs show every sample and the mean for information; the median is the gate
-  (EVAL_POLICY v3, approved 2026-10-06). A sample that errors (refusal, truncation,
-  non-JSON, a malformed field) fails the panel and is never resampled; a
-  refusal counts as an unscored panel only when every sample refused.
-  `callJudge`'s 429 backoff happens before any model output and is transport,
-  not a verdict retry. The workflow-judge cache stores whole panels only.
-  The `rule` case auq-matrix uses the same panel inside its one execution: each
-  skill's single native capture has its recommendation substance scored by 3
-  judge samples, gated on their median against the unchanged minimum of 4, and a
-  failed sample fails the panel without resampling (approved 2026-10-04 for
-  censuses after the change).
+- `rule`(デフォルト): 試行は 1 回です。アサーションが 1 つでも失敗すれば判定は失敗です。確率的な要素が判定を左右しないケース、または製品が毎回満たさなければならない契約を検査するケースに使います。
+- `behavior`: 独立した試行 `n = 3` のパネルです。ケース分割として、異なるスライスで同時に起動されます(キーは `<file>#<id>~t<N>`)。3 回とも必ず実行されます。早期終了も、条件付きの追加試行もありません。`k = 2` 以上が合格し、かつどの試行も契約に違反していない場合に PASS となります(`expectContract()` が `failure_class: 'contract'` を付けます)。各 behavior ケースは、許容する逸脱を `BEHAVIOR_WHY` に明記し、単独で実行できるようリテラルな登録を持たなければなりません。
+- `judge`: 固定入力に対して LLM の判定者が採点します。`judgePanel()`(`test/helpers/llm-judge.ts`)は、同じプロンプトから 3 つのサンプルを、変更されていない `JUDGE_MS` の中で同時に取ります。数値の観点は、正確に 3 サンプルの観点ごとの中央値でゲートされます。そのため、変更されていない閾値を 3 サンプル中少なくとも 2 つが満たさなければなりません(`judgePanelMedian()`。観点同士が互いを補償することはなく、それ以外のサンプル数はクローズドに失敗します)。真偽値は厳密な過半数でゲートされます。パネルのログは、情報として全サンプルと平均を示します。ゲートになるのは中央値です(EVAL_POLICY v3、2026-10-06 承認)。エラーになったサンプル(拒否、途中打ち切り、JSON でない応答、不正なフィールド)はパネルを失敗させ、再サンプリングされません。拒否は、すべてのサンプルが拒否した場合にのみ、採点不能パネルとして扱われます。`callJudge` の 429 のバックオフは、モデルの出力より前に行われるため、トランスポートの問題であって、判定のリトライではありません。ワークフロー判定のキャッシュは、パネル全体だけを保存します。
+  `rule` ケースの auq-matrix も、その 1 回の実行の中で同じパネルを使います。各スキルの単一のネイティブキャプチャの推奨内容は、3 つの判定サンプルで採点されます。その中央値は、変更されていない最小値 4 でゲートされます。サンプルが 1 つでも失敗すればパネルは失敗し、再サンプリングはされません(変更後の棚卸しに対して 2026-10-04 に承認)。
 
-`panelVerdict()` (`test/helpers/eval-store.ts`) is the single verdict
-function the report, `collector-outcomes.json`, the PR comment and pass-rates
-all use. A timed-out, crashed or infrastructure-failed trial is a failed trial
-recorded with its class; a missing or duplicate trial record makes the verdict
-INCOMPLETE, which fails the lane; a 2/3 PASS is shown as `PASS 2/3` with the
-failed trial's cause. A manual re-run adds trials under a new run attempt and
-never replaces the first attempt's verdict; on the gate it resolves a red only
-by the [flaky rule](#flaky-reruns). A red census is never rerun on
-unchanged inputs: each red is diagnosed as product, test/detector, harness or
-infra and resolved by a concrete repair and a fresh census, or listed as a named
-red. The one exception: a census whose every red verdict is machine-classified
-INFRA or INCOMPLETE (missing slice artifact, runner loss, API error before the
-first model turn) may be re-dispatched once as a new run, and both runs are
-reported. Changing any `EVAL_POLICY` constant after seeing census results needs
-Garry's re-approval, a `version` bump and a fresh census;
-`test/periodic-exclude-policy.test.ts` pins the approved values.
+`panelVerdict()`(`test/helpers/eval-store.ts`)は、レポート、`collector-outcomes.json`、PR コメント、合格率のすべてが使う、唯一の判定関数です。タイムアウト、クラッシュ、インフラ障害で終わった試行は、その種類とともに記録された失敗の試行になります。試行レコードが欠けている、または重複している場合は判定が INCOMPLETE となり、レーンは失敗します。2/3 の PASS は `PASS 2/3` と表示され、失敗した試行の原因も表示されます。手動の再実行は、新しい実行試行として試行を追加します。最初の試行の判定を置き換えることはありません。ゲートでは、赤を解決できるのは[フレーキールール](#flaky-reruns)による場合だけです。赤い棚卸しを、変更のない入力で再実行することは決してありません。各赤は、製品、テスト/検出器、ハーネス、インフラのいずれかに分類され、具体的な修正と新しい棚卸しによって解決するか、名前付きの赤として残します。例外が 1 つだけあります。赤い判定がすべて機械的に INFRA または INCOMPLETE と分類された棚卸し(スライスのアーティファクトの欠落、ランナーの消失、最初のモデルのターンより前の API エラー)は、新しい実行として 1 回だけ再ディスパッチできます。その場合、両方の実行が報告されます。棚卸しの結果を見た後に `EVAL_POLICY` の定数を変更するには、Garry の再承認、`version` の更新、新しい棚卸しが必要です。`test/periodic-exclude-policy.test.ts` は承認済みの値を固定します。
 
-### Flaky reruns
+<a id="flaky-reruns"></a>
+### フレーキーの再実行
 
-**CREW rule 16; a gate edit.** Garry, 2026-10-19: "you can just
-run the failed test again and note that it is flaky... You don't have to do the
-whole test pass again for one failed test." After the gate's slices,
-`rerun-plan` in `evals.yml` (`scripts/test-paid-shards.ts --report DIR
---rerun-plan OUT`, `scripts/lib/paid-rerun.ts`) reruns, once, at the same head
-and in the same run attempt, every case whose verdict failed and that nothing
-has re-executed yet: a red rule or judge case on its own shard (narrowed to that
-case in PR mode; when a dependents or full-fallback plan reruns the whole file,
-only the planned cases count), a behavior FAIL as its whole planned panel of 3 trials, a judge case with
-its 3 samples. Kinds, trial counts, thresholds and the judge model never change,
-and the rerun runs fresh (`eval-rerun`: no receipts in, none published). It
-plans nothing when the red is a harness failure (runner error, slice deadline,
-unfinalized checkpoint, a different executed case count, a reused result), an
-INFRA or INCOMPLETE panel, an INFRA-class or unattributed testcase, a case
-already red twice, or when any other problem would keep the gate red anyway.
+**CREW ルール 16。ゲートの編集。** Garry、2026-10-19: 「失敗したテストをもう一度実行して、フレーキーだったと記録すればいい……失敗した 1 件のテストのために、テストパス全体をやり直す必要はない。」 ゲートのスライスの後、`evals.yml` の `rerun-plan`(`scripts/test-paid-shards.ts --report DIR --rerun-plan OUT`、`scripts/lib/paid-rerun.ts`)は、同じ head で、同じ実行の試行内で、判定が失敗し、まだ何も再実行されていないケースをすべて、1 回だけ再実行します。対象は、自分のシャード上の赤い rule または judge のケース(PR モードではそのケースに絞られます。依存関係または全体フォールバックの計画でファイル全体が再実行される場合は、計画されたケースだけが数えられます)、3 試行分をまとめた behavior の FAIL、そして 3 サンプルとともに再実行される judge のケースです。種類、試行回数、閾値、judge のモデルは決して変わりません。再実行は新しく行われます(`eval-rerun`。レシートは入力にも公開にもなりません)。赤がハーネスの失敗(ランナーのエラー、スライスの締切、未確定のチェックポイント、実行されたケース数の不一致、再利用された結果)である場合、INFRA または INCOMPLETE のパネル、INFRA クラスまたは帰属不能のテストケース、すでに 2 回赤になったケース、またはほかの問題があってもゲートが赤のままになる場合は、再実行を計画しません。
 
-`slices-report` reads every attempt's slices (`paid-slice-*`), each attempt's
-rerun (`paid-rerun-*`, bound to its own `rerun-plan-a<attempt>` manifest) and
-orders them into one history per case. A case is **FLAKY** when it failed
-exactly once, that failure was eligible, and its very next observation passed:
-the gate is GREEN with a `FLAKY N` headline line, a `⚑` line per case in the
-report and PR comment, and one JSONL record per case in the run's
-`flake-records-a<attempt>` artifact (`flake-records.jsonl`: case, kind, PR,
-head, run, where it failed and passed, symptom, rerun cost) for the daily
-flaky-fix pass. A case that fails twice is a real red (`FAILED TWICE`). Rerun
-spend is reported on the same headline line. Pass-rate history
-(`trial-outcomes.jsonl`) still records each run's first execution unchanged; a
-rerun's trials stay in its `paid-rerun-*` artifacts and the flake record.
+`slices-report` は、すべての試行のスライス(`paid-slice-*`)、各試行の再実行(`paid-rerun-*`。それぞれ自身の `rerun-plan-a<attempt>` マニフェストに紐づきます)を読み込み、ケースごとに 1 つの履歴にまとめます。ケースが **FLAKY** となるのは、1 回だけ失敗し、その失敗が再実行の対象であり、直後の観測で合格した場合です。その場合、ゲートは `FLAKY N` の見出し行とともに GREEN になります。レポートと PR コメントでは、ケースごとに `⚑` の行が出ます。さらに、実行の `flake-records-a<attempt>` アーティファクトに、ケースごとに 1 件の JSONL レコード(`flake-records.jsonl`。ケース、種類、PR、head、実行、失敗した場所と合格した場所、症状、再実行のコストを含みます)が出力され、毎日のフレーキー修正パスで使われます。2 回失敗したケースは実際の赤です(`FAILED TWICE`)。再実行にかかったコストは、同じ見出し行に表示されます。合格率の履歴(`trial-outcomes.jsonl`)は、各実行の最初の実行結果をそのまま記録し続けます。再実行の試行は `paid-rerun-*` アーティファクトとフレーキーのレコードに残ります。
 
-A manual `gh run rerun --failed` attempt follows the same history, so an
-attempt that passes every earlier red is GREEN with the same annotation, while
-a red that first appears in a later attempt stays red unless its own next
-observation passes; a later attempt never hides a new red. On the gate lane a
-completed rule shard's red case no longer fails its slice job (`sliceExitCode`
-`caseVerdicts`); the report still fails closed on it, so the run's conclusion
-follows the report, and a flaky GREEN run concludes `success`. A rerun that
-`--failed` re-triggers (because an earlier problem blocked the in-run rerun)
-still reruns a case only once. A flaky GREEN binds as GREEN with its
-`flaky_cases` and is reusable by R2a and R2 (`reused_flaky`); a run still red
-after its rerun binds RED and is never reused. Train runs take the same
-`rerun-plan` path; a bisect reruns a VERDICT FAIL once on its prefix inside
-`scripts/train-gate.ts`, and a pass there is a flaky PASS naming both runs.
+手動の `gh run rerun --failed` の試行も、同じ履歴に従います。そのため、それ以前のすべての赤を合格にした試行は、同じ注記付きの GREEN になります。一方、後の試行で初めて現れた赤は、その直後の観測が合格しない限り赤のままです。後の試行が、以前の赤を隠すことはありません。ゲートのレーンでは、完了した rule シャードの赤いケースは、もうスライスのジョブを失敗させません(`sliceExitCode` の `caseVerdicts`)。ただしレポートは、そのケースで依然として fail-closed です。そのため、実行の結論はレポートに従い、フレーキーな GREEN の実行は `success` で終わります。`--failed` によって再トリガーされた再実行(以前の問題で、実行中の再実行がブロックされた場合)も、ケースを 1 回しか再実行しません。フレーキーな GREEN は、`flaky_cases` を伴って GREEN として確定し、R2a と R2 で再利用可能です(`reused_flaky`)。再実行の後も赤のままの実行は、RED として確定し、再利用されることはありません。Train の実行も同じ `rerun-plan` の経路をたどります。二分探索(bisect)は、`scripts/train-gate.ts` の中で、判定 FAIL を接頭辞で 1 回だけ再実行します。そこで合格すれば、両方の実行を名指しするフレーキーな PASS になります。
 
-### Ship measure
+<a id="ship-measure"></a>
+### Ship の計測
 
-**Measure-then-fix: diagnostic trials are not verdicts** (`scripts/ship-measure.ts`).
-When a paid case goes red during /ship, /ship measures that case alone before it
-reruns the full gate: classify the red line, measure, fix at the cause,
-re-measure, then run the gate once (`ship/sections/measure.md`). The repeated
-runs are **diagnostic measurement, not verdict retries**, so they fit the
-no-retry rule above: they never change the recorded verdict of the run that
-failed, every trial and measurement file says `"label": "diagnostic"` and
-`"verdict": null`, and they are written under `.context/ship-measure/<case>/<round>/t<NN>/`
-(one directory per baseline, repair round and trial; an existing round is never
-overwritten). The runner refuses an output directory inside the project eval
-dir, so pass-rate history and CI uploads never read a diagnostic trial as a
-verdict. The lane verdict still comes only from the full gate run. Each trial
-runs through gstack's single-case runner (`scripts/test-paid-shards.ts --tier
-<tier> --case <id> --trials 1`; a standalone judge id runs its file with only
-that judge selected and needs its own passing record) or through the project's
-documented single-case command (`--command '<command> {case}'`, split on
-whitespace, no shell).
+**計測してから修正する。診断試行は判定ではない**(`scripts/ship-measure.ts`)。有料ケースが /ship の実行中に赤になると、/ship は、ゲート全体を再実行する前に、そのケース単体を計測します。赤の行を分類し、計測し、原因を修正し、再計測し、そのうえでゲートを 1 回だけ実行します(`ship/sections/measure.md`)。繰り返される実行は**診断のための計測であり、判定の再試行ではありません**。そのため、上記のリトライなしのルールに従います。失敗した実行の記録済みの判定は決して変わりません。すべての試行と計測ファイルには `"label": "diagnostic"` と `"verdict": null` が記され、`.context/ship-measure/<case>/<round>/t<NN>/` に書かれます(ベースラインごと、修復ラウンドごと、試行ごとに 1 ディレクトリです。既存のラウンドが上書きされることはありません)。ランナーは、プロジェクトの評価ディレクトリの中にある出力ディレクトリを拒否します。そのため、合格率の履歴や CI のアップロードが、診断の試行を判定として読み取ることはありません。レーンの判定は、完全なゲートの実行からだけ得られます。各試行は、gstack の単一ケース用ランナー(`scripts/test-paid-shards.ts --tier <tier> --case <id> --trials 1`。単独の judge の ID は、選択された judge だけでそのファイルを実行し、独自の合格レコードを必要とします)、またはプロジェクトが文書化した単一ケースのコマンド(`--command '<command> {case}'`。空白で分割され、シェルは通しません)を通して実行されます。
 
-Counts per kind come from gstack config (`bin/gstack-config`), so a measurement
-is pre-registered before it runs. Each measurement is decided by the
-measurement bar (`scripts/lib/measure-bar.ts`, approved 2026-10-06), applied in
-this order:
+種類ごとの回数は gstack の設定(`bin/gstack-config`)から取得されるため、計測は実行の前に事前登録されます。各計測は、計測バー(`scripts/lib/measure-bar.ts`、2026-10-06 承認)で、次の順序で判定されます。
 
-| Kind | Trials per batch (config key, default) | MEETS | MEETS-qualified | EXTEND, then the pooled decision |
+| 種類 | バッチごとの試行数(設定キー、デフォルト) | MEETS | MEETS-qualified | EXTEND、その後プールされた判定 |
 |---|---|---|---|---|
-| `rule` | `ship_measure_rule_trials`, 10 | at least 9 of 10 | 8 of 10, every red qualifying | 7 of 10, or 8 that does not qualify: 10 more trials, then 18 of 20 strict or 16 of 20 qualified |
-| `behavior` | `ship_measure_behavior_panels`, 4 panels of 3 (12 trials) | at least 11 of 12 | 10 of 12, every red qualifying | 9 of 12, or 10 that does not qualify: 12 more trials, then 22 of 24 strict or 20 of 24 qualified |
-| `judge` | `ship_measure_judge_outputs`, 10 outputs | at least 9 of 10 outputs | 8 of 10, every red qualifying | 7 of 10, or 8 that does not qualify: 10 more outputs, then 18 of 20 or 16 of 20 qualified |
+| `rule` | `ship_measure_rule_trials`、10 | 10 件中 9 件以上 | 10 件中 8 件、すべての赤が qualifying | 10 件中 7 件、または資格のない 8 件: さらに 10 件の試行を行い、その後 20 件中 18 件(strict)または 20 件中 16 件(qualified) |
+| `behavior` | `ship_measure_behavior_panels`、3 試行のパネル 4 つ(12 試行) | 12 件中 11 件以上 | 12 件中 10 件、すべての赤が qualifying | 12 件中 9 件、または資格のない 10 件: さらに 12 試行を行い、その後 24 件中 22 件(strict)または 24 件中 20 件(qualified) |
+| `judge` | `ship_measure_judge_outputs`、10 出力 | 10 出力中 9 出力以上 | 10 件中 8 件、すべての赤が qualifying | 10 件中 7 件、または資格のない 8 件: さらに 10 出力を行い、その後 20 件中 18 件、または 20 件中 16 件(qualified) |
 
-A judge output passes when the median of its 3 samples passes (EVAL_POLICY v3,
-so at least 2 of 3). Everything below the EXTEND row is **BELOW**: a fix round.
+judge の出力は、その 3 サンプルの中央値が合格したときに合格となります(EVAL_POLICY v3。つまり 3 件中少なくとも 2 件)。EXTEND の行より下のものはすべて **BELOW** であり、修正ラウンドになります。
 
-- **Qualifying reds** (the only reds MEETS-qualified accepts): `provider`, which
-  is mechanical: the trial's own `failure_cause` is `api_error`, or
-  `pre_turn_infra` whose evidence names a 429 or 5xx, a rate limit, an overload
-  or a connection reset (`ship-measure classify` refuses `provider` otherwise);
-  `judge-noise`, a judge sample at the threshold; and `model-miss`, which counts
-  only with a `path:line` citation of the deviation. Never qualifying: a timeout
-  or hang (`session_timeout`, `observer_timeout` and `provider_stall` are
-  classified so without review and cannot be reclassified into a qualifying
-  class), a regression, a contract violation (BELOW at any count), or any red
-  with a known fixable cause (`fixable`): each goes to a fix round.
-- **needs-classify.** A batch below the strict bar but at or above the EXTEND
-  floor, with a failed trial nobody classified, returns needs-classify (exit 5)
-  with the trials to classify. `ship-measure classify --trials 2,5 --class <c>
-  --evidence <text>` appends one immutable record per trial to the round's
-  `classifications.jsonl` (a later record supersedes an earlier one) and
-  re-decides. `unclassified` records "reviewed, no route"; it allows EXTEND but
-  never qualifies.
-- **EXTEND** (exit 6). `ship-measure extend` runs N more trials only when the
-  round decided EXTEND and only on identical inputs: the measurement's identity
-  (the working tree's frozen git tree, kind, trials, runner, Claude CLI, model,
-  CI image `GSTACK_CI_IMAGE`, Bun, EVAL_POLICY and HARNESS_VERSION) must match
-  field for field, and the refusal names the field that changed. The pooled 2N
-  is decided once and is never extended again: there is no third batch.
-- **Void batches.** A batch where more than 30% of trials fail with affirmative
-  provider or transport evidence is void (an outage, not a measurement); the
-  runner redispatches it once, both batches are reported, and a second void
-  batch stops with a named red. A crash or module-load failure without provider
-  evidence never voids a batch.
+- **qualifying な赤**(MEETS-qualified が受け入れる赤だけ): `provider` は機械的に判定されます。試行自身の `failure_cause` が `api_error` である場合、または `pre_turn_infra` で、その証拠が 429 または 5xx、レート制限、過負荷、接続リセットを示している場合です(`ship-measure classify` は、それ以外の場合の `provider` を拒否します)。`judge-noise` は、閾値にある judge のサンプルです。`model-miss` は、逸脱を `path:line` で引用している場合にのみ数えられます。タイムアウトやハングは決して qualifying ではありません(`session_timeout`、`observer_timeout`、`provider_stall` は、レビューなしでそのように分類され、qualifying な分類へ再分類することはできません)。回帰、契約違反(どの回数でも BELOW)、既知の修正可能な原因のある赤(`fixable`)も、決して qualifying ではなく、いずれも修正ラウンドへ進みます。
+- **needs-classify。** 厳格な基準より下だが EXTEND の下限以上であり、誰も分類していない失敗試行を含むバッチは、分類が必要な試行とともに needs-classify(終了コード 5)を返します。`ship-measure classify --trials 2,5 --class <c> --evidence <text>` は、ラウンドの `classifications.jsonl` に、試行ごとに不変のレコードを 1 件追加し(後のレコードが前のレコードを置き換えます)、再判定を行います。`unclassified` は「レビュー済み、経路なし」を記録します。これは EXTEND を許可しますが、qualifying にはしません。
+- **EXTEND**(終了コード 6)。`ship-measure extend` は、ラウンドが EXTEND と判定し、かつ同一の入力の場合にのみ、さらに N 回の試行を実行します。計測の識別子(作業ツリーの凍結された git tree、種類、試行数、ランナー、Claude CLI、モデル、CI イメージ `GSTACK_CI_IMAGE`、Bun、EVAL_POLICY、HARNESS_VERSION)は、フィールドごとに一致しなければなりません。拒否時には、変わったフィールドの名前が示されます。プールされた 2N は一度だけ判定され、二度と延長されることはありません。第 3 のバッチはありません。
+- **無効なバッチ。** 試行の 30% を超えるものが、プロバイダまたはトランスポートの明白な証拠とともに失敗したバッチは無効です(障害であり、計測ではありません)。ランナーはそのバッチを 1 回だけ再ディスパッチします。両方のバッチが報告されます。2 回目の無効なバッチは、名前付きの赤で停止します。プロバイダの証拠がないクラッシュやモジュールロードの失敗が、バッチを無効にすることはありません。
 
-`ship_measure_budget_usd` (default 25) is an estimated admission budget per red
-case across the baseline, an extension or redispatch, every repair round and
-judge scoring: before each
-batch the runner reserves the estimated cost of every concurrent trial and
-admits only what fits beside what was already spent, then reconciles actual
-costs after the batch. When the next trial no longer fits it stops with a named
-red. A case with no per-trial estimate, or one above
-`ship_measure_ask_per_trial_usd` (default 2), asks once before any trial runs;
-with no estimate it then runs one calibration trial alone. `ship_measure_max_rounds`
-(default 3) limits repair rounds; an extension or a redispatch is not a round.
-`ship-measure report` prints the PR-body table: each measurement as "observed
-k/n" (after the named fix for a repair round, with every batch), the bar, the
-decision, estimated and actual spend, and qualified MEETS under their own
-heading. A red the user declares infrastructure is
-recorded with `ship-measure skip` and shows as `unmeasured`, never as a pass. A
-case is called fixed only with a named causal change and every failure in the
-closing measurement explained; the weekly census, not the loop, reports
-long-term reliability.
+`ship_measure_budget_usd`(デフォルト 25)は、赤いケースごとの推定の受け入れ予算です。これはベースライン、延長または再ディスパッチ、すべての修復ラウンド、judge の採点をまたいで適用されます。バッチの前に、ランナーは並行するすべての試行の推定コストを確保し、すでに使った分と合わせて収まる分だけを受け入れます。バッチの後には、実際のコストで精算します。次の試行が収まらなくなると、名前付きの赤で停止します。試行ごとの推定値がないケース、または `ship_measure_ask_per_trial_usd`(デフォルト 2)を超えるケースは、試行の前に一度だけ確認を求めます。推定値がない場合は、単独で 1 回の較正試行を行います。`ship_measure_max_rounds`(デフォルト 3)は修復ラウンドの数を制限します。延長や再ディスパッチはラウンドに数えません。`ship-measure report` は、PR 本文用の表を出力します。各計測は「観測 k/n」(名前付きの修正の後、修復ラウンドではその修正の後に、すべてのバッチとともに)、バー、判定、推定および実際の支出、そして独自の見出しの下に記される qualified MEETS として表示されます。ユーザーがインフラの問題だと宣言した赤は、`ship-measure skip` で記録され、`unmeasured` と表示されます。決して合格とは表示されません。ケースが修正済みとされるのは、名前付きの原因となる変更があり、かつ最終計測のすべての失敗が説明されている場合に限ります。長期的な信頼性は、ループではなく、毎週の棚卸しが報告します。
 
-The same rule covers a failed free-suite shard: `ship-measure free` reruns that
-shard's exact file list 10 times (rerun 1 alone as the baseline, the rest in
-parallel at `max(1, floor(cores / shard concurrency))`), each with its own HOME,
-state root and flake ledger and with `GSTACK_FREE_RETRY_FLAKY=0`, under a
-10-minute wall cap that reports a partial count. Browse daemons in a rerun pick
-free random ports, as in the normal suite. `ship_rerun_backend=ubicloud` runs the
-reruns on one Ubicloud VM through `bun run test:ubicloud --diagnostic`, which
-also sets the flaky retry off. The seeded paid case `ship-measure-seeded-flake`
-(periodic, `behavior`) drives /ship through this loop against a stub eval
-command that fails trial slots 2, 5 and 9 until its list is sorted. The weekly
-[off-ship sweep](#ship-measure-sweep) measures main's flakiest gate cases with
-the same runner and bar.
+同じルールは、失敗した無料スイートのシャードにも適用されます。`ship-measure free` は、そのシャードの正確なファイル一覧を 10 回再実行します(1 回目は単独でベースラインとし、残りは `max(1, floor(cores / shard concurrency))` で並列に実行します)。各実行は独自の HOME、状態ルート、フレーキーの台帳を持ち、`GSTACK_FREE_RETRY_FLAKY=0` を付けます。全体は 10 分の wall の上限で動き、上限に達すると部分的な件数を報告します。再実行中のブラウザデーモンは、通常のスイートと同様に空いているランダムポートを選びます。`ship_rerun_backend=ubicloud` は、1 台の Ubicloud VM 上で `bun run test:ubicloud --diagnostic` を通して再実行します。このモードでは、フレーキーのリトライも無効になります。シードされた有料ケース `ship-measure-seeded-flake`(定期、`behavior`)は、このループを通じて /ship を駆動します。このケースは、スタブの評価コマンドに対して、試行スロット 2、5、9 を、リストがソートされるまで失敗させます。毎週の[オフシップのスイープ](#ship-measure-sweep)は、同じランナーとバーを使って、main で最もフレーキーなゲートのケースを計測します。
 
 <a id="failure-causes"></a>
-**Failure causes and details** (diagnostic only; verdicts unchanged under v1).
-Every failed trial record keeps `failure_class` (`assertion`, `contract`,
-`timeout`, `infra`: the field verdicts, INFRA re-dispatch and pass rates read)
-and its 300-character `error` exactly as before. `failureCauseOf()`
-(`test/helpers/eval-store.ts`, called by both record builders, including the
-JUnit census for PTY and JUnit-only cases) adds an optional `failure_cause`
-with a one-line `failure_cause_evidence`. It never changes `failure_class`.
-The highest-precedence cause with evidence wins:
+**失敗の原因と詳細**(診断専用。判定は v1 のもとで変わりません)。
+失敗したすべての試行レコードは、`failure_class`(`assertion`、`contract`、`timeout`、`infra`。判定、INFRA の再ディスパッチ、合格率が読む項目です)と、300 文字の `error` をこれまでどおり保持します。`failureCauseOf()`(`test/helpers/eval-store.ts`。両方のレコードビルダーから呼ばれます。PTY と JUnit のみのケースのための JUnit の棚卸しも含みます)は、任意の `failure_cause` と、1 行の `failure_cause_evidence` を追加します。これは `failure_class` を決して変えません。証拠のある最も優先度の高い原因が採用されます。
 
-| `failure_cause` | Recorded when | First step |
+| `failure_cause` | 記録される条件 | 最初にすること |
 |---|---|---|
-| `contract` | `expectContract()` stamped a contract violation | fix the product; a violation fails a behavior panel outright |
-| `pre_turn_infra` | the trial failed before the first model turn (`failure_class: 'infra'`) | check the runner and API status; an all-INFRA census is re-dispatched once |
-| `api_error` | a session ended on an API error (for PTY, the `API Error:` panel on an idle turn) or the runner's exit reason was `error_api` | read the evidence line; a provider outage is a named red |
-| `refusal` | the structured stop reason was a refusal (phrases only as a last resort; quoted refusal text in a tool result does not count) | check whether the fixture prompt invites the refusal |
-| `provider_stall` | a session that streamed partial messages saw no event of any kind, thinking deltas included, for `STALL_WINDOW_MS` (120 s) while a model request was in flight and no tool, permission prompt, hook or subagent was outstanding; sessions without partial messages are never stalls | read the session ledger row; still a failed trial under v1 |
-| `session_timeout` | a runner's armed session timeout fired | `eval:pass-rates --headroom`; cut work, never raise the budget |
-| `observer_timeout` | the test's observer gave up waiting for an outcome (`outcome=timeout`) | read the transcript tail: a missed detector or a product that never answered |
-| `assertion` | a check failed after the session ran (`session completed; check failed` when it ended normally) | the Expected/Received values or judge dimensions |
-| `unknown` | the trial failed with no evidence for any cause above | inspect the shard directory |
+| `contract` | `expectContract()` が契約違反を記録した | 製品を修正する。違反は behavior パネルを即座に失敗させます |
+| `pre_turn_infra` | 最初のモデルのターンより前に試行が失敗した(`failure_class: 'infra'`) | ランナーと API の状態を確認する。INFRA のみの棚卸しは 1 回だけ再ディスパッチされます |
+| `api_error` | セッションが API エラーで終了した(PTY の場合は、アイドル状態のターンにある `API Error:` パネル)、またはランナーの終了理由が `error_api` だった | 証拠の行を読む。プロバイダの障害は名前付きの赤になります |
+| `refusal` | 構造化された停止理由が拒否だった(フレーズは最後の手段としてのみ使われます。ツールの結果に引用された拒否文は数えません) | フィクスチャのプロンプトが拒否を誘発していないか確認する |
+| `provider_stall` | 部分メッセージをストリームしていたセッションで、モデルのリクエストが処理中であり、ツール、権限プロンプト、フック、サブエージェントのいずれも待機していない状態で、`STALL_WINDOW_MS`(120 秒)の間、あらゆる種類のイベント(思考のデルタを含む)が届かなかった。部分メッセージのないセッションは、決してストールとはみなされません | セッション台帳の行を読む。v1 のもとでは、依然として失敗した試行です |
+| `session_timeout` | ランナーに設定されたセッションのタイムアウトが発火した | `eval:pass-rates --headroom` を実行する。作業を削減すること。予算を上げてはいけません |
+| `observer_timeout` | テストの観測者が結果を待つのを諦めた(`outcome=timeout`) | 文字起こしの末尾を読む。検出器の見落とし、または製品が応答しなかった |
+| `assertion` | セッションの実行後に検査が失敗した(セッションが正常終了した場合は `session completed; check failed`) | Expected/Received の値、または judge の観点を見る |
+| `unknown` | 上記のどの原因にも証拠がなく、試行が失敗した | シャードのディレクトリを調べる |
 
-A detector, harness or product fault is a human diagnosis, never a cause.
-Readers before this field accept the new records (a frozen v1 reader runs over
-them in `test/eval-store.test.ts`); an unknown cause from a newer gstack is
-rejected with `unknown failure_cause "<x>" (written by a newer gstack; update
-this checkout to read it)`.
+検出器、ハーネス、製品の欠陥は、人間による診断であり、原因として記録されることはありません。
+このフィールドより前のリーダーは、新しいレコードを受け入れます(凍結された v1 のリーダーが `test/eval-store.test.ts` でそれらを読みます)。新しい gstack が書いた未知の `failure_cause` は、`unknown failure_cause "<x>" (written by a newer gstack; update this checkout to read it)` で拒否されます。
 
-`failure_detail` carries the values `error` cannot hold: a failed Bun matcher's
-`{expected, received}`, or for a judge one `{dimension, mean, threshold,
-samples, rationale}` entry per failing dimension (since EVAL_POLICY v3 `mean`
-holds the panel's gating median), each part capped at 200
-characters. `sessions[]` (at most 32) summarizes the trial's session-ledger
-rows. `cost_known: false` marks a record or trial whose harness captured no
-billing: PTY and Codex sessions never bill, and an SDK session bills only with a
-terminal `total_cost_usd`. An absent field means known. Census and marathon
-cost lines print the known sum and `N of M trial(s) cost unknown`, never a bare
-total over unknowns.
+`failure_detail` は、`error` に収まらない値を保持します。Bun のマッチャーが失敗した場合の `{expected, received}`、または judge の場合は、失敗した観点ごとに 1 つの `{dimension, mean, threshold, samples, rationale}` エントリです(EVAL_POLICY v3 以降、`mean` はパネルのゲートになる中央値を保持します)。各部分は 200 文字で切り詰められます。`sessions[]`(最大 32 件)は、試行のセッション台帳の行を要約します。`cost_known: false` は、ハーネスが課金情報を取得できなかった記録または試行を示します。PTY と Codex のセッションは決して課金されず、SDK のセッションは、終了時の `total_cost_usd` がある場合にのみ課金されます。フィールドがない場合は、既知であることを意味します。コストの棚卸しと marathon のコスト行は、既知の合計と `N of M trial(s) cost unknown` を表示します。不明なものを含む裸の合計は決して表示しません。
 
 <a id="session-ledger"></a>
-**Session ledger.** Every runner (session-runner, the Agent SDK runner
-including `runSharedInteractive`, the PTY session and `runRecordedCodexEval`)
-appends one best-effort line per armed session to
-`$GSTACK_EVAL_DIR/session-ledger.jsonl` (`test/helpers/session-ledger.ts`):
-a stable key `<runner>:<label>#n`, the exact `budget_ms` it armed, monotonic
-`elapsed_ms`, the `end` reason, sanitized evidence, `billed`, and a compact
-liveness summary (longest in-request silence, the last event kind, any tool open
-at the end). `claude -p` sessions stream partial messages for this summary;
-transcripts keep their shape and size (full stream diagnostics only with
-`publicStreamDiagnostics`). A failed ledger write never fails a trial; a trial
-without ledger rows has no `sessions` and its headroom is `unknown`, never
-scored. The ledger rides in each slice artifact beside the shard results.
+**セッション台帳。** すべてのランナー(session-runner、Agent SDK ランナー(`runSharedInteractive` を含む)、PTY セッション、`runRecordedCodexEval`)は、作動したセッションごとに、ベストエフォートで 1 行を `$GSTACK_EVAL_DIR/session-ledger.jsonl`(`test/helpers/session-ledger.ts`)に追加します。その行には、安定したキー `<runner>:<label>#n`、作動させた正確な `budget_ms`、単調な `elapsed_ms`、`end` の理由、サニタイズされた証拠、`billed`、そしてコンパクトな生存性の要約(リクエストの最長の無音時間、最後のイベントの種類、終了時に開いていたツール)が含まれます。`claude -p` のセッションは、この要約のために部分メッセージをストリームします。文字起こしの形と大きさは変わりません(完全なストリームの診断は `publicStreamDiagnostics` を指定した場合のみ)。台帳の書き込みに失敗しても試行が失敗することはありません。台帳の行がない試行には `sessions` がなく、その余力は `unknown` になります。採点は行われません。台帳は、各スライスのアーティファクトに、シャードの結果と並んで含まれます。
 
-**Quarantine** (`CASE_QUARANTINE`, same file). An entry needs: a per-trial rate
-below 95% over at least 10 post-policy trials of the case's current input
-identity (pre-policy backfill may justify only an initial entry, labeled as
-such); a written diagnosis in `reason` whose `failureClass` is `detector`,
-`harness` or `model-latency` (a product defect is fixed or listed as a named
-red, never quarantined); unchanged case touchfiles in the change that adds it;
-and an owner, tracking pointer, `enteredAt` date and measurable `exit`. A
-quarantined case still runs its full panel and reports in every lane but cannot
-fail it, except on a hard break (0 of n) or a contract violation, and it never
-counts as passing coverage. At most 10% of a blocking tier (gate, periodic) may
-be quarantined. The weekly report fails when an entry passes its exit rule (at
-least 97% over at least 10 trials) without being removed, when an entry is 8
-weekly runs old, or when a tier is over its cap.
+**隔離**(`CASE_QUARANTINE`、同じファイル)。エントリには次のものが必要です。ケースの現在の入力識別子における、ポリシー適用後の試行が 10 以上ある場合の、試行ごとの合格率が 95% 未満であること(ポリシー適用前のバックフィルは、最初のエントリについてのみ、その旨を明記して正当化できます)。`reason` に書かれた診断があり、その `failureClass` が `detector`、`harness`、`model-latency` のいずれかであること(製品の欠陥は、修正するか名前付きの赤として記載するものであり、隔離はしません)。追加する変更の中で、ケースの touchfiles が変更されていないこと。そして、担当者、追跡先の参照、`enteredAt` の日付、測定可能な `exit` 条件があること。隔離されたケースは、すべてのレーンで完全なパネルを実行し、報告しますが、失敗させることはできません。ただし、ハードな失敗(n 件中 0 件)または契約違反の場合は例外です。また、有効なカバレッジとして数えられることもありません。ブロッキングの層(gate、periodic)のうち、隔離できるのは最大 10% です。毎週のレポートは、次の場合に失敗します。エントリが終了ルールを満たしている(10 試行以上で少なくとも 97%)のに削除されていない場合、エントリが 8 回の毎週の実行を経て古くなっている場合、または層が上限を超えている場合です。
 
-**Pass-rate history** (`bun run eval:pass-rates`, `scripts/eval-flake-rank.ts`).
-It reads the `trial-outcomes` artifact of the last N completed weekly
-`evals-periodic.yml` runs, meaning scheduled runs on `main` plus `main`
-dispatches, plus completed branch census runs in the same window (flags:
-`--case`, `--runs N`, `--branch` to inspect one branch, `--dir`, `--backfill`,
-`--json`, `--gate`, and the views `--headroom`, `--reds`,
-`--run <id>`; `--help` works offline, and an unknown flag or case id exits 2
-before anything is fetched; every view prints its `scope:` line). A branch trial counts only toward a series `main` has also
-run (same case-owned bytes, `HARNESS_VERSION`, model and CLI); a branch never
-starts or becomes a case's current series, and weeks for quarantine expiry
-count `main` runs only. It prints
-per-case per-trial pass rates with 95% Wilson intervals. A series is one case
-under one input identity ([Harness version](#harness-version)), per model,
-Claude CLI version and policy version
-([Pass-rate policy versions](#pass-rate-policy-versions)); a change starts a
-new series and older ones stay visible. Labels: INCONCLUSIVE below 10 trials, BROKEN when the latest run is
-0/n after a prior interval at or above 95%, FLAKY when failures leave the
-interval straddling 95%, FAILING when the whole interval is below it, PASSING
-otherwise. `--backfill` imports legacy slice artifacts as pre-policy trials
-(first attempt only; a record that names no registry id is listed as
-unattributed, never guessed); they are display-only. `--gate` (the weekly
-report) fails with ACTION REQUIRED, on post-policy trials of the current series
-only, when a non-quarantined blocking case meets the entry rule (proposing an
-entry), when a `rule` case does (rule case behaving like behavior: fix or
-reclassify), when a blocking case's current identity is significantly below its
-previous one (one-sided Fisher exact, α = 0.05, at least 6 trials each side,
-Holm-controlled across the cases tested), on the quarantine rules above, and
-with a `[headroom]` alarm when a case's slowest session ran above
-`HEADROOM_FAIL` (85%) of the budget it armed. History that cannot be fetched
-fails the gate closed.
+**合格率の履歴**(`bun run eval:pass-rates`、`scripts/eval-flake-rank.ts`)。
+これは、直近 N 回の完了した毎週の `evals-periodic.yml` の実行(`main` でのスケジュール実行と、`main` での dispatch)、および同じ期間内に完了したブランチの棚卸しの実行の `trial-outcomes` アーティファクトを読みます(フラグは `--case`、`--runs N`、`--branch`(1 つのブランチを調べる)、`--dir`、`--backfill`、`--json`、`--gate`、そして表示モード `--headroom`、`--reds`、`--run <id>`。`--help` はオフラインで動作します。不明なフラグやケース ID は、何かを取得する前に終了コード 2 で終わります。どの表示も `scope:` の行を出力します)。ブランチの試行が数えられるのは、`main` も実行している系列に限られます(同じケースが所有するバイト列、`HARNESS_VERSION`、モデル、CLI)。ブランチが、ケースの現在の系列を開始したり、そのようになったりすることはありません。隔離の期限を数える週は、`main` の実行だけを数えます。ケースごと、試行ごとの合格率を、95% の Wilson 区間とともに出力します。系列とは、1 つのケースを 1 つの入力識別子([ハーネスバージョン](#harness-version))、モデルごと、Claude CLI のバージョンごと、およびポリシーのバージョンごと([合格率ポリシーのバージョン](#pass-rate-policy-versions))に分けたものです。変更があると新しい系列が始まりますが、古い系列も表示されたままです。ラベルは次のとおりです。10 試行未満は INCONCLUSIVE、直近の実行が 0/n で、その前の区間が 95% 以上だった場合は BROKEN、失敗が区間を 95% の周りでまたぐ場合は FLAKY、区間全体が閾値を下回る場合は FAILING、それ以外は PASSING です。`--backfill` は、レガシーなスライスのアーティファクトを、ポリシー適用前の試行として取り込みます(最初の試行のみ。ケース ID を指定していないレコードは、推測せず、帰属不能として一覧に出します)。これは表示のためだけのものです。`--gate`(毎週のレポート)は、現在の系列の、ポリシー適用後の試行だけを対象に、次の場合に ACTION REQUIRED で失敗します。隔離されていないブロッキングのケースが、エントリのルールを満たす場合(エントリを提案します)。`rule` のケースが満たす場合(振る舞いが behavior のようになっている rule ケース。修正するか分類を変更する必要があります)。ブロッキングのケースの現在の識別子が、直前の識別子より有意に低い場合(片側 Fisher 正確検定、α = 0.05。両側で少なくとも 6 試行ずつ。検定されたケース全体で Holm 補正)。上記の隔離ルール。そして、ケースの最も遅いセッションが、設定された予算の `HEADROOM_FAIL`(85%)を超えて動いた場合の `[headroom]` アラートです。取得できない履歴は、ゲートを閉じたまま失敗させます。
 
-The views (`scripts/lib/eval-history.ts`): `--headroom` lists each case's
-slowest armed session against its budget (warn above `HEADROOM_WARN`, 75%;
-`insufficient` below 3 samples; timed-out samples marked censored; `unknown`
-without a session ledger, with the case wall beside it as a labelled upper
-bound) and the census critical path from the slice job timings. `--reds` lists
-verdict reds per census lane by failure class and cause, pooled and shrunk
-per-case red rates, and the all-green probability Π(1 − p_i) over the latest
-census's cases with an interval, labelled an approximation because verdicts are
-not proven independent. `--run <id>` is one census's triage: each red with its
-values and history, and the transcript evidence it downloads from only the
-slices its reds name (a slice artifact over 64 MB is reported, not fetched).
-The three thresholds `HEADROOM_WARN`, `HEADROOM_FAIL` and `STALL_WINDOW_MS`
-live in `test/helpers/eval-budgets.ts`, outside `EVAL_POLICY`; a slow case gets
-less work, never a larger budget. The red-census walkthrough is
-[docs/evals/census-red.md](evals/census-red.md).
+表示モード(`scripts/lib/eval-history.ts`)。`--headroom` は、ケースごとに最も遅いセッションを、その予算と比べて一覧に出します(`HEADROOM_WARN` 75% を超えると警告。サンプルが 3 件未満は `insufficient`。タイムアウトしたサンプルは打ち切りとして印を付けます。セッション台帳がない場合は `unknown` とし、ケースの wall を、ラベル付きの上限値として隣に表示します)。また、スライスのジョブの時間から、棚卸しのクリティカルパスを表示します。`--reds` は、レーンごとの判定の赤を、失敗の種類と原因ごとに一覧に出し、プールされ縮小されたケースごとの赤の率と、最新の棚卸しのケース全体にわたる全緑の確率 Π(1 − p_i) を、区間とともに示します。判定は独立であるとは証明されていないため、これは近似であることが明示されます。`--run <id>` は、1 回の棚卸しのトリアージです。各赤について、その値と履歴を示し、赤が指定するスライスからだけ文字起こしの証拠をダウンロードします(64 MB を超えるスライスのアーティファクトは、取得せずに報告されます)。3 つの閾値 `HEADROOM_WARN`、`HEADROOM_FAIL`、`STALL_WINDOW_MS` は `test/helpers/eval-budgets.ts` にあり、`EVAL_POLICY` の外側にあります。遅いケースは、より大きな予算ではなく、より少ない作業を与えられます。赤い棚卸しの手順は [docs/evals/census-red.md](evals/census-red.md) にあります。
 
-**The arithmetic.** With per-trial pass rate p, the chance a single case goes
-red (a false red while the product works, the catch rate once it has
-regressed):
+**計算。** 試行ごとの合格率を p とすると、1 つのケースが赤になる確率(製品が正しく動いているのに誤って赤になる確率。または、回帰した後に検出する確率)は次のとおりです。
 
-| p | 1 trial | 2-of-3 panel |
+| p | 1 試行 | 2 of 3 のパネル |
 |---|---|---|
 | 0.99 | 1.0% | 0.03% |
 | 0.95 | 5.0% | 0.72% |
@@ -725,661 +155,200 @@ regressed):
 | 0.70 | 30.0% | 21.6% |
 | 0.30 | 70.0% | 78.4% |
 
-The panel removes most false reds at healthy rates, but it catches a 0.95 → 0.70
-regression in one run only 21.6% of the time (a single trial 30%, retry-until-green
-3%), so drift detection is the history rule's job, not the per-run verdict's.
-The Fisher alarm is weak at the minimum sample (5.4% power for 0.95 → 0.70 at
-6 trials a side), and ten straight passes still leave a 72% Wilson lower bound:
-after this policy lands, every series starts INCONCLUSIVE.
+パネルは、健全な合格率のもとでは、ほとんどの誤った赤を取り除きます。しかし、0.95 から 0.70 への回帰を 1 回の実行で検出できるのは 21.6% だけです(単一の試行では 30%、合格するまで再試行する方式では 3%)。そのため、ドリフトの検出は、実行ごとの判定ではなく、履歴ルールの役割です。Fisher の警告は、最小サンプルでは検出力が弱いです(6 試行ずつの場合、0.95 から 0.70 への検出力は 5.4%)。また、10 回連続で合格しても、Wilson の下限は 72% にとどまります。このポリシーが導入された後は、すべての系列が INCONCLUSIVE から始まります。
 
-A lane is all green with probability Π p_rule × Π P(≥2 of 3 | p_behavior) ×
-Π p_judge. For the current registry (PR gate worst case: 107 rule cases and 24
-judges; weekly census: 190 rule, 22 behavior and 25 judge verdicts), with rule
-and judge verdicts at p_rule:
+レーン全体が全緑になる確率は、Π p_rule × Π P(≥2 of 3 | p_behavior) × Π p_judge です。現在のレジストリ(PR ゲートの最悪ケース: 107 件の rule ケースと 24 件の judge。毎週の棚卸し: 190 件の rule、22 件の behavior、25 件の judge の判定)について、rule と judge の判定の合格率を p_rule とすると、次のようになります。
 
-| p_rule | full PR gate | weekly, behavior p = 0.90 | 0.95 | 0.97 |
+| p_rule | PR ゲート全体 | 毎週、behavior p = 0.90 | 0.95 | 0.97 |
 |---|---|---|---|---|
 | 0.99 | 26.8% | 6.2% | 9.8% | 10.9% |
 | 0.995 | 51.9% | 18.2% | 29.0% | 32.1% |
 | 0.999 | 87.7% | 43.2% | 68.7% | 76.1% |
 
-The rule term dominates: a green lane on a working product needs rule cases to
-be near-deterministic (0.999), which is why failing detectors are converted to
-outcome checks and product defects are fixed or named, and why each census
-reports its all-green probability from the measured rates (`eval:pass-rates
---reds`, carried into the census report).
+rule の項が支配的です。健全な製品で全緑のレーンになるには、rule のケースがほぼ決定的(0.999)でなければなりません。これが、失敗する検出器を結果の検査に変換し、製品の欠陥は修正するか名前を付けて記録する理由です。また、各棚卸しが、実測された合格率(`eval:pass-rates --reds`。棚卸しのレポートにも引き継がれます)から全緑の確率を報告する理由でもあります。
 
-**Timeout policy.** Paid tests use the tiers in
-`test/helpers/eval-budgets.ts` (JUDGE/CAPTURE/CAPTURE_LONG/PTY/PTY_LONG);
-`test/eval-budgets-policy.test.ts` pins that every tier fits the shard wall
-minus overhead and ratchets raw literals. Budget above the wall is fiction.
-No paid test may exceed the ordinary tiers.
+**タイムアウトのポリシー。** 有料テストは、`test/helpers/eval-budgets.ts` の層(JUDGE/CAPTURE/CAPTURE_LONG/PTY/PTY_LONG)を使います。`test/eval-budgets-policy.test.ts` は、すべての層がシャードの wall からオーバーヘッドを引いた値に収まることを固定し、生のリテラルを段階的に減らします。予算が wall を超えるのは、ありえない話です。有料テストが通常の層を超えることは、決して許されません。
 
-`FINDING_RETRY_BUDGETS` also registers the CEO split-overflow and Eng
-multi-finding batching files. Each retains its 25-minute case deadline and runs
-once (paid evals never retry) in a 27-minute shard wall including two minutes for
-cleanup. No per-case budget grows. Overlay wrappers
-have a 1,830-second minimum shard wall and run without Bun retries; see the
-[overlay contract](OVERLAY_BENCHMARK_CONTRACT.md) for their unchanged work budget.
+`FINDING_RETRY_BUDGETS` には、CEO の分割オーバーフローと、Eng の複数の指摘をまとめるファイルも登録されています。それぞれ 25 分のケースの締切を保持し、各ケースは 1 回だけ実行されます(有料評価はリトライしません)。その実行は、クリーンアップの 2 分を含む 27 分のシャードの wall の中で行われます。ケースごとの予算は増えません。オーバーレイのラッパーは、1,830 秒の最小シャード wall を持ち、Bun のリトライなしで実行されます。作業予算は変わらず、[オーバーレイ契約](OVERLAY_BENCHMARK_CONTRACT.md)を参照してください。
 
-The quality file reserves its whole-file wall (3,170 seconds) for every case run
-once, plus cleanup. Each still has 120 seconds of model work. Its 17 workflow
-judges own their deadline and abort signal, with five seconds for terminal
-recording inside a ten-second Bun grace; the other 11 retain their existing
-120-second Bun timeout. Late responses cannot create records or cache passes.
+品質ファイルは、実行される各ケースに 1 回分のファイル全体の wall(3,170 秒)を確保し、クリーンアップも含みます。各ケースには、なお 120 秒のモデル作業時間があります。その 17 件のワークフロー judge は、独自の締切と中断シグナルを持ちます。終了時のレコードのために 5 秒を、10 秒の Bun の猶予の中で確保します。残りの 11 件は、既存の 120 秒の Bun タイムアウトを保持します。遅れて届いた応答は、レコードを作ったり、合格をキャッシュしたりできません。
 
-The ship documentation file reserves 4,920 seconds for four 600-second cases and
-eight 300-second fault cases, run once, plus cleanup; in CI each case runs as its
-own shard. The standalone
-documentation child retains its 600-second case. The five review/ship explorer
-cases reserve 1,695 seconds, run once, including finalization grace.
-These are whole-file supervision limits, not additional model work per case.
+ship のドキュメントのファイルは、4 つの 600 秒のケースと 8 つの 300 秒の障害ケースに 4,920 秒を確保します。それぞれ 1 回だけ実行され、クリーンアップも含みます。CI では、各ケースが独自のシャードとして実行されます。独立したドキュメントの子プロセスは、600 秒のケースを保持します。レビュー/ship の 5 つの explorer ケースには 1,695 秒を確保します。1 回だけ実行され、終了の猶予を含みます。これらはファイル全体の監視上の上限であり、ケースごとのモデル作業を追加するものではありません。
 
-The shared-library path file reserves 1,920 seconds for its three serial
-600-second cases, run once, plus 120 seconds for cleanup; in CI each case runs as
-its own shard with a 720-second wall (a registered file's case shard supervises
-`caseMs` times its allowed attempts plus the reserve). Its
-registered budget keeps the file in its own shard and binds the expected wall
-to both the saved plan and the execution receipt; missing or stale budget
-records fail reconciliation. Case deadlines and model budgets do not grow.
+共有ライブラリのパスファイルには、直列の 3 つの 600 秒のケースに対して 1,920 秒を確保します。1 回だけ実行され、クリーンアップに 120 秒を加えます。CI では、各ケースは独自のシャードとして、720 秒の wall で実行されます(登録されたファイルのケースのシャードは、`caseMs` にその許可された試行回数を掛けたものに、予備時間を加えた時間を監視します)。登録された予算により、そのファイルは独自のシャードに留まり、想定される wall は保存された計画と実行のレシートの両方に結び付けられます。予算のレコードが欠けている、または古い場合は、突き合わせに失敗します。ケースの締切とモデルの予算は増えません。
 
-`resolvePaidShardBudget(files, overrideMs?)` is the canonical per-job resolver.
-Each registered finding file and each overlay wrapper requires its
-own shard, even with `--files-per-shard` above one. Mixed or multi-file overlay
-jobs are rejected. An explicit
-CLI `--timeout`, `EVALS_SHARD_TIMEOUT_MS`, or API `timeoutMs` still wins for these
-policies, including a lower cap; overlay overrides below their minimum are rejected.
-Planner entries and execution results record the effective wall,
-its source and policy identifier. Custom drivers must resolve each job instead
-of passing their ordinary 1800-second default as an explicit cap;
-their outer controller/detach wall must also cover the allocated work and cleanup.
-The paid census counts are printed by `--list` for each tier.
-`eval:bg:<pr|gate|periodic|release>` runs `scripts/eval-bg.ts`. On the local
-backend its outer cap is ceil(1.5 × planned serial seconds / `EVALS_JOBS`) + 20
-minutes, at most 4 hours, computed from `scripts/paid-test-durations.json` for
-the lane's current plan (`--timeout SECS` overrides). On the dispatch backend the
-CI job ceilings above bound the run, and the local follower stops after 4 hours.
-`test/eval-detach-timeout-floor.test.ts` pins the cap formula, the 4-hour
-ceiling, the backend choice, the sentinel on both backends, the conclusion
-mapping and dispatch dedupe.
+`resolvePaidShardBudget(files, overrideMs?)` は、ジョブごとの正規のリゾルバです。登録された各指摘ファイルと、各オーバーレイのラッパーは、`--files-per-shard` が 1 より大きくても、それぞれ独自のシャードを必要とします。複数ファイルが混在するオーバーレイのジョブは拒否されます。CLI の明示的な `--timeout`、`EVALS_SHARD_TIMEOUT_MS`、または API の `timeoutMs` は、これらのポリシーに対しても、より低い上限を含めて優先されます。オーバーレイの上書きが最小値を下回る場合は拒否されます。計画のエントリと実行結果には、有効な wall、その出所、ポリシーの識別子が記録されます。カスタムのドライバーは、通常の 1800 秒のデフォルトを明示的な上限として渡すのではなく、ジョブごとに解決しなければなりません。さらに、外側のコントローラー/detach の wall は、割り当てられた作業とクリーンアップの両方をカバーしなければなりません。有料の棚卸しの件数は、層ごとに `--list` が出力します。
 
-CI plans with `--slice-budget 420 --jobs 2` for the PR gate, the periodic census
-and the weekly gate census (the gate census also `--skip-judges`), and
-`--slice-budget 1 --jobs 1` (one file per runner) for marathon. The live plans
-must fit their workflow's `max-parallel` so every slice starts at once, and every
-per-slice ceiling must stay within 360 minutes; `test/evals-workflow-wiring.test.ts`
-recomputes both from the complete census. Reconciliation rejects missing,
-duplicated or misplaced registered work, absent budget records, case shards that
-did not execute exactly their case, and reused results outside the PR profile.
-Ordinary paid tiers and the default 1800-second shard wall remain unchanged; the
-registered and overlay policies above supply exceptions, and unregistered
-over-ceiling tests still fail policy checks.
+`eval:bg:<pr|gate|periodic|release>` は `scripts/eval-bg.ts` を実行します。ローカルのバックエンドでは、その外側の上限は ceil(1.5 × 計画された直列の秒数 / `EVALS_JOBS`) + 20 分であり、最大 4 時間です。これは、レーンの現在の計画に対して `scripts/paid-test-durations.json` から計算されます(`--timeout SECS` で上書きできます)。dispatch のバックエンドでは、上記の CI ジョブの上限が実行を制限し、ローカルのフォロワーは 4 時間で停止します。`test/eval-detach-timeout-floor.test.ts` は、上限の計算式、4 時間の上限、バックエンドの選択、両方のバックエンドの番兵、結論の対応付け、dispatch の重複排除を固定します。
 
-Session timeouts are two-phase: a silent API dies at the startup grace (90s
-local / 300s CI floor, distinct exit reason `timeout_startup`) and the work
-budget arms on the first byte — the total wall never grows
-(`test/session-runner-startup-grace.test.ts` pins the floor). A timed-out
-session kills its whole detached process group (claude, codex, and gemini
-runners alike — `test/session-runner-groupkill.test.ts`), so a stray
-grandchild can't stretch a 600s budget past 1400s. And sync spawns can't
-wedge a shard: every `spawnSync`/`execSync`/`execFileSync`/`Bun.spawnSync`
-in the test trees must carry a `timeout`, enforced by
-`test/spawnsync-timeout-tripwire.test.ts` with a shrink-only exemption
-ratchet.
+CI は、PR ゲート、定期の棚卸し、毎週のゲートの棚卸し(ゲートの棚卸しでは `--skip-judges` も指定)に対して `--slice-budget 420 --jobs 2` で計画し、marathon には `--slice-budget 1 --jobs 1`(ランナーごとに 1 ファイル)で計画します。ライブの計画は、すべてのスライスが同時に開始されるよう、ワークフローの `max-parallel` に収まらなければならず、すべてのスライスごとの上限は 360 分以内でなければなりません。`test/evals-workflow-wiring.test.ts` は、完全な棚卸しからこれら両方を再計算します。突き合わせでは、欠落、重複、または誤配置された登録済みの作業、予算のレコードがない場合、ケースのシャードが自分のケースを正確に実行しなかった場合、PR プロファイル以外での再利用結果を拒否します。通常の有料の層と、デフォルトの 1800 秒のシャード wall は変わりません。登録済みおよびオーバーレイのポリシーだけが上記の例外を提供します。登録されていない、上限を超える テストは、依然としてポリシーのチェックで失敗します。
 
-**Anchor-sliced `setup` harnesses.** `setup` is one large bash script, so the
-free tests that pin its linker, cleanup, retired-skill prune, browser hint,
-rebuild decision, and Chromium-bootstrap behavior never run the whole thing.
-They slice the source by anchor (`extractFn(name)` takes
-`name() {` through the next `\n}\n`; `test/setup-playwright-best-effort.test.ts`
-slices the `# 2. Ensure Playwright's Chromium is available` block up to
-`# 2b.`), join the extracted functions with stubbed collaborators, and execute
-the REAL bash under a temp `HOME` with stubbed probes and installers. Two rules
-keep the harness honest: renaming a function or anchor comment in `setup` fails
-the test with `function not found` / `anchor not found` instead of silently
-testing nothing, and `test/setup-link-ownership.test.ts` and
-`test/setup-playwright-best-effort.test.ts` throw on any `command not found` on
-stderr as harness drift (a helper the test forgot to extract) rather than
-letting it degrade into a pass. Files: `test/setup-link-ownership.test.ts`,
-`test/setup-cleanup-orphans.test.ts`, `test/setup-playwright-best-effort.test.ts`,
-`test/setup-prune-stale-generated.test.ts` (`_prune_stale_generated` against a
-temp render tree plus host dirs: host cleanup after the generator already
-pruned, symlink targets survive, frontmatter-renamed skills, foreign links),
-`test/setup-browser-hint.test.ts` (`_browser_hint` and the bootstrap summary
-across Aside present/absent, bootstrap ok/failed/skipped, `GSTACK_SKIP_ASIDE`),
-and `test/setup-needs-build.test.ts` (the `NEEDS_BUILD` block sliced between
-two anchors: every binary and source set flips it, Windows `.exe` suffixes).
-`test/relink.test.ts` shells out to a copy of the real `bin/gstack-relink`
-against a temp `GSTACK_INSTALL_DIR` / `GSTACK_SKILLS_DIR`, and
-`test/hook-scripts.test.ts` runs the real `careful/bin/check-careful.sh` and
-`freeze/bin/check-freeze.sh` with JSON payloads on stdin (including the
-`GSTACK_HOME` state-root parity against `bin/gstack-paths`, PowerShell tool and
-NotebookEdit payloads); it is named Windows coverage in the curated
-`windows-free-tests` lane.
+セッションのタイムアウトは 2 段階です。応答しない API は、起動時の猶予(ローカルでは 90 秒、CI では 300 秒の下限)で終了し、終了理由は `timeout_startup` となります。作業の予算は、最初のバイトで始まります。全体の wall が増えることはありません(`test/session-runner-startup-grace.test.ts` が下限を固定します)。タイムアウトしたセッションは、そのプロセスグループ全体を強制終了します(claude、codex、gemini のランナーすべてについて。`test/session-runner-groupkill.test.ts`)。そのため、迷子になった子プロセスが 600 秒の予算を 1400 秒まで引き延ばすことはありません。また、同期的な spawn がシャードをハングさせることはありません。テストのツリーにあるすべての `spawnSync`/`execSync`/`execFileSync`/`Bun.spawnSync` には `timeout` が必要です。これは `test/spawnsync-timeout-tripwire.test.ts` が、縮小のみの例外リストとともに強制します。
 
-### Ship measure sweep
+**アンカーで切り出した `setup` のハーネス。** `setup` は 1 つの大きな bash スクリプトなので、そのリンク、クリーンアップ、退役したスキルの削除、ブラウザのヒント、再ビルドの判定、Chromium のブートストラップの動作を検査する無料テストは、スクリプト全体を実行することはありません。それらは、アンカーによってソースを切り出します(`extractFn(name)` は、`name() {` から次の `\n}\n` までを取り出します。`test/setup-playwright-best-effort.test.ts` は、`# 2. Ensure Playwright's Chromium is available` のブロックを `# 2b.` まで切り出します)。切り出した関数を、スタブされた協力者とともに結合し、スタブされたプローブとインストーラーのもとで、一時的な `HOME` の中で実際の bash を実行します。ハーネスを正直に保つための 2 つのルールがあります。`setup` 内の関数またはアンカーのコメントを改名すると、テストは何もテストしないことを黙って許すのではなく、`function not found` / `anchor not found` で失敗します。また、`test/setup-link-ownership.test.ts` と `test/setup-playwright-best-effort.test.ts` は、stderr 上の `command not found` を、ハーネスのずれ(テストが抽出し忘れたヘルパー)として例外を投げ、テストを失敗させます。合格に流れてしまうことは許しません。ファイルは次のとおりです。`test/setup-link-ownership.test.ts`、`test/setup-cleanup-orphans.test.ts`、`test/setup-playwright-best-effort.test.ts`、`test/setup-prune-stale-generated.test.ts`(一時的なレンダーツリーとホストのディレクトリに対する `_prune_stale_generated`。ジェネレーターがすでに削除した後のホストのクリーンアップ、シンボリックリンクの先が残ること、frontmatter で名前が変わったスキル、外部のリンクを扱います)、`test/setup-browser-hint.test.ts`(Aside がある場合とない場合、ブートストラップの成功、失敗、スキップ、`GSTACK_SKIP_ASIDE` にわたる `_browser_hint` とブートストラップの要約)、そして `test/setup-needs-build.test.ts`(2 つのアンカーの間で切り出された `NEEDS_BUILD` ブロック。すべてのバイナリとソースの組が、その値を反転させること、Windows の `.exe` の接尾辞を含みます)。`test/relink.test.ts` は、一時的な `GSTACK_INSTALL_DIR` / `GSTACK_SKILLS_DIR` に対して、実際の `bin/gstack-relink` のコピーを外部から実行します。`test/hook-scripts.test.ts` は、JSON のペイロードを標準入力に与えて、実際の `careful/bin/check-careful.sh` と `freeze/bin/check-freeze.sh` を実行します(`bin/gstack-paths` に対する `GSTACK_HOME` の状態ルートの一致、PowerShell のツールと NotebookEdit のペイロードを含みます)。このテストは、選定された `windows-free-tests` レーンの中で、名前付きの Windows のカバレッジとして扱われます。
 
-**Weekly off-ship qualification sweep** (`ship-measure sweep`,
-`scripts/ship-measure-sweep.ts`, `.github/workflows/eval-sweep.yml`; approved
-2026-10-06). With about 130 gate verdicts, an all-green gate is unlikely even
-when every case is healthy (26.8% at 99% per verdict), so flaky cases are
-measured on main before any ship hits them. The sweep reads `eval:pass-rates`
-history (`evals-periodic.yml` on main plus pooled branch census runs), takes the
-latest gate census, and ranks every live, non-quarantined gate case with a
-failed trial or red verdict by its cost to the all-green probability
-Π(1 − p_i) (the shrunk red-verdict rate from `--reds`; ties go to the lower
-per-trial pass rate). It measures the top K (`ship_measure_sweep_cases`,
-default 5; `--k`) at their kind's N on the checked-out head with /ship's runner
-and bar, in rank order. The report (`sweep-report.md` and `.json` under
-`.context/ship-measure/sweep-<time>/`, rewritten after every case) has one row
-per case (history rate, measured count, decision, estimated and actual cost,
-captures path) and the predicted gate all-green probability before (history)
-and after (each measured case's measured failure fraction, shrunk toward the
-pooled rate and converted to panel red risk for behavior cases). Spend is
-capped by `ship_measure_sweep_budget_usd` (default $150 per 7 days, `--cap-usd`)
-through the same admission budget: the cap is shared by the sweep's cases and
-every non-dry-run sweep report of the last 7 days under `--prior` and the local
-sweep root, so a dispatch after the weekly run spends only what is left. When
-the cap is exhausted the sweep stops and lists every skipped case. `--dry-run`
-plans and estimates at $0; `--history-dir` reads local `trial-outcomes`
-directories; `--command '<cmd> {case}'` swaps in another single-case runner.
-History that cannot be read fails closed with nothing measured.
+<a id="ship-measure-sweep"></a>
+### 毎週のスイープ計測
 
-The workflow runs Mondays at 12:00 UTC (after the 06:00 periodic census) and on
-`workflow_dispatch` (inputs `k`, `cap_usd`, `dry_run`), in the CI image with the
-paid-eval secrets setup the census uses. It downloads the last 7 days of sweep
-reports first, uploads the report and captures as the `ship-measure-sweep`
-artifact, and writes the job summary. It holds `contents: read`, never pushes
-or opens a pull request, and runs one sweep at a time repository-wide
-(concurrency group `eval-sweep`, not cancelled) so two runs never spend the
-same weekly cap. Fixing is done by an agent from the report, through /ship's
-measure loop. Sweep trials are diagnostic like every ship-measure trial: they
-never become verdicts and never enter EVAL_POLICY pooling or series history.
+**毎週のオフシップ認定スイープ**(`ship-measure sweep`、`scripts/ship-measure-sweep.ts`、`.github/workflows/eval-sweep.yml`。2026-10-06 承認)。ゲートの判定は約 130 件あるため、すべてのケースが健全であっても、全緑のゲートはまれです(判定ごとに 99% のとき 26.8%)。そこで、どのシップもフレーキーなケースに当たる前に、main でフレーキーなケースを計測します。スイープは `eval:pass-rates` の履歴(main の `evals-periodic.yml` と、プールされたブランチの棚卸し実行)を読み、最新のゲートの棚卸しを取り、隔離されていない、生きている、失敗した試行または赤の判定があるすべてのゲートのケースを、全緑の確率 Π(1 − p_i) へのコストでランク付けします(`--reds` からの縮小された赤の判定率。同点の場合は、試行ごとの合格率が低い方が優先されます)。上位 K 件(`ship_measure_sweep_cases`、デフォルト 5。`--k` で指定)を、チェックアウトされた head 上で、そのケースの種類の N 回、/ship のランナーとバーを使って、ランクの順に計測します。レポート(`.context/ship-measure/sweep-<time>/` の下の `sweep-report.md` と `.json`。ケースごとに書き直されます)には、ケースごとに 1 行があり(履歴の合格率、計測回数、判定、推定および実際のコスト、キャプチャのパス)、スイープの前(履歴)と後(計測された各ケースの失敗の割合を、プールされた率に向けて縮小し、behavior のケースではパネルの赤のリスクに換算したもの)のゲート全体の全緑の予測確率が示されます。支出は、`ship_measure_sweep_budget_usd`(デフォルトは 7 日間で $150。`--cap-usd` で指定)により、同じ受け入れ予算を通して制限されます。この上限は、スイープのケースと、`--prior` およびローカルのスイープのルートの下にある、直近 7 日間の dry-run でないすべてのスイープのレポートで共有されます。そのため、毎週の実行の後の dispatch は、残りの分だけを使います。上限に達するとスイープは停止し、スキップされたケースをすべて一覧に出します。`--dry-run` は計画と見積もりを行い、支出は $0 です。`--history-dir` はローカルの `trial-outcomes` ディレクトリを読みます。`--command '<cmd> {case}'` は、別の単一ケースのランナーに置き換えます。読み取れない履歴は、クローズドに失敗し、何も計測されません。
 
-### Pass-rate policy versions
+このワークフローは、毎週月曜の 12:00 UTC(06:00 の定期棚卸しの後)と、`workflow_dispatch`(入力は `k`、`cap_usd`、`dry_run`)で実行され、棚卸しが使うのと同じ有料評価のシークレットのセットアップを持つ CI イメージで動きます。まず、直近 7 日間のスイープのレポートをダウンロードし、レポートとキャプチャを `ship-measure-sweep` アーティファクトとしてアップロードし、ジョブのサマリを書きます。権限は `contents: read` だけで、決して push も pull request の作成もしません。リポジトリ全体で一度に実行されるスイープは 1 つだけです(同時実行グループ `eval-sweep`、キャンセルしない)。そのため、2 つの実行が同じ毎週の上限を使うことはありません。修正は、レポートから、/ship の計測ループを通して、エージェントが行います。スイープの試行は、ほかのすべての ship-measure の試行と同様に診断です。判定になることはなく、EVAL_POLICY のプールや系列の履歴に入ることもありません。
 
-Readers score only trials recorded under their own `EVAL_POLICY.version`.
-Trials from an older policy are shown display-only. Trials from a newer policy
-are ignored with a printed count ("ignored N trial(s) recorded under a policy
-newer than vX"). When you see that line, run pass-rates from a checkout at or
-after the commit that bumped the version. The supported rollback of a policy
-change is reverting its writer commit; the reader-compatibility commit before it
-stays.
+<a id="pass-rate-policy-versions"></a>
+### 合格率ポリシーのバージョン
 
-### Harness version
+読み取り側は、自分の `EVAL_POLICY.version` のもとで記録された試行だけを採点します。古いポリシーの試行は、表示のためだけに出されます。新しいポリシーの試行は無視され、その件数が表示されます(「vX より新しいポリシーで記録された N 件の試行を無視しました」)。この行が出たら、バージョンを上げたコミット以降のチェックアウトから合格率を実行してください。ポリシーの変更を元に戻す際にサポートされている方法は、その書き込みを行ったコミットを revert することです。その前にある読み取り互換性のコミットは残します。
 
-Under `EVAL_POLICY` v2 a case's series identity is the bytes the case owns (its
-paid test file, its fixtures and its skills' prompt files, including the
-generated SKILL.md) plus `HARNESS_VERSION`, keyed with model, Claude CLI version
-and policy version (`scripts/eval-trial-series.ts`). Each trial also records the
-full consumed-input fingerprint as provenance. `scripts/harness-version.json`
-pins every shared-harness file (`GLOBAL_TOUCHFILES` plus the session runners, the
-PTY harness, the e2e gate and the LLM judge) by blob hash. When
-`test/harness-version.test.ts` fails, run one of:
+<a id="harness-version"></a>
+### ハーネスバージョン
+
+`EVAL_POLICY` v2 のもとでは、ケースの系列の識別子は、そのケースが所有するバイト列(有料テストのファイル、フィクスチャ、そのスキルのプロンプトファイル(生成された SKILL.md を含む))に、`HARNESS_VERSION` を加えたものです。これは、モデル、Claude CLI のバージョン、ポリシーのバージョンとともにキーになります(`scripts/eval-trial-series.ts`)。各試行は、消費された入力の完全なフィンガープリントも由来情報として記録します。`scripts/harness-version.json` は、共有ハーネスのすべてのファイル(`GLOBAL_TOUCHFILES` と、セッションランナー、PTY ハーネス、E2E ゲート、LLM judge)を、blob のハッシュで固定します。`test/harness-version.test.ts` が失敗したら、次のいずれかを実行してください。
 
 ```bash
 bun run scripts/bump-harness-version.ts --non-behavioral "<why no verdict can change>"  # no series reset
 bun run scripts/bump-harness-version.ts --bump "<what behavior changed>"                # new series for every case
 ```
 
-On a merge conflict in the manifest, take the higher version, then rerun the
-script.
+マニフェストでマージの競合が起きた場合は、大きい方のバージョンを採用してから、スクリプトを再実行してください。
 
-## Ubicloud VMs (`bun run test:ubicloud`)
+## Ubicloud VM(`bun run test:ubicloud`)
 
-`bun run test:ubicloud [test:free args]` runs the free suite on an ephemeral
-Ubicloud VM instead of the local machine. It is the fast path from small dev
-boxes, containers, and cloud sandboxes, and the way to record the duration seed
-in the CI lane's environment. It needs `UBICLOUD_API_KEY` (a project token from
-the Ubicloud console) plus `bash`, `curl`, `python3`, `ssh`, `ssh-keygen`, and
-`tar` locally.
+`bun run test:ubicloud [test:free args]` は、ローカルマシンではなく、使い捨ての Ubicloud VM 上で無料スイートを実行します。小規模な開発用マシン、コンテナ、クラウドのサンドボックスから素早く使うための方法であり、CI レーンの環境で所要時間のシードを記録する方法でもあります。ローカルに `bash`、`curl`、`python3`、`ssh`、`ssh-keygen`、`tar` が必要です。また、`UBICLOUD_API_KEY`(Ubicloud のコンソールで発行されるプロジェクトトークン)が必要です。
 
-`scripts/ubicloud/ubi-runner.sh` creates the VM (`UBI_SIZE`, default
-`standard-16`; `UBI_LOCATION`, default `eu-central-h1`) and streams the
-checkout to it: tracked files, untracked files that are not ignored, and
-`.git`, so uncommitted edits are tested. It then runs
-`scripts/ubicloud/setup-free-suite.sh`, which mirrors the `free-suite` CI job
-(same Bun pin, Playwright Chromium with its setuid sandbox helper, Xvfb,
-poppler, emoji fonts, zsh for the bash+zsh portability arms (#2669), generated
-host outputs, gate binaries, and the CSO helper), and runs `xvfb-run -a bun run test:free` with `GSTACK_EXPECT_BINARIES=1`
-and `GSTACK_FREE_RETRY_FLAKY=1`. Shard logs are copied to
-`.context/ubicloud/<timestamp>/`, and the VM is destroyed on every exit path.
-The exit status is the suite's. `--diagnostic` instead runs /ship's free-shard
-measurement (`scripts/ship-measure.ts free`, see [ship-measure](#ship-measure))
-with `GSTACK_FREE_RETRY_FLAKY=0`.
+`scripts/ubicloud/ubi-runner.sh` は VM を作成し(`UBI_SIZE`、デフォルトは `standard-16`。`UBI_LOCATION`、デフォルトは `eu-central-h1`)、チェックアウトの内容を VM にストリーミングします。対象は、追跡されているファイル、無視されていない未追跡のファイル、そして `.git` です。そのため、コミットされていない編集もテストされます。その後、`scripts/ubicloud/setup-free-suite.sh` を実行します。これは `free-suite` の CI ジョブを再現します(同じ Bun のピン留め、setuid サンドボックスヘルパーを持つ Playwright の Chromium、Xvfb、poppler、絵文字フォント、bash と zsh の両方の互換性テストのための zsh(#2669)、生成されたホストの出力、ゲートのバイナリ、CSO ヘルパー)。そして `GSTACK_EXPECT_BINARIES=1` と `GSTACK_FREE_RETRY_FLAKY=1` を付けて `xvfb-run -a bun run test:free` を実行します。シャードのログは `.context/ubicloud/<timestamp>/` にコピーされ、VM はすべての終了経路で破棄されます。終了ステータスは、スイートのものです。`--diagnostic` を指定すると、代わりに `GSTACK_FREE_RETRY_FLAKY=0` を付けて、/ship の無料シャードの計測(`scripts/ship-measure.ts free`。[ship-measure](#ship-measure) を参照)を実行します。
 
-A stock Ubuntu 24.04 VM differs from a GitHub-hosted runner in three ways that
-the scripts correct: the login umask is `002` (group-writable directories fail
-the CSO private-state checks), AppArmor blocks the unprivileged user
-namespaces Chromium's sandbox needs, and `clang` and `python3-venv` are absent
-(required by the Dia readiness and Python runner tests).
+Ubuntu 24.04 の素の VM は、GitHub がホストするランナーと、3 つの点で異なります。スクリプトはこれらを補正します。ログインの umask は `002` です(グループが書き込み可能なディレクトリは、CSO の非公開状態のチェックに失敗します)。AppArmor は、Chromium のサンドボックスが必要とする非特権のユーザー名前空間をブロックします。また、`clang` と `python3-venv` がありません(Dia の準備状況テストと Python ランナーのテストに必要です)。
 
-VMs are named `ubirun-<owner>-<epoch>-<hex>`; `<owner>` is `UBI_OWNER` (set it
-to the thread id on a Capy machine), else a stable per-machine id. Every exit
-path destroys the client's own VM (`trap` on EXIT, INT, TERM, HUP and QUIT), and
-`down` fails loudly (`FAILED to destroy <location>/<name> (HTTP <code>)`) unless
-the VM is confirmed gone. `list --mine` shows this owner's VMs, `usage` the
-project's, and `records` the VM-id scratch file (`UBI_VM_RECORD`, default
-`~/.capy/work/ubi-runner/vms.tsv`, else `<state root>/vms.tsv`): every VM is
-recorded there before the create call and forgotten only after a confirmed
-destroy, so a killed runner leaves a name to clean up. Nothing sweeps stale VMs
-by default, because the project quota is shared with other agents' runners; set
-`UBI_GC_HOURS` to a positive number (or run `gc HOURS`; `gc 0` is a no-op) to
-sweep only this owner's VMs older than that. For other commands, use the runner
-directly: `scripts/ubicloud/ubi-runner.sh run --setup <script> -- '<command>'`,
-or its `up` / `ssh` / `sync` / `pull` / `down` steps (`--help` lists them).
+VM の名前は `ubirun-<owner>-<epoch>-<hex>` です。`<owner>` は `UBI_OWNER` です(Capy のマシンでは、スレッド ID に設定してください)。設定されていない場合は、マシンごとに安定した ID が使われます。すべての終了経路で、クライアント自身の VM が破棄されます(EXIT、INT、TERM、HUP、QUIT に対する `trap`)。`down` は、VM が消えたことを確認できない限り、大きく失敗します(`FAILED to destroy <location>/<name> (HTTP <code>)`)。`list --mine` はこの所有者の VM を、`usage` はプロジェクトのものを表示します。`records` は VM ID のスクラッチファイル(`UBI_VM_RECORD`。デフォルトは `~/.capy/work/ubi-runner/vms.tsv`。それ以外の場合は `<state root>/vms.tsv`)を表示します。すべての VM は、作成の呼び出しの前にそこに記録され、破棄が確認された後にのみ忘れられます。そのため、中断されたランナーも、クリーンアップすべき名前を残します。デフォルトでは、古い VM を掃除する仕組みはありません。プロジェクトのクォータは、ほかのエージェントのランナーと共有されているためです。`UBI_GC_HOURS` に正の数を設定する(または `gc HOURS` を実行する。`gc 0` は何もしません)と、その時間より古いこの所有者の VM だけを掃除します。それ以外のコマンドでは、ランナーを直接使います(`scripts/ubicloud/ubi-runner.sh run --setup <script> -- '<command>'`、または `up` / `ssh` / `sync` / `pull` / `down` のステップ。`--help` で一覧が出ます)。
 
-Under 8 cores (`gstack-doctor`'s `cores` row says so), run the full unit and
-E2E tiers on a remote gate: `gstack-config set test_backend ubicloud` records
-the choice and the row names the runner. Resume checklist after a wake or a
-machine swap, in this order:
+8 コア未満のマシン(`gstack-doctor` の `cores` の行にそう表示されます)では、リモートのゲートで単体と E2E の全層を実行してください。`gstack-config set test_backend ubicloud` で選択を記録すると、その行にランナー名が表示されます。スリープからの復帰やマシンの切り替えの後の再開チェックリストは、この順序で行います。
 
-1. `scripts/ubicloud/ubi-runner.sh records` and `list --mine`: a VM listed in
-   the record but absent from the project is already gone (forget it); a VM
-   in the project but not in the record belongs to another owner, leave it.
-2. Watched background operations: a runner started under `gstack-detach` keeps
-   its `### gstack-detach EXIT=<code> ###` sentinel in its log; a log without
-   the sentinel after the VM is gone is an interrupted run, not a pass.
-3. One before/after pair per machine: the measurement a change claims is taken
-   on the base and on the candidate from the same VM size and location, never
-   one side local and the other remote.
-4. Profiling very large imports (a whole-repo ingest, the full free suite under
-   a profiler) is warned about before it starts: it holds the VM past
-   `UBI_GC_HOURS` and the sentinel arrives hours later; name the expected
-   duration in the thread before launching.
+1. `scripts/ubicloud/ubi-runner.sh records` と `list --mine`。記録にはあるがプロジェクトにはない VM は、すでに消えています(記録から削除します)。プロジェクトにはあるが記録にはない VM は、別の所有者のものです(そのままにします)。
+2. 監視中のバックグラウンド処理。`gstack-detach` の下で起動されたランナーは、ログに `### gstack-detach EXIT=<code> ###` の番兵を残します。VM が消えた後に番兵のないログは、中断された実行であり、合格ではありません。
+3. マシンごとに、変更前後の計測を 1 組ずつ。変更が主張する計測は、同じ VM のサイズと場所で、ベースとその候補の両方から取ります。片方はローカル、もう片方はリモートという計測は行いません。
+4. 非常に大きなインポート(リポジトリ全体の取り込み、プロファイラの下での無料スイート全体)は、開始前に警告が出されます。VM が `UBI_GC_HOURS` を超えて保持され、番兵が何時間も後に届くためです。起動する前に、想定される所要時間をスレッドで明示してください。
 
-## Cloud sandboxes (Vercel / Conductor cloud workspaces)
+## クラウドのサンドボックス(Vercel / Conductor のクラウドワークスペース)
 
-Syscall-supervised sandboxes need environment setup before `bun run test` can
-run green: run `scripts/sandbox-doctor.sh` once per boot. It documents and
-treats the full failure taxonomy (missing /dev/fd, 64M /dev/shm, spurious
-access(2) EACCES from the seccomp supervisor under load, full-capability
-processes defeating chmod-denial tests, no X server, no git identity, and
-Conductor's git-shim exit-code laundering). The doctor seeds `TMPDIR`,
-`DISPLAY`, and the runner knobs into `~/.bashrc`, so open a new shell (or
-`source ~/.bashrc`) before running the suite. Then:
+システムコールを監視するサンドボックスでは、`bun run test` が緑になる前に環境のセットアップが必要です。起動するたびに一度、`scripts/sandbox-doctor.sh` を実行してください。このスクリプトは、障害の分類全体を文書化し、扱います(/dev/fd の欠落、64M の /dev/shm、負荷がかかったときの seccomp スーパーバイザーによる access(2) の誤った EACCES、chmod の拒否テストを回避する完全な権限のプロセス、X サーバーがないこと、git の ID がないこと、Conductor の git シムによる終了コードの隠蔽)。doctor は、`TMPDIR`、`DISPLAY`、ランナーのノブを `~/.bashrc` に書き込みます。そのため、スイートを実行する前に新しいシェルを開くか(または `source ~/.bashrc` を実行し)てください。そのうえで次を実行します。
 
 ```bash
 setpriv --ambient-caps=-all --bounding-set=-all bun run test
 ```
 
-Two runner knobs exist for these environments (both no-ops unless set):
-`GSTACK_FREE_JOBS` overrides the shard count in either direction (2 is the measured sweet spot — one
-serial mega-shard and 6-way sharding both saturate the per-process syscall
-supervisor), and `GSTACK_FREE_RETRY_FLAKY=1` re-runs attributed failures once
-serially, downgrading a clean retry to a loud FLAKY-PASS (capped at 5 files so
-a broken tree can't masquerade as flaky). The required CI free lane and the
-Windows lane set the retry knob too, appending every flaky pass to the JSONL ledger it uploads
-(`GSTACK_FLAKE_LEDGER`) — a flaky pass never reds the lane, but it never
-disappears either ([Flake ledger](#flake-ledger)).
+これらの環境のためのランナーのノブは 2 つあります(どちらも設定されていなければ何もしません)。`GSTACK_FREE_JOBS` は、シャード数をどちらの方向にも上書きします(2 が計測上のスイートスポットです。1 つの直列の巨大シャードも、6 分割の並列も、プロセスごとのシステムコールのスーパーバイザーを飽和させます)。`GSTACK_FREE_RETRY_FLAKY=1` は、原因の特定された失敗を直列で 1 回再実行し、クリーンな再実行を、目立つ FLAKY-PASS に格下げします(壊れたツリーがフレーキーに見えないよう、5 ファイルで上限があります)。必須の CI 無料レーンと Windows のレーンも、このリトライのノブを設定します。そして、フレーキーな合格をすべて、アップロードする JSONL の台帳(`GSTACK_FLAKE_LEDGER`)に追記します。フレーキーな合格がレーンを赤にすることはありませんが、消えてしまうこともありません([フレーキーの台帳](#flake-ledger))。
 
-## Test selection and tiers
+<a id="test-selection-and-tiers"></a>
+## テストの選択と層
 
-Moved verbatim from CLAUDE.md (#2096 size limit).
+CLAUDE.md から逐語的に移されました(#2096 のサイズ制限のため)。
 
-**Diff-based test selection:** the sharded paid runner (`test:pr`, `eval:bg:pr`,
-`test:gate:sharded`) selects tests based on `git diff` against the base branch.
-Each test declares its file dependencies in `test/helpers/touchfiles.ts`. Changes
-to global touchfiles (session-runner, eval-store, touchfiles.ts itself) trigger
-all tests. Use `EVALS_ALL=1` to force all tests. Run `eval:select` to preview
-which tests would run; it applies the PR profile by default, and
-`--profile full` shows the plain touchfile selection. Commands by task: [CONTRIBUTING.md](../CONTRIBUTING.md#which-command-do-i-run).
+**diff に基づくテストの選択。** 有料の分割ランナー(`test:pr`、`eval:bg:pr`、`test:gate:sharded`)は、ベースブランチに対する `git diff` に基づいてテストを選択します。各テストは、`test/helpers/touchfiles.ts` でファイルの依存関係を宣言します。グローバルな touchfiles(session-runner、eval-store、touchfiles.ts 自体)への変更は、すべてのテストを起動します。`EVALS_ALL=1` を使うと、すべてのテストを強制的に実行します。`eval:select` は、どのテストが実行されるかをプレビューします。デフォルトでは PR プロファイルを適用します。`--profile full` は、素の touchfile による選択を表示します。タスク別のコマンドは [CONTRIBUTING.md](../CONTRIBUTING.md#which-command-do-i-run) にあります。
 
-**Two-tier system:** Tests are classified as `gate` or `periodic` in `E2E_TIERS`
-(in `test/helpers/touchfiles.ts` — a facade over `touchfiles-data.ts` +
-`test-selection.ts`). CI runs the changed fast PR profile and selected judges
-per PR via evals.yml's sliced lane
-(planner manifest → executors → fail-closed report; engine =
-scripts/test-paid-shards.ts, the same runner as local eval:bg:pr); the free
-suite runs on every PR via `.github/workflows/free-tests.yml` (a REQUIRED
-check, secretless — fork PRs get real signal); ALL periodic tests run weekly
-via evals-periodic.yml (EVALS_ALL, minus the reasoned exclusions in
-`test/helpers/periodic-exclude-data.ts` — reason + tracking required per
-entry), plus a weekly EVALS_ALL gate census. Use `EVALS_TIER=gate` or
-`EVALS_TIER=periodic` to filter locally. When adding new E2E tests, classify them:
-1. Safety guardrail or deterministic functional test? -> `gate`
-2. Quality benchmark, Opus model test, or non-deterministic? -> `periodic`
-3. Requires external service (Codex, Gemini)? -> `periodic`
+**2 層の仕組み。** テストは `E2E_TIERS`(`test/helpers/touchfiles.ts`。`touchfiles-data.ts` + `test-selection.ts` へのファサード)で `gate` または `periodic` に分類されます。CI は、変更された高速な PR プロファイルと、選択された judge を、evals.yml のスライス化されたレーンを通して PR ごとに実行します(プランナーのマニフェスト → エグゼキュータ → 失敗時に閉じるレポート。エンジンは scripts/test-paid-shards.ts で、ローカルの eval:bg:pr と同じランナーです)。無料スイートは、`.github/workflows/free-tests.yml` を通して、すべての PR で実行されます(必須のチェックで、シークレットは不要です。フォークからの PR も本当のシグナルを得られます)。すべての定期テストは、evals-periodic.yml を通して毎週実行されます(EVALS_ALL。ただし `test/helpers/periodic-exclude-data.ts` の理由付きの除外は除きます。各エントリには理由と追跡先が必要です)。加えて、毎週の EVALS_ALL のゲートの棚卸しも行います。ローカルでフィルタするには `EVALS_TIER=gate` または `EVALS_TIER=periodic` を使ってください。新しい E2E テストを追加するときは、次のように分類します。
+1. 安全のためのガードレール、または決定的な機能テストか? → `gate`
+2. 品質のベンチマーク、Opus モデルのテスト、または非決定的か? → `periodic`
+3. 外部サービス(Codex、Gemini)が必要か? → `periodic`
 
-Tier declarations are enforced by `test/e2e-tier-alignment.test.ts` (free, runs
-in `bun test`): a `skill-e2e-*` file named in a touchfiles dep list whose
-`EVALS_TIER` self-gate disagrees with its declared tier in `E2E_TIERS` fails the
-suite. Files not named in any dep list are reported, not enforced — keep both
-in sync.
+層の宣言は、`test/e2e-tier-alignment.test.ts`(無料で、`bun test` の中で実行されます)が強制します。依存関係リストに名前がある `skill-e2e-*` のファイルで、その `EVALS_TIER` のセルフゲートが `E2E_TIERS` の宣言と食い違うと、スイートは失敗します。どの依存関係リストにも名前がないファイルは、強制されずに報告されます。両方を同期させておいてください。
 
-### PR paid lane fallback
+<a id="pr-paid-lane-fallback"></a>
+### PR の有料レーンのフォールバック
 
-PR selection (`scripts/test-pr-profile.ts`) classifies every changed file. A file
-mapped by a paid case's touchfiles selects that case. These files are exempt and
-select nothing: docs, any non-paid `*.test.ts(x)`, `FREE_ONLY_PR_FILES` (the
-free and paid duration seeds, `scripts/ubicloud/**`, every workflow that runs no
-paid evals, and free-only tools), and the fixtures in `FREE_FIXTURES`
-(`test/helpers/free-fixtures-data.ts`, each fixture with its free consumers).
-Unmapped files under `DERIVABLE_PREFIXES` (bin/, lib/, scripts/, browse/,
-design/, make-pdf/, hosts/, extension/, model-overlays/, agents/, test/helpers/,
-capy/) are not unknown: `scripts/pr-dependencies.ts` derives the cases whose
-reference closure reaches them (`prCoverage.mode = dependents`), or reports that
-no paid case reaches them. The derivation scans the imports of every code file,
-including `#!`-shebang `.ts` files and extensionless Bun or Node scripts; if any
-import scan fails, every unmapped file restores the full gate (label **import
-scan failed**). `PR_FULL_GATE_FILES`, `PAID_WORKFLOW_FILES` (`evals.yml`,
-`evals-periodic.yml`, `evals-marathon.yml`) and any other unknown file restore
-the full gate (`prCoverage.mode = full-fallback`). The job summary and PR comment
-list each unmapped file that caused a fallback with one of these labels:
+PR の選択(`scripts/test-pr-profile.ts`)は、変更されたすべてのファイルを分類します。有料ケースの touchfiles がマッピングしたファイルは、そのケースを選択します。次のファイルは例外で、何も選択しません。ドキュメント、有料ではない `*.test.ts(x)`、`FREE_ONLY_PR_FILES`(無料と有料の所要時間のシード、`scripts/ubicloud/**`、有料評価を実行しないすべてのワークフロー、無料専用のツール)、そして `FREE_FIXTURES`(`test/helpers/free-fixtures-data.ts`。各フィクスチャは、それを使う無料のコンシューマとともに登録されます)のフィクスチャです。`DERIVABLE_PREFIXES`(bin/、lib/、scripts/、browse/、design/、make-pdf/、hosts/、extension/、model-overlays/、agents/、test/helpers/、capy/)の下にあり、マッピングされていないファイルは、未知ではありません。`scripts/pr-dependencies.ts` は、その参照のクロージャがそれらに届く有料ケースを導出します(`prCoverage.mode = dependents`)。あるいは、どの有料ケースも届かないと報告します。導出は、すべてのコードファイルの import をスキャンします。これには、`#!` シバンを持つ `.ts` ファイルと、拡張子のない Bun または Node のスクリプトも含まれます。いずれかの import のスキャンが失敗すると、マッピングされていないすべてのファイルはゲート全体に戻ります(ラベルは **import scan failed**)。`PR_FULL_GATE_FILES`、`PAID_WORKFLOW_FILES`(`evals.yml`、`evals-periodic.yml`、`evals-marathon.yml`)、およびその他の未知のファイルは、ゲート全体に戻します(`prCoverage.mode = full-fallback`)。ジョブのサマリと PR コメントには、フォールバックの原因となったマッピングされていないファイルを、次のいずれかのラベルとともに一覧表示します。
 
-- **needs touchfile entry**: a paid test, helper or fixture no case maps; add it
-  to the owning case in `E2E_TOUCHFILES` (`test/helpers/touchfiles-data.ts`).
-- **add to FREE_ONLY_PR_FILES**: a file only free lanes read; add it to the list
-  in `scripts/test-pr-profile.ts` (or a fixture to `FREE_FIXTURES`).
-- **full-gate input**: a `PR_FULL_GATE_FILES` entry every case consumes; the
-  full gate is intended and no mapping narrows it.
-- **deleted but still referenced** and **import scan failed**: fix the named
-  reference or parse error.
-- **real unknown dependency**: a file outside the derivable directories that no
-  list classifies (for example `ETHOS.md`); map it, exempt it, or derive its
-  directory.
+- **needs touchfile entry**: どのケースにもマッピングされていない有料テスト、ヘルパー、またはフィクスチャ。所有するケースの `E2E_TOUCHFILES`(`test/helpers/touchfiles-data.ts`)に追加してください。
+- **add to FREE_ONLY_PR_FILES**: 無料のレーンだけが読むファイル。`scripts/test-pr-profile.ts` のリストに追加してください(またはフィクスチャを `FREE_FIXTURES` に追加してください)。
+- **full-gate input**: すべてのケースが消費する `PR_FULL_GATE_FILES` のエントリ。ゲート全体が意図されたものであり、これを絞り込むマッピングはありません。
+- **deleted but still referenced** と **import scan failed**: 指摘された参照、またはパースエラーを修正してください。
+- **real unknown dependency**: どのリストにも分類されていない、派生可能なディレクトリの外のファイル(例: `ETHOS.md`)。マッピングするか、除外するか、そのディレクトリを派生可能にしてください。
 
-The fallback rate is a label, not the bill: a dependents run whose derived
-closure reaches every gate case costs about what a full-fallback run does.
-`bun run test:health` leads with the cost per merged PR and reports
-`pr-cases-per-run` (mean selected gate cases and judges per PR run, per mode)
-and `pr-known-cost-per-run` (mean known trial cost per PR run, per mode) beside
-`pr-fallback-rate`.
+フォールバックの割合は、請求額ではなく、ラベルにすぎません。依存関係による実行が、導出されたクロージャを通じてすべてのゲートケースに届く場合、その費用はゲート全体のフォールバックの実行とほぼ同じです。`bun run test:health` は、マージされた PR 1 件あたりのコストを先頭に出し、`pr-cases-per-run`(モードごとの、PR 実行 1 回あたりの選択されたゲートケースと judge の平均)と `pr-known-cost-per-run`(モードごとの、PR 実行 1 回あたりの既知の試行コストの平均)を、`pr-fallback-rate` と並べて報告します。
 
-`package.json` (beyond a version-only change) and `bun.lock` stay full-gate
-inputs. Over the 225 PR runs from 2026-10-07 to 2026-10-17, no run fell back on
-them alone, dependabot PRs never reach the paid lane (`evals.yml` skips
-`github.actor == 'dependabot[bot]'`), and every runtime package's importer
-(`test/helpers/agent-sdk-runner.ts`, `test/helpers/llm-judge.ts`, `browse/src/*`,
-`make-pdf/src/*`) reaches every gate case or is in the global set, so narrowing
-them would select the same cases.
+`package.json`(バージョンだけの変更を除く)と `bun.lock` は、ゲート全体の入力のままです。2026-10-07 から 2026-10-17 までの 225 回の PR 実行では、これらだけが原因でフォールバックした実行はありませんでした。dependabot の PR は、有料レーンに決して到達しません(`evals.yml` は `github.actor == 'dependabot[bot]'` をスキップします)。また、ランタイムのパッケージの各インポート元(`test/helpers/agent-sdk-runner.ts`、`test/helpers/llm-judge.ts`、`browse/src/*`、`make-pdf/src/*`)は、すべてのゲートケースに届くか、グローバルのセットに含まれます。そのため、これらを絞り込んでも、選択されるケースは同じになります。
 
-`test/free-fixtures.test.ts` holds the inventory: each `test/fixtures/**` path
-belongs to a paid touchfile or `FREE_FIXTURES`, and each workflow to the paid or
-free-only list. Editing a paid test file runs its own gate cases on the PR when
-their Bun test is named by the case id; the file's other cases stay deferred with
-a reason that says to name the test by its case id.
+`test/free-fixtures.test.ts` は棚卸しを保持します。`test/fixtures/**` の各パスは、有料の touchfile か `FREE_FIXTURES` に属し、各ワークフローは有料または無料専用のリストに属します。有料テストのファイルを編集すると、そのテストの名前が ケース ID によって指定されている場合、そのファイル自身のゲートケースは PR で実行されます。そのファイルの他のケースは、ケース ID でテストを指定するよう求める理由とともに、延期されたままになります。
 
-### Exercised-path map
+<a id="exercised-path-map"></a>
+### 探索パスのマップ
 
-The derived closure (above) reaches almost every gate case from most bin/ and
-lib/ files, because it follows prose, string and doc-comment mentions. The
-exercised-path map is a tighter consumer set that runs in **shadow mode**: it
-is computed and reported on every PR plan, and it never changes which cases a
-PR runs. Activating it is a later decision that needs PTY command capture for
-the cases that record no commands, two weeks of shadow data with zero shadow
-misses, and Garry's call on the measured saving.
+導出されたクロージャ(上記)は、ほとんどの bin/ と lib/ のファイルから、ほぼすべてのゲートケースに届きます。散文、文字列、ドキュメントのコメントでの言及まで追うためです。探索パスのマップは、より厳密なコンシューマの集合であり、**シャドウモード**で実行されます。これは、すべての PR の計画で計算され報告されますが、どの PR がどのケースを実行するかは決して変えません。これを有効にするのは後の判断であり、記録のないケースのコマンドを PTY で取得すること、2 週間のシャドウデータでシャドウのミスがゼロであること、そして測定された節約についての Garry の判断が必要です。
 
-A case's exercised consumers (`exercisedConsumers` in
-`scripts/pr-dependencies.ts`) are the union of its touchfile matches, the
-closure of its test file and helpers, the executable shell of its loaded skill
-(template and generated SKILL.md) and of every bin, lib and script that shell
-runs, and the bins its recorded trials invoked. Shell edges are command-position
-`gstack-*` names and repo paths, `.`/`source`, `./setup`, quoted path
-literals, `path.join` pairs, data files, `bun run` scripts and compiled outfiles
-(`browse/dist/browse`, `$B`, `design/dist/design`, `$D`, `make-pdf/dist/pdf`).
-Comments, echo/printf/die messages, case patterns, bare `VAR=gstack-x` strings
-and slash-command skill names are not edges; command substitutions are kept, an
-expanding heredoc keeps its substitutions and a heredoc an interpreter reads
-stays whole. The closure stops at `PR_FULL_GATE_FILES` and the global set, which
-stay full. `test/exercised-map.test.ts` pins that this function equals or is a
-reviewed superset of the measured prototype (`test/helpers/exercised-prototype.ts`).
+ケースの探索されたコンシューマ(`scripts/pr-dependencies.ts` の `exercisedConsumers`)は、次のものの和集合です。そのタッチファイルのマッチ、そのテストファイルとヘルパーのクロージャ、そのケースが読み込んだスキルの実行可能なシェル(テンプレートと生成された SKILL.md)と、そのシェルが実行するすべての bin、lib、scripts、そのケースの記録された試行が呼び出した bin です。シェルのエッジは、コマンド位置にある `gstack-*` の名前とリポジトリのパス、`.`/`source`、`./setup`、引用されたパスのリテラル、`path.join` のペア、データファイル、`bun run` のスクリプト、そしてコンパイル済みの出力ファイル(`browse/dist/browse`、`$B`、`design/dist/design`、`$D`、`make-pdf/dist/pdf`)です。コメント、echo/printf/die のメッセージ、case のパターン、裸の `VAR=gstack-x` の文字列、スラッシュコマンドのスキル名は、エッジではありません。コマンド置換は保持されます。展開される heredoc は、その置換を保持します。インタプリタが読む heredoc は、全体を保持します。クロージャは `PR_FULL_GATE_FILES` とグローバルな集合で止まります。これらは全体のままです。`test/exercised-map.test.ts` は、この関数が、測定された試作品(`test/helpers/exercised-prototype.ts`)と等しいか、レビュー済みの上位集合であることを固定します。
 
-The observed half is `test/helpers/exercised-commands.json` (generated; per case
-the bins and compiled outfiles its recorded trials ran, observation counts, the
-source run ids and a mean known cost per run). Refreshes are union-only: an
-observation never removes a command and a missing or empty artifact never erases
-one; removing a command is a reviewed edit. While the map is in shadow mode it
-changes no selection, so a PR that changes only the map selects no paid case.
+観測された半分は `test/helpers/exercised-commands.json`(生成されたもの。ケースごとに、その記録された試行が実行した bin とコンパイル済みの出力、観測回数、元の実行 ID、実行あたりの既知の平均コストを含みます)です。更新は和集合のみです。観測によってコマンドが削除されることはなく、欠落した、または空のアーティファクトによって消されることもありません。コマンドを削除するのは、レビュー済みの編集です。マップがシャドウモードにある間は、選択を変えません。そのため、マップだけを変える PR は、有料ケースを 1 つも選択しません。
 
-Dollar figures are lower bounds. Known cost excludes PTY trials, whose cost is
-unknown: about 39% of observed case runs in the committed map. The shadow block
-and `test:health` both say so.
+ドル額は下限です。既知のコストには PTY の試行が含まれず、その費用は不明です。コミットされたマップでは、観測されたケース実行の約 39% がこれに当たります。シャドウのブロックと `test:health` は、どちらもそれを明示します。
 
-- **Shadow block:** `prCoverage.shadow` in the paid-plan manifest lists the gate
-  cases the map would select, would drop and would add, a provenance line per
-  changed file ("selects N case(s): touchfile (k), import (k), skill bash via
-  bin/gstack-x (k), observed bin/gstack-y (k)"), the predicted saving and the
-  unknown-cost share. The coverage summary prints one line of it.
-- **Shadow misses (`bun run test:health`, metric `pr-shadow-map`):** a red case
-  (more executed failed than passed trials in the run) that the shadow would
-  drop is an activation miss unless the case passed in a later run of the same
-  branch at the same head SHA. That later pass marks it a flaky drop, which is
-  listed but not counted. The D3 activation bar counts activation misses only.
-- **MAP_GAP:** the paid report runs the same bin matcher over each executed
-  case's recorded commands and prints, and writes to `map-gaps.txt`,
-  `MAP_GAP <case> <command>: non-blocking for this PR; the next census refresh
-  widens the map (docs/TESTING_INTERNALS.md#exercised-path-map)` for a command
-  outside the case's static-plus-observed closure. It is its own result: never a
-  case verdict, a lane problem or an INFRA re-dispatch input.
-- **Census refresh:** the weekly census unions its own recorded commands into the
-  map (no REST artifact downloads), uploads it as `exercised-map-a<attempt>`,
-  reports MAP_GAP lines and the cases that recorded no commands, and prints the
-  refresh command. Run `bun run test:exercised-map --from-run <id>`, or
-  `--from-dir <dir>` on a locally downloaded `exercised-map-a<attempt>` artifact
-  when the download hits HTTP 403, and open the change as an ordinary PR.
-  `bun run test:exercised-map --check` validates the committed file.
-- **Refresh contract:** a refresh whose input is unavailable or partial writes
-  nothing, keeps the committed union and exits with a stable code that names
-  what was missing: `2` usage; `3` input unavailable (a missing directory, or a
-  failed or HTTP 403 download); `4` input incomplete (no `shards/`, no
-  `trial-outcomes.jsonl`, an executed case without a shard artifact, or a missing
-  or malformed `exercised-commands.json`). The census step reports a failed
-  refresh in its job summary and uploads no map.
-- **Replay receipt:** `bun run test:exercised-map --replay` replays the recorded
-  red PR runs in `test/fixtures/exercised-map-replay.json` (every executed failed
-  gate trial in 225 `evals.yml` pull_request runs, 2026-10-07 to 2026-10-17)
-  through today's selector and its shadow, and exits 1 on any MISS: a failed
-  gate case the shadow would not run. `test/exercised-map.test.ts` pins zero.
+- **シャドウのブロック:** 計画マニフェストの `prCoverage.shadow` には、マップが選択する、削除する、追加するゲートケースの一覧、変更されたファイルごとの由来の行(「N 件のケースを選択: touchfile (k), import (k), skill bash via bin/gstack-x (k), observed bin/gstack-y (k)」)、予測される節約、不明なコストの割合が含まれます。カバレッジの要約は、その 1 行を出力します。
+- **シャドウのミス(`bun run test:health`、メトリクス `pr-shadow-map`):** 実行で赤い(実行された失敗の試行が合格の試行より多い)ケースで、シャドウが削除していたものは、同じブランチの同じ head SHA の後の実行で合格していない限り、有効化のミスです。後の合格は、そのケースをフレーキーな削除としてマークします。これは一覧に出ますが、カウントはされません。D3 の有効化の基準は、有効化のミスだけを数えます。
+- **MAP_GAP:** 有料レポートは、実行された各ケースの記録されたコマンドに対して、同じ bin のマッチャーを実行し、ケースの静的 + 観測されたクロージャの外にあるコマンドについて、`MAP_GAP <case> <command>: non-blocking for this PR; the next census refresh widens the map (docs/TESTING_INTERNALS.md#exercised-path-map)` を出力し、`map-gaps.txt` に書き込みます。これは独立した結果であり、ケースの判定、レーンの問題、INFRA の再ディスパッチの入力にはなりません。
+- **棚卸しの更新:** 毎週の棚卸しは、記録された独自のコマンドをマップに和集合として統合します(REST のアーティファクトのダウンロードはありません)。そして、`exercised-map-a<attempt>` としてアップロードし、MAP_GAP の行と、コマンドを記録しなかったケースを報告し、更新コマンドを表示します。`bun run test:exercised-map --from-run <id>` を実行するか、ダウンロードが HTTP 403 になる場合は、ローカルにダウンロードした `exercised-map-a<attempt>` アーティファクトに対して `--from-dir <dir>` を使ってください。そして、変更を通常の PR として開いてください。
+  `bun run test:exercised-map --check` は、コミットされたファイルを検証します。
+- **更新の契約:** 入力が利用できない、または部分的な更新は、何も書き込まず、コミットされた和集合をそのまま残し、欠けているものを示す安定した終了コードで終わります。`2` は使い方の誤り、`3` は入力が利用できない(ディレクトリの欠落、またはダウンロードの失敗もしくは HTTP 403)、`4` は入力が不完全(`shards/` がない、`trial-outcomes.jsonl` がない、シャードのアーティファクトがない実行済みケースがある、または `exercised-commands.json` が欠けている、もしくは不正な形式である)です。棚卸しのステップは、更新に失敗した場合をジョブのサマリに報告し、マップはアップロードしません。
+- **再生のレシート:** `bun run test:exercised-map --replay` は、`test/fixtures/exercised-map-replay.json` に記録された、赤くなった PR の実行を再生します(2026-10-07 から 2026-10-17 までの 225 回の `evals.yml` の pull_request の実行で、実行された失敗したゲートの試行すべて)。今日のセレクタとそのシャドウを通し、MISS(シャドウが実行しない、失敗したゲートケース)があると終了コード 1 で終わります。`test/exercised-map.test.ts` はゼロを固定します。
 
-### PR receipts, recovery, readiness and verdict reuse
+### PR のレシート、リカバリ、準備状況、判定の再利用
 
-Passes and failures of single-trial shards are written as receipts at the
-execution boundary, so a cancelled run's finished work survives. The
-`recover-receipts` job runs `scripts/recover-receipts.ts` from the base ref with
-`actions: read`: it merges the receipts of at most 5 completed, cancelled
-`evals.yml` runs of the same PR (oldest first, negatives before passes, so a newer
-FAIL blocks an older PASS) and hands the store to `plan-slices`, which keeps
-`contents: read` only. Its `recovery.json` checkpoint never advances past an
-unresolved run. `plan-slices` turns reuse off when recovery degraded, the
-checkpoint is missing or a cancelled run is still unresolved; recovery itself
-never fails the run, and the job summary names the reason (rate limit with its
-reset time, `gh auth status`, the 60-second budget). The whole store is saved by
-`slices-report`. Both the restore and the save run on GitHub-hosted runners: an
-Ubicloud runner sends `actions/cache` to Ubicloud's transparent cache, which a
-GitHub-hosted restore never sees (until GSTA-48 every restore missed).
+単一試行のシャードの合格と失敗は、実行の境界でレシートとして書き込まれます。そのため、キャンセルされた実行の完了した作業も残ります。`recover-receipts` ジョブは、`actions: read` 付きでベースの ref から `scripts/recover-receipts.ts` を実行します。これは、同じ PR の、完了またはキャンセルされた `evals.yml` の実行を、最大 5 件まで(古い順、負のものを合格より先に。そのため、新しい FAIL は古い PASS をブロックします)レシートをマージし、そのストアを `plan-slices` に渡します。`plan-slices` は `contents: read` のみを保持します。その `recovery.json` のチェックポイントは、未解決の実行を超えて進むことはありません。`plan-slices` は、リカバリが劣化した場合、チェックポイントがない場合、またはキャンセルされた実行が未解決のままである場合に、再利用を無効にします。リカバリ自体がその実行を失敗させることはありません。ジョブのサマリには、その理由が示されます(レート制限と、そのリセット時刻、`gh auth status`、60 秒の予算)。ストアの全体は `slices-report` が保存します。復元と保存は、どちらも GitHub がホストするランナー上で行われます。Ubicloud のランナーは、`actions/cache` を Ubicloud の透過的なキャッシュに送るため、GitHub がホストするランナーからの復元からは見えません(GSTA-48 まで、すべての復元が失敗していました)。
 
-**Readiness (R1).** Paid slices for a PR head start only when the PR has been
-quiet for the window (repository variable `EVALS_QUIET_MINUTES`, default 10,
-measured from the run's creation) and Free Tests has concluded success on the
-same head SHA. The `readiness` job (`scripts/eval-readiness.ts`) sleeps out the
-window with no API calls, since a newer push cancels the run anyway, then polls
-Free Tests every minute for up to 80 minutes. Free Tests red on the head fails
-the run without paid work; re-run Free Tests, then re-run this workflow (a
-re-run keeps the creation time, so it does not wait out the window again). A
-head that is no longer the PR's head reports "superseded by <sha>" and plans
-nothing. Selection, trials and verdict rules do not change. Version Gate is not
-an input, so a stamp push waits only for its own Free Tests and always gets a
-gate. Dispatches (`eval:bg`, the census) never wait.
+**準備状況(R1)。** PR の head に対する有料のスライスは、その PR が時間枠(リポジトリ変数 `EVALS_QUIET_MINUTES`。デフォルトは 10。実行の作成時刻から計測)の間静かだった場合に限り開始されます。さらに、同じ head SHA で Free Tests が成功と結論づけられている必要があります。`readiness` ジョブ(`scripts/eval-readiness.ts`)は、API を呼ばずに時間枠が過ぎるのを待ちます。新しい push があれば、どのみち実行はキャンセルされるからです。その後、最大 80 分の間、1 分ごとに Free Tests を確認します。head で Free Tests が赤ければ、有料の作業なしで実行は失敗します。Free Tests を再実行し、その後このワークフローを再実行してください(再実行では作成時刻が保たれるため、時間枠を改めて待つことはありません)。その head がもう PR の head でない場合は、「superseded by <sha>」と報告し、何も計画しません。選択、試行、判定のルールは変わりません。Version Gate は入力ではないため、スタンプの push は、自分の Free Tests だけを待ち、必ずゲートを受けます。dispatch(`eval:bg`、棚卸し)は決して待ちません。
 
-**Verdict reuse (R2a restamp-only, R2 main moved; a gate edit).** A PR head
-reuses the verdict of the newest executed gate of the same PR instead of
-running one only when all of these hold. Every newer run of the PR either bound
-a verdict or provably ran no paid slice (superseded, readiness-blocked, a reuse,
-or cancelled before a slice finished); a newer run that is still running,
-finished a slice, or holds a `paid-slice-*` artifact without a bound verdict
-blocks reuse, so a newer red or partial result is never skipped. The gate is
-GREEN with reconcile exit 0, a successful run and no manually accepted
-(unscored) case; it ran the PR profile on a different head. Each run's newest
-attempt binding counts, and a [flaky](#flaky-reruns) GREEN is a GREEN whose
-reuse names its flaky cases. Then either:
+**判定の再利用(R2a restamp-only、R2 main moved。ゲートの編集)。** PR の head は、次のすべてが成り立つときに限り、同じ PR の最も新しい実行されたゲートの判定を再利用し、新たに実行しなくて済みます。同じ PR の、より新しいすべての実行が、判定を確定させたか、有料のスライスを実行していないこと(superseded、準備状況によるブロック、再利用、またはスライスが終わる前のキャンセル)。より新しい実行が、まだ実行中、スライスを 1 つ完了済み、または確定した判定のない `paid-slice-*` アーティファクトを持つ場合は、再利用がブロックされます。そのため、より新しい赤や部分的な結果が飛ばされることはありません。ゲートが GREEN で、reconcile の終了コードが 0、実行が成功しており、手動で受け入れられた(採点されていない)ケースがないこと。そして、別の head 上で PR プロファイルを実行していたこと。各実行の最新の試行の確定が数えられます。また、[フレーキー](#flaky-reruns)な GREEN は、再利用がそのフレーキーなケースを名指しする GREEN として扱われます。その後、次のいずれかが成り立つ必要があります:
+- **R2a、restamp-only:** テストされたマージコミットの最初の親と同じベースで実行され、ツリーのレシート(ベースの ship ポリシーのもとでの `lib/tree-receipt.ts`)が `TREE: same-modulo-stamps` を出力し、差分のあるすべてのファイルが、バージョンファイル、`package.json`、CHANGELOG、またはリリースの出力(エージェントのダイジェスト)である場合。
+- **R2、main moved:** ベースが動いており、PR 自身の差分(マージベースからのもので、スタンプのファイルを除く)が、ゲートされた head のものとバイト単位で同一である場合。(`git diff --binary --full-index`。そのため、変更前のブロブ ID が比較されます。PR も変更しているファイルへの main の変更は、差分として扱われます。`package.json` はバージョンを除いて比較されます。リリースの出力は、各リビジョンのバージョンが置き換えられたものとして比較されます。CHANGELOG は、その前文と、PR が追加・削除したセクションによって比較されます。ただし、バージョンや `[Unreleased]` の見出しだけは除きます)。
 
-- **R2a, restamp-only:** it ran on the same base (the tested merge commit's
-  first parent), the tree receipt (`lib/tree-receipt.ts` under the base's ship
-  policy) prints `TREE: same-modulo-stamps`, and every differing file is the
-  version file, `package.json`, the CHANGELOG or a release output (the agents
-  digest); or
-- **R2, main moved:** the base moved, and the PR's own diff from its
-  merge-base, excluding stamp files, is byte-identical to the gated head's
-  (`git diff --binary --full-index`, so pre-image blob ids are compared and a
-  main change to a file the PR also changes is a difference; `package.json`
-  compared without its version; release outputs with each revision's version
-  replaced; the CHANGELOG by its preamble and the sections the PR added and
-  removed, dropping only version or `[Unreleased]` headings).
+最後に、この head 自身の計画が、同じ選択のフィンガープリント(ケース、状態、試行計画、プロファイル)を持つ必要があります。そのため、main の移動によってゲートの選択が変わる場合は、ゲート全体が実行されます。`recover-receipts` は、ベース ref のコードから候補を提案します(`scripts/gate-reuse.ts find`)。`plan-slices` は選択を確定します。`eval-slices` はスキップされます。レポートと PR コメントには、`PASS (reused: restamp-only, R2a)` または `PASS (reused: main moved, R2)` と、再利用された実行、その head、理由、レシートのダイジェストまたは自身の差分のシグネチャが表示されます。Free Tests とその他のすべてのチェックは、新しい head で引き続き実行されます。実行されたゲートは `gate-binding-a<attempt>` アーティファクトをアップロードします(base、判定、reconcile の終了コード、手動の件数、選択)。再利用された実行は何も紐づけません。そのため、再利用が再利用の上に連鎖することはありません。それ以外のケース(自身の差分の変更、CHANGELOG のエントリのテキストやファイルモードを含む、スタンプ以外のバイト、紐づけ、レシート、マージベースの欠落、gh や git のエラー、`evals-fresh`)は、ゲート全体を実行します。restamp を適用するには、ゲートされた push の前に CHANGELOG のエントリを書いてください(`## [Unreleased]` の下、または仮のバージョンで)。そうすれば、スタンプはそのエントリを書き換えるだけになります。
 
-Finally this head's own plan must have the same selection fingerprint (cases,
-statuses, trial plans, profile), so a main move that changes what the PR gate
-selects runs the full gate. `recover-receipts` proposes the candidate from
-base-ref code (`scripts/gate-reuse.ts find`), `plan-slices` confirms the
-selection, `eval-slices` is skipped, and the report and PR comment say
-`PASS (reused: restamp-only, R2a)` or `PASS (reused: main moved, R2)` with
-the reused run, its head, why, and the receipt digest or own-diff signature.
-Free Tests and every other check still run on the new head. Executed runs
-upload a `gate-binding-a<attempt>` artifact (base, verdict, reconcile exit,
-manual count, selection); reused runs bind nothing, so reuse never chains off a
-reuse. Any other case (a changed own diff, a non-stamp byte including CHANGELOG
-entry text or a file mode, a missing binding, receipt or merge-base, a gh or git
-error, `evals-fresh`) runs the full gate. For a restamp to qualify, write the
-CHANGELOG entry before the gated push (under `## [Unreleased]` or the
-tentative version) so the stamp only re-heads it.
+PR のラベル: `evals-no-debounce` は静かな時間枠を 0 にします(Free Tests は依然として必須です)。`evals-fresh` は、レシートの再利用と判定の再利用をオフにします。ラベルは次の push から適用されます。ラベルを追加しても `evals.yml` は開始されないからです。
 
-PR labels: `evals-no-debounce` sets the quiet window to 0 (Free Tests is still
-required) and `evals-fresh` turns receipt reuse and verdict reuse off. Labels
-apply from the next push, because adding a label does not start `evals.yml`.
+<a id="replay-gate-cost"></a>
+### 再生によるゲートのコスト
 
-### Replay gate cost
+`bun run scripts/gate-cost-replay.ts --runs <id,...> [--since YYYY-MM-DD --until YYYY-MM-DD | --prs 3201,3202] [--json]` は、記録されたアーティファクトから、有料の PR ゲートの請求額を、無料で計測します。`--runs` は、完全なゲートの実行を指定します。それらの `paid-slice-*` と `trial-outcomes` のアーティファクトは、読み取り専用で `gh` により `.context/gate-cost-cache` にダウンロードされ、一度ダウンロードされた後は、そこから再利用されます。出力は次のとおりです。
 
-`bun run scripts/gate-cost-replay.ts --runs <id,...> [--since YYYY-MM-DD --until YYYY-MM-DD | --prs 3201,3202] [--json]`
-measures the paid PR gate's bill from recorded artifacts, for free. `--runs`
-names complete full-gate runs; their `paid-slice-*` and `trial-outcomes`
-artifacts are downloaded read-only with `gh` into `.context/gate-cost-cache`
-once and reused from there. It prints:
+- ゲートごとの記録された $(平均、最小、最大)。モデルごと、およびトークンの種類ごとに分けて(キャッシュへの書き込み、思考を含む出力、キャッシュからの読み取り、キャッシュされていない入力)。`lib/pricing.ts` を通して価格付けされます。
+- ケースごとの平均コストの表(`--cases` で全体を表示)。記録されたコストがないケース(PTY セッション)は、その所要時間から見積もられ、推定と明記されます。`--usd-per-second` で率を固定しない限り、記録された秒あたりのドルを使います。
+- origin/main の first-parent の履歴で、その期間内にあるすべてのスカッシュマージについて(日付だけの場合は UTC の日付で、`--until` は両端を含みます)、今日のセレクタの下での選択コスト、R4 の探索マップのシャドウ、スクリーニングのルール、そして、期間内のすべてのマージされた PR(ゼロも含む)にわたる、PR 1 件あたりのコストの平均、中央値、ケース数の平均。
+- 各スクリーニングのポリシーに対する、シードされたマージトレインのモデル(マージされたすべての PR はトレインに乗ります。スクリーニングされた欠陥率とされていない欠陥率、外部の赤、赤 1 件あたり $6 のバイセクト、犯人の再キュー、原因不明の赤ごとに 1 回のリビルド)。週あたりの $、マージされた PR あたりの $、そして $9,950 と $8,400 週あたりに対する倍数が出力されます。
 
-- recorded $ per gate (mean, min, max), split by model and by token class
-  (cache write, output including thinking, cache read, uncached input), priced
-  through `lib/pricing.ts`;
-- a per-case mean cost table (`--cases` prints all of it); a case whose runs
-  record no cost (PTY sessions) is estimated from its duration and marked
-  estimated, at recorded dollars per recorded session-second unless
-  `--usd-per-second` pins the rate;
-- for each squash merge on origin/main's first-parent history in the window
-  (bare dates are UTC days, `--until` inclusive), the selection cost under
-  today's selector, R4's exercised-map shadow and the screening rule, and the
-  mean, median and mean case count per merged PR over every merged PR in the
-  window, zeros included;
-- a seeded merge-train model (every merged PR lands in a train; screened and
-  unscreened defect rates, outside reds, a $6 bisect per red, culprits
-  requeued, one rebuild per unattributed red) for each screening policy, with
-  $ per week and per merged PR and the multiple against $9,950 and $8,400 a week.
+スクリーニングの数値は `screen-provisional` とラベル付けされます。ルールのプリアンブルの検出器は、行の共通性によるヒューリスティックであり、T2 のハンク分類器ではないからです。T2 が入るまで、ヒューリスティックなままです。バージョンを変更するだけの `package.json` の変更は、選択されず、カナリアのトリガーにもなりません。また、24 件の judge は常にすべて実行されます。セレクタはこのチェックアウトのものなので、古いマージは今日のマップに対して再生されます。浅いチェックアウトでは、実行すべき `git fetch --shallow-since` が示されます。ロジックは `lib/gate-cost.ts` にあります。テストは `test/gate-cost.test.ts` にあります。
 
-Screening figures are labelled `screen-provisional`: the rule's preamble
-detector is a line-commonality heuristic, not T2's hunk classifier, so they
-stay heuristic until T2 lands. A `package.json` change that only moves the
-version is neither selected nor a canary trigger, and all 24 judges always run.
-The selectors are this checkout's, so an old merge is replayed against today's
-maps. A shallow checkout says which `git fetch --shallow-since` to run. Logic:
-`lib/gate-cost.ts`; tests: `test/gate-cost.test.ts`.
+<a id="free-suite-runner-judge-reuse-and-engine-skips"></a>
+## 無料スイートのランナー、judge の再利用、エンジンのスキップ
 
-## Free suite runner, judge reuse and engine skips
+CLAUDE.md から逐語的に移されました(#2096 のサイズ制限のため)。
 
-Moved verbatim from CLAUDE.md (#2096 size limit).
+`bun run test` は、`scripts/test-free-shards.ts` を通して実行されます(N 個の同時シャードプロセス。各シャードの中は直列。`scripts/free-test-durations.json` が存在する場合は、記録されたファイルごとの所要時間に基づいてパッキングされます。更新するには `bun run test:ubicloud --record-durations` を使います。シャードごとの厳密な出力の分類では、Bun の終了サマリ行がないシャードは失敗します。そのため、静かな切り捨てで緑になることはありません)。`TREE_MUTATING` は、独自の末尾の直列シャードで実行されるファイルを一覧にします(今のところ `test/bootstrap-retention.test.ts` だけです。ホスト全体の procfs の可視性のためです)。gen-skill-docs のテストは、もうこれを必要としません(main() のガードがあり、`--out-dir` はすべてのホストを mkdtemp にレンダリングします。詳細は docs/TESTING_INTERNALS.md を参照してください)。スイートを実行するときに素の `bun test` と入力しないでください。リポジトリ全体を歩き、有料の評価ファイルを読み込み、厳密な分類器を見逃します。
+これは、スキルの検証、gen-skill-docs の品質チェック、browse の統合テスト、Aside の契約のピン留め、レンダーラッパーのピン留めをカバーします。`bun run test:pr` は、選択された短いライブの振る舞いと、品質の judge を実行します。延期された広いカバレッジを報告します。不明な依存関係があると全体のゲートに戻り、マップされていない、登録されたカバレッジのないプロンプトは、計画をブロックします。無料の完全な受け入れと、必須の PR チェックは、公開の前に合格しなければなりません。CI は、16 件のワークフロー judge の合格を 24 時間再利用できます。ただし、消費された完全な入力とランタイムが一致する場合に限ります。レコードは元の由来を保持します。cookie ワークフローのカスタム入力、残りの 11 件の judge のケース、動的なエージェントのテスト、そしてスコープ付きのキャッシュ設定のないローカル実行は、新規のままです。
+定期の/手動の完全なカバレッジと `test:release` は、常に新規で実行されます。
+詳細は [テスト方針](../CONTRIBUTING.md#test-tiers) を、コマンドと実測の目標については参照してください。Aside 自体を必要とするもの(`test/skill-e2e-aside.test.ts`、Aside の qa/design の E2E ケース、`test/aside-render.test.ts` でのライブのレンダリング)は、Aside アプリが開いている Mac でのみ実行され、それ以外では自動的にスキップされます(`asideAvailable()`)。make-pdf のレンダーのゲートと `test/skill-e2e-diagram.test.ts` は、解決されるエンジン(`browserAvailable()`。Aside、または `bun run build:gates` で CI がビルドする browse バイナリ)を通して実行され、どちらも存在しない場合にのみスキップされます。フォールバックのエンジン自身のテストは、どこでも実行されます。
 
-`bun run test` routes through `scripts/test-free-shards.ts` (N concurrent
-shard processes, serial within each, packed by recorded per-file durations
-when `scripts/free-test-durations.json` exists — refresh it with
-`bun run test:ubicloud --record-durations`; strict-output classification per
-shard: a shard without bun's terminal summary line FAILS — silent truncation
-cannot report green). `TREE_MUTATING` lists the files that still run in their
-own trailing serial shard (today only `test/bootstrap-retention.test.ts`, for
-host-wide procfs visibility); gen-skill-docs tests no longer need it (main()
-guard, and `--out-dir` renders every host into mkdtemps — see
-docs/TESTING_INTERNALS.md). Never type bare `bun test` for the suite: it
-walks the whole repo, loading paid eval files and missing the strict
-classifier.
-It covers skill validation, gen-skill-docs quality checks, browse
-integration tests, the Aside contract pins, and the render-wrapper pins.
-`bun run test:pr` runs the selected short live behaviors and quality judges.
-It reports deferred broad coverage; unknown dependencies restore the full gate,
-and an unmapped prompt without registered coverage blocks planning. Full free
-acceptance and required PR checks must pass before publishing. CI can reuse the
-16 workflow-judge passes for 24 hours when their complete consumed inputs and
-runtime match; records preserve original provenance. The cookie workflow's custom
-input, the other 11 judge cases, dynamic agent tests, and local runs without
-scoped cache configuration stay fresh.
-Scheduled/manual full coverage and `test:release` always run fresh.
-See [testing policy](../CONTRIBUTING.md#test-tiers) for commands and measured targets.
-Anything that needs Aside
-itself (`test/skill-e2e-aside.test.ts`, the Aside qa/design E2E cases, the
-live render in `test/aside-render.test.ts`) runs only on a Mac with the Aside
-app open and self-skips elsewhere (`asideAvailable()`). make-pdf's render
-gates and `test/skill-e2e-diagram.test.ts` run through whichever engine
-resolves (`browserAvailable()` — Aside, or the browse binary CI builds with
-`bun run build:gates`) and skip only when neither exists; the fallback
-engine's own tests run everywhere.
+### 実ホームの検知器
 
-### Real-home tripwire
+無料のテストは、開発者の実ホームに書き込んではいけません。`scripts/lib/free-home-guard.ts` は、`~/.gstack`、`~/.claude`、`~/.codex`、`~/.agents`、`~/.config/gstack` のスナップショットを取り(ライブのセッションログは除きます)、いずれかのエントリが変わると実行を失敗させます。
 
-No free test may write the developer's real home. `scripts/lib/free-home-guard.ts`
-snapshots `~/.gstack`, `~/.claude`, `~/.codex`, `~/.agents` and `~/.config/gstack`
-(live session logs excluded) and fails the run when an entry changes.
+- 単独で実行されるシャード(`--shard`、CI、排他的なホスト状態のシャード、フレーキーの再試行)は、自分のウィンドウを持つため、失敗はそのファイルの名前を示します。
+- フルスイートのシャードは、1 つの HOME を共有して同時に実行されます。どのシャードの書き込みかを区別できません。ランナーはそのフェーズ全体を一度だけガードし、どのシャードも名指ししません。
+- `bun run scripts/test-free-shards.ts --attribute-home` は、書き込んだ者を特定します。各ファイルを、プライベートな HOME で単独で実行します(ブラウザのキャッシュと git の ID は、依然として実ホームから取得されます)。そして、監視対象の表面に書き込んだファイルを報告します。保持されたシャードのディレクトリには、書き込まれたファイルが証拠として残ります。
 
-- A shard that runs alone (`--shard`, CI, the exclusive host-state shard, the
-  flaky retry) owns its window, so the failure names its files.
-- Full-suite shards run concurrently on one HOME and cannot tell whose write a
-  change was. The runner guards that whole phase once and names no shard.
-- `bun run scripts/test-free-shards.ts --attribute-home` names the writer: it
-  runs every file alone with a private HOME (browser cache and git identity
-  still come from the real home) and reports each file that wrote a watched
-  surface. The retained shard directory keeps the written files as evidence.
+書き込み元は `usePrivateStateRoot()`(`test/helpers/private-state-root.ts`)、またはその子プロセスの HOME/GSTACK_HOME で修正してください。また、プロダクトの状態のパスは、インポートの時点ではなく、書き込みの時点で解決してください。
 
-Fix a writer with `usePrivateStateRoot()` (`test/helpers/private-state-root.ts`)
-or a child HOME/GSTACK_HOME, and resolve product state paths at write time,
-never at import.
+<a id="flake-ledger"></a>
+### フレーキーの台帳
 
-### Flake ledger
+`GSTACK_FREE_RETRY_FLAKY=1` は、失敗した無料のテストファイルを 1 回、直列で再実行します。クリーンな再試行は、そのシャードをフレーキーな合格として緑にし、そのシャードのフレーキーの台帳にエントリを追加します。台帳は `flake-ledger-<shard>`(90 日間保持)としてアップロードされます。毎週月曜の「Weekly test health」ワークフロー(`bun run test:health --enforce`)は、`scripts/lib/ci-history.ts` を通して main の台帳を読み、あるファイルが、少なくとも 20 件の実行にわたるウィンドウで main の無料テストの実行の 5% を超えてフレーキーになると失敗します。過去 7 日間の実行が 20 件未満の薄いウィンドウは、直近の 20 件の実行に広げられます。20 件未満の場合は、報告のみです。`bun run test:health flake-summary <dir>` は、実行の台帳を表形式で表示します。フレーキーなファイルは、ソースで修正します。再試行がそれを隠すことはありません。`bun run eval:pass-rates` は、ローカルの台帳だけを一覧にします(`flakeLedgerPath()`。`GSTACK_FLAKE_LEDGER` で上書きできます)。
 
-`GSTACK_FREE_RETRY_FLAKY=1` reruns a failing free test file once, serially. A
-clean retry turns the shard green as a flaky pass and appends an entry to that
-shard's flake ledger, uploaded as `flake-ledger-<shard>` (90-day retention). The
-Monday "Weekly test health" workflow (`bun run test:health --enforce`) reads
-main's ledgers through `scripts/lib/ci-history.ts` and fails when a file flakes
-in more than 5% of main free-tests runs over a window of at least 20 runs; a
-window thinner than 20 runs in the last 7 days widens to the newest 20 runs, and
-fewer than 20 runs is report-only. `bun run test:health flake-summary <dir>`
-prints a run's ledgers as a table. A flaky file is fixed at source; the retry
-never masks it. `bun run eval:pass-rates` lists only the local ledger
-(`flakeLedgerPath()`, overridden by `GSTACK_FLAKE_LEDGER`).
+`free-tests.yml` の集計ジョブは、その実行のすべての `flake-ledger-*` アーティファクトをダウンロードし、`bun run scripts/test-health-report.ts flake-summary <dir>` の出力をジョブのサマリに追加します。Windows のレーンは `flake-ledger-windows-<shard>` をアップロードします。
 
-The aggregate job of `free-tests.yml` downloads every `flake-ledger-*` artifact
-of the run and appends `bun run scripts/test-health-report.ts flake-summary <dir>`
-to its job summary. The Windows lane uploads `flake-ledger-windows-<shard>`.
+無料スイートのフレーキーのルール:
 
-Free-suite flake rules:
+- Bun は、`stdio: 'pipe'` の子プロセスに unix の socketpair を与えます。書き込みがブロックされたままであることをテストが保持する必要がある場合は、一度も読まれない FIFO を使います(`test/qa-evidence.test.ts`、`test/qa-deadline.test.ts`)。一時停止した子のストリームは使いません。ソケットの容量は `net.core.{w,r}mem_default` と、親プロセスの読み取り側に従うからです。
+- CI の来歴変数(`CI`、`GITHUB_*`、`CI_*`)を書き換えるテストは、それらを復元します。無料のシャードは、1 つのプロセスで多くのファイルを実行します。その後の `CI=true` のない browse デーモンは、Chromium をサンドボックス付きで起動してしまうからです。
+- ランナーとのハンドシェイクは、ランナー自身の観測可能な効果(進行行、まとめられた読み取りの回数)を待ちます。フィクスチャのサイドファイルや、タイマーを待つことはしません。
+- リポジトリの `.git` にコミットし、その後で一覧、監視、削除を行うフィクスチャは、git の自動メンテナンスを自分でオフにします(リポジトリの設定の `maintenance.auto=false` と `gc.auto=0`、またはそれらが構築する明示的な git の環境で)。git 2.29 以降、`git commit` は、コミットが返った後に、`.git/objects/maintenance.lock` を作成して削除する、切り離された `git maintenance run --auto` を開始します。一覧はそれを数え、ウォッチャーの `lstat` はそれを見逃し、Bun の `rmSync(..., { recursive: true, force: true })` はエラーなしで戻りながら、ディレクトリを残すことがあります。`runFreeShard` は、同じ 2 つのキーを、すべてのシャードの子プロセスの `GIT_CONFIG_*` のペアに最後の砦として追加します。そのため、環境を継承するフィクスチャはカバーされます。また、`bun run scripts/ship-measure.ts free --backend local` もこの環境で計測します。独自の置き換えの環境を持つフィクスチャは、この最後の砦を決して見ません。
 
-- Bun gives a child `stdio: 'pipe'` a unix socketpair. A test that must hold a
-  write blocked uses a FIFO the test never reads (`test/qa-evidence.test.ts`,
-  `test/qa-deadline.test.ts`), not a paused child stream: socket capacity follows
-  `net.core.{w,r}mem_default` and the parent's reader.
-- A test that rewrites CI provenance variables (`CI`, `GITHUB_*`, `CI_*`)
-  restores them. Free shards run many files in one process, and a later browse
-  daemon without `CI=true` launches Chromium sandboxed.
-- Handshakes with a runner wait for the runner's own observable effect (its
-  progress line, a coalesced read count), not for a fixture side file or a timer.
-- Fixtures that commit and then list, watch or remove a repository's `.git`
-  turn git auto-maintenance off themselves (`maintenance.auto=false` and
-  `gc.auto=0` in the repo config, or in the explicit git env they build). Since
-  git 2.29, `git commit` starts a detached `git maintenance run --auto` that
-  creates and deletes `.git/objects/maintenance.lock` after the commit has
-  returned; a listing counts it, a watcher's `lstat` misses it, and Bun's
-  `rmSync(..., { recursive: true, force: true })` returns without an error while
-  leaving the directory behind. `runFreeShard` appends the same two keys to
-  every shard child's `GIT_CONFIG_*` pairs as a backstop, so it covers fixtures
-  that inherit the environment, and `bun run scripts/ship-measure.ts free
-  --backend local` measures with that environment; a fixture with its own
-  replacement env never sees the backstop.
-
-To reproduce a ledger entry, take the shard's exact file list from the CI run's
-`free-plan` artifact, then rerun it with the flaky retry off on a CI-mirrored VM:
+記録された台帳のエントリを再現するには、CI の実行の `free-plan` アーティファクトから、シャードの正確なファイル一覧を取り、CI を再現する VM 上で、フレーキーの再試行をオフにして再実行してください。
 
 ```bash
 gh run download <run-id> -R garrytan/gstack -n free-plan -D /tmp/free-plan
@@ -1387,162 +356,51 @@ files=$(jq -r --argjson s <shard> '.shards[] | select(.shard == $s) | .files | j
 bun run test:ubicloud --diagnostic --files "$files" --reruns 30
 ```
 
-The ledger entry names the shard (`flake-ledger-<shard>`). Read the counts from
-the run's `free-measurement.json` (`completed`, `passed`, `capHit`): with a
-before-fix failure rate p, a fix needs at least 3/p clean completed reruns of
-the same command, so zero failures would have under a 5% chance if nothing had
-changed. Cut or unstarted reruns are incomplete, not passes.
+台帳のエントリはシャードを名指しします(`flake-ledger-<shard>`)。実行の `free-measurement.json`(`completed`、`passed`、`capHit`)から件数を読んでください。修正前の失敗率を p とすると、修正を確認するには、同じコマンドを少なくとも 3/p 回、きれいに完了させる必要があります。そうしないと、何も変わっていない場合に、失敗がゼロになる確率は 5% を下回ってしまうからです。途中で打ち切られた、または開始されなかった再実行は、不完全であり、合格ではありません。
 
-### Free suite duration seed
+<a id="free-suite-duration-seed"></a>
+### 無料スイートの所要時間のシード
 
-`scripts/free-test-durations.json` drives shard packing; files missing from it
-pack at the seed's 99th percentile. Acceptable seeds come only from a recording
-in the CI lane's environment, each file timed in its own child: the weekly
-`free-durations-record.yml` run, or `bun run test:ubicloud --record-durations`
-(it needs `UBICLOUD_API_KEY` and copies the refreshed seed back into the
-checkout). A 4-core laptop or small-sandbox
-recording is not acceptable: browser and display tests skip or slow down there,
-so the seed misstates them. Contributors without `UBICLOUD_API_KEY` leave the
-refresh to a maintainer.
+`scripts/free-test-durations.json` は、シャードのパッキングを駆動します。そこにないファイルは、シードの 99 パーセンタイルでパッキングされます。許容されるシードは、CI レーンの環境で、各ファイルを自分の子プロセスで計測した記録からのみ得られます。毎週の `free-durations-record.yml` の実行、または `bun run test:ubicloud --record-durations` です(`UBICLOUD_API_KEY` が必要で、更新されたシードをチェックアウトにコピーして戻します)。4 コアのノート PC や小さなサンドボックスでの記録は許容されません。ブラウザやディスプレイのテストはそこでスキップされるか遅くなり、シードが実態を誤って示すからです。`UBICLOUD_API_KEY` を持たない貢献者は、更新をメンテナーに任せてください。
 
-- `--ci-plan` warns in the job summary, with the refresh command, when more than 5
-  files are unseeded; it never fails a PR. `--ci-verify` lists shards that ran
-  longer than 1.5× their prediction and at least 30 seconds over.
-- The weekly test-health run fails its enforced `unseeded-free-files` check
-  ("stale seed: N unseeded file(s) > 5") when more than 5 free test files are
-  missing from the seed, so contributors without Ubicloud access learn within a
-  week that it needs a refresh.
-- `test/free-seed-ratchet.test.ts` (run with full history in `free-tests.yml`'s
-  `free-plan` job, `GSTACK_FREE_SEED_BASE=$(git merge-base HEAD origin/main)`)
-  fails when a seeded file over 60 seconds is missing from
-  `scripts/free-test-seed-allowlist.json`, when an allowlist entry is stale (gone,
-  or no longer over 60 seconds), or when an entry is added relative to the
-  merge-base copy without a `todo`. An annotated exception is
-  `{file, reason, todo}` and the test prints it. A merge-base without the
-  allowlist file counts as the first allowlist. Fix a failure by splitting the
-  file, then rerun `bun run test:ubicloud --record-durations`.
-- `free-durations-record.yml` (Mondays 04:00 UTC, before test-health, and on
-  dispatch) records the Linux seed on `ubicloud-standard-8` with
-  `scripts/ubicloud/setup-free-suite.sh` and the Windows seed through
-  `windows-free-tests.yml`'s `record_durations` path. When either recording adds
-  or drops a test file, it force-updates the `bot/free-duration-seeds` branch,
-  opens or refreshes one seed PR whose body states the ratchet result, and
-  dispatches Free Tests, Windows Free Tests and Quality gate on it. Those
-  dispatched runs are the seed PR's checks, and Free Tests supplies the required
-  `free-tests` check. GitHub holds the pull_request runs of a token-opened PR as
-  "action required" until someone approves them. A file that fails while recording turns its
-  job red but keeps its duration, and the PR body names it; the seed PR's own
-  free checks decide whether the tree is healthy. An interrupted recording
-  uploads no seed, and more than 5 red files on either OS proposes nothing. The
-  bot never edits the allowlist: a ratchet failure is fixed on the branch by a
-  maintainer before the PR merges, and while the open seed PR holds any commit
-  besides the bot's one refresh commit, later runs leave it alone. Only runs on
-  `main` push the branch; a dispatch from another ref reports only.
+- `--ci-plan` は、5 件を超えるファイルにシードがない場合、ジョブのサマリに更新のコマンドとともに警告を出します。PR を失敗させることはありません。`--ci-verify` は、予測の 1.5 倍を超え、かつ 30 秒以上長く実行されたシャードを一覧にします。
+- 毎週のテストヘルスの実行で、強制される `unseeded-free-files` のチェックは、無料のテストファイルが 5 件を超えてシードから欠けている場合に失敗します(「stale seed: N unseeded file(s) > 5」)。これにより、Ubicloud にアクセスできない貢献者も、1 週間以内にシードの更新が必要なことを知ります。
+- `test/free-seed-ratchet.test.ts`(`free-tests.yml` の `free-plan` ジョブで完全な履歴とともに実行されます。`GSTACK_FREE_SEED_BASE=$(git merge-base HEAD origin/main)`)は、60 秒を超えるシードされたファイルが `scripts/free-test-seed-allowlist.json` にない場合、許可リストのエントリが古い(削除済み、または 60 秒を超えなくなった)場合、またはマージベースのコピーと比べて `todo` なしでエントリが追加された場合に失敗します。注釈付きの例外は `{file, reason, todo}` で、このテストはそれを表示します。許可リストのファイルがないマージベースは、最初の許可リストとして扱われます。失敗の修正は、ファイルを分割し、その後 `bun run test:ubicloud --record-durations` を再実行することで行います。
+- `free-durations-record.yml`(毎週月曜 04:00 UTC。テストヘルスの前、および dispatch 時)は、`ubicloud-standard-8` で `scripts/ubicloud/setup-free-suite.sh` を使い、Linux のシードを記録します。Windows のシードは、`windows-free-tests.yml` の `record_durations` の経路を通して記録されます。いずれかの記録がテストファイルを追加または削除する場合、`bot/free-duration-seeds` ブランチを強制的に更新し、シードの PR を 1 つ開くか更新します。その本文には、ratchet の結果が記されます。そして、そのブランチで Free Tests、Windows Free Tests、Quality gate を dispatch します。それらの dispatch された実行は、シード PR のチェックです。Free Tests は、必須の `free-tests` チェックを提供します。トークンで開かれた PR の pull_request の実行は、誰かが承認するまで「action required」として保留されます。記録中に失敗したファイルは、そのジョブを赤にしますが、所要時間は保持されます。PR の本文にその名前が記されます。シード PR 自身の無料チェックが、ツリーが健全かどうかを決めます。記録が途中で中断された場合は、シードをアップロードしません。どちらかの OS で 5 件を超える赤いファイルがあれば、何も提案しません。ボットが許可リストを編集することは決してありません。ratchet の失敗は、PR がマージされる前に、メンテナーがブランチで修正します。オープンなシード PR が、ボットの 1 回の更新コミット以外のコミットを持つ間は、その後の実行はそれに触れません。ブランチを push するのは、`main` での実行だけです。`main` 以外の ref からの dispatch は、報告のみを行います。
 
-### Windows free lane
+<a id="windows-free-lane"></a>
+### Windows の無料レーン
 
-`windows-free-tests.yml` plans on Linux (`--windows-only --ci-plan --shards 6`),
-runs one strict serial shard per `windows-latest` job
-(`bun run test:windows --ci-run`), and verifies every shard receipt on Linux
-(`--windows-only --ci-verify`). Packing uses Windows-measured durations from
-`scripts/free-test-durations-windows.json`; the weekly
-`free-durations-record.yml` run refreshes them, or by hand run
-`gh workflow run windows-free-tests.yml --ref <branch> -f record_durations=true`,
-then download the `free-test-durations-windows` artifact and commit it.
+`windows-free-tests.yml` は、Linux で計画します(`--windows-only --ci-plan --shards 6`)。各 `windows-latest` のジョブで、厳密な直列のシャードを 1 つずつ実行し(`bun run test:windows --ci-run`)、すべてのシャードのレシートを Linux で検証します(`--windows-only --ci-verify`)。パッキングには、`scripts/free-test-durations-windows.json` の Windows で計測された所要時間を使います。毎週の `free-durations-record.yml` の実行が更新するか、手動で `gh workflow run windows-free-tests.yml --ref <branch> -f record_durations=true` を実行し、その後 `free-test-durations-windows` のアーティファクトをダウンロードしてコミットしてください。
 
-Curation lives in `scripts/lib/windows-curation.ts`. Every Windows plan and
-`--list` prints the curated count and the top exclusion reasons (also in the job
-summary). Files a probe proved safe despite a `/tmp` literal are force-included
-(`WINDOWS_PROBE_SAFE`). `test/windows-native-workflows.test.ts` holds
-`WINDOWS_CURATED_FLOOR`; when Windows-safe tests are deleted on purpose, lower it
-in the same PR with a reason.
+キュレーションは `scripts/lib/windows-curation.ts` にあります。すべての Windows の計画と `--list` は、キュレーションされた件数と、主な除外の理由を出力します(ジョブのサマリにも出ます)。プローブによって、`/tmp` のリテラルがあっても安全だと証明されたファイルは、強制的に含められます(`WINDOWS_PROBE_SAFE`)。`test/windows-native-workflows.test.ts` は `WINDOWS_CURATED_FLOOR` を保持します。Windows で安全なテストを意図的に削除する場合は、同じ PR で理由とともにそれを下げてください。
 
-Native qualification campaigns (Windows cookie extraction, Windows launch
-diagnostics, Dia on macOS) run only on dispatch of `native-qualification.yml`:
+ネイティブの認定キャンペーン(Windows の cookie 抽出、Windows の起動診断、macOS の Dia)は、`native-qualification.yml` の dispatch でのみ実行されます。
 
 ```bash
 gh workflow run native-qualification.yml --ref <branch> -f mode=<cookie-native|windows-native-diagnostics|dia-native|dia-launch-comparison|dia-gui-readiness>
 ```
 
-### Real-setup install fixture
+### 実際のセットアップのインストールのフィクスチャ
 
-Tests that run the real `setup` use `test/helpers/install-fixture.ts`. Each test
-file builds one read-only seed checkout and clones it per test with
-copy-on-write file copies (plain copy fallback), never hard links. Writes go
-through `put`, `setVersion` and the `fixture*Sync` helpers; files register
-`afterEach(cleanupFixtures)` and `afterAll(cleanupSeed)`.
-`test/install-fixture.test.ts` is the isolation tripwire: writes in one clone
-leave the seed and sibling clones unchanged.
+実際の `setup` を実行するテストは、`test/helpers/install-fixture.ts` を使います。各テストファイルは、読み取り専用のシードのチェックアウトを 1 つ作り、テストごとに、コピーオンライトのファイルコピー(通常のコピーへのフォールバックあり)でそれをクローンします。ハードリンクは決して使いません。書き込みは `put`、`setVersion`、`fixture*Sync` のヘルパーを通して行います。ファイルは `afterEach(cleanupFixtures)` と `afterAll(cleanupSeed)` を登録します。`test/install-fixture.test.ts` は分離の tripwire です。あるクローンへの書き込みは、シードや兄弟のクローンを変えません。
 
-### Test-only timing knobs
+### テスト専用のタイミングのノブ
 
-Defaults are the product's; tests shrink them instead of waiting real time:
-`GSTACK_RENDER_SLACK_MS` (`lib/aside-render.ts`, default 10000),
-`GSTACK_MEMORABLE_LOCK_TRIES` (`bin/gstack-memorable`, default 50 tries of 0.1 s),
-the `recordGraceMs` option of `test/helpers/office-hours-attempt.ts` (default
-5000) and the `timeoutMs` argument of `clearCookieTargetStorage(page, origin,
-timeoutMs)` (default 15000).
+デフォルトはプロダクトのものです。テストは、実時間を待つ代わりに、これらを縮めます。`GSTACK_RENDER_SLACK_MS`(`lib/aside-render.ts`、デフォルト 10000)、`GSTACK_MEMORABLE_LOCK_TRIES`(`bin/gstack-memorable`、デフォルトは 0.1 秒の 50 回の試行)、`test/helpers/office-hours-attempt.ts` の `recordGraceMs` オプション(デフォルト 5000)、そして `clearCookieTargetStorage(page, origin, timeoutMs)` の `timeoutMs` 引数(デフォルト 15000)です。
 
-## Running evals as an agent: detach
+<a id="running-evals-as-an-agent-detach"></a>
+## エージェントとして評価を実行する: detach
 
-Moved verbatim from CLAUDE.md (#2096 size limit). The short rule stays in
-CLAUDE.md; this is the full mechanism.
+CLAUDE.md から逐語的に移されました(#2096 のサイズ制限のため)。短いルールは CLAUDE.md に残ります。これは完全な仕組みです。
 
-When **you (an agent/harness)** launch a long eval/benchmark run, run it through
-`bin/gstack-detach` — NEVER as a plain backgrounded Bash task. A plain background
-task lives in the harness's process group, so a SIGTERM ("polite quit") on a turn
-boundary, a stopped Monitor, or an interruption kills the run mid-flight (observed:
-`script "test:gate" was terminated by signal SIGTERM` ~40 min into a run of the
-since-retired single-process runner). On macOS
-the run can also die to idle-sleep. `gstack-detach` fixes both: a fresh session
-(escapes the group SIGTERM) wrapped in `caffeinate -i` (blocks idle-sleep).
+**あなた(エージェントやハーネス)が**長い評価やベンチマークの実行を起動するときは、必ず `bin/gstack-detach` を通してください。通常のバックグラウンドの Bash タスクとしては決して実行しないでください。通常のバックグラウンドのタスクは、ハーネスのプロセスグループに属するため、ターンの境界での SIGTERM(「丁寧な終了」)、停止された Monitor、または中断によって、実行が途中で殺されます(観測例: 今は退役した単一プロセスのランナーの実行で、約 40 分後に `script "test:gate" was terminated by signal SIGTERM`)。macOS では、アイドル時のスリープでも実行が死ぬことがあります。`gstack-detach` は両方を解決します。新しいセッション(グループの SIGTERM から逃れます)の中で、`caffeinate -i`(アイドル時のスリープを防ぎます)でラップします。
 
-- Use `bun run eval:bg:<pr|gate|periodic|release>` (`scripts/eval-bg.ts`). It
-  prints `[eval-bg] backend=<dispatch|local> …` and `gstack-detach LOG <path>` and
-  returns at once. Both backends run under `gstack-detach` with the machine-wide
-  `gstack-evals` lock (concurrent worktrees serialize instead of saturating the
-  shared model API) and a **run-scoped** log under `~/.gstack-dev/eval-runs/`
-  whose first line names the backend, the run and the tested revision.
-  - **Dispatch** (default when HEAD is clean and equal to its pushed branch on
-    `garrytan/gstack`, checked with `gh api`, and `gh` can dispatch): `pr` and
-    `gate` dispatch `evals.yml` (`evals_all=false` with `base_ref`/`base_sha` for
-    `pr`, `evals_all=true` for `gate`), `periodic` dispatches `evals-periodic.yml`,
-    `release` dispatches both. Every dispatch passes `expected_sha` (the workflow
-    fails fast when the checked-out revision differs) and a `nonce` that appears
-    in the run name (`E2E Evals [eval-bg <nonce>]`), which is how the log finds
-    and follows its run. A queued, running or green dispatch with the same
-    revision and inputs is followed instead of dispatched again. Dispatched runs
-    are validation runs: fresh and never writing PR receipts, except that a `pr`
-    dispatch on a branch with an open same-repo PR passes `pr_receipts=<PR>` and
-    reads that PR's receipts read-only.
-  - **Local** (dirty tree, unpushed commits, a fork, no `gh`, or `--local` /
-    `GSTACK_EVAL_BG_MODE=local`): the sharded paid runner
-    (`scripts/test-paid-shards.ts`) on this machine, capped at
-    ceil(1.5 × planned serial seconds / `EVALS_JOBS`) + 20 minutes, at most 4 hours
-    (`--timeout SECS` overrides). One Bun process per test file, an external
-    wall-clock timeout that kills the shard's process GROUP (stray
-    `claude`/`codex` grandchildren included), a per-shard
-    `GSTACK_EVAL_DIR=<evalDir>/shards/<slug>/` honored by the `EvalCollector`
-    constructor, and an aggregate that separates failed vs timed-out vs
-    never-started shards. `EVALS_JOBS` sets the shard process count (default 8,
-    2 for `pr`); `EVALS_CONCURRENCY` is bun's --max-concurrency WITHIN a shard
-    (default 2). Export `ANTHROPIC_API_KEY` first (never pass keys in argv).
-  - `--dispatch` refuses with the fix ("commit and push, or rerun with --local")
-    instead of falling back.
-  `eval:list` / `eval:compare` / `eval:summary` / `eval:pass-rates` read the shard
-  dirs too. For any other long agent job, call
-  `gstack-detach [--lock NAME] [--timeout SECS] [--label LBL] -- <cmd>` directly.
-- Then **poll the printed logfile** with a death-aware watcher: break on the
-  guaranteed `### gstack-detach EXIT=<code> ###` sentinel (0 passed, 1 failed,
-  130 cancelled, 2 other on both backends; silence is never mistaken for success).
-  `bun run scripts/eval-bg.ts status <log-or-run-id>` reconnects and prints
-  running, passed, failed, cancelled or incomplete (died without a sentinel). The detached run survives
-  even if your watcher gets reaped, so re-checking the log always works. Keep
-  checking until the sentinel appears or the user tells you to stop; a long run is
-  expected, and a promise to check later is not a result. At each check, report
-  which tests passed, which are still running, and any failures so far.
-- Why the lock: a shared dev box with several Conductor worktrees will rate-limit
-  the model API if two eval suites run at once (15-way concurrency each), which
-  mass-times-out E2E tests. The lock makes the second run WAIT, not collide.
-- Humans running `bun run test:pr` foreground in their own terminal don't need
-  this — Ctrl-C is intended there. Detachment is for agent-launched runs only.
+- `bun run eval:bg:<pr|gate|periodic|release>`(`scripts/eval-bg.ts`)を使ってください。`[eval-bg] backend=<dispatch|local> …` と `gstack-detach LOG <path>` を出力し、すぐに戻ります。両方のバックエンドは、`gstack-detach` の下で、マシン全体の `gstack-evals` のロックとともに実行されます(並行する worktree は、直列化され、飽和させられません)。ログは `~/.gstack-dev/eval-runs/` の下の、実行ごとのログです。その最初の行には、バックエンド、実行、テストされたリビジョンが記されます。
+  - **Dispatch**(HEAD がクリーンで、`garrytan/gstack` 上の push 済みブランチと一致し、`gh api` で確認でき、`gh` が dispatch できる場合のデフォルト): `pr` と `gate` は `evals.yml` を dispatch します(`pr` では `base_ref`/`base_sha` とともに `evals_all=false`、`gate` では `evals_all=true`)。`periodic` は `evals-periodic.yml` を dispatch します。`release` は両方を dispatch します。すべての dispatch は、`expected_sha`(チェックアウトされたリビジョンが異なる場合、ワークフローは即座に失敗します)と、実行名に現れる `nonce`(`E2E Evals [eval-bg <nonce>]`)を渡します。これによって、ログは自分の実行を見つけて追跡できます。同じリビジョンと入力のキューに入っている、実行中、または緑の dispatch があれば、再び dispatch せずにそれを追跡します。dispatch された実行は検証のための実行です。新しく行われ、PR のレシートを書くことはありません。ただし、開かれた同じリポジトリの PR を持つブランチでの `pr` の dispatch は、`pr_receipts=<PR>` を渡し、その PR のレシートを読み取り専用で読みます。
+  - **ローカル**(汚れたツリー、push されていないコミット、フォーク、`gh` がない、または `--local` / `GSTACK_EVAL_BG_MODE=local`): このマシン上で、シャード化された有料ランナー(`scripts/test-paid-shards.ts`)を実行します。上限は ceil(1.5 × 計画された直列の秒数 / `EVALS_JOBS`) + 20 分で、最大 4 時間です(`--timeout SECS` で上書きできます)。ファイルごとに 1 つの Bun プロセスがあります。シャードのプロセスグループ全体を殺す外部の壁時計のタイムアウト(迷子の `claude`/`codex` の子孫も含みます)があります。シャードごとの `GSTACK_EVAL_DIR=<evalDir>/shards/<slug>/` は `EvalCollector` のコンストラクタで尊重されます。また、集計は、失敗、タイムアウト、一度も開始されなかったシャードを区別します。`EVALS_JOBS` はシャードのプロセス数を設定します(デフォルトは 8。`pr` の場合は 2)。`EVALS_CONCURRENCY` はシャード内の bun の --max-concurrency です(デフォルトは 2)。まず `ANTHROPIC_API_KEY` を export してください(キーを argv に渡してはいけません)。
+  - `--dispatch` は、フォールバックする代わりに、修正方法(「commit and push, or rerun with --local」)とともに拒否します。
+  `eval:list` / `eval:compare` / `eval:summary` / `eval:pass-rates` も、シャードのディレクトリを読みます。その他の長いエージェントの作業は、`gstack-detach [--lock NAME] [--timeout SECS] [--label LBL] -- <cmd>` を直接呼び出してください。
+- その後、表示されたログファイルを、死を検知できるウォッチャーでポーリングしてください。保証された `### gstack-detach EXIT=<code> ###` の番兵で止めます(0 は合格、1 は失敗、130 はキャンセル、2 はその他。両方のバックエンドで同じです。沈黙を成功と誤認することは決してありません)。`bun run scripts/eval-bg.ts status <log-or-run-id>` は、再接続して、running、passed、failed、cancelled、incomplete(番兵なしで終了)のいずれかを表示します。ウォッチャーが刈り取られても、切り離された実行は生き残るので、ログを再確認すればいつでも結果がわかります。番兵が現れるか、ユーザーが止めるように言うまで、確認を続けてください。長い実行は想定内です。後で確認するという約束は、結果ではありません。確認するたびに、どのテストが合格したか、どれがまだ実行中か、ここまでの失敗があるかを報告してください。
+- ロックが必要な理由: 複数の Conductor の worktree がある共有の開発マシンで 2 つの評価スイートを同時に実行すると、モデル API のレート制限に達し(各 15 並列)、E2E テストが大量にタイムアウトしてしまいます。ロックは、2 つ目の実行を衝突させるのではなく、待たせます。
+- 人間が自分のターミナルで前景で `bun run test:pr` を実行する場合は、これは不要です。Ctrl-C は、そこでは意図された動作です。detach はエージェントが起動する実行のためだけのものです。

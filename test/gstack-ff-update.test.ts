@@ -387,7 +387,7 @@ describe.skipIf(process.platform === 'win32')('gstack-ff-update: callers', () =>
     write(fx, 'notes.txt', 'top LOCAL\nmiddle\nbottom\n');
     const target = release(fx, { 'notes.txt': 'top UPSTREAM\nmiddle\nbottom\n' });
     const tmpl = fs.readFileSync(path.join(ROOT, 'gstack-upgrade', 'SKILL.md.tmpl'), 'utf8');
-    const block = tmpl.slice(tmpl.indexOf('**For git installs**')).match(/```bash\n([\s\S]*?)\n```/)![1]!.replaceAll('{{SETUP_COMMAND}}', './setup');
+    const block = tmpl.slice(tmpl.indexOf('**git のインストールの場合**')).match(/```bash\n([\s\S]*?)\n```/)![1]!.replaceAll('{{SETUP_COMMAND}}', './setup');
     const r = spawnSync('bash', ['-c', block], { cwd: fx.base, encoding: 'utf8', env: { ...isolatedEnv(fx.base), INSTALL_DIR: fx.install }, timeout: 60_000 });
     expect(r.status, r.stdout + r.stderr).toBe(0);
     expect(r.stdout).toContain('FF_OK');

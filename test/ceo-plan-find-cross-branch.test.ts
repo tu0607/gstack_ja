@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { between } from './helpers/prompt-structure';
+import { between, expectMentions } from './helpers/prompt-structure';
 
 // #280 review changes to #3159: stdout stays a bare path (the $DESIGN-style
 // API); a plan borrowed from another branch is disclosed on its own stderr
@@ -94,6 +94,6 @@ describe('plan-eng-review uses a cross-branch CEO plan only knowingly', () => {
 
   test('interactive sessions ask before using it; spawned sessions use it and quote the disclosure', () => {
     const prose = check.replace(/\s+/g, ' ');
-    expect(prose).toContain('If printed `from branch`, ask before using it; spawned sessions use it and quote that line.');
+    expectMentions(prose, [['`from branch`', '質問'], ['使い', '引用']], 'cross-branch CEO plan rule');
   });
 });

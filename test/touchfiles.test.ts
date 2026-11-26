@@ -186,8 +186,8 @@ describe('selectTests', () => {
     const review = fs.readFileSync(path.join(ROOT, 'plan-eng-review/sections/review-sections.md'), 'utf8');
     const excerpt = sharedLibsPlanExcerpt(entrypoint, review);
     for (const [start, end] of [
-      ['## Prior Learnings', '## Retrospective learning'],
-      ['### 3. Test review', '### 4. Performance review'],
+      ['## Prior Learnings', '## 振り返りによる学習'],
+      ['### 3. テストのレビュー', '### 4. パフォーマンスのレビュー'],
     ]) {
       const begin = review.indexOf(start), finish = review.indexOf(end, begin);
       expect(begin).toBeGreaterThan(0);
@@ -200,7 +200,7 @@ describe('selectTests', () => {
     }
     expect(excerpt).toContain('## Confidence Calibration');
     expect(excerpt).toContain('## AskUserQuestion Format');
-    expect(excerpt).toContain('### Shared-code evaluation rubric');
+    expect(excerpt).toContain('### 共有コードの評価ルーブリック');
     for (const source of ['scripts/resolvers/confidence.ts',
       'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/shared-libs.ts',
       'test/helpers/shared-libs-plan-excerpt.ts']) {
@@ -210,14 +210,14 @@ describe('selectTests', () => {
 
   test.each([
     ['plan-eng-review/sections/review-sections.md', 'plan-eng-review/SKILL.md sections',
-      'plan-eng-review/SKILL.md', '## Scope gate', '## Section self-check', '### REGRESSION RULE (mandatory)'],
+      'plan-eng-review/SKILL.md', '## スコープゲート', '## セクションの自己チェック', '### REGRESSION RULE(回帰ルール・必須)'],
     ['ship/sections/tests.md', 'ship/SKILL.md workflow',
-      'ship/SKILL.md', '# Ship:', '## Important Rules', '## Test Framework Bootstrap'],
+      'ship/SKILL.md', '# Ship:', '## 重要なルール', '## Test Framework Bootstrap(テストフレームワークのブートストラップ)'],
     ['ship/sections/test-coverage.md', 'ship/SKILL.md workflow',
-      'ship/SKILL.md', '# Ship:', '## Important Rules', '### REGRESSION RULE (mandatory)'],
+      'ship/SKILL.md', '# Ship:', '## 重要なルール', '### REGRESSION RULE(回帰ルール・必須)'],
     ['plan-design-review/sections/review-sections.md', 'plan-design-review/SKILL.md passes',
       'plan-design-review/SKILL.md', '## Review Sections', ASK_QUESTIONS_HEADING,
-      '## Review Sections (7 passes, after scope is agreed)'],
+      '## Review Sections(レビューのセクション。7つのパス、スコープ合意後)'],
   ])('expanded judge content remains selected by its section alone: %s', (file, judge, skill, start, end, marker) => {
     const body = fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/^<!--[^\n]*-->\n/gm, '').trim();
     const paragraph = body.split(`${marker}\n\n`)[1]?.split('\n\n')[0];

@@ -1,71 +1,44 @@
-# gbrain write surfaces — what lands where, and how to verify
+# gbrain の書き込み先: どこに何が入り、どう確認するか
 
-This doc serves two audiences:
+このドキュメントは2種類の読者を想定しています。
 
-1. **Agents**: when a planning skill renders the compact `## Brain Context
-   Load` or `## Save Results to Brain` blocks, those blocks reference this
-   doc. Read §Context Load or §Save Template here on-demand when you're
-   actually using gbrain. Skip entirely if `gbrain` is not on PATH.
-2. **Humans**: after running a planning skill against a real brain, use
-   the manual-probe sections to confirm the page actually landed.
+1. **エージェント**: 計画系スキルが、コンパクトな `## Brain Context Load` や `## Save Results to Brain` のブロックをレンダリングすると、このドキュメントを参照します。gbrain を実際に使うときに、§Context Load または §Save Template をその場で読んでください。`gbrain` が PATH にない場合は、まるごと読み飛ばして構いません。
+2. **人間**: 計画系スキルを実際の brain に対して実行した後、手動のプローブのセクションを使って、ページが確かに届いたかを確認してください。
 
-## What lands where
+## 何がどこに入るか
 
-| Host + detection state | What renders in the planning-skill SKILL.md |
+| ホストと検出状態 | 計画系スキルの SKILL.md に表示される内容 |
 |---|---|
-| Any host + `gstack-config gbrain-refresh` reports `gbrain_local_status: "ok"` | Compressed brain-aware blocks render. Agent reads this doc on-demand when it actually saves. ~250 token overhead per planning skill. |
-| Any host + gbrain not detected | Blocks suppressed at gen-time. Zero token overhead. Calibration takes still render (separate resolver, host-agnostic). |
-| GBrain or Hermes host | Blocks always render regardless of detection — these hosts ship gbrain integration as a first-class concern. |
+| どのホストでも、`gstack-config gbrain-refresh` が `gbrain_local_status: "ok"` を報告 | 圧縮された brain 対応ブロックがレンダリングされる。エージェントは実際に保存するときに、このドキュメントをその場で読む。計画系スキルごとに約 250 トークンのオーバーヘッド。 |
+| どのホストでも、gbrain が検出されない | ブロックは生成時に抑止される。トークンのオーバーヘッドはゼロ。キャリブレーションのテイクは引き続きレンダリングされる(別のリゾルバで、ホストに依存しない)。 |
+| GBrain または Hermes のホスト | 検出の結果にかかわらず、ブロックは常にレンダリングされる。これらのホストは gbrain 連携を第一級の関心事として出荷しているため。 |
 
-`.gbrain-source` selects the source for **reads and writes** made from that
-directory, including `gbrain put`. It does not select a storage engine: the
-engine is configured separately in `~/.gbrain/config.json`. GBrain resolves
-an explicit `--source` first, then `GBRAIN_SOURCE`, then the nearest trusted
-`.gbrain-source`, followed by registered path and default-source rules. If a
-page lands in an unexpected source, check the effective source selection
-before treating a successful `put` as proof it reached the intended corpus.
+`.gbrain-source` は、そのディレクトリから行われる**読み取りと書き込み**(`gbrain put` を含む)のソースを選択します。ストレージエンジンを選ぶものではありません。エンジンは `~/.gbrain/config.json` で別途設定されます。GBrain は、明示的な `--source` を最初に解決し、次に `GBRAIN_SOURCE`、次に最も近い信頼された `.gbrain-source`、そして登録されたパスとデフォルトソースのルールの順に従います。ページが想定外のソースに入った場合は、成功した `put` が意図したコーパスに届いた証拠だとみなす前に、有効なソースの選択を確認してください。
 
-Trust policy (`personal` vs `shared`, per endpoint hash) gates auto-push
-and writeback. Set via `gstack-config set
-brain_trust_policy@<endpoint-hash> personal`. Local PGLite installs
-auto-default to `personal`; remote-MCP installs prompt during
-`/setup-gbrain` step 9.5.
+信頼ポリシー(`personal` と `shared`。エンドポイントのハッシュごと)が、自動 push と書き戻しを制御します。`gstack-config set brain_trust_policy@<endpoint-hash> personal` で設定します。ローカルの PGLite インストールは `personal` が自動で既定になります。リモート MCP のインストールは、`/setup-gbrain` のステップ 9.5 で確認を求めます。
 
-## §Context Load (agent reads this when running a planning skill)
+## §Context Load(計画系スキルを実行するエージェントが読む)
 
-Before starting, search the brain for relevant context:
+開始する前に、関連するコンテキストを brain から検索してください。
 
-1. **Extract 2-4 keywords** from the user's request. Pick nouns, error
-   names, file paths, technical terms — NOT verbs or adjectives.
-   Example: for "the login page is broken after deploy", search for
-   `login broken deploy`.
-2. **Search**: `gbrain search "<keyword1 keyword2>"`. Returns lines like
-   `[slug] Title (score: 0.85) - first line of content...`.
-3. **If few results** (under 3): broaden to the single most specific
-   keyword and search again. If still few, proceed without brain context.
-4. **Read top 3 results**: `gbrain get "<slug>"` for each. Stop
-   after 3 — diminishing returns past that.
-5. **Use the context** to inform your analysis. Cite specific slugs in
-   your output when a brain page changed your thinking.
+1. ユーザーの依頼から **2〜4 個のキーワードを抽出**する。名詞、エラー名、ファイルパス、技術用語を選び、動詞や形容詞は選ばない。
+   例: 「deploy の後にログインページが壊れている」なら、`login broken deploy` を検索する。
+2. **検索**: `gbrain search "<keyword1 keyword2>"`。`[slug] Title (score: 0.85) - first line of content...` のような行が返ります。
+3. **結果が少ない場合**(3件未満): 最も具体的なキーワード1つに広げて、もう一度検索する。それでも少なければ、brain のコンテキストなしで進める。
+4. **上位3件を読む**: それぞれについて `gbrain get "<slug>"` を実行する。3件を超えて読むことはやめる。それ以降は効果が薄いため。
+5. **コンテキストを使って**分析に役立てる。brain のページがあなたの考えを変えた場合は、出力で具体的な slug を引用する。
 
-If `gbrain search` returns any non-zero exit (gbrain not on PATH, network
-flake, throttle), treat as transient: proceed without brain context. Do
-not retry inline — the user can re-run the skill later.
+`gbrain search` がゼロ以外の終了コードを返した場合(gbrain が PATH にない、ネットワークの一時的な不調、スロットル)は、一時的な問題として扱い、brain のコンテキストなしで進めてください。その場で再試行しないでください。ユーザーが後でスキルを再実行できます。
 
-## §Save Template (agent reads this when actually saving)
+## §Save Template(実際に保存するエージェントが読む)
 
-After completing the skill, save the output. The compact resolver block
-already shows the slug prefix + title + tag for your specific skill (e.g.
-`gbrain put "ceo-plans/<feature-slug>" ...`). The page is free text, so it
-never goes into a shell command, heredoc or quoted argument: create a private
-file at the repo root, write the page into it with your file-write tool, and
-let `gbrain put` read it on stdin.
+スキルを完了したら、出力を保存してください。コンパクトなリゾルバのブロックには、そのスキルに固有のスラッグのプレフィックス、タイトル、タグが既に示されています(例: `gbrain put "ceo-plans/<feature-slug>" ...`)。ページは自由形式のテキストなので、シェルのコマンド、ヒアドキュメント、引用符で囲んだ引数に入れることは決してしないでください。代わりに、リポジトリのルートに非公開のファイルを作り、ファイル書き込みツールでページをそこに書き込み、`gbrain put` に標準入力で読ませてください。
 
 ```bash
 mkdir -p .gstack/tmp && mktemp .gstack/tmp/page.XXXXXX
 ```
 
-Write into the printed file, exactly as the page should read:
+表示されたファイルに、ページとして読まれるべき内容をそのまま書き込みます。
 
 ```markdown
 ---
@@ -75,43 +48,31 @@ tags: [<tag>, <feature-slug>]
 <skill output in markdown — the actual deliverable, not a summary>
 ```
 
-Then save it, substituting the printed path for `<page-file>`:
+次に保存します。`<page-file>` には表示されたパスを代入してください。
 
 ```bash
 gbrain put "<slug-prefix>/<feature-slug>" < "<page-file>" && rm -f "<page-file>"
 ```
 
-If the file write fails or is refused, do not save: report the cause and keep
-the output for the user.
+ファイルの書き込みが失敗した、または拒否された場合は、保存しないでください。原因を報告し、出力はユーザーのために残してください。
 
-Read the page back from the **same working directory and account** before
-reporting it as saved:
+保存済みと報告する前に、**同じ作業ディレクトリとアカウント**から、ページを読み戻してください。
 
 ```bash
 gbrain get "<slug-prefix>/<feature-slug>"
 ```
 
-Confirm that the returned page contains the intended title and substantive
-output. If the read fails or returns another page, report the save as
-unverified and retain the output for retry; do not claim a durable result.
-The same rule applies to entity stubs.
+返されたページに、意図したタイトルと実質的な出力が含まれていることを確認してください。読み取りが失敗した場合、または別のページが返った場合は、保存を未検証として報告し、再試行のために出力を保持してください。永続化された結果だと主張しないでください。同じルールはエンティティのスタブにも適用されます。
 
-**Slug guidance**: `<feature-slug>` should be kebab-case, lowercase, and
-unique within the prefix. Prefer concrete project/feature names over
-abstract labels. Example: `auth-rate-limit` not `security-fix`.
+**スラッグのガイド**: `<feature-slug>` は kebab-case、小文字で、プレフィックス内で一意であるべきです。抽象的なラベルより、具体的なプロジェクト名や機能名を優先してください。例: `security-fix` ではなく `auth-rate-limit`。
 
-**Title guidance**: the constant prefix (e.g. "CEO Plan", "Eng Review")
-is fixed; the suffix is the human-readable name of the feature/topic.
+**タイトルのガイド**: 定型のプレフィックス(例: 「CEO Plan」「Eng Review」)は固定です。サフィックスは、機能やトピックの人間が読める名前です。
 
-**Tag guidance**: the first tag is the constant `<tag>` from the skill's
-metadata (e.g. `ceo-plan`, `eng-review`). The second tag is the
-`<feature-slug>` so cross-page traversal works. Add more tags if obvious
-relationships exist (e.g. `[ceo-plan, auth-rate-limit, security]`).
+**タグのガイド**: 最初のタグは、スキルのメタデータにある定数の `<tag>`(例: `ceo-plan`、`eng-review`)です。2つ目のタグは `<feature-slug>` で、横断的にたどれるようにするためのものです。明らかな関係がある場合は、タグを追加してください(例: `[ceo-plan, auth-rate-limit, security]`)。
 
-### Entity-stub enrichment
+### エンティティのスタブ化
 
-After saving the main page, extract person and organization names
-mentioned in the output. For each one:
+メインのページを保存した後、出力に登場する人名と組織名を抽出してください。それぞれについて:
 
 ```bash
 # Check if a page exists first
@@ -123,7 +84,7 @@ mktemp .gstack/tmp/entity.XXXXXX
 gbrain put "entities/<entity-slug>" < "<entity-file>" && rm -f "<entity-file>"
 ```
 
-The stub file holds:
+スタブのファイルには次の内容を入れます。
 
 ```markdown
 ---
@@ -133,66 +94,42 @@ tags: [entity, person]
 Stub page. Mentioned in <skill name> output. Replace with real bio when relevant.
 ```
 
-**Only extract real names** — actual person names (e.g. "Garry Tan") and
-company/organization names (e.g. "Y Combinator"). Skip product names,
-feature names, section headings, technical terms (CSS class names,
-function names), and file paths. When in doubt, skip.
+**実在する名前だけを抽出してください**。実在の人名(例: 「Garry Tan」)と、会社や組織の名前(例: 「Y Combinator」)だけです。製品名、機能名、セクションの見出し、技術用語(CSS のクラス名、関数名)、ファイルパスはスキップしてください。迷ったらスキップします。
 
-`tags: [entity, person]` for people, `tags: [entity, organization]` for
-companies/teams.
+人の場合は `tags: [entity, person]`、会社やチームの場合は `tags: [entity, organization]` です。
 
-### Error handling
+### エラー処理
 
-- **Throttle**: exit code 1 with stderr containing `throttle`, `rate
-  limit`, `capacity`, or `busy`. Defer the save and move on — the brain
-  is busy; the content isn't lost, just not persisted this run.
-- **Any other non-zero exit**: treat as transient failure. Do not retry
-  inline — the user can re-run the skill or run
-  `gstack-config gbrain-refresh` if they suspect gbrain itself is
-  misconfigured.
-- **`gbrain: command not found`**: gbrain isn't on PATH. The compact
-  resolver block told you to skip — you shouldn't reach this code. If
-  you somehow did, silently skip and continue.
+- **スロットル**: 終了コード 1 で、stderr に `throttle`、`rate limit`、`capacity`、`busy` のいずれかを含む場合。保存を延期して先に進んでください。brain が混み合っているだけで、内容は失われず、今回の実行では永続化されないだけです。
+- **それ以外のゼロ以外の終了コード**: 一時的な失敗として扱います。その場で再試行しないでください。ユーザーがスキルを再実行するか、gbrain 自体の設定が怪しいと思う場合は `gstack-config gbrain-refresh` を実行できます。
+- **`gbrain: command not found`**: gbrain が PATH にありません。コンパクトなリゾルバのブロックは、スキップするよう指示していたはずなので、ここには到達しないはずです。もし到達してしまった場合は、黙ってスキップして続行してください。
 
-### Backlinks
+### バックリンク
 
-If your save output mentions another brain page by name or topic, add a
-backlink line at the bottom of the markdown body:
+出力が別の brain ページを名前やトピックで言及している場合は、本文の最後にバックリンクの行を追加してください。
 
 ```
 Related: [[other-page-slug]], [[another-slug]]
 ```
 
-gbrain auto-resolves `[[slug]]` syntax into a clickable link in the
-rendered page. Add backlinks only when the relationship is concrete
-(e.g. "this CEO plan depends on the eng review at
-`eng-reviews/auth-rate-limit`"). Don't fabricate connections.
+gbrain は `[[slug]]` の構文を、レンダリングされたページでクリックできるリンクに自動変換します。関係が具体的な場合にだけバックリンクを追加してください(例: 「この CEO プランは `eng-reviews/auth-rate-limit` にある eng レビューに依存している」)。つながりを捏造しないでください。
 
-### Completion summary
+### 完了時のサマリー
 
-In your final skill output, note brain utilization in one line:
-"Brain: read 3 pages, saved and read back 1 page, enriched 2 entity stubs,
-0 throttles." Count a page as saved only after its readback succeeds.
-This helps the user see brain coverage growing over time.
+スキルの最終出力では、brain の利用状況を1行で示してください。「Brain: read 3 pages, saved and read back 1 page, enriched 2 entity stubs, 0 throttles.」のように書きます。ページを保存済みと数えるのは、読み戻しが成功した後だけです。これにより、ユーザーは brain のカバレッジが時間とともに広がっていく様子を確認できます。
 
-## Persistence verification (automated)
+## 永続化の検証(自動)
 
-The matched-pair "is the data we hope to save actually being saved?"
-question is covered by `test/skill-e2e-gbrain-roundtrip-local.test.ts`:
-real `gbrain init --pglite` + `gbrain put` + `gbrain get` round-trip
-against an isolated temp HOME. Periodic-tier. Skips when
-`VOYAGE_API_KEY` is unset or gbrain CLI is missing from PATH.
+「保存しようとしているデータが、実際に保存されているか」という対になった問いは、`test/skill-e2e-gbrain-roundtrip-local.test.ts` でカバーされています。これは分離された一時的な HOME に対して、実際の `gbrain init --pglite` と `gbrain put`、`gbrain get` を行うラウンドトリップです。定期実行のティアで、`VOYAGE_API_KEY` が設定されていない場合、または gbrain の CLI が PATH にない場合はスキップされます。
 
-Run it before opening a PR that touches the resolver:
+リゾルバに触れる PR を開く前に、次を実行してください。
 
 ```bash
 EVALS=1 EVALS_TIER=periodic VOYAGE_API_KEY=$VOYAGE_API_KEY \
   bun test test/skill-e2e-gbrain-roundtrip-local.test.ts
 ```
 
-If you do want to spot-check by hand against your own brain after a
-real planning-skill run (debugging a specific page that the agent
-should have saved):
+計画系スキルを実際に実行した後に、自分の brain に対して手作業で確認したい場合(エージェントが保存すべきだったページのデバッグなど)は、次を使ってください。
 
 ```bash
 gbrain get "<prefix>/<slug>"           # expect markdown + frontmatter
@@ -201,43 +138,18 @@ gbrain sources list                    # confirm gstack-brain-<user> source
 gbrain get "entities/<person>"         # expect stub per named person
 ```
 
-## Remote / Supabase / thin-client-MCP routing
+## Remote / Supabase / thin-client MCP のルーティング
 
-The resolver emits a single CLI shape — `gbrain put "<slug>" < "<page-file>"`,
-the page on stdin — that works against every engine gbrain supports. The CLI
-internally routes to local PGLite, remote Supabase, or a remote MCP
-endpoint depending on the user's `~/.gbrain/config.json`. **gstack
-doesn't test that routing**: the storage layer is gbrain's contract to
-honor, and the same CLI invocation we test against local PGLite is the
-one that fires against any other engine.
+リゾルバは、gbrain がサポートするすべてのエンジンで動く単一の CLI の形を出力します。`gbrain put "<slug>" < "<page-file>"` で、ページは標準入力で渡されます。CLI は、ユーザーの `~/.gbrain/config.json` に応じて、ローカルの PGLite、リモートの Supabase、またはリモート MCP エンドポイントに内部でルーティングします。**gstack はそのルーティングをテストしていません**。ストレージ層は gbrain が守るべき契約であり、ローカル PGLite に対してテストしているのと同じ CLI の呼び出しが、ほかのどのエンジンに対しても実行されるからです。
 
-If you're on Supabase or thin-client MCP and writes aren't landing:
+Supabase や thin-client MCP で書き込みが反映されない場合:
 
-1. `gbrain doctor --fast --json` — engine health check. If anything
-   reports `error`, fix that first.
-2. `gstack-config get brain_trust_policy@<endpoint-hash>` must be
-   `personal` for auto-write. Run `gstack-config endpoint-hash` to get
-   the active hash. If `shared`, the agent prompts before writes — if
-   you declined, re-run the skill.
-3. If trust policy is `personal` and `gbrain doctor` is clean but the
-   page still isn't there, file an issue against gbrain — gstack's
-   CLI call shape is the same as what T11 (`gbrain-roundtrip-local`)
-   exercises.
+1. `gbrain doctor --fast --json` を実行する。エンジンの健全性チェックです。何かが `error` を報告したら、まずそれを直してください。
+2. `gstack-config get brain_trust_policy@<endpoint-hash>` が自動書き込みのために `personal` である必要があります。現在のハッシュは `gstack-config endpoint-hash` で取得してください。`shared` の場合、エージェントは書き込みの前に確認を求めます。拒否した場合は、スキルを再実行してください。
+3. 信頼ポリシーが `personal` で、`gbrain doctor` も問題ないのにページが見つからない場合は、gbrain に issue を立ててください。gstack の CLI の呼び出し形式は、T11(`gbrain-roundtrip-local`)が検証しているものと同じです。
 
-## What's NOT verified by automation
+## 自動化では検証していないこと
 
-- **Calibration takes (`takes_add`)**: today these fall back to
-  fence-block writes inside a `gbrain put` because
-  `BRAIN_CALIBRATION_WRITEBACK` is FALSE pending gbrain v0.42+ shipping
-  the `takes_add` MCP op. When the flag flips, re-run the probe in this
-  doc against `/office-hours` and confirm `gbrain takes_list` surfaces a
-  `kind=bet` entry with the expected weight (0.9 for office-hours, per
-  `scripts/brain-cache-spec.ts:151-157`).
-- **Per-skill E2E for the other 4 planning skills**: only `/office-hours`
-  has fake-CLI E2E coverage (`test/skill-e2e-office-hours-brain-writeback.test.ts`).
-  The resolver unit test (`test/resolvers-gbrain-save-results.test.ts`)
-  covers wiring for all 5. Per-skill E2E expansion is tracked in TODOS.md.
-- **`.gbrain-source` write semantics**: gstack treats the documented
-  reads-only contract as load-bearing, but doesn't independently verify
-  that gbrain CLI never re-routes writes based on the pin. If you find a
-  case where it does, that's a gbrain bug to file upstream.
+- **キャリブレーションのテイク(`takes_add`)**: 現在、これらは `gbrain put` の中のフェンスブロックへの書き込みにフォールバックしています。`BRAIN_CALIBRATION_WRITEBACK` が FALSE のままで、gbrain v0.42 以降で `takes_add` MCP 操作が出荷されるのを待っているためです。フラグが切り替わったら、このドキュメントのプローブを `/office-hours` に対して再実行し、`gbrain takes_list` が期待される重み(`scripts/brain-cache-spec.ts:151-157` によれば、office-hours では 0.9)とともに `kind=bet` のエントリを表示するか確認してください。
+- **残り4つの計画系スキルのスキルごとの E2E**: 偽の CLI による E2E のカバレッジがあるのは `/office-hours` だけです(`test/skill-e2e-office-hours-brain-writeback.test.ts`)。リゾルバの単体テスト(`test/resolvers-gbrain-save-results.test.ts`)は5つすべての配線をカバーしています。スキルごとの E2E の拡張は TODOS.md で追跡されています。
+- **`.gbrain-source` の書き込みの意味**: gstack は、文書化された読み取り専用の契約を重要なものとして扱いますが、gbrain の CLI が、そのピンに基づいて書き込みを再ルーティングすることがないかは独立には検証していません。もしそのような事例を見つけた場合は、それは gbrain のバグなので、上流に報告してください。

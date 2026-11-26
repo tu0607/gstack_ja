@@ -1,43 +1,33 @@
-### Step 1.5 remediation: broken-engine AskUserQuestion + repair branches
+### Step 1.5 の修復: 破損したエンジンの AskUserQuestion と修復の分岐
 
-The user has a non-working local engine (for example, `~/.gbrain/config.json`
-points at a dead Postgres URL). Fire a targeted AskUserQuestion BEFORE Step 2:
+ユーザーのローカルエンジンは動作していません(例: `~/.gbrain/config.json` が応答しない Postgres の URL を指している)。Step 2 の前に、対象を絞った AskUserQuestion を発動させてください:
 
-> D# — Your local gbrain engine isn't responding. How do you want to fix it?
-> Project/branch/task: <one-sentence grounding using detected slug + branch>
-> ELI10: gbrain has a config at `~/.gbrain/config.json` but the engine it points
-> at isn't reachable. That could be a transient outage (Postgres container
-> stopped, Tailscale down) OR a stale config you want to abandon. Different
-> remediation for each case.
-> Stakes if we pick wrong: "Switch to PGLite" overwrites your existing config
-> (one-way door if the user actually wanted the broken engine). "Retry" preserves
-> existing state for transient cases.
-> Recommendation: A (Retry) — always try the cheap option first; if engine is
-> just temporarily down it'll come back without any destructive change.
-> Note: options differ in kind, not coverage — no completeness score.
-> A) Retry — re-probe the engine (recommended; ~80ms)
->   ✅ Cheapest test: re-runs `gbrain sources list` to see if engine is back
->   ✅ Zero side effects; existing config preserved
->   ❌ If engine is permanently dead, retries forever; user must choose another option
-> B) Switch to local PGLite (one-way — moves existing config to .bak)
->   ✅ Fastest path to a working local engine if user has abandoned the old one
->   ✅ ~30s; no accounts; private to this machine
->   ❌ Destructive — existing config moved to ~/.gbrain/config.json.gstack-bak-{ts}
-> C) Switch brain mode (continue to Step 2 path picker)
->   ✅ Lets user pick Path 1/2/3/4 to re-init from scratch
->   ✅ Preserves existing config until they explicitly init the new one
->   ❌ Longer flow if user just wants to repair to PGLite
-> D) Quit (do nothing)
->   ✅ No cons — this is a hard-stop choice
->   ❌ N/A
-> Net: A is the right starting move; B/C are explicit destructive paths; D bails.
+> D# — ローカルの gbrain エンジンが応答しません。どのように修復しますか?
+> プロジェクト/ブランチ/タスク: <検出したスラッグとブランチを使った1文の前提>
+> ELI10(専門用語なしの説明): gbrain には `~/.gbrain/config.json` に設定がありますが、そこが指しているエンジンに到達できません。一時的な障害(Postgres コンテナの停止、Tailscale の切断)の場合もあれば、捨てたい古い設定の場合もあります。ケースごとに修復方法が異なります。
+> 間違えた場合の影響: 「ローカル PGLite に切り替える」は既存の設定を上書きします(壊れたエンジンを実際に使いたかった場合は元に戻せません)。「Retry」は、一時的な障害の場合に既存の状態を保持します。
+> 推奨: A(Retry) — 常に安価な選択肢を先に試してください。エンジンが一時的に停止しているだけなら、破壊的な変更なしに復旧します。
+> 注意: 選択肢は、網羅性ではなく種類が異なります。完全性のスコアはありません。
+> A) Retry — エンジンを再度確認する(推奨。約80ms)
+>   ✅ 最も安価なテスト: `gbrain sources list` を再実行し、エンジンが復旧したかを確認する
+>   ✅ 副作用なし。既存の設定は保持される
+>   ❌ エンジンが恒久的に停止している場合、永遠に再試行し続ける。ユーザーは別の選択肢を選ぶ必要がある
+> B) ローカル PGLite に切り替える(元に戻せない — 既存の設定を .bak に移動する)
+>   ✅ ユーザーが古いエンジンを捨てている場合、動作するローカルエンジンへの最速の経路
+>   ✅ 約30秒。アカウント不要。このマシンだけに閉じている
+>   ❌ 破壊的 — 既存の設定が ~/.gbrain/config.json.gstack-bak-{ts} に移動される
+> C) ブレインのモードを切り替える(Step 2 の経路選択に進む)
+>   ✅ ユーザーが Path 1/2/3/4 を選んで、最初から再初期化できる
+>   ✅ 新しい設定を明示的に初期化するまで、既存の設定は保持される
+>   ❌ ユーザーが単に PGLite に修復したいだけの場合、フローが長くなる
+> D) 終了する(何もしない)
+>   ✅ 欠点なし — これは完全に停止する選択肢
+>   ❌ 該当なし
+> 結論: 最初に取るべき動きは A です。B/C は明示的な破壊的経路であり、D は中断します。
 
-**If A (Retry)**: re-run `~/.claude/skills/gstack/bin/gstack-gbrain-detect`
-with `GSTACK_DETECT_NO_CACHE=1` (busts the 60s cache). If the new
-`gbrain_local_status` is `ok`, continue to Step 2. If still `broken-db` or
-`broken-config`, fire the same AskUserQuestion again (the user picks again).
+**A(Retry)の場合**: `GSTACK_DETECT_NO_CACHE=1` を付けて `~/.claude/skills/gstack/bin/gstack-gbrain-detect` を再実行します(60秒のキャッシュを無効にします)。新しい `gbrain_local_status` が `ok` なら、Step 2 に進みます。依然として `broken-db` または `broken-config` の場合は、同じ AskUserQuestion を再度発動させます(ユーザーは再び選びます)。
 
-**If B (Switch to PGLite)** — execute the rollback-safe init sequence:
+**B(ローカル PGLite に切り替える)の場合** — ロールバック可能な初期化の手順を実行します:
 
 ```bash
 BACKUP="$HOME/.gbrain/config.json.gstack-bak-$(date +%s)"
@@ -61,9 +51,8 @@ fi
 echo "Switched to local PGLite. Previous config saved at $BACKUP — review before deleting."
 ```
 
-Then jump to Step 5a (MCP registration; the new PGLite engine is registered as
-local-stdio).
+その後、Step 5a(MCP の登録。新しい PGLite エンジンは local-stdio として登録されます)に進みます。
 
-**If C (Switch brain mode)**: continue to Step 2's normal path picker.
+**C(ブレインのモードを切り替える)の場合**: Step 2 の通常の経路選択に進みます。
 
-**If D (Quit)**: STOP the skill cleanly.
+**D(終了する)の場合**: スキルを整然と STOP します。

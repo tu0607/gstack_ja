@@ -8,25 +8,25 @@
       "id": "plan-completion",
       "file": "plan-completion.md",
       "title": "Plan completion audit (deep pass of scope drift)",
-      "trigger": "finishing Step 1.5's Scope Check"
+      "trigger": "Step 1.5 の Scope Check の完了"
     },
     {
       "id": "review-army",
       "file": "review-army.md",
       "title": "Review Army — specialist dispatch and findings merge",
-      "trigger": "dispatching the Review Army specialists and merging their findings after the critical pass (Step 4.5)"
+      "trigger": "クリティカルパス(Step 4.5)の後の Review Army の専門家のディスパッチと指摘のマージ"
     },
     {
       "id": "adversarial",
       "file": "adversarial.md",
       "title": "Adversarial review (always-on)",
-      "trigger": "running the always-on native adversarial review before fixes (Step 4.8)"
+      "trigger": "修正の前の、常時オンのネイティブ敵対的レビュー(Step 4.8)の実行"
     },
     {
       "id": "shared-code-reuse",
       "file": "shared-code-reuse.md",
       "title": "Verified reuse of skipped shared-code advice",
-      "trigger": "reusing explicitly skipped shared-code advice (Step 5.0)"
+      "trigger": "明示的にスキップした共有コードの助言の再利用(Step 5.0)"
     }
   ]
 }

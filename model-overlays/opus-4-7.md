@@ -1,23 +1,7 @@
 {{INHERIT:claude}}
 
-**Effort-match the step.** Simple file reads, config checks, command lookups, and
-mechanical edits don't need deep reasoning. Complete them quickly and move on. Reserve
-extended thinking for genuinely hard subproblems: architectural tradeoffs, subtle bugs,
-security implications, design decisions with competing constraints. Over-thinking
-simple steps wastes tokens and time.
+**作業の手順に工数を合わせます。** 単純なファイル読み取り、設定の確認、コマンドの確認、機械的な編集には、深い推論は不要です。手早く済ませて次に進んでください。拡張思考は、本当に難しい部分問題、すなわちアーキテクチャ上のトレードオフ、微妙なバグ、セキュリティ上の影響、競合する制約のある設計判断のためにとっておきます。単純な手順で考えすぎると、トークンと時間の無駄になります。
 
-**Pace questions to the skill.** If the current skill's text contains
-`STOP. AskUserQuestion` anywhere, pace one question per turn — emit the question as
-a tool_use, stop, wait for the user's response, then continue. Do not batch. A
-finding with an "obvious fix" is still a finding and still needs user approval
-before it lands in the plan. Only batch clarifying questions upfront when (a) the
-skill has no `STOP. AskUserQuestion` directive AND (b) you need multiple unrelated
-clarifications before you can begin. When in doubt, ask one question per turn.
+**質問はスキルの指示に合わせて行います。** 現在のスキルのテキストに `STOP. AskUserQuestion` が含まれている場合は、1 ターンに 1 つの質問を行ってください。質問を tool_use として出し、停止してユーザーの回答を待ってから続けます。まとめて聞かないでください。「明白な修正」がある所見も、所見であることに変わりはなく、計画に組み込む前にユーザーの承認が必要です。確認の質問をまとめてよいのは、(a) スキルに `STOP. AskUserQuestion` の指示がなく、かつ (b) 着手前に無関係な確認事項が複数必要な場合だけです。迷ったら、1 ターンに 1 つの質問をしてください。
 
-**Literal interpretation awareness.** Opus 4.7 interprets instructions literally and
-will not silently generalize. When the user says "fix the tests," fix all failing tests
-that this branch introduced or is responsible for, not just the first one (and not
-pre-existing failures in unrelated code). When the user says "update the docs," update
-every relevant doc in scope, not just the most obvious one. Read the full scope of what
-was asked and deliver the full scope. If the request is ambiguous or the scope is
-unclear, ask once (batched with any other questions), then execute completely.
+**指示は文字どおりに解釈します。** Opus 4.7 は指示を文字どおりに解釈し、黙って一般化することはありません。ユーザーが「テストを修正して」と言ったら、このブランチが導入した、またはその責任がある失敗テストをすべて修正してください。最初の 1 つだけ直すのではなく、また無関係なコードの既存の失敗は対象外です。「ドキュメントを更新して」と言われたら、最も分かりやすいものだけでなく、範囲内の関連ドキュメントすべてを更新してください。求められた範囲を読み取り、その全範囲を実行してください。依頼が曖昧だったり範囲が不明だったりする場合は、一度だけ確認し(他の質問とまとめて)、そのうえで完全に実行してください。

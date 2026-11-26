@@ -7,13 +7,13 @@
       "id": "exploratory",
       "file": "exploratory.md",
       "title": "Report-only exploratory QA",
-      "trigger": "selecting surfaces, then running report-only probes (one Read covers both)"
+      "trigger": "サーフェスの選択と、それに続くレポートのみのプローブの実行(1 回の Read で両方をカバーする)"
     },
     {
       "id": "reporting",
       "file": "reporting.md",
       "title": "Evidence-grounded report finalization",
-      "trigger": "finalizing the report after probing stops"
+      "trigger": "プローブを止めた後のレポートの確定"
     }
   ]
 }

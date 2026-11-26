@@ -1,27 +1,18 @@
 <!-- AUTO-GENERATED from handoff.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Step 18-H: Handoff without a PR (automation lanes)
+## Step 18-H: PR を作成しない引き継ぎ(自動化レーン)
 
-Replaces the pr-body section when the run must not open a PR (`--no-pr`, an
-automation lane, an unattended parent said so). Nothing here publishes.
+実行で PR を開いてはならない場合(`--no-pr`、自動化レーン、または無人の親がそう指示した場合)は、pr-body のセクションの代わりにこちらを使います。ここでは何も公開しません。
 
-1. Verify-only checks: write Step 16's per-lane pass/fail/skip counts, naming
-   `requires-remote` lanes, to `.gstack/tmp/ship-gate.json` as the pr-body
-   section does, then (with its Issue links flags; ask nothing):
+1. 検証のみのチェック: Step 16 のレーンごとの pass/fail/skip の件数を、`requires-remote` のレーンを明記して、pr-body のセクションと同様に `.gstack/tmp/ship-gate.json` に書きます。その後(Issue リンクのフラグを付けて。質問はしないこと):
    ```bash
    ~/.claude/skills/gstack/bin/gstack-issue-links --base <base> --out .gstack/tmp/issues.json
    ~/.claude/skills/gstack/bin/gstack-ship-receipt write --base <base> --gate @.gstack/tmp/ship-gate.json --issues @.gstack/tmp/issues.json
    ```
-2. Send the completion message, identifiers first, in this order: the `SHIP_RECEIPT:`
-   line and receipt block (`pr: none`); `branch:` and `sha:` (`git rev-parse HEAD`),
-   pushed or `not pushed`; `inputs:` the plan or issue, the base SHA and the spend
-   cap; `before/after:` one row per claimed metric, measured on base and on this
-   SHA with the command used; `escalation:` the one condition that stops the merge
-   (a `requires-remote` lane, an open gate finding, an unverified claim) or `none`.
-   `issues:` its lines, unpromoted candidates and lookup failures.
-   Full thread ids (`jam_…`) cross-thread; nothing precedes the identifiers.
-3. Skip Steps 19 and 21. Run Step 20 with `"version":null` when NO_VERSION applied.
+2. 完了メッセージを、識別子を先頭にして、次の順序で送ります: `SHIP_RECEIPT:` の行とレシートのブロック(`pr: none`)。`branch:` と `sha:`(`git rev-parse HEAD`)、push 済みか `not pushed` か。`inputs:` 計画または Issue、ベースの SHA、支出の上限。`before/after:` 主張するメトリクスごとに 1 行で、ベースと、この SHA の両方で、使ったコマンドとともに測定した結果。`escalation:` マージを止める条件(`requires-remote` のレーン、open のゲート指摘、未検証の主張)の 1 つ、または `none`。`issues:` その行、未昇格の候補、検索の失敗。
+   完全なスレッド ID(`jam_…`)はスレッドをまたいで伝えます。識別子より前には何も置かないでください。
+3. Step 19 と Step 21 はスキップします。NO_VERSION が適用された場合は、`"version":null` を付けて Step 20 を実行します。
 
-### Multi-lane runs
+### 複数レーンの実行
 
-Lanes push a WIP commit after each step and gate a pushed SHA.
+レーンは、各ステップの後に WIP コミットを push し、push された SHA をゲートにします。

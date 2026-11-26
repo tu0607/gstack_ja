@@ -27,7 +27,7 @@ import {
 } from '../hosts/index';
 import { HOST_PATHS } from '../scripts/resolvers/types';
 import { RESOLVERS } from '../scripts/resolvers';
-import { expectTokens } from './helpers/prompt-structure';
+import { expectTokens, expectMentions } from './helpers/prompt-structure';
 import { runGeneration } from '../scripts/gen-skill-docs';
 
 const ROOT = path.resolve(import.meta.dir, '..');
@@ -476,7 +476,7 @@ describe('golden-file regression', () => {
       expect(call).toContain('--timeout-ms 600000');
     }
     expect(rendered).toContain('GSTACK_CLAUDE_MODEL=<model>');
-    expect(rendered).toContain('Without an override, retain Claude');
+    expectMentions(rendered, [['上書き', 'Claude', '保持']]);
     expect(fs.existsSync(path.join(GOLDEN_OUT, '.agents/skills/gstack-claude/SKILL.md'))).toBe(false);
   });
 
@@ -576,7 +576,7 @@ describe('host config correctness', () => {
 
   test('codex has boundary instruction', () => {
     expect(codex.boundaryInstruction).toBeDefined();
-    expect(codex.boundaryInstruction).toMatch(/do not read or execute any files under/i);
+    expect(codex.boundaryInstruction).toMatch(/do not read or execute any files under|読んだり実行したりしないでください/i);
     for (const glob of ['~/.claude/', '~/.agents/', '.claude/skills/', 'agents/']) {
       expect(codex.boundaryInstruction).toContain(glob);
     }
@@ -702,7 +702,7 @@ describe('host contract: one tier vocabulary everywhere', () => {
   });
 
   test('every full-tier host has a dated certification record', () => {
-    const section = hostDoc.slice(hostDoc.indexOf('## Certify your host'));
+    const section = hostDoc.slice(hostDoc.indexOf('## ホストを認定する'));
     expect(section.length).toBeGreaterThan(20);
     for (const name of byTier('full')) {
       expect(section, `certification row for ${name}`).toMatch(new RegExp(`\\| ${name} \\|[^\\n]*\\d{4}-\\d{2}-\\d{2}`));
@@ -726,11 +726,10 @@ describe('hookless hosts render an honest "not enforced" safety line', () => {
   for (const skill of ['careful', 'freeze', 'guard']) {
     test(`${skill}: advisory, not blocked`, () => {
       const md = fs.readFileSync(path.join(OUT, '.opencode', 'skills', `gstack-${skill}`, 'SKILL.md'), 'utf8');
-      expect(md).toContain('not enforced on OpenCode');
-      expect(md).toContain('advisory, not blocked');
+      expectMentions(md, [['OpenCode', '強制されません'], ['助言', 'ブロックはされません']]);
       expect(md.split('\n').slice(0, 12).join('\n')).not.toContain('hooks:');
       const claude = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf8');
-      expect(claude).not.toContain('not enforced on');
+      expect(claude).not.toContain('では強制されません');
     });
   }
 });
@@ -757,9 +756,9 @@ describe('Copilot host render (#393)', () => {
 
   test('the tool-name glossary lands ahead of the preamble STATUS rules', () => {
     const md = read('gstack-review');
-    const glossary = md.indexOf('**GitHub Copilot tool names:**');
+    const glossary = md.indexOf('**GitHub Copilot のツール名:**');
     expect(glossary).toBeGreaterThan(-1);
-    expect(glossary).toBeLessThan(md.indexOf('Read the echoed `KEY: value` STATUS lines'));
+    expect(glossary).toBeLessThan(md.indexOf('出力される `KEY: value` 形式の STATUS 行を読んでください'));
   });
 
   test('sensitive skills are not model-invocable', () => {
@@ -792,9 +791,9 @@ describe('Antigravity CLI host render', () => {
 
   test('the tool-name glossary names the documented tools ahead of the preamble STATUS rules', () => {
     const md = read('gstack-review');
-    const glossary = md.indexOf('**Antigravity tool names:**');
+    const glossary = md.indexOf('**Antigravity のツール名:**');
     expect(glossary).toBeGreaterThan(-1);
-    expect(glossary).toBeLessThan(md.indexOf('Read the echoed `KEY: value` STATUS lines'));
+    expect(glossary).toBeLessThan(md.indexOf('出力される `KEY: value` 形式の STATUS 行を読んでください'));
     const line = md.slice(glossary, md.indexOf('\n', glossary));
     expectTokens(line, ['`ask_question`', '`run_command`', '`view_file`', '`write_to_file`', '`replace_file_content`', '`grep_search`', '`find_by_name`', '`invoke_subagent`']);
   });
@@ -821,11 +820,11 @@ describe('host renders name the host\'s own tools and identities (#2626, #2015, 
   afterAll(() => fs.rmSync(OUT, { recursive: true, force: true }));
   const read = (subdir: string, skill: string) => fs.readFileSync(path.join(OUT, subdir, 'skills', skill, 'SKILL.md'), 'utf8');
 
-  test.each([['.opencode', '`question` tool'], ['.hermes', '`clarify` tool']])('%s preamble maps AskUserQuestion to %s', (subdir, tool) => {
+  test.each([['.opencode', '`question` ツール'], ['.hermes', '`clarify` ツール']])('%s preamble maps AskUserQuestion to %s', (subdir, tool) => {
     const md = read(subdir, 'gstack-review');
     const glossary = md.indexOf(tool);
     expect(glossary).toBeGreaterThan(-1);
-    expect(glossary).toBeLessThan(md.indexOf('Read the echoed `KEY: value` STATUS lines'));
+    expect(glossary).toBeLessThan(md.indexOf('出力される `KEY: value` 形式の STATUS 行を読んでください'));
   });
 
   test('every Hermes skill\'s frontmatter name equals its directory (#2825)', () => {
@@ -854,7 +853,7 @@ describe('agent-runtime hosts never leak the Claude "Agent tool" name', () => {
     ['hermes', 'delegate_task'],
     ['gbrain', 'sessions_spawn'],
     ['openclaw', 'sessions_spawn'],
-    ['factory', 'delegation'],
+    ['factory', 'サブエージェントへの委任'],
   ])('%s renders map every Agent tool phrasing to %s', async (host, token) => {
     const result = await runGeneration({ host: host as 'hermes', outputRoot: path.join(OUT, host), contentLinkRoot: null });
     expect(result.exitCode).toBe(0);
@@ -864,8 +863,8 @@ describe('agent-runtime hosts never leak the Claude "Agent tool" name', () => {
     let mentions = 0;
     for (const artifact of rendered) {
       const content = fs.readFileSync(path.join(OUT, host, artifact.relativePath), 'utf8');
-      if (/\bAgent tool\b/.test(content)) leaks.push(artifact.relativePath);
-      if (content.includes(`via ${token}`)) mentions++;
+      if (/\bAgent tool\b|Agent ツール/.test(content)) leaks.push(artifact.relativePath);
+      if (content.includes(token)) mentions++;
     }
     expect(leaks).toEqual([]);
     expect(mentions).toBeGreaterThan(0);

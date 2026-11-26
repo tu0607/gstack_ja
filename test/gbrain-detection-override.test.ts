@@ -19,6 +19,7 @@
  * generation against the real repo; --host claude scopes to one host).
  */
 
+import { expectMentions } from './helpers/prompt-structure';
 import { describe, test, expect } from 'bun:test';
 import { execFileSync } from 'child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
@@ -121,7 +122,7 @@ describe('gbrain detection override → gen-skill-docs', () => {
       // GBRAIN_SAVE_RESULTS un-suppressed → resolver output rendered.
       expect(content).toContain('## Save Results to Brain');
       expect(content).toContain('gbrain put "office-hours/');
-      expect(content).toContain('Skip this entire section if `gbrain` is not on PATH');
+      expectMentions(content, [['gbrain', 'PATH', 'スキップ']], 'Save Results to Brain skip rule');
 
       // GBRAIN_CONTEXT_LOAD also un-suppressed (D6 bundling).
       expect(content).toContain('## Brain Context Load');

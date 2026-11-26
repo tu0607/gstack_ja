@@ -1,39 +1,25 @@
-# Third-Party Notices
+# サードパーティの告知(Third-Party Notices)
 
-gstack is MIT. The files below contain material derived from Apache-2.0 works,
-rewritten in gstack's voice and modified. Rewriting is not an exemption: the
-license text is in `licenses/Apache-2.0.txt`, and each derived file carries a
-notice that it was changed. Unmodified copies (the rule-registry fixture, the
-license text) carry no header and are listed here instead.
+gstack は MIT ライセンスです。以下のファイルには、Apache-2.0 の成果物に由来する素材が含まれています。gstack の文体で書き直し、改変したものです。書き直したからといって、適用除外になるわけではありません。ライセンス本文は `licenses/Apache-2.0.txt` にあり、派生した各ファイルには、変更されたことを示す告知が付いています。改変されていないコピー(ルールレジストリの fixture、ライセンス本文)にはヘッダーがなく、ここに一覧で示します。
 
-## impeccable — Copyright Paul Bakaus — Apache License 2.0
+## impeccable — 著作権 Paul Bakaus — Apache License 2.0
 
 https://github.com/pbakaus/impeccable
 
-Derived, modified:
+派生し、改変したもの:
 
-- `lib/design-catalog.ts`: rule ids and names from `crates/live/assets/antipatterns.json`; the prose is gstack's.
-- `scripts/resolvers/design.ts`: the Persuade / Operate / Read / Experience visitor modes, the craft-floor reflexes (browser surfaces, one authored motion moment, depth has an offset, tinted secondary text, space above headings, light-or-dark from the use scene), and the three-looks calibration, from `SKILL.md`, `reference/craft-floor.md`, and `reference/new-work.md`, rewritten.
-- `design-consultation/sections/proposal-and-preview.md.tmpl`: the font-selection procedure and the calibration paragraph, rewritten; and the `SKILL.md` / `sections/*.md` files generated from these sources.
+- `lib/design-catalog.ts`: ルール ID と名前は `crates/live/assets/antipatterns.json` から取った。文章は gstack のもの。
+- `scripts/resolvers/design.ts`: Persuade / Operate / Read / Experience の訪問者モード、制作の下限を守る習慣(ブラウザのサーフェス、意図的なモーションの瞬間は一つ、奥行きにはオフセットを持たせる、二次テキストに色味を持たせる、見出しの上に余白を取る、利用シーンに応じて明るい・暗いを選ぶ)、および三つの見た目による調整。`SKILL.md`、`reference/craft-floor.md`、`reference/new-work.md` から、書き直して取り込んだ。
+- `design-consultation/sections/proposal-and-preview.md.tmpl`: 書体選定の手順と、調整の段落を書き直した。また、これらのソースから生成される `SKILL.md` / `sections/*.md` のファイル。
 
-Unmodified copy:
+改変されていないコピー:
 
-- `test/fixtures/impeccable-antipatterns.json`: `crates/live/assets/antipatterns.json` at commit 87d8f6d6 (engine-v0.1.3), wrapped in a `_source` provenance object.
+- `test/fixtures/impeccable-antipatterns.json`: コミット 87d8f6d6(engine-v0.1.3)の `crates/live/assets/antipatterns.json` を、出所を示す `_source` オブジェクトで包んだもの。
 
-Not distributed: `bin/gstack-design-detect.ts` invokes an impeccable engine the
-user installed. gstack does not ship or mirror that engine and never runs impeccable's
-installer or launcher. The one download gstack can make is the engine binary
-itself, only after the user accepts a design skill's one-time offer: fetched from
-impeccable's own GitHub release into `~/.impeccable/bin/<version>/`, verified
-against the checksum pinned in `lib/design-detect-contract.ts`, and recorded in
-the egress ledger first. gstack does not audit the engine's network behavior; the
-wrapper refuses URL targets so gstack never asks it to touch the network.
+配布していないもの: `bin/gstack-design-detect.ts` は、ユーザーがインストールした impeccable のエンジンを呼び出します。gstack はそのエンジンを配布も複製もせず、impeccable のインストーラーやランチャーを実行することも決してありません。gstack が行えるダウンロードは、エンジンのバイナリそのものだけです。それも、デザインの skill が提示する一度きりの提案にユーザーが同意した後にのみ行われます。impeccable 自身の GitHub リリースから `~/.impeccable/bin/<version>/` に取得し、`lib/design-detect-contract.ts` に固定されたチェックサムで検証し、まずエグレス台帳に記録します。gstack はエンジンのネットワークの振る舞いを監査しません。ラッパーは URL のターゲットを拒否するので、gstack がエンジンにネットワークへ触れさせることはありません。
 
-## DESIGN.md specification — Copyright Google LLC — Apache License 2.0
+## DESIGN.md の仕様 — Copyright Google LLC — Apache License 2.0
 
 https://github.com/google-labs-code/design.md
 
-`lib/design-md.ts`, `bin/gstack-design-md.ts`, and the Phase 6 template in
-`design-consultation/sections/proposal-and-preview.md.tmpl` implement the
-format (YAML token front matter in five groups, eight canonical sections in
-spec order, `{path}` token references). No specification text is reproduced.
+`lib/design-md.ts`、`bin/gstack-design-md.ts`、および `design-consultation/sections/proposal-and-preview.md.tmpl` の Phase 6 テンプレートは、この形式を実装しています(5 つのグループからなる YAML のトークンのフロントマター、仕様の順序に従った 8 つの正規のセクション、`{path}` のトークン参照)。仕様の本文は一切複製していません。

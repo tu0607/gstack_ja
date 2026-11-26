@@ -3,11 +3,11 @@ name: landing-report
 preamble-tier: 2
 version: 0.1.0
 description: |
-  Read-only queue dashboard for workspace-aware ship. Shows which VERSION slots
-  are currently claimed by open PRs, which sibling Conductor workspaces have
-  WIP work likely to ship soon, and what slot /ship would pick next. No
-  mutations — just a snapshot. Use when asked to "landing report", "what's in
-  the queue", "show me open PRs", or "which version do I claim next". (gstack)
+  ワークスペース対応の ship のための読み取り専用のキューダッシュボードです。現在どの VERSION の枠が
+  オープンな PR によって確保されているか、どの兄弟の Conductor ワークスペースに近いうちに出荷されそうな
+  WIP 作業があるか、そして次に /ship がどの枠を選ぶかを表示します。変更は一切行わず、スナップショットを
+  表示するだけです。「landing report」「what's in the queue」「show me open PRs」「which version do I claim next」
+  などと言われたときに使います。(gstack)
 triggers:
   - landing report
   - version queue
@@ -20,25 +20,24 @@ allowed-tools:
 sensitive: false
 ---
 
-# /landing-report — Version Queue Dashboard
+# /landing-report — バージョンキューのダッシュボード
 
 {{PREAMBLE}}
 
 ---
 
-## Why this skill exists
+## このスキルがある理由
 
-When you're running 5-10 parallel Conductor workspaces, it helps to see — at a
-glance — which version numbers are claimed, by whom, and what slot your next
-`/ship` would land in. This skill is a read-only call into the same
-`bin/gstack-next-version` utility `/ship` uses, but with nothing mutating.
-Think of it as `gh pr list` for VERSION numbers.
+並行して 5〜10 個の Conductor ワークスペースを動かしていると、どのバージョン番号がどの作業によって確保されているか、
+そして次の `/ship` がどの枠に入るのかを、一目で把握したくなります。このスキルは、`/ship` と同じ
+`bin/gstack-next-version` ユーティリティを読み取り専用で呼び出すものです。何も変更しません。
+VERSION 番号にとっての `gh pr list` のようなものだと考えてください。
 
 ---
 
-## Step 1: Detect platform and base branch
+## Step 1: プラットフォームとベースブランチを検出する
 
-Use the current PR's base branch, else the repository's default branch, else `main`.
+現在の PR のベースブランチを使います。なければリポジトリの既定ブランチ、それもなければ `main` を使います。
 
 ```bash
 BASE_BRANCH=$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || \
@@ -49,7 +48,7 @@ echo "Base branch: $BASE_BRANCH"
 
 ---
 
-## Step 2: Read current state
+## Step 2: 現在の状態を読む
 
 ```bash
 CURRENT_VERSION=$(cat VERSION 2>/dev/null | tr -d '[:space:]' || echo "0.0.0.0")
@@ -61,10 +60,10 @@ echo "branch HEAD VERSION: $CURRENT_VERSION"
 
 ---
 
-## Step 3: Query the queue
+## Step 3: キューに問い合わせる
 
-Call the util once per bump level (micro, patch, minor, major) so the user sees
-what each level would claim.
+バンプのレベル(micro、patch、minor、major)ごとにユーティリティを一度ずつ呼び出し、各レベルで何が確保されるかを
+ユーザーに見せます。
 
 ```bash
 for LEVEL in micro patch minor major; do
@@ -78,20 +77,19 @@ done
 
 ---
 
-## Step 4: Render the dashboard
+## Step 4: ダッシュボードを描画する
 
-Build a single table output. Use the `patch`-level JSON as canonical for
-queue + siblings (they're identical across bump levels; only `.version`
-differs).
+単一の表を出力します。キューと兄弟ワークツリーには、`patch` レベルの JSON を正規のものとして使ってください
+(バンプのレベルによって違うのは `.version` だけで、それ以外は同一です)。
 
-Use `jq` to extract:
+`jq` を使って次を取り出します:
 - `.host` — github | gitlab | unknown
-- `.offline` — did the query fail?
-- `.claimed` — array of {pr, branch, version, url}
-- `.siblings` — all sibling worktrees found
-- `.active_siblings` — subset that's likely about to ship
+- `.offline` — クエリが失敗したか
+- `.claimed` — {pr, branch, version, url} の配列
+- `.siblings` — 見つかったすべての兄弟ワークツリー
+- `.active_siblings` — 近いうちに出荷されそうなものの部分集合
 
-Render in this exact format:
+次の形式を**そのまま**使って描画してください:
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
@@ -125,7 +123,7 @@ If you ran /ship right now, you'd claim:
   major bump:  v2.0.0.0   (no major collisions)
 ```
 
-For offline / unknown-host output, print a shorter block:
+オフライン / ホストが不明な場合の出力では、短いブロックを表示します:
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
@@ -140,25 +138,22 @@ Fallback: local VERSION bumps still work, but collisions cannot be detected.
 
 ---
 
-## Step 5: Suggest next action
+## Step 5: 次のアクションを提案する
 
-After rendering the table, suggest ONE of:
+表を描画した後、次のうち**一つ**を提案してください:
 
-1. **If there are collisions in the queue** (two open PRs claim the same version):
-   "⚠ Two open PRs collide on v<X>. Whoever merges second will either overwrite
-   the first's CHANGELOG entry or land a duplicate. Consider asking one author
-   to rerun /ship to pick up the next free slot."
+1. **キューに衝突がある場合**(オープンな 2 つの PR が同じバージョンを確保している):
+   「⚠ 2 つのオープンな PR が v<X> で衝突しています。2 番目にマージされた方が、最初の方の CHANGELOG のエントリを上書きするか、重複を取り込むことになります。どちらかの作成者に、/ship をもう一度実行して次の空き枠を取得するよう依頼することを検討してください。」
 
-2. **If an active sibling outranks the user's branch version:**
-   "Sibling worktree <path> has v<X> committed <N>h ago and hasn't PR'd yet.
-   If that work ships first, your branch will need to rebump at land time."
+2. **アクティブな兄弟が、ユーザーのブランチのバージョンより先の場合**:
+   「兄弟のワークツリー <path> には v<X> が <N> 時間前にコミットされており、まだ PR は作られていません。もしその作業が先に出荷されると、あなたのブランチはマージ時にバージョンを振り直す必要が出てきます。」
 
-3. **If everything looks clean:**
-   "Queue is clean. Next /ship will claim a slot without conflict."
+3. **キューに問題がない場合**:
+   「キューは問題ありません。次の /ship は衝突なく枠を確保します。」
 
 ---
 
-## Plan Mode
+## プランモード
 
-PLAN MODE EXCEPTION — ALWAYS RUN. This skill is entirely read-only: no file
-writes, no git mutations, no network state changes. Safe to run in plan mode.
+PLAN MODE の例外 — 必ず実行します。このスキルは完全に読み取り専用です。ファイルの書き込みも、git の変更も、
+ネットワーク上の状態の変更もありません。プランモードでも安全に実行できます。

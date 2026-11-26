@@ -1,23 +1,13 @@
 <!-- AUTO-GENERATED from merge-and-deploy.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Step 4: Merge the PR
+## Step 4: PRをマージする
 
-Enter only with Step 3.5 approval for this exact `PR_HEAD`. Record start time;
-initialize `MERGE_ATTEMPT=none`, `MERGE_EXIT=0`, `MERGE_ERROR=''`, `WAITED=false`. Keep these values
-across readbacks; never reset them to retry. Resolve `MERGE_METHOD` from Deploy
-Configuration and `gh api "repos/$REPO" --jq '{squash: .allow_squash_merge, merge: .allow_merge_commit, rebase: .allow_rebase_merge}'`.
-Prefer squash, then merge, then rebase when not configured. Disallowed/unknown
-methods: **STOP** and ask. Set `MERGE_FLAG` to `--squash`, `--merge` or `--rebase`.
-Run the following readback **before the first attempt**, after every attempt, and
-while waiting. It is the only dispatcher; no command falls through to another merge.
+Step 3.5 でこの正確な `PR_HEAD` に対する承認を得た場合にのみ進みます。開始時刻を記録し、`MERGE_ATTEMPT=none`、`MERGE_EXIT=0`、`MERGE_ERROR=''`、`WAITED=false` で初期化します。これらの値は読み取り確認の間も保持し、リトライのためにリセットしないでください。`MERGE_METHOD` は Deploy Configuration と `gh api "repos/$REPO" --jq '{squash: .allow_squash_merge, merge: .allow_merge_commit, rebase: .allow_rebase_merge}'` から決めます。未設定の場合は squash、merge、rebase の順で優先します。許可されていない・不明なメソッドの場合は **STOP** して確認してください。`MERGE_FLAG` は `--squash`、`--merge`、`--rebase` のいずれかに設定します。
+マージの**最初の試行の前**、各試行の**後**、および待機中には、次の読み取り確認を必ず実行してください。これが唯一のディスパッチャーであり、どのコマンドも別のマージ方法へフォールスルーしてはいけません。
 
-### 4a-postfail: Post-failure PR-state check
+### 4a-postfail: 失敗後のPR状態チェック
 
-**Universal invariant:** after ANY non-zero exit from `gh pr merge`, query authoritative
-PR state before retrying or stopping. Do NOT retry blindly. Related: cli/cli#3442,
-cli/cli#13380. `gh pr view` does not expose queue membership; use GraphQL for both
-`autoMergeRequest` and `mergeQueueEntry`. Failed/unsupported/missing fields are unknown,
-never evidence that a request or queue entry is absent.
+**普遍的な不変条件:** `gh pr merge` が非ゼロで終了したら、リトライまたは停止の前に必ず権威ある PR 状態を照会してください。盲目的にリトライしないこと。関連: cli/cli#3442、cli/cli#13380。`gh pr view` はキュー内のメンバーシップを公開しないため、`autoMergeRequest` と `mergeQueueEntry` の両方について GraphQL を使ってください。失敗・非対応・欠落したフィールドは「不明」であり、リクエストやキューエントリが存在しないという証拠では決してありません。
 
 ```bash
 READBACK=$(gh api graphql -f query='query($owner:String!,$name:String!,$number:Int!) {
@@ -63,20 +53,11 @@ esac
 printf '%s\n' "$MERGE_ACTION"
 ```
 
-Readback failure or unknown state: **STOP**, preserve command errors and do not merge.
-HEAD_CHANGED/BASE_CHANGED: invalidate the approval, **STOP** and return through Step 1
-and readiness for the new target. MERGED_CHANGED: report the authoritative external
-merge, but **STOP** cleanup/deploy/rollback until the changed head/base is reconciled;
-the old scope/approval is unusable. Never replay it. WAIT goes to §4a. STOP surfaces the original stderr
-and current state. **If `state == "CLOSED"`: STOP**, the PR closed without merging.
+読み取りが失敗した場合や状態が不明な場合: **STOP**。コマンドのエラーを残したまま、マージしないでください。
+HEAD_CHANGED/BASE_CHANGED: 承認を無効化し、**STOP** して、新しいターゲットについて Step 1 と readiness からやり直してください。MERGED_CHANGED: 外部でのマージが行われたことは報告しますが、変更された head/base が整合するまでクリーンアップ・デプロイ・ロールバックを **STOP** してください。古いスコープと承認は使えません。決して再実行しないこと。WAIT は §4a へ進みます。STOP は元の stderr と現在の状態を表示します。**`state == "CLOSED"` の場合: STOP**。PR はマージされずにクローズされています。
 
-Only START makes the first attempt. Immediately before either merge command, repeat
-readback and Step 1's local HEAD/branch/cleanliness check. Retargeting or local changes
-invalidate readiness; `--match-head-commit` protects head, not destination.
-Each merge block re-runs the CI gate with Step 3.5's approvals (also for `--auto`,
-which waits on required checks only). A gate exit means no merge ran: **STOP** with
-its output. Only branch protection or a merge queue makes check-to-merge
-atomic.
+最初の試行を行うのは START だけです。どちらかのマージコマンドの直前には、読み取り確認と Step 1 のローカルの HEAD/ブランチ/クリーン状態のチェックを繰り返してください。リターゲットやローカルの変更があれば準備状態は無効になります。`--match-head-commit` が守るのは head であり、マージ先ではありません。
+各マージブロックは Step 3.5 の承認を伴って CI ゲートを再実行します(`--auto` の場合も、必須チェックの待機のみであっても同様)。ゲートが終了コードを返した場合はマージは実行されていません: 出力とともに **STOP** してください。ブランチ保護またはマージキューだけが、チェックからマージまでを不可分にします。
 ```bash
 CI_GATE=$(~/.claude/skills/gstack/bin/gstack-ci-gate --repo "$REPO" --pr "$PR_NUMBER" --expect-head "$PR_HEAD" "${CI_OVERRIDE[@]}")
 echo "$CI_GATE"
@@ -85,11 +66,7 @@ MERGE_ATTEMPT=auto
 MERGE_EXIT=0
 MERGE_ERROR=$(gh pr merge "$MERGE_FLAG" --auto --delete-branch "$PR_NUMBER" --repo "$REPO" --match-head-commit "$PR_HEAD" 2>&1) || MERGE_EXIT=$?
 ```
-Return to readback, even on exit 0. Only DIRECT permits **one direct fallback**:
-readback has confirmed OPEN, no auto request and no queue entry, and the auto attempt
-returned one of the two documented rejection classes: auto-merge disabled, or PR
-already clean/unstable with nothing required pending. The latter does not mean
-auto-merge is disabled.
+終了コードが 0 であっても、必ず読み取り確認に戻ってください。DIRECT の場合のみ、**1 回だけの直接マージへのフォールバック**が許可されます。読み取り確認で OPEN、自動リクエストなし、キューエントリなしが確認でき、かつ auto の試行が文書化された 2 種類の拒否のいずれかを返した場合です。その 2 種類とは、auto-merge が無効である場合、または PR がすでにクリーン/アンスタブルで必須のチェックが残っていない場合です。後者は auto-merge が無効であることを意味しません。
 ```bash
 CI_GATE=$(~/.claude/skills/gstack/bin/gstack-ci-gate --repo "$REPO" --pr "$PR_NUMBER" --expect-head "$PR_HEAD" "${CI_OVERRIDE[@]}")
 echo "$CI_GATE"
@@ -98,40 +75,38 @@ MERGE_ATTEMPT=direct
 MERGE_EXIT=0
 MERGE_ERROR=$(gh pr merge "$MERGE_FLAG" --delete-branch "$PR_NUMBER" --repo "$REPO" --match-head-commit "$PR_HEAD" 2>&1) || MERGE_EXIT=$?
 ```
-Return to readback. There is no fallback from a direct attempt. **Hard rule: never
-replay a merge after MERGED**, or retry an unknown state/error. No `--admin` bypass.
+読み取り確認に戻ってください。直接の試行からのフォールバックはありません。**厳守事項: MERGED の後は決してマージを再実行しないこと**。また、不明な状態やエラーに対してリトライしないこと。`--admin` によるバイパスはなし。
 
-**If `state == "MERGED"`:**
+**`state == "MERGED"` の場合:**
 
-The server-side merge succeeded (possibly completed before the local cleanup phase failed, or a concurrent merge landed). Tell the user: "PR is merged on GitHub." (Do NOT say "the merge succeeded" — this handles the concurrent-merge case.)
+サーバー側のマージは成功しています(ローカルのクリーンアップ段階が失敗する前にすでに完了していた場合や、並行したマージが入った場合もあります)。ユーザーに「PRはGitHub上でマージ済みです。」と伝えてください。(「マージは成功しました」とは言わないこと。並行マージのケースに対応するためです。)
 
-Capture merge SHA:
+マージ SHA を取得します:
 ```bash
 MERGE_SHA=$(printf '%s' "$READBACK" | jq -er '.data.repository.pullRequest.mergeCommit.oid') || exit 1
 ```
 
-Squash/rebase merge readback guard:
-- Do **not** prove success by requiring the PR head SHA to be an ancestor of the base branch. GitHub squash and rebase merges deliberately create a new commit, so `git merge-base --is-ancestor <head_sha> origin/<base>` can fail even when the PR is merged.
-- Once GitHub reports `state == "MERGED"` with a non-null `mergeCommit.oid`, treat that as authoritative. Record the merge SHA and continue.
-- If local cleanup or readback is needed, fetch the base branch and compare/sync against the merge commit, not the old PR branch commit:
+squash/rebase マージの読み取り確認のガード:
+- PR の head SHA がベースブランチの祖先であることを求めて、成功を証明**しないでください**。GitHub の squash や rebase マージは意図的に新しいコミットを作成するため、PR がマージ済みであっても `git merge-base --is-ancestor <head_sha> origin/<base>` は失敗することがあります。
+- GitHub が `mergeCommit.oid` が null でない `state == "MERGED"` を報告したら、それを権威ある情報として扱ってください。マージ SHA を記録して続行します。
+- ローカルのクリーンアップや読み取り確認が必要な場合は、ベースブランチを fetch し、古い PR ブランチのコミットではなくマージコミットと比較/同期してください:
 ```bash
 git fetch "https://github.com/$REPO.git" "$BASE_BRANCH"
 git diff --quiet "$MERGE_SHA" FETCH_HEAD || git log --oneline --decorate -1 "$MERGE_SHA" FETCH_HEAD
 ```
-- If the worktree is clean and only needs to stop looking diverged after a squash merge, prefer a named local branch at the merge commit over a detached HEAD, for example `git switch -c "post-merge/pr-$PR_NUMBER" "$MERGE_SHA"` (use the host's branch prefix where it has one, such as `codex/` in Codex Desktop, whose git action workers expect `git symbolic-ref --short HEAD` to return a branch). Do not force-push or reset a user's branch unless they explicitly ask.
+- worktree がクリーンで、squash マージ後に分岐しているように見えないようにするだけであれば、デタッチドHEADよりも、マージコミットを指す名前付きのローカルブランチを優先してください。例: `git switch -c "post-merge/pr-$PR_NUMBER" "$MERGE_SHA"`(ホストがブランチ接頭辞を持つ場合はそれを使う。たとえば Codex Desktop では、git アクションワーカーが `git symbolic-ref --short HEAD` でブランチ名を期待するため `codex/` を使います)。ユーザーから明示的に求められない限り、ユーザーのブランチを force-push したりリセットしたりしないでください。
 
-Worktree cleanup — non-destructive, candidate-based:
+worktree のクリーンアップ — 非破壊的で、候補ベースで行います:
 ```bash
 git worktree list --porcelain
 ```
-Identify candidates: a worktree is stale if (a) it is checked out on the base branch, AND (b) it is not the user's current main working tree, AND (c) `git status --porcelain` inside it is empty (no uncommitted work).
+候補の特定: worktree が次の 3 つをすべて満たす場合、古いものとみなします。(a) ベースブランチでチェックアウトされている、かつ (b) ユーザーの現在のメインの作業ツリーではない、かつ (c) その中で `git status --porcelain` が空である(コミットされていない作業がない)。
 
-- For each clean candidate: OFFER to remove it. Say: "There's a stale worktree at `<path>` checked out on `<branch>` with no uncommitted work. Remove it?" Remove only if user confirms (`git worktree remove <path> && git worktree prune`).
-- If any candidate has uncommitted work: list the files, tell the user, and STOP worktree cleanup without removing anything.
-- Do NOT use `--force`. Do NOT remove the user's primary working tree.
+- クリーンな候補ごとに、削除を提案してください。次のように伝えます: 「`<branch>` でチェックアウトされている古い worktree が `<path>` にあり、コミットされていない作業はありません。削除しますか?」 ユーザーが確認した場合のみ削除します(`git worktree remove <path> && git worktree prune`)。
+- 候補にコミットされていない作業がある場合: ファイルを一覧にしてユーザーに伝え、何も削除せず worktree のクリーンアップを停止してください。
+- `--force` は使わないこと。ユーザーのメインの作業ツリーは削除しないこと。
 
-Remote-branch reconciliation: `--delete-branch` may not have completed. Verify the
-branch outcome instead of claiming cleanup from a merge exit code:
+リモートブランチの整合: `--delete-branch` が完了していない可能性があります。マージの終了コードからクリーンアップ完了と主張するのではなく、ブランチの結果を確認してください:
 
 ```bash
 # gh leaves .headRepository.nameWithOwner EMPTY (gh 2.83): compose owner/name
@@ -142,109 +117,74 @@ case "$HEAD_REPO" in ''|/*|*/) HEAD_BRANCH= ;; esac
 [ -n "$HEAD_BRANCH" ] && echo "HEAD: $HEAD_REPO $HEAD_BRANCH" && git ls-remote --heads "https://github.com/$HEAD_REPO.git" "refs/heads/$HEAD_BRANCH"
 ```
 
-The names are PR data: keep them in these variables, never retyped. The PR head
-repository is the authoritative branch location: for same-repository PRs it is the
-base repository; for fork PRs it is the fork. Do not substitute the checkout's
-`origin`. No `HEAD:` line means the lookup failed: treat the branch state as unknown
-and do not run the deletion path.
+これらの名前は PR のデータです。変数に保持し、決して手で書き直さないでください。PR の head リポジトリが、ブランチの存在場所の正式な情報源です。同一リポジトリの PR であれば base リポジトリであり、フォーク由来の PR であればフォークです。チェックアウトの `origin` で代用しないでください。`HEAD:` の行がない場合は確認が失敗したことを意味します。ブランチの状態は不明として扱い、削除の経路は実行しないでください。
 
-Three outcomes — never read a failed check as a clean branch:
+結果は 3 通り。失敗した確認を、クリーンなブランチとして読まないこと:
 
-- **Exit 0, empty output** — the remote branch is already gone (GitHub's post-merge deletion or a concurrent actor got there). Tell the user: "The remote branch has already been cleaned up." This makes re-runs of the recovery idempotent.
-- **Exit 0, one ref line** — the branch survived: the failed merge command never reached its `--delete-branch` half. If `HEAD_REPO` equals `REPO`, OFFER deletion, confirm-first (matching the worktree-cleanup posture above): "The remote branch `<head-branch>` still exists in `<head-repository>` — the failed merge never ran its --delete-branch half. Delete it?" Only on confirmation, rerun the block's first three lines, then `git push "https://github.com/$HEAD_REPO.git" --delete "refs/heads/$HEAD_BRANCH"`. If `HEAD_REPO` is a FORK, do not offer deletion — the branch belongs to the contributor and the maintainer typically has no push rights there; report instead: "The branch lives on the contributor's fork `<head-repository>` — leaving it to them." If a local branch of the same name exists, offer `git branch -d "$HEAD_BRANCH"` alongside (`-d`, never `-D` — a non-fast-forwarded local branch is the user's call).
-- **Non-zero exit** — the check ITSELF failed (network, auth). Tell the user: "Couldn't verify remote branch state — leaving it alone." and skip the deletion offer entirely; a failed check is unknown state, not a clean branch.
+- **終了コード 0、出力が空** — リモートブランチはすでに存在しません(GitHub のマージ後の自動削除、または並行する別の操作がすでに削除しました)。ユーザーに「リモートブランチはすでにクリーンアップ済みです。」と伝えてください。これにより、回復処理の再実行が冪等になります。
+- **終了コード 0、参照行が 1 行** — ブランチが残っています。失敗したマージコマンドが `--delete-branch` の部分に到達しなかったことを意味します。`HEAD_REPO` が `REPO` と等しい場合は、削除を提案し、確認を取ってください(上記のワークツリーのクリーンアップと同じ姿勢)。「リモートブランチ `<head-branch>` が `<head-repository>` にまだ存在します。失敗したマージでは --delete-branch の部分が実行されませんでした。削除しますか?」 確認が取れた場合のみ、そのブロックの最初の 3 行を再実行し、その後 `git push "https://github.com/$HEAD_REPO.git" --delete "refs/heads/$HEAD_BRANCH"` を実行してください。`HEAD_REPO` がフォークの場合は、削除を提案しないでください。ブランチは貢献者のものであり、メンテナーには通常そこへの push 権限がありません。代わりに次のように報告してください: 「ブランチは貢献者のフォーク `<head-repository>` にあります。そちらにお任せします。」 同名のローカルブランチが存在する場合は、`git branch -d "$HEAD_BRANCH"` の削除を併せて提案できます(`-d` を使い、`-D` は使わないこと。fast-forward されていないローカルブランチはユーザーが判断することです)。
+- **終了コードが非ゼロ** — 確認そのものが失敗しました(ネットワークや認証の問題)。ユーザーに「リモートブランチの状態を確認できませんでした。そのままにします。」と伝え、削除の提案は完全にスキップしてください。確認の失敗は不明な状態であり、クリーンなブランチではありません。
 
-Record the actual path (`auto`, `direct`, `queue`, or `external` when already merged
-before our attempt), then continue to §4b (CI auto-deploy detection).
+マージ後の経路を、`auto`、`direct`、`queue`、または(試行前にすでにマージされていた場合は)`external` のいずれかで記録し、続けて §4b(CI による自動デプロイの検出)へ進みます。
 
-### 4a: Merge queue detection and messaging
+### 4a: マージキューの検出とメッセージ
 
-**If `state == "OPEN"` and either request is non-null:** auto-merge is enabled or
-merge queue is in use. Explain which is observed; an auto request alone does not
-prove a queue. A queue reruns CI against the proposed merge. Record `MERGE_PATH=queue`
-only when `mergeQueueEntry` was observed, otherwise `auto`.
+**`state == "OPEN"` かつ、いずれかのリクエストが null でない場合:** auto-merge が有効であるか、マージキューが使われています。どちらが観測されたかを説明してください。auto リクエストだけではキューの存在は証明されません。キューは提案されたマージ結果に対して CI を再実行します。`mergeQueueEntry` が観測された場合にのみ `MERGE_PATH=queue` を記録し、それ以外は `auto` とします。
 
-Set `WAITED=true`. Repeat the readback every 30 seconds, up to 30 minutes; report progress every 2 minutes.
-While OPEN with an active auto request **or** queue entry, keep waiting. Once waiting
-has begun, never dispatch START or DIRECT: OPEN with confirmed absence of **both**
-means removal/cancellation, so **STOP** and point to GitHub's checks/queue page.
-MERGED returns to the merge-SHA/cleanup branch above. CLOSED, head change, failed
-readback or timeout stops without replaying or cancelling the server-side request.
-Explain that a timed-out active request may still merge later.
+`WAITED=true` を設定します。30 秒ごとに読み取り確認を繰り返し、最大 30 分間待ちます。2 分ごとに進捗を報告します。
+auto リクエストまたはキューエントリがアクティブな OPEN の間は、待ち続けてください。待機が始まったら、START や DIRECT を決して実行しないこと。両方が存在しないことが確認された OPEN は、削除またはキャンセルされたことを意味するので、**STOP** して GitHub の checks/キューのページを案内してください。MERGED の場合はマージ SHA/クリーンアップの上記の分岐に戻ります。CLOSED、head の変更、読み取りの失敗、またはタイムアウトの場合は、サーバー側のリクエストを再実行・キャンセルせずに停止してください。タイムアウトした有効なリクエストは、後でマージされる可能性があることを説明してください。
 
-### 4b: CI auto-deploy detection
+### 4b: CI による自動デプロイの検出
 
-After the PR is merged, check if a deploy workflow was triggered by the merge:
+PR がマージされた後、そのマージによってデプロイワークフローがトリガーされたかを確認します:
 
 ```bash
 gh run list --repo "$REPO" --branch "$BASE_BRANCH" --limit 10 --json databaseId,name,status,conclusion,workflowName,headSha
 ```
 
-Look for runs matching `MERGE_SHA` and the deploy workflow identified before approval
-(read its jobs, not just its name). Distinguish staging from production. If found:
-- Tell the user: "PR merged. I can see a deploy workflow ('{workflow-name}') kicked off automatically. I'll monitor it and let you know when it's done."
+`MERGE_SHA` と、承認前に特定したデプロイワークフローに一致する実行を探してください(名前だけでなく、そのジョブも読むこと)。ステージングと本番を区別してください。見つかった場合:
+- ユーザーに伝える: 「PRはマージされました。マージによって、デプロイワークフロー(「{workflow-name}」)が自動的に開始されたのを確認しました。その完了を監視して、終わったらお知らせします。」
 
-If no deploy workflow is found after merge:
-- Tell the user: "PR merged. I don't see a deploy workflow — your project might deploy a different way, or it might be a library/CLI that doesn't have a deploy step. I'll figure out the right verification in the next step."
+マージ後にデプロイワークフローが見つからない場合:
+- ユーザーに伝える: 「PRはマージされました。デプロイワークフローは見当たりません。プロジェクトが別の方法でデプロイしているか、デプロイ工程のないライブラリ/CLIかもしれません。次のステップで適切な検証方法を確認します。」
 
-If `MERGE_PATH=queue` and a deploy workflow exists:
-- Tell the user: "PR made it through the merge queue and the deploy workflow is running. Monitoring it now."
+`MERGE_PATH=queue` でデプロイワークフローが存在する場合:
+- ユーザーに伝える: 「PRはマージキューを通過し、デプロイワークフローが実行中です。監視します。」
 
-Record merge timestamp, duration, and merge path for the deploy report.
+マージのタイムスタンプ、所要時間、マージの経路をデプロイレポート用に記録してください。
 
 ---
 
-## Step 5: Deploy strategy detection
+## Step 5: デプロイ戦略の検出
 
-Use the saved pre-merge scope and deployment facts; do not classify the cleaned-up
-checkout. This skill observes existing deployment triggers, not invents new ones.
+マージ前に保存しておいたスコープとデプロイの事実を使ってください。クリーンアップ後のチェックアウトを分類し直さないこと。このスキルは既存のデプロイトリガーを観測するものであり、新しいものを発明するものではありません。
 
-**One precedence rule for Steps 5-7:** an explicit verification URL or an actually triggered deployment takes precedence over a docs-only shortcut. Evaluate in order:
+**Step 5〜7 に共通する優先順位のルール:** 明示的な検証 URL、または実際にトリガーされたデプロイは、ドキュメントのみの近道よりも優先されます。次の順に評価してください:
 
-Select the production route below, then complete Step 5a **before executing that
-route**. The docs-only no-deploy route can finish immediately; it needs no staging offer.
+本番用の経路を以下から選択し、**その経路を実行する前に** Step 5a を完了してください。ドキュメントのみでデプロイなしの経路は即座に完了できます。ステージングの提案は不要です。
 
-1. Matching deploy run/platform release: monitor it in Step 6, even for docs-only
-   (it may be a docs site). A configured workflow or platform trigger whose run has not
-   appeared remains pending; poll for the matching revision within Step 6's deadline, not another run.
-2. Recorded command trigger (Deploy Configuration records a command as the deploy
-   trigger): nothing deploys until it runs. Tell the user production has not moved yet,
-   name the command, and ask them to run it, or run it yourself only with their explicit
-   approval. Then poll Step 6 status for `MERGE_SHA`; a zero exit is not revision proof.
-3. Explicit `VERIFY_URL`: run Step 7 even for docs-only. Without deployment-revision
-   evidence, report site health separately from whether this change is live.
-4. `DOCS_ONLY=true`, no explicit URL, and no triggered/expected deployment: record
-   SKIPPED (docs-only), then Step 9 with MERGED — NO DEPLOY NEEDED. Unknown deployment
-   detection is not proof that nothing was triggered; use the question below instead.
-5. Otherwise use configured production URL/status checks in Steps 6-7. If neither
-   a usable URL nor deploy status exists, ask once. Also ask when Step 6 finishes
-   without a production URL needed for canary:
-   - **Re-ground:** "PR #NNN is merged. {Known deploy state}. I need a URL to check
-     health; merge alone does not prove this revision is live."
-   - **RECOMMENDATION:** A for a web app; B only when no deployment is required.
-   - A) Provide the production URL → save it, continue to Step 7
-   - B) No deploy needed (library/CLI) → Step 9, MERGED — NO DEPLOY NEEDED
-   - C) Finish without verification → Step 9, use the evidence-based verdict table
-   Offer B only with no observed or expected deploy; it cannot erase a running/failing deploy.
+1. 一致するデプロイの実行、またはプラットフォームのリリース: Step 6 で監視します(ドキュメントのみの変更であっても。ドキュメントサイトかもしれません)。設定されたワークフローやプラットフォームのトリガーで、その実行がまだ現れていない場合は保留のままです。Step 6 の期限内に一致するリビジョンを探してポーリングしてください。別の実行を待つのではありません。
+2. 記録されたコマンドによるトリガー(Deploy Configuration がデプロイのトリガーとしてコマンドを記録している): そのコマンドが実行されるまで何もデプロイされません。本番はまだ動いていないとユーザーに伝え、そのコマンドの名前を示して、実行を依頼してください。または、ユーザーの明示的な承認がある場合に限り自分で実行してください。その後、`MERGE_SHA` について Step 6 のステータスをポーリングします。終了コードが 0 であることはリビジョンの証明にはなりません。
+3. 明示的な `VERIFY_URL`: ドキュメントのみであっても Step 7 を実行します。デプロイのリビジョンの証拠がない場合は、サイトの健全性と、この変更が本番に反映されているかどうかを分けて報告してください。
+4. `DOCS_ONLY=true` かつ、明示的な URL がなく、トリガーされた/想定されたデプロイもない場合: SKIPPED(ドキュメントのみ)を記録し、MERGED — NO DEPLOY NEEDED の状態で Step 9 へ進みます。デプロイの検出が不明であることは、何もトリガーされていないことの証明ではありません。その場合は下記の質問を使ってください。
+5. それ以外の場合は、Step 6〜7 で設定された本番の URL/ステータス確認を使います。使える URL もデプロイのステータスもない場合は、一度だけ確認します。また、Step 6 が完了しても、カナリアに必要な本番 URL がない場合も確認します:
+   - **前提の再確認:** 「PR #NNN はマージされました。{既知のデプロイの状態}。ヘルスチェックのために URL が必要です。マージだけでは、このリビジョンが公開されたことは証明できません。」
+   - **推奨:** Web アプリなら A。デプロイが不要な場合に限り B。
+   - A) 本番の URL を提供する → 保存して Step 7 へ進む
+   - B) デプロイ不要(ライブラリ/CLI) → MERGED — NO DEPLOY NEEDED の状態で Step 9 へ
+   - C) 検証せずに終了 → 証拠に基づく判定表を使って Step 9 へ
+   観測された、または想定されるデプロイがない場合にのみ B を提示してください。実行中または失敗中のデプロイを消すことはできません。
 
-### 5a: Optional staging verification, not a deployment gate
+### 5a: 任意のステージング検証(デプロイのゲートではない)
 
-For non-doc changes, offer this only when a staging/preview URL and successful
-deployment record identify `PR_HEAD` (preview) or `MERGE_SHA` (post-merge staging).
-A URL alone is insufficient. If unavailable, record staging N/A and take the
-production route above. No staging trigger or promotion is executed here.
+ドキュメント以外の変更については、ステージング/プレビューの URL と成功したデプロイの記録が `PR_HEAD`(プレビュー)または `MERGE_SHA`(マージ後のステージング)を特定できる場合にのみ提示してください。URL だけでは不十分です。利用できない場合は、ステージングを N/A と記録し、上記の本番用の経路に進みます。ここではステージングのトリガーや昇格を実行しません。
 
-- **Re-ground:** "There is a deployment of this change at {staging URL}. I can check
-  it too, but production may already be live; this does not hold or roll back production."
-- **RECOMMENDATION:** A adds staging evidence without dropping production verification.
-- A) Verify staging, then production
-- B) Verify production only
-- C) Verify staging only; leave production verification incomplete
+- **前提の再確認:** 「この変更のデプロイが {staging URL} にあります。こちらも確認できますが、本番がすでに公開されている可能性があります。これは本番を保留・ロールバックするものではありません。」
+- **推奨:** A は、本番の検証を外さずにステージングの証拠を加えます。
+- A) ステージングを検証し、その後本番を検証する
+- B) 本番のみを検証する
+- C) ステージングのみを検証する。本番の検証は未完了のままにする
 
-A/C run Step 7 against the staging URL with `TARGET=staging`, preserving separate
-staging and production evidence. Healthy staging sets `STAGING_STATUS=VERIFIED`:
-A returns to the production route above; C goes to Step 9, STAGING VERIFIED —
-PRODUCTION UNVERIFIED. On staging failures use Step 7's decision paths, never
-automatically promote. B records SKIPPED and takes the production route.
+A/C は、`TARGET=staging` を指定して、ステージングの URL に対して Step 7 を実行し、ステージングと本番の証拠を別々に残します。ステージングが健全であれば `STAGING_STATUS=VERIFIED` を設定します。A は上記の本番用の経路に戻り、C は STAGING VERIFIED — PRODUCTION UNVERIFIED の状態で Step 9 へ進みます。ステージングが失敗した場合は Step 7 の判断経路を使い、決して自動で昇格させないこと。B は SKIPPED を記録して本番の経路に進みます。
 
 ---

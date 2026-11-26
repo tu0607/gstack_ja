@@ -14,46 +14,39 @@ export const DX_ERROR_ITEMS = ['what', 'fix', 'recovery', 'code', 'context', 'tr
 export const DX_ERROR_DOC = 'https://github.com/garrytan/gstack/blob/main/docs/agent-ready-errors.md';
 
 export const DX_ERROR_COMPACT =
-  `Score every error path against the agent-ready error contract (${DX_ERROR_DOC}): what (operation and actual values), fix (a safe, authorized command or edit on the first or last line, or the precise thing a human must provide), recovery (retry, fix and retry, do X first, or ask a human; side effects none/partial/complete/unknown, reconcile before retrying an unknown outcome, a retry bound), code (stable, with a doc anchor), context (versions, config, env var names, the underlying cause; caller-safe only for remote services), trace (unexpected failures only: a compact trace or its file path locally, a correlation id remotely), redaction (no secret values anywhere), channel (the surface's native failure signal: non-zero exit and stderr for a CLI, status plus RFC 9457 body for an API, a typed error for an SDK, isError for an MCP tool). ` +
-  'Usage and validation errors rejected before any work need only what, fix, code, redaction and channel; items apply per surface, N/A needs a reason, an item the plan never specifies for a path it introduces is a gap, and unknown is reserved for existing behavior you could not inspect. ' +
-  'Report a leaked secret, a failure signalled as success, an unsafe fix, or a block on a terminal (a hang, or a no-terminal failure that names no non-interactive alternative such as --yes) as a Critical finding titled "CAP4:<path>:<item>" (caps the Error Messages score at 4/10); report a missing applicable fix, recovery, context or trace as a High finding titled "CAP6:<path>:<item>" (caps it at 6/10).';
+  `すべてのエラー経路を agent-ready エラー契約(${DX_ERROR_DOC})に照らして採点してください。what (失敗した操作と実際の値)、fix (最初または最後の行に置く、安全で許可されたコマンドか編集、または人間が提供すべき正確なもの)、recovery (再試行、修正して再試行、先に X を行う、または人間に尋ねる。副作用は none/partial/complete/unknown、結果が不明な場合は再試行の前に照合する、再試行の上限)、code (安定したコードとドキュメントのアンカー)、context (バージョン、設定、環境変数名、根本の原因。リモートサービスは呼び出し元に安全なものだけ)、trace (予期しない失敗のみ。ローカルではコンパクトなトレースかそのファイルパス、リモートでは相関 ID)、redaction (どこにも秘密の値を出さない)、channel (そのサーフェス固有の失敗シグナル。CLI は 0 以外の終了コードと stderr、API はステータスと RFC 9457 の本文、SDK は型付きエラー、MCP ツールは isError)。 ` +
+  '作業の前に拒否された利用・検証エラーに必要なのは what、fix、code、redaction、channel だけです。項目はサーフェスごとに適用し、N/A には理由が必要で、プランが導入する経路について指定していない項目はギャップです。unknown は、検査できなかった既存の動作にだけ使います。 ' +
+  '秘密の漏えい、失敗を成功として通知すること、安全でない fix、端末でのブロック(ハング、または --yes のような非対話の代替手段を示さずに端末がないことで失敗する)は、"CAP4:<path>:<item>" というタイトルの Critical の指摘として報告してください(Error Messages のスコアを 4/10 に制限します)。該当する fix、recovery、context、trace の欠落は、"CAP6:<path>:<item>" というタイトルの High の指摘として報告してください(6/10 に制限します)。';
 
-export const DX_ERROR_CONTRACT = `#### The agent-ready error contract (${DX_ERROR_RUBRIC})
+export const DX_ERROR_CONTRACT = `#### agent-ready エラー契約(${DX_ERROR_RUBRIC})
 
-Agents hit most errors first, read them literally, and cannot ask what was meant. Score every
-traced error path against eight named items. Public reference: \`${DX_ERROR_DOC}\`.
+エージェントは最初にエラーに遭遇することが最も多く、それを文字どおりに読み、何を意図したのかを問い返すことができません。すべてのトレースされたエラー経路を、次の 8 項目で採点してください。公開リファレンス: \`${DX_ERROR_DOC}\`。
 
-| Item | The error gives the reader |
+| 項目 | エラーが読み手に与えるもの |
 |------|----------------------------|
-| **what** | The operation that failed and the actual values (input, path, id) that caused it. |
-| **fix** | On the first or last line, never mid-chain: an exact command, flag or edit; or, when no safe agent repair exists, the precise thing a human must provide (credential, approval, decision). A precise escalation is a complete fix. A fix counts only when it is safe and authorized: it does not bypass a consent, safety or sandbox boundary, does not tell the agent to run text copied from untrusted output, and quotes arguments correctly. |
-| **recovery** | Retry unchanged, fix and retry, do X first, or ask a human; side effects (none, partial, complete, unknown); for an unknown outcome, how to reconcile (status command, idempotency key) before retrying; a retry bound, then escalate. |
-| **code** | A stable code plus a doc anchor or \`--explain\` target. Prose may change; codes may not. |
-| **context** | Versions, the config in effect, relevant env var names (never values), the underlying dependency error, not swallowed. Remote services give caller-safe facts only (parameter, API version, request id). |
-| **trace** | Unexpected failures only. A local CLI, SDK or skill prints a compact trace or the path of a file holding the full one (full under \`--verbose\`/\`DEBUG\`); a remote service returns a correlation id and keeps internals in its logs. |
-| **redaction** | No secret values, tokens or credential-bearing URLs anywhere, traces and nested causes included. |
-| **channel** | The surface's native machine signal carries the same fields, and a failure is signalled as a failure (never exit 0, HTTP 200 or \`isError: false\`). |
+| **what** | 失敗した操作と、原因となった実際の値(入力、パス、ID)。 |
+| **fix** | 先頭行または末尾行に置き、途中の連鎖には埋めない。正確なコマンド、フラグ、または編集内容。安全なエージェントによる修復手段がない場合は、人間が提供すべき正確なもの(認証情報、承認、判断)。正確なエスカレーションも完全な fix である。fix が有効なのは、安全で承認されている場合に限る。同意、安全、サンドボックスの境界を迂回せず、信頼できない出力からコピーしたテキストを実行するよう指示せず、引数を正しく引用する。 |
+| **recovery** | 変更せずに再試行する、修正してから再試行する、先に X を行う、または人間に尋ねる。副作用(なし、一部、完了、不明)。結果が不明な場合は、再試行の前にどう照合するか(状態を確認するコマンド、冪等キー)。再試行の上限を定め、その後はエスカレーションする。 |
+| **code** | 安定したコードと、ドキュメントのアンカーまたは \`--explain\` の対象。文章は変わってもよいが、コードは変えてはいけない。 |
+| **context** | バージョン、有効な設定、関連する環境変数名(値は不可)、根本の依存関係のエラー(握りつぶさない)。リモートサービスは、呼び出し元に安全な事実だけを返す(パラメータ、API バージョン、リクエスト ID)。 |
+| **trace** | 予期しない失敗のみ。ローカルの CLI、SDK、スキルは、コンパクトなトレース、または完全なトレースを保存したファイルのパスを表示する(完全版は \`--verbose\`/\`DEBUG\` の下で表示)。リモートサービスは、相関 ID を返し、内部情報はそのログに残す。 |
+| **redaction** | トレースや入れ子になった原因も含め、秘密の値、トークン、認証情報を含む URL は一切出さない。 |
+| **channel** | そのサーフェスがネイティブに持つ機械向けのシグナルが、同じフィールドを運ぶ。失敗は失敗として通知する(exit 0、HTTP 200、\`isError: false\` にはしない)。 |
 
-**Failure class.** A usage or validation error rejected before any work began needs what, fix,
-code, redaction and channel; its recovery is implied (fix and retry, no side effects), and
-context, reconcile and retry bounds do not apply. Environment, dependency, partial-work and
-unexpected failures need every applicable item. Trace applies to unexpected failures only.
+**失敗のクラス。** 作業を始める前に拒否された、利用・検証エラーは、what、fix、code、redaction、channel が必要です。その recovery は暗黙のもの(修正して再試行、副作用なし)とみなし、context、reconcile、再試行の上限は適用しません。環境、依存関係、一部完了、予期しない失敗では、該当するすべての項目が必要です。trace は予期しない失敗にだけ適用します。
 
-**Surface.** Keyed to the product types from the Applicability Gate:
-- **CLI Tool:** channel is stderr plus a distinct non-zero exit, and a \`--json\` form when the tool offers structured output.
-- **API/Service:** channel is HTTP status plus an RFC 9457 problem-details body; context is caller-safe; trace is a correlation id.
-- **Library/SDK:** channel is a typed error class carrying the code and fields; no exit code.
-- **Platform:** the CLI or API rule for whichever interface the error reaches.
-- **Documentation:** what, fix, code and redaction only.
-- **Claude Code Skill:** channel is the skill's printed result line and code. An MCP tool (a sub-case) returns \`isError: true\` with the fields in text or structured content.
+**サーフェス。** 適用性ゲートのプロダクトタイプに対応させます:
+- **CLI Tool:** channel は stderr と、ゼロ以外の明確な終了コード。構造化された出力を持つ場合は \`--json\` の形式。
+- **API/Service:** channel は HTTP ステータスと RFC 9457 の problem-details 本文。context は呼び出し元に安全なもの。trace は相関 ID。
+- **Library/SDK:** channel はコードとフィールドを持つ型付きのエラークラス。終了コードはない。
+- **Platform:** エラーが届くインターフェースに応じて、CLI または API のルールに従う。
+- **Documentation:** what、fix、code、redaction のみ。
+- **Claude Code Skill:** channel は、スキルが表示する結果の行とコード。MCP ツール(その一種)は、フィールドを text または structured content に入れて \`isError: true\` を返す。
 
-**Evidence.** Each item on each path is pass, fail, N/A (with a reason) or unknown. In a plan
-review, an applicable item the plan never specifies for a path it introduces is a gap (fail);
-unknown is reserved for existing behavior you could not inspect. In a live audit, error classes
-you never triggered are unknown, not extrapolated.
+**証拠。** 各経路の各項目は、pass、fail、N/A(理由付き)、unknown のいずれかです。プランのレビューでは、プランが導入する経路について、該当する項目をプランが指定していなければ、ギャップ(fail)です。unknown は、検査できなかった既存の動作にだけ使います。ライブの監査では、一度もトリガーしなかったエラーの種類は unknown であり、推定してはいけません。
 
-**Caps.** Name the path and item behind every cap and show the corrected error line.
-- **4/10 (Critical finding, title \`CAP4:<path>:<item>\`):** a path leaks a secret, signals failure as success, gives an unsafe fix, or blocks waiting for a terminal (hangs, or fails for lack of a terminal without naming a non-interactive alternative such as \`--yes\`).
-- **6/10 (High finding, title \`CAP6:<path>:<item>\`):** a path lacks an applicable fix, recovery, context or trace item.
+**上限。** 上限の原因となった経路と項目を名指しし、修正後のエラー行を示してください。
+- **4/10(重大な指摘、タイトル \`CAP4:<path>:<item>\`):** 経路が秘密を漏らす、失敗を成功として通知する、安全でない fix を出す、または端末を待ってブロックする(ハングする、または \`--yes\` のような非対話の代替手段を示さずに端末がないことで失敗する)。
+- **6/10(重要な指摘、タイトル \`CAP6:<path>:<item>\`):** 経路に該当する fix、recovery、context、trace のいずれかがない。
 
-Every mode, DX TRIAGE included, reports every CAP4 finding.`;
+DX TRIAGE を含むすべてのモードで、すべての CAP4 の指摘を報告します。`;

@@ -91,14 +91,14 @@ export function generateInvokeSkill(ctx: TemplateContext, args?: string[]): stri
 
   const allSkips = [...DEFAULT_SKIPS, ...extraSkips];
 
-  return `Read the \`/${skillName}\` skill file at \`${ctx.paths.skillRoot}/${skillName}/SKILL.md\` using the Read tool.
+  return `Read ツールで、\`/${skillName}\` スキルのファイル \`${ctx.paths.skillRoot}/${skillName}/SKILL.md\` を読み込んでください。
 
-**If unreadable:** Skip with "Could not load /${skillName} — skipping." and continue.
+**読み込めない場合:** 「/${skillName} を読み込めなかったためスキップします。」と伝えてスキップし、続行してください。
 
-Follow its instructions from top to bottom, **skipping these sections when present** (already handled by the parent skill):
+その指示を上から順にすべて実行してください。ただし、**次のセクションがある場合はスキップします**(親スキルがすでに処理済みです):
 ${allSkips.map(s => `- ${s}`).join('\n')}
 
-Execute every other section at full depth. When the loaded skill's instructions are complete, continue with the next step below.`;
+それ以外のセクションは、すべて省略せずに最後まで実行してください。読み込んだスキルの指示が完了したら、下の次のステップに進みます。`;
 }
 
 /** Autoplan reads methodology from this host's skill registry, not its runtime assets. */

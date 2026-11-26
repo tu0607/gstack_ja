@@ -1,61 +1,61 @@
 <!-- AUTO-GENERATED from system-functional.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-# Functional QA with repository-native tools
+# Functional QA with repository-native tools(リポジトリ標準ツールによる Functional QA)
 
-Use documented repository commands, CLI/API clients and job/queue tools, not a new
-harness or browser substitution.
+文書化されたリポジトリのコマンド、CLI/API クライアント、ジョブ/キューのツールを使い、新しい
+ハーネスや browser による代用は使いません。
 
-## Functional modes
+## Functional modes(Functional のモード)
 
-For /qa and /qa-only, within the selected scope:
-- **Full** (default): cover every applicable documented contract below.
-- **Quick** (`--quick`): check success and the highest-risk changed edge; mark other
-  contracts not run.
-- **Regression** (`--regression <previous-report>`): before probes, read the supplied
-  functional report and linked replay evidence. A missing, unreadable or wrong-target
-  baseline blocks regression mode. A browser-only `baseline.json` is not a functional
-  baseline. Re-establish owned setup; replay prior failed probes against the documented
-  expectation, never recorded buggy output, then check changed adjacent behavior.
-  Preserve the prior report; report fixed, still failing and new findings separately.
-  Missing safe replay inputs block affected probes, never count as passes.
+/qa と /qa-only では、選択したスコープ内で:
+- **Full**(デフォルト): 下記の該当する、文書化されたすべての契約を網羅します。
+- **Quick**(`--quick`): 成功と、変更された最もリスクの高いエッジを確認し、他の
+  契約は not run とします。
+- **Regression**(`--regression <previous-report>`): プローブの前に、渡された
+  functional レポートとリンクされたリプレイ証拠を読みます。ベースラインが欠落している、読めない、または対象が違う
+  場合は、regression モードをブロックします。browser のみの `baseline.json` は functional の
+  ベースラインではありません。所有するセットアップを再確立し、以前に失敗したプローブを文書化された
+  期待に対してリプレイします(記録されたバグのある出力に対してではありません)。その後、変更された隣接する挙動を確認します。
+  以前のレポートは保存し、修正済み、まだ失敗、新規の指摘を別々に報告します。
+  安全なリプレイ入力が欠けている場合は、影響を受けるプローブをブロックし、pass には数えません。
 
-Mixed runs apply each surface's mode separately. /review and /ship retain their caller's
-bounded smoke and explicit plan checks, not Full exploration.
+mixed の実行では、各面のモードを別々に適用します。/review と /ship は、呼び出し元の
+上限付きスモークと明示的なプランのチェックを保持し、Full の探索は行いません。
 
-## Contract map
+## Contract map(契約マップ)
 
-Record each contract/source, isolated setup, exact probe, expectation and outcome:
-pass/fail/blocked/not run/inconclusive/not applicable (reason).
+各契約/ソース、隔離されたセットアップ、正確なプローブ、期待、結果を記録します:
+pass/fail/blocked/not run/inconclusive/not applicable(理由)。
 
-| Contract | Observe |
+| 契約 | 観察すること |
 |---|---|
-| Successful execution | Expected return/output and final business effect, not just launch/acceptance |
-| Invalid/missing input | One probe per documented input rule of each field (allowed characters, format, sign, range, arity) breaking only it: declared rejection, correct status and no forbidden state change |
-| Authentication/authorization | Valid identity, missing/invalid identity, wrong owner/role and durable no-effect boundary |
-| CLI process contract | Exact exit code, stdout and stderr separately; resulting file/state changes |
-| State transitions | Initial, intermediate and completed/failed states and their permitted transitions |
-| Timeout/cancellation | Deadline, partial state, termination of owned work and recovery |
-| Retry | Attempts/backoff/terminal state promised by the repository; no unbounded retry |
-| Duplicates/idempotency | Repeated request/event and number of durable effects under the documented guarantee |
-| Concurrency/order | Controlled competing operations in both relevant completion orders; final invariant |
-| Partial-failure recovery | Interrupt after an effect, restart/replay, inspect completion/dead-letter state and duplicates |
+| 正常な実行 | 期待される戻り値/出力と、最終的なビジネス上の効果。起動/受理だけではありません |
+| 無効/欠落した入力 | 各フィールドの、文書化された入力ルール(使用可能な文字、形式、符号、範囲、個数)ごとに 1 プローブ。そのルールだけを破り、宣言された拒否、正しいステータス、禁止された状態変更がないことを確認します |
+| 認証/認可 | 有効な ID、欠落/無効な ID、誤った所有者/ロール、永続的に影響が及ばない境界 |
+| CLI のプロセス契約 | 正確な終了コード、stdout と stderr を別々に。結果としてのファイル/状態の変更 |
+| 状態遷移 | 初期、中間、完了/失敗の状態と、許可された遷移 |
+| タイムアウト/キャンセル | 期限、部分的な状態、所有する作業の終了、復旧 |
+| リトライ | リポジトリが約束する試行回数/バックオフ/最終状態。無制限のリトライは不可 |
+| 重複/冪等性 | 文書化された保証の下での、繰り返されたリクエスト/イベントと、永続的な効果の数 |
+| 並行性/順序 | 関連する両方の完了順での、制御された競合操作。最終的な不変条件 |
+| 部分的な失敗からの復旧 | 効果の後で中断し、再起動/リプレイして、完了/デッドレターの状態と重複を調べる |
 
-Do not impose universal exactly-once delivery. Separate acceptance, enqueue, processing,
-retry/dead-letter and final effect; 2xx is not completion. Expected rejection/injected
-failure may pass; a missing service preventing execution blocks coverage.
+普遍的な exactly-once の配信を課してはいけません。受理、エンキュー、処理、
+リトライ/デッドレター、最終的な効果を分けます。2xx は完了ではありません。想定された拒否や注入された
+失敗は pass になりえます。サービスの欠落で実行できない場合は、カバレッジをブロックします。
 
-## Execute and retain evidence
+## Execute and retain evidence(実行と証拠の保持)
 
-1. Apply the shared isolation/permission preflight. Verify cwd, command, environment
-   NAMES and safe reset; use synthetic data/credentials.
-2. Follow the shared exploratory loop's order and written checkpoints.
-   For every probe, inspect initial/final durable state and retain exit/status and
-   stdout/stderr separately without masking failure.
-3. On timeout, retain partial output/state and stop only owned work. Record setup errors
-   and untested contracts; never patch product code to hide missing prerequisites.
-4. Record exact command or method/path/headers/body, setup/reset, expected contract/source,
-   observed output/state, revision/runtime, evidence paths and limits. Secrets are referenced
-   only by environment name. Disclose replay limits caused by redaction.
-5. Use `templates/functional-report-template.md` relative to the installed QA SKILL.md.
-   Preserve evidence before owned cleanup and disclose leftovers. Return to the caller
-   without expanding discovery authority.
+1. 共有の隔離/許可の事前確認を適用します。cwd、コマンド、環境変数の
+   名前、安全なリセットを確認し、合成のデータ/認証情報を使います。
+2. 共有の探索ループの順序と、書かれたチェックポイントに従います。
+   各プローブで、初期/最終の永続的な状態を調べ、終了コード/ステータスと
+   stdout/stderr を、失敗を隠さずに別々に保持します。
+3. タイムアウト時は、部分的な出力/状態を保持し、自分が所有する作業だけを停止します。セットアップのエラーと
+   未テストの契約を記録します。前提条件の欠落を隠すために、プロダクトコードにパッチを当ててはいけません。
+4. 正確なコマンド、またはメソッド/パス/ヘッダー/ボディ、セットアップ/リセット、期待される契約/ソース、
+   観測された出力/状態、リビジョン/ランタイム、証拠のパス、制限を記録します。シークレットは
+   環境変数名でのみ参照します。伏せたことによるリプレイの制限は開示します。
+5. インストール済みの QA の SKILL.md からの相対パスで `templates/functional-report-template.md` を使います。
+   所有物のクリーンアップの前に証拠を保存し、残ったものを開示します。探索の権限を広げずに、
+   呼び出し元に戻ります。

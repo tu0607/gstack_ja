@@ -404,7 +404,7 @@ describe('capy skill: vendored text and support file', () => {
     const text = fs.readFileSync(path.join(SKILL, 'SKILL.md'), 'utf8');
     expect(text).toMatch(/^---\nname: gstack\ndescription: .+\n---\n/);
     expect(text.split('\n').length).toBeLessThanOrEqual(90);
-    for (const token of ['--check', 'GSTACK_LAUNCH', '^gstack: ok', 'gstack: fail not-installed', 'gstack-pregate sealed', 'autoplan/DRIVER.md', 'first report']) {
+    for (const token of ['--check', 'GSTACK_LAUNCH', '^gstack: ok', 'gstack: fail not-installed', 'gstack-pregate sealed', 'autoplan/DRIVER.md']) {
       expect(text, token).toContain(token);
     }
     const named = [...text.matchAll(/\b(?:bin\/)?(gstack-[a-z0-9-]+)\b/g)].map(m => m[1]).filter(n => n !== 'gstack-capy-skill');

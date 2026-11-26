@@ -62,11 +62,11 @@ describe('generateGBrainSaveResults — wiring + compression pin', () => {
       expect(out).toContain(`tags: [${tag},`);
 
       // Skip-header is present so agent can short-circuit when gbrain is absent.
-      expect(out).toContain('Skip this entire section if `gbrain` is not on PATH');
+      expect(out).toContain('`gbrain` が PATH にない場合は、このセクション全体をスキップします');
 
       // Compact: points to docs/gbrain-write-surfaces.md for full template.
       expect(out).toContain('docs/gbrain-write-surfaces.md');
-      expect(out).toContain('Read the saved page back before claiming persistence.');
+      expect(out).toContain('保存したページを読み戻してから、永続化したと主張します');
     },
   );
 
@@ -96,7 +96,7 @@ describe('generateGBrainSaveResults — wiring + compression pin', () => {
 
     // Generic fallback still emits gbrain put + skip-header + docs pointer.
     expect(out).toContain('gbrain put');
-    expect(out).toContain('Skip this entire section if `gbrain` is not on PATH');
+    expect(out).toContain('`gbrain` が PATH にない場合は、このセクション全体をスキップします');
     expect(out).toContain('docs/gbrain-write-surfaces.md');
 
     // Should NOT contain a per-skill slug prefix from the map (would mean we
@@ -113,7 +113,7 @@ describe('generateGBrainContextLoad — compression pin', () => {
     // tokens before compression; target ~80 tokens (~320 chars). Ceiling
     // generous at 500 chars to leave room for skill-specific suffixes.
     const out = generateGBrainContextLoad(buildCtx('plan-ceo-review'));
-    expect(out).toContain('Skip this entire section if `gbrain` is not on PATH');
+    expect(out).toContain('`gbrain` が PATH にない場合は、このセクション全体をスキップします');
     expect(out).toContain('docs/gbrain-write-surfaces.md');
     expect(out).toContain('gbrain search');
     expect(out).toContain('gbrain get "<slug>"');

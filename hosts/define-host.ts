@@ -50,6 +50,7 @@ export const GBRAIN_RESOLVERS: string[] = [
  * site so each config owns its own copy.
  */
 export const EXEC_STYLE_TOOL_REWRITES: Record<string, string> = {
+  ...japaneseToolRewrites({ bash: 'exec ツール', write: 'write ツール', read: 'read ツール', edit: 'edit ツール', agent: 'sessions_spawn ツール' }),
   'use the Bash tool': 'use the exec tool',
   'use the Write tool': 'use the write tool',
   'use the Read tool': 'use the read tool',
@@ -67,11 +68,36 @@ export const EXEC_STYLE_TOOL_REWRITES: Record<string, string> = {
 };
 
 /**
+ * Japanese-body counterparts of the English tool-name rewrites. The body prose
+ * writes "Agent ツール" / "Bash ツール" (no word boundary, usually a space before
+ * ツール), so each key matches that exact form. Longer keys first: replaceAll
+ * runs in insertion order.
+ */
+export function japaneseToolRewrites(map: {
+  bash: string; write: string; read: string; edit: string; agent: string;
+}): Record<string, string> {
+  return {
+    "Claude Code の Agent ツール": map.agent,
+    "Claude Code の Bash ツール": map.bash,
+    "Claude Code の Write ツール": map.write,
+    "Claude Code の Read ツール": map.read,
+    "Claude Code の Edit ツール": map.edit,
+    'Agent ツール': map.agent,
+    'Bash ツール': map.bash,
+    'Write ツール': map.write,
+    'Read ツール': map.read,
+    'Edit ツール': map.edit,
+    'Grep ツール': 'grep 検索',
+    'Glob ツール': 'ファイル検索',
+  };
+}
+
+/**
  * Prepend a one-paragraph tool-name glossary to the preamble's STATUS rules
  * (spread into `toolRewrites`). For hosts whose native tools differ from the
  * Claude names the shared prose uses; test/host-config.test.ts pins the anchor.
  */
-export const PREAMBLE_GLOSSARY_ANCHOR = 'Read the echoed `KEY: value` STATUS lines';
+export const PREAMBLE_GLOSSARY_ANCHOR = '出力される `KEY: value` 形式の STATUS 行を読んでください。';
 export function preambleToolGlossary(glossary: string): Record<string, string> {
   return { [PREAMBLE_GLOSSARY_ANCHOR]: `${glossary}\n\n${PREAMBLE_GLOSSARY_ANCHOR}` };
 }

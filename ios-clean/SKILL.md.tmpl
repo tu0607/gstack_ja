@@ -3,17 +3,17 @@ name: ios-clean
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Remove the DebugBridge SPM package and all #if DEBUG wiring from an iOS
-  app. Cleans up StateServer, DebugOverlay, accessor codegen output, and
-  app-side hooks installed by /ios-qa. This is a convenience wrapper —
-  the structural Release-build guard (Package.swift conditional + CI
-  swift build -c release check) is the safety-critical path.
-  Use when asked to "clean the iOS debug bridge", "remove DebugBridge",
-  or "strip the gstack iOS instrumentation". (gstack)
+  iOS アプリから DebugBridge SPM パッケージと、すべての #if DEBUG の配線を削除します。
+  /ios-qa によってインストールされた StateServer、DebugOverlay、アクセサのコード生成出力、
+  およびアプリ側のフックを片付けます。これは利便性のためのラッパーです。
+  安全上重要な経路は、構造的な Release ビルドのガード(Package.swift の条件付き指定と、
+  CI の swift build -c release チェック)です。
+  「iOS のデバッグブリッジを削除して」「DebugBridge を削除」「gstack の iOS 計測を取り除いて」
+  と依頼されたときに使います。(gstack)
 voice-triggers:
-  - "clean the iOS debug bridge"
-  - "remove DebugBridge"
-  - "strip the gstack iOS instrumentation"
+  - "iOS のデバッグブリッジを削除"
+  - "DebugBridge を削除"
+  - "gstack の iOS 計測を取り除く"
 allowed-tools:
   - Bash
   - Read
@@ -29,79 +29,59 @@ triggers:
 
 {{PREAMBLE}}
 
-# Strip the DebugBridge from an iOS app
+# iOS アプリから DebugBridge を取り除く
 
-This skill is a **convenience flow**, not a safety mechanism. The structural
-guard against shipping DebugBridge in Release is in `Package.swift.template`
-(`.when(configuration: .debug)`) plus the CI invariant test that runs
-`swift build -c release` and asserts the DebugBridge symbol is absent. Both
-ship as part of `/ios-qa`'s template installation.
+このスキルは**利便性のためのフロー**であり、安全機構ではありません。Release に DebugBridge を含めないための構造的なガードは、`Package.swift.template` の `.when(configuration: .debug)` と、`swift build -c release` を実行して DebugBridge のシンボルが存在しないことをアサートする CI の不変条件テストです。どちらも `/ios-qa` のテンプレートインストールの一部として提供されます。
 
-This skill exists for developers who:
+このスキルは次のような開発者向けです:
 
-- Manually copied DebugBridge files (without using `/ios-qa`'s SPM install).
-- Want a guided, reversible removal flow before a security audit.
-- Are migrating away from gstack and want a clean exit.
+- DebugBridge のファイルを手動でコピーした(`/ios-qa` の SPM インストールを使わなかった)。
+- セキュリティ監査の前に、ガイド付きで元に戻せる削除フローが欲しい。
+- gstack から移行しており、きれいに抜けたい。
 
-## What it removes
+## 削除される内容
 
-Each item is reverted only after AskUserQuestion confirmation:
+各項目は、AskUserQuestion で確認を得てから元に戻されます:
 
-1. The `DebugBridge` SPM target from `Package.swift`.
-2. The `#if DEBUG` block in the app's `@main` entry that calls
-   `DebugBridgeManager.shared.start()`.
-3. Any standalone `// @Snapshotable` generator marker comments on the
-   canonical app state class.
-4. The generated `DebugBridge/` package directory and `DebugBridgeGenerated/`
-   (accessors and `.gstack-version`) that `gstack-ios-qa-regen` wrote under
-   the app source, plus any other generated `StateAccessor.swift` files.
-5. The `gstack-ios-qa.token` file under `NSTemporaryDirectory()` on the
-   device (best-effort — only works if device is connected when /ios-clean
-   runs).
+1. `Package.swift` の `DebugBridge` SPM ターゲット。
+2. アプリの `@main` エントリにある、`DebugBridgeManager.shared.start()` を呼び出す `#if DEBUG` ブロック。
+3. 正規のアプリ状態クラスにある、単独の `// @Snapshotable` ジェネレーターマーカーのコメント。
+4. `gstack-ios-qa-regen` がアプリのソース配下に書き出した、生成された `DebugBridge/` パッケージディレクトリと `DebugBridgeGenerated/`(アクセサと `.gstack-version`)、およびその他の生成された `StateAccessor.swift` ファイル。
+5. デバイス上の `NSTemporaryDirectory()` 配下にある `gstack-ios-qa.token` ファイル(ベストエフォート。/ios-clean の実行時にデバイスが接続されている場合にのみ動作します)。
 
-## What it does NOT touch
+## 触らない内容
 
-- App business logic, view models, view code.
-- Anything outside `#if DEBUG` blocks.
-- Other test or QA infrastructure.
+- アプリのビジネスロジック、ビューモデル、ビューのコード。
+- `#if DEBUG` ブロックの外側にあるもの。
+- その他のテストや QA のインフラ。
 
-## Phase 1: Inventory
+## フェーズ 1: 棚卸し
 
-1. Glob for `import DebugBridge` across the app source.
-2. Glob for `#if DEBUG ... DebugBridgeManager` blocks.
-3. Grep `StateAccessor.swift` files for the generator header
-   `// AUTO-GENERATED — DO NOT EDIT. Regenerate with /ios-sync.`
-4. Parse `Package.swift` for the DebugBridge dependency entry.
-5. Show the user what's about to be removed (file list + line counts).
-   AskUserQuestion: proceed, dry-run, or abort.
+1. アプリのソース全体で `import DebugBridge` を Glob で検索します。
+2. `#if DEBUG ... DebugBridgeManager` ブロックを Glob で検索します。
+3. `StateAccessor.swift` ファイルを Grep で検索し、ジェネレーターのヘッダー `// AUTO-GENERATED — DO NOT EDIT. Regenerate with /ios-sync.` を探します。
+4. `Package.swift` を解析し、DebugBridge の依存関係エントリを見つけます。
+5. これから削除される内容(ファイル一覧と行数)をユーザーに表示します。AskUserQuestion で、実行、ドライラン、中止のいずれかを選んでもらいます。
 
-## Phase 2: Remove
+## フェーズ 2: 削除
 
-For each item the user approved:
+ユーザーが承認した各項目について:
 
-1. Use Edit tool to strip the import + the `#if DEBUG` block (keep the
-   surrounding code intact).
-2. Use Edit tool to remove the local `.package(path: ...DebugBridge...)`
-   entry from `Package.swift` and every target dependency on a
-   `DebugBridge*` product (`DebugBridgeUI`, `DebugBridgeCore`, `DebugBridgeTouch`).
-3. Delete the generated `DebugBridge/` and `DebugBridgeGenerated/`
-   directories and any other generated `StateAccessor.swift` files.
-4. Run `xcodebuild -scheme <SchemeName> -destination 'platform=iOS,id=<UDID>'
-   build install -configuration Release` to verify Release builds without
-   the bridge. If it fails on a missing DebugBridge symbol, the removal
-   was incomplete — STOP and report.
+1. Edit ツールで、import と `#if DEBUG` ブロックを取り除きます(周囲のコードはそのまま残します)。
+2. Edit ツールで、`Package.swift` からローカルの `.package(path: ...DebugBridge...)` エントリと、`DebugBridge*` のプロダクト(`DebugBridgeUI`、`DebugBridgeCore`、`DebugBridgeTouch`)に対するすべてのターゲット依存関係を削除します。
+3. 生成された `DebugBridge/` と `DebugBridgeGenerated/` ディレクトリ、および他の生成された `StateAccessor.swift` ファイルを削除します。
+4. `xcodebuild -scheme <SchemeName> -destination 'platform=iOS,id=<UDID>'
+   build install -configuration Release` を実行し、ブリッジなしで Release ビルドが通ることを確認します。DebugBridge のシンボルが見つからないことで失敗した場合、削除は不完全だったということなので、中止して報告します。
 
-## Phase 3: Verify
+## フェーズ 3: 検証
 
-1. `! grep -r "DebugBridge" <app-source-dir>` (no matches).
-2. `! grep -r "@Snapshotable" <app-source-dir>` (no matches).
-3. `swift build -c release` succeeds.
-4. `nm -j` on the built binary doesn't show DebugBridge symbols.
+1. `! grep -r "DebugBridge" <app-source-dir>`(一致なし)。
+2. `! grep -r "@Snapshotable" <app-source-dir>`(一致なし)。
+3. `swift build -c release` が成功すること。
+4. ビルドされたバイナリに対して `nm -j` を実行し、DebugBridge のシンボルが表示されないこと。
 
-Report the cleanup result + a one-line summary of what got removed.
+クリーンアップの結果と、削除された内容を 1 行で要約して報告します。
 
-## Reversibility
+## 取り消し
 
-Every Edit + delete is a git operation; the user can `git restore` to undo.
-This skill never force-pushes, never amends, never deletes the SPM cache —
-those are user choices.
+すべての Edit と削除は Git の操作なので、ユーザーは `git restore` で元に戻せます。このスキルは、強制プッシュ、amend、SPM キャッシュの削除は決して行いません。これらはユーザーが選ぶ事柄です。

@@ -22,7 +22,7 @@ describe('skillify resolves the browse SDK from its own host install', () => {
       const text = fs.readFileSync(file, 'utf8');
       const sdk = text.split('\n').filter(l => l.includes('browse-client.ts') && /homedir|replace/.test(l));
       expect(sdk).toEqual([`    '~/${host.globalRoot}/browse/src/browse-client.ts'.replace(/^~(?=\\/)/, os.homedir()),`]);
-      expect(text).toContain(`The active gstack skills install at \`~/${host.globalRoot}/\``);
+      expect(text.split('\n').some(l => l.includes(`\`~/${host.globalRoot}/\``) && l.includes('インストール'))).toBe(true);
     });
   }
 });

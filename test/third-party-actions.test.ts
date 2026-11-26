@@ -30,7 +30,7 @@ import manualWording from './fixtures/third-party-actions-manual-wording.json';
 import opusRenders from './fixtures/third-party-actions-opus-consent-renders.json';
 import recoveryFixture from './fixtures/third-party-actions-recovery-public.json';
 import pitchCaptures from './fixtures/third-party-actions-pitch-captures.json';
-import { expectMentions, expectTokens } from './helpers/prompt-structure';
+import { expectMentions, expectOrdered, expectTokens } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, "..");
 
@@ -179,9 +179,7 @@ describe("THIRD_PARTY_ACTIONS contract pins", () => {
   // (a) Aside is named as the RECOMMENDED driver, with the download pointer +
   // macOS floor, and gstack's own stack as the fallback on every platform.
   test("names Aside as the recommended driver, gstack's stack as the fallback", () => {
-    expect(section).toContain("aside.com");
-    expect(section).toContain("macOS 15+");
-    expect(section).toContain("GStack Browser when installed");
+    expectTokens(section, ["aside.com", "macOS 15", "GStack Browser"], 'section');
   });
 
   // Detection probe: the same readiness probe as {{ASIDE_SETUP}} — portable
@@ -191,7 +189,7 @@ describe("THIRD_PARTY_ACTIONS contract pins", () => {
     expect(section).not.toContain("aside --version");
     expect(section).toContain('echo "READY: $_A"'); // E7: "aside" on PATH, else the ~/.local/bin path
     expect(section).toContain("ASIDE_UNAVAILABLE");
-    expectMentions(section, [['never', 'diagnostics', 'report']], 'section');
+    expectMentions(section, [['診断', '出しません']], 'section');
     expect(section).toContain("NEEDS_ASIDE");
     expect(section).toContain("ASIDE_NOT_RUNNING");
     expect(section).toContain("ASIDE_READY");
@@ -199,8 +197,8 @@ describe("THIRD_PARTY_ACTIONS contract pins", () => {
     // conditional, never a bare `timeout N aside` invocation.
     expect(section).toContain("command -v gtimeout");
     expect(section).not.toMatch(/\btimeout \d+ aside/);
-    expect(section).toContain("`NEEDS_ASIDE: Darwin` (trust it; don't re-probe)");
-    expectMentions(section, [['do not', 'macos', 'pitch']], 'section');
+    expectMentions(section, [['`NEEDS_ASIDE: Darwin`', '再プローブしない']], 'section');
+    expectMentions(section, [['macOS', '売り込み']], 'section');
   });
 
   // The probe is LIFTED from {{ASIDE_SETUP}}, not copied: a probe fix after an
@@ -217,8 +215,8 @@ describe("THIRD_PARTY_ACTIONS contract pins", () => {
   // this section (ship, spec, setup-deploy, office-hours) while still never
   // letting an agent write `aside repl` from memory.
   test("rule 3 points at browse/SKILL.md for HOW to drive; planning skills do not embed {{ASIDE_SETUP}}", () => {
-    expect(section).toContain("Read the /browse skill (`browse/SKILL.md`");
-    expect(section).toContain("one flow per script");
+    expectMentions(section, [['/browse', '`browse/SKILL.md`', 'read']], 'section');
+    expectMentions(section, [['`aside repl`', '1 フロー 1 スクリプト', '`closeTab(pg)`']], 'section');
     for (const f of ["ship/SKILL.md.tmpl", "spec/SKILL.md.tmpl", "setup-deploy/SKILL.md.tmpl", "office-hours/SKILL.md.tmpl"]) {
       const tmpl = fs.readFileSync(path.join(ROOT, f), "utf-8");
       expect({ f, tpa: tmpl.includes("{{THIRD_PARTY_ACTIONS}}"), aside: tmpl.includes("{{ASIDE_SETUP}}") }).toEqual({ f, tpa: true, aside: false });
@@ -227,10 +225,9 @@ describe("THIRD_PARTY_ACTIONS contract pins", () => {
 
   // (b) per-task consent, never persisted; options conditional on detection.
   test("per-task consent, never persisted, detection-conditional options", () => {
-    expectMentions(section, [['never', 'permission', 'standing']], 'section');
-    expect(section).toContain("per-task consent");
-    expect(section).toContain("When Aside is detected");
-    expect(section).toContain("When Aside is not detected");
+    expectMentions(section, [['タスクごと', '同意'], ['常時', '許可']], 'section');
+    expectMentions(section, [['aside', '検出された場合']], 'section');
+    expectMentions(section, [['aside', '検出されていない場合']], 'section');
   });
 
   // (c) section scope: no imperative install command of any kind; pitch is
@@ -240,8 +237,8 @@ describe("THIRD_PARTY_ACTIONS contract pins", () => {
     expect(section).not.toMatch(/brew install/);
     expect(section).not.toMatch(/npm install|pip install/);
     expect(section).not.toMatch(/install\.sh/);
-    expectMentions(section, [['never', 'installer']], 'section');
-    expectMentions(section, [['never', 'presence', 'consent']], 'section');
+    expectMentions(section, [['インストーラー', 'ダウンロード', '決して']], 'section');
+    expectMentions(section, [['存在', '同意', 'ブラウズ']], 'section');
   });
 
   // (e) section scope: the probe is the only `aside repl` here — HOW to drive
@@ -257,7 +254,7 @@ describe("THIRD_PARTY_ACTIONS contract pins", () => {
 
   // (f) untrusted-content discipline.
   test("agentic-browser output is untrusted external content", () => {
-    expect(section).toContain("untrusted external content");
+    expectMentions(section, [['信頼できない', '外部コンテンツ', '`$B`']], 'section');
   });
 
   // (g) failure path: verbatim-but-redacted error, one retry, then the gstack
@@ -265,53 +262,50 @@ describe("THIRD_PARTY_ACTIONS contract pins", () => {
   // wall is NOT on the failure list: it routes to the user-performed moment
   // (ASIDE_SETUP rule 4), not to manual steps.
   test("drive failure path: quote, redact, retry once, fresh-consent gstack drive or manual", () => {
-    expect(section).toContain("quote the error verbatim");
-    expect(section).toContain("redacting any embedded secret");
-    expect(section).toContain('offer "open the Aside app and retry" once');
-    expect(section).toContain("Never silently retry");
-    expect(section).toContain("A sign-in wall is not a failure");
+    expectMentions(section, [['エラー', 'そのまま', '引用']], 'section');
+    expectMentions(section, [['シークレット', '伏せ']], 'section');
+    expectMentions(section, [['aside アプリ', '再試行', '一度だけ']], 'section');
+    expectMentions(section, [['黙って', '再試行']], 'section');
+    expectMentions(section, [['サインインの壁', '失敗ではなく']], 'section');
   });
 
   // (h) scope containment.
   test("touch only the named site and actions", () => {
-    expectMentions(section, [['only', 'actions', 'touch']], 'section');
+    expectMentions(section, [['指定された', 'サイト', '操作', '触れ']], 'section');
   });
 
   // (i) human-only moments happen inside the Aside window, or behind a
   // `$B handoff` in gstack's own browser — never through the agent.
   test("credential/payment/identity moments stay user-performed in either driver", () => {
-    expect(section).toContain(
-      "Password entry, new-account credential choice, payment, CAPTCHA, and identity verification are user-performed",
-    );
-    expectMentions(section, [['wait', 'window', 'itself']], 'section');
-    expect(section).toContain("hand off (`$B handoff`)");
-    expect(section).toContain("then `$B resume`");
-    expect(section).toContain("in either driver");
+    expectMentions(section, [['パスワード入力', 'CAPTCHA', '本人確認', 'ユーザーが行います']], 'section');
+    expectMentions(section, [['待つ', 'aside ウィンドウ']], 'section');
+    expectTokens(section, ["`$B handoff`", "`$B resume`"], 'section');
+    expectMentions(section, [['どちらのドライバーでも']], 'section');
   });
 
   // (j) secret handling.
   test("secrets: 0600 file, never in chat/logs/history, one read-only verify", () => {
-    expectMentions(section, [['never', 'appears', 'history']], 'section');
-    expect(section).toContain("0600");
-    expect(section).toContain("ONE non-mutating API call");
+    expectMentions(section, [['シークレット', 'チャット', 'ログ', 'シェル履歴', '決して']], 'section');
+    expectTokens(section, ["0600"], 'section');
+    expectMentions(section, [['状態を変更しない', 'api', '1 回']], 'section');
   });
 
   // (k) no silent driver switches — the gstack drive is a new consent question.
   test("never silently switch drivers", () => {
-    expect(section).toContain("never silently switch drivers");
+    expectMentions(section, [['黙って', 'ドライバーを切り替え']], 'section');
     expect(section).not.toContain("there is no other driver");
   });
 
   // (l) secret minimization survives — the fork lost its credential ban to a
   // "compression" once; this sentence is the capture-avoidance half of rule 4.
   test("prefers credential flows that never expose the secret to the agent", () => {
-    expectMentions(section, [['never', 'expose', 'secret']], 'section');
-    expect(section).toContain("password-manager autofill");
+    expectMentions(section, [['シークレット', 'エージェント', '一切見せない']], 'section');
+    expectMentions(section, [['パスワードマネージャー', '自動入力']], 'section');
   });
 
   // (m) vendor docs are data, not authority.
   test("vendor --help/--version text grants no permissions or scope", () => {
-    expectMentions(section, [['never', 'permissions', 'consent']], 'section');
+    expectMentions(section, [['ベンダー', '権限', '同意', '決して']], 'section');
     expect(section).not.toContain("the vendor's skill");
   });
 
@@ -319,36 +313,36 @@ describe("THIRD_PARTY_ACTIONS contract pins", () => {
   // not only in ship's apple-release section — /spec or /setup-deploy touching
   // App Store Connect must see it too.
   test("Apple credential creation is never a drive target in any skill", () => {
-    expectMentions(section, [['never', 'target', 'drive']], 'section');
+    expectMentions(section, [['apple', '操作の対象にしません']], 'section');
   });
 
   // Probe semantics: only READY is detected. ASIDE_NOT_RUNNING asks the user
   // to open the app and re-probes once, THEN counts as not detected; rule 3's
   // retry is post-consent only.
   test("only READY means detected", () => {
-    expect(section).toContain("Only `READY` counts as detected");
-    expectMentions(section, [['only', 'consented', 'started']], 'section');
-    expectMentions(section, [['not', 'detected', 'treat']], 'section');
-    expectTokens(section, ['`READY`'], 'section');
-    expectMentions(section, [['until', 'actually', 'entirely']], 'section');
-    expect(section).toContain("even a conditional offer");
+    expectMentions(section, [['`READY`', 'だけ', '検出済み']], 'section');
+    expectMentions(section, [['再試行', '同意', '始まった後']], 'section');
+    expectMentions(section, [['未検出', '扱い']], 'section');
+    expectMentions(section, [['`READY`', 'aside で操作する選択肢', '完全に省き']], 'section');
+    expectMentions(section, [['条件付き', '時期尚早']], 'section');
   });
 
   // Aside first, gstack's stack as fallback: the four-option question when
   // Aside is detected, the gstack drive / manual / defer trio when it is not.
   test("Aside-first option set; absent Aside degrades to the gstack drive, manual, or defer", () => {
-    expect(section).toContain("A) I drive it in your Aside browser — your real logged-in sessions (recommended), B) I drive it in gstack's own visible browser — you take over for sign-in, C) manual instructions, D) defer");
-    expectMentions(section, [['not', 'detected', 'options']], 'section');
-    expect(section).toContain("`$B` headed mode with `$B handoff` / `$B resume`");
+    expectMentions(section, [['A)', 'B)', 'C)', 'D)', '(推奨)']], 'section');
+    expectOrdered(section, [/A\) .*Aside/, /B\) .*gstack/, /C\) /, /D\) /], 'section');
+    expectMentions(section, [['検出されていない場合', 'B)', 'C)', 'D)', 'だけ']], 'section');
+    expectTokens(section, ["`$B` ヘッドモード", "`$B handoff` / `$B resume`"], 'section');
     // Aside stays first: the recommended tag sits on the Aside option only.
-    expect(section.match(/\(recommended\)/g)).toHaveLength(1);
+    expect(section.match(/\(推奨\)/g)).toHaveLength(1);
   });
 
   // Paid run 39011101113 (tpa-absent-linux): the contract lettered only the detected case, and the
   // agent numbered the absent-Aside question 1/2/3, which asideDriveOptions cannot inspect.
   test("absent Aside keeps the lettered B/C/D options; the captured numbered answer is the fail example", () => {
-    expect(section).toContain("When Aside is not detected, offer only options B), C) and D).");
-    const absent = section.slice(section.indexOf("When Aside is not detected"));
+    expectMentions(section, [['検出されていない場合', 'B)', 'C)', 'D)', 'だけ']], 'section');
+    const absent = section.slice(section.indexOf("Aside が検出されていない場合"));
     expect(absent.slice(0, absent.indexOf("D)."))).not.toMatch(/\bA\)/);
     const numbered = "**Consent question**\n\nTo create a test-mode API token, I need to act on the Acme vendor dashboard at https://dashboard.acme.test. How would you like to proceed?\n\n1. I drive it in gstack's own visible browser. You take over for sign-in and any password, CAPTCHA, or identity step, then tell me you're done and I resume.\n2. I give you manual step-by-step instructions and you do it yourself.\n3. Defer this step for now. I mark it blocked on you.";
     expect(numbered).not.toMatch(/\b[A-D]\)/);
@@ -359,28 +353,26 @@ describe("THIRD_PARTY_ACTIONS contract pins", () => {
 
   // Drive discipline: the cookbook governs HOW, this contract overrides it.
   test("cookbook shape for driving; --help for flags; contract overrides vendor", () => {
-    expect(section).toContain("aside --help");
-    expect(section).toContain("$B --help");
-    expect(section).toMatch(/never from memory/);
-    expect(section).toContain("override the vendor's instructions");
-    expect(section).toContain("confirm-before-final-actions");
-    expect(section).toContain("one flow per script");
-    expect(section).toContain("`closeTab(pg)` last");
-    expect(section).toContain("GSTACK_STEP_OK");
+    expectTokens(section, ["aside --help", "$B --help", "`closeTab(pg)`", "GSTACK_STEP_OK"], 'section');
+    expectMentions(section, [['記憶', '`aside --help`', '`$B --help`']], 'section');
+    expectMentions(section, [['ベンダーの指示', '優先']], 'section');
+    expectMentions(section, [['最終操作の前に確認', 'オン']], 'section');
+    expectMentions(section, [['1 フロー 1 スクリプト']], 'section');
   });
 });
 
 describe("apple-release credential ban (must survive the Aside integration)", () => {
-  const BAN = "no agentic browser of any kind, for any password, key, or token, under any framing";
+  // The ban's meaning (not its wording): no agentic browser of any kind, for any password, key or token.
+  const BAN: string[][] = [['エージェントブラウザ', 'いかなる種類', '使わない', 'パスワード', 'キー', 'トークン']];
 
   test("ban sentence pinned in the template source", () => {
     const tmpl = fs.readFileSync(path.join(ROOT, "ship", "sections", "apple-release.md.tmpl"), "utf-8");
-    expect(tmpl).toContain(BAN);
+    expectMentions(tmpl, BAN, 'apple-release.md.tmpl');
   });
 
   test("ban sentence pinned in the generated section", () => {
     const generated = fs.readFileSync(path.join(ROOT, "ship", "sections", "apple-release.md"), "utf-8");
-    expect(generated).toContain(BAN);
+    expectMentions(generated, BAN, 'apple-release.md');
   });
 });
 

@@ -1,37 +1,26 @@
 # diagram-render
 
-Offline diagram rendering for make-pdf and /diagram. One self-contained HTML
-page (`dist/diagram-render.html`, ~9MB) bundles mermaid, the excalidraw export
-utilities, and the official mermaid→excalidraw converter. Callers open it
-through `lib/aside-render.ts` (the TypeScript API make-pdf embeds) or
-`bin/gstack-render.ts` (the CLI the /diagram skill runs) — in the Aside browser
-when it is running, otherwise in gstack's own headless browser (the browse
-daemon; `ENGINE=` on the CLI's first line says which). Either way the page's
-directory is served on 127.0.0.1 for one render, `--eval` calls the page API,
-and `--out` copies each result out (strings verbatim, data URLs as bytes).
+make-pdf と /diagram のためのオフラインの図の描画。`dist/diagram-render.html`(約 9MB)という、自己完結した 1 つの HTML ページです。mermaid、excalidraw のエクスポート用ユーティリティ、そして公式の mermaid→excalidraw 変換器が、このページにバンドルされています。呼び出し元は、`lib/aside-render.ts`(make-pdf が組み込んでいる TypeScript の API)か、`bin/gstack-render.ts`(/diagram スキルが実行する CLI)を通してこのページを開きます。Aside ブラウザが起動していればそこで、起動していなければ gstack 独自のヘッドレスブラウザ(browse デーモン)で開きます。CLI の 1 行目の `ENGINE=` が、どちらを使ったかを示します。どちらの場合も、描画の 1 回ごとに、そのページのディレクトリを 127.0.0.1 で配信します。`--eval` はページの API を呼び出し、`--out` は各結果を外に書き出します(文字列はそのまま、データ URL はバイトとして)。
 
-The built page is **committed** (eng-review D2): rendering works with zero
-network at install time and render time, and there is no npm supply-chain
-surface in `./setup`. The drift test (`test/diagram-render-drift.test.ts`)
-fails CI if `dist/` is edited by hand or falls out of sync with `BUILD_INFO.json`.
+ビルドされたページは**コミットされています**(eng-review D2)。そのため、インストール時も描画時もネットワークなしで動作し、`./setup` には npm のサプライチェーンの攻撃対象がありません。ドリフトのテスト(`test/diagram-render-drift.test.ts`)は、`dist/` が手で編集された場合や、`BUILD_INFO.json` と食い違った場合に CI を失敗させます。
 
-## Page API (window functions)
+## ページの API(window の関数)
 
-| Function | In → Out |
+| 関数 | 入力 → 出力 |
 |---|---|
-| `__renderMermaid(id, text)` | mermaid text → SVG string. `id` must be unique per fence (`mermaid-fence-<n>`) — it namespaces every internal SVG id. |
-| `__mermaidToExcalidraw(text)` | mermaid text → `.excalidraw` scene JSON (flowcharts and sequence diagrams as editable elements; other types fall back to one image element and log `Error processing Mermaid diagram` to the console). |
-| `__excalidrawToSvg(sceneJson)` | scene JSON → SVG string (Excalifont embedded, offline). |
-| `__rasterize(svg, targetWidthPx)` | SVG → PNG data URL. Callers own DPI math: `targetWidthPx = placed width (in) × 300`. Throws on tainted canvas. |
-| `__downscaleRaster(dataUri, targetWidthPx, mime)` | raster data URI → smaller data URI at `targetWidthPx` (same mime). make-pdf uses it to normalize oversized photos to print resolution. |
-| `__mountForScreenshot(svg, px)` | taint-proof fallback: mounts SVG at `#raster-stage` for `gstack-render --screenshot out.png --selector '#raster-stage'`. |
-| `__probeImage(src)` | data URI/URL → `{width, height}` JSON. |
-| `__bundleInfo` | `{ name, deps }` — pinned dependency versions baked at build. |
+| `__renderMermaid(id, text)` | mermaid のテキスト → SVG の文字列。`id` はフェンスごとに一意でなければなりません(`mermaid-fence-<n>`)。内部のすべての SVG の id の名前空間になります。 |
+| `__mermaidToExcalidraw(text)` | mermaid のテキスト → `.excalidraw` のシーン JSON(フローチャートとシーケンス図は、編集可能な要素になります。ほかの種類は 1 つの画像の要素にフォールバックし、コンソールに `Error processing Mermaid diagram` と出力します)。 |
+| `__excalidrawToSvg(sceneJson)` | シーン JSON → SVG の文字列(Excalifont を埋め込み、オフラインで動作)。 |
+| `__rasterize(svg, targetWidthPx)` | SVG → PNG のデータ URL。DPI の計算は呼び出し側が行います。`targetWidthPx = 配置された幅(インチ) × 300`。汚染されたキャンバスでは例外を投げます。 |
+| `__downscaleRaster(dataUri, targetWidthPx, mime)` | ラスターのデータ URI → `targetWidthPx` の、より小さいデータ URI(同じ mime)。make-pdf は、大きすぎる写真を印刷の解像度に揃えるためにこれを使います。 |
+| `__mountForScreenshot(svg, px)` | 汚染に強いフォールバック。SVG を `#raster-stage` にマウントし、`gstack-render --screenshot out.png --selector '#raster-stage'` で使えるようにします。 |
+| `__probeImage(src)` | データ URI/URL → `{width, height}` の JSON。 |
+| `__bundleInfo` | `{ name, deps }` — ビルド時に埋め込まれた、固定された依存関係のバージョン。 |
 
-Readiness: poll until `#status` text is `ready` (or `gstack-render ... --wait-selector '#done'`).
-Page errors accumulate in `window.__errors`.
+準備完了の判定: `#status` のテキストが `ready` になるまでポーリングします(または `gstack-render ... --wait-selector '#done'`)。
+ページのエラーは `window.__errors` に蓄積されます。
 
-## Updating
+## 更新
 
 ```bash
 # 1. edit the exact pin in package.json
@@ -41,6 +30,4 @@ bun run build
 # 3. commit package.json + bun.lock + dist/ together
 ```
 
-Render contract details (securityLevel strict, htmlLabels false, print-css font
-lock, `<base href>` + `</scri` escaping) are documented in `src/entry.ts` and
-`scripts/build.ts` — read both before touching either.
+描画の契約の詳細(securityLevel strict、htmlLabels false、印刷用 CSS のフォントの固定、`<base href>` と `</scri` のエスケープ)は、`src/entry.ts` と `scripts/build.ts` に書かれています。どちらかに触れる前に、両方を読んでください。

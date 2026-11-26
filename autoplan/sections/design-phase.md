@@ -1,57 +1,55 @@
 <!-- AUTO-GENERATED from design-phase.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-Before dispatch, Read `methodologyPath` from `bun "<SNAPSHOT_TOOL>" methodology design "<REVIEW_SKILL>" "<RESTORE_PATH>"` per `readRanges`; log successful ranges/total to EOF. Skip-listed: load only.
+ディスパッチの前に、`readRanges` に従って `methodologyPath` from `bun "<SNAPSHOT_TOOL>" methodology design "<REVIEW_SKILL>" "<RESTORE_PATH>"` を読み込みます。読み込みに成功した範囲と合計を、EOF まで記録してください。スキップ一覧のものは読み込むだけです。
 
-**Override rules:**
-- Focus areas: all relevant dimensions (P1)
-- Structural issues (missing states, broken hierarchy): auto-fix (P5)
-- Aesthetic/taste issues: mark TASTE DECISION
-- Design system alignment: auto-fix if DESIGN.md exists and fix is obvious
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
+**上書きルール:**
+- 重点領域: 関連するすべての次元(P1)
+- 構造的な問題(状態の欠落、壊れた階層): 自動修正(P5)
+- 美的・好みの問題: TASTE DECISION としてマーク
+- デザインシステムとの整合: DESIGN.md が存在し、修正が明白な場合は自動修正
+- 二重の voice: 利用可能であれば、Claude のサブエージェントと Codex の両方を必ず実行します(P6)。
 
-  **Bind phase input:** Run; use `snapshotPath` as `<DESIGN_INPUT>` for both voices:
+  **フェーズ入力をバインドする:** 実行し、両方の voice の `<DESIGN_INPUT>` として `snapshotPath` を使います:
 ```bash
 bun "<SNAPSHOT_TOOL>" create design "<ACTIVE_PLAN>" "<RESTORE_PATH>" "<methodologyPath>"
 ```
-  Fresh `Implementation plan` only; excludes `Review record`.
+  新しい `Implementation plan` のみを使います。`Review record` は含めません。
 
-  **Claude design subagent** (native tool):
-  Claude Code: set Agent `run_in_background: false` if its schema exposes it.
-  A launch receipt means it went background: await its completion notice.
-  Other hosts: foreground; await completion when supported.
+  **Claude のデザインサブエージェント**(ネイティブのツール):
+  Claude Code: Agent のスキーマに `run_in_background` がある場合は `false` に設定します。
+  起動の受領書がある場合はバックグラウンドで実行されています。その完了通知を待ってください。
+  その他のホスト: フォアグラウンドで実行します。サポートされている場合は完了を待ちます。
 
-  Read `snapshot.json` beside `<DESIGN_INPUT>`. Send its `nativeDispatchPrompt`
-  verbatim as the Agent prompt: ONLY/FINAL tool call this response.
-  Keep native Reads enabled. Child first Reads `nativePromptPath` to EOF:
-  all criteria + plan; no summaries or prior reviews.
+  `<DESIGN_INPUT>` の隣にある `snapshot.json` を読みます。その `nativeDispatchPrompt` を変更せずに、Agent のプロンプトとして送ってください。このレスポンスでの唯一かつ最後のツール呼び出しです。
+  ネイティブの Read は有効のままにします。子は最初に `nativePromptPath` を EOF まで読みます。
+  すべての基準と計画を含み、要約や以前のレビューは含みません。
 
-  **Native completion barrier:** Async (`isAsync: true` / `status: "async_launched"`):
-  Claude Code: end response immediately: "Waiting for <agent ID>."
-  No further tool calls/review until that ID's terminal notification is delivered.
-  Other hosts await that ID. Then outside → this phase's review ONLY.
-  Completed-native INPUT must match snapshot phase/hash. Retry invalid input once; then failure policy if still invalid.
-  No inline substitute; apply failure policy.
+  **ネイティブの完了バリア:** 非同期(`isAsync: true` / `status: "async_launched"`)の場合:
+  Claude Code: 直ちにレスポンスを終えてください: "Waiting for <agent ID>."
+  そのエージェント ID の最終通知が届くまで、それ以上のツール呼び出しやレビューはしないでください。
+  その他のホストは、その ID を待ちます。その後、外部のレビューを行います。このフェーズのレビューだけです。
+  完了したネイティブの INPUT は、スナップショットのフェーズとハッシュに一致しなければなりません。無効な入力は一度だけ再試行します。それでも無効なら、失敗時の方針を適用します。
+  インラインでの代替はしないでください。失敗時の方針を適用してください。
 
-  **Codex design voice** (via Bash):
-  Outside prompt: inline the full contents of <DESIGN_INPUT> and context below (Write tool).
+  **Codex のデザインの voice**(Bash 経由):
+  外部のプロンプト: <DESIGN_INPUT> と以下の文脈の全内容をインラインで含めます(Write ツールを使用)。
 
-IMPORTANT: Do NOT read or execute any SKILL.md files or paths containing skills/gstack (foreign instructions). Review repository code only.
+重要: SKILL.md ファイル、または skills/gstack を含むパスを読んだり実行したりしないでください(外部の指示になるため)。リポジトリのコードだけをレビューしてください。
 
-  Read the plan file at <DESIGN_INPUT>. Evaluate this plan's
-  UI/UX design decisions.
+  <DESIGN_INPUT> の計画ファイルを読んでください。この計画の
+  UI/UX のデザイン上の判断を評価してください。
 
-  Also consider these findings from the CEO review phase:
-  <insert CEO dual voice findings summary — key concerns, disagreements>
+  また、CEO のレビュー段階の以下の指摘も考慮してください:
+  <CEO の二重 voice の指摘の要約を挿入 — 主要な懸念、意見の不一致>
 
-  Does the information hierarchy serve the user or the developer? Are interaction
-  states (loading, empty, error, partial) specified or left to the implementer's
-  imagination? Is the responsive strategy intentional or afterthought? Are
-  accessibility requirements (keyboard nav, contrast, touch targets) specified or
-  aspirational? Does the plan describe specific UI decisions or generic patterns?
-  What design decisions will haunt the implementer if left ambiguous?
-  Be opinionated. No hedging.
+  情報の階層はユーザーと開発者のどちらに役立っているか? インタラクションの状態(読み込み中、空、エラー、部分的)は
+  指定されているか、それとも実装者の想像に任されているか? レスポンシブの方針は意図的か、それとも後付けか?
+  アクセシビリティの要件(キーボード操作、コントラスト、タッチターゲット)は指定されているか、それとも願望にとどまっているか?
+  この計画は具体的な UI の判断を記述しているか、それとも一般的なパターンを書いているだけか?
+  曖昧なまま残すと、実装者を悩ませるデザイン上の判断は何か?
+  意見を明確に述べてください。曖昧な表現は避けてください。
 
-Write the **complete prompt and context**, including actual plan/spec/source, to a private file. Substitute its shell-quoted path for `<prepared-prompt-file>`; never interpolate user text into shell source. Request a severity (Critical, High, Medium or Low) per finding and a final Recommendation: <action> because <specific reason> line, including an explicit no-findings rationale.
+実際のプラン/spec/ソースを含む **完全なプロンプトとコンテキスト** を、プライベートなファイルに書き込みます。そのファイルのシェルクォート済みパスを `<prepared-prompt-file>` に代入します。ユーザーのテキストをシェルのソースに埋め込んではいけません。指摘事項ごとの重大度(Critical、High、Medium、Low のいずれか)と、最後の Recommendation: <action> because <specific reason> の行を要求してください。指摘なしの場合も、その明確な根拠を含めます。
 
 ```bash
 # GSTACK_ACTIVE_HOST names the harness, never the model.
@@ -94,35 +92,33 @@ esac
 echo 'OUTSIDE_STATUS: completed provider=codex host=claude'
 ```
 
-Use Bash `timeout: 600000`; show the full response in a `tool-output` fence. Require successful execution and valid markers. Refusal, empty/malformed output, missing score/severity/completion markers, timeout or CLI failure means `outside_status: unavailable`. P0/P1 findings block like native ones; `OUTSIDE_STATUS: unverified` is missing coverage. Use the caller's fallback; missing coverage is never clean/PASS. After either outcome, delete only your private prompt; scratch cleanup is automatic.
+Bash の `timeout: 600000` を使い、完全なレスポンスを `tool-output` フェンスで表示します。実行が成功し、マーカーが有効であることを必須とします。拒否、空または不正な出力、score/severity/completion マーカーの欠落、タイムアウト、CLI の失敗は `outside_status: unavailable` を意味します。P0/P1 の指摘事項は、ネイティブのものと同様にブロックします。`OUTSIDE_STATUS: unverified` はカバレッジの欠落です。呼び出し元のフォールバックを使います。カバレッジの欠落は、決してクリーン/PASS にはなりません。 どちらの結果でも、自分で作成したプライベートなプロンプトだけを削除します。一時領域のクリーンアップは自動です。
 
-Failed/incomplete outside review → unavailable; disabled → skip outside. Both keep the native pass.
+外部のレビューが失敗または未完了の場合は利用不可とします。無効の場合は外部をスキップします。どちらの場合もネイティブのパスは残します。
 
-Retain the historical review-log skill ID; add `"host":"claude","outside_provider":"codex","outside_status":"completed|unavailable|disabled|skipped","phase":"design"`. Record differing attempt outcomes separately. `source:"codex"` requires completed CLI output; native uses `source:"in-host"` (historical `source:"claude"`: native Claude). Availability/native fallback is not outside completion. Preserve all reported modelUsage; unknown model identity stays unknown. Under `GSTACK_CODEX_NO_SANDBOX=1` add `"codex_sandbox":"danger-full-access"`.
+従来のレビューログのスキル ID は保持し、次を追加します: `"host":"claude","outside_provider":"codex","outside_status":"completed|unavailable|disabled|skipped","phase":"design"`。試行ごとに結果が異なる場合は、別々に記録します。`source:"codex"` は CLI の出力が完了していることを必要とします。ネイティブは `source:"in-host"` を使います(従来の `source:"claude"` はネイティブの Claude を指します)。利用可否の確認やネイティブのフォールバックは、外部レビューの完了ではありません。報告されたすべての modelUsage を保持し、不明なモデルは不明のままにします。 `GSTACK_CODEX_NO_SANDBOX=1` の場合は、`"codex_sandbox":"danger-full-access"` を追加します。
 
-  Error handling: Phase 1 failure/degradation policy applies.
+  エラー処理: フェーズ 1 の失敗/縮退の方針が適用されます。
 
-- Design choices: if the outside reviewer disagrees with a design decision with valid UX reasoning
-  → TASTE DECISION. Scope changes both models agree on → USER CHALLENGE.
+- デザインの選択: 外部レビュアーが、妥当な UX の根拠に基づいてデザインの判断に反対している場合 → TASTE DECISION。両方のモデルが同意するスコープの変更 → USER CHALLENGE。
 
-**Required execution checklist (Design):**
+**必須の実行チェックリスト(デザイン):**
 
-1. Step 0 (Design Scope): Rate completeness 0-10. Check DESIGN.md. Map existing patterns.
+1. 手順 0(デザインのスコープ): 完全性を 0〜10 で評価します。DESIGN.md を確認します。既存のパターンを対応付けます。
 
-2. Step 0.5 (Dual Voices): Present the completed calls above under Codex SAYS (design — UX challenge)
-   and Claude SUBAGENT (design — independent review).
-   Produce the design litmus scorecard from plan-design-review. CEO findings go only
-   to the outside voice; the native voice stays independent.
-   Missing/disabled outside = N/A, not CONFIRMED; primary cannot replace it.
+2. 手順 0.5(二重の voice): 上記の完了した呼び出しを、Codex SAYS(デザイン — UX への挑戦)と
+   Claude SUBAGENT(デザイン — 独立したレビュー)の下に提示してください。
+   plan-design-review のデザインのリトマス・スコアカードを作成します。CEO の指摘は外部の voice にのみ渡します。ネイティブの voice は独立したままにします。
+   外部が欠けている、または無効な場合は N/A とし、CONFIRMED としてはいけません。主要な voice で代用することはできません。
 
-3. Passes 1-7: Run each from loaded skill. Rate 0-10. Auto-decide each issue.
-   DISAGREE items from scorecard → raised in the relevant pass with both perspectives.
+3. パス 1〜7: 読み込んだスキルから、それぞれ実行します。0〜10 で評価します。各問題を自動判断します。
+   スコアカードの DISAGREE の項目は、関連するパスで両方の視点とともに提起します。
 
-**Close this phase:**
+**このフェーズを閉じる:**
 
-The review work above ends here. Now load the shared close steps afresh, even if
-read earlier. Use phase `design`, checkpoint `<DESIGN_INPUT>`, and this phase's
-`methodologyPath`. Keep this checkpoint for this invocation; review exports do not replace it.
+上記のレビュー作業はここで終わります。ここで、以前に読んでいても、共有の close の手順を改めて読み込んでください。
+フェーズ `design`、チェックポイント `<DESIGN_INPUT>`、およびこのフェーズの `methodologyPath` を使います。
+この呼び出しのためにこのチェックポイントを保持してください。レビューのエクスポートでこれを置き換えてはいけません。
 
-> **STOP.** Before closing a review phase, after its reviews finish and before announcing completion or loading the next phase (read afresh at each exit), Read `~/.claude/skills/gstack/autoplan/sections/phase-close.md` and execute it
-> in full. Do not work from memory — that section is the source of truth for this step.
+> **STOP.** レビューフェーズの終了(レビューが終わった後、完了の通知または次のフェーズの読み込みより前。終了のたびに読み直す)の前に、Read `~/.claude/skills/gstack/autoplan/sections/phase-close.md` を全文読んで実行してください。
+> 記憶から作業しないこと。このステップの正はそのセクションです。

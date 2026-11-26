@@ -1,109 +1,36 @@
-# CSO runtime build and qualification
+# CSO ランタイムのビルドと認定
 
-These recipes are trusted runtime inputs, not application Dockerfiles. The base
-and tool inputs are reviewed and pinned per native platform; the resulting
-gstack images are not yet published or qualified. `runtime-catalog.json`
-records all ten build-reviewed profiles and deliberately contains no executable
-image until the release gates have passed.
+これらのレシピは、信頼されたランタイムの入力であり、アプリケーションの Dockerfile ではありません。ベースイメージとツールの入力は、ネイティブのプラットフォームごとにレビュー済みで固定されています。できあがった gstack のイメージはまだ公開も認定もされていません。`runtime-catalog.json` には、レビュー済みのプロファイル 10 件がすべて記録されていますが、リリースゲートを通過するまでは、実行可能なイメージは意図的に含めていません。
 
-Trusted CI re-resolves each recorded source tag to its reviewed index digest,
-proves that the native manifest is a member of that index, inspects its native
-image configuration, and executes exact version probes without network access.
-It validates `BASE_IMAGE` (and Python's `UV_IMAGE`) as reviewed
-`repository@sha256:<64 lowercase hex>` references before building. Build each
-profile on Linux amd64 and arm64, record exact runtime and package-manager
-versions, generate an SBOM and provenance attestations, and verify those
-attestations before proposing a catalog change. The catalog records their
-digests, the source commit, and the qualification run. A tag, a successful image
-build, or an agent-provided `qualified` assertion is insufficient.
+信頼された CI は、記録されている各ソースタグを、レビュー済みのインデックスのダイジェストに解決し直します。そのうえで、ネイティブのマニフェストがそのインデックスのメンバーであることを確認し、ネイティブのイメージ設定を検査して、ネットワークを使わずに正確なバージョンのプローブを実行します。ビルドの前に `BASE_IMAGE`(Python の場合は `UV_IMAGE` も)を、レビュー済みの `repository@sha256:<64 桁の小文字 16 進数>` 形式の参照として検証します。各プロファイルは Linux の amd64 と arm64 でビルドし、正確なランタイムとパッケージマネージャーのバージョンを記録し、SBOM と provenance の attestation を生成します。カタログの変更を提案する前に、その attestation を検証します。カタログには、それらのダイジェスト、ソースのコミット、認定の実行結果を記録します。タグや、ビルドが成功したという事実、エージェントが提示した `qualified` という主張だけでは不十分です。
 
-The Rails base additionally needs a compiler, SQLite and PostgreSQL development
-headers, and the exact Bundler version from its supported fixture matrix.
-Unsupported native libraries are prerequisites. The Python base includes pip;
-the separate uv image supplies the exact qualified uv executable.
+Rails のベースには、さらにコンパイラ、SQLite と PostgreSQL の開発用ヘッダ、そしてサポートされているフィクスチャのマトリクスに載っている正確な Bundler のバージョンが必要です。サポートされていないネイティブライブラリは前提条件です。Python のベースには pip が含まれます。uv の別のイメージが、認定済みの正確な uv の実行ファイルを提供します。
 
-The PostgreSQL sidecar is a separate qualified image. It runs as fixed uid/gid
-10001, creates every validated synthetic Rails database from a read-only policy,
-and exposes PostgreSQL only on the reproduction group's loopback namespace.
-Qualification must prove readiness for every declared database before Rails is
-started and must rebuild a fresh sidecar for each before/after phase.
+PostgreSQL のサイドカーは、認定済みの別のイメージです。固定の uid/gid 10001 で動作し、検証済みの合成 Rails データベースをすべて、読み取り専用のポリシーに基づいて作成します。PostgreSQL は、再現グループのループバックの名前空間でのみ公開します。認定では、Rails を起動する前に、宣言されたすべてのデータベースの準備ができていることを証明しなければなりません。また、前後の各フェーズごとに、新しいサイドカーを作り直す必要があります。
 
-All recipes use the fixed `/opt/cso/entrypoint`, uid/gid 10001, and no application
-source. The runner must still impose network namespaces, seccomp, dropped
-capabilities, no-new-privileges, a read-only root, bounded tmpfs mounts, resource
-admission, disabled daemon logging, and a detached watchdog. The image's USER and
-ENTRYPOINT alone provide none of those guarantees.
+すべてのレシピは、固定の `/opt/cso/entrypoint`、uid/gid 10001 を使い、アプリケーションのソースは含みません。ただし、実行環境は次のものを課す必要があります。ネットワークの名前空間、seccomp、ケーパビリティの削除、no-new-privileges、読み取り専用のルート、上限のある tmpfs のマウント、リソースの受け入れ制御、デーモンのログ出力の無効化、そして切り離されたウォッチドッグです。イメージの USER と ENTRYPOINT だけでは、これらの保証は得られません。
 
-Each application image also contains the compiled `/opt/cso/preparation`
-helper. Its reviewed version is recorded as `cso-preparation: 1.0.0` in the
-image build inputs and runtime catalog. Qualification exercises its
-registry-broker forwarder, lock-bound archive manifest, and offline cache
-seeding before a digest can be promoted.
+各アプリケーションのイメージには、コンパイル済みの `/opt/cso/preparation` ヘルパーも含まれます。そのレビュー済みのバージョンは、イメージのビルド入力とランタイムのカタログに `cso-preparation: 1.0.0` として記録されます。認定では、ダイジェストを本番に昇格させる前に、レジストリのブローカーを通すフォワーダー、ロックに紐づいたアーカイブのマニフェスト、オフラインのキャッシュの事前投入を検証します。
 
-Application qualification also exercises the embedded `/opt/cso/verifier`
-against positive and deliberately failing assertions. This is independent of
-the cold-start and private held-out repair gates. PostgreSQL uses its separate
-multi-database and readiness qualification and cannot present application-only
-qualification fields.
+アプリケーションの認定では、組み込みの `/opt/cso/verifier` も、肯定的なアサーションと意図的に失敗させるアサーションの両方で検証します。これは、コールドスタートと非公開の保留修復のゲートとは独立しています。PostgreSQL は、アプリケーションだけの認定フィールドを提示できません。複数データベースと準備完了の認定は、別に行います。
 
-The Bun image includes a reviewed `/opt/cso/no-auto-install.toml`. Canonical
-Bun start and test commands also pass `--no-install` and that exact config, so
-target execution cannot trigger Bun's runtime automatic installer. The earlier
-offline `bun install` phase still runs admitted lifecycle scripts with network
-disabled.
+Bun のイメージには、レビュー済みの `/opt/cso/no-auto-install.toml` が含まれます。Bun の標準的な起動コマンドとテストコマンドには、`--no-install` と、その正確な設定ファイルも渡します。これにより、対象の実行で Bun の自動インストーラが動くことを防ぎます。ネットワークを無効にした状態で、オフラインの `bun install` を行う前段階は、引き続き許可されたライフサイクルスクリプトを実行します。
 
-`preparation.ts` emits acquisition metadata and command descriptions. Acquisition
-containers receive that metadata and verified public archives only; project code,
-Gemfiles, hooks, and native extensions run in subsequent network-none containers.
-Registry host restrictions require the trusted runner's deny-by-default egress
-mechanism and redirect/DNS checks. Package-manager flags alone are insufficient.
+`preparation.ts` は、取得のメタデータとコマンドの説明を出力します。取得用のコンテナには、そのメタデータと、検証済みの公開アーカイブだけを渡します。プロジェクトのコード、Gemfile、フック、ネイティブ拡張は、その後のネットワークなしのコンテナで実行します。レジストリのホストの制限には、信頼されたランナーのデフォルト拒否の egress の仕組みと、リダイレクトと DNS のチェックが必要です。パッケージマネージャーのフラグだけでは不十分です。
 
-Source references inspected for these contracts:
+これらの契約を確認したソース参照:
 
-- [Bun installation and frozen locks](https://bun.com/docs/pm/cli/install)
-- [uv export and `--no-emit-local`](https://docs.astral.sh/uv/reference/cli/)
-- [RubyGems fetch](https://guides.rubygems.org/command-reference/#gem-fetch)
-- [Docker attestations](https://docs.docker.com/build/metadata/attestations/)
+- [Bun のインストールと凍結ロック](https://bun.com/docs/pm/cli/install)
+- [uv の export と `--no-emit-local`](https://docs.astral.sh/uv/reference/cli/)
+- [RubyGems の fetch](https://guides.rubygems.org/command-reference/#gem-fetch)
+- [Docker の attestation](https://docs.docker.com/build/metadata/attestations/)
 
-Version the catalog together with helper ABI 3. A rollback selects the previous
-compatible pair. Persisted reports remain readable independently of which
-runtime pair is active.
+カタログは、ヘルパーの ABI バージョン 3 とともにバージョン管理します。ロールバックでは、直前の互換性のあるペアを選びます。保存されたレポートは、どのランタイムのペアが有効であるかに関係なく、読み続けられます。
 
-Pull requests run the native build-only matrix without registry publication.
-Protected main publishes staging images. A separate protected promotion
-workflow accepts exactly ten `qualified-runtime.json` statements from one
-successful main run, checks them against the reviewed build matrix, and emits an
-attested `runtime-catalog.candidate.json`. It verifies that attestation against
-the exact candidate bytes, source commit, protected-main ref, and promotion
-workflow identity. A previous-revision compare-and-swap then copies those exact
-bytes to a fresh branch and opens an ordinary review PR. The workflow never
-updates `main` directly. The catalog validator also recomputes the retained
-runtime-matrix digest; the complete release-gate statement digest remains a
-separate provenance field.
+プルリクエストでは、レジストリへの公開を行わず、ネイティブのビルドのみのマトリクスを実行します。保護された main は、ステージングのイメージを公開します。別の保護された昇格ワークフローは、ひとつの成功した main の実行から、正確に 10 個の `qualified-runtime.json` の宣言を受け取り、それらをレビュー済みのビルドマトリクスと照合して、attestation 付きの `runtime-catalog.candidate.json` を出力します。このワークフローは、その attestation を、候補のバイト列そのもの、ソースのコミット、保護された main の ref、昇格ワークフローのアイデンティティと照合して検証します。その後、直前のリビジョンに対する compare-and-swap で、そのバイト列をそのまま新しいブランチにコピーし、通常のレビュー用の PR を開きます。ワークフローが `main` を直接更新することはありません。カタログのバリデーターは、保持しているランタイムマトリクスのダイジェストも再計算します。リリースゲートの宣言全体のダイジェストは、別の provenance のフィールドとして残ります。
 
-GHCR creates each new staging package private. After its bootstrap publication,
-a package administrator must make it public in GitHub's package settings before
-the workflow can continue; GitHub treats that visibility change as
-irreversible. Staging, native qualification, private qualification ingress, and
-catalog promotion all fail closed unless GitHub's package API reports `public`
-and a Docker client using a fresh config with empty `auths`
-pulls the exact platform digest. The protected workflows never treat their own
-GHCR login as evidence that users can acquire a promoted runtime.
+GHCR は、新しいステージングのパッケージを非公開で作成します。最初の公開のあと、パッケージの管理者が GitHub のパッケージ設定でそれを公開にしなければ、ワークフローは続行できません。GitHub はこの公開範囲の変更を取り消せないものとして扱います。ステージング、ネイティブの認定、非公開の認定の受け入れ、カタログの昇格はいずれも、GitHub のパッケージ API が `public` と報告し、かつ `auths` が空の新しい Docker クライアントの設定を使って、正確なプラットフォームのダイジェストを pull できることを確認できない限り、失敗させます。保護されたワークフローは、自分自身の GHCR へのログインを、ユーザーが昇格したランタイムを取得できることの証拠とは決して扱いません。
 
-Each application statement must attest successful containment, public-only
-acquisition, offline lifecycle work, cold start, positive and deliberately
-failing verifier assertions, watchdog cleanup, secret-canary checks, the
-accuracy gates, and a private held-out runtime-tested repair. Rails also requires both
-database modes and native extensions. PostgreSQL requires containment, cold
-start, multiple databases, readiness, watchdog cleanup, and secret canaries.
-Until a protected run produces all ten statements, the reviewed profiles remain
-visible to `--doctor` but target execution returns
-`MISSING_QUALIFIED_RUNTIME`.
+各アプリケーションの宣言は、次のことが成功したと証明しなければなりません。封じ込め、公開のみの取得、オフラインのライフサイクル作業、コールドスタート、肯定的および意図的に失敗させる検証のアサーション、ウォッチドッグのクリーンアップ、シークレットのカナリアのチェック、精度のゲート、そして非公開の保留修復のランタイムテストです。Rails では、両方のデータベースモードとネイティブ拡張も必要です。PostgreSQL では、封じ込め、コールドスタート、複数データベース、準備完了、ウォッチドッグのクリーンアップ、シークレットのカナリアが必要です。保護された実行が 10 件すべての宣言を生成するまでは、レビュー済みのプロファイルは `--doctor` からは見えますが、対象の実行は `MISSING_QUALIFIED_RUNTIME` を返します。
 
-The protected `cso-runtime-release` environment also defines
-`CSO_QUALIFICATION_ACTOR`, the service account allowed to send the
-`cso-runtime-qualified` repository dispatch. The ingress workflow verifies the
-actor, re-verifies each staged OCI provenance and SBOM attestation, normalizes
-the evidence to its own run identity, and validates the full matrix before it
-uploads `cso-qualified-runtime-statements`. Private assertion content never
-enters this repository or the artifact.
+保護された `cso-runtime-release` 環境は、`CSO_QUALIFICATION_ACTOR` も定義します。これは、`cso-runtime-qualified` のリポジトリディスパッチを送信することを許可されたサービスアカウントです。取り込みのワークフローは、このアクターを検証し、ステージングされた各 OCI の provenance と SBOM の attestation を再検証し、証拠をそのワークフロー自身の実行アイデンティティに正規化してから、全マトリクスを検証して `cso-qualified-runtime-statements` をアップロードします。非公開のアサーションの内容が、このリポジトリやアーティファクトに入ることはありません。

@@ -1,215 +1,131 @@
-# Test portfolio: coverage ownership and repeated work
+# テストポートフォリオ: カバレッジの所有と繰り返し作業
 
-Audit source: `06ed920a974809ebedc6bcbbe402fb81f5944598`, September 24, 2026.
-This is a coverage inventory and a focused refactor, not a claim that every
-test assertion is interchangeable with another assertion about the same skill.
+監査元: `06ed920a974809ebedc6bcbbe402fb81f5944598`、2026 年 9 月 24 日。
+これはカバレッジの棚卸しと、焦点を絞ったリファクタリングであり、同じスキルについてのすべてのテストアサーションが互いに置き換え可能だという主張ではありません。
 
-## One owner for each kind of evidence
+## 証拠の種類ごとに所有者を 1 つに
 
-Tests can share setup or inspect the same public capture. They must not count
-one capture twice when the contract requires independent trials. In particular,
-free parser tests, a prompt-quality score, and a completed live workflow prove
-different things even when they mention the same skill.
+テストはセットアップを共有したり、同じ公開のキャプチャを検査したりできます。しかし、契約が独立した試行を求めている場合は、1 つのキャプチャを 2 回数えてはいけません。特に、無料のパーサーのテスト、プロンプト品質のスコア、完了したライブのワークフローは、同じスキルに言及していても、それぞれ別のことを証明します。
 
-| Responsibility | Owner | What this evidence does not replace |
+| 責務 | 所有者 | その証拠で代替できないもの |
 | --- | --- | --- |
-| Selection, budgets, process ownership, cleanup, native-event parsing and recorded failure controls | Free runner and fixture regressions | A live model choosing or completing the right workflow |
-| Generated files, host parity, section manifests and complete input identity | Free generation and structural tests | An agent actually loading the required section |
-| Prompt clarity and rubric quality | The registered quality judge for that complete prompt | Tool execution, native acknowledgments or a finished report |
-| Native first-question format and substance | Live SDK/PTY question capture | An answered question or a completed workflow; receipts explicitly say `workflowCompleted: false` |
-| Stochastic consistency and verbose/carved comparison | Independent captures, with separate stability and A/B oracles | One successful sample reused as three trials, or one prompt version standing in for the other |
-| Decisions, findings and report completion | Per-skill native workflow fixtures | The first question alone, screen text without native evidence, or a generic question count |
-| Offline deployment and canary report construction | The explicitly simulated workflow fixtures | A real GitHub merge, deployment, rollback or production health check |
-| Multi-phase ordering and hand-offs | The production phase-publication hook, pinned by the free `test/autoplan-publication-guard.test.ts`; no paid chain eval since the 2026-09 audit (TODOS: "No paid eval runs the full /autoplan chain") | A live model completing CEO → Design → DX → Eng |
-| External reviewers, other model providers, browser engines and platform behavior | Their respective live integration fixtures | Prompt parity or a mock transport |
+| 選択、予算、プロセスの所有、クリーンアップ、ネイティブイベントの解析、記録された失敗の制御 | 無料のランナーとフィクスチャの回帰テスト | モデルが正しいワークフローを選び、完了できること |
+| 生成されたファイル、ホストの同等性、セクションのマニフェスト、完全な入力の識別子 | 無料の生成と構造のテスト | エージェントが必要なセクションを実際に読み込むこと |
+| プロンプトの明快さとルーブリックの品質 | そのプロンプト全体を登録した品質 judge | ツールの実行、ネイティブの確認応答、完成したレポート |
+| ネイティブの最初の質問の形式と内容 | ライブの SDK/PTY の質問キャプチャ | 回答された質問、または完了したワークフロー。レシートには `workflowCompleted: false` と明記されます |
+| 確率的な一貫性と、詳細版と要約版の比較 | 独立したキャプチャ。安定性と A/B の別々の判定基準 | 1 回の成功したサンプルを 3 回の試行として再利用すること、または一方のプロンプトのバージョンで他方を代用すること |
+| 判断、指摘、レポートの完了 | スキルごとのネイティブのワークフロー・フィクスチャ | 最初の質問だけ、ネイティブの証拠のない画面のテキスト、または一般的な質問数 |
+| オフラインのデプロイと、カナリアのレポートの構築 | 明示的にシミュレートされたワークフロー・フィクスチャ | 実際の GitHub のマージ、デプロイ、ロールバック、または本番環境のヘルスチェック |
+| 複数フェーズの順序と引き継ぎ | 本番のフェーズ公開フック。無料の `test/autoplan-publication-guard.test.ts` で固定されています。2026-09 の監査以降、有料のチェーン評価はありません(TODOS: "No paid eval runs the full /autoplan chain") | ライブのモデルが CEO → Design → DX → Eng を完了すること |
+| 外部のレビュアー、他のモデルプロバイダ、ブラウザエンジン、プラットフォームの動作 | それぞれのライブの統合フィクスチャ | プロンプトの同等性、またはモックのトランスポート |
 
-Overlay efficacy experiments retain their full fixture/model/arm/trial matrix.
-Security cases retain their source, path, socket, process and lease identities.
-These are distinct scenario dimensions, not repeated work to delete.
+オーバーレイの有効性の実験は、フィクスチャ/モデル/アーム/試行の完全な行列を保持します。
+セキュリティのケースは、ソース、パス、ソケット、プロセス、リースの識別子を保持します。
+これらは別々のシナリオの次元であり、削除すべき繰り返し作業ではありません。
 
-## Detector owner tests
+<a id="detector-owner-tests"></a>
+## 検出器の所有者テスト
 
-A captured paid failure becomes one row (a `describe` block or table entry) in its detector's owner test,
-never a new per-incident file; `test/test-of-test-ratchet.test.ts` enforces this. Owners after the
-2026-09 audit ([evidence](test-audit-2026-09.md)):
+有料で捕捉された失敗 1 件は、その検出器の所有者テストの中の 1 行(`describe` ブロックまたはテーブルのエントリ)になり、インシデントごとの新しいファイルにはなりません。これは `test/test-of-test-ratchet.test.ts` が強制します。2026-09 の監査後の所有者は次のとおりです([証拠](test-audit-2026-09.md))。
 
-| Detector | Owner test |
+| 検出器 | 所有者テスト |
 | --- | --- |
 | `hasStaleFillRaceFinding` | `test/ceo-section-loading-fixture.test.ts` |
-| `generateModelOverlay` / `resolveModel` (overlay phrases) | `test/model-overlays.test.ts` |
+| `generateModelOverlay` / `resolveModel`(オーバーレイのフレーズ) | `test/model-overlays.test.ts` |
 | `coverageAuditVerdict` / `coverageAuditReadEvidence` | `test/coverage-audit-evidence.test.ts` |
-| Autoplan phase completion (`autoplanPhaseCompletions`) | `test/autoplan-phase-observer.test.ts` |
-| `findNativeAutoDecision` and auto-decision state | `test/native-auto-decide.test.ts` |
+| Autoplan のフェーズ完了(`autoplanPhaseCompletions`) | `test/autoplan-phase-observer.test.ts` |
+| `findNativeAutoDecision` と自動決定の状態 | `test/native-auto-decide.test.ts` |
 | `claudeOutsideExecutions` | `test/outside-voice-evidence.test.ts` |
 | `engStep0Boundary` / `engSetupAUQ` / `engFirstReviewAUQ` | `test/eng-first-review.test.ts` |
-| `hasNativePlanTerminal` (completion and hand-off) | `test/plan-count-completion.test.ts` |
+| `hasNativePlanTerminal`(完了と引き継ぎ) | `test/plan-count-completion.test.ts` |
 | `createPlanCountPermissionGuard` | `test/plan-count-file-permission.test.ts` |
-| CEO mode option parsing (`ceo-mode-option`) | `test/ceo-mode-option.test.ts` |
-| Plan scope selection (`plan-scope-selection`) | `test/plan-scope-selection.test.ts` |
+| CEO モードのオプション解析(`ceo-mode-option`) | `test/ceo-mode-option.test.ts` |
+| プラン範囲の選択(`plan-scope-selection`) | `test/plan-scope-selection.test.ts` |
 | `planCountPrerequisitePick` | `test/plan-count-prerequisite.test.ts` |
 
-## Functional QA contract map
+## 機能 QA の契約マップ
 
-The deterministic owners below protect the failure boundary; their live partners
-prove that an agent follows it. A shared fixture or captured event does not replace
-an independent live trial. All free owners run in `bun run test`; quick eligibility
-depends on measured duration or an explicit `QUICK_CORE` entry, not this table.
+以下の決定的な所有者は、失敗の境界を守ります。その生きたパートナーは、エージェントがそれに従うことを証明します。共有されたフィクスチャや捕捉されたイベントは、独立したライブの試行を代替しません。すべての無料の所有者は `bun run test` で実行されます。クイックの対象になるかどうかは、計測された所要時間か、明示的な `QUICK_CORE` のエントリによって決まり、この表では決まりません。
 
-| Contract | Deterministic owner | Necessary live boundary | Host and lane |
+| 契約 | 決定的な所有者 | 必要なライブの境界 | ホストとレーン |
 | --- | --- | --- | --- |
-| CLI/API/webhook QA without browser setup | `qa-functional-fixture`, `qa-functional-evidence`, `qa-lazy-sections` | `skill-e2e-qa-functional`: CLI and webhook report sessions | Linux/macOS free; selected PR gate; Windows only where curated |
-| Report-only preserves local and remote authority | `qa-only-capability`, `qa-functional-observer`, `qa-functional-observer-atomic`, `qa-caller-authority` | Independent report-only sessions with synthetic owned endpoints/auth | Linux kernel observation; free callback controls plus selected PR gate |
-| Repair reproduces the defect, adds a failing regression and rechecks adjacent behavior | `qa-fix-loop-fixture`, `qa-functional-evidence` | `skill-e2e-qa-functional-fix`: CLI and webhook repair sessions | Free controls plus selected PR gate |
-| Review and Ship actually explore | `qa-exploratory-callers`, `qa-caller-report-observer`, `qa-checkpoint-evidence` | `skill-e2e-qa-callers`: actual Review/Ship callers | Free captures plus selected PR gate |
-| Smoke expiry preserves required plan checks | `qa-deadline`, `qa-deadline-selection`, `qa-browser-deadline-evidence` | `ship-exploratory-plan-checks` | Free deadline/dispatch controls plus selected PR gate |
-| Late changes invalidate affected results | `qa-caller-freshness-order`, `qa-deadline-publication-observer`, `shared-libs-revalidation-prompt` | `ship-exploratory-late-input` and the existing late-input documentation handoff | Free stale-input controls plus selected PR gate |
-| Documentation completes before publication and respects protected files | `docsync-authority`, `docsync-atomic-writes`, `docsync-report-interface`, `docsync-lifecycle-interface` | `skill-e2e-ship-docsync`, `skill-e2e-docsync-spawned` | Free state/permission controls; registered gate/periodic scenarios retain their tiers |
-| Cancellation drains owned work before another attempt | `shared-libs-cancellation`, `session-runner-stream-lifecycle`, `agent-sdk-runner`, `paid-shard-settlement` | Existing actual shared-library/SDK caller scenarios | Free real-callback/process controls; registered live gate/periodic trials remain independent |
-| Missing tools or incomplete results never become verified coverage | `qa-probe-gates`, `qa-supervision-selection`, `test-free-shards`, `test-free-shards-capture`, `paid-shards` | `ship-exploratory-unavailable` and existing reporting-boundary sessions | Free negative controls plus selected PR gate; unsupported hosts remain unexecuted |
+| ブラウザのセットアップなしの CLI/API/webhook の QA | `qa-functional-fixture`、`qa-functional-evidence`、`qa-lazy-sections` | `skill-e2e-qa-functional`: CLI と webhook のレポートのセッション | Linux/macOS の無料。選択された PR ゲート。Windows は、キュレーションされた範囲のみ |
+| レポートのみのモードが、ローカルとリモートの権限を保つ | `qa-only-capability`、`qa-functional-observer`、`qa-functional-observer-atomic`、`qa-caller-authority` | 所有する合成エンドポイントと認証を使った、独立したレポートのみのセッション | Linux のカーネルでの観測。無料のコールバックの制御と、選択された PR ゲート |
+| 修復が欠陥を再現し、失敗する回帰テストを追加し、隣接する動作を再確認する | `qa-fix-loop-fixture`、`qa-functional-evidence` | `skill-e2e-qa-functional-fix`: CLI と webhook の修復セッション | 無料の制御と、選択された PR ゲート |
+| Review と Ship が実際に探索する | `qa-exploratory-callers`、`qa-caller-report-observer`、`qa-checkpoint-evidence` | `skill-e2e-qa-callers`: 実際の Review/Ship の呼び出し元 | 無料のキャプチャと、選択された PR ゲート |
+| スモークテストの期限切れが、必要なプランのチェックを保持する | `qa-deadline`、`qa-deadline-selection`、`qa-browser-deadline-evidence` | `ship-exploratory-plan-checks` | 無料の締切/ディスパッチの制御と、選択された PR ゲート |
+| 後からの変更が、影響を受ける結果を無効にする | `qa-caller-freshness-order`、`qa-deadline-publication-observer`、`shared-libs-revalidation-prompt` | `ship-exploratory-late-input` と、既存の後からの入力のドキュメント引き継ぎ | 無料の古い入力の制御と、選択された PR ゲート |
+| ドキュメントが公開の前に完了し、保護されたファイルを尊重する | `docsync-authority`、`docsync-atomic-writes`、`docsync-report-interface`、`docsync-lifecycle-interface` | `skill-e2e-ship-docsync`、`skill-e2e-docsync-spawned` | 無料の状態/権限の制御。登録されたゲート/定期のシナリオは、それぞれの層を保持します |
+| キャンセルが、再試行の前に所有する作業を排出する | `shared-libs-cancellation`、`session-runner-stream-lifecycle`、`agent-sdk-runner`、`paid-shard-settlement` | 既存の、実際の共有ライブラリ/SDK の呼び出し元のシナリオ | 無料の実際のコールバック/プロセスの制御。登録されたライブのゲート/定期の試行は、独立したまま |
+| 不足しているツールや不完全な結果が、検証済みのカバレッジになることはない | `qa-probe-gates`、`qa-supervision-selection`、`test-free-shards`、`test-free-shards-capture`、`paid-shards` | `ship-exploratory-unavailable` と、既存の報告の境界のセッション | 無料の否定的制御と、選択された PR ゲート。サポートされないホストは、未実行のまま |
 
-Names without a suffix refer to `test/<name>.test.ts`. Keep missing, stale,
-duplicate, selected-but-unstarted, malformed/truncated and observer-overflow
-controls distinct from legitimate empty selections. File restoration cannot
-replace write observation, and a clean local tree cannot prove that an external
-request made no mutation. Fixture endpoints and credentials must be synthetic
-and owned; specifically authorized functional requests remain permitted.
+接尾辞のない名前は、`test/<name>.test.ts` を指します。欠落、古い、重複、選択されたが開始されていない、不正/切り詰められた、そして観測のオーバーフローの制御は、正当な空の選択とは区別して保ってください。ファイルの復元は書き込みの観測の代わりにはなりません。ローカルのツリーがきれいでも、外部へのリクエストが変更を加えなかったことは証明できません。フィクスチャのエンドポイントと認証情報は、合成されたもので、所有されたものでなければなりません。ただし、明示的に許可された機能のリクエストは引き続き許可されます。
 
-Functional fixtures register their existing closed command policy as a native
-PreToolUse hook, so an unsupported request is refused before execution. The
-callback regression invokes the registered command with native hook input,
-observes an isolated mutation target and permits the owned webhook positive
-control. This is a command boundary, not a sandbox for arbitrary target code.
-Its private CLI configuration is outside the observed product tree, and the
-fixture's existing cleanup owns both directories.
+機能のフィクスチャは、既存の閉じたコマンドポリシーを、ネイティブの PreToolUse フックとして登録します。そのため、サポートされないリクエストは、実行の前に拒否されます。コールバックの回帰テストは、登録されたコマンドをネイティブのフック入力で呼び出し、分離された変更対象を観測し、所有する webhook の肯定的な制御を許可します。これはコマンドの境界であり、任意の対象コードのためのサンドボックスではありません。その非公開の CLI 設定は、観測対象のプロダクトのツリーの外にあり、フィクスチャの既存のクリーンアップが両方のディレクトリを所有します。
 
-Review/Ship observations now use the same strict native event decoder as QA
-checkpoints and documentation. Caller-specific handoff/freshness interpretation
-stays separate. Original missing, orphaned and duplicate-call controls were run
-before replacing three incidental error-wording assertions with rejection checks;
-the existing positive attribution case still runs, and a completed-ID reuse
-negative control prevents incomplete evidence from becoming green.
+Review/Ship の観測は、QA のチェックポイントやドキュメントと同じ、厳密なネイティブイベントのデコーダーを使うようになりました。呼び出し元に固有の引き継ぎと鮮度の解釈は、別々のままです。元の欠落、孤立、重複した呼び出しの制御は、3 件の偶発的なエラー文言のアサーションを拒否チェックに置き換える前に実行されました。既存の肯定的な帰属のケースは引き続き実行され、完了済み ID の再利用の否定的な制御により、不完全な証拠が緑になることを防いでいます。
 
-## Complete inventory, not just the fast subset
+## 完全な棚卸し。クイックのサブセットだけではない
 
-At the audited revision, all 1,124 tracked Bun test files partition into 1,010 free
-files and 114 paid files. The paid inventory contains 207 registered E2E
-selection IDs (84 gate and 123 periodic) and 25 main quality-judge IDs. IDs,
-files, model calls, samples, attempts and executed Bun tests are different
-counts; use the run manifest and receipts rather than substituting one for
-another.
+監査時点で、追跡されている 1,124 個の Bun テストファイルすべては、1,010 個の無料ファイルと 114 個の有料ファイルに分かれます。有料の棚卸しには、207 件の登録済み E2E 選択 ID(ゲートが 84 件、定期が 123 件)と、25 件の main の品質 judge ID が含まれます。ID、ファイル、モデルの呼び出し、サンプル、試行、実行された Bun テストは、それぞれ異なる数です。ひとつを別のものの代わりに使わず、実行のマニフェストとレシートを使ってください。
 
-The full gate and periodic manifests plan 153 file processes across 112 unique
-files. Forty-one files appear in both manifests because they contain mixed-tier
-cases; that does not establish 41 duplicated scenarios. Brain privacy and ship
-idempotency have existing explicit exclusions, iOS needs hardware, and the spec
-quality file contains a TODO. The iOS fixture's native Swift smoke test is
-outside this Bun-file census and requires its platform runtime. Unavailable
-or excluded work is not coverage.
+完全なゲートと定期のマニフェストは、112 個のユニークなファイルにまたがる 153 件のファイルプロセスを計画します。41 個のファイルは、混在する層のケースを含むため、両方のマニフェストに現れます。それは 41 件の重複したシナリオを意味しません。Brain のプライバシーと ship の冪等性には既存の明示的な除外があります。iOS はハードウェアが必要です。スペックの品質ファイルには TODO があります。iOS フィクスチャのネイティブ Swift のスモークテストは、この Bun ファイルの棚卸しの外にあり、そのプラットフォームのランタイムが必要です。利用できないもの、または除外されたものは、カバレッジではありません。
 
-Existing sources remain authoritative:
+既存のソースが引き続き正式です。
 
-- `test/helpers/paid-test-set.ts` owns the free/paid file boundary.
-- `test/helpers/touchfiles-data.ts` owns registered dependency and tier data.
-- `scripts/test-pr-profile.ts` owns the deliberately partial PR profile.
-- `test/helpers/eval-budgets.ts` owns supervision and retry exceptions.
-- The free and paid shard runners own inventory, scheduling and reconciliation.
+- `test/helpers/paid-test-set.ts` は、無料と有料のファイルの境界を所有します。
+- `test/helpers/touchfiles-data.ts` は、登録された依存関係と層のデータを所有します。
+- `scripts/test-pr-profile.ts` は、意図的に部分的な PR プロファイルを所有します。
+- `test/helpers/eval-budgets.ts` は、監視とリトライの例外を所有します。
+- 無料と有料のシャードのランナーは、棚卸し、スケジューリング、照合を所有します。
 
-`test:quick` and `test:pr` are feedback lanes, not full release acceptance. This
-refactor does not remove cases, shrink samples, change tiers, lower thresholds,
-shorten production deadlines, or move checks to a later cadence.
+`test:quick` と `test:pr` は、フィードバックのためのレーンであり、完全なリリースの受け入れではありません。このリファクタリングは、ケースを削除せず、サンプルを減らさず、層を変えず、閾値を下げず、本番の締切を短縮せず、チェックを後の周期に移すこともしません。
 
-## Repeated work removed
+<a id="repeated-work-removed"></a>
+## 繰り返し作業の削減
 
-**Synthetic terminal startup.** The 42 fake-terminal scenarios in nine files
-emit their existing readiness marker only after installing handlers. They no
-longer spend the real CLI's eight-second grace waiting for an already-ready
-fake. Native CLI grace, terminal geometry, observation delays, scenario inputs
-and all existing assertions stay intact.
+**合成端末の起動。** 9 ファイルにまたがる 42 件のフェイク端末のシナリオは、ハンドラーをインストールした後に、既存の準備完了マーカーを出力するようになりました。もう、すでに準備ができているフェイクを、実際の CLI の 8 秒の猶予で待つことはありません。ネイティブの CLI の猶予、端末のサイズ、観測の遅延、シナリオの入力、既存のすべてのアサーションは、そのまま残ります。
 
-**Publication polling.** Invalid/unavailable-journal cases still call the real
-hook and transcript reader through all 40 polling intervals. A scoped serial
-fake clock removes wall-clock sleeping, while controls verify the full logical
-deadline, late arrival, and restoration after success and failure. The real
-delayed-journal and shell-transport cases still use real time.
+**公開のポーリング。** 無効/利用できないジャーナルのケースは、依然として 40 回のポーリング間隔すべてで、実際のフックとトランスクリプトのリーダーを呼び出します。スコープされた直列のフェイク時計が、壁時計の待機を取り除きます。一方、制御により、論理的な締切全体、遅れた到着、成功と失敗の後の復元を検証します。実際の遅延ジャーナルとシェルのトランスポートのケースは、依然として実時間を使います。
 
-**Native watchdog setup.** Compile the identical source once per test file and
-copy the executable into each case's isolated directory. Every watchdog still
-executes; only duplicate checks of the same compiler result are consolidated.
-Mutable work directories and cleanup ownership are never pooled.
+**ネイティブのウォッチドッグのセットアップ。** テストファイルごとに、同一のソースを一度だけコンパイルし、実行可能ファイルを各ケースの分離されたディレクトリにコピーします。すべてのウォッチドッグは依然として実行されます。統合されるのは、同じコンパイラの結果の重複したチェックだけです。変更可能な作業ディレクトリとクリーンアップの所有権は、決してプールされません。
 
-**Independent live captures.** Start all three consistency captures through the
-existing three-query semaphore and both A/B arms concurrently. Await every
-settlement before cleanup, retain sibling failures, and attempt cleanup for
-every owned directory. Consistency judging remains sequential; A/B has at most
-two simultaneous judges. The free regression exercises the actual registered
-callbacks, native capture receipts, semaphore and judge request builder.
+**独立したライブのキャプチャ。** 3 つの一貫性のキャプチャをすべて、既存の 3 件のセマフォを通して開始し、両方の A/B のアームを同時に開始します。クリーンアップの前に、すべての決着を待ち、兄弟の失敗を保持し、所有するすべてのディレクトリに対してクリーンアップを試みます。一貫性の判定は直列のままです。A/B は最大 2 つの判定を同時に行います。無料の回帰テストは、実際に登録されたコールバック、ネイティブのキャプチャのレシート、セマフォ、judge のリクエストビルダーを実行します。
 
-**Runner ownership.** Path normalization belongs to the existing shared strict
-output utility, not the free runner. The paid runner no longer imports the free
-runner to use it. Exact free-only exemptions cover the free runner and the free
-AUQ replay worker, with paid import-closure and selection controls. Mapped
-dependencies still win; unknown dependencies retain the broad fallback. No
-directory-wide exemption is introduced.
+**ランナーの所有権。** パスの正規化は、無料のランナーではなく、既存の共有の厳密な出力ユーティリティに属します。有料のランナーは、それを使うために無料のランナーをインポートしなくなりました。無料専用の例外は、無料のランナーと無料の AUQ リプレイのワーカーを対象とし、有料のインポートのクロージャと選択の制御がつきます。マッピングされた依存関係が依然として優先されます。不明な依存関係は、広いフォールバックを維持します。ディレクトリ全体の例外は導入していません。
 
-**Local scheduling.** Default free workers use available CPU affinity, with a
-floor of one and the existing cap of six. Each shard stays serial internally,
-and explicit `GSTACK_FREE_JOBS` overrides keep their previous meaning. The
-separate 20-machine CI plan is unchanged. Windows free-test CI explicitly retains
-its two-worker budget rather than inheriting the local default; local worker
-gains are not CI gains.
+**ローカルのスケジューリング。** デフォルトの無料ワーカーは、利用可能な CPU のアフィニティを使い、下限は 1、既存の上限は 6 です。各シャードは内部では直列のままです。明示的な `GSTACK_FREE_JOBS` の上書きは、以前の意味を保ちます。別の 20 マシンの CI プランは変わりません。Windows の無料テストの CI は、ローカルのデフォルトを引き継がず、2 ワーカーの予算を明示的に保持します。ローカルのワーカーの改善は、CI の改善ではありません。
 
-## Measurement contract
+<a id="measurement-contract"></a>
+## 計測の契約
 
-Compare original and edited code on the same machine, runtime, launch
-environment and workload. Preserve failure and retry records. Count the full
-case/sample inventory and report skips and unavailable platforms separately.
-Do not subtract failures from elapsed time or use a smaller selection as proof
-that the complete suite got faster.
+元のコードと編集後のコードを、同じマシン、同じランタイム、同じ起動環境、同じワークロードで比較してください。失敗とリトライの記録は保存してください。完全なケース/サンプルの棚卸しを数え、スキップと利用できないプラットフォームは別に報告してください。経過時間から失敗を差し引いたり、小さな選択をスイート全体が速くなった証拠として使ったりしないでください。
 
-### Functional-QA cleanup measurement — September 28, 2026
+### 機能 QA のクリーンアップの計測 — 2026 年 9 月 28 日
 
-On the same four-CPU Linux machine, using Bun 1.4.0, Node 22.20.0 and Claude
-Code 2.1.251, the existing duration recorder measured all 1,113 free files.
-The refreshed seed selects 931 files for quick feedback: 90 newly included and
-20 newly excluded by measured cost, a net increase of 70. No files remain
-unclassified. All 182 slow files remain in the complete suite. The functional
-command observer, checkpoint decoder and log-capture controls are explicit
-quick-core cases; each measured under two seconds.
+同じ 4 CPU の Linux マシンで、Bun 1.4.0、Node 22.20.0、Claude Code 2.1.251 を使い、既存の所要時間レコーダーで、1,113 件の無料ファイルすべてを計測しました。更新されたシードは、クイックフィードバック用に 931 件のファイルを選択しました。計測されたコストにより、新たに含めたのが 90 件、新たに除外したのが 20 件で、正味 70 件の増加です。未分類のファイルは残っていません。182 件の遅いファイルはすべて、完全なスイートに残っています。機能のコマンドの監視、チェックポイントのデコーダー、ログのキャプチャの制御は、明示的なクイックコアのケースであり、それぞれ 2 秒未満で計測されました。
 
-| Existing command / attempt | Executed scope | Result | Wall time |
+| 既存のコマンド / 試行 | 実行の範囲 | 結果 | 壁時計時間 |
 | --- | --- | --- | ---: |
-| `bun run test:free --record-durations` | 1,113 files | 29,175 pass, 5 fail, 131 skip | 680.64s |
-| `bun run test:quick`, first measured attempt | 931 files | 22,160 pass, 2 fail, 100 skip | 125.39s |
-| `bun run test:quick`, repaired attempt | The same 931 files | 22,162 pass, 0 fail, 100 skip | 52.43s |
+| `bun run test:free --record-durations` | 1,113 ファイル | 29,175 件合格、5 件失敗、131 件スキップ | 680.64 秒 |
+| `bun run test:quick`、最初の計測の試行 | 931 ファイル | 22,160 件合格、2 件失敗、100 件スキップ | 125.39 秒 |
+| `bun run test:quick`、修復後の試行 | 同じ 931 ファイル | 22,162 件合格、0 件失敗、100 件スキップ | 52.43 秒 |
 
-The profile's five failures came from the machine's Git identity wrapper
-overwriting synthetic fixture authors. Running the two affected files with native
-Git in the isolated test environment passed all 59 tests in 75.32s; normal checkout
-commits retained the configured identity. Both quick attempts used that corrected
-environment. Their two telemetry timeouts used Bun's synchronous piped-input
-path; the repair reuses the existing file-backed command capture helper without
-changing commands, assertions or deadlines. The seed retains observed costs,
-including failed attempts; it is a scheduling hint, not a passing receipt.
+プロファイルの 5 件の失敗は、マシンの Git の ID ラッパーが、合成されたフィクスチャの作成者を上書きしたことが原因でした。影響を受けた 2 つのファイルを、分離されたテスト環境で、ネイティブの Git を使って実行すると、59 件すべてが 75.32 秒で合格しました。通常のチェックアウトのコミットは、設定された ID を保持しています。両方のクイックの試行は、その修正された環境を使いました。2 件の遠隔測定のタイムアウトは、Bun の同期的なパイプ入力の経路によるものでした。修復では、コマンド、アサーション、締切を変えずに、既存のファイルバックのコマンドキャプチャのヘルパーを再利用しています。シードは、失敗した試行を含む、観測されたコストを保持しています。これはスケジューリングのヒントであり、合格のレシートではありません。
 
-Cold dependency installation took 0.477s and the integrated build took 3.84s,
-separate from warm test execution; CLI installation was not independently timed.
-An earlier 63.37s profile was cancelled for a decoder repair, with an additional
-scoped browser cleanup, and earns no completion credit. Failed, cancelled and
-repair runs are costs, not time removed from the workflow. The quick target of
-one minute was met on this machine, but these measurements establish neither a
-cross-environment speedup nor full release, live-model or Windows acceptance.
+事前のディペンデンシーのインストールには 0.477 秒、統合ビルドには 3.84 秒かかりました。これは、ウォームのテスト実行とは別です。CLI のインストールは、独立には計測していません。以前の 63.37 秒のプロファイルは、デコーダーの修復と、追加のスコープ付きのブラウザのクリーンアップのために中止され、完了のクレジットはありません。失敗、キャンセル、修復の実行はコストであり、ワークフローから削減された時間ではありません。このマシンでは、クイックの目標である 1 分は達成されました。ただし、これらの計測は、環境をまたぐ高速化も、完全なリリース、ライブのモデル、Windows の受け入れも立証していません。
 
-### Earlier component comparisons
+### 以前のコンポーネントの比較
 
-Measured component comparisons:
+計測されたコンポーネントの比較:
 
-| Workload | Before | After | Coverage retained |
+| ワークロード | 前 | 後 | 保持されたカバレッジ |
 | --- | ---: | ---: | --- |
-| Nine synthetic-terminal files, serial aggregate | 165.87s | 72.98s | 81 tests, 1,593 assertions, 42 PTY scenarios |
-| Publication guard and watchdog files, serial aggregate | 56.57s | 9.63s | 245 original tests; three additional clock controls |
-| Two live periodic AUQ files, same machine and runtime | 325.09s | 136.40s | Two tests, five independent captures, all original grading rules |
+| 合成端末の 9 ファイル、直列の合計 | 165.87 秒 | 72.98 秒 | 81 件のテスト、1,593 件のアサーション、42 件の PTY シナリオ |
+| 公開とウォッチドッグのファイル、直列の合計 | 56.57 秒 | 9.63 秒 | 元の 245 件のテスト。さらに 3 件の時計の制御 |
+| ライブの定期 AUQ ファイル 2 件、同じマシンとランタイム | 325.09 秒 | 136.40 秒 | 2 件のテスト、5 件の独立したキャプチャ。元の採点ルールはすべて保持 |
 
-Exact selectors for the synthetic-terminal comparison:
+合成端末の比較の正確なセレクター:
 
 ```text
 test/plan-count-fixture.test.ts
@@ -223,79 +139,37 @@ test/plan-count-preview-footer.test.ts
 test/eng-test-plan-edit-approval.test.ts
 ```
 
-The quoted-frame selector was folded into `test/plan-count-file-permission.test.ts` in the 2026-09 audit.
+引用符付きのフレームのセレクターは、2026-09 の監査で `test/plan-count-file-permission.test.ts` に統合されました。
 
-The publication/watchdog pair is `test/autoplan-publication-guard.test.ts` and
-`test/cso-watchdog.test.ts`. The live pair is
-`test/skill-e2e-auq-consistency.test.ts` and
-`test/skill-e2e-auq-verbose-vs-carved-ab.test.ts`, using the default three
-consistency samples plus the two A/B captures.
+公開/ウォッチドッグの組は `test/autoplan-publication-guard.test.ts` と `test/cso-watchdog.test.ts` です。ライブの組は `test/skill-e2e-auq-consistency.test.ts` と `test/skill-e2e-auq-verbose-vs-carved-ab.test.ts` で、既定の 3 つの一貫性のサンプルに、2 つの A/B のキャプチャを加えたものを使います。
 
-These are separate comparisons; do not add their percentages or call them a
-complete paid-suite result. The terminal aggregate is 56% faster, the two
-publication/watchdog files are 83% faster, and the live AUQ pair is 58% faster.
-Watchdog assertion counts fall only because identical compilation is checked
-once; all behavioral and security assertions remain.
+これらは別々の比較です。割合を足し合わせたり、完全な有料スイートの結果と呼んだりしないでください。合成端末の集計は 56% 速く、公開/ウォッチドッグの 2 ファイルは 83% 速く、ライブの AUQ の組は 58% 速くなりました。同一のコンパイルを 1 回だけ確認するようにしたため、ウォッチドッグのアサーション数は減っていますが、すべての振る舞いとセキュリティのアサーションは残っています。
 
-The matched complete local free-suite comparison used the same four-CPU Linux
-machine, Bun 1.4.0, Node 24.18.0, built artifacts, display and isolated Git
-configuration. Neither run set a worker override: the original default used two
-workers and the changed default used four.
+一致した完全な無料スイートのローカルでの比較は、同じ 4 CPU の Linux マシン、Bun 1.4.0、Node 24.18.0、ビルド済みのアーティファクト、ディスプレイ、分離された Git の設定を使いました。どちらの実行もワーカーの上書きを設定していません。元のデフォルトは 2 ワーカー、変更後のデフォルトは 4 ワーカーでした。
 
-| Complete free-suite result | Original | Performance refactor |
+| 完全な無料スイートの結果 | 元 | パフォーマンスのリファクタリング |
 | --- | ---: | ---: |
-| Wall time | 887.82s | 413.78s |
-| Passing cases | 25,504 | 25,547 |
-| Failing cases | 0 | 0 |
-| Skipped cases | 60 | 60 |
-| Assertions | 199,132 | 200,351 |
-| Test files | 1,010 | 1,012 |
+| 壁時計時間 | 887.82 秒 | 413.78 秒 |
+| 合格したケース | 25,504 | 25,547 |
+| 失敗したケース | 0 | 0 |
+| スキップしたケース | 60 | 60 |
+| アサーション | 199,132 | 200,351 |
+| テストファイル | 1,010 | 1,012 |
 
-This is a 53.4% local reduction. Case-level reconciliation retained every original
-passing identity except the intentionally renamed worker-default policy test,
-added 43 cases, and retained the exact same 60 skipped identities. This comparison
-predates the additional fixture and deployment-workflow regression cases; final
-acceptance must cover those too. It is not a measurement of the separate CI
-matrix or the complete paid census.
+これはローカルで 53.4% 削減されたことを意味します。ケース単位の照合では、意図的に名前を変えた、ワーカーのデフォルトポリシーのテストを除き、元の合格したすべての識別子が保持され、43 件のケースが追加され、同じ 60 件のスキップの識別子が保持されました。この比較は、追加されたフィクスチャとデプロイのワークフローの回帰ケースより前のものです。最終的な受け入れでは、それらもカバーする必要があります。これは、CI の別のマトリクスや、完全な有料の棚卸しの計測ではありません。
 
-The exact historical PR #2956 diff selected 84 gate IDs plus 25 judges because
-the free runner was treated as an unknown paid dependency. Replaying that diff
-after the boundary repair selects the intended 26 fast IDs plus the same 25
-judges. A free-runner-only diff selects no paid work. That is routing accuracy,
-not a fresh full-census runtime improvement.
+PR #2956 の正確な過去の diff は、無料のランナーを不明な有料の依存関係として扱ったため、84 件のゲート ID と 25 件の judge を選択しました。境界の修復の後で同じ diff を再生すると、意図された 26 件の高速な ID と、同じ 25 件の judge が選択されます。無料のランナーだけの diff は、有料の作業を選択しません。これはルーティングの正確さであり、新しい完全な棚卸しの実行時間の改善ではありません。
 
-## Evidence validity
+## 証拠の妥当性
 
-After integrating main's September 28 Ubicloud improvements, the scheduling seed
-uses upstream's CI-environment timings for shared files and preserves the 52
-previously measured branch-only entries. These are scheduling hints from two
-machines, not a matched performance comparison or acceptance result. Refresh
-the whole seed with `bun run test:ubicloud --record-durations` when measuring a
-new common baseline; do not infer a speedup by adding these measurements.
+main の 9 月 28 日の Ubicloud の改善を取り込んだ後、スケジューリングのシードは、共有ファイルについては上流の CI 環境での計測値を使い、以前に計測されたブランチ専用の 52 件のエントリを保持します。これらは 2 台のマシンからのスケジューリングのヒントであり、一致した性能比較や受け入れの結果ではありません。新しい共通のベースラインを計測するときは、`bun run test:ubicloud --record-durations` でシード全体を更新してください。これらの計測を足し合わせて、高速化を推測しないでください。
 
-Check the executable actually used by each SDK, print-mode and terminal launcher.
-A CLI version cached during preflight does not prove the version used by later
-sessions if PATH contents change. Use native session-init versions, terminal
-startup captures or process witnesses, and keep runtime controls effective after
-the hermetic environment is constructed.
+各 SDK、print モード、端末のランチャーが実際に使う実行ファイルを確認してください。事前チェック中にキャッシュされた CLI のバージョンは、PATH の内容が変わった後の後続のセッションで使われたバージョンを証明しません。ネイティブのセッション初期化のバージョン、端末の起動キャプチャ、またはプロセスの証人を使い、閉じた環境が構築された後も、ランタイムの制御が有効であり続けるようにしてください。
 
-Captured-event regressions prove the validator accepts valid evidence and rejects
-invalid evidence. They do not turn an old failed model run into a pass. Preserve
-every configured retry attempt and distinguish actual registrations from filtered
-or out-of-tier placeholders. A retained passing judge is reusable only when its
-complete request, rubric, parameters and relevant dependencies match; native
-behavioral acceptance follows its separate freshness contract.
+キャプチャされたイベントの回帰は、有効な証拠を受け入れ、無効な証拠を拒否することを証明します。古い失敗したモデルの実行を合格に変えることはありません。設定されたすべてのリトライの試行を保持し、実際の登録と、フィルタされた、または範囲外のプレースホルダーを区別してください。保持された合格の judge は、完全なリクエスト、ルーブリック、パラメータ、関連する依存関係が一致する場合にのみ再利用できます。ネイティブの振る舞いの受け入れは、その独立した鮮度の契約に従います。
 
-## Remaining work, not claimed savings
+## 残りの作業。主張していない節約
 
-Report final acceptance with the delivery revision and its actual case inventory.
-Complete fresh gate/periodic and cross-platform performance comparisons are not
-established by the measurements above.
+最終的な受け入れは、配布されたリビジョンと、実際のケースの棚卸しとともに報告してください。完全なゲートと定期の新しい実行、およびクロスプラットフォームの性能比較は、上記の計測では確立されていません。
 
-The longest indivisible live workflow limits the benefit of extra workers.
-Historical paid-duration replay suggests better scheduling alone cannot halve
-the full lane. A follow-up should unify executable case ownership/counts before
-sharing captures between judges or splitting long files: keep each oracle,
-scenario, retry and independent-trial requirement explicit. Host integrations
-and security boundary cases must not be replaced with cheaper look-alikes; the
-retired Autoplan chain eval needs a replacement that fits the ordinary tiers.
+最も長い分割できないライブのワークフローが、追加のワーカーの効果を制限しています。過去の有料の所要時間の再生からは、スケジューリングを改善するだけでは、レーン全体を半分にはできないことが示唆されます。後続の作業では、judge の間でキャプチャを共有したり、長いファイルを分割したりする前に、実行可能なケースの所有権と件数を統一する必要があります。各オラクル、シナリオ、リトライ、独立した試行の要件は、明示的に保ってください。ホストの統合とセキュリティの境界のケースは、より安い類似品で置き換えてはいけません。引退した Autoplan のチェーン評価は、通常の層に収まる代替品が必要です。

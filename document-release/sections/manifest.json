@@ -8,13 +8,13 @@
       "id": "audit-scope",
       "file": "audit-scope.md",
       "title": "Documentation discovery and ship-owned audit authority",
-      "trigger": "selecting release inputs and discovering relevant documentation, in standalone and ship-owned modes, before Step 1"
+      "trigger": "リリースの入力の選定と関連ドキュメントの探索(スタンドアロンと ship 所有の両モード。Step 1 の前)"
     },
     {
       "id": "release-body",
       "file": "release-body.md",
       "title": "Per-file audit, auto-updates, risky-change asks, CHANGELOG voice polish, cross-doc consistency, TODOS cleanup, VERSION bump, commit + PR body (Steps 2-9)",
-      "trigger": "auditing each doc file and applying updates, polishing CHANGELOG voice, checking cross-doc consistency, cleaning up TODOS, the VERSION bump, and committing (Steps 2-9, after the coverage map in Step 1.5)"
+      "trigger": "各ドキュメントファイルの監査と更新の適用、CHANGELOG の文体の仕上げ、ドキュメント間の整合性の確認、TODOS の整理、VERSION のバンプ、コミット(Steps 2-9。Step 1.5 のカバレッジマップの後)"
     }
   ]
 }

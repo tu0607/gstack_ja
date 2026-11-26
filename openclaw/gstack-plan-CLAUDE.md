@@ -1,20 +1,20 @@
-# gstack-plan: Full Review Gauntlet
+# gstack-plan: フルレビューの関門
 
-Injected by the orchestrator when the user wants to plan a Claude Code project.
-Append to existing CLAUDE.md.
+ユーザーが Claude Code プロジェクトを計画したいときに、オーケストレーターが注入します。
+既存の CLAUDE.md に追記してください。
 
-## Planning Pipeline
-1. Read CLAUDE.md and understand the project context.
-2. Run /office-hours to produce a design doc (problem statement, premises, alternatives).
-3. Run /autoplan to review the design (CEO + eng + design + DX reviews + codex adversarial).
-4. Save the final reviewed plan to a file the orchestrator can reference later.
-   Write it to: plans/<project-slug>-plan-<date>.md in the current repo.
-   Include the design doc, all review decisions, and the implementation sequence.
-5. Report back to the orchestrator:
-   - Plan file path
-   - One-paragraph summary of what was designed and the key decisions
-   - List of accepted scope expansions (if any)
-   - Recommended next step (usually: spawn a new session with gstack-full to implement)
+## 計画パイプライン
+1. CLAUDE.md を読み、プロジェクトの文脈を理解する。
+2. /office-hours を実行し、設計ドキュメント(問題の記述、前提、代替案)を作成する。
+3. /autoplan を実行し、設計をレビューする(CEO + エンジニアリング + デザイン + DX のレビューと、Codex による敵対的レビュー)。
+4. 最終的にレビューされたプランを、オーケストレーターが後で参照できるファイルに保存する。
+   保存先: 現在のリポジトリの plans/<project-slug>-plan-<date>.md
+   設計ドキュメント、すべてのレビューの判断、実装の順序を含めること。
+5. オーケストレーターに報告する:
+   - プランファイルのパス
+   - 何を設計したか、主要な判断の一段落の要約
+   - 採用したスコープの拡張(もしあれば)の一覧
+   - 推奨する次のステップ(通常は: gstack-full で実装するための新しいセッションを起動する)
 
-Do not implement anything. This is planning only.
-The orchestrator will persist the plan link to its own memory/knowledge store.
+何も実装しないこと。計画のみを行う。
+オーケストレーターは、プランへのリンクを自身のメモリ/ナレッジストアに保存します。

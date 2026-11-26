@@ -3,10 +3,9 @@ name: claude-code
 preamble-tier: 3
 version: 1.1.0
 description: |
-  Claude Code CLI second opinion for non-Claude Code hosts. Review a diff,
-  challenge a change for failure modes, or consult Claude with read-only repo
-  access and session continuity. Use for "claude review", "claude challenge",
-  "ask claude", or an explicit Claude Code second opinion. (gstack)
+  Claude Code CLI によるセカンドオピニオン(Claude Code 以外のホスト向け)。差分をレビューし、
+  変更の失敗パターンに異議を唱え、読み取り専用のリポジトリアクセスとセッションの継続性を持つ Claude に相談できます。
+  "claude review"、"claude challenge"、"ask claude"、または明示的な Claude Code のセカンドオピニオンを求められたときに使います。(gstack)
 triggers:
   - claude review
   - claude challenge
@@ -22,75 +21,35 @@ allowed-tools:
 
 {{BASE_BRANCH_DETECT}}
 
-# /claude-code — Claude Code second opinion
+# /claude-code — Claude Code によるセカンドオピニオン
 
-Use `/claude-code review [instructions]` for a diff review,
-`/claude-code challenge [focus]` for an adversarial review, and
-`/claude-code [question]` for repository consultation. The external invocation
-name is `gstack-claude-code`.
+差分のレビューには `/claude-code review [instructions]`、敵対的なレビューには `/claude-code challenge [focus]`、リポジトリへの相談には `/claude-code [question]` を使います。外部から呼び出す際の名前は `gstack-claude-code` です。
 
-This skill runs only on non-Claude Code harnesses. If a stale installed copy is
-loaded inside Claude Code, stop without spawning the CLI, report that outside
-coverage was unavailable, and repair the installation with `./setup --host claude`.
-Do not replace an explicitly requested provider with another provider.
+このスキルは Claude Code 以外のハーネスでのみ動作します。古くなったインストール済みのコピーが Claude Code 内で読み込まれた場合は、CLI を起動せずに停止し、外部のカバレッジが利用できなかったことを報告して、`./setup --host claude` でインストールを修復してください。明示的に要求されたプロバイダーを、別のプロバイダーに置き換えてはいけません。
 
-## Shared execution boundary
+## 共通の実行境界
 
-All three modes use `bin/gstack-claude-code`. The runner resolves the Claude CLI
-with `GSTACK_CLAUDE_BIN` / `CLAUDE_BIN` overrides and their argument prefixes,
-retains its configured authentication and model, and invokes `claude -p` using
-direct argument arrays and the prompt on stdin. It enforces:
+3 つのモードはすべて `bin/gstack-claude-code` を使います。ランナーは `GSTACK_CLAUDE_BIN` / `CLAUDE_BIN` の上書きとその引数プレフィックスを使って Claude CLI を解決し、設定済みの認証とモデルを保持します。そのうえで、直接の引数配列を使って `claude -p` を呼び出し、プロンプトは標準入力で渡します。ランナーは次を強制します:
 
-- Review/challenge: `--tools ""` (no tools).
-- Consult: `--tools Read,Grep,Glob --allowedTools Read,Grep,Glob`.
-- `--disable-slash-commands`, empty strict MCP configuration, MCP tools denied,
-  and custom hooks disabled. Managed Claude Code policy still applies. Nested
-  Claude has no tools for invoking gstack skills or editing files.
-- A 10-minute wall timeout and a 32 MiB combined output cap. Every execution
-  failure, `is_error`, malformed JSON, or empty response exits nonzero.
+- レビュー/チャレンジ: `--tools ""`(ツールなし)。
+- 相談: `--tools Read,Grep,Glob --allowedTools Read,Grep,Glob`。
+- `--disable-slash-commands`、空の厳密な MCP 設定、MCP ツールの拒否、カスタムフックの無効化。Claude Code の管理ポリシーは引き続き適用されます。ネストされた Claude には、gstack スキルを呼び出すツールやファイルを編集するツールはありません。
+- 10 分の実時間タイムアウトと、標準出力と標準エラーを合わせた 32 MiB の出力上限。実行の失敗、`is_error`、不正な JSON、空の応答はすべて、ゼロ以外の終了コードで終わります。
 
-Set `GSTACK_CLAUDE_MODEL=<model>` for an explicit override, including resumed
-consultations. If the user names a model, pass that value through this environment
-variable for every runner call. Without an override, retain Claude's configured
-model; harness routing never chooses a model family.
-Only for an explicit `--role plan-review` (e.g. `/claude-code challenge --role plan-review`),
-append `--role plan-review` to every runner call; the runner prints `CLAUDE_MODEL:` and
-passes that one policy model (none in host mode). [Policy setup](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md).
+明示的な上書きには `GSTACK_CLAUDE_MODEL=<model>` を設定します。再開された相談も含みます。ユーザーがモデルを指定した場合は、すべてのランナー呼び出しでこの環境変数を通じてその値を渡してください。上書きがなければ、Claude の設定済みモデルを保持します。ハーネスのルーティングがモデルのファミリーを選ぶことはありません。
+明示的な `--role plan-review`(例: `/claude-code challenge --role plan-review`)の場合に限り、すべてのランナー呼び出しに `--role plan-review` を追加します。ランナーは `CLAUDE_MODEL:` を出力し、そのポリシーモデル 1 つだけを渡します(ホストモードではモデルなし)。[ポリシーの設定](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md)。
 
-Do not infer authentication state from credential files or environment variables.
-Run the actual runner invocation in the host's normal execution context. On a
-host with shell sandboxing, use its normal approval mechanism if required for
-the actual invocation. Only report an authentication blocker from that result.
-Resolve the binary and invoke it in the same host execution context.
+認証の状態を、認証情報のファイルや環境変数から推測しないでください。実際のランナーの呼び出しを、ホストの通常の実行コンテキストで実行します。シェルのサンドボックスがあるホストでは、実際の呼び出しに承認が必要な場合は、その通常の承認の仕組みを使ってください。認証のブロッカーは、その実行結果から得られた場合にだけ報告します。バイナリの解決と呼び出しも、同じホストの実行コンテキストで行ってください。
 
-Write the complete mode prompt to a private temporary file using the host's
-file-writing tool. Never interpolate user text into shell source. Resolve the
-installed gstack runtime directory from the skill location (the sibling
-`gstack/` directory beside the installed `gstack-claude-code/` directory).
+完全なモードのプロンプトを、ホストのファイル書き込みツールを使って非公開の一時ファイルに書き出します。ユーザーのテキストをシェルのソースに埋め込むことは決してしないでください。インストールされた gstack のランタイムディレクトリは、スキルの場所から解決します(インストール済みの `gstack-claude-code/` ディレクトリの隣にある `gstack/` ディレクトリ)。
 
-Each mode below is **one complete shell invocation**. Replace the entire literal
-`'<prepared-prompt-file>'` with the shell-quoted pathname of that owned prompt
-file, and `'<gstack-runtime-root>'` with the shell-quoted installed runtime path.
-For review/challenge, also replace `'<base>'` with the shell-quoted detected base
-branch. A pathname containing an apostrophe must use proper shell quoting; do
-not insert raw text between the placeholder's quote characters. No setup,
-variables, parsing helpers, or traps carry over from another shell invocation.
-The complete fence validates completion and cleans its owned prompt and scratch
-files on success or failure.
+以下の各モードは**1 回の完全なシェル呼び出し**です。リテラルの `'<prepared-prompt-file>'` 全体を、そのプロンプトファイルのシェルでクォートされたパス名に置き換えます。`'<gstack-runtime-root>'` は、インストールされたランタイムのパスをシェルでクォートしたものに置き換えます。レビュー/チャレンジでは、`'<base>'` も検出したベースブランチをシェルでクォートしたものに置き換えます。アポストロフィを含むパス名は、適切なシェルのクォートを使う必要があります。プレースホルダーのクォート文字の間に、生のテキストを挿入しないでください。別のシェル呼び出しから、セットアップ、変数、解析用のヘルパー、trap は引き継がれません。完全な手順は、完了を検証し、成功でも失敗でも所有している一時のプロンプトと作業ファイルを削除します。
 
-Present the response faithfully inside a `tool-output` fence, labelled
-`CLAUDE CODE SAYS (review|challenge|consult)`, then add host-agent synthesis.
-Keep all reported models when the CLI used more than one; absent model identity
-stays unknown.
+レスポンスは、`CLAUDE CODE SAYS (review|challenge|consult)` とラベルを付けた `tool-output` のフェンスの中に、忠実に提示します。そのうえで、ホストのエージェントとしての総合的な見解を追加します。CLI が複数のモデルを使った場合は、報告するモデルをすべて残してください。モデルの識別子がない場合は unknown とします。
 
-## Review mode
+## レビューモード
 
-Prepare a prompt asking Claude to review for bugs, production failure modes,
-security issues, missing tests, and maintainability problems, with file/code
-references. Include additional user instructions. Request severity-labelled
-findings (`[P1]`, `[P2]`, `[P3]`) or explicit `NO_FINDINGS` when review completes
-with no issues. The invocation appends the full branch plus working-tree diff
-because tool-less Claude cannot execute git commands:
+バグ、本番環境での失敗パターン、セキュリティの問題、不足しているテスト、保守性の問題について、ファイルやコードの参照を付けてレビューするよう Claude に求めるプロンプトを用意します。ユーザーの追加の指示も含めます。重大度のラベル付きの指摘(`[P1]`、`[P2]`、`[P3]`)を求めます。問題がなくレビューが完了した場合は、明示的な `NO_FINDINGS` を求めます。ツールなしの Claude は git コマンドを実行できないため、この呼び出しはブランチ全体とワーキングツリーの差分を追加します:
 
 ```bash
 set -e
@@ -152,13 +111,9 @@ try {
 JS
 ```
 
-## Challenge mode
+## チャレンジモード
 
-Prepare a prompt asking Claude to try to break the change: edge cases, races,
-security holes, resource leaks, silent data corruption, bad error handling, and
-operational failures. Include the user's focus, if any. Request severity-labelled
-findings or explicit `NO_FINDINGS`. This complete invocation captures and appends
-the same branch plus working-tree diff as review mode:
+変更を壊すことを Claude に試させるプロンプトを用意します。エッジケース、競合状態、セキュリティの穴、リソースリーク、静かなデータ破損、不適切なエラー処理、運用上の失敗が対象です。ユーザーが焦点を指定していれば、それも含めます。重大度のラベル付きの指摘、または明示的な `NO_FINDINGS` を求めます。この完全な呼び出しも、レビューモードと同じブランチとワーキングツリーの差分を取得して追加します:
 
 ```bash
 set -e
@@ -220,16 +175,11 @@ try {
 JS
 ```
 
-## Consult mode
+## 相談モード
 
-Check `.context/claude-session-id` with a file-reading tool. If present, ask whether
-to continue the session or start fresh, unless the user already specified that
-preference. Prepare a prompt asking Claude to answer the user's question directly
-and inspect repository files only through Read, Grep, and Glob.
+ファイル読み取りツールで `.context/claude-session-id` を確認します。存在する場合は、ユーザーがすでに希望を指定していない限り、そのセッションを続けるか、新しく始めるかを尋ねます。ユーザーの質問に直接答えるよう Claude に求めるプロンプトを用意します。リポジトリのファイルは Read、Grep、Glob を通してのみ調べさせます。
 
-Replace `'<fresh-or-resume>'` with `'fresh'` or `'resume'` according to that choice.
-The single invocation reads any saved ID itself and saves continuity only after
-a validated completion. Automatic workflow reviews always start fresh.
+`'<fresh-or-resume>'` を、その選択に応じて `'fresh'` または `'resume'` に置き換えます。1 回の呼び出しで、保存された ID は呼び出し自身が読み取り、検証済みの完了後にのみ継続性を保存します。ワークフローによる自動レビューは、常に新しいセッションで始めます。
 
 ```bash
 set -e
@@ -290,18 +240,11 @@ try {
 JS
 ```
 
-## Errors and cleanup
+## エラーとクリーンアップ
 
-- Missing/broken CLI: report the runner's named error and installation/override
-  instructions. Do not invoke a different provider.
-- Authentication failure: report the actual invocation error and ask the user
-  to authenticate with `claude` in that execution context.
-- Timeout, nonzero exit, empty/malformed response, output limit, refusal, or
-  missing review markers: report unavailable outside coverage and the error;
-  do not report a clean review. A consult answer does not require review markers.
-- Resume failure: remove the stale session ID and retry the complete consult
-  invocation once with a newly prepared prompt and `SESSION_MODE='fresh'` only
-  when the actual error identifies an invalid/missing session. Other errors stop.
+- CLI が見つからない、または壊れている場合: ランナーが示す名前付きのエラーと、インストールや上書きの手順を報告します。別のプロバイダーを呼び出してはいけません。
+- 認証の失敗: 実際の呼び出しのエラーを報告し、その実行コンテキストで `claude` を使って認証するようユーザーに求めます。
+- タイムアウト、ゼロ以外の終了コード、空または不正な形式のレスポンス、出力の上限、拒否、またはレビューのマーカーがないこと: 外部のカバレッジが利用できなかったことと、そのエラーを報告します。きれいなレビューだったとは報告しないでください。相談への回答には、レビューのマーカーは必要ありません。
+- 再開の失敗: 古いセッション ID を削除し、実際のエラーが無効または存在しないセッションを示している場合に限り、新しく用意したプロンプトと `SESSION_MODE='fresh'` で、完全な相談の呼び出しを 1 回だけ再試行します。それ以外のエラーでは停止します。
 
-Each mode's trap removes its owned temporary prompt and scratch directory.
-Do not delete the saved consult session on unrelated provider errors.
+各モードの trap は、所有している一時のプロンプトと作業ディレクトリを削除します。無関係なプロバイダーのエラーで、保存された相談のセッションを削除しないでください。

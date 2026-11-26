@@ -156,14 +156,14 @@ describe('template wiring', () => {
   const step = (title: string, next: string) => main.slice(main.indexOf(title), main.indexOf(next));
 
   test('Step 2 and the Step 3 CI wait call the helper, not a --required-only query', () => {
-    const step2 = step('## Step 2: Pre-merge checks', '## Step 3: Wait for CI');
-    const step3 = step('## Step 3: Wait for CI', '## Step 3.4');
+    const step2 = step('## Step 2: マージ前のチェック', '## Step 3: CI の完了を待つ');
+    const step3 = step('## Step 3: CI の完了を待つ', '## Step 3.4');
     expect(step2).toContain('bin/gstack-ci-gate --repo "$REPO" --pr "$PR_NUMBER" --expect-head "$PR_HEAD"');
     expect(step3).toMatch(/bin\/gstack-ci-gate [^\n]*--expect-head "\$PR_HEAD" --wait \d+/);
     expect(`${step2}${step3}`).not.toMatch(/gh pr checks[^\n]*--required/);
     expect(step3).not.toContain('--watch');
-    expect(step3).toContain('still-pending checks');
-    expect(step2).toContain('never on the exit code');
+    expectMentions(step3, [['保留中', 'チェック', '一覧']], 'step3');
+    expectMentions(step2, [['`VERDICT <verdict> <sha>`', '終了コードではなく']], 'step2');
   });
 
   test('both merge commands, including the direct fallback, run only after the gate', () => {
@@ -174,7 +174,7 @@ describe('template wiring', () => {
       expect(block).toContain('"VERDICT PASS $PR_HEAD"|"VERDICT NO_CHECKS $NO_CI_APPROVED_HEAD") ;;');
       expect(block).toContain('*) exit 1 ;;');
     }
-    expectMentions(source('sections/merge-and-deploy.md.tmpl'), [['only', 'check-to-merge', 'protection']], 'section');
+    expectMentions(source('sections/merge-and-deploy.md.tmpl'), [['ブランチ保護', 'マージキュー', 'チェックからマージ']], 'section');
   });
 
   test('readiness report carries a CI row and one-way override questions', () => {
@@ -182,7 +182,7 @@ describe('template wiring', () => {
     expect(readiness).toContain('CI (head <sha7>)');
     expect(readiness).toContain('land-and-deploy-ci-override');
     expect(readiness).toContain('land-and-deploy-no-ci-confirm');
-    expect(readiness).toContain('never stored or reused');
+    expectMentions(readiness, [['保存も再利用もしません']], 'readiness');
   });
 
   test('generated skill files carry the helper calls', () => {

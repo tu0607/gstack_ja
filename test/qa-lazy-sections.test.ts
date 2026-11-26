@@ -13,7 +13,7 @@ import { PARITY_INVARIANTS, runParityChecks } from './helpers/parity-harness';
 import { expectMentions, expectTokens } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-const owned = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-qa-sections-'));
+const owned = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-qa-sections-')));
 const rendered = path.join(owned, 'rendered');
 const setup = fs.readFileSync(path.join(ROOT, 'setup'), 'utf8');
 const QA_SKILLS = ['qa', 'qa-only'];
@@ -58,26 +58,26 @@ describe('QA-only cross-host lazy rendering', () => {
   test('Codex review defines omitted-Army records without waiving native or QA completion', () => {
     const codex = ALL_HOST_CONFIGS.find(host => host.name === 'codex')!;
     const text = fs.readFileSync(path.join(rendered, codex.hostSubdir, 'skills/gstack-review/SKILL.md'), 'utf8');
-    const record = text.slice(text.indexOf('## Step 5.8: Persist Eng Review result')).replace(/\s+/g, ' ');
+    const record = text.slice(text.indexOf('## Step 5.8: エンジニアリングレビューの結果を保存する')).replace(/\s+/g, ' ');
     expect(text).not.toContain('### Dispatch specialists');
-    expect(text).not.toContain('### Step 4.6: Collect and merge findings');
+    expect(text).not.toContain('### Step 4.6: 指摘の収集とマージ');
     expect(text).not.toContain('SPECIALIST REVIEW: N findings');
     expectTokens(record, ['`specialists: {}`'], 'record');
-    expectMentions(record, [['without', 'specialist', 'claiming']], 'record');
-    expect(record).toContain('`10.0` when small-diff specialists were skipped or this host omits Review Army');
-    expectMentions(record, [['not', 'completion', 'evidence']], 'record');
-    expectMentions(record, [['not', 'inconclusive', 'required']], 'record');
-    expect(record).toContain('`/ship` named-risk acceptance cannot complete `/review`');
+    expectMentions(record, [['専門家のカバレッジを主張せず', '`specialists: {}`']], 'record');
+    expect(record).toContain('小規模差分の専門家がスキップされた場合、またはホストが Review Army を省略している場合は `10.0`');
+    expectMentions(record, [['完了の証拠ではありません']], 'record');
+    expectMentions(record, [['失敗', 'ブロック', '判定不能', '未実行', 'false']], 'record');
+    expectMentions(record, [['`/ship`', '名指しのリスク受容', '`/review`', '完了させられません']], 'record');
     expectTokens(record, ['`issues_found`'], 'record');
-    expect(record).toContain('State INCOMPLETE if `COMPLETED` is false, even when N=0');
+    expectMentions(record, [['`COMPLETED`', 'false', 'INCOMPLETE', 'N=0']], 'record');
   });
 
   for (const host of ALL_HOST_CONFIGS) {
     test(`${host.name} review loads QA methods before static review and reuses them before probes`, () => {
       const directory = host.name === 'claude' ? 'review' : `${host.hostSubdir}/skills/gstack-review`;
       const text = fs.readFileSync(path.join(rendered, directory, 'SKILL.md'), 'utf8');
-      const start = text.indexOf('## Step 4: Critical pass (core review)');
-      const core = text.indexOf('Apply both checklist passes in order', start);
+      const start = text.indexOf('## Step 4: 重大な問題のパス(コアのレビュー)');
+      const core = text.indexOf('チェックリストの 2 つのパスを順番に適用してください', start);
       const exploration = text.indexOf('### Step 4.7: Exploratory QA', core);
       expect(start).toBeGreaterThan(-1);
       expect(core).toBeGreaterThan(start);
@@ -85,39 +85,39 @@ describe('QA-only cross-host lazy rendering', () => {
       const preparation = text.slice(start, core);
       const loop = preparation.indexOf('sections/exploratory.md');
       expect(loop).toBeGreaterThan(-1);
-      expect(preparation).toContain('Step 4 is read-only: defer charters, setup and probes to Step 4.7');
+      expect(preparation).toContain('Step 4 は読み取り専用です。charter、セットアップ、プローブは Step 4.7 に回します');
       expect(preparation).not.toContain('sections/system-functional.md');
       const qaDirectory = host.name === 'claude' ? 'qa' : `${host.hostSubdir}/skills/gstack-qa`;
       const shared = fs.readFileSync(path.join(rendered, qaDirectory, 'sections/exploratory.md'), 'utf8');
-      const scope = shared.indexOf('Read `sections/scope.md`');
-      const selection = shared.indexOf('in full and select the surfaces');
-      const methods = shared.indexOf('Read `sections/system-functional.md`');
+      const scope = shared.indexOf('`sections/scope.md`');
+      const selection = shared.indexOf('全文 Read し、面を選びます');
+      const methods = shared.indexOf('`sections/system-functional.md`');
       expect(scope).toBeGreaterThan(-1);
       expect(selection).toBeGreaterThan(scope);
       expect(methods).toBeGreaterThan(selection);
-      expect(shared).toContain('**Browser surfaces only:**');
+      expect(shared).toContain('**Browser の面のみ:**');
       expect(preparation).not.toContain('sections/browser-setup.md');
       expect(shared).toContain('sections/qa-patterns.md');
-      expect(preparation.replace(/\s+/g, ' ')).toContain('Step 4 is read-only: defer charters, setup and probes to Step 4.7');
-      expect(shared.indexOf('Write a **charter**')).toBeGreaterThan(methods);
-      expectMentions(shared, [['do not', 'invocation', 'completed']], 'shared');
-      const qa = text.slice(exploration, text.indexOf('## Step 5: Fix-First Review', exploration));
-      const charter = qa.indexOf('**1. Set the charter and isolation.**');
-      const readiness = qa.indexOf('**2. Check readiness and list required checks.**');
-      const setup = qa.indexOf("Read QA's `sections/browser-setup.md`");
-      const probes = qa.indexOf('**3. Run smoke and plan checks.**');
+      expect(preparation.replace(/\s+/g, ' ')).toContain('Step 4 は読み取り専用です。charter、セットアップ、プローブは Step 4.7 に回します');
+      expect(shared.indexOf('**charter** を書きます')).toBeGreaterThan(methods);
+      expectMentions(shared, [['この呼び出し', 'Read', '繰り返']], 'shared');
+      const qa = text.slice(exploration, text.indexOf('## Step 5: Fix-First レビュー', exploration));
+      const charter = qa.indexOf('**1. charter と隔離を設定します。**');
+      const readiness = qa.indexOf('**2. 準備状況を確認し、必要なチェックを列挙します。**');
+      const setup = qa.indexOf("QA の `sections/browser-setup.md`");
+      const probes = qa.indexOf('**3. スモークとプランのチェックを実行します。**');
       expect(charter).toBeGreaterThan(-1);
       expect(readiness).toBeGreaterThan(charter);
       expect(setup).toBeGreaterThan(readiness);
       expect(probes).toBeGreaterThan(setup);
-      expectMentions(qa.slice(charter, readiness).replace(/\s+/g, ' '), [['before', 'isolation/permission', 'preflight']], 'section');
+      expectMentions(qa.slice(charter, readiness).replace(/\s+/g, ' '), [['セットアップの前に', '隔離/許可の事前確認']], 'section');
       const flat = qa.replace(/\s+/g, ' ');
-      expectMentions(flat, [['only', 'tools/session/target/ownership', 'otherwise']], 'flat');
-      expectMentions(flat, [['never', 'bootstrap', 'install']], 'flat');
-      expect(flat).toContain('Functional-only skips browser setup');
+      expectMentions(flat, [['再利用するのは', 'ツール/セッション/対象/所有権', '検証済み']], 'flat');
+      expectMentions(flat, [['インストール', 'Cookie', 'ブートストラップ', '行いません']], 'flat');
+      expect(flat).toContain('functional のみの場合は、browser のセットアップをスキップします');
       if (usesLazySections(host.name, 'review')) {
         const index = text.slice(text.indexOf('## Section index'), text.indexOf('## Step 1:'));
-        expect(index.indexOf('Select surfaces and read QA methods')).toBeLessThan(index.indexOf('sections/review-army.md'));
+        expect(index.indexOf('サーフェスの選択と QA 手法の読み込み')).toBeLessThan(index.indexOf('sections/review-army.md'));
       } else {
         expect(text).not.toContain('## Section index');
       }
@@ -135,9 +135,9 @@ describe('QA-only cross-host lazy rendering', () => {
         const pointer = fixture.SECTION(ctx, ['native']);
         expect(pointer).toContain(reference);
         expect(pointer).toContain('probing a native contract');
-        expect(pointer).toContain('never the product working directory');
-        expect(pointer).toContain('missing or unreadable');
-        expect(pointer).toContain('QA setup blocker');
+        expect(pointer).toContain('プロダクトの作業ディレクトリ');
+        expect(pointer).toContain('見つからない、または読み取れない');
+        expect(pointer).toContain('QA のセットアップブロッカー');
         expect(pointer).not.toContain('PRIVATE_SECTION_BODY');
         expect(pointer).not.toContain('$GSTACK_ROOT');
         expect(fixture.SECTION_INDEX(ctx)).toContain(reference);
@@ -172,7 +172,7 @@ describe('QA-only cross-host lazy rendering', () => {
       const pointer = host.name === 'claude'
         ? `\`~/.claude/skills/gstack/ship/sections/${entry.file}\``
         : `\`sections/${entry.file}\` relative to the installed \`gstack-ship\` SKILL.md directory`;
-      expect(SECTION(ctx, [entry.id])).toBe(`> **STOP.** Before ${entry.trigger}, Read ${pointer} and execute it\n> in full. Do not work from memory — that section is the source of truth for this step.`);
+      expect(SECTION(ctx, [entry.id])).toBe(`> **STOP.** ${entry.trigger}の前に、Read ${pointer} を全文読んで実行してください。\n> 記憶から作業しないこと。このステップの正はそのセクションです。`);
       // Skills carved only on Claude still inline their sections elsewhere.
       const reviewCtx = context(host.name, 'review');
       const reviewEntry = JSON.parse(fs.readFileSync(path.join(ROOT, 'review/sections/manifest.json'), 'utf8')).sections[0];
@@ -197,12 +197,12 @@ describe('QA-only cross-host lazy rendering', () => {
       const entry = fs.readFileSync(path.join(rendered, dir, 'SKILL.md'), 'utf8');
       const browserRead = generateQAResource(context(host.name, 'qa-only'), ['browser-setup']);
       expect(entry).toContain(browserRead);
-      expect(entry.indexOf('**Browser surface only:**')).toBeLessThan(entry.indexOf(browserRead));
+      expect(entry.indexOf('**ブラウザの対象のみ:**')).toBeLessThan(entry.indexOf(browserRead));
       expect(browserRead).toContain(sectionPath(context(host.name, 'qa-only'), 'qa', 'browser-setup'));
-      expect(browserRead).toContain("this host's installed caller skill");
-      expect(browserRead).toContain('No product-directory or cross-host substitutes');
-      expect(browserRead).toContain('Missing/unreadable assets block required QA');
-      expect(browserRead).toContain('continue other safe probes');
+      expect(browserRead).toContain('このホストにインストールされた呼び出し元スキル');
+      expect(browserRead).toContain('プロダクトのディレクトリや他ホストのもので代用してはいけません');
+      expect(browserRead).toContain('見つからない/読み取れないアセットは、必須の QA をブロックします');
+      expect(browserRead).toContain('ほかの安全なプローブ');
       expect(generated.artifacts.some(artifact => artifact.relativePath === `${dir}/sections/browser-setup.md`)).toBe(false);
       const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'qa-only/sections/manifest.json'), 'utf8'));
       expect(manifest.sections.some((section: { id: string }) => section.id === 'browser-setup')).toBe(false);
@@ -214,57 +214,57 @@ describe('QA-only cross-host lazy rendering', () => {
     test(`${host.name} both QA entrypoints reach shared functional modes before probes`, () => {
       const qaDirectory = host.name === 'claude' ? 'qa' : `${host.hostSubdir}/skills/gstack-qa`;
       const functional = fs.readFileSync(path.join(rendered, qaDirectory, 'sections/system-functional.md'), 'utf8');
-      const modes = functional.slice(functional.indexOf('## Functional modes'), functional.indexOf('## Contract map'));
+      const modes = functional.slice(functional.indexOf('## Functional modes'), functional.indexOf('## Contract map')).replace(/\s+/g, ' ');
       for (const contract of [
-        '**Full** (default)', 'every applicable documented contract', '**Quick** (`--quick`)',
-        'success and the highest-risk changed edge', 'contracts not run',
-        '**Regression** (`--regression <previous-report>`)', 'before probes, read the supplied',
-        'functional report and linked replay evidence', 'missing, unreadable or wrong-target',
-        'baseline blocks regression mode', 'browser-only `baseline.json` is not a functional',
-        'Re-establish owned setup', 'replay prior failed probes against the documented',
-        'never recorded buggy output', 'changed adjacent behavior', 'Preserve the prior report',
-        'fixed, still failing and new findings', 'Missing safe replay inputs block affected probes',
-        'never count as passes', "Mixed runs apply each surface's mode separately",
-        "bounded smoke and explicit plan checks, not Full exploration",
+        '**Full**(デフォルト)', '文書化されたすべての契約を網羅します', '**Quick**(`--quick`)',
+        '成功と、変更された最もリスクの高いエッジを確認し', 'not run とします',
+        '**Regression**(`--regression <previous-report>`)', 'プローブの前に、渡された',
+        'functional レポートとリンクされたリプレイ証拠を読みます', 'ベースラインが欠落している、読めない、または対象が違う',
+        '場合は、regression モードをブロックします', 'browser のみの `baseline.json` は functional の',
+        '所有するセットアップを再確立し', '以前に失敗したプローブを文書化された',
+        '記録されたバグのある出力に対してではありません', '変更された隣接する挙動を確認します', '以前のレポートは保存し',
+        '修正済み、まだ失敗、新規の指摘を別々に報告します', '安全なリプレイ入力が欠けている場合は、影響を受けるプローブをブロックし',
+        'pass には数えません', 'mixed の実行では、各面のモードを別々に適用します',
+        '上限付きスモークと明示的なプランのチェックを保持し、Full の探索は行いません',
       ]) expect(modes).toContain(contract);
       expect(functional.indexOf('## Functional modes')).toBeLessThan(functional.indexOf('## Execute and retain evidence'));
       for (const skill of QA_SKILLS) {
         const dir = host.name === 'claude' ? skill : `${host.hostSubdir}/skills/gstack-${skill}`;
         const entry = fs.readFileSync(path.join(rendered, dir, 'SKILL.md'), 'utf8');
-        expect(entry).toContain('| Mode | full | `--quick`, `--regression <previous-report-or-baseline>` |');
+        expect(entry).toContain('| Mode | full | `--quick`、`--regression <previous-report-or-baseline>` |');
         expect(entry).toContain(sectionPath(context(host.name, skill), skill, 'exploratory'));
         expect(entry).not.toContain('## Functional modes');
         const explorer = fs.readFileSync(path.join(rendered, dir, 'sections/exploratory.md'), 'utf8');
-        const functionalRead = 'Read `sections/system-functional.md` in full.';
+        const functionalRead = '`sections/system-functional.md` を全文 Read します。';
         expect(entry).not.toContain(functionalRead);
-        expect(entry).toContain(skill === 'qa' ? "Follow the shared section's ordered preparation" : 'Load the shared preparation gate now');
+        expect(entry).toContain(skill === 'qa' ? '共有セクションの順序付けられた準備に従い' : '共有の準備ゲート(すぐ下の exploratory の STOP)をここで読み込んでください');
         expect(explorer).toContain(generateQAMethodReads(context(host.name, skill)));
-        const stages = ['1. Read `sections/scope.md`', 'in full and select the surfaces', functionalRead,
-          'Read `sections/qa-patterns.md` in full.', 'Write a **charter**', '1. First demonstrate success'];
+        const stages = ['1. `sections/scope.md`', '全文 Read し、面を選びます', functionalRead,
+          '`sections/qa-patterns.md` を全文 Read します。', '**charter** を書きます', '1. まず成功を実証します'];
         const positions = stages.map(stage => explorer.indexOf(stage));
         expect(positions.every(position => position >= 0)).toBe(true);
         expect(positions).toEqual([...positions].sort((a, b) => a - b));
         expect(explorer.split(functionalRead)).toHaveLength(2);
-        expectMentions(explorer, [['do not', 'invocation', 'completed']], 'explorer');
+        expectMentions(explorer, [['この呼び出し', 'Read', '繰り返']], 'explorer');
         if (skill === 'qa') {
-          expect(entry).toMatch(/`--quick`[^\n]*Quick exploration/i);
-          expect(entry).toContain('`--exhaustive` changes only the fix tier');
-          for (const tier of ['**Quick:** Fix critical + high severity only', '**Standard:** + medium severity (default)', '**Exhaustive:** + low/cosmetic severity']) expect(entry).toContain(tier);
+          expect(entry).toMatch(/`--quick` は、Quick の修正階層と Quick の探索の両方を設定します/);
+          expect(entry).toContain('`--exhaustive` は修正階層のみを変更します');
+          for (const tier of ['**Quick:** critical と high の重大度のみを修正', '**Standard:** + medium の重大度(デフォルト)', '**Exhaustive:** + low/cosmetic の重大度']) expect(entry).toContain(tier);
         } else {
-          expectMentions(entry, [['never', 'product', 'write']], 'entry');
-          const browserSetup = entry.indexOf('## Browser Setup (conditional)');
+          expectMentions(entry, [['何も修正せず', '製品のテスト', '変更しないでください']], 'entry');
+          const browserSetup = entry.indexOf('## Browser Setup(条件付き)');
           const selectedChecks = entry.indexOf('## Run the Selected Checks');
           expect(browserSetup).toBeGreaterThan(0);
           expect(selectedChecks).toBeGreaterThan(browserSetup);
           expect(entry.lastIndexOf(sectionPath(context(host.name, skill), skill, 'exploratory'))).toBeLessThan(browserSetup);
           expect(entry.slice(browserSetup, selectedChecks)).not.toContain(functionalRead);
-          expectMentions(entry, [['do not', 'preparation', 'section']], 'entry');
-          expect(entry).toContain('Defer charters, clocks and probes to');
-          expectMentions(explorer, [['before', 'complete', 'charters']], 'explorer');
+          expectMentions(entry, [['準備を最初から', 'やり直さないでください']], 'entry');
+          expect(entry).toContain('チャーター、時計、プローブは、Run the Selected Checks まで延期します');
+          expectMentions(explorer, [['チャーター', 'プローブ', '前に', '完了']], 'explorer');
           expect(explorer).toContain('## 3. Parent handoff');
-          expect(explorer).toContain('Return test_stub proposals');
-          expectMentions(explorer, [['never', 'create', 'freeze']], 'explorer');
-          expect(explorer).not.toMatch(/before repair|For \/review and \/ship|every new \/ship/);
+          expect(explorer).toContain('test_stub の提案を返します');
+          expectMentions(explorer, [['テストを作成', 'バグのある出力を固定', 'いけません']], 'explorer');
+          expect(explorer).not.toMatch(/修復の前に|\/review と \/ship では/);
         }
       }
       const browser = fs.readFileSync(path.join(rendered, qaDirectory, 'sections/qa-patterns.md'), 'utf8');
@@ -280,22 +280,22 @@ describe('QA-only cross-host lazy rendering', () => {
         const body = fs.readFileSync(path.join(dir, 'SKILL.md'), 'utf8')
           + (caller === 'ship' // C4: ship is carved on every host
             ? fs.readFileSync(path.join(dir, 'sections/review-army.md'), 'utf8') : '');
-        expect(body).toContain(`From the installed /${caller} SKILL.md's directory`);
-        expect(body).toContain(`Read \`../${prefix}qa/sections/exploratory.md\` in full`);
+        expect(body).toContain(`インストール済みの /${caller} の SKILL.md があるディレクトリから`);
+        expect(body).toContain(`\`../${prefix}qa/sections/exploratory.md\` を全文 Read します`);
         const scopeTarget = path.resolve(dir, `../${prefix}qa/sections/scope.md`);
         expect(fs.realpathSync(scopeTarget)).toBe(path.join(base, `${prefix}qa/sections/scope.md`));
         const target = path.resolve(dir, `../${prefix}qa/sections/exploratory.md`);
         expect(fs.realpathSync(target)).toBe(path.join(base, `${prefix}qa/sections/exploratory.md`));
         expect(fs.readFileSync(target, 'utf8')).toContain('# Shared exploratory QA');
         expect(fs.readFileSync(target, 'utf8')).toContain(sectionPath(context(host.name, 'qa'), 'qa', 'scope'));
-        expect(fs.readFileSync(scopeTarget, 'utf8')).toContain('Select **browser**, **functional**');
+        expect(fs.readFileSync(scopeTarget, 'utf8')).toContain('**browser**、**functional**');
         if (host.name === 'claude') {
-          expect(body).toContain(`If the caller directory is prefixed \`gstack-${caller}\``);
-          expect(body).toContain('use `../gstack-qa/sections/exploratory.md` instead');
+          expect(body).toContain(`呼び出し元のディレクトリが \`gstack-${caller}\` で始まる場合は`);
+          expect(body).toContain('代わりに `../gstack-qa/sections/exploratory.md` を使い');
           if (caller === 'review') {
-            expectMentions(body, [['do not', 'installation', 'unresolved']], 'body');
-            expectMentions(body, [['never', 'installation', 'product']], 'body');
-            expect(body).toContain('Missing/unreadable assets block required QA');
+            expectMentions(body, [['QA のインストール', '解決できない', 'ブロッカー']], 'body');
+            expectMentions(body, [['このホストのインストール', 'プロダクトのツリー', '決して']], 'body');
+            expect(body).toContain('見つからない/読み取れないアセットは、必須の QA をブロックします');
           }
           const registry = path.join(owned, 'prefixed-callers', caller);
           fs.mkdirSync(path.join(registry, `gstack-${caller}`), { recursive: true });
@@ -357,42 +357,42 @@ describe('QA-only cross-host lazy rendering', () => {
 describe('installed QA pointers', () => {
   test('QA-only reads methods and finalization before their dependent writes', () => {
     const source = fs.readFileSync(path.join(ROOT, 'qa-only/SKILL.md.tmpl'), 'utf8');
-    const stages = ['Load the shared preparation gate now', '{{SECTION:exploratory}}',
-      '## Prepare Report Artifacts', '## Run the Selected Checks', 'With its required Reads complete and report ownership resolved, Write the charters',
-      '### Assemble the report', '{{SECTION:reporting}}', '### Write the checked report'];
+    const stages = ['共有の準備ゲート(すぐ下の exploratory の STOP)をここで読み込んでください', '{{SECTION:exploratory}}',
+      '## Prepare Report Artifacts', '## Run the Selected Checks', '必要な Read を完了させ、レポートの所有権を解決したら、チャーターを所有するレポートに Write し',
+      '### レポートを組み立てる', '{{SECTION:reporting}}', '### 検証済みのレポートを書く'];
     const positions = stages.map(stage => source.indexOf(stage));
     expect(positions.every(position => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
-    expect(source.indexOf('Write identical content')).toBeGreaterThan(source.indexOf('{{SECTION:reporting}}'));
+    expect(source.indexOf('同一の内容を書き込みます')).toBeGreaterThan(source.indexOf('{{SECTION:reporting}}'));
     expect(source).not.toContain('{{SLUG_SETUP}}');
     expect(source).not.toContain('{{SLUG_EVAL}}');
-    expectMentions(source, [['not', 'finalization', 'preparation']], 'source');
+    expectMentions(source, [['繰り返し禁止', '準備の Read', '確定の Read', '適用されません']], 'source');
     expectTokens(source, ['**Charters**'], 'source');
-    expectMentions(source, [['before', 'preserve', 'charters']], 'source');
+    expectMentions(source.replace(/\s+/g, ' '), [['チャーター', 'メタデータ', '指摘の前', '残してください']], 'source');
   });
 
   test('QA-only defines standalone permissions, mixed modes and outside changes', () => {
     const source = ['qa-only/SKILL.md.tmpl', 'qa-only/sections/reporting.md.tmpl']
       .map(file => fs.readFileSync(path.join(ROOT, file), 'utf8')).join('\n').replace(/\s+/g, ' ');
-    expect(source).toContain('**caller** means this /qa-only workflow');
-    expect(source).toContain('**Owned** means created for this run or explicitly assigned to it, not merely writable');
-    expectMentions(source, [['does not', 'permission', 'invoking']], 'source');
-    expectMentions(source, [['do not', 'forbidden', 'create']], 'source');
-    expectMentions(source, [['unless', 'selected', 'surfaces']], 'source');
-    expectMentions(source, [['only', 'source/diff', 'changes']], 'source');
+    expect(source).toContain('**caller** はこの /qa-only のワークフローを指します');
+    expect(source).toContain('**Owned** は、この実行のために作成された、またはこの実行に明示的に割り当てられたものを指します。書き込み可能というだけでは該当しません');
+    expectMentions(source, [['/qa-only を単独で呼び出しても', 'この許可は与えられません']], 'source');
+    expectMentions(source, [['禁止された', '作らないでください']], 'source');
+    expectMentions(source, [['指定しない限り', '選択されたすべての対象']], 'source');
+    expectMentions(source, [['ソース/差分の読み取り', '変更', 'だけ']], 'source');
     expectTokens(source, ['`TODOS.md`'], 'source');
-    expect(source).toContain('defaulting to functional then browser');
-    expectMentions(source, [['does not', 'switching', 'absolute']], 'source');
-    expect(source).toContain('CLI executable basename');
-    expect(source).toContain('**No explicit permission:** skip learning-store writes and continue to the report');
-    expect(source).toContain('**Explicit permission:** Read the named store first');
-    expect(source).toContain('Do not run logging helpers');
+    expect(source).toContain('デフォルトは機能、次にブラウザです');
+    expectMentions(source, [['対象を切り替えても', '期限は延長されません']], 'source');
+    expect(source).toContain('CLI の実行ファイルのベース名');
+    expect(source).toContain('**明示的な許可がない場合:** 学習ストアへの書き込みはスキップし、レポートに進みます');
+    expect(source).toContain('**明示的な許可がある場合:** まず、指定されたストアを読み込んでください');
+    expect(source).toContain('ログ記録のヘルパーは実行しないでください');
     expect(source).not.toContain('{{LEARNINGS_LOG}}');
     for (const host of ALL_HOST_CONFIGS) {
       const directory = host.name === 'claude' ? 'qa-only' : `${host.hostSubdir}/skills/gstack-qa-only`;
       const explorer = fs.readFileSync(path.join(rendered, directory, 'sections/exploratory.md'), 'utf8').replace(/\s+/g, ' ');
-      expectMentions(explorer, [['do not', 'yourself', 'product']], 'explorer');
-      expect(explorer).toContain('Keep the original limits/notes');
+      expectMentions(explorer, [['自分でプロダクトを変更してはいけません']], 'explorer');
+      expect(explorer).toContain('元の limits/メモは保持し');
     }
   });
 
@@ -400,24 +400,24 @@ describe('installed QA pointers', () => {
     const source = fs.readFileSync(path.join(ROOT, 'qa-only/SKILL.md.tmpl'), 'utf8');
     const stages = ['## Request Parameters', '## Test Plan Context', '{{LEARNINGS_SEARCH}}',
       '## Select Surfaces and Isolation', '{{SECTION:exploratory}}', '## Prepare Report Artifacts',
-      '## Browser Setup (conditional)', '{{QA_RESOURCE:browser-setup}}', '## Run the Selected Checks'];
+      '## Browser Setup(条件付き)', '{{QA_RESOURCE:browser-setup}}', '## Run the Selected Checks'];
     const positions = stages.map(stage => source.indexOf(stage));
     for (const position of positions) expect(position).toBeGreaterThan(-1);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
     expect(source).not.toContain('{{SECTION:browser-setup}}');
     expect(source).not.toContain('{{QA_METHOD_READS}}');
-    expect(source).toContain('Load the shared preparation gate now');
-    expectMentions(source, [['does not', 'parsing', 'records']], 'source');
+    expect(source).toContain('共有の準備ゲート(すぐ下の exploratory の STOP)をここで読み込んでください');
+    expectMentions(source, [['解析はリクエストを記録するだけ', 'セットアップは開始しません']], 'source');
     expectTokens(source, ['`--quick`', '`--regression`'], 'source');
-    expectMentions(source, [['ask', 'supplied', 'choose']], 'source');
+    expectMentions(source, [['`--quick`', '`--regression`', '1 つのモード', '選んで']], 'source');
     expect(source).toContain('$REPORT_DIR/qa-report-{target}-{YYYY-MM-DD}.md');
     expect(source).not.toContain('qa-report-{domain}');
-    expect(source.indexOf('Set `REPORT_FILE`')).toBeLessThan(source.indexOf('## Browser Setup (conditional)'));
+    expect(source.indexOf('`REPORT_FILE` には、呼び出し元が指定')).toBeLessThan(source.indexOf('## Browser Setup(条件付き)'));
     expectTokens(source, ['`REPORT_FILE`'], 'source');
-    expectMentions(source.replace(/\s+/g, ' '), [['not', 'charters', 'findings']], 'source.replace(/\s+/g,  )');
+    expectMentions(source.replace(/\s+/g, ' '), [['チャーターと最終的な指摘', 'サイドカーではなく']], 'source.replace(/\s+/g,  )');
     const browser = fs.readFileSync(path.join(ROOT, 'qa/sections/browser-setup.md.tmpl'), 'utf8');
-    expectMentions(browser, [['do not', 'setup/install', 'cookie-import']], 'browser');
-    expect(browser).toContain('scope section\'s ownership rules apply even to LOCAL browser targets');
+    expectMentions(browser, [['セットアップ/インストール', 'Cookie インポート', '実行しないでください']], 'browser');
+    expect(browser).toContain('セクションの所有権のルールは、LOCAL のブラウザの対象にも適用されます');
   });
 
   test('QA entrypoints preserve previous artifacts before browser setup without expanding caller authority', () => {
@@ -425,35 +425,35 @@ describe('installed QA pointers', () => {
       const source = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md.tmpl'), 'utf8');
       const browser = skill === 'qa' ? '{{SECTION:browser-setup}}' : '{{QA_RESOURCE:browser-setup}}';
       const setup = source.slice(0, source.indexOf(browser)).replace(/\s+/g, ' ');
-      expect(setup).toContain('prior report');
-      expect(setup).toMatch(/baseline paths.*before writing/);
-      expectMentions(setup, [['only', 'subdirectory', 'otherwise']], 'setup');
+      expect(setup).toContain('以前のレポート');
+      expect(setup).toMatch(/書き込みの前に、指定された以前のレポート.{0,3}ベースラインのパス/);
+      expectMentions(setup, [['空の場合にのみ', 'REPORT_DIR'], ['空でない場合は', 'サブディレクトリ']], 'setup');
       if (skill === 'qa-only') {
-        expectMentions(setup, [['never', 'overwrite', 'artifacts']], 'setup');
+        expectMentions(setup, [['成果物は決して上書きしないでください']], 'setup');
       } else {
-        expectMentions(setup, [['never', 'screenshots', 'exploration']], 'setup');
+        expectMentions(setup, [['スクリーンショット', '探索メモ', '決して上書きしないでください']], 'setup');
       }
-      expect(setup).toMatch(/impossible.*(?:output blocker|blocker)/);
-      expect(setup).toMatch(/(?:rather than expanding|do not expand) write authority/);
+      expect(setup).toMatch(/(?:保存ができない|保持できない)場合は.*出力のブロッカー/);
+      expect(setup).toMatch(/書き込み(?:の)?権限を広げ/);
     }
     const source = fs.readFileSync(path.join(ROOT, 'qa-only/SKILL.md.tmpl'), 'utf8').replace(/\s+/g, ' ');
-    expectMentions(source, [['no', 'established', 'revalidate']], 'source');
-    expectMentions(source, [['never', 'destination', 'suffixed']], 'source');
+    expectMentions(source, [['確立された', '再検証', '不要です']], 'source');
+    expectMentions(source, [['保存先が存在する場合は', 'サフィックス付き']], 'source');
   });
 
   test('mixed report labels, metadata and baselines have one explicit assembly rule', () => {
     const source = fs.readFileSync(path.join(ROOT, 'qa-only/SKILL.md.tmpl'), 'utf8').replace(/\s+/g, ' ');
     for (const contract of [
-      '`mixed-{project-label}`', 'sanitizing the repository name', '`mixed-target`',
-      'List the individual targets', 'common metadata once', '**Browser:**', '**Functional:**',
+      '`mixed-{project-label}`', 'リポジトリ名も同じ方法でサニタイズします', '`mixed-target`',
+      '個々の対象はレポート内に一覧にしてください', '共通のメタデータは 1 度だけ記載してください', '**Browser:**', '**Functional:**',
       '`templates/qa-report-template.md`', '`templates/functional-report-template.md`',
-      'without duplicating the shared title or metadata',
-      'Browser scores apply only to browser coverage; never combine them with functional outcomes',
-      'current baseline or replay evidence and checkpoints',
-      'Regression also links the prior input baseline/report',
-      'Prior baselines are not applicable to Full/Quick',
-      'for functional regression the report plus replay evidence is the baseline',
-      'Report-only repair/test fields contain proposals or not-run status, never claims of edits',
+      '共有のタイトルとメタデータを重複させないでください',
+      'ブラウザのスコアはブラウザのカバレッジにのみ適用され、機能の結果と組み合わせないでください',
+      '現在のベースラインまたはリプレイの根拠、チェックポイントをリンクしてください',
+      'リグレッションは、以前の入力ベースライン/レポートもリンクします',
+      'Full/Quick では、以前のベースラインは該当しません',
+      '機能のリグレッションでは、レポートとリプレイの根拠がベースラインになります',
+      'レポートのみの修復/テストの項目には、提案または未実行の状態のみを記載し、編集を行ったという主張は書かないでください',
     ]) expect(source).toContain(contract);
   });
 
@@ -461,20 +461,20 @@ describe('installed QA pointers', () => {
     for (const host of ALL_HOST_CONFIGS) {
       const directory = host.name === 'claude' ? 'qa-only' : `${host.hostSubdir}/skills/gstack-qa-only`;
       const source = fs.readFileSync(path.join(rendered, directory, 'SKILL.md'), 'utf8');
-      const start = source.indexOf('### Output Structure');
+      const start = source.indexOf('### 出力の構造');
       expect(start).toBeGreaterThan(-1);
       const layout = source.slice(start, source.indexOf('\n---', start));
-      expect(layout).toContain('`REPORT_DIR` stays the report root throughout the run');
+      expect(layout).toContain('`REPORT_DIR` は、実行を通してレポートのルートのままです');
       expectTokens(layout.replace(/\s+/g, ' '), ['`$REPORT_DIR/screenshots/`', '`$REPORT_DIR/baseline.json`'], 'layout.replace(/\s+/g,  )');
-      expectMentions(layout.replace(/\s+/g, ' '), [['only', 'browser-only', 'screenshots']], 'layout.replace(/\s+/g,  )');
-      expectMentions(layout, [['only', 'mixed-surface', 'checkpoints']], 'layout');
-      expect(layout).toContain('| One surface (browser or functional) | `$REPORT_DIR` |');
-      expect(layout).toContain('| Mixed: browser probes | `$REPORT_DIR/browser` |');
-      expect(layout).toContain('| Mixed: functional probes | `$REPORT_DIR/functional` |');
-      expect(layout.replace(/\s+/g, ' ')).toContain('only when timed, `deadline.json`');
-      expect(layout).toContain('Caller-fixed paths override this layout');
+      expectMentions(layout.replace(/\s+/g, ' '), [['ブラウザのみの実行と混合の実行では', 'スクリーンショット']], 'layout.replace(/\s+/g,  )');
+      expectMentions(layout, [['混合対象の分割', '時計とチェックポイントにのみ適用されます']], 'layout');
+      expect(layout).toContain('| 対象は 1 つ(ブラウザまたは機能) | `$REPORT_DIR` |');
+      expect(layout).toContain('| 混合: ブラウザのプローブ | `$REPORT_DIR/browser` |');
+      expect(layout).toContain('| 混合: 機能のプローブ | `$REPORT_DIR/functional` |');
+      expect(layout.replace(/\s+/g, ' ')).toContain('時間が計られた場合にのみ `deadline.json`');
+      expect(layout).toContain('呼び出し元が固定したパスは、このレイアウトより優先されます');
       expectTokens(layout.replace(/\s+/g, ' '), ['`REPORT_DIR`'], 'layout.replace(/\s+/g,  )');
-      expectMentions(layout.replace(/\s+/g, ' '), [['do not', 'directory', 'reassign']], 'layout.replace(/\s+/g,  )');
+      expectMentions(layout.replace(/\s+/g, ' '), [['REPORT_DIR', '対象のディレクトリに振り直したり', 'しないでください']], 'layout.replace(/\s+/g,  )');
     }
   });
 
@@ -485,38 +485,39 @@ describe('installed QA pointers', () => {
       const reporting = fs.readFileSync(path.join(rendered, directory, 'sections/reporting.md'), 'utf8');
       const directive = SECTION(context(host.name, 'qa-only'), ['reporting']);
       expect(entry).toContain(directive);
-      expect(entry.indexOf(directive)).toBeGreaterThan(entry.indexOf('### Assemble the report'));
-      expectMentions(entry, [['does not', 'authorize', 'restart']], 'entry');
-      expect(entry).toContain('Do not preload reporting');
+      expect(entry.indexOf(directive)).toBeGreaterThan(entry.indexOf('### レポートを組み立てる'));
+      expectMentions(entry, [['このステップでは', '期限切れの時計を再開する', '許可されません']], 'entry');
+      expect(entry).toContain('reporting を先読みしないでください');
       expect(directive).toContain('Read `sections/reporting.md`');
-      expect(directive).toContain('Missing/unreadable assets block required QA');
-      expect(entry).not.toContain('## 1. Establish each finding once');
+      expect(directive).toContain('見つからない/読み取れないアセットは、必須の QA をブロックします');
+      expect(entry).not.toContain('## 1. 各指摘を一度だけ確定する');
       const source = (entry + '\n' + reporting).replace(/\s+/g, ' ');
-      expectMentions(source, [['wait', 'successful', 'ownership']], 'source');
-      expect(source).toContain('A failed baseline contract stays failed');
-      expectMentions(source, [['does not', 'establish', 'exception']], 'source');
-      expectMentions(source, [['does not', 'inaccessible', 'page-text']], 'source');
-      expectMentions(source, [['not', 'measurement', 'latency']], 'source');
-      expect(source).toContain('**Probe budget** (configured limit)');
-      expect(source).toContain('**Guarded command time** (sum of measured child spans)');
-      expect(source).toContain('**Total session elapsed**: `unmeasured` for the invocation whose report is being written');
-      expectMentions(source, [['not', 'deadline', 'window']], 'source');
-      expectMentions(source, [['do not', 'status/write', 'receipts']], 'source');
-      expectMentions(source, [['only', 'dispatched', 'follow-up']], 'source');
-      expectMentions(source, [['not', 'acknowledgement', 'finished']], 'source');
+      expectMentions(source, [['レポートの所有権を解決したら', 'Write が成功した結果を待ってください']], 'source');
+      expect(source).toContain('失敗したベースラインの契約は、失敗のままにします');
+      expectMentions(source, [['コンソールのエラーメッセージ', '証明するものではありません']], 'source');
+      expectMentions(source, [['ページのテキスト抽出', 'アクセス不能', '証明するものではありません']], 'source');
+      expectMentions(source, [['独自の測定がない限り', '遅延として扱わないでください']], 'source');
+      expect(source).toContain('**Probe budget**(設定された上限)');
+      expect(source).toContain('**Guarded command time**(測定された子のスパンの合計)');
+      expect(source).toContain('**Total session elapsed** には、レポートを書いている呼び出しについて `unmeasured` を使ってください');
+      expectMentions(source, [['期限のウィンドウは', '総実行時間ではありません']], 'source');
+      expectMentions(source, [['受領書の間の隔たり', 'ステータスや Write のオーバーヘッドを測定するものではなく']], 'source');
+      expectMentions(source, [['期限後にフォローアップを送った', 'とだけ述べてください']], 'source');
+      expectMentions(source, [['確認応答', 'まだ完了していません']], 'source');
       expectTokens(source, ['**Measured interval**'], 'source');
-      expectMentions(source, [['must', 'boundaries', 'start/end']], 'source');
-      expectMentions(source, [['not', 'exception-shaped', 'operation']], 'source');
-      expectMentions(source, [['not', 'confirmation', 'completion']], 'source');
-      expectMentions(source, [['do not', 'conservative', 'paraphrase']], 'source');
+      expectMentions(source, [['開始/終了の受領書', '境界', '明記しなければなりません']], 'source');
+      expectMentions(source, [['例外のような文字列', '指定された操作が実行されたことを証明しません']], 'source');
+      expectMentions(source, [['一度観察しただけでは', '確認されたことにはなりません']], 'source');
+      expectMentions(source, [['慎重で事実に基づいた', '一字一句そのまま再利用']], 'source');
+      expectMentions(source, [['言い換えを導入しないでください']], 'source');
       const exploratory = fs.readFileSync(path.join(rendered, directory, 'sections/exploratory.md'), 'utf8').replace(/\s+/g, ' ');
-      expectMentions(exploratory, [['not', 'separator', 'child']], 'exploratory');
-      expectMentions(source, [['do not', 'exception-only', 'console-only']], 'source');
-      expectMentions(source, [['only', 'consistency', 'report']], 'source');
-      expectMentions(source, [['only', 'caller-authorized', 'destination']], 'source');
+      expectMentions(exploratory, [['区切り', '子のテキストではありません']], 'exploratory');
+      expectMentions(source, [['例外のみのフック', 'コンソールだけのメッセージは検出できません']], 'source');
+      expectMentions(source, [['整合性チェックの後にのみ', 'レポートを書いてください']], 'source');
+      expectMentions(source, [['許可された保存先', '書き込んでください']], 'source');
       expectTokens(source, ['`REPORT_FILE`'], 'source');
-      expectMentions(source, [['do not', 'automatic', 'learning']], 'source');
-      const stages = ['## 1. Establish each finding once', '## 2. Fill timing fields', '## 3. Assemble and check'];
+      expectMentions(source, [['学習ストア', '自動メモリ', '書き込まないでください']], 'source');
+      const stages = ['## 1. 各指摘を一度だけ確定する', '## 2. タイミングのフィールドを実際の境界から記入する', '## 3. 書き込む前に、すべての繰り返しを組み立てて確認する'];
       const positions = stages.map(stage => reporting.indexOf(stage));
       expect(positions.every(position => position >= 0)).toBe(true);
       expect(positions).toEqual([...positions].sort((a, b) => a - b));
@@ -597,22 +598,22 @@ describe('installed QA pointers', () => {
                 fs.renameSync(resolved, `${resolved}.absent`);
                 try {
                   expect(() => fs.readFileSync(installed, 'utf8')).toThrow('ENOENT');
-                  expect(body).toContain('missing or unreadable');
-                  expect(body).toContain('QA setup blocker');
+                  expect(body).toContain('見つからない、または読み取れない');
+                  expect(body).toContain('QA のセットアップブロッカー');
                 } finally {
                   fs.renameSync(`${resolved}.absent`, resolved);
                 }
               }
               const explorer = fs.readFileSync(path.join(path.dirname(entry), 'sections/exploratory.md'), 'utf8');
               expect(body).not.toContain(generateQAMethodReads(context(host.name, skill)));
-              expect(body).toContain(skill === 'qa' ? "Follow the shared section's ordered preparation" : 'Load the shared preparation gate now');
+              expect(body).toContain(skill === 'qa' ? '共有セクションの順序付けられた準備に従い' : '共有の準備ゲート(すぐ下の exploratory の STOP)をここで読み込んでください');
               expect(explorer).toContain(generateQAMethodReads(context(host.name, skill)));
-              expect(explorer.indexOf('in full and select the surfaces')).toBeLessThan(explorer.indexOf('Read `sections/system-functional.md`'));
-              expect(explorer.indexOf('Read `sections/system-functional.md`')).toBeLessThan(explorer.indexOf('Write a **charter**'));
+              expect(explorer.indexOf('全文 Read し、面を選びます')).toBeLessThan(explorer.indexOf('`sections/system-functional.md`'));
+              expect(explorer.indexOf('`sections/system-functional.md`')).toBeLessThan(explorer.indexOf('**charter** を書きます'));
               const qaName = host.name === 'claude' && !prefix ? 'qa' : 'gstack-qa';
               const qaDirectory = path.join(registry, qaName);
               const functional = fs.readFileSync(path.join(qaDirectory, 'sections/system-functional.md'), 'utf8');
-              const reportReference = functional.match(/Use `([^`]+)` relative to the installed QA SKILL\.md\./);
+              const reportReference = functional.match(/インストール済みの QA の SKILL\.md からの相対パスで `([^`]+)` を使います/);
               expect(reportReference).not.toBeNull();
               const report = path.resolve(qaDirectory, reportReference![1]);
               const resolvedReport = fs.realpathSync(report);
@@ -622,8 +623,8 @@ describe('installed QA pointers', () => {
               fs.renameSync(resolvedReport, `${resolvedReport}.absent`);
               try {
                 expect(() => fs.readFileSync(report, 'utf8')).toThrow('ENOENT');
-                expectMentions(explorer, [['not', 'prerequisites', 'independent']], 'explorer');
-                expectMentions(explorer, [['no', 'current-input', 'contracts']], 'explorer');
+                expectMentions(explorer, [['アセット', '前提条件', '許可', '影響を受けるプローブをブロック'], ['独立した安全なチェックはブロックしません']], 'explorer');
+                expectMentions(explorer, [['現在の入力', '必要な契約', 'pass']], 'explorer');
               } finally {
                 fs.renameSync(`${resolvedReport}.absent`, resolvedReport);
               }

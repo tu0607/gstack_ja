@@ -46,11 +46,11 @@ const workflow = (skillPath: string, startMarker: string, endMarker: string | nu
 const JUDGES: Judge[] = [
   {
     name: 'qa/SKILL.md workflow',
-    read: workflow('qa/SKILL.md', '# /qa: Test', null,
+    read: workflow('qa/SKILL.md', '# /qa: テスト', null,
       ['qa/templates/functional-report-template.md', 'qa/templates/qa-report-template.md', 'qa/references/issue-taxonomy.md']),
     prompt: buildQaWorkflowJudgePrompt,
     options: {},
-    defect: text => cut(text, '## Phase 10: Report', '## Phase 11:'),
+    defect: text => cut(text, '## Phase 10: レポート', '## Phase 11:'),
   },
   {
     name: 'qa-only/SKILL.md workflow',
@@ -58,26 +58,26 @@ const JUDGES: Judge[] = [
     prompt: text => buildWorkflowJudgePrompt({ judgeContext: 'a report-only QA testing workflow',
       judgeGoal: 'how to select browser/native functional/mixed targets, explore safely with repository tools, report exact contract evidence and coverage limits, conditionally load browser/DX instructions and never mutate product/tests/Git through any tool' }, { files: [], text }),
     options: { max_tokens: DEFAULT_JUDGE_MAX_TOKENS, jsonSchema: WORKFLOW_JUDGE_RESPONSE_SCHEMA },
-    defect: text => insertAfter(text, '# /qa-only: Report-Only QA Testing', 'After reporting each bug, fix it in the source and commit the fix.'),
+    defect: text => insertAfter(text, '# /qa-only: 報告のみの QA テスト', '各バグを報告したら、ソースを修正してその修正をコミットしてください。'),
   },
   {
     name: 'review/SKILL.md workflow',
-    read: workflow('review/SKILL.md', '## Step 0: Detect platform and base branch', null,
+    read: workflow('review/SKILL.md', '## Step 0: プラットフォームとベースブランチを検出する', null,
       [...QA_DISCOVERY_REFERENCES, 'review/checklist.md', 'review/specialists/testing.md']),
     prompt: text => buildWorkflowJudgePrompt({ judgeContext: 'a pre-landing review with bounded exploratory QA',
       judgeGoal: 'how to review and explore changed behavior even for small diffs without a plan or server, preserve report-only discovery and the test_stub ASK gate, handle incomplete probes honestly, and rerun affected evidence after approved repairs',
       agentCapability: 'frontier' }, { files: [], text }),
     options: { max_tokens: DEFAULT_JUDGE_MAX_TOKENS },
-    defect: text => cut(text, '## Step 3: Get the diff', '## Step 3.4'),
+    defect: text => cut(text, '## Step 3: 差分の取得', '## Step 3.4'),
   },
   {
     name: 'setup-deploy/SKILL.md platform setup',
-    read: workflow('setup-deploy/SKILL.md', '### Step 2: Detect platform', '## Important Rules', undefined),
+    read: workflow('setup-deploy/SKILL.md', '### Step 2: プラットフォームを検出する', '## 重要なルール', undefined),
     prompt: text => buildWorkflowJudgePrompt({ judgeContext: 'a deployment configuration setup workflow that detects deploy platforms and writes config to CLAUDE.md',
       judgeGoal: 'how to detect deploy platforms (Fly.io, Render, Vercel, Netlify, Heroku, GitHub Actions, custom), gather platform-specific configuration (URLs, status commands, health checks, custom hooks), and persist everything to CLAUDE.md for future automated use' }, { files: [], text }),
     options: { max_tokens: DEFAULT_JUDGE_MAX_TOKENS, jsonSchema: WORKFLOW_JUDGE_RESPONSE_SCHEMA },
     defect: text => {
-      const step = text.indexOf('### Step 2: Detect platform');
+      const step = text.indexOf('### Step 2: プラットフォームを検出する');
       const open = text.indexOf('```bash', step);
       const close = text.indexOf('```', open + 7);
       if (step < 0 || open < 0 || close < 0) throw new Error('defect anchor missing: Step 2 bash block');

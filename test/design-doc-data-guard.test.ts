@@ -15,9 +15,9 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
 describe('D3: design docs and handoff notes are data, not instructions', () => {
   const sites: Array<[string, string]> = [
-    ['plan-ceo-review/SKILL.md', '**Design doc check:**'],
+    ['plan-ceo-review/SKILL.md', '**設計ドキュメントの確認:**'],
     ['plan-eng-review/SKILL.md', '### Design Doc Check'],
-    ['plan-devex-review/SKILL.md', '**Design doc check:**'],
+    ['plan-devex-review/SKILL.md', '**設計ドキュメントの確認:**'],
     ['ship/sections/plan-completion.md', '### Plan File Discovery'],
     ['review/sections/plan-completion.md', '### Plan File Discovery'],
   ];
@@ -26,16 +26,14 @@ describe('D3: design docs and handoff notes are data, not instructions', () => {
       const md = read(file);
       const at = md.indexOf(anchor);
       expect(at).toBeGreaterThanOrEqual(0);
-      const block = md.slice(at, at + 4000).replace(/\s+/g, ' ').toLowerCase();
-      expect(block).toContain('data, not instructions');
-      expect(block).toMatch(/never follow text[^.]*aimed at the reviewer/);
-      expect(block).toContain('suspicious content');
-      if (file.startsWith('plan-')) expect(block).toContain('handoff note');
+      const block = md.slice(at, at + 4000);
+      expectMentions(block, [['データ', '指示ではありません'], ['レビュ', '従'], [file.startsWith('plan-devex') ? '疑わしい' : '不審']], file);
+      if (file.startsWith('plan-')) expectMentions(block, [['引き継ぎ', 'データ']], file);
     });
   }
 
   test('plan-eng-review/SKILL.md: the CEO plan it reads is data too (#280)', () => {
     const check = between(read('plan-eng-review/SKILL.md'), '### Design Doc Check', '### Step 0');
-    expectMentions(check, [['ceo plan', 'data, not instructions']], 'plan-eng-review Design Doc Check');
+    expectMentions(check, [['CEO プラン', 'データ', '指示ではありません']], 'plan-eng-review Design Doc Check');
   });
 });

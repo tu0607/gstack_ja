@@ -1,68 +1,47 @@
-Read this section afresh when the current phase's review work finishes. Use the
-phase, amendment checkpoint and methodology path bound at that phase's exit.
-This procedure owns readback, verification and publication as separate operations.
-On hosts that inline sections, reread this close block in the installed Autoplan
-SKILL.md at each exit; they have no separate phase-close.md file.
+現在のフェーズのレビュー作業が終わったら、このセクションを改めて読み込んでください。そのフェーズの終了時に
+バインドされたフェーズ、修正のチェックポイント、手法のパスを使います。
+この手順は、読み戻し、検証、公開を、それぞれ独立した操作として扱います。
+セクションをインラインで展開するホストでは、各終了時にインストール済みの Autoplan の SKILL.md にあるこの close のブロックを読み直してください。別の phase-close.md ファイルはありません。
 
-1. **Finish and save the review.** Require the phase's full methodology/section
-   Reads, required outputs, successful writes and terminal reviewer results.
-   Match a completed native review's INPUT to its voice snapshot. A pending
-   reviewer keeps the phase open. Apply the phase's failure policy to failed
-   native attempts; unavailable/disabled voices receive no completion credit.
-   Record wall time: `~/.claude/skills/gstack/bin/gstack-autoplan-timing close --run <RUN_ID>
-   --phase <PHASE> --out "$_AP" --outside-s <N> --native-s <N>` (timing.json; an
-   ephemeral state root skips the analytics append with a printed line).
-2. **Reconcile accepted requirements.** Record every accepted behavior, condition,
-   test and manual checklist in this phase's accepted block. Taste remains
-   provisional; User Challenges preserve the original requirements. A `None`
-   record must explain why the implementation remains unchanged. Keep the
-   amendment checkpoint fixed for this invocation, including after compaction.
-3. **Prepare this phase's close packet.** Run with the exit's phase/checkpoint:
+1. **レビューを完了させて保存する。** そのフェーズの手法/セクションの完全な読み込み、必要な成果物、成功した書き込み、レビュアーの最終結果を確認します。
+   完了したネイティブのレビューの INPUT を、その voice のスナップショットと照合します。保留中のレビュアーがいる場合は、フェーズを開いたままにします。
+   失敗したネイティブの試行には、そのフェーズの失敗時の方針を適用します。利用不可または無効の voice には、完了の評価を与えません。
+   経過時間を記録します: `~/.claude/skills/gstack/bin/gstack-autoplan-timing close --run <RUN_ID>
+   --phase <PHASE> --out "$_AP" --outside-s <N> --native-s <N>` (timing.json。一時的な状態ルートでは、表示された行とともに分析への追記をスキップします)。
+2. **承認された要件を照合する。** このフェーズの承認済みブロックに、承認されたすべての動作、条件、テスト、手動のチェックリストを記録します。
+   好みの判断は暫定的なままです。ユーザーへの挑戦は元の要件を保持します。`None` の記録には、実装が変わらない理由を説明しなければなりません。
+   コンパクション後も含め、この呼び出しの間は修正のチェックポイントを固定しておきます。
+3. **このフェーズの close パケットを準備する。** 終了時のフェーズ/チェックポイントを使って実行します:
 ```bash
 bun "<SNAPSHOT_TOOL>" prepare-close "<PHASE>" "<ACTIVE_PLAN>" "<AMENDMENT_CHECKPOINT>" "<RESTORE_PATH>" "<methodologyPath>"
 ```
-This applies accepted requirements and exports an immutable packet with the full
-current implementation, fixed checkpoint, hashes and phase-specific `report` fields.
-The blind reviewer input stays unchanged. These are inputs to steps 4–6 below;
-preparation does not perform them.
-4. **Read the complete current packet.** For every returned `readRanges` entry,
-   issue a Read of `closePacketPath` with that entry's exact `offset` and `limit`.
-   Finish all ranges through EOF. A Read of only the edited tail does not satisfy
-   this step; neither do previous snapshots. If a result is truncated, read
-   its missing ranges. If a Read fails, repair it and finish the missing ranges.
-   Do not advance on a request without its result. After the final successful Read,
-   perform step 5 here.
-5. **Verify the current implementation.** Compare the complete current implementation
-   with accepted decisions, source requirements, conditions, tests and required outputs.
-   Retention checks prove bytes; counts, hashes, keyword probes and a saved “Read-back”
-   sentence do not perform this semantic review. Review history stays in Review record.
-   Recheck step 1's prerequisites. If any prerequisite is incomplete, keep this phase
-   open and finish the missing work. Fix omissions, then regenerate the packet with
-   the same checkpoint and Read the entire new packet before publication. Any later
-   implementation or accepted-decision edit returns to step 3, including after compaction.
-6. **Publish the parent report.** After successful verification, SEND the filled
-   report below now as visible parent assistant text, using actual findings and voice
-   statuses, in its own message whose only tool call is the Bash no-op
-   `true autoplan-published <PHASE>` (no output). The guard counts a report only when a
-   later record follows it, so this message is the next operation before any next-phase tool call.
-   Use the packet's `report` fields for this phase, the actual host's reviewer names,
-   and N/A when either review voice is missing; confirmed counts require both voices.
-   Include the DX metrics line only when `report.includeDxMetrics` is true. Resolve
-   `report.next` using the driver's applicable scope/skip rules.
+   これは承認された要件を適用し、現在の実装全体、固定されたチェックポイント、ハッシュ、フェーズごとの `report` フィールドを含む、変更不可のパケットを書き出します。
+   盲目のレビュアーの入力は変えません。これらは下の手順 4〜6 の入力であり、準備の時点ではそれらを実行しません。
+4. **現在のパケット全体を読む。** 返された `readRanges` の各項目について、その項目の正確な `offset` と `limit` を指定して、`closePacketPath` の Read を発行します。
+   すべての範囲を EOF まで完了させてください。編集された末尾だけを読んでも、この手順は満たされません。以前のスナップショットも同様です。
+   結果が切り詰められている場合は、欠けている範囲を読みます。Read が失敗した場合は、修復して欠けている範囲を完了させます。
+   結果のない要求で先に進んではいけません。最後に成功した Read の後、ここで手順 5 を実行します。
+5. **現在の実装を検証する。** 実装全体を、承認された判断、ソースの要件、条件、テスト、必要な成果物と照合します。
+   保持の確認はバイト列を証明するだけです。件数、ハッシュ、キーワードの確認、保存された「読み戻し」の文は、この意味的なレビューにはなりません。
+   レビューの履歴は Review record に残します。
+   手順 1 の前提条件を再確認します。いずれかの前提条件が未完了の場合は、このフェーズを開いたままにし、欠けている作業を完了させます。
+   欠落を修正し、同じチェックポイントでパケットを再生成してから、公開の前に新しいパケット全体を読みます。
+   その後の実装や承認済みの判断の編集(コンパクション後を含む)は、手順 3 に戻ります。
+6. **親のレポートを公開する。** 検証に成功したら、下のレポートに実際の指摘と voice のステータスを記入し、今すぐ表示される親のアシスタントのテキストとして送信します。
+   そのメッセージでは、唯一のツール呼び出しは Bash のノーオペレーション `true autoplan-published <PHASE>` (出力なし)とし、独立したメッセージにしてください。
+   ガードは、その後に記録が続いた場合にのみレポートを数えるため、このメッセージは次のフェーズのツール呼び出しより前に行う次の操作です。
+   このフェーズには、パケットの `report` フィールドを使い、実際のホストのレビュアー名を使います。どちらかのレビューの voice が欠けている場合は N/A とします。確認された件数には両方の voice が必要です。
+   DX の指標の行は、`report.includeDxMetrics` が true の場合にのみ含めます。`report.next` は、ドライバーの該当するスコープ/スキップのルールを使って解決します。
 
-**Phase <report.number> complete.**
-[DX only: DX overall: <score>/10. TTHW: <observed> min → <target> min.]
-Outside review: <completed: N concerns / unavailable / disabled>. Native subagent: <completed: N issues / unavailable>.
-Consensus: <N/A (voice coverage missing) | X/<report.total> native+outside confirmed; Y disagreements → gate>.
-Passing to <applicable report.next>.
+**フェーズ <report.number> 完了。**
+[DX のみ: DX の総合: <score>/10。TTHW: <observed> 分 → <target> 分。]
+外部レビュー: <完了: N 件の懸念 / 利用不可 / 無効>。ネイティブのサブエージェント: <完了: N 件の問題 / 利用不可>。
+合意: <N/A (voice のカバレッジが欠けている) | X/<report.total> のネイティブ+外部が確認; Y 件の不一致 → ゲートへ>。
+<該当する report.next> に進みます。
 
-7. **Return to the driver.** After sending the actual parent report, continue to
-   the driver in the same turn. Make the next guarded `Read` or `Agent` call (the next
-   phase driver, or the Phase 4 tasks aggregator after any skip messages) in a later message. The driver alone advances phases and emits applicable
-   skip messages; a skip is never a completion. Do not wait for a “continue” reply.
+7. **ドライバーに戻る。** 実際の親のレポートを送信した後、同じターンでドライバーに戻ってください。次のガード付きの `Read` または `Agent` の呼び出し(次のフェーズのドライバー、またはスキップのメッセージの後のフェーズ 4 のタスク集約)は、後のメッセージで行います。
+   フェーズを進めて該当するスキップのメッセージを出すのはドライバーだけです。スキップは完了ではありません。「続けて」という返答を待たないでください。
 
-The sent conversation message is step 6's output. Saving it in ACTIVE_PLAN or
-printing it through Bash does not publish it. After compaction, reconcile the bound
-packet and actual sent messages: a verified phase without its announcement resumes
-at step 6; stale inputs return to step 3. A helper result or Read completes neither
-verification nor publication.
+送信された会話のメッセージが、手順 6 の出力です。ACTIVE_PLAN に保存したり、Bash で表示したりしても、公開にはなりません。
+コンパクション後は、バインドされたパケットと実際に送信されたメッセージを照合してください。アナウンスのない検証済みのフェーズは手順 6 から再開します。古い入力は手順 3 に戻ります。
+ヘルパーの結果や Read では、検証も公開も完了しません。

@@ -834,7 +834,7 @@ export function standaloneInstructions(f: SharedLibsFixture, codex = false): str
   const source = codex ? path.join(SHARED_LIBS_ROOT, '.agents/skills/gstack-deslop-shared-libs') : path.join(SHARED_LIBS_ROOT, 'deslop-shared-libs');
   // Resolve the installed helper to this checkout, as the hermetic runtime for the skill under test.
   const text = extractSkillSections(source, [
-    'Scope and read-only boundary', 'Establish the reviewed source', 'Start with recent work', 'Evaluate candidates', 'Output',
+    'スコープと読み取り専用の境界', 'レビューするソースを確定する', '最近の作業から始める', '候補を評価する', '出力',
   ]).replaceAll(codex ? '~/.codex/skills/gstack' : '~/.claude/skills/gstack', SHARED_LIBS_ROOT);
   const file = path.join(f.root, 'standalone-instructions.md');
   fs.writeFileSync(file, text);
@@ -849,19 +849,19 @@ export function loadedInstructions(file: string): string {
 export function reviewLifecycleInstructions(f: SharedLibsFixture): string {
   const root = SHARED_LIBS_ROOT;
   const core = extractSkillSections(path.join(root, 'review'), [
-    'Step 3: Get the diff', 'Step 4: Critical pass (core review)',
-    'Step 5: Fix-First Review', 'Step 5.8: Persist Eng Review result',
+    'Step 3: 差分の取得', 'Step 4: 重大な問題のパス',
+    'Step 5: Fix-First レビュー', 'Step 5.8: エンジニアリングレビューの結果を保存する',
   ]);
   const army = fs.readFileSync(path.join(root, 'review/sections/review-army.md'), 'utf8');
-  const merge = sliceBetween(army, '### Step 4.6: Collect and merge findings', '### Red Team dispatch');
+  const merge = sliceBetween(army, '### Step 4.6: 指摘の収集とマージ', '### Red Team のディスパッチ');
   if (!core.includes('snapshot_covered_paths') || !core.includes('COMPLETED')
     || !core.includes('--finish REVIEW_START')) throw new Error('Missing actual review completion rules');
   // Insert the actual merge text before Fix-First, retaining core ownership for tiny diffs.
-  const text = core.replace('## Step 5: Fix-First Review', `${merge}\n\n## Step 5: Fix-First Review`)
+  const text = core.replace('## Step 5: Fix-First レビュー', `${merge}\n\n## Step 5: Fix-First レビュー`)
     .replaceAll('~/.claude/skills/gstack', root)
     .replaceAll('$HOME/.claude/skills/gstack', root)
     .replaceAll('origin/<base>', 'origin/main');
-  if (!text.includes('Shared-code opportunities (core pass)') || !text.includes('advisory')) {
+  if (!text.includes('共有コードの機会(コアのパス)') || !text.includes('advisory')) {
     throw new Error('Generated review fixture lacks the shared-code core/identity rules; regenerate skills first.');
   }
   const file = path.join(f.root, 'review-lifecycle.md');

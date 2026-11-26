@@ -1,29 +1,19 @@
-# AskUserQuestion — non-ASCII / CJK characters
+# AskUserQuestion — 非 ASCII / CJK 文字
 
-Read this on demand when an AskUserQuestion contains Chinese (繁體/簡體),
-Japanese, Korean, or other non-ASCII text. The operative rule is in the
-always-loaded AskUserQuestion self-check ("Non-ASCII characters written directly,
-NOT \u-escaped"); this doc is the full justification.
+AskUserQuestion に中国語(繁體字/簡体字)、日本語、韓国語、その他の非 ASCII テキストが含まれる場合にのみ、必要に応じて読んでください。
+運用上のルールは、常時読み込まれる AskUserQuestion のセルフチェック(「Non-ASCII characters written directly, NOT \u-escaped」)にあります。この文書は、その理由を詳しく説明したものです。
 
-## The rule
+## ルール
 
-When any string field (question, option label, option description) contains
-non-ASCII text, emit the literal UTF-8 characters in the JSON string. **Never
-escape them as `\uXXXX`.**
+どの文字列フィールド(question、選択肢のラベル、選択肢の説明)にも非 ASCII テキストが含まれる場合は、JSON の文字列にリテラルの UTF-8 文字をそのまま書いてください。**`\uXXXX` でエスケープしてはいけません。**
 
-Claude Code's tool parameter pipe is UTF-8 native and passes characters through
-unchanged. Only JSON-mandatory escapes remain allowed: `\n`, `\t`, `\"`, `\\`.
+Claude Code のツールパラメータのパイプは UTF-8 をネイティブに扱い、文字を変えずに通します。JSON で必須のエスケープ(`\n`、`\t`、`\"`、`\\`)だけが許可されます。
 
-## Why escaping fails
+## エスケープが失敗する理由
 
-Manually escaping requires recalling each codepoint from training, which is
-unreliable for long CJK strings — the model regularly emits the wrong codepoint.
-Example: writing `㄃` thinking it is 管 (U+7BA1), but `㄃` is actually ㄃,
-so the user sees `管理工具` rendered as `㄃3用箱`.
+手作業でエスケープするには、各コードポイントを学習データから思い出す必要がありますが、長い CJK の文字列ではそれは信頼できません。モデルは、誤ったコードポイントを出力することがよくあります。例えば、`㄃` を 管 (U+7BA1) だと思って書いてしまうと、`㄃` は実際には ㄃ なので、ユーザーには `管理工具` が `㄃3用箱` と表示されてしまいます。
 
-The trigger is long, multi-line questions with hundreds of CJK characters: that
-is exactly when reflexive escaping kicks in and exactly when miscoding is most
-damaging. Long ≠ escape. Keep characters literal.
+問題が起きやすいのは、数百文字の CJK を含む長く複数行にわたる質問です。まさにそのとき、反射的なエスケープが始まり、誤りが最も有害になります。長いからといってエスケープしない。文字はリテラルのまま保ってください。
 
-- Wrong: `"question": "請選擇\uXXXX\uXXXX\uXXXX\uXXXX"`
-- Right: `"question": "請選擇管理工具"`
+- 誤り: `"question": "請選擇\uXXXX\uXXXX\uXXXX\uXXXX"`
+- 正しい: `"question": "請選擇管理工具"`

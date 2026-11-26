@@ -1,26 +1,11 @@
-# QA deadlines
+# QA の期限
 
-Bounded exploratory QA uses `bin/gstack-qa-deadline` from the installed gstack
-runtime. Browser Quick keeps its 30-second limit; browser Full/Regression uses the
-15-minute maximum of its 5–15-minute exploration window. Review/ship smoke keeps its
-5-minute or 12-probe limit, whichever comes first. The workflow enforces the probe
-count; the helper enforces elapsed time. Required plan checks are outside the smoke
-guard: run them after smoke with the same checkpoint sequence and finite command
-timeouts capped by the caller's remaining deadline. An expired caller deadline
-leaves checks not-run; never restart the smoke clock to run them.
-Functional Full/Quick/Regression has no default total exploration deadline; Quick
-limits scope to success plus the highest-risk changed edge. A caller's stricter
-duration or absolute deadline still bounds the run. Standalone mixed runs use
-owned `REPORT_DIR/browser` and `REPORT_DIR/functional` directories for their clocks
-and checkpoints, with one final report at `REPORT_DIR`. Create those directories
-before starting their clocks. Single-surface runs and review/ship smoke keep their
-clock and checkpoints at `REPORT_DIR`; fixed caller paths take precedence.
+範囲を限定した探索的 QA では、インストール済みの gstack ランタイムにある `bin/gstack-qa-deadline` を使います。ブラウザの Quick は従来どおり30秒の制限を保ちます。ブラウザの Full/Regression は、5〜15分の探索ウィンドウの最大値である15分を使います。レビューとship のスモークは、従来どおり5分または12プローブのうち先に到達した方を上限とします。ワークフローがプローブの数を強制し、ヘルパーが経過時間を強制します。必須の計画チェックはスモークのガードの対象外です。スモークの後に、同じチェックポイントの順序で、呼び出し元の残り時間によって制限された有限のコマンドタイムアウトを付けて実行してください。呼び出し元の期限がすでに切れている場合は、チェックを未実行のままにします。その際にスモークのクロックを再開して実行してはいけません。
+Full/Quick/Regression の機能テストには、既定の探索の合計期限はありません。Quick は、成功パスと最もリスクの高い変更箇所の一つに範囲を絞ります。呼び出し元がより厳しい期間や絶対期限を指定している場合は、それが実行を制限します。スタンドアロンの混合実行では、クロックとチェックポイントのために、所有された `REPORT_DIR/browser` と `REPORT_DIR/functional` のディレクトリを使い、最終レポートは `REPORT_DIR` に一つだけ作られます。これらのディレクトリは、クロックを開始する前に作成してください。単一の対象の実行とレビュー/shipのスモークは、クロックとチェックポイントを `REPORT_DIR` に保持します。呼び出し元が指定した固定のパスが優先されます。
 
-## Command interface
+## コマンドのインターフェース
 
-Run the helper with Bun. `FILE` is `deadline.json` inside the invocation-owned,
-canonical probe directory; its parent must already exist. Use quoted absolute
-paths in place of `GUARD` and `FILE` below.
+ヘルパーは Bun で実行します。`FILE` は、呼び出しごとに所有される正規のプローブディレクトリ内の `deadline.json` です。その親ディレクトリは、あらかじめ存在している必要があります。以下の `GUARD` と `FILE` の代わりに、引用符で囲んだ絶対パスを使ってください。
 
 ```text
 bun GUARD start FILE SECONDS [EARLIER_UTC]
@@ -28,58 +13,26 @@ bun GUARD status FILE
 bun GUARD run FILE -- COMMAND ARGS...
 ```
 
-`start` runs once, immediately before the baseline. It exclusively creates a
-versioned, read-only receipt and clamps the selected duration to an earlier caller
-deadline when supplied. It does not replace an existing file. `status` reads the
-actual clock. `run` checks the same receipt again before launching, then supervises
-the command for the remaining time. Replays and minimization use that same deadline;
-never replace the receipt or restart the timer to finish more work.
+`start` は、ベースラインの直前に一度だけ実行されます。書き込み専用で、バージョン付きの受領書を排他的に作成します。選択された期間は、呼び出し元の早い期限が指定されていれば、それまでに切り詰められます。既存のファイルは置き換えません。`status` は実際の時計を読みます。`run` は、起動の前に同じ受領書をもう一度確認し、残り時間の間コマンドを監視します。リプレイと最小化は、同じ期限を使います。受領書を置き換えたり、タイマーをリセットしたりして、さらに作業を進めてはいけません。
 
-Arguments are passed directly, without shell evaluation. For a permitted script,
-the child command is `bash -c 'script'`; keep every probe inside that child rather
-than appending an unguarded command after the helper. Missing or malformed state,
-symlinked paths and unavailable process containment block dispatch.
+引数はシェルの評価を経ずに、そのまま渡されます。許可されたスクリプトの場合、子コマンドは `bash -c 'script'` です。すべてのプローブは、その子の中に収めてください。ヘルパーの後ろに、ガードされていないコマンドを追加してはいけません。状態が欠けているか不正な場合、シンボリックリンクのパス、利用できないプロセスの封じ込めは、いずれも実行を妨げます。
 
-The child's stdout/stderr remain its evidence. Guard-owned lines begin with
-`QA_DEADLINE ` and contain separate JSON bookkeeping; do not copy them into the
-checkpoint's observed program JSON. Mark a refused next probe not-run in the report;
-preserve its original checkpoint rather than rewriting it as an observation.
-For JSON-emitting probes, `observed` is the decoded child JSON itself, not a `child`
-envelope or a mixture of results and guard metadata. For other output, retain the
-full child text. Command fields retain the complete outer command, including the
-guard invocation; guard diagnostics and interpretations belong in the report.
+子プロセスの stdout/stderr は、その子の証拠として残ります。ガードが所有する行は `QA_DEADLINE ` で始まり、別々の JSON の管理情報を含みます。それらをチェックポイントの観測されたプログラムの JSON にコピーしてはいけません。拒否された次のプローブは、レポートで未実行とマークしてください。その元のチェックポイントは、観測として書き直すのではなく、そのまま残してください。
+JSON を出力するプローブの場合、`observed` は、デコードされた子の JSON そのものです。`child` のエンベロープや、結果とガードのメタデータの混合ではありません。それ以外の出力では、子のテキストを全体で保持します。コマンドのフィールドは、ガードの呼び出しを含む外側のコマンド全体を保持します。ガードの診断や解釈は、レポートに記載します。
 
-## Reporting measurements
+## 測定値の報告
 
-The configured probe budget is not the total session duration. Child launch/finish
-receipts measure guarded command spans; gaps between calls do not measure individual
-tool costs or establish how many probes can fit in another run.
+設定されたプローブの予算は、セッションの合計時間ではありません。子プロセスの開始と終了の受領書は、ガードされたコマンドの区間を測定します。呼び出しの間の隙間は、個々のツールのコストを測定するものではなく、別の実行にどれだけのプローブが収まるかを示すものでもありません。
 
-`/qa-only` loads its reporting section after probing stops and checks every repeated
-finding against the retained evidence before writing. Its in-progress report marks
-total session elapsed as unmeasured: the final Write and cleanup have not finished.
-Initial charters and final findings use the caller's same report file. Learning notes
-and automatic memory obey the same caller-authorized write destinations.
-An optional measured interval names its actual start/end receipts and excluded work,
-including later report Writes and cleanup; it is not a completed-session measurement.
+`/qa-only` は、プローブの停止後にその報告のセクションを読み込み、書き込みの前に、繰り返し現れた指摘をすべて保持された証拠と照合します。進行中のレポートでは、セッションの合計経過時間は未測定とマークされます。最後の Write と後片付けはまだ終わっていないためです。最初の探索の計画と最終的な指摘は、呼び出し元の同じレポートファイルに書かれます。学習メモと自動メモリも、呼び出し元が許可した書き込み先に従います。
+任意の測定区間を報告する場合は、実際の開始と終了の受領書を明記し、除外した作業(後のレポートの Write と後片付けを含む)も示してください。それは完了したセッションの測定ではありません。
 
-## Exit and cleanup behavior
+## 終了と後片付けの動作
 
-- Guard expiry or timeout returns 124. A child can independently return 124 too;
-  use the guard receipt's event and `timedOut` field to distinguish those cases.
-- Guard errors return 2; a missing executable returns 127. Otherwise the child's
-  status is preserved.
-- On Linux/macOS, cleanup covers the command's inherited process group. Detached
-  or new-session descendants are outside that guarantee, so detached probes are
-  unsupported. Force-killing the guard itself with SIGKILL also prevents its POSIX
-  cleanup handler from running.
-- On Windows, dedicated nested Jobs contain the probe worker and its descendants,
-  including children whose immediate parent exits. Failure to initialize this
-  containment prevents the command from starting.
-- Receipt flushing happens after probe cleanup and can take up to five seconds;
-  blocked or broken output returns 2. This allowance does not extend probe work.
+- ガードの期限切れまたはタイムアウトは、124 を返します。子プロセスも独立して 124 を返すことがあります。ガードの受領書の `event` と `timedOut` フィールドを使って、その二つを区別してください。
+- ガードのエラーは 2 を返し、実行ファイルがない場合は 127 を返します。それ以外の場合は、子プロセスの終了ステータスを保持します。
+- Linux/macOS では、後片付けはコマンドが継承したプロセスグループを対象とします。切り離された、または新しいセッションの子孫は保証の対象外なので、切り離されたプローブはサポートされません。ガードそのものを SIGKILL で強制終了すると、POSIX の後片付けハンドラは実行されません。
+- Windows では、専用のネストされた Job が、プローブのワーカーとその子孫を封じ込めます。親がすでに終了している子も含まれます。この封じ込めの初期化に失敗すると、コマンドは開始されません。
+- 受領書の書き出しは、プローブの後片付けの後に行われ、最大5秒かかることがあります。出力がブロックされたり壊れていたりすると、2 を返します。この猶予は、プローブの作業時間を延ばすものではありません。
 
-Terminating a probe client does not undo a request already accepted by a service
-or stop an already-running browser. Preserve any known partial effects and report
-uncertain completion instead of assuming cancellation meant no effect. Report
-writing may finish after the exploration deadline, but new probes may not start.
+プローブのクライアントを終了しても、サービスがすでに受け付けた要求は取り消されず、すでに実行中のブラウザは停止しません。既知の部分的な影響は保持し、キャンセルされたからといって影響がなかったと仮定せず、完了が不確かなことを報告してください。レポートの書き込みは探索の期限の後に終わることがありますが、新しいプローブを開始することはできません。

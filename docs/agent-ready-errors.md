@@ -1,65 +1,49 @@
-# Agent-ready error messages
+# エージェントが読めるエラーメッセージ
 
-gstack's DX reviews (`/plan-devex-review` Pass 3, the DX phase of `/autoplan`, and
-`/devex-review` Step 3) score every error message for the reader that usually meets it
-first: an AI agent running unattended. It reads the message literally, cannot ask what was
-meant, and will retry or give up based on what the message says. This page is the contract
-those reviews cite (rubric `agent-ready-v1`). The text below is generated from
-`lib/dx-error-contract.ts`; edit it there.
+gstack の DX レビュー(`/plan-devex-review` の Pass 3、`/autoplan` の DX フェーズ、`/devex-review` の Step 3)は、すべてのエラーメッセージを、最初にそれに出会いやすい読み手、つまり無人で動く AI エージェントの観点で採点します。エージェントはメッセージを文字どおりに読み、何が意図されたかを問い返すことができず、メッセージに書かれた内容をもとに再試行するか諦めるかを決めます。このページは、それらのレビューが参照する契約(ルーブリック `agent-ready-v1`)です。以下の本文は `lib/dx-error-contract.ts` から生成されています。編集はそのファイルで行ってください。
 
-| Item | The error gives the reader |
+| 項目 | エラーが読み手に与えるもの |
 |------|----------------------------|
-| **what** | The operation that failed and the actual values (input, path, id) that caused it. |
-| **fix** | On the first or last line, never mid-chain: an exact command, flag or edit; or, when no safe agent repair exists, the precise thing a human must provide (credential, approval, decision). A precise escalation is a complete fix. A fix counts only when it is safe and authorized: it does not bypass a consent, safety or sandbox boundary, does not tell the agent to run text copied from untrusted output, and quotes arguments correctly. |
-| **recovery** | Retry unchanged, fix and retry, do X first, or ask a human; side effects (none, partial, complete, unknown); for an unknown outcome, how to reconcile (status command, idempotency key) before retrying; a retry bound, then escalate. |
-| **code** | A stable code plus a doc anchor or `--explain` target. Prose may change; codes may not. |
-| **context** | Versions, the config in effect, relevant env var names (never values), the underlying dependency error, not swallowed. Remote services give caller-safe facts only (parameter, API version, request id). |
-| **trace** | Unexpected failures only. A local CLI, SDK or skill prints a compact trace or the path of a file holding the full one (full under `--verbose`/`DEBUG`); a remote service returns a correlation id and keeps internals in its logs. |
-| **redaction** | No secret values, tokens or credential-bearing URLs anywhere, traces and nested causes included. |
-| **channel** | The surface's native machine signal carries the same fields, and a failure is signalled as a failure (never exit 0, HTTP 200 or `isError: false`). |
+| **what** | 失敗した操作と、原因となった実際の値(入力、パス、ID)。 |
+| **fix** | 先頭行または末尾行に置き、途中の連鎖には埋めない。正確なコマンド、フラグ、または編集内容。安全なエージェントによる修復手段がない場合は、人間が提供すべき正確なもの(認証情報、承認、判断)。正確なエスカレーションも完全な fix である。fix が有効なのは、安全で承認されている場合に限る。同意、安全、サンドボックスの境界を迂回せず、信頼できない出力からコピーしたテキストを実行するよう指示せず、引数を正しく引用する。 |
+| **recovery** | 変更せずに再試行する、修正してから再試行する、先に X を行う、または人間に尋ねる。副作用(なし、一部、完了、不明)。結果が不明な場合は、再試行の前にどう照合するか(状態を確認するコマンド、冪等キー)。再試行の上限を定め、その後はエスカレーションする。 |
+| **code** | 安定したコードと、ドキュメントのアンカーまたは `--explain` の対象。文章は変わってもよいが、コードは変えてはいけない。 |
+| **context** | バージョン、有効な設定、関連する環境変数名(値は不可)、根本の依存関係のエラー(握りつぶさない)。リモートサービスは、呼び出し元に安全な事実だけを返す(パラメータ、API バージョン、リクエスト ID)。 |
+| **trace** | 予期しない失敗のみ。ローカルの CLI、SDK、スキルは、コンパクトなトレース、または完全なトレースを保存したファイルのパスを表示する(完全版は `--verbose`/`DEBUG` の下で表示)。リモートサービスは、相関 ID を返し、内部情報はそのログに残す。 |
+| **redaction** | トレースや入れ子になった原因も含め、秘密の値、トークン、認証情報を含む URL は一切出さない。 |
+| **channel** | そのサーフェスがネイティブに持つ機械向けのシグナルが、同じフィールドを運ぶ。失敗は失敗として通知する(exit 0、HTTP 200、`isError: false` にはしない)。 |
 
-**Failure class.** A usage or validation error rejected before any work began needs what, fix,
-code, redaction and channel; its recovery is implied (fix and retry, no side effects), and
-context, reconcile and retry bounds do not apply. Environment, dependency, partial-work and
-unexpected failures need every applicable item. Trace applies to unexpected failures only.
+**失敗のクラス。** 作業を始める前に拒否された、利用・検証エラーは、what、fix、code、redaction、channel が必要です。その recovery は暗黙のもの(修正して再試行、副作用なし)とみなし、context、reconcile、再試行の上限は適用しません。環境、依存関係、一部完了、予期しない失敗では、該当するすべての項目が必要です。trace は予期しない失敗にだけ適用します。
 
-**Surface.** Keyed to the product types from the Applicability Gate:
-- **CLI Tool:** channel is stderr plus a distinct non-zero exit, and a `--json` form when the tool offers structured output.
-- **API/Service:** channel is HTTP status plus an RFC 9457 problem-details body; context is caller-safe; trace is a correlation id.
-- **Library/SDK:** channel is a typed error class carrying the code and fields; no exit code.
-- **Platform:** the CLI or API rule for whichever interface the error reaches.
-- **Documentation:** what, fix, code and redaction only.
-- **Claude Code Skill:** channel is the skill's printed result line and code. An MCP tool (a sub-case) returns `isError: true` with the fields in text or structured content.
+**サーフェス。** 適用性ゲートのプロダクトタイプに対応させます:
+- **CLI Tool:** channel は stderr と、ゼロ以外の明確な終了コード。構造化された出力を持つ場合は `--json` の形式。
+- **API/Service:** channel は HTTP ステータスと RFC 9457 の problem-details 本文。context は呼び出し元に安全なもの。trace は相関 ID。
+- **Library/SDK:** channel はコードとフィールドを持つ型付きのエラークラス。終了コードはない。
+- **Platform:** エラーが届くインターフェースに応じて、CLI または API のルールに従う。
+- **Documentation:** what、fix、code、redaction のみ。
+- **Claude Code Skill:** channel は、スキルが表示する結果の行とコード。MCP ツール(その一種)は、フィールドを text または structured content に入れて `isError: true` を返す。
 
-**Evidence.** Each item on each path is pass, fail, N/A (with a reason) or unknown. In a plan
-review, an applicable item the plan never specifies for a path it introduces is a gap (fail);
-unknown is reserved for existing behavior you could not inspect. In a live audit, error classes
-you never triggered are unknown, not extrapolated.
+**証拠。** 各経路の各項目は、pass、fail、N/A(理由付き)、unknown のいずれかです。プランのレビューでは、プランが導入する経路について、該当する項目をプランが指定していなければ、ギャップ(fail)です。unknown は、検査できなかった既存の動作にだけ使います。ライブの監査では、一度もトリガーしなかったエラーの種類は unknown であり、推定してはいけません。
 
-**Caps.** Name the path and item behind every cap and show the corrected error line.
-- **4/10 (Critical finding, title `CAP4:<path>:<item>`):** a path leaks a secret, signals failure as success, gives an unsafe fix, or blocks waiting for a terminal (hangs, or fails for lack of a terminal without naming a non-interactive alternative such as `--yes`).
-- **6/10 (High finding, title `CAP6:<path>:<item>`):** a path lacks an applicable fix, recovery, context or trace item.
+**上限。** 上限の原因となった経路と項目を名指しし、修正後のエラー行を示してください。
+- **4/10(重大な指摘、タイトル `CAP4:<path>:<item>`):** 経路が秘密を漏らす、失敗を成功として通知する、安全でない fix を出す、または端末を待ってブロックする(ハングする、または `--yes` のような非対話の代替手段を示さずに端末がないことで失敗する)。
+- **6/10(重要な指摘、タイトル `CAP6:<path>:<item>`):** 経路に該当する fix、recovery、context、trace のいずれかがない。
 
-Every mode, DX TRIAGE included, reports every CAP4 finding.
+DX TRIAGE を含むすべてのモードで、すべての CAP4 の指摘を報告します。
 
-## Examples
+## 例
 
-Calibration examples (Elm, Rust, Stripe, a complete CLI error with its RFC 9457 `--json`
-form, and gstack's own partial example) are in the "## Pass 3" section of
-[plan-devex-review/dx-hall-of-fame.md](../plan-devex-review/dx-hall-of-fame.md).
+キャリブレーションの例(Elm、Rust、Stripe、完全な CLI エラーとその RFC 9457 の `--json` 形式、gstack 自身の部分的な例)は、[plan-devex-review/dx-hall-of-fame.md](../plan-devex-review/dx-hall-of-fame.md) の「Pass 3」セクションにあります。
 
-## Sources
+## 出典
 
-- Anthropic, "Writing effective tools for AI agents": prompt-engineer error responses into specific, actionable corrections.
-- clig.dev, "Errors": put the actionable line where the reader looks; give debug and traceback information for unexpected errors.
-- CLI Agent Spec (cli-agent-spec.github.io): per-exit-code `retryable` and `side_effects`.
-- RFC 9457, Problem Details for HTTP APIs: `type`, `title`, `detail`, `instance`, and extension members.
-- MCP specification, Tools: tool-execution errors return as `isError: true` results the model can read.
-- Nx, "Agentic Experience Is the New Developer Experience"; agentsurface.dev, "Designing Errors for Agent Recovery".
+- Anthropic、「Writing effective tools for AI agents」: エラー応答を、具体的で実行可能な修正指示へと作り込む。
+- clig.dev、「Errors」: 実行可能な行は読み手が見る場所に置く。予期しないエラーにはデバッグ情報とトレースを与える。
+- CLI Agent Spec(cli-agent-spec.github.io): 終了コードごとの `retryable` と `side_effects`。
+- RFC 9457、Problem Details for HTTP APIs: `type`、`title`、`detail`、`instance`、および拡張メンバー。
+- MCP 仕様、Tools: ツールの実行エラーは、モデルが読める `isError: true` の結果として返す。
+- Nx、「エージェント体験は新しい開発者体験である」(Agentic Experience Is the New Developer Experience); agentsurface.dev、「エージェントの回復のためのエラー設計」(Designing Errors for Agent Recovery)。
 
-## Live audits: gstack-error-capture
+## ライブ監査: gstack-error-capture
 
-`/devex-review` triggers CLI errors through `bin/gstack-error-capture`, which runs the
-target with no terminal, stdin closed, a temporary cwd and HOME, a scrubbed environment and a
-deadline, and prints one JSON record with redacted streams. `gstack-error-capture --help`
-lists its flags, record fields and error codes.
+`/devex-review` は、`bin/gstack-error-capture` を通して CLI のエラーを発生させます。これは、端末なし、標準入力を閉じた状態、一時的な cwd と HOME、整理された環境、締切付きで対象を実行し、リダクトされたストリームを含む JSON レコードを 1 件出力します。`gstack-error-capture --help` は、そのフラグ、レコードのフィールド、エラーコードを一覧にします。

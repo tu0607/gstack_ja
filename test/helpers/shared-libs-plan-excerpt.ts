@@ -4,11 +4,11 @@ import { sliceBetween } from './skill-fixture';
 export function sharedLibsPlanExcerpt(entrypoint: string, review: string): string {
   return [
     sliceBetween(entrypoint, '## AskUserQuestion Format', '## Artifacts Sync'),
-    sliceBetween(entrypoint, '## My engineering preferences', '## Cognitive Patterns'),
+    sliceBetween(entrypoint, '## 私のエンジニアリングの好み', '## 認知パターン'),
     sliceBetween(review, '## Review record and write policy', '## Prior Learnings'),
-    sliceBetween(review, '**Plan-review evidence:**', '## Decision procedure'),
-    sliceBetween(review, '## Decision procedure', '## Scope Challenge'),
-    sliceBetween(review, '### 2. Code quality review', '### 3. Test review'),
+    sliceBetween(review, '**プランレビューの根拠:**', '## Decision procedure(決定の手順)'),
+    sliceBetween(review, '## Decision procedure(決定の手順)', '## Scope Challenge'),
+    sliceBetween(review, '### 2. コード品質のレビュー', '### 3. テストのレビュー'),
     sliceBetween(entrypoint, '**Blocked outcome:**', '## EXIT PLAN MODE GATE'),
   ].join('\n\n');
 }

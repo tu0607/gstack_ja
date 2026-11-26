@@ -54,8 +54,8 @@ else process.exit(2);
 test('actual generated Step 3/3.5 shell reads a pretty state and probes the pinned source', () => {
   const f = fixture();
   try {
-    const pages = f.run('## Step 3: Code-index health check');
-    const cycle = f.run('## Step 3.5: Call-graph health check');
+    const pages = f.run('## Step 3: コードインデックスの健全性チェック');
+    const cycle = f.run('## Step 3.5: コールグラフの健全性チェック');
     expect(pages.status, pages.stderr).toBe(0);
     expect(cycle.status, cycle.stderr).toBe(0);
     expect(pages.stdout).toContain('cwd source: client-fixture, page_count: 7');
@@ -68,8 +68,8 @@ test('actual generated Step 3/3.5 shell reads a pretty state and probes the pinn
 test('unverified pin never queries another source or reports zero pages', () => {
   const f = fixture('other-source');
   try {
-    const pages = f.run('## Step 3: Code-index health check');
-    const cycle = f.run('## Step 3.5: Call-graph health check');
+    const pages = f.run('## Step 3: コードインデックスの健全性チェック');
+    const cycle = f.run('## Step 3.5: コールグラフの健全性チェック');
     expect(pages.status, pages.stderr).toBe(0);
     expect(cycle.status, cycle.stderr).toBe(0);
     expect(pages.stdout).not.toContain('page_count: 0');
@@ -81,16 +81,16 @@ test('unverified pin never queries another source or reports zero pages', () => 
 test('verified zero pages and completed cycle retain their existing meanings', () => {
   const f = fixture('client-fixture', { pageCount: 0, cycleStatus: 'ok' });
   try {
-    expect(f.run('## Step 3: Code-index health check').stdout).toContain('page_count: 0');
-    expect(f.run('## Step 3.5: Call-graph health check').stdout).toContain('call graph for client-fixture: completed');
+    expect(f.run('## Step 3: コードインデックスの健全性チェック').stdout).toContain('page_count: 0');
+    expect(f.run('## Step 3.5: コールグラフの健全性チェック').stdout).toContain('call graph for client-fixture: completed');
   } finally { f.cleanup(); }
 });
 
 test('source-list error and another source cycle never masquerade as zero or never', () => {
   const f = fixture('client-fixture', { sourceError: true, cycleMessage: 'never cycled other-source' });
   try {
-    expect(f.run('## Step 3: Code-index health check').stdout).toContain('page_count: \n');
-    expect(f.run('## Step 3.5: Call-graph health check').stdout).toContain('call graph for : unknown');
+    expect(f.run('## Step 3: コードインデックスの健全性チェック').stdout).toContain('page_count: \n');
+    expect(f.run('## Step 3.5: コールグラフの健全性チェック').stdout).toContain('call graph for : unknown');
     expect(f.calls()).toEqual(['sources list --json', 'sources list --json']);
   } finally { f.cleanup(); }
 });
@@ -98,8 +98,8 @@ test('source-list error and another source cycle never masquerade as zero or nev
 test('sibling registration with zero pages is unknown, not a reindex offer', () => {
   const f = fixture('client-fixture', { pageCount: 0, wrongRegistration: true });
   try {
-    const pages = f.run('## Step 3: Code-index health check');
-    const cycle = f.run('## Step 3.5: Call-graph health check');
+    const pages = f.run('## Step 3: コードインデックスの健全性チェック');
+    const cycle = f.run('## Step 3.5: コールグラフの健全性チェック');
     expect(pages.status, pages.stderr).toBe(0);
     expect(cycle.status, cycle.stderr).toBe(0);
     expect(pages.stdout).toContain('page_count: \n');

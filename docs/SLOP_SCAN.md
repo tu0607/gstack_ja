@@ -1,47 +1,33 @@
-# Slop-scan: what to fix, what to leave
+# Slop-scan: 直すべきもの、残すもの
 
-Moved verbatim from CLAUDE.md (token-load reduction). Read before acting
-on any slop-scan finding.
+CLAUDE.md から移したものです(トークン読み込みを減らすため)。slop-scan の指摘に対処する前に必ず読んでください。
 
-### What to fix (genuine quality improvements)
+### 直すべきもの(本当の品質の改善)
 
-- **Empty catches around file ops** — use `safeUnlink()` (ignores ENOENT, rethrows
-  EPERM/EIO). A swallowed EPERM in cleanup means silent data loss.
-- **Empty catches around process kills** — use `safeKill()` (ignores ESRCH, rethrows
-  EPERM). A swallowed EPERM means you think you killed something you didn't.
-- **Redundant `return await`** — remove when there's no enclosing try block. Saves a
-  microtask, signals intent.
-- **Typed exception catches** — `catch (err) { if (!(err instanceof TypeError)) throw err }`
-  is genuinely better than `catch {}` when the try block does URL parsing or DOM work.
-  You know what error you expect, so say so.
+- **ファイル操作の周りの空の catch** — `safeUnlink()` を使う(ENOENT は無視し、EPERM/EIO は再スローする)。クリーンアップで EPERM を飲み込むと、データが静かに失われます。
+- **プロセスの kill の周りの空の catch** — `safeKill()` を使う(ESRCH は無視し、EPERM は再スローする)。EPERM を飲み込むと、何かを kill したと思っていても、実際には kill できていません。
+- **冗長な `return await`** — 囲む try ブロックがない場合は削除する。マイクロタスクを 1 つ節約でき、意図も明確になります。
+- **型付きの例外の catch** — try ブロックが URL の解析や DOM の処理を行うなら、`catch (err) { if (!(err instanceof TypeError)) throw err }` のほうが `catch {}` よりも明確に良いです。どんな例外を想定しているかを明示できるからです。
 
-### What NOT to fix (linter gaming, not quality)
+### 直してはいけないもの(lint の回避であり、品質ではない)
 
-- **String-matching on error messages** — `err.message.includes('closed')` is brittle.
-  Playwright/Chrome can change wording anytime. If a fire-and-forget operation can fail
-  for ANY reason and you don't care, `catch {}` is the correct pattern.
-- **Adding comments to exempt pass-through wrappers** — "alias for active session" above
-  a method just to trip slop-scan's exemption rule is noise, not documentation.
-- **Converting extension catch-and-log to selective rethrow** — Chrome extensions crash
-  entirely on uncaught errors. If the catch logs and continues, that IS the right pattern
-  for extension code. Don't make it throw.
-- **Tightening best-effort cleanup paths** — shutdown, emergency cleanup, and disconnect
-  code should use `safeUnlinkQuiet()` (swallows ALL errors). A cleanup path that throws
-  on EPERM means the rest of cleanup doesn't run. That's worse.
+- **エラーメッセージの文字列マッチ** — `err.message.includes('closed')` は脆いです。Playwright や Chrome は、いつでも文言を変える可能性があります。失敗しうる fire-and-forget の操作で、失敗の理由を気にしないなら、`catch {}` が正しいパターンです。
+- **素通しのラッパーに、slop-scan の免除ルールを回避するためだけのコメントを足す** — メソッドの上に「active session のエイリアス」と書いて、slop-scan の免除ルールに引っかからないようにするのは、ノイズであって文書化ではありません。
+- **拡張機能の catch-and-log を、選択的な再スローに変える** — Chrome の拡張機能は、捕捉されない例外で完全にクラッシュします。catch がログを出して処理を続けるなら、それが拡張機能のコードにとっての正しいパターンです。投げないでください。
+- **ベストエフォートのクリーンアップの経路を厳しくする** — シャットダウン、緊急のクリーンアップ、切断のコードは、`safeUnlinkQuiet()`(すべてのエラーを飲み込む)を使うべきです。クリーンアップの経路が EPERM で投げてしまうと、残りのクリーンアップが実行されません。それのほうがずっと悪いです。
 
-### Utilities in `lib/error-handling.ts` (re-exported from `browse/src/error-handling.ts`)
+### `lib/error-handling.ts` のユーティリティ(`browse/src/error-handling.ts` から再エクスポート)
 
-| Function | Use when | Behavior |
+| 関数 | 使う場面 | 振る舞い |
 |----------|----------|----------|
-| `safeUnlink(path)` | Normal file deletion | Ignores ENOENT, rethrows others |
-| `safeUnlinkQuiet(path)` | Shutdown/emergency cleanup | Swallows all errors |
-| `safeKill(pid, signal)` | Sending signals | Ignores ESRCH, rethrows others |
-| `isProcessAlive(pid)` | Boolean process checks | Returns true/false, never throws |
+| `safeUnlink(path)` | 通常のファイル削除 | ENOENT は無視し、それ以外は再スローする |
+| `safeUnlinkQuiet(path)` | シャットダウンや緊急のクリーンアップ | すべてのエラーを飲み込む |
+| `safeKill(pid, signal)` | シグナルの送信 | ESRCH は無視し、それ以外は再スローする |
+| `isProcessAlive(pid)` | プロセスの真偽値の確認 | true/false を返し、例外は投げない |
 
-### Score tracking
+### スコアの推移
 
-Baseline (2026-04-09, before cleanup): 100 findings, 432.8 score, 2.38 score/file.
-After cleanup: 90 findings, 358.1 score, 1.96 score/file.
+基準値(2026-04-09、クリーンアップの前): 100 件の指摘、スコア 432.8、ファイルあたり 2.38。
+クリーンアップ後: 90 件の指摘、スコア 358.1、ファイルあたり 1.96。
 
-Don't chase the number. Fix patterns that represent actual code quality problems.
-Accept findings where the "sloppy" pattern is the correct engineering choice.
+数字を追いかけないでください。実際のコード品質の問題を示すパターンを直してください。「雑に見える」パターンが正しいエンジニアリングの選択である場合は、その指摘を受け入れてください。

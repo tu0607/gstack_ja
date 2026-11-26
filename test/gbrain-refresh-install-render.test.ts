@@ -62,7 +62,7 @@ describe('gstack-config gbrain-refresh: machine-wide render guards', () => {
 describe('CLAUDE.md: deploy section documents the re-run', () => {
   test('notes re-running gbrain-refresh after reset --hard', () => {
     const claudeMd = fs.readFileSync(path.join(ROOT, 'CLAUDE.md'), 'utf-8');
-    const idx = claudeMd.indexOf('## Deploying to the active skill');
+    const idx = claudeMd.indexOf('## アクティブなスキルへのデプロイ');
     expect(idx).toBeGreaterThan(-1);
     const section = claudeMd.slice(idx, idx + 1200);
     expect(section).toContain('gbrain-refresh');

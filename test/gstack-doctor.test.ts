@@ -23,7 +23,7 @@ const REPO = path.resolve(import.meta.dir, '..');
 const COPIED = [
   'setup', 'VERSION',
   'bin/gstack-doctor', 'bin/gstack-codex-status.sh', 'bin/gstack-state-root.sh', 'bin/gstack-install-registry.sh',
-  'bin/gstack-render-claude.sh', 'bin/gstack-bun-version.sh', 'bin/gstack-hook-check', 'bin/gstack-config',
+  'bin/gstack-render-claude.sh', 'bin/gstack-path-spelling.sh', 'bin/gstack-bun-version.sh', 'bin/gstack-hook-check', 'bin/gstack-config',
   'autoplan/SKILL.md', // its frontmatter registers the autoplan hook the hooks-row test breaks
   'bin/gstack-launch-probe.sh',
   'bin/gstack-doctor-check.sh', 'bin/gstack-doctor-components.sh', 'bin/gstack-runtime-pins.ts', 'lib/runtime-pins.ts',
@@ -903,7 +903,7 @@ describe('gstack-doctor --check: wrapper and runtime drift', () => {
 
   test('A-a: the Capy skill\'s dispatch examples (fail revision, fail runtime,pins, fail pins) match the real failure heads, unchanged', () => {
     const skill = fs.readFileSync(path.join(REPO, 'capy/skill/gstack/SKILL.md'), 'utf8');
-    const step = skill.split('\n').find(l => l.includes('If the trailer names `revision`, `runtime` or `pins`'))!;
+    const step = skill.split('\n').find(l => l.includes('`gstack: fail revision …`'))!;
     const examples = [...step.matchAll(/`(gstack: fail [^`]+)`/g)].map(m => m[1]);
     expect(examples).toEqual(['gstack: fail revision …', 'gstack: fail runtime,pins', 'gstack: fail pins']);
     const f = makeFixture();

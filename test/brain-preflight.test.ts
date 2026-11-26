@@ -31,9 +31,9 @@ function buildCtx(skillName: string): TemplateContext {
 
 describe('generateBrainPreflight', () => {
   test('Eng scope selection precedes brain lookup without changing other planning entrypoints', () => {
-    expectMentions(generateBrainPreflight(buildCtx('plan-eng-review')), [['before', 'questions', 'review']], 'section');
-    expect(generateBrainPreflight(buildCtx('plan-eng-review'))).not.toContain('Before asking any clarifying questions');
-    expect(generateBrainPreflight(buildCtx('plan-ceo-review'))).toContain('Before asking any clarifying questions');
+    expectMentions(generateBrainPreflight(buildCtx('plan-eng-review')), [['Scope ゲート', '後', '質問の前に']], 'section');
+    expect(generateBrainPreflight(buildCtx('plan-eng-review'))).not.toContain('確認の質問をする前に');
+    expect(generateBrainPreflight(buildCtx('plan-ceo-review'))).toContain('確認の質問をする前に');
   });
   test('emits content for every registered preflight skill', () => {
     for (const skill of Object.keys(SKILL_DIGEST_SUBSETS)) {
@@ -72,8 +72,7 @@ describe('generateBrainPreflight', () => {
 
   test('mentions D9 salience privacy in the prose (transparency)', () => {
     const out = generateBrainPreflight(buildCtx('office-hours'));
-    expect(out.toLowerCase()).toContain('privacy');
-    expect(out.toLowerCase()).toContain('allowlist');
+    expectMentions(out, [['プライバシー', 'Salience', '許可リスト', 'D9']], 'brain preflight');
   });
 
   test('user-profile is loaded WITHOUT --project flag (cross-project)', () => {

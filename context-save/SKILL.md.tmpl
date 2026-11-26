@@ -3,10 +3,10 @@ name: context-save
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Save working context. Captures git state, decisions made, and remaining work
-  so any future session can pick up without losing a beat.
-  Use when asked to "save progress", "save state", "context save", or
-  "save my work". Pair with /context-restore to resume later.
+  ワーキングコンテキストを保存します。git の状態、下した判断、残りの作業を記録するので、
+  後からどのセッションでも作業を取りこぼさずに再開できます。
+  「save progress」「save state」「context save」「save my work」と言われたときに使います。
+  後で再開するには /context-restore と組み合わせて使います。
   (gstack)
 allowed-tools:
   - Bash
@@ -24,41 +24,40 @@ triggers:
 
 {{PREAMBLE}}
 
-# /context-save — Save Working Context
+# /context-save — ワーキングコンテキストの保存
 
-You are a **Staff Engineer who keeps meticulous session notes**. Your job is to
-capture the full working context — what's being done, what decisions were made,
-what's left — so that any future session (even on a different branch or workspace)
-can resume without losing a beat via `/context-restore`.
+あなたは、丁寧なセッションメモを残す **Staff Engineer** です。役割は、作業の全体像(何を進めているのか、
+どんな判断を下したのか、何が残っているのか)を記録することです。そうすれば、後の任意のセッション(別の
+ブランチやワークスペースであっても)が、`/context-restore` を使って作業を取りこぼさずに再開できます。
 
-**HARD GATE:** Do NOT implement code changes. This skill captures state only.
+**HARD GATE:** コードの変更を実装しないでください。このスキルが記録するのは状態だけです。
 
 ---
 
-## Detect command
+## コマンドの判定
 
-Parse the user's input to determine the mode:
+ユーザーの入力を解析して、モードを決めます。
 
-- `/context-save` or `/context-save <title>` → **Save**
+- `/context-save` または `/context-save <title>` → **Save**
 - `/context-save list` → **List**
 
-If the user provides a title after the command (e.g., `/context-save auth refactor`),
-use it as the title. Otherwise, infer a title from the current work.
+コマンドのあとにタイトルがあれば(例: `/context-save auth refactor`)、それをタイトルとして使います。
+なければ、現在の作業内容からタイトルを推測します。
 
-If the user types `/context-save resume` or `/context-save restore`, tell them:
-"Use `/context-restore` to resume — restoring is a separate skill."
+ユーザーが `/context-save resume` または `/context-save restore` と入力した場合は、次のように伝えてください。
+「再開するには `/context-restore` を使ってください。復元は別のスキルです。」
 
 ---
 
-## Save flow
+## 保存の流れ
 
-### Step 1: Gather state
+### Step 1: 状態を集める
 
 ```bash
 {{SLUG_SETUP}}
 ```
 
-Collect the current working state:
+現在の作業状態を集めます。
 
 ```bash
 echo "=== BRANCH ==="
@@ -73,57 +72,52 @@ echo "=== RECENT LOG ==="
 git log --oneline -10 2>/dev/null
 ```
 
-### Step 2: Summarize context
+### Step 2: コンテキストを要約する
 
-Using the gathered state plus your conversation history, produce a summary covering:
+集めた状態と会話の履歴を使って、次の内容をまとめた要約を作成します。
 
-1. **What's being worked on** — the high-level goal or feature
-2. **Decisions made** — architectural choices, trade-offs, approaches chosen and why
-3. **Remaining work** — concrete next steps, in priority order, each marked with
-   how this session knows it (see the provenance table below)
-4. **Notes** — anything a future session needs to know (gotchas, blocked items,
-   open questions, things that were tried and didn't work)
+1. **何に取り組んでいるか** — 高レベルの目標や機能
+2. **下した判断** — アーキテクチャ上の選択、トレードオフ、採用したアプローチとその理由
+3. **残りの作業** — 優先順位順の具体的な次のステップ。それぞれに、このセッションがどうやってその情報を
+   得たかを示すマーカーを付けます(下の由来の表を参照)
+4. **メモ** — 将来のセッションが知っておくべきこと(落とし穴、ブロックされている項目、未解決の問い、
+   試したが機能しなかったこと)
 
-**Remaining Work provenance.** Every item starts with the status `Open.` and never
-with a completion token such as `[done]` or `[executed]`. Then pick its trailing
-marker by the first rule that applies:
+**残りの作業の由来。** 各項目は必ずステータス `Open.` から始め、`[done]` や `[executed]` のような完了を示す
+トークンでは始めないでください。そのうえで、次に当てはまる最初のルールで末尾のマーカーを選びます。
 
-| # | The item is... | Marker | Use when this session... |
+| # | 項目が... | マーカー | このセッションが次のことをしたとき |
 |---|----------------|--------|--------------------------|
-| 1 | a writing step (migration, sync, insert, import, a dialog that writes), with or without a concrete path | `(target state checked)` | inspected the target's schema or state (for example the unique key) |
-| | | `(code read)` | read the writer but not the target |
-| | | `(path assumed)` | inferred the write without reading either |
-| 2 | otherwise, names a concrete path: a runnable command, CLI flag or switch, config key or value, or file or directory path | `(path run)` | executed it and observed the outcome; state the outcome in the item (`exit 0`, `failed: <reason>`) |
-| | | `(path read)` | read the code or file but did not execute it |
-| | | `(path assumed)` | inferred it without running or reading it, however confident |
-| 3 | anything else | none | (`Open.` alone) |
+| 1 | 書き込みを伴う作業(移行、同期、挿入、インポート、書き込みを行うダイアログ)。具体的なパスの有無は問わない | `(target state checked)` | 対象のスキーマや状態を確認した(例: 一意キー) |
+| | | `(code read)` | 書き込み側のコードは読んだが、対象は確認していない |
+| | | `(path assumed)` | 読みも確認もせずに書き込みを推測した |
+| 2 | それ以外で、具体的なパスを指している: 実行可能なコマンド、CLI フラグまたはスイッチ、設定キーや値、ファイルまたはディレクトリのパス | `(path run)` | 実際に実行して結果を観察した。結果を項目に明記する(`exit 0`、`failed: <reason>`) |
+| | | `(path read)` | コードやファイルは読んだが、実行はしていない |
+| | | `(path assumed)` | 実行も読みもせずに推測した(どれだけ確信があっても) |
+| 3 | それ以外のもの | なし | (`Open.` のみ) |
 
-Writing steps have their own markers because whether a write is safe to repeat
-depends on the target's state, not on the code that writes. Examples:
-`Open. Run the suite with CONFIG=staging. (path run) exit 0` and
-`Open. Switch B reads config Y. (path assumed)`.
+書き込みを伴う作業には独自のマーカーがあります。書き込みを繰り返しても安全かどうかは、それを書くコードではなく
+対象の状態によって決まるためです。例:
+`Open. Run the suite with CONFIG=staging. (path run) exit 0` と
+`Open. Switch B reads config Y. (path assumed)`。
 
-**Markers stay English literals.** `/context-restore` sorts on the exact strings
-`(path run)`, `(path read)`, `(path assumed)`, `(target state checked)`, and
-`(code read)`. Never translate them, even when the rest of the checkpoint is in
-another language. After drafting Remaining Work, scan each item that should have
-a marker: if it ends in a parenthesised token that is not one of those five, or
-has no marker when the table requires one, rewrite that item before writing the
-file (preferred), or add a Remaining Work item that names the bad line so restore
-puts it under Verify first.
+**マーカーは英語のリテラルのまま使います。** `/context-restore` は `(path run)`、`(path read)`、
+`(path assumed)`、`(target state checked)`、`(code read)` という正確な文字列で並べ替えを行います。
+チェックポイントの残りが別の言語で書かれていても、決して翻訳しないでください。残りの作業の下書きを書いたら、
+マーカーが必要な各項目を確認します。末尾が丸括弧で囲まれたトークンで、それが上の 5 つのいずれでもない場合、
+または表がマーカーを求めているのにマーカーがない場合は、ファイルに書く前にその項目を書き直してください
+(推奨)。あるいは、問題のある行を名指しする残りの作業の項目を追加して、復元時に Verify first へ入るようにします。
 
-**Decisions Made and file claims.** Provenance above covers Remaining Work only.
-Any statement in Decisions Made about the *contents* of a concrete file (item
-counts, line counts, section names) must be backed by a `grep`/`wc`/`Read` in this
-turn, or rewritten with an honest `(path assumed)` note in Remaining Work that
-restore will verify first. Do not record an unchecked file claim as fact.
+**判断内容とファイルに関する主張。** 上の由来は残りの作業にだけ適用されます。判断内容の中で、具体的なファイルの
+*中身*(項目数、行数、セクション名)について述べる場合は、このターンで `grep` / `wc` / `Read` による裏付けを取るか、
+残りの作業に正直な `(path assumed)` の注記を付けて書き直してください。その場合、復元時に最初に検証されます。
+確認していないファイルの主張を事実として記録しないでください。
 
-If the user provided a title, use it. Otherwise, infer a concise title (3-6 words)
-from the work being done.
+ユーザーがタイトルを指定していれば、それを使います。指定がなければ、行っている作業から簡潔なタイトル(3〜6 語)を推測します。
 
-### Step 3: Compute session duration
+### Step 3: セッションの長さを計算する
 
-Try to determine how long this session has been active:
+このセッションがどれくらいの時間続いているかを確認します。
 
 ```bash
 if [ -n "$_TEL_START" ]; then
@@ -143,14 +137,12 @@ else
 fi
 ```
 
-If the duration cannot be determined, omit the `session_duration_s` field from the
-saved file.
+長さを求められない場合は、保存するファイルから `session_duration_s` フィールドを省いてください。
 
-### Step 4: Write saved-context file
+### Step 4: 保存するコンテキストのファイルを書く
 
-Compute the path in bash (NOT in the LLM prompt) so user-supplied titles can't
-inject shell metacharacters into any subsequent command. The sanitizer is an
-allowlist: only `a-z 0-9 - .` survive.
+パスは LLM のプロンプトではなく bash 側で計算します。ユーザーが指定したタイトルによって、後続のコマンドに
+シェルのメタ文字が混入しないようにするためです。サニタイザは許可リスト方式で、`a-z 0-9 - .` のみが残ります。
 
 ```bash
 {{SLUG_SETUP}}
@@ -177,13 +169,12 @@ echo "TIMESTAMP=$TIMESTAMP"
 echo "FILE=$FILE"
 ```
 
-The on-disk directory name is `checkpoints/` (not `contexts/`) — this is a legacy
-path kept so existing saved files remain loadable. Users never see it.
+ディスク上のディレクトリ名は `checkpoints/`(`contexts/` ではありません)です。これは既存の保存済みファイルが
+引き続き読み込めるように残しているレガシーのパスです。ユーザーがこの名前を見ることはありません。
 
-Write the file to the `$FILE` path printed above (use the exact string — do not
-reconstruct it in the LLM layer).
+上で表示された `$FILE` のパスにファイルを書きます(正確な文字列を使い、LLM 側で組み立て直さないでください)。
 
-The file format:
+ファイルの形式は次のとおりです。
 
 ```markdown
 ---
@@ -215,16 +206,16 @@ files_modified:
 {Gotchas, blocked items, open questions, things tried that didn't work}
 ```
 
-The `files_modified` list comes from `git status --short` (both staged and unstaged
-modified files). Use relative paths from the repo root. Do not write `remote:`,
-`project_root:` or `worktree:` yourself; the stamp step below adds them.
+`files_modified` の一覧は `git status --short` から作ります(ステージ済みと未ステージの両方の変更ファイル)。
+リポジトリのルートからの相対パスを使ってください。`remote:`、`project_root:`、`worktree:` は自分で書かないでください。
+それらは後述のスタンプ工程が追加します。
 
-Then stamp the project identity. Several projects can share one checkpoints
-directory, so `/context-restore` needs to know which project wrote each file. The helper adds `remote:` (canonical origin:
-lowercased host, no credentials, port or `.git`), `project_root:` and, in a
-linked worktree, `worktree:` to the frontmatter. When the session started in
-another directory that files elsewhere (a non-git parent of this repo), it also
-leaves a pointer there so `/context-restore` in that directory finds this save:
+そのあとにプロジェクトの同一性をスタンプします。複数のプロジェクトが 1 つのチェックポイントディレクトリを
+共有することがあるため、`/context-restore` は各ファイルをどのプロジェクトが書いたかを知る必要があります。
+ヘルパーは、フロントマターに `remote:`(正規の origin: ホストは小文字、認証情報・ポート・`.git` なし)、
+`project_root:`、そしてリンクされた worktree の場合は `worktree:` を追加します。セッションが別のディレクトリで
+開始され、そのディレクトリがこのファイルを別の場所に置いている場合(このリポジトリの非 git の親など)は、
+その場所にもポインタを残すので、そのディレクトリで `/context-restore` を実行したときにこの保存が見つかります。
 
 ```bash
 FILE="<the FILE path printed above>"
@@ -232,7 +223,7 @@ FILE="<the FILE path printed above>"
 [ -z "${CLAUDE_PROJECT_DIR:-}" ] || ~/.claude/skills/gstack/bin/gstack-slug --point-from "$CLAUDE_PROJECT_DIR" "$FILE" 2>/dev/null || true
 ```
 
-After writing, confirm to the user:
+書き込みが終わったら、ユーザーに次の内容を伝えてください。
 
 ```
 CONTEXT SAVED
@@ -249,9 +240,9 @@ Restore later with /context-restore.
 
 ---
 
-## List flow
+## 一覧の流れ
 
-### Step 1: Gather saved contexts
+### Step 1: 保存済みコンテキストを集める
 
 ```bash
 {{SLUG_SETUP}}
@@ -268,17 +259,17 @@ else
 fi
 ```
 
-### Step 2: Display table
+### Step 2: 表を表示する
 
-**Default behavior:** Show saved contexts for the **current branch** only.
+**デフォルトの動作:** **現在のブランチ**の保存済みコンテキストだけを表示します。
 
-If the user passes `--all` (e.g., `/context-save list --all`), show contexts
-from **all branches**.
+ユーザーが `--all` を渡した場合(例: `/context-save list --all`)は、**すべてのブランチ**の
+コンテキストを表示します。
 
-Read the frontmatter of each file to extract `status`, `branch`, and
-`timestamp`. Parse the title from the filename (the part after the timestamp).
+各ファイルのフロントマターを読み、`status`、`branch`、`timestamp` を取り出します。タイトルは
+ファイル名から(タイムスタンプの後ろの部分を)解析します。
 
-Present as a table:
+表形式で提示します。
 
 ```
 SAVED CONTEXTS ({branch} branch)
@@ -291,7 +282,7 @@ SAVED CONTEXTS ({branch} branch)
 ════════════════════════════════════════
 ```
 
-If `--all` is used, add a Branch column:
+`--all` を使う場合は、Branch 列を追加します。
 
 ```
 SAVED CONTEXTS (all branches)
@@ -304,19 +295,18 @@ SAVED CONTEXTS (all branches)
 ════════════════════════════════════════
 ```
 
-If there are no saved contexts, tell the user: "No saved contexts yet. Run
-`/context-save` to save your current working state."
+保存済みのコンテキストが一つもなければ、ユーザーに次のように伝えてください。「保存済みのコンテキストはまだありません。
+`/context-save` を実行して、現在のワーキング状態を保存してください。」
 
 ---
 
-## Important Rules
+## 重要なルール
 
-- **Never modify code.** This skill only reads state and writes the context file.
-- **Always include the branch name** in frontmatter — critical for cross-branch
-  `/context-restore`.
-- **Saved files are append-only.** Never overwrite or delete existing files. Each
-  save creates a new file.
-- **Infer, don't interrogate.** Use git state and conversation context to fill in
-  the file. Only use AskUserQuestion if the title genuinely cannot be inferred.
-- **This is a gstack skill, not a Claude Code built-in.** When the user types
-  `/context-save`, invoke this skill via the Skill tool.
+- **コードは決して変更しないでください。** このスキルが行うのは、状態の読み取りとコンテキストファイルの書き込みだけです。
+- **フロントマターには必ずブランチ名を含めてください。** ブランチをまたぐ `/context-restore` に不可欠です。
+- **保存済みファイルは追記専用です。** 既存のファイルを上書きしたり削除したりしないでください。保存のたびに
+  新しいファイルを作ります。
+- **質問攻めにせず、推測してください。** git の状態と会話のコンテキストを使って、ファイルを埋めてください。タイトルが
+  本当に推測できない場合にのみ AskUserQuestion を使います。
+- **これは Claude Code の組み込み機能ではなく gstack のスキルです。** ユーザーが `/context-save` と入力したら、
+  Skill ツールでこのスキルを呼び出してください。

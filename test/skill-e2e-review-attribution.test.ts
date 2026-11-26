@@ -51,8 +51,8 @@ describeIfSelected('Base branch detection', ['review-base-branch', 'ship-base-br
     // Extract only Step 0 (base branch detection) + minimal review instructions
     // Full SKILL.md is ~1500 lines — copying it causes the agent to spend all turns reading
     const full = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
-    const step0Start = full.indexOf('## Step 0: Detect platform and base branch');
-    const step1Start = full.indexOf('## Step 1: Check branch');
+    const step0Start = full.indexOf('## Step 0: プラットフォームとベースブランチを検出する');
+    const step1Start = full.indexOf('## Step 1: ブランチの確認');
     const step1End = full.indexOf('---', step1Start + 10);
     const extracted = full.slice(step0Start, step1End > step1Start ? step1End : step1Start + 500);
     fs.writeFileSync(path.join(dir, 'review-SKILL.md'), extracted);
@@ -108,8 +108,8 @@ Write your findings to ${dir}/review-output.md`,
     // Extract only Step 0 (base branch detection) from ship/SKILL.md
     // (copying the full 1900-line file causes agent context bloat and flaky timeouts)
     const fullShipSkill = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
-    const step0Start = fullShipSkill.indexOf('## Step 0: Detect platform and base branch');
-    const step0End = fullShipSkill.indexOf('## Step 1: Pre-flight');
+    const step0Start = fullShipSkill.indexOf('## Step 0: プラットフォームとベースブランチを検出する');
+    const step0End = fullShipSkill.indexOf('## Step 1: 事前確認');
     const shipSection = fullShipSkill.slice(step0Start, step0End > step0Start ? step0End : undefined);
     fs.writeFileSync(path.join(dir, 'ship-SKILL.md'), shipSection);
 

@@ -23,6 +23,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { generatePreamble } from '../scripts/resolvers/preamble';
 import { HOST_PATHS, type TemplateContext } from '../scripts/resolvers/types';
+import { compact, expectMentions, expectTokens } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const START = path.join(ROOT, 'bin', 'gstack-skill-start');
@@ -135,11 +136,13 @@ describe('gstack-skill-start contract', () => {
   });
 
   test('degraded-mode prose carries the safe defaults + consent deferral (F1/EOV8/OV5)', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('SKILL_START_PROTO: 1');
-    expect(content).toMatch(/treat .?SESSION_KIND.? as .?interactive.?/);
-    expect(content).toContain('do NOT assume Conductor');
-    expect(content).toContain('DEFERRED to the next healthy run');
+    const content = compact(fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8'));
+    expectTokens(content, ['SKILL_START_PROTO: 1']);
+    expectMentions(content, [
+      ['SESSION_KIND', 'interactive'],
+      ['Conductor', '前提にせず', 'スキップ'],
+      ['先送り', '失われません'],
+    ], 'ship/SKILL.md degraded-mode prose');
   });
 });
 

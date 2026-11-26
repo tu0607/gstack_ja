@@ -1,22 +1,21 @@
 ---
 name: Bug report
-about: A gstack skill, helper or setup step broke or did something unexpected
+about: gstack のスキル、ヘルパー、またはセットアップ手順が壊れた、または想定外の動作をした
 labels: bug
 ---
 
-## What happened
+## 何が起きたか
 
-<!-- The skill or command you ran, what it printed, and what you expected instead. -->
+<!-- 実行したスキルやコマンド、その出力、そして本来期待していた結果を書いてください。 -->
 
-## Steps to reproduce
+## 再現手順
 
 1.
 2.
 
-## Readiness report
+## 準備状況レポート
 
-Paste the complete output of gstack's doctor. It starts no skill, makes no paid
-call and prints no secrets or file contents. Run the line for your install:
+gstack の doctor の出力を全文貼り付けてください。doctor はスキルを起動せず、有料の呼び出しも行わず、シークレットやファイルの内容も出力しません。お使いのインストール環境に合った行を実行してください。
 
 ```bash
 # Claude Code
@@ -34,7 +33,7 @@ call and prints no secrets or file contents. Run the line for your install:
 (doctor output here)
 ```
 
-## Environment
+## 環境
 
-- Host (Claude Code, Codex, Cursor, ...) and its version:
+- ホスト(Claude Code、Codex、Cursor など)とそのバージョン:
 - OS:

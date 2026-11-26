@@ -116,7 +116,7 @@ describe('F3: the taste profile loads, and a failed slug lookup is not "no profi
     for (const host of HOSTS) {
       test(`${host.name} ${skill}`, () => {
         const w = world(host.root, 'exit 0');
-        const fence = fenceAfter(path.join(host.dir(skill), 'SKILL.md'), "Read this project's taste profile:");
+        const fence = fenceAfter(path.join(host.dir(skill), 'SKILL.md'), 'このプロジェクトのテイストプロファイルを読みます:');
         fs.mkdirSync(path.join(w.state, 'projects', 'acme'), { recursive: true });
         fs.writeFileSync(path.join(w.state, 'projects', 'acme', 'taste-profile.json'), '{"dimensions":{}}');
         fs.writeFileSync(path.join(w.install, 'bin', 'gstack-slug'), '#!/bin/sh\necho acme\n', { mode: 0o755 });

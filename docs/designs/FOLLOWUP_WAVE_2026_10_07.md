@@ -1,259 +1,267 @@
 <!-- /autoplan restore point: "/home/user/.gstack/projects/garrytan-gstack/garrytan-followup-wave-oct7-autoplan-restore-20261007-144939.md" -->
-# gstack follow-up wave (October 7, 2026): /autoplan works on current Claude Code, long sessions, quieter guards
+# gstack フォローアップ・ウェーブ(2026年10月7日): 最新の Claude Code で /autoplan が動く、長いセッションに対応、ガードの騒がしさを減らす
 
-## Implementation plan
+## 実装計画
 
-### Context
+### 背景
 
-Base: origin/main `db74567` (v1.91.33.0). The October 6 wave (#3057, v1.91.32.0) and GSTA-21's measurement bar (#3059, v1.91.33.0) are merged. This wave takes the items the October 6 plan deferred to TODOS.md ("Oct 6 fix-wave follow-ups") plus every issue and PR opened since that triage (#3053 to #3065). Contributor code is read as evidence only; every fix is rewritten, with `Co-authored-by` credit for the diagnosis or design it uses.
+基準: origin/main `db74567`(v1.91.33.0)。10月6日のウェーブ(#3057、v1.91.32.0)と GSTA-21 の計測基準(#3059、v1.91.33.0)はマージ済みです。このウェーブは、10月6日の計画が TODOS.md(「Oct 6 fix-wave follow-ups」)に先送りした項目と、そのトリアージ以降に開かれたすべての issue と PR(#3053 から #3065)を対象にします。貢献者のコードは証拠としてのみ読み、すべての修正は書き直します。診断や設計を使った場合は、`Co-authored-by` でクレジットします。
 
-Evidence gathered for this plan (2026-10-07):
-- **#3062 is real and current.** The latest Claude Code is 2.1.292; CI pins 2.1.284 (`.github/docker/Dockerfile.ci`), so CI never sees it. A headless probe on 2.1.292 with `CLAUDE_CODE_FORK_SUBAGENT=1` confirmed the Agent tool schema no longer carries `run_in_background`. The headless probe did not reproduce the journal-flush half (headless sessions flushed the pending `tool_use` before the PreToolUse hook read the journal). The reporters' timelines are from interactive and `--bg` sessions, so that half needs a PTY-driven reproduction.
-- **#3060:** `bin/gstack-redact-prepush` calls `scanAddedLines(part.text, { repoVisibility: "private", sourcePath })`, never passing `selfEmail` or `repoPublicEmails`, which the engine already honors.
-- **PR #3055:** `bin/gstack-brain-sync` writes `blocked` to a status file nobody reads, and one flagged file blocks every push. The contributor's machine went 18 days without a push.
+このプランのための証拠(2026-10-07 収集):
+- **#3062 は本物で、現在も有効です。** 最新の Claude Code は 2.1.292 です。CI は 2.1.284 に固定されているため(`.github/docker/Dockerfile.ci`)、CI ではこの問題が見えません。2.1.292 でのヘッドレスのプローブで、`CLAUDE_CODE_FORK_SUBAGENT=1` を付けると、Agent ツールのスキーマに `run_in_background` が含まれなくなることを確認しました。ヘッドレスのプローブでは、ジャーナルのフラッシュ側の問題は再現しませんでした(ヘッドレスのセッションは、PreToolUse フックがジャーナルを読む前に、保留中の `tool_use` をフラッシュしていました)。報告者のタイムラインは、対話的なセッションと `--bg` のセッションからのものなので、その側面には PTY を使った再現が必要です。
+- **#3060:** `bin/gstack-redact-prepush` は `scanAddedLines(part.text, { repoVisibility: "private", sourcePath })` を呼び出していて、エンジンがすでに尊重している `selfEmail` や `repoPublicEmails` を渡していません。
+- **PR #3055:** `bin/gstack-brain-sync` は `blocked` を、誰も読まないステータスファイルに書き込みます。さらに、フラグの立ったファイルが1つあると、すべての push がブロックされます。その貢献者のマシンでは、18日間 push されませんでした。
 
-The severe items share one pattern: **a guard that is right about safety but wrong about the user's situation.** /autoplan's publication guard denies with "retry" when retrying can never help, the pre-push scan flags emails already in the history, and the artifacts sync blocks everything silently over one file.
+重大な項目は、1つの同じパターンを共有しています。**安全性については正しいが、利用者の状況については誤っているガード。** /autoplan の公開ガードは、再試行しても決して成功しないのに「retry」で拒否します。pre-push のスキャンは、履歴にすでにあるメールアドレスにフラグを立てます。アーティファクトの同期は、1つのファイルのせいで、黙ってすべてをブロックします。
 
-### Release promises (the finish line)
+### リリースの約束(ゴール)
 
-- **P1. /autoplan runs on current Claude Code, in long sessions.** On Claude Code 2.1.292 with default settings, foreground and `--bg`, /autoplan enters every phase, and a session journal over 100 MiB no longer stops it. Every denial that remains names its cause; none advises a retry that cannot succeed, and every non-transient cause comes with the supported fallback (CEO-3).
-- **P2. Guards stop crying wolf without getting weaker.** The pre-push scan no longer flags the pusher's own email or emails already public in the repo's history, and it names the rule and file for every MEDIUM finding. The artifacts sync holds back only the flagged file and says so at every skill start. Every relaxation keeps paired true-positive controls.
-- **P3. The deferred pieces of the October 6 wave land.** Greptile reviews run in parallel during /ship, the Codex probe is an executed command, PR and issue text is posted by one argument-array helper, and the remaining free-text sites use it or, where they never call `gh`/`glab`, the agent-written file rule (CEO-23).
+- **P1. /autoplan が、最新の Claude Code で、長いセッションでも動く。** Claude Code 2.1.292 のデフォルト設定で、フォアグラウンドと `--bg` のどちらでも、/autoplan はすべてのフェーズに入れます。セッションのジャーナルが 100 MiB を超えても、停止しません。残る拒否はすべて、その原因を名指しします。成功しえない再試行を勧めることはなく、一時的でない原因には、すべてサポートされたフォールバックを付けます(CEO-3)。
+- **P2. ガードは、騒ぎすぎなくなるが、弱くはならない。** pre-push のスキャンは、pusher 自身のメールアドレスと、リポジトリの履歴ですでに公開されているメールアドレスにフラグを立てなくなります。また、すべての MEDIUM の指摘について、ルールとファイルを示します。アーティファクトの同期は、フラグの立ったファイルだけを保留にし、そのことをスキルの開始のたびに伝えます。すべての緩和には、対になる真陽性のコントロールを付けます。
+- **P3. 10月6日のウェーブで先送りした部分を完了する。** Greptile のレビューを /ship の間に並列で実行します。Codex のプローブを、実行されるコマンドにします。PR と issue のテキストは、1つの引数配列のヘルパーで投稿します。残りの自由記述の箇所は、それを使うか、`gh`/`glab` を呼ばない場合は、エージェントが書いたファイルのルールを使います(CEO-23)。
 
-### Tier 1: must ship
+### 第1階層: 必ず出荷する
 
-**A1. #3062: /autoplan denies every native reviewer dispatch on Claude Code 2.1.29x.** Two causes, both in `autoplan/bin/phase-publication-hook.ts`:
-- *Cause A, schema strip.* Claude Code journals the model's raw tool input but gives PreToolUse the schema-parsed input. With the fork-subagent gate on (the default in 2.1.29x), the Agent schema drops `run_in_background`, so a dispatch that sends it never deep-equals its journal record. Fix: for `Agent`, `nativeToolInput` drops `run_in_background` from both sides; it only selects foreground or background and cannot change the phase or prompt, which `consumption()` still binds. The phase sections and the shared foreground-dispatch note ask for the key only when the Agent schema exposes it and say how to recover when a dispatch runs in the background (CEO-20).
-- *Cause B, journal flush.* In interactive and `--bg` sessions, Claude Code may not write the pending `tool_use` until the PreToolUse hook returns, so the hook's 2-second poll never sees it. A lone guarded call is always denied; retrying cannot help. Fix: when the first complete read of a `ready` journal lacks the current call and every earlier record is consistent, evaluate the current call from the hook payload: tool name, `tool_use_id` and `tool_input` appended after the last journaled event, for both `Read` and `Agent`; a phase transition counts only a report published in an earlier assistant message (CEO-1). The payload is Claude Code's own schema-normalized input, trusted but not byte-identical to the journal (Cause A shows the difference), so CEO-13 checks its key set against the journal on every new release. A changed prompt or an added `model` is denied on both paths, and a changed description on the journal path (CEO-1).
-- Denials that remain name their cause. For example, "the journal never recorded this call and earlier records disagree" points to the fallback (run the three reviews by hand), never "retry".
-- Tests: replay fixtures for both causes, built as redacted journal excerpts shaped like the reporters' timelines. A PTY-driven reproduction on 2.1.292 in a foreground session and a `--bg` session, using the existing `test/helpers/pty` harness, before and after the fix. Negative controls: a changed prompt or an added model stays denied on both paths, and a changed description on the journal path.
-- Claude Code pin: move `Dockerfile.ci`'s pin to 2.1.292, so CI exercises the version users run. Run the `autoplan-journal-drift` canary and the autoplan paid cases on it.
-- Credit: @yolo-jared, @crblabs, and the reporter of #3062.
+**A1. #3062: /autoplan が Claude Code 2.1.29x のネイティブのレビュー担当者のディスパッチをすべて拒否する。** 原因は2つあり、どちらも `autoplan/bin/phase-publication-hook.ts` にあります。
+- *原因 A、スキーマによる削除。* Claude Code は、モデルの生のツールの入力をジャーナルに記録しますが、PreToolUse にはスキーマで解析された入力を渡します。フォークのサブエージェントのゲートが有効な場合(2.1.29x の既定)、Agent のスキーマは `run_in_background` を落とします。そのため、そのキーを送るディスパッチは、ジャーナルのレコードと深く等しくなりません。修正: `Agent` について、`nativeToolInput` は両側から `run_in_background` を取り除きます。これはフォアグラウンドかバックグラウンドかを選ぶだけで、フェーズやプロンプトを変えることはできません。それは `consumption()` が引き続き束縛します。フェーズのセクションと、共有のフォアグラウンドディスパッチの注記は、Agent のスキーマがそのキーを公開している場合にだけそのキーを求めます。また、ディスパッチがバックグラウンドで実行された場合の回復方法を示します(CEO-20)。
+- *原因 B、ジャーナルのフラッシュ。* 対話的な `--bg` セッションでは、Claude Code が PreToolUse フックの戻りまで、保留中の `tool_use` を書かないことがあります。そのため、フックの2秒のポーリングはそれを見ません。ガードされたガード付きの単独の呼び出しは、常に拒否されます。再試行しても効果はありません。修正: `ready` のジャーナルの最初の完全な読み取りに現在の呼び出しがなく、それより前のすべてのレコードが一貫している場合は、フックのペイロードから現在の呼び出しを評価します。ツール名、`tool_use_id`、`tool_input` を、最後のジャーナル化されたイベントの後に追加します。`Read` と `Agent` の両方が対象です。フェーズの遷移は、前のアシスタントのメッセージで公開されたレポートの場合にだけ数えます(CEO-1)。ペイロードは Claude Code 自身のスキーマで正規化された入力で、信頼できるものですが、ジャーナルとバイト単位で同一ではありません(原因 A がその差を示します)。そのため CEO-13 は、リリースのたびに、そのキーの集合がジャーナルと一致するかを確認します。変更されたプロンプトや追加された `model` は、両方の経路で拒否します。ジャーナルの経路では、変更された description も拒否します(CEO-1)。
+- 残る拒否は、その原因を名指しします。たとえば「the journal never recorded this call and earlier records disagree(ジャーナルがこの呼び出しを記録しておらず、前のレコードと食い違う)」は、フォールバック(3つのレビューを手動で実行する)を指し、「retry」とは決して言いません。
+- テスト: 報告者のタイムラインに似せて作った、匿名化されたジャーナルの抜粋として、両方の原因のリプレイ・フィクスチャを用意します。2.1.292 上で、フォアグラウンドのセッションと `--bg` のセッションについて、既存の `test/helpers/pty` のハーネスを使い、修正の前後で PTY を使った再現を行います。ネガティブコントロール: 変更されたプロンプトや追加された model は、両方の経路で拒否されたままであること。変更された description は、ジャーナルの経路で拒否されたままであること。
+- Claude Code のピン: `Dockerfile.ci` のピンを 2.1.292 に移し、CI がユーザーの使うバージョンを検証するようにします。`autoplan-journal-drift` のカナリアと、autoplan の有料ケースを、そのバージョンで実行します。
+- 謝辞: @yolo-jared、@crblabs、#3062 の報告者。
 
-**A2. Bounded owned-journal read (#3050 follow-up, P1 in TODOS.md).** `readOwnedClaudePublicTranscript` reads the whole parent journal and refuses at 32 MiB (`too_large`); reported journals reach 52-73 MiB.
-- Fix: read the journal incrementally, keeping every ownership, identity and ancestry check. The guard needs the parent session's own records: the conversation root, the ancestry chain to the current call, and the records of the current invocation, from the human turn that started it (CEO-2). Stream records line by line with a bounded per-line size, keep only the records the evaluation consumes, and keep the identity checks (same device and inode, no shrink) on an append-tolerant prefix read (CEO-2).
-- The `too_large` denial remains only for a single record over its bound.
-- Acceptance: /autoplan's guard decides correctly on a synthetic 120 MiB journal (a real head plus padded tool results), and phase-entry latency and peak memory are measured on Linux and macOS (CEO-6) and recorded in the PR. The free suite uses a seam that shrinks the bounds, so no multi-MiB fixture is committed.
+**A2. 有界な所有ジャーナルの読み取り(#3050 のフォローアップ。TODOS.md の P1)。** `readOwnedClaudePublicTranscript` は、親のジャーナル全体を読み、32 MiB で拒否します(`too_large`)。報告されているジャーナルは 52〜73 MiB に達します。
+- 修正: ジャーナルを段階的に読み、所有権、識別、祖先のすべてのチェックを維持します。ガードには、親セッション自身のレコードが必要です。会話のルート、現在の呼び出しまでの祖先の連鎖、そして現在の起動の中のレコード(それを始めた人間のターンから)です(CEO-2)。レコードを1行ずつストリームし、1行あたりのサイズに上限を設け、評価に使うレコードだけを保持します。同一性のチェック(同じデバイスと inode、縮小していないこと)は、追記を許容する接頭辞の読み取りで維持します(CEO-2)。
+- `too_large` の拒否は、上限を超える単一のレコードの場合にだけ残ります。
+- 受け入れ条件: /autoplan のガードが、合成した 120 MiB のジャーナル(実際の先頭部分と、水増しされたツールの結果)で正しく判断すること。フェーズ開始の遅延とピークのメモリを Linux と macOS で計測し(CEO-6)、PR に記録すること。無料のスイートでは、上限を縮める seam を使うため、数 MiB のフィクスチャはコミットしません。
 
-**A3. #3060: the pre-push scan flags the pusher's own email and existing author emails.**
-- Fix: the hook reads `git config user.email` into `selfEmail`. It collects author and committer emails into `repoPublicEmails`, from the remote's history (`git log --format='%ae%n%ce' <remote sha>`, or the push remote's tracking refs for a new branch or unknown remote tip, CEO-7) and from the pushed commits, whose emails become public with the push anyway. If either git call fails, it omits only that input, which is today's behavior for it (CEO-23).
-- The MEDIUM summary line names each finding's rule id, file and line (CEO-7). A count alone cannot be reviewed.
-- True-positive controls: an email that is neither the pusher's nor a known author still flags, and so does an email in a file of a repo with no history.
-- Credit: the reporter of #3060.
+**A3. #3060: pre-push のスキャンが、pusher 自身のメールアドレスと、既存の作者のメールアドレスにフラグを立てる。**
+- 修正: フックは `git config user.email` を読み、`selfEmail` に入れます。作者とコミッターのメールアドレスを集め、`repoPublicEmails` に入れます。その元は、リモートの履歴(`git log --format='%ae%n%ce' <remote sha>`。新しいブランチや不明なリモートの先端の場合は、push 先リモートのトラッキング参照。CEO-7)と、push されたコミットです。push されたコミットのメールアドレスは、どのみち push によって公開されるからです。いずれかの git 呼び出しが失敗したら、その入力だけを省きます。これは、その入力について今の動作です(CEO-23)。
+- MEDIUM の要約行には、各指摘のルール ID、ファイル、行を名指しします(CEO-7)。件数だけでは、レビューできないからです。
+- 真陽性のコントロール: pusher のものでも、既知の作者のものでもないメールアドレスは、引き続きフラグが立つこと。また、履歴のないリポジトリのファイルにあるメールアドレスも、フラグが立つこと。
+- 謝辞: #3060 の報告者。
 
-**A4. PR #3055: one flagged file silently blocks the artifacts sync.**
-- Every skill start shows a stuck sync: `blocked` status, or no push for 24 hours with a non-empty queue. The `ARTIFACTS_SYNC:` line names it and the command to see why (`gstack-brain-sync --status`).
-- A drain holds back only the flagged paths and pushes the rest. The invariant is unchanged: nothing matching a scanner pattern is ever committed. After holding back paths, the drain re-scans the whole staged diff, and anything short of a clean re-scan falls back to today's full unstage and `blocked`.
-- A stale `.git/index.lock` left by a killed drain is cleared only when no live drain owns the drain lock. `git add` and `git reset` failures are reported instead of swallowed.
-- Duplicate privacy-held queue records collapse to one per path, so the queue count means something.
-- Tests: a flagged file plus a clean file (the clean one pushes), a stale index lock, and a re-scan that still flags (falls back to blocked).
-- Credit: @v639dragoon.
+**A4. PR #3055: フラグの立った1つのファイルが、アーティファクトの同期を黙ってブロックする。**
+- スキルの開始のたびに、同期が止まっていることを表示します。`blocked` の状態、または保留キューが空でないのに24時間 push がない状態です。`ARTIFACTS_SYNC:` の行は、それを名指しし、その理由を見るコマンド(`gstack-brain-sync --status`)を示します。
+- ドレインは、フラグの立ったパスだけを保留にし、残りは push します。不変条件は変わりません。スキャナのパターンに一致するものは、決してコミットされません。パスを保留にした後、ドレインはステージされた差分全体を再スキャンします。きれいに再スキャンできなければ、今の完全な unstage と `blocked` に戻ります。
+- ドレインが殺された後に残る古い `.git/index.lock` は、生きているドレインがドレインのロックを持っていない場合にだけ消します。`git add` と `git reset` の失敗は、握りつぶさず報告します。
+- 重複したプライバシー保留のキューのレコードは、パスごとに1つにまとめます。キューの件数に意味を持たせるためです。
+- テスト: フラグの立ったファイルと、きれいなファイルが1つずつある場合(きれいな方は push される)。古いインデックスのロック。再スキャンでもフラグが立つ場合(blocked に戻る)。
+- 謝辞: @v639dragoon。
 
-### Tier 2: ship if green
+### 第2階層: 準備ができていれば出荷
 
-- **B1. #3065: /context-restore picks an older checkpoint.**
-  - Case 1: when the cwd is not inside a git repo, also offer checkpoints whose recorded `project_root` lies below the cwd. /context-save run from a nested repo writes a pointer in the starting directory's bucket.
-  - Case 2: when another branch of the same repository holds a newer checkpoint that names the same task (its worktree is below the main tree, or the title matches), show both and propose the newer one as the continuation instead of silently taking the branch match.
-  - Tests use the reported layouts. Credit: the reporter of #3065.
-- **B2. #3020 (full): Greptile in parallel during /ship.** When the repo has Greptile (a `.greptile/` folder, a `greptile.json`, or past Greptile comments on its PRs), /ship pushes and opens the PR (draft unless the user asked otherwise; a draft gets one `@greptileai` trigger comment when Greptile skips drafts, CEO-8) right after its free tests pass. It runs its other review passes while Greptile reviews, then waits a bounded time for Greptile's comments and folds them into the same review. Without Greptile, nothing changes.
-- **B3. Executed-subcommand Codex probe.** `bin/gstack-codex-probe` becomes an executable with one subcommand per probe function (CEO-9 lists them) that print their status lines and set no shell state. The generated preflight calls it. Sourcing keeps working for one release, for skills rendered before the upgrade, then goes. The zsh self-locate code goes in the same change that drops sourcing (CEO-9).
-- **B4. Argument-array posting helper.** `bin/gstack-post` posts a PR or issue comment, a reply, a title or a body from files, passing every value to `gh`/`glab` as an argument, never through a shell string. It covers /ship's `NEW_TITLE` restore and Step 18; question tuning's `--summary-stdin` and `docs/gbrain-write-surfaces.md` move to the agent-written file rule (CEO-23). It also restores /plan-tune's `free_text` tune events, carried in a file.
-- **B5. Readiness command.** `gstack-doctor` prints, without starting a skill: install root, Bun version against the floor, `CODEX_MODE` (with the self-locate result), the hook parse check, artifacts-sync health, and the browse server bundle. Each row carries a fix line, and it exits non-zero when any row fails. `./setup --status` gains a Codex row.
-- **B6. #3063, #3064: browse cookbook clarity for Aside scripts.**
-  - Before opening a tab for a target, list the open tabs (the list stays private) and offer to attach to a signed-in one, attaching only after the user confirms it once (CEO-10).
-  - A second sign-in wall right after a confirmed sign-in means the session is bound to the tab or URL; propose attaching to the user's signed-in tab instead of asking for another sign-in (CEO-10).
-  - `evaluate` returns only serializable values.
-  - Don't use top-level `return`.
-  - An empty DOM read is not a finding.
-  - Credit the reporters.
-- **B7. #3054: credit fix.** In the v1.64.0.0 CHANGELOG entry and the header of `browse/test/extension-sender-auth.test.ts`, PR #1822 is credited to @Mike-E-Log, and the CHANGELOG entry credits PR #1743 to @habassa5 (CEO-11). Commit history is not rewritten.
+- **B1. #3065: /context-restore が古いチェックポイントを選ぶ。**
+  - ケース 1: カレントディレクトリが git リポジトリの中にないとき、記録された `project_root` がカレントディレクトリより下にあるチェックポイントも提示します。ネストされたリポジトリから /context-save を実行すると、開始したディレクトリのバケットにポインタを書きます。
+  - ケース 2: 同じリポジトリの別のブランチに、同じタスクを指す、より新しいチェックポイントがある場合(そのワークツリーがメインのツリーより下にある、またはタイトルが一致する)。両方を表示し、ブランチが一致したものを黙って採用するのではなく、より新しい方を継続の候補として提案します。
+  - テストは、報告されたレイアウトを使います。謝辞: #3065 の報告者。
 
-### Not in this wave
+- **B2. #3020(全体): /ship の間に Greptile を並列で実行する。** リポジトリに Greptile がある場合(`.greptile/` フォルダ、`greptile.json`、またはその PR に過去の Greptile のコメントがある場合)、/ship は、無料のテストが通った直後に push して PR を開きます(ユーザーが別に頼まない限り draft。Greptile が draft をスキップする場合、draft には `@greptileai` のトリガーのコメントを1つ付けます。CEO-8)。その後、他のレビューのパスを Greptile のレビューと並行して実行し、Greptile のコメントを、限られた時間だけ待ってから、同じレビューにまとめます。Greptile がなければ、何も変わりません。
 
-- **Native Windows Docker transport for /cso (#3028 follow-up):** L effort, and it cannot be verified without Windows hardware. It stays in TODOS.md.
-- **#3061 (stateless host mode) and #3058 (touch and mobile Safari QA):** feature proposals for a feature pass.
-- **Dependabot #3053:** a routine bump outside the wave.
+- **B3. 実行されるサブコマンドとしての Codex のプローブ。** `bin/gstack-codex-probe` は、実行可能なファイルになり、プローブ関数ごとに1つのサブコマンドを持ちます(CEO-9 にその一覧)。それぞれ、ステータスの行を表示し、シェルの状態は設定しません。生成されるプリフライトは、これを呼び出します。アップグレードの前にレンダリングされたスキルのために、1回のリリースの間は、ソースとして読み込む方式も動きます。その後なくなります。zsh の自己位置特定のコードは、ソースとして読み込む方式を削除するのと同じ変更で取り除きます(CEO-9)。
 
-### Tracker hygiene
+- **B4. 引数配列による投稿ヘルパー。** `bin/gstack-post` は、PR または issue のコメント、返信、タイトル、ファイルからの本文を投稿します。どの値も、シェルの文字列を通さず、引数として `gh`/`glab` に渡します。/ship の `NEW_TITLE` の復元と Step 18 をカバーします。質問チューニングの `--summary-stdin` と `docs/gbrain-write-surfaces.md` は、エージェントが書いたファイルのルールに移します(CEO-23)。また、/plan-tune の `free_text` のチューニングのイベントを、ファイルで運ぶ形で復元します。
 
-- On merge, close each fixed issue with the release, the reporter's upgrade command, and a check to confirm the fix where one exists.
-- Close adopted PRs (#3055) at merge with credit.
-- Close #3054 once the credit lands.
+- **B5. 準備状況のコマンド。** `gstack-doctor` は、スキルを開始せずに次を表示します: インストールのルート、Bun のバージョンと下限の比較、`CODEX_MODE`(自己位置特定の結果を含む)、フックの解析チェック、アーティファクト同期の健全性、browse サーバーのバンドル。各行には修正の行があり、いずれかの行が失敗した場合は、ゼロ以外で終了します。`./setup --status` には Codex の行が加わります。
 
-### Validation
+- **B6. #3063、#3064: Aside スクリプトのための browse のクックブックの明確化。**
+  - 対象のためにタブを開く前に、開いているタブを一覧にします(一覧は非公開のまま)。サインイン済みのタブへの接続を提案し、ユーザーが一度確認してから初めて接続します(CEO-10)。
+  - サインインの確認の直後に、2回目のサインインの壁が出る場合は、セッションがタブまたは URL に束縛されていることを意味します。もう一度サインインを求めるのではなく、ユーザーがサインイン済みのタブへの接続を提案します(CEO-10)。
+  - `evaluate` は、シリアライズ可能な値だけを返します。
+  - トップレベルの `return` は使いません。
+  - 空の DOM の読み取りは、指摘にはなりません。
+  - 報告者にクレジットします。
 
-- Each item gets a focused free test that fails on main first.
-- The free suite runs once at the end on Ubicloud.
-- Paid runs:
-  - the autoplan paid cases on Claude Code 2.1.292;
-  - the PTY reproduction for A1;
-  - the PR gate, and the full gate tier on the new Claude Code pin (CEO-4);
-  - the long-session PTY case past 100 MiB (CEO-15), one manual dispatch of the latest-release schema canary (CEO-13), and the macOS measurement step (CEO-6);
-  - for any paid red, the ship-measure loop at the #3059 bar.
-- One PR, separate commits per item, patch version bump.
+- **B7. #3054: クレジットの修正。** v1.64.0.0 の CHANGELOG のエントリと `browse/test/extension-sender-auth.test.ts` のヘッダでは、PR #1822 を @Mike-E-Log にクレジットし、CHANGELOG のエントリでは PR #1743 を @habassa5 にクレジットします(CEO-11)。コミット履歴は書き換えません。
 
-### Gate decisions (2026-10-07)
+### このウェーブに含まないもの
 
-Garry answered both User Challenges at the final gate. These decisions govern where an amendment below says "pending UC1" or "pending UC2".
+- **/cso のための Windows ネイティブの Docker トランスポート(#3028 のフォローアップ):** 作業量は L で、Windows のハードウェアがないと検証できません。TODOS.md に残します。
+- **#3061(ステートレスのホストモード)と #3058(タッチ操作とモバイル Safari の QA):** 機能の提案。機能のパスで扱います。
+- **Dependabot #3053:** このウェーブの外での定例のバージョン更新です。
 
-- **UC1 accepted (option A): continue with a warning when Claude Code is at fault, and still refuse real cheating.** Each CEO-3 reason code gets one of two classes.
-  - *Environment-unverifiable* states are caused by Claude Code: an unrecognized record shape, a current call whose journal record never arrives (ENG-2's journal lag), a journal rewritten within one hook invocation, an oversized record (`too_large`), or a Claude Code version the canary has not seen. These now allow the call. The hook prints a visible stderr warning that names the cause, its troubleshooting anchor and the fact that phase-report enforcement was skipped for this call. The CEO-12 log records the allow with `disposition: "unverified"`.
-  - *Integrity failures* stay hard denials: a changed reviewer prompt, an added `model` or other key outside the allowlist (ENG-14), a cross-phase sibling in one batch, a phase entry with no journaled previous report, an identity or ownership mismatch (a different session, device or inode, or a journal that shrank), and a missing or tampered snapshot.
-  - Corrective denials (publish the report separately, run init) and named transients keep their CEO-3 dispositions.
-  - Cost Garry accepted: in sessions gstack can't check, it no longer enforces that each phase's report is shown before the next phase starts.
-  - DX-1: the troubleshooting page gains an "Unverified allows" section listing those codes. Its line "no environment variable turns the guard off" stays true, because integrity denials have no override.
-  - Tests: one fixture per unverifiable code allows with the warning and the log line. The CEO-1 negative controls (changed prompt, added `model`, changed description on the journal path, a payload-path entry without a report) stay denied.
-- **UC2 rejected (option B): B2 is on automatically whenever the repo uses Greptile.** The detection rules are DX-10's and CEO-8's. There is no opt-in flag. `gstack-config set ship_greptile_early false` turns it off per user, and the DX-10 status lines name that setting.
-  - On a public repo, the first early push asks once for consent (ENG-20). The answer is remembered per repo in the project's state, and declining falls back to today's order for that repo.
-  - Garry accepted three costs: code is pushed before /ship's own review; a stopped /ship leaves the draft up (ENG-20's comment explains why); /ship can wait up to 10 minutes for Greptile.
-- **Taste choices:** the review's recommended options stand. Those are rows 9, 27, 34, 38, 52, 53, 65, 66 and 71-73 of the Decision Audit Trail, including DX-17, DX-18 and ENG-5, ENG-18 and ENG-19.
+### トラッカーの整理
 
-### Accepted review amendments
+- マージ時に、修正された各 issue を、リリース、報告者のアップグレードコマンド、そして(あれば)修正を確認する手順とともに閉じます。
+- 取り込んだ PR(#3055)は、マージ時にクレジットとともに閉じます。
+- #3054 は、クレジットが入ったら閉じます。
 
-Each amendment below was accepted by the /autoplan review. The item text above names the amendment it folds in; where they differ, the amendment's conditions and tests apply.
+### 検証
 
+- 各項目は、main で最初に失敗する、集中した無料のテストを持ちます。
+- 無料のスイートは、最後に Ubicloud 上で1回実行します。
+- 有料の実行:
+  - Claude Code 2.1.292 上の autoplan の有料ケース。
+  - A1 の PTY による再現。
+  - PR のゲート、および新しい Claude Code のピン上でのゲート全体のティア(CEO-4)。
+  - 100 MiB を超えた、長いセッションの PTY ケース(CEO-15)、最新リリースのスキーマのカナリアの手動ディスパッチを1回(CEO-13)、そして macOS の計測の手順(CEO-6)。
+  - 有料で失敗した場合は、#3059 の基準で ship-measure のループを回します。
+
+- 1つの PR、項目ごとに別のコミット、PATCH のバージョン更新。
+
+### ゲートの判断(2026-10-07)
+
+Garry が最終ゲートで、両方のユーザーへの確認事項(User Challenges)に答えました。以下の修正文が「pending UC1」または「pending UC2」と書いている箇所は、これらの判断に従います。
+
+- **UC1 承認(選択肢 A): Claude Code に原因がある場合は警告付きで続行し、本当の不正は引き続き拒否する。** CEO-3 の各理由コードは、次の2つのクラスのどちらかに分類されます。
+  - *環境上検証できない* 状態は、Claude Code が原因です。認識されないレコードの形、現在の呼び出しのジャーナルのレコードが届かない場合(ENG-2 のジャーナルの遅延)、1回のフック呼び出しの中でジャーナルが書き換えられた場合、サイズが大きすぎるレコード(`too_large`)、またはカナリアがまだ見ていない Claude Code のバージョン。これらは、今は呼び出しを許可します。フックは、原因、そのトラブルシューティングのアンカー、そしてこの呼び出しではフェーズ報告の強制をスキップしたという事実を名指しする、目に見える stderr の警告を出します。CEO-12 のログには、`disposition: "unverified"` を付けて許可を記録します。
+  - *整合性の失敗* は、ハードな拒否のままです。レビュー担当者のプロンプトの変更、許可リスト(ENG-14)の外にある追加の `model` やその他のキー、1つのバッチ内の別フェーズの兄弟、直前のジャーナルに報告がないフェーズの開始、同一性や所有権の不一致(別のセッション、デバイス、inode、縮んだジャーナル)、そして欠けているか改ざんされたスナップショット。
+  - 修正の指示(レポートを別に公開する、init を実行する)と、名指しされた一時的な状態は、CEO-3 の処分を保ちます。
+  - ユーザーが受け入れたコスト: gstack がチェックできないセッションでは、次のフェーズが始まる前に各フェーズのレポートが表示されることを、もう強制しません。
+  - DX-1: トラブルシューティングのページに「Unverified allows」の節を加え、それらのコードを列挙します。「no environment variable turns the guard off(環境変数でガードを無効にすることはできない)」という行は、整合性の拒否には上書き手段がないので、今も正しいままです。
+  - テスト: 検証できないコードごとに1つのフィクスチャを用意し、警告とログの行とともに許可されることを確認します。CEO-1 のネガティブコントロール(変更されたプロンプト、追加された `model`、ジャーナルの経路で変更された description、報告のないペイロードの経路でのエントリ)は、拒否されたままです。
+
+- **UC2 却下(選択肢 B): リポジトリが Greptile を使う場合、B2 は自動的に有効になる。** 検出のルールは DX-10 と CEO-8 のものです。オプトインのフラグはありません。`gstack-config set ship_greptile_early false` で、利用者ごとに無効にできます。DX-10 のステータスの行は、その設定を名指しします。
+  - 公開リポジトリでは、最初の早期 push の際に一度だけ同意を求めます(ENG-20)。その答えはリポジトリごとにプロジェクトの state に記憶します。断った場合は、そのリポジトリでは今の順序に戻ります。
+  - Garry は3つのコストを受け入れました。/ship 自身のレビューより前にコードが push されること。停止した /ship は draft を残すこと(その理由は ENG-20 のコメントに書きます)。/ship は Greptile を最大10分待つことがあること。
+
+- **好みの選択:** レビューの推奨の選択肢をそのまま採用します。それらは、決定監査証跡の行 9、27、34、38、52、53、65、66、71〜73 です。DX-17、DX-18、ENG-5、ENG-18、ENG-19 を含みます。
+
+### 受け入れたレビューの修正
+
+以下の各修正は、/autoplan のレビューで受け入れられました。上の項目の本文は、どの修正を取り込んでいるかを名指ししています。両者が異なる場合は、修正の条件とテストが優先します。
 
 <!-- autoplan-accepted:ceo -->
-- CEO-1 (A1 Cause B, payload-backed current call and flush-safe publication). The payload path covers both guarded tools, `Read` and `Agent`, and replaces the pending-Read rule that refuses to establish a phase from the hook payload. On the first complete read of a `ready` journal that lacks the current `tool_use_id`, with every journaled record passing the existing order, identity and ownership checks, the guard evaluates the call from the payload (`tool_name`, `tool_use_id`, `tool_input`) placed after the last journaled record, which anchors ancestry. It does not wait out the 2-second window first (claude-code#100051: in lagging sessions the record arrives only with the tool result); the window remains only for a journal that does not exist yet and for the unrecognized-shape double read. A new phase may be established only if the previous phase's report is present in journaled records.
-  Agent input binding on both paths: a constant in the hook lists the allowed Agent keys (`prompt`, `description`, `subagent_type`, `run_in_background`), so no snapshot manifest changes and snapshots made before the upgrade keep working; `prompt` must equal `nativeDispatchPrompt` (as `consumption()` checks today), `subagent_type` must be absent or `general-purpose`, and any other key, including `model`, is denied. On the journal path the journal-versus-payload comparison stays exact apart from `run_in_background` (Cause A), so a changed `description` is still caught there; on the payload path there is no second copy, so the `description` control applies to the journal path only.
-  Batched calls: on the payload path the hook payload has no `messageId`, so the last journaled assistant `messageId` is treated as possibly the current call's message. Pending journaled siblings count as the same batch only if they carry that `messageId` and target the same phase; then they are not "a prior phase-entry tool still pending". A sibling that targets a different phase still denies.
-  Allowlist evidence: the full schema-parsed Agent payload key set on 2.1.292 (default settings) is captured as a fixture before the allowlist is fixed, and CEO-13's canary asserts the payload keys stay inside it.
-  Publication flush: because text in the same assistant message as a guarded call is invisible to the hook in lagging sessions, a phase transition on either path counts only a report that a later journaled record follows, either a tool result or a record with a different `messageId`; a report in the last journaled assistant message with nothing after it does not count on the payload path. The outcome therefore never depends on flush timing. Phase-close step 6 publishes the phase report in a message whose only tool call is the no-op Bash `: autoplan-published <phase>` (no output, unguarded), and step 7 makes the next guarded `Read` or `Agent` (the next phase driver, or the Phase 4 tasks aggregator after any skip messages) go in a later message. When a payload-path phase entry finds no journaled report, the denial names that cause and says to publish the report in its own message with that no-op call; it never says "retry".
-  Tests: replay fixtures shaped like the #3062 timelines (the `--bg` Read batch at offsets 1, 601 and 1201, and a lone foreground `Agent` dispatch) are denied on main and allowed after the fix; a phase transition whose report shares a message with the guarded `Read` on a lagging journal gets the publish-separately denial, the same report in the same message is denied on a fully flushed journal too, a partial flush (the current message's text journaled, its `tool_use` not) is denied, and the transition after the no-op call is allowed; a same-phase sibling batch is allowed and a cross-phase sibling is denied. Negative controls stay denied: a changed prompt on either path, an added `model` on either path, a changed `description` on the journal path, and a payload-path call that would enter a new phase without a journaled report.
-- CEO-2 (A2 bounded, append-tolerant read). Approach: the hook gets its own two-pass owned reader. Pass one streams the file up to the size observed at open, ending at the last complete line, and keeps a small index per record (uuid, parent uuid, record kind, byte offset and length). Ownership, ancestry and order checks run on index metadata: uuid, parent and logical parent uuid, type and subtype, SessionStart attachment flag, `isSidechain`, `agentId`, cwd, timestamp validity, message role, `messageId`, the class of each user turn (typed, `/autoplan` slash, other), each `tool_use` name and id, and the command string of each Bash `tool_use` (so `initArguments` can find literal inits). Pass two loads full records only for the invocation window: from the latest human `user_turn` at or before the first non-reused literal init of the currently bound invocation chain (a `reused:true` init keeps the earlier binding, as `invocation()` does today), so runs started by a typed request or the Skill tool still bind init and a re-arm keeps an outstanding publication. A flag records whether an `end_turn` precedes that turn for `disarmed()`. The existing tests "a real same-restore init re-arms without erasing an outstanding publication" and "rearm excludes disarmed future Reads" stay as controls. Per-record event extraction moves into one shared module, `lib/claude-journal-records.ts`, called by both this reader and `readPlanCountTranscript`, so the two cannot drift. `readPlanCountTranscript` and its batch callers (tests and PTY runners) keep their current reader and 32 MiB cap. Appends after open never fail the read; the same device and inode and no shrink are required. Within one hook invocation, a second read compares the sha256 of bytes [0, first size) with the first read; a mismatch is a hard denial naming a rewritten journal plus the supported fallback. Rewrites between hook invocations are not detected (accepted limit, documented). The unverified-entry advisory's two-read stability check uses that same prefix hash, and the diagnostic pass is streamed so memory stays bounded. Per-record bound: 32 MiB (the old whole-file cap, so no journal readable today becomes unreadable), a named constant documented in `docs/autoplan-guard-troubleshooting.md`; any single record over it yields `too_large`.
-  Acceptance (recorded in the PR, not a CI timing gate): `scripts/measure-journal-read.ts` builds a 120 MiB journal whose record count and size mix match the reported journals (not only a few large records; the review's 440-500 ms figure came from the current full reader on a 5.7k-record synthetic), appends during the read, and measures one read plus evaluation. On a GitHub-hosted `ubuntu-latest` runner (4 vCPU) it must take at most 1 s with peak RSS at or under 256 MiB; a parse-and-index spike on that journal runs before the reader design is committed; the free suite asserts the decision and the bounded index size through the shrink seam, plus a fixture for a Skill-tool start with no slash turn. A run that misses either threshold holds the A2 commit (Tier 1 holds the PR) until it is fixed or the user grants an explicit exception.
-- CEO-3 (P1 denial inventory and codes). Every `fail()` site in `autoplan/bin/phase-publication-hook.ts` gets a stable reason code, and the PR lists each with its disposition: removed by A1/A2; a non-transient cause with the supported fallback; a named corrective action the user or model must take first (for example "restore this installation", "run init", "publish the report"); or a named transient that says what to wait for (today "a prior phase-entry tool is still pending" and "an active-plan mutation is pending"). A free test fails on any denial text that advises a retry without naming its corrective action or transient condition.
-- CEO-4 (pin bump validation). Moving `.github/docker/Dockerfile.ci` to Claude Code 2.1.292 runs the full gate tier (`bun run eval:bg:gate`) on the new pin, as the Dockerfile's own comment requires ("runs the PTY gate against the new TUI"), in addition to the autoplan paid cases and `autoplan-journal-drift`. The pin comment records why 2.1.292 was chosen, and `test/ci-image-cli-pin.test.ts` passes.
-- CEO-5 (`--bg` reproduction honesty). The PTY reproductions run with default settings (no `CLAUDE_CODE_FORK_SUBAGENT` override, clean config). One starts a session with `claude --bg` and drives it through `claude attach <id>`. If the harness cannot drive an attached session, the PR and release notes state that P1's `--bg` case was verified only by replay fixtures, and skipped item X10 (a `--bg` preflight warning) is reopened as a TODOS.md entry. The foreground session also prints whether `$CLAUDE_PROJECT_DIR` is set inside a Bash tool call, recorded in the PR for CEO-22.
-- CEO-6 (macOS measurement). `scripts/measure-journal-read.ts` runs once through a `workflow_dispatch` job on `ubuntu-latest` and `macos-latest` on the A2 branch (not on every PR); the macOS numbers are recorded in the PR next to the Linux numbers and do not gate.
-- CEO-7 (A3 remote history for new branches). When the pushed remote sha is all zeros or not present locally, `repoPublicEmails` comes from the push remote's tracking refs (`git log --format='%ae%n%ce' --remotes=<remote>`) plus the pushed commits. Every history read, including the normal `<remote sha>` path, is bounded to 50,000 commits and 5 seconds; any failure or overrun passes nothing (today's behavior). The MEDIUM summary names each finding's rule id, file and line, never the matched value.
-- CEO-8 (B2 Greptile lifecycle). Greptile is detected by `greptile.json` or a `.greptile/` folder (the folder takes precedence), or past Greptile comments. When /ship opens the early PR as a draft and the effective config does not set `triggerOnDrafts: true`, /ship posts one `@greptileai` comment to start the review. /ship marks the PR ready at its existing PR step unless the user asked for a draft; the review Greptile starts on "ready" is expected, is not awaited, and its comments are handled by the next /ship or /land-and-deploy Greptile pass, so no extra comment is posted to trigger it. Completion signal: /ship polls every 30 seconds for Greptile's check run or summary comment on the early PR's head SHA, for at most 10 minutes; only a completed check or summary counts as a finished review (zero comments allowed), and a timeout takes the existing unavailable path, never a claim of zero comments. The early draft carries the provisional title and a body saying /ship opened it early for review and will update it; the existing PR step edits that PR instead of creating one. Comments on an earlier head are triaged against the final diff. The trigger comment goes through `gstack-post` when B4 ships; otherwise through `gh pr comment --body-file` with a file written by the host's file tool (the existing free-text rule). Without Greptile nothing changes. Tests: fixture repos with and without `triggerOnDrafts` and with a `.greptile/` folder assert whether the trigger comment is posted.
-- CEO-9 (B3 every probe function has an executed form). Each of the ten probe functions generated skills call today gets a subcommand: `select-model`, `auth`, `sandbox-mode`, `sandbox-preflight`, `model-probe`, `version-check`, `first-use-notice`, `timeout` (execs the wrapped command and returns its exit code), `log-event` and `log-hang`. Contract (stdout `KEY: value` lines; human status lines stay on stderr as today; nothing is set in the caller): `select-model <exec|review>` prints `CODEX_SEL:` and `CODEX_SEL_KIND:`, keeps the `CODEX_MODEL:` stderr line, exits 0 or 1; `sandbox-mode` prints `CODEX_SANDBOX:`; `sandbox-preflight` exits 0 or non-zero with the reason on stderr; `model-probe <exec|review> --model <m> --kind <k>` prints `CODEX_PROBE_STATE:` and keeps today's exit codes (0, 2, 3, other); `auth` reports by exit code; `version-check` and `first-use-notice` print to stderr and exit 0; `timeout <secs> <cmd...>` execs the command and returns its exit code (124 on timeout); `log-event <event> [detail]` and `log-hang <skill> <n>` print nothing and exit 0. Generated blocks capture a value with `sed -n 's/^KEY: //p'`, so `CODEX_MODEL_CONFIG_FLAG` reads the captured model instead of `${_GSTACK_CODEX_SEL}`. Sourcing keeps working for one release for skills rendered before the upgrade; the zsh self-locate code stays while sourcing is supported and is removed in the same change that drops sourcing. The existing zsh sourcing test keeps passing during the compatibility release, and a free test runs each subcommand once from bash and zsh.
-- CEO-10 (B6 consent kept). Attaching to a tab the agent did not open still requires the user to confirm that tab once (rule 1). The agent may show the user only tabs whose origin equals the target origin the user named (title and origin); the rest of `listBrowserTabs()` stays private. After a confirmed sign-in, a second sign-in wall means the session is bound to the tab or URL: the agent proposes attaching to the user's signed-in tab with that one confirmation instead of asking for another sign-in. Rule 6 no longer suggests an early `return`; key presses use `pg.locator(sel).press(key)`; an `[ok` result from a very short run with no `GSTACK_STEP_OK` is a script abort. Rule text stays short because it renders into about 100 generated skill files; the details go in the browse cookbook.
-- CEO-11 (B7 second credit). In the v1.64.0.0 CHANGELOG entry, @punksterlabs is replaced by @Mike-E-Log for the extension token fix (#1822) and by @habassa5 for the polyfill `exited` promise (#1743). Commit history is not rewritten.
-- CEO-12 (guard decision log). Every guarded decision, allow or deny, appends one content-free line to `<state root>/analytics/autoplan-guard.jsonl` with the decision, the CEO-3 reason code for a denial, the evaluation path (journal or payload), the Claude Code version and the disposition class, so denials have a denominator; a logging failure never changes the decision. A free test checks the line for one allow, one hard denial and one transient denial.
-- CEO-13 (latest-release schema canary). A new periodic case `autoplan-schema-canary` (own test file, `touchfiles-data.ts` entry, periodic tier, rule kind) runs inside the CI image from `.github/workflows/evals-periodic.yml` on a daily schedule added for this case alone (existing `ANTHROPIC_API_KEY` secret, haiku, about $0.02 a run, about $0.60 a month); the weekly matrix is unchanged. It installs the latest published Claude Code into a temporary npm prefix (selected through `GSTACK_CLAUDE_BIN`), runs a headless session whose PreToolUse hook records the payload for one `Agent` and one `Read` call, and after the turn compares each payload with its journal record using the guard's own comparison (`nativeToolInput` is exported for it), asserts the payload keys stay inside CEO-1's allowlist, and asserts that the payload's key set equals the journal record's key set except for documented strips (today `run_in_background`) for both tools, so a schema strip like Cause A fails CI within a week of a release and reaches the existing periodic `report` job like any red case. The new case has no pin assertion; `autoplan-journal-drift` keeps its pin assertion unchanged. Flush timing is out of its reach (headless) and stays covered by CEO-5. A free fixture proves the comparison fails on an injected key strip. It is proven before merge by one manual dispatch on the PR branch and run again on merge day against the latest release, both linked in the PR.
-- CEO-14 (sync status detail). `gstack-brain-sync --status` JSON gains a `held` array with each held path, the scanner rule name (never the matched text) and both fixes (`gstack-brain-sync --skip-file <path>`, or edit the content). A free test covers one held path.
-- CEO-15 (P1 long-session end to end). One paid PTY case (rule kind, one trial, inside the ~10-minute eval budget) resumes a session whose journal has been padded past 100 MiB with records before a compact boundary (which Claude Code does not replay to the API) and enters /autoplan Phase 1 through the guard; its cost is estimated in the PR before it runs. If Claude Code cannot resume a padded journal, the PR says P1's long-session promise was verified only through the reader acceptance in CEO-2.
-- CEO-16 (TODOS.md edits). The implementation PR removes each "Oct 6 fix-wave follow-ups" entry only when its item ships and meets that entry's acceptance (the bounded-read entry needs CEO-15 to pass end to end; otherwise it is reworded to the remaining gap); Tier 2 items that do not ship keep their entries. It keeps the /cso Windows transport entry, adds X7 and X8 with their deferral reasons, and adds X10 when CEO-5 reopens it.
-- CEO-17 (A4 health signal and lock safety). Scanner holds: a drain that holds back flagged paths and pushes the rest writes the new status `held` (not `blocked`) with the held count; held records stay queued and are re-scanned on every drain until the content is clean or `--skip-file` names the path. Skill start shows an attention line whenever the status is `held` or `blocked`, and separately when no push happened for 24 hours while drainable records wait; scanner-held and privacy-held records never count as drainable. The drain writes a `drainable` count into the status file so skill start does not need the privacy classification. The `ARTIFACTS_SYNC:` attention line is fixed text plus a status code clamped to `ok`, `idle`, `held`, `blocked`, `push_failed` or `error` (anything else prints `unknown`), never the status message, file paths or scanner output (the status message can hold the first 30 characters of a matched secret). A stale `.git/index.lock` is removed only while this drain holds the drain lock and the index lock is older than 10 minutes, because `gstack-brain-restore`, `gstack-artifacts-init` and `gstack-gbrain-source-wireup` run git in `$GSTACK_HOME` without that lock. Per-path holds attribute scanner hits by scanning each staged path's diff. Tests: a held file reported at skill start while other files keep pushing, a held file cleared by editing and by `--skip-file`, a privacy-held queue without the alarm, a fresh index lock left alone, an old one cleared, and an attention line that contains no status text.
-- CEO-18 (generation and prompt checks per template item). Every item that edits a template or resolver (A1 phase sections and phase-close, B2, B3, B4, B6, CEO-20, and CEO-17's `scripts/resolvers/preamble/generate-brain-sync-block.ts`, which tells the model to surface the new attention line to the user and continue) regenerates with `bun run gen:skill-docs` and `bun run gen:skill-docs --host codex`, and passes `test/parity-suite.test.ts`, the prompt-size checks and the golden fixtures before its paid eval.
-- CEO-19 (B4 owns the redaction scan). `gstack-post` runs `gstack-redact` on the exact bytes it is about to send, with `--repo-visibility` from the caller's existing visibility detection and `--self-email` from `git config user.email`. It refuses on a HIGH finding with the rule names; on a MEDIUM finding (exit 2) it posts nothing and returns the findings so the caller asks its existing per-finding question before posting; and the callers it replaces (/ship's PR title and body scan in `ship/sections/pr-body.md.tmpl`, and the PR or issue write sites rendered from `scripts/resolvers/redact-doc.ts`) drop their separate scans. Tests: a HIGH secret in a body file is refused and nothing is posted; a MEDIUM finding posts nothing until the caller confirms; a clean body posts with argument-array `gh` invocation verified by a stub.
-- CEO-20 (shared foreground note). Every site that requires `run_in_background: false` adopts the conditional wording `spec-review.ts:154` already uses ("if that field is available; omit it otherwise") plus the recovery for a background run: `FOREGROUND_DISPATCH_NOTE` in `scripts/resolvers/constants.ts`, `scripts/resolvers/design.ts` (two sites), `outside-voice-steps.ts` (three sites), `review-army.ts` (two sites), `spec-review.ts:61`, and the three templates that inline the literal (autoplan `ceo-phase`, `cso`, `design-shotgun`). The bounded-wait dispatch that sets `run_in_background: true` (`outside-voice-steps.ts:482`) is unchanged.
-- CEO-21 (doctor spends nothing by default). `gstack-doctor` never runs the paid Codex model probe by default: it reports the cached result with its age, or "not probed", and runs the live probe only with `--live`.
-- CEO-22 (B1 definitions). Case 2's task match is a worktree path below the main tree, equal normalized checkpoint titles (lowercased, whitespace collapsed, punctuation and a leading date removed), or the same ticket token (`#123` or `ABC-123`) in both checkpoints' titles or branch names. Case 1's pointer is a JSON file in the starting directory's bucket holding the checkpoint path, its bucket and `project_root`; the starting directory is `$CLAUDE_PROJECT_DIR` when set in the Bash tool environment (CEO-5 records whether it is), and when it is unset no pointer is written (the below-cwd scan still finds the checkpoint).
-- CEO-23 (A3 independent fallbacks and B4 site scope). A3's two inputs fail independently: a failed `git config user.email` omits only `selfEmail`, and a failed or bounded-out history read omits only `repoPublicEmails`. B4's `gstack-post` covers the PR and issue sites; question tuning's `--summary-stdin` and the `docs/gbrain-write-surfaces.md` heredocs move to the agent-written file rule instead, since neither calls `gh` or `glab`.
-- CEO-24 (PTY-first gate and live phase transitions). Before CEO-1's payload path is built, the foreground PTY reproduction (2.1.292, default settings) runs against main and records whether the lone guarded call's record is missing at hook time, confirming the flush mechanism the design assumes. After the fix, the PTY run drives /autoplan through every phase transition in the foreground, and through `claude attach` for `--bg` when CEO-5 can drive it, including one transition that uses the `: autoplan-published <phase>` no-op on a lagging session. For any promised mode that cannot be verified live, the PR narrows P1 for that mode and #3062 stays open for it.
-- CEO-25 (tail-read spike). Before CEO-2's reader design is committed, a spike measures a backward read from end of file that stops at the invocation window start and the latest compact boundary, plus a head read for the root and SessionStart checks. The design that proves the same ownership, ancestry and order checks at lower cost is adopted, and the PR records why the other was rejected.
-- CEO-26 (admission cutoff inside the one PR). The mandatory set is Tier 1, the CEO-4 pin bump and any runtime or harness repair they need. Tier 2 items are admitted only after the mandatory set is green; a Tier 2 item still red after one repair round is reverted as its own commit and moves to TODOS.md, and P3 is reported per item that shipped. The selected eval schedule and its cost estimate are written into the PR before Tier 2 is admitted.
-- CEO-27 (A4 coupled artifacts and drain liveness). A held path holds its coupled group (artifacts that reference each other, such as a decision log and its active snapshot, as listed from the sync allowlist), so the remote never receives a partial generation. Acceptance restores onto a second `GSTACK_HOME` with a held dependency and checks the consumers read a consistent state. The drain writes `last_drain_at`; skill start alarms when it is older than 24 hours and the queue holds records, without trusting the drain's own counts. Tests: a held decision log holds its snapshot; the drain never running raises the alarm.
-- CEO-28 (outside-review severity words). `lib/outside-review-result.ts` counts severity words (`critical`, `high`) as blocking findings in review-gate outputs, or every outside-voice prompt requests `[P0]`-`[P3]` tags and the classifier treats untagged findings as `unverified`, so a review that lists high-severity findings is never reported `VERDICT: clean`. A regression fixture uses the shape of this run's Codex CEO output (seven "High"/"Medium" findings classified `clean`, `FINDINGS: none` by the installed 1.91.29.0 classifier).
-- CEO-29 (doctor triage rows). `gstack-doctor` also prints the Claude Code version, the size of the largest session journal for the current project, and the last five guard reason codes from `autoplan-guard.jsonl`; the bug-report issue template asks for its output.
-- CEO-30 (upstream request). The PR links an anthropics/claude-code issue (new, or a comment on #100051) asking for the assistant `messageId` or a flushed-before-hook guarantee in the PreToolUse payload, the supported surface that would retire the payload heuristics.
-- CEO-31 (contributor tests). Contributor code stays evidence and every fix is rewritten; contributors' regression tests are reused, adapted to the rewrite, when they pass review, and the PR says why any was not.
+- CEO-1(A1 の原因 B。ペイロードで裏付けられた現在の呼び出しと、フラッシュに強い公開)。ペイロードの経路は、ガードされた2つのツール、`Read` と `Agent` の両方を対象にします。フックのペイロードからフェーズを確立するのを拒否する、保留中の Read のルールを置き換えます。`ready` のジャーナルの最初の完全な読み取りに現在の `tool_use_id` がなく、ジャーナルのすべてのレコードが既存の順序、識別、所有権のチェックを通る場合、ガードは最後のジャーナルのレコードの後に置いたペイロード(`tool_name`、`tool_use_id`、`tool_input`)から呼び出しを評価します。ペイロードは祖先を固定します。ガードは、まず2秒の待機をしません(claude-code#100051: 遅れているセッションでは、レコードはツールの結果と一緒に届くだけ)。待機は、ジャーナルがまだ存在しない場合と、認識されないシェイプの二重読み取りの場合にだけ残ります。新しいフェーズは、前のフェーズのレポートがジャーナル化されたレコードの中にある場合にだけ確立できます。
+  両方の経路で Agent の入力を束縛します。フックの定数が、許可された Agent のキー(`prompt`、`description`、`subagent_type`、`run_in_background`)を列挙します。そのため、スナップショットのマニフェストは変わらず、アップグレード前のスナップショットも動きます。`prompt` は `nativeDispatchPrompt` と等しくなければなりません(今 `consumption()` が確認しているとおり)。`subagent_type` は、なしか `general-purpose` でなければなりません。それ以外のキーは、`model` を含めてすべて拒否します。ジャーナルの経路では、ジャーナルとペイロードの比較は、`run_in_background`(原因 A)を除いて厳密なままです。そのため、変更された `description` は、今と同じく捕らえられます。ペイロードの経路には2つ目のコピーがないので、`description` のコントロールはジャーナルの経路にだけ適用されます。
+  バッチの呼び出し: ペイロードの経路では、フックのペイロードに `messageId` がないので、最後にジャーナル化されたアシスタントの `messageId` を、現在の呼び出しのメッセージかもしれないものとして扱います。保留中のジャーナル化された兄弟は、その `messageId` を持ち、同じフェーズを対象とする場合にだけ、同じバッチとして数えます。そうすると「前のフェーズの、まだ保留中のツール」とはみなされません。別のフェーズを対象とする兄弟は、今も拒否されます。
+  許可リストの根拠: 2.1.292(デフォルト設定)での、スキーマで解析された Agent のペイロードのキーの集合の全体を、許可リストを固定する前にフィクスチャとして取得します。CEO-13 のカナリアは、ペイロードのキーが、その集合の中に収まることをアサートします。
+  フラッシュの公開: ガードされた呼び出しと同じアシスタントのメッセージにあるテキストは、遅れたセッションではフックから見えないので、どちらの経路でも、フェーズの遷移は、後続のジャーナルのレコード(ツールの結果、または異なる `messageId` を持つレコード)が続くレポートだけを数えます。ペイロードの経路では、最後のジャーナル化されたアシスタントのメッセージにあり、その後に何もないレポートは数えません。そのため、結果はフラッシュのタイミングには決して依存しません。フェーズを閉じるステップ 6 は、フェーズのレポートを、唯一のツール呼び出しが無操作の Bash `: autoplan-published <phase>`(出力なし、ガードなし)であるメッセージで公開します。ステップ 7 は、次のガードされた `Read` または `Agent`(次のフェーズのドライバ、またはスキップのメッセージの後の Phase 4 のタスク集約者)を、後のメッセージに入れます。ペイロードの経路でフェーズの開始がジャーナル化されたレポートを見つけられない場合、拒否はその原因を名指しし、無操作の呼び出しとともに、レポートを独自のメッセージで公開するよう言います。「retry」とは決して言いません。
+  テスト: #3062 のタイムラインに似せたリプレイ・フィクスチャ(オフセット 1、601、1201 の `--bg` の Read のバッチと、単独のフォアグラウンドの `Agent` のディスパッチ)は、main では拒否され、修正の後は許可されること。遅れたジャーナルで、レポートがガードされた `Read` と同じメッセージにあるフェーズの遷移は、別に公開するよう求める拒否を受けること。同じレポートが同じメッセージにある場合は、完全にフラッシュされたジャーナルでも拒否されること。部分的なフラッシュ(現在のメッセージのテキストはジャーナル化されているが、その `tool_use` はない)は拒否されること。無操作の呼び出しの後の遷移は許可されること。同じフェーズの兄弟のバッチは許可され、別フェーズの兄弟は拒否されること。ネガティブコントロールは拒否のままです。どちらの経路でも変更されたプロンプト、どちらの経路でも追加された `model`、ジャーナルの経路で変更された `description`、そしてレポートなしで新しいフェーズに入るペイロードの経路の呼び出し。
+- CEO-2(A2 の有界で、追記に耐える読み取り)。方法: フックは独自の2パスの所有者リーダーを持ちます。第1のパスは、開いた時点のサイズまでファイルをストリームし、最後の完全な行で終わります。各レコードについて小さなインデックス(uuid、親の uuid、レコードの種類、バイトのオフセットと長さ)を保持します。所有権、祖先、順序のチェックは、インデックスのメタデータに対して実行されます。対象は、uuid、親と論理的な親の uuid、type と subtype、SessionStart の attachment フラグ、`isSidechain`、`agentId`、cwd、タイムスタンプの妥当性、メッセージの役割、`messageId`、各ユーザーのターンの種類(型付き、`/autoplan` のスラッシュ、その他)、各 `tool_use` の名前と id、そして各 Bash の `tool_use` のコマンド文字列(`initArguments` がリテラルの init を見つけられるように)です。第2のパスは、完全なレコードを、起動のウィンドウに対してだけ読み込みます。これは、現在束縛されている起動の連鎖の、最初の非再利用のリテラルの init の時点以前にある、最新の人間の `user_turn` からです(`reused:true` の init は、`invocation()` が今行うとおり、以前の束縛を保ちます)。そのため、入力された要求や Skill ツールによって始まった実行も、init を束縛でき、再 arm は保留中の公開を保ちます。フラグは、そのターンより前に `end_turn` があるかを記録します。`disarmed()` のためです。既存のテスト「a real same-restore init re-arms without erasing an outstanding publication」と「rearm excludes disarmed future Reads」は、そのまま制御として残します。レコードごとのイベントの抽出は、1つの共有モジュール `lib/claude-journal-records.ts` に移し、このリーダーと `readPlanCountTranscript` の両方から呼び出します。両者がずれないようにするためです。`readPlanCountTranscript` と、その一括呼び出し元(テストと PTY のランナー)は、今のリーダーと 32 MiB の上限を維持します。開いた後の追記で、読み取りが失敗することはありません。同じデバイスと inode、縮んでいないことが要求されます。1回のフック呼び出しの中で、2回目の読み取りは、バイト [0, 最初のサイズ) の sha256 を、最初の読み取りと比較します。不一致は、書き換えられたジャーナルを名指しし、サポートされたフォールバックを付けるハードな拒否です。フック呼び出しの間の書き換えは検出しません(受け入れた制限で、文書化します)。「未検証のエントリ」の助言の2回読みの安定性チェックは、同じ接頭辞のハッシュを使います。診断のパスはストリームされ、メモリは有界に保たれます。レコードごとの上限: 32 MiB(古い全体の上限と同じ。今日読めるジャーナルが、読めなくなることはありません)。この名前付きの定数は `docs/autoplan-guard-troubleshooting.md` に文書化します。上限を超える単一のレコードは `too_large` になります。
+  受け入れ(PR に記録。CI のタイミングのゲートではない): `scripts/measure-journal-read.ts` は、報告されたジャーナルのレコード数とサイズの構成に合う 120 MiB のジャーナルを作ります(少数の大きなレコードだけではない。レビューの 440〜500 ms という数字は、5.7k レコードの合成データでの、今の全体リーダーによるもの)。読み取りの間に追記を行い、1回の読み取りと評価の時間を計測します。GitHub がホストする `ubuntu-latest` のランナー(4 vCPU)で、最大 1 秒、ピークの RSS は 256 MiB 以下でなければなりません。リーダーの設計を確定する前に、そのジャーナルに対する解析とインデックス化のスパイクを実行します。無料のスイートは、縮小用の seam を通して判断と、インデックスのサイズの上限をアサートします。また、スラッシュのターンがない Skill ツールの開始のフィクスチャも加えます。どちらかの閾値を満たさない実行は、A2 のコミットを保留にします(第1階層なので PR を保留にします)。修正されるか、ユーザーが明示的に例外を認めるまで。
+- CEO-3(P1 の拒否の一覧とコード)。`autoplan/bin/phase-publication-hook.ts` の `fail()` の箇所はすべて、安定した理由コードを与えられます。PR は各コードと処分を列挙します。A1 または A2 によって削除された。一時的でない原因で、サポートされたフォールバックを持つ。ユーザーまたはモデルが最初に取るべき、名指しされた修正行動(例: 「restore this installation」「run init」「publish the report」)。または、何を待つべきかを示す名指しされた一時的な状態(今の「a prior phase-entry tool is still pending」と「an active-plan mutation is pending」)。無料のテストは、修正行動や一時的な状態を名指ししないまま、再試行を勧める拒否のテキストがあれば失敗します。
+- CEO-4(ピンのアップデートの検証)。`.github/docker/Dockerfile.ci` を Claude Code 2.1.292 に移すときは、Dockerfile 自身のコメント(「runs the PTY gate against the new TUI」)が求めるとおり、新しいピントで、ゲート全体のティア(`bun run eval:bg:gate`)を実行します。autoplan の有料ケースと `autoplan-journal-drift` に加えてです。ピンのコメントに、2.1.292 を選んだ理由を書きます。`test/ci-image-cli-pin.test.ts` は通ること。
+- CEO-5(`--bg` の再現の正直さ)。PTY による再現は、デフォルト設定(`CLAUDE_CODE_FORK_SUBAGENT` の上書きなし、クリーンな設定)で実行します。1つは `claude --bg` でセッションを始め、`claude attach <id>` で操作します。ハーネスがアタッチされたセッションを操作できない場合、PR とリリースノートに、P1 の `--bg` のケースはリプレイのフィクスチャでのみ検証されたと書きます。そして、スキップされた項目 X10(`--bg` の事前チェックの警告)を、TODOS.md の項目として再開します。フォアグラウンドのセッションは、Bash ツールの呼び出しの中で `$CLAUDE_PROJECT_DIR` が設定されているかどうかも表示し、CEO-22 のために PR に記録します。
+- CEO-6(macOS での計測)。`scripts/measure-journal-read.ts` は、A2 のブランチで、`workflow_dispatch` のジョブとして、`ubuntu-latest` と `macos-latest` の両方で1回実行します(すべての PR では実行しません)。macOS の数字は、Linux の数字と並べて PR に記録しますが、ゲートにはしません。
+- CEO-7(A3 の、新しいブランチのためのリモートの履歴)。push されたリモートの sha がすべてゼロであるか、ローカルに存在しない場合、`repoPublicEmails` は、push 先リモートのトラッキング参照(`git log --format='%ae%n%ce' --remotes=<remote>`)と push されたコミットから得ます。通常の `<remote sha>` の経路を含め、すべての履歴の読み取りは、5万コミットと5秒に制限します。失敗または超過は、何も渡さないことになります(今の動作)。MEDIUM の要約は、各指摘のルール ID、ファイル、行を名指しします。一致した値を名指しすることは決してありません。
+- CEO-8(B2 の Greptile のライフサイクル)。Greptile は、`greptile.json` または `.greptile/` フォルダ(フォルダが優先)によって検出されるか、過去の Greptile のコメントによって検出されます。/ship が早期の PR を draft として開き、有効な設定が `triggerOnDrafts: true` を設定していない場合、/ship は `@greptileai` のコメントを1つ投稿して、レビューを開始させます。/ship は、ユーザーが draft を頼んでいない限り、既存の PR のステップで PR を ready にします。「ready」で Greptile が開始するレビューは想定どおりで、待ちません。そのコメントは、次の /ship または /land-and-deploy の Greptile のパスで扱います。そのため、レビューを開始させるための追加のコメントは投稿しません。完了の合図: /ship は、早期の PR のヘッドの SHA について、Greptile のチェック実行または要約コメントを、30秒ごとに最大10分ポーリングします。完了したチェックまたは要約だけが、完了したレビューとして数えられます(コメントがゼロの場合も含む)。タイムアウトは、既存の利用不可のパスを取ります。コメントがゼロだと主張することは決してありません。早期の draft には、暫定的なタイトルと、/ship が早期に開いてレビューのために後で更新すると書いた本文を付けます。既存の PR のステップは、新しい PR を作る代わりに、その PR を編集します。以前のヘッドにあるコメントは、最終的な差分に照らして振り分けます。トリガーのコメントは、B4 が出荷されたら `gstack-post` を通して、そうでなければ、ホストのファイルツールで書いたファイルを使って `gh pr comment --body-file` を通して投稿します(既存の自由記述のルール)。Greptile がなければ、何も変わりません。テスト: `triggerOnDrafts` あり・なし、そして `.greptile/` フォルダがあるフィクスチャのリポジトリで、トリガーのコメントが投稿されるかどうかをアサートします。
+- CEO-9(B3: すべてのプローブ関数に、実行される形がある)。生成されたスキルが今呼び出す10個のプローブ関数のそれぞれに、サブコマンドが与えられます: `select-model`、`auth`、`sandbox-mode`、`sandbox-preflight`、`model-probe`、`version-check`、`first-use-notice`、`timeout`(ラップされたコマンドを exec し、その終了コードを返す)、`log-event`、`log-hang`。契約(標準出力は `KEY: value` の行。人間向けのステータスの行は今どおり stderr に出し、呼び出し元では何も設定しない): `select-model <exec|review>` は `CODEX_SEL:` と `CODEX_SEL_KIND:` を表示し、`CODEX_MODEL:` の stderr の行を維持し、終了コード 0 か 1 で終わります。`sandbox-mode` は `CODEX_SANDBOX:` を表示します。`sandbox-preflight` は、0 か、理由を stderr に出した非ゼロで終了します。`model-probe <exec|review> --model <m> --kind <k>` は `CODEX_PROBE_STATE:` を表示し、今の終了コード(0、2、3、その他)を保ちます。`auth` は終了コードで報告します。`version-check` と `first-use-notice` は stderr に出力し、0 で終了します。`timeout <secs> <cmd...>` はコマンドを exec し、その終了コードを返します(タイムアウトなら 124)。`log-event <event> [detail]` と `log-hang <skill> <n>` は何も出力せず、0 で終了します。生成されるブロックは、`sed -n 's/^KEY: //p'` で値を取り込みます。そのため `CODEX_MODEL_CONFIG_FLAG` は、`${_GSTACK_CODEX_SEL}` ではなく、取り込んだモデルを読みます。ソースとして読み込む方式は、アップグレード前にレンダリングされたスキルのために、1回のリリースの間は動きます。zsh の自己位置特定のコードは、ソースとして読み込む方式がサポートされている間は残し、ソースとして読み込む方式を削除するのと同じ変更で取り除きます。既存の zsh のソースのテストは、互換性のあるリリースの間も通ります。無料のテストは、各サブコマンドを bash と zsh から1回ずつ実行します。
+- CEO-10(B6: 同意は維持する)。エージェントが開いたのではないタブに接続するには、ユーザーがそのタブを一度確認することが必要です(ルール 1)。エージェントは、ユーザーが名指しした対象のオリジンと一致するオリジン(タイトルとオリジン)のタブだけを、ユーザーに見せてよいです。`listBrowserTabs()` の残りは、非公開のままです。確認されたサインインの後、2回目のサインインの壁は、セッションがタブまたは URL に束縛されていることを意味します。エージェントは、もう一度サインインを求めるのではなく、その1回の確認でユーザーのサインイン済みのタブへの接続を提案します。ルール 6 は、もう早期の `return` を勧めません。キー入力には `pg.locator(sel).press(key)` を使います。`GSTACK_STEP_OK` がない、とても短い実行からの `[ok` の結果は、スクリプトの中止です。ルールの文章は短く保ちます。約100個の生成されたスキルファイルにレンダリングされるからです。詳細は browse のクックブックに書きます。
+- CEO-11(B7: 2つ目のクレジット)。v1.64.0.0 の CHANGELOG のエントリで、拡張機能のトークンの修正(#1822)については @punksterlabs を @Mike-E-Log に、polyfill の `exited` の Promise(#1743)については @habassa5 に置き換えます。コミット履歴は書き換えません。
+- CEO-12(ガードの判断のログ)。ガードされた判断はすべて、許可でも拒否でも、`<state root>/analytics/autoplan-guard.jsonl` に、内容を含まない1行を追記します。判断、拒否の場合は CEO-3 の理由コード、評価の経路(ジャーナルかペイロードか)、Claude Code のバージョン、処分のクラスを含みます。拒否に分母を与えるためです。ログの失敗が、判断を変えることは決してありません。無料のテストは、1つの許可、1つのハードな拒否、1つの一時的な拒否について、その行を確認します。
+- CEO-13(最新リリースのスキーマのカナリア)。新しい定期ケース `autoplan-schema-canary`(独自のテストファイル、`touchfiles-data.ts` のエントリ、定期ティア、ルールの種類)は、CI イメージの中で、`.github/workflows/evals-periodic.yml` の毎日のスケジュールで実行します。このケースだけのために追加します(既存の `ANTHROPIC_API_KEY` のシークレット、haiku、1回あたり約 $0.02、月約 $0.60)。週次のマトリクスは変わりません。最新の公開された Claude Code を、一時的な npm のプレフィックスにインストールし(`GSTACK_CLAUDE_BIN` で選択)、1回の Agent と1回の Read の呼び出しについて、PreToolUse フックがペイロードを記録するヘッドレスのセッションを実行します。ターンの後、各ペイロードを、ジャーナルのレコードと、ガード自身の比較(`nativeToolInput` は、そのために export します)を使って比べ、ペイロードのキーが CEO-1 の許可リストの中に収まることをアサートし、両方のツールについて、ペイロードのキーの集合が、ジャーナルのレコードのキーの集合と、文書化された削除(今は `run_in_background`)を除いて等しいことをアサートします。そのため、Cause A のようなスキーマの削除は、リリースから1週間以内に CI で失敗し、既存の定期の `report` ジョブに、ほかの赤いケースと同じように届きます。新しいケースにはピンのアサーションはありません。`autoplan-journal-drift` は、そのピンのアサーションを変えずに残します。フラッシュのタイミングは、このケースの範囲外です(ヘッドレスのため)。それは CEO-5 がカバーします。無料のフィクスチャは、注入したキーの削除に対して、比較が失敗することを証明します。マージの前に、PR のブランチで1回の手動ディスパッチで証明し、マージの日には最新のリリースに対して再実行します。どちらも PR にリンクします。
+- CEO-14(同期のステータスの詳細)。`gstack-brain-sync --status` の JSON には、`held` の配列が加わります。各保留されたパス、スキャナのルール名(一致したテキストは決して含まない)、そして両方の修正(`gstack-brain-sync --skip-file <path>`、または内容の編集)を含みます。無料のテストは、保留された1つのパスをカバーします。
+- CEO-15(P1 の長いセッションのエンドツーエンド)。1つの有料の PTY ケース(ルールの種類、1回の試行、約10分の eval の予算内)は、ジャーナルが 100 MiB を超えるまで、圧縮の境界より前のレコードで水増しされたセッションを再開します(Claude Code は、それを API に再生しません)。そして、ガードを通して /autoplan のフェーズ1に入ります。その費用は、実行の前に PR で見積もります。Claude Code が水増しされたジャーナルを再開できない場合、PR には、P1 の長いセッションの約束は CEO-2 の読み取りの受け入れを通してのみ検証されたと書きます。
+- CEO-16(TODOS.md の編集)。実装 PR は、「Oct 6 fix-wave follow-ups」の各エントリを、その項目が出荷され、かつそのエントリの受け入れ条件を満たした場合にのみ削除する(bounded-read のエントリは、CEO-15 がエンドツーエンドで通ることが必要。通らなければ、残っているギャップを示す文言に書き直す)。出荷されない Tier 2 項目のエントリは残す。/cso の Windows トランスポートのエントリは残し、X7 と X8 を延期理由とともに追加する。CEO-5 が X10 を再開する場合は、X10 も追加する。
+- CEO-17(A4 の健全性シグナルとロックの安全性)。スキャナーによる保留: フラグの立ったパスを保留し、残りをプッシュするドレインは、新しいステータス `held`(`blocked` ではない)と保留件数を書き込む。保留されたレコードはキューに残り、内容がクリーンになるか `--skip-file` でそのパスが指定されるまで、ドレインのたびに再スキャンされる。スキル開始時は、ステータスが `held` または `blocked` のとき注意行を表示する。また、ドレイン可能なレコードが残っているのに 24 時間プッシュが行われていない場合は、別途注意行を表示する。スキャナーによる保留および プライバシーによる保留のレコードは、ドレイン可能としては数えない。ドレインは `drainable` の件数をステータスファイルに書き込むので、スキル開始時にプライバシー分類を行う必要がない。`ARTIFACTS_SYNC:` の注意行は固定テキストと、`ok`、`idle`、`held`、`blocked`、`push_failed`、`error` のいずれかに制限されたステータスコードからなる(それ以外の値は `unknown` と表示する)。ステータスメッセージ、ファイルパス、スキャナーの出力は決して含めない(ステータスメッセージには、一致した秘密情報の先頭 30 文字が入る可能性があるため)。古い `.git/index.lock` は、このドレインがドレインロックを保持しており、かつインデックスロックが 10 分より古い場合にのみ削除する。`gstack-brain-restore`、`gstack-artifacts-init`、`gstack-gbrain-source-wireup` は、このロックを取らずに `$GSTACK_HOME` で git を実行するためである。パスごとの保留は、ステージされた各パスの差分をスキャンして、スキャナーのヒットを帰属させる。テスト: 他のファイルが引き続きプッシュされている間に、保留されたファイルがスキル開始時に報告されること。保留されたファイルが、編集と `--skip-file` の両方でクリアされること。プライバシーによる保留のみのキューでは警報が出ないこと。新しいインデックスロックはそのまま残し、古いものはクリアすること。注意行にステータス文言が含まれないこと。
+- CEO-18(テンプレート項目ごとの生成とプロンプトのチェック)。テンプレートまたはリゾルバーを編集する項目(A1 のフェーズ節とフェーズ終了、B2、B3、B4、B6、CEO-20、および CEO-17 の `scripts/resolvers/preamble/generate-brain-sync-block.ts`。この最後のものは、新しい注意行をユーザーに伝えて処理を続けるようモデルに指示する)は、`bun run gen:skill-docs` と `bun run gen:skill-docs --host codex` で再生成し、有料の評価を行う前に `test/parity-suite.test.ts`、プロンプトサイズのチェック、ゴールデンフィクスチャを通す。
+- CEO-19(B4 がリダクション・スキャンを担当する)。`gstack-post` は、送信しようとしている正確なバイト列に対して `gstack-redact` を実行する。`--repo-visibility` は呼び出し側の既存の公開範囲判定から渡し、`--self-email` は `git config user.email` から渡す。HIGH の検出があった場合は、ルール名を示したうえで拒否する。MEDIUM の検出(終了コード 2)があった場合は、何も投稿せず、検出結果を返して、呼び出し側が投稿前に既存の検出ごとの確認を行えるようにする。これに置き換わる呼び出し元(/ship の PR タイトルと本文のスキャン(`ship/sections/pr-body.md.tmpl` 内)、および `scripts/resolvers/redact-doc.ts` から描画される PR や Issue の書き込み箇所)は、個別のスキャンを削除する。テスト: 本文ファイル内の HIGH の秘密情報は拒否され、何も投稿されないこと。MEDIUM の検出は、呼び出し側が確認するまで何も投稿しないこと。問題のない本文は、スタブで検証された引数配列形式の `gh` 呼び出しで投稿されること。
+- CEO-20(共通のフォアグラウンド注記)。`run_in_background: false` を要求するすべての箇所は、`spec-review.ts:154` で既に使われている条件付きの文言(「そのフィールドが利用可能であれば。利用できなければ省略する」)を採用し、さらに背景実行の場合のリカバリ手順を加える。対象は、`scripts/resolvers/constants.ts` の `FOREGROUND_DISPATCH_NOTE`、`scripts/resolvers/design.ts`(2 箇所)、`outside-voice-steps.ts`(3 箇所)、`review-army.ts`(2 箇所)、`spec-review.ts:61`、そしてリテラルをインラインで持つ 3 つのテンプレート(autoplan の `ceo-phase`、`cso`、`design-shotgun`)である。`run_in_background: true` を設定する、待機時間付きのディスパッチ(`outside-voice-steps.ts:482`)は変更しない。
+- CEO-21(doctor はデフォルトでコストを発生させない)。`gstack-doctor` は、デフォルトでは有料の Codex モデルのプローブを実行しない。キャッシュされた結果とその経過時間、または「not probed」を報告し、`--live` を指定したときにのみライブのプローブを実行する。
+- CEO-22(B1 の定義)。ケース 2 のタスク一致は、メインのツリーより下にあるワークツリーのパス、正規化されたチェックポイントタイトルが一致すること(小文字化し、空白を詰め、句読点と先頭の日付を除去する)、または両方のチェックポイントのタイトルかブランチ名に同じチケットトークン(`#123` または `ABC-123`)が含まれることである。ケース 1 のポインターは、開始ディレクトリのバケット内にある JSON ファイルで、チェックポイントのパス、そのバケット、`project_root` を保持する。開始ディレクトリは、Bash ツールの環境で `$CLAUDE_PROJECT_DIR` が設定されていればその値とする(CEO-5 がそれを設定されているかどうかを記録する)。未設定の場合はポインターを書き込まない(カレントディレクトリより下のスキャンでも、チェックポイントは見つかる)。
+- CEO-23(A3 の独立したフォールバックと B4 の対象範囲)。A3 の 2 つの入力は、それぞれ独立して失敗する。`git config user.email` が失敗した場合は `selfEmail` のみを省略し、履歴の読み取りが失敗した場合、またはサイズ上限で打ち切られた場合は `repoPublicEmails` のみを省略する。B4 の `gstack-post` は PR と Issue の箇所を対象とする。質問チューニングの `--summary-stdin` と `docs/gbrain-write-surfaces.md` のヒアドキュメントは、どちらも `gh` や `glab` を呼ばないため、エージェントが書くファイルのルールに移す。
+- CEO-24(PTY 優先のゲートとライブのフェーズ遷移)。CEO-1 のペイロード経路を実装する前に、フォアグラウンドの PTY 再現(2.1.292、デフォルト設定)を main に対して実行し、唯一のガード対象の呼び出しのレコードがフック時点で欠けているかどうかを記録する。これにより、設計が前提とするフラッシュの仕組みを確認する。修正後は、PTY 実行で /autoplan をフォアグラウンドのすべてのフェーズ遷移を通して動かす。CEO-5 が操作できる場合は、`claude attach` 経由で `--bg` も動かし、そのうち 1 回の遷移は、ラグのあるセッションで `: autoplan-published <phase>` の no-op を使うものとする。ライブで検証できない約束されたモードについては、PR がそのモードの P1 を絞り込み、#3062 はそのモードについて開いたままにする。
+- CEO-25(tail-read のスパイク)。CEO-2 のリーダー設計を確定する前に、スパイクを行う。ファイル末尾から後方に読み、呼び出しウィンドウの開始位置と最新のコンパクト境界で止まる読み取りと、ルートおよび SessionStart のチェックのための先頭からの読み取りを計測する。同じ所有権、祖先関係、順序のチェックをより低いコストで証明する設計を採用し、もう一方を却下した理由を PR に記録する。
+- CEO-26(1 つの PR 内での受け入れの締め切り)。必須セットは Tier 1、CEO-4 のピン更新、およびそれらに必要なランタイムやハーネスの修復である。Tier 2 項目は、必須セットがグリーンになってからのみ受け入れる。Tier 2 項目が 1 回の修復ラウンド後もレッドのままの場合は、独立したコミットとして差し戻し、TODOS.md に移す。P3 は、出荷された項目ごとに報告する。Tier 2 を受け入れる前に、選択された評価のスケジュールとそのコストの見積もりを PR に記載する。
+- CEO-27(A4 の連携するアーティファクトとドレインの活性)。保留されたパスは、その連携グループ全体(決定ログとそのアクティブなスナップショットのように、互いを参照するアーティファクト。同期の許可リストに記載されているもの)を保留する。これにより、リモートが部分的な世代を受け取ることがなくなる。受け入れテストでは、保留された依存関係を持つ状態で、2 つ目の `GSTACK_HOME` に復元し、利用側が一貫した状態を読むことを確認する。ドレインは `last_drain_at` を書き込み、スキル開始時に、それが 24 時間より古く、かつキューにレコードがある場合に警報を出す。その際、ドレイン自身のカウントは信用しない。テスト: 保留された決定ログがスナップショットも保留すること。ドレインが一度も実行されない場合に警報が出ること。
+- CEO-28(アウトサイドレビューの重大度の語)。`lib/outside-review-result.ts` は、レビューゲートの出力において、重大度を表す語(`critical`、`high`)をブロッキングの指摘として数える。または、すべてのアウトサイドボイスのプロンプトに `[P0]`-`[P3]` のタグを要求し、分類器はタグのない指摘を `unverified` として扱う。これにより、高い重大度の指摘を列挙しているレビューが、`VERDICT: clean` と報告されることはなくなる。回帰テスト用のフィクスチャには、今回の実行の Codex CEO の出力の形(インストール済みの 1.91.29.0 の分類器によって `clean` と `FINDINGS: none` に分類された、「High」と「Medium」の指摘 7 件)を使う。
+- CEO-29(doctor のトリアージ行)。`gstack-doctor` は、Claude Code のバージョン、現在のプロジェクトで最大のセッションジャーナルのサイズ、`autoplan-guard.jsonl` の直近 5 件のガード理由コードも表示する。バグ報告の Issue テンプレートは、その出力を求める。
+- CEO-30(上流への要望)。PR は anthropics/claude-code の Issue(新規、または #100051 へのコメント)にリンクする。その Issue では、PreToolUse のペイロードに、アシスタントの `messageId` か、フラッシュ済みであることをフックの前に保証する仕組みを求める。これは、ペイロードのヒューリスティクスを不要にできる、サポートされたインターフェースである。
+- CEO-31(コントリビューターのテスト)。コントリビューターのコードは根拠として扱い、すべての修正は書き直す。コントリビューターの回帰テストは、レビューを通過した場合には、書き直しに合わせて調整したうえで再利用する。再利用しなかった場合は、その理由を PR に書く。
 <!-- /autoplan-accepted:ceo -->
 
 <!-- autoplan-accepted:dx -->
-- DX-1 (guard troubleshooting page is a deliverable). `docs/autoplan-guard-troubleshooting.md` is rewritten with the guard changes: one anchor per CEO-3 reason code; the "Retry denials" section becomes CEO-3's dispositions (no "retry the same tool" for `identity` or `malformed`); the `too_large` section matches the bounded reader; the "no environment variable turns the guard off" line stays unless the user changes it at the gate. Every denial message ends with its anchor URL and prints the fallback as runnable commands (`/plan-ceo-review`, then `/plan-devex-review`, then `/plan-eng-review`; or `/context-save`, a new session, `/context-restore`, then `/autoplan <plan path>`). The `model` or extra-key denial says that a model override is not allowed for /autoplan reviewer dispatch. `docs/troubleshooting.md` stops teaching the sourced probe once B3 ships. CEO-3's free test also asserts that every code has an anchor and every denial string cites one.
-- DX-2 (runnable paths). Every user-facing mention of a gstack helper (the `ARTIFACTS_SYNC:` attention lines, doctor's fix lines, the bug-report issue template, CHANGELOG recovery steps, denial fallbacks) prints the absolute path resolved from the install root, not a bare `gstack-*` name; the issue template gives the Claude Code path plus a `gstack-paths` lookup for other hosts. A free test asserts that rendered attention lines and the template contain no bare `gstack-` command.
-- DX-3 (upgrade in place). Release notes say an upgrade needs no restart: an in-flight /autoplan session may get at most one publish-separately denial, which names the exact fix, and `CLAUDE_CODE_FORK_SUBAGENT=false` is no longer needed (harmless if kept). A replay fixture runs an old-template close sequence (report and next driver `Read` in one message) against the new hook and shows recovery after the denial without a restart.
-- DX-4 (one sync status table). The plan's three staleness predicates are replaced by one table in `bin/gstack-brain-sync`'s usage header and the docs: `held` (scanner hold, held count), `blocked` (re-scan still flags), `push_failed`, `error`, stale-push (no push for 24 hours while the drain's `drainable` count is above zero), stale-drain (`last_drain_at` older than 24 hours while the queue directory holds records), each with its trigger, exact fixed attention-line text and fix command; `ok` and `idle` print no attention line. The skill-start tests are generated from that table.
-- DX-5 (skip is permanent and reversible). `held` entries and the docs say `--skip-file` permanently excludes the path from future syncs, and a new `gstack-brain-sync --unskip-file <path>` reverses it. Each held group lists its blocking path and its held dependents. A test unskips a path and shows normal syncing resumes without publishing a partial group.
-- DX-6 (`gstack-post` interface). Synopsis: `gstack-post {pr-comment|issue-comment|reply|pr-title|pr-body} <target> --body-file <file> [--host github|gitlab] [--confirm <rule-id>...]`; the host is detected from the remote unless `--host` is given. Exit codes: 0 posted; 1 HIGH finding refused; 2 MEDIUM findings need confirmation, printed on stdout as `RULE: <id> LINE: <n>` lines; 3 `gh`/`glab` failed. `--confirm` must name exactly the rule ids returned for those bytes; the helper re-scans every call, so changed bytes need a fresh confirmation and a HIGH finding is always refused. Tests: refusal then confirmation then post; changed content after confirmation re-prompts; HIGH refused even with `--confirm`.
-- DX-7 (probe subcommand naming and help). Subcommands use one verb-first order: `select-model`, `check-auth`, `show-sandbox`, `check-sandbox`, `probe-model`, `check-version`, `show-first-use-notice`, `run-with-timeout`, `log-event`, `log-hang`, plus `help`; an unknown subcommand prints usage to stderr and exits 64. `select-model <exec|review> [--model <id>]` keeps today's precedence (per-request model over environment over config) and provenance, and the same model is used for probing and dispatch. While sourcing is still supported, sourcing prints one stderr line naming the deprecation and `/gstack-upgrade`.
-- DX-8 (doctor result states). Each `gstack-doctor` row is `ok`, `warn`, `not configured` or `fail`; only `fail` makes the exit code non-zero. Intentionally absent Codex, disabled artifacts sync, an unbuilt optional browser and "not probed" are `not configured` or `warn` with the affected features named. Doctor's install row reuses the `./setup --status` check, and `./setup --status` ends with the absolute path to `gstack-doctor`.
-- DX-9 (A3 partial history and fix lines). Hitting the 50,000-commit cap uses the partial author set; only an error or the 5-second timeout passes nothing, and either case prints one line saying existing-email suppression was limited for this push. Each MEDIUM line names rule id, file and line and a fix (remove the value, or allow it per DX-17).
-- DX-10 (B2 says what it is doing). Before the early push, /ship prints the Greptile signal it used (config folder, `greptile.json`, or a Greptile comment within the last 90 days; older comments do not count), that it will push and open a draft now, and the wait cap; during the wait it prints progress. These lines apply whether B2 ends up default or opt-in (UC2).
-- DX-11 (CEO-28 contract chosen). The classifier recognizes both `[P0]`-`[P3]` tags and severity words (`critical`, `high` blocking; `medium`, `low` non-blocking); a review with neither tags, severity words nor an explicit no-findings statement is `unverified`, never `clean`. The behavior is documented in `docs/troubleshooting.md` next to the gate outcomes.
-- DX-12 (documentation touchpoints). The PR updates: CHANGELOG sections per symptom with copy-paste recovery ("If /autoplan denied every reviewer on Claude Code 2.1.29x", "If the pre-push hook warned on your own email", "If artifacts sync stopped pushing"); the guard troubleshooting page (DX-1); a README troubleshooting entry pointing at doctor; `gstack-brain-sync` usage (held, `--status` `held`, skip and unskip); the bug-report issue template; the browse cookbook (CEO-10); `gstack-post` usage; `docs/troubleshooting.md` (probe, classifier).
-- DX-13 (no-op never prompts). The CEO-5/CEO-24 PTY runs assert that `: autoplan-published <phase>` runs without a permission prompt in the foreground session and, when driven, the `--bg` session.
-- DX-14 (guard log bounded). `autoplan-guard.jsonl` keeps the last 1,000 lines (older lines are dropped on write); a free test covers the trim.
-- DX-15 (Windows coverage of new helpers). `gstack-post`, `gstack-doctor` and the probe subcommands are added to the curated Windows free subset, or the PR names each one as not supported on native Windows yet.
-- DX-16 (recovery TTHW measured). The CEO-24 foreground PTY run records the upgrade duration and the time from `/autoplan` invocation to Phase 1 entry; the PR reports them against the Competitive target (2-5 minutes for upgrade plus Phase 1 entry).
-- DX-17 (pre-push email allowlist, taste). `git config --add gstack.redact.allowEmail <address>` allows that address for MEDIUM `pii.email` findings only; it never affects HIGH findings or other rules, and the MEDIUM fix line names it. Paired controls: an allowed address does not flag, a different address still flags, and a HIGH secret next to an allowed address still blocks.
-- DX-18 (B3 compatibility window, taste). Sourcing stays supported for at least one release and at least 14 days, whichever is later; the CHANGELOG names the release that removes it, and the deprecation line (DX-7) appears from the first release.
+- DX-1(ガードのトラブルシューティングページは成果物)。`docs/autoplan-guard-troubleshooting.md` は、ガードの変更に合わせて書き直す。CEO-3 の理由コードごとにアンカーを 1 つ設ける。「Retry denials」の節は CEO-3 の対処方針に置き換える(`identity` と `malformed` については「同じツールを再試行する」と書かない)。`too_large` の節は、境界付きリーダーに合わせる。「環境変数でガードを無効にできない」という記述は、ユーザーがゲートで変更しない限り残す。すべての拒否メッセージは、末尾にアンカーの URL を付け、フォールバックを実行可能なコマンドとして表示する(`/plan-ceo-review`、次に `/plan-devex-review`、次に `/plan-eng-review`。または `/context-save`、新しいセッション、`/context-restore`、次に `/autoplan <plan path>`)。`model` や余分なキーによる拒否では、/autoplan のレビュアーのディスパッチでは model のオーバーライドが許可されていないことを伝える。B3 が出荷された時点で、`docs/troubleshooting.md` は、ソースから読み込むプローブの説明をやめる。CEO-3 の無料テストは、すべてのコードにアンカーがあること、およびすべての拒否メッセージがアンカーを参照していることを確認する。
+- DX-2(実行可能なパス)。ガジェット(gstack のヘルパー)に言及するユーザー向けの箇所(`ARTIFACTS_SYNC:` の注意行、doctor の修正行、バグ報告の Issue テンプレート、CHANGELOG のリカバリ手順、拒否メッセージのフォールバック)はすべて、裸の `gstack-*` という名前ではなく、インストールルートから解決した絶対パスを表示する。Issue テンプレートには、Claude Code のパスと、他のホスト向けの `gstack-paths` による検索方法を記載する。無料テストで、描画された注意行とテンプレートに、裸の `gstack-` コマンドが含まれていないことを確認する。
+- DX-3(その場でのアップグレード)。リリースノートには、アップグレードに再起動は不要だと記載する。実行中の /autoplan セッションでは、「別々に公開する」形式の拒否が最大 1 回だけ出る場合がある。その拒否は、正確な修正方法を示す。`CLAUDE_CODE_FORK_SUBAGENT=false` はもう不要になる(残しておいても害はない)。古いテンプレートによるクローズのシーケンス(レポートと次のドライバーの `Read` が 1 つのメッセージにある)を新しいフックに対して流すリプレイのフィクスチャを用意し、再起動なしで拒否の後に回復することを示す。
+- DX-4(同期ステータスの表を 1 つにまとめる)。計画にある 3 つの古さの判定条件を、`bin/gstack-brain-sync` の使い方ヘッダーとドキュメントにある 1 つの表に置き換える。その表には、`held`(スキャナーによる保留と保留件数)、`blocked`(再スキャンでもフラグが立つ)、`push_failed`、`error`、stale-push(ドレインの `drainable` 件数が 0 より大きい状態で 24 時間プッシュがない)、stale-drain(キューのディレクトリにレコードがある状態で `last_drain_at` が 24 時間より古い)を載せる。それぞれについて、トリガー、正確な固定の注意行の文言、修正コマンドを記す。`ok` と `idle` は注意行を表示しない。スキル開始時のテストは、この表から生成する。
+- DX-5(スキップは恒久的で、元に戻せる)。`held` のエントリとドキュメントには、`--skip-file` によって、そのパスが今後の同期から恒久的に除外されることを記載する。新しく `gstack-brain-sync --unskip-file <path>` を追加し、それを元に戻せるようにする。保留された各グループには、ブロックしているパスと、その保留された依存先を列挙する。テストでは、パスのスキップを解除し、通常の同期が再開して、部分的なグループが公開されないことを確認する。
+- DX-6(`gstack-post` のインターフェース)。構文: `gstack-post {pr-comment|issue-comment|reply|pr-title|pr-body} <target> --body-file <file> [--host github|gitlab] [--confirm <rule-id>...]`。ホストは、`--host` が指定されない限りリモートから検出する。終了コード: 0 は投稿済み、1 は HIGH の検出により拒否、2 は MEDIUM の検出により確認が必要(標準出力に `RULE: <id> LINE: <n>` の行で表示)、3 は `gh`/`glab` の失敗。`--confirm` には、そのバイト列に対して返されたルール ID を正確に指定しなければならない。ヘルパーは呼び出しのたびに再スキャンするので、内容が変わった場合は新たな確認が必要になり、HIGH の検出は `--confirm` を付けても常に拒否される。テスト: 拒否、確認、投稿の流れ。確認後に内容が変わった場合は再度確認を求めること。HIGH は `--confirm` があっても拒否されること。
+- DX-7(プローブのサブコマンド名とヘルプ)。サブコマンドは動詞が先頭に来る形で統一する: `select-model`、`check-auth`、`show-sandbox`、`check-sandbox`、`probe-model`、`check-version`、`show-first-use-notice`、`run-with-timeout`、`log-event`、`log-hang`、および `help`。未知のサブコマンドは、標準エラーに使い方を表示し、終了コード 64 で終了する。`select-model <exec|review> [--model <id>]` は、現在の優先順位(リクエストごとのモデル、次に環境、次に設定)と由来を維持し、プローブとディスパッチで同じモデルを使う。ソースの読み込みをサポートしている間は、ソース読み込み時に、非推奨であることと `/gstack-upgrade` を示す 1 行を標準エラーに出す。
+- DX-8(doctor の結果の状態)。`gstack-doctor` の各行は `ok`、`warn`、`not configured`、`fail` のいずれかで、`fail` のみが終了コードを非ゼロにする。意図的に入れていない Codex、無効化されたアーティファクト同期、ビルドされていない任意のブラウザ、「not probed」は、`not configured` または `warn` とし、影響を受ける機能の名前を挙げる。doctor のインストール行は `./setup --status` のチェックを再利用し、`./setup --status` は末尾に `gstack-doctor` の絶対パスを表示する。
+- DX-9(部分的な履歴と修正行)。50,000 コミットの上限に達した場合は、部分的な作者の集合を使う。エラーまたは 5 秒のタイムアウトの場合のみ何も渡さず、いずれの場合も、今回のプッシュで既存メールアドレスの抑止が制限されたことを 1 行で表示する。MEDIUM の各行には、ルール ID、ファイル、行番号、および修正方法(値を削除する、または DX-17 に従って許可する)を記載する。
+- DX-10(B2 が何をしているかを示す)。/ship は、早期プッシュの前に、使用した Greptile のシグナル(設定フォルダ、`greptile.json`、または直近 90 日以内の Greptile のコメント。それより古いコメントは数えない)、今からプッシュしてドラフトを開くこと、待機の上限を表示する。待機中は進捗を表示する。これらの表示は、B2 がデフォルトになるかオプトインになるかにかかわらず適用される(UC2)。
+- DX-11(CEO-28 の契約を確定)。分類器は、`[P0]`-`[P3]` のタグと重大度の語(`critical`、`high` はブロッキング、`medium`、`low` は非ブロッキング)の両方を認識する。タグも重大度の語も、問題がないという明示的な記述もないレビューは、`clean` ではなく `unverified` となる。この動作は、ゲートの結果と並べて `docs/troubleshooting.md` に記載する。
+- DX-12(ドキュメントの接点)。PR は次を更新する。症状ごとの CHANGELOG の節(コピー＆ペーストで実行できるリカバリ手順付き。「Claude Code 2.1.29x で /autoplan がすべてのレビュアーを拒否した場合」「プッシュ前フックが自分のメールアドレスで警告した場合」「アーティファクト同期でプッシュが止まった場合」など)。ガードのトラブルシューティングページ(DX-1)。doctor を指す README のトラブルシューティングの項目。`gstack-brain-sync` の使い方(held、`--status` の `held`、skip と unskip)。バグ報告の Issue テンプレート。ブラウザのクックブック(CEO-10)。`gstack-post` の使い方。`docs/troubleshooting.md`(プローブと分類器)。
+- DX-13(何もしない操作ではプロンプトを出さない)。CEO-5 と CEO-24 の PTY 実行では、`: autoplan-published <phase>` がフォアグラウンドのセッションで権限プロンプトなしに実行されること、そして操作する場合は `--bg` のセッションでも同様であることを確認する。
+- DX-14(ガードログの上限)。`autoplan-guard.jsonl` は直近 1,000 行を保持する(書き込み時に古い行を削除する)。無料テストで、この切り詰めを検証する。
+- DX-15(新しいヘルパーの Windows でのカバー範囲)。`gstack-post`、`gstack-doctor`、およびプローブのサブコマンドを、厳選された Windows の無料サブセットに追加する。または、ネイティブ Windows ではまだサポートしていないと、PR で各々を明記する。
+- DX-16(リカバリの TTHW を計測)。CEO-24 のフォアグラウンド PTY 実行で、アップグレードにかかった時間と、`/autoplan` の呼び出しからフェーズ 1 に入るまでの時間を記録する。PR では、それらを競合ターゲット(アップグレードとフェーズ 1 への進入で 2〜5 分)と比較して報告する。
+- DX-17(プッシュ前のメール許可リスト、好みの判断)。`git config --add gstack.redact.allowEmail <address>` は、そのアドレスについて、MEDIUM の `pii.email` の検出のみを許可する。HIGH の検出や他のルールには一切影響しない。MEDIUM の修正行には、この設定の名前を記載する。対になる制御: 許可されたアドレスは検出されないこと、別のアドレスは引き続き検出されること、許可されたアドレスの隣にある HIGH の秘密情報は引き続きブロックされること。
+- DX-18(B3 の互換性の期間、好みの判断)。ソースの読み込みは、少なくとも 1 リリースかつ 14 日間のうち、どちらか長い方の期間はサポートし続ける。CHANGELOG には、それを削除するリリースを明記する。非推奨の表示(DX-7)は、最初のリリースから現れる。
 <!-- /autoplan-accepted:dx -->
 
 <!-- autoplan-accepted:eng -->
-- ENG-1 (background dispatch keeps the invocation armed). An `end_turn` while a reviewer `Agent` dispatched by this invocation has no completion record does not end the invocation, and a typed user turn during that window does not disarm the guard. Replay fixtures: background dispatch, `end_turn`, typed turn, next phase entry still requires the previous report. CEO-13's canary asserts the completion-notification record's `promptSource` and `isMeta` on the latest release, and the CEO-24 PTY session sends one typed message while a reviewer runs.
-- ENG-2 (payload-path preconditions). The payload path runs only when every journaled `tool_use` has its result, except siblings with the last journaled `messageId`. When the newest journaled record is older than the assistant message before the current call (lag of more than one message), the hook waits up to 2 seconds for that record, then denies with a named journal-lag cause and the supported fallback. The same publish-separately cause seen twice in one invocation switches to the fallback text instead of repeating the instruction.
-- ENG-3 (one batch rule on both paths; replaces CEO-1's payload-only sibling clause). Guarded calls in the same assistant message that target the same phase are one batch on the journal path and the payload path; a call targeting another phase still denies. Tests: fully flushed, partially flushed and missing-current batches, result-order permutations, and cross-phase negative controls.
-- ENG-4 (dedup witnesses survive the window). The pass-one index records each `Read` tool_use's `file_path`, `offset` and `limit`; when a candidate Read's result is Claude Code's "file unchanged since your last Read" reply, the cited earlier record is loaded into pass two even if it predates the window. Fixture: two /autoplan runs in one session where the second driver Read is a dedup reply.
-- ENG-5 (retained data and cost are bounded). Pass two keeps full content only for the record classes the evaluation reads: Bash results of init and checkpoint uses, results of candidate Reads, assistant text after the close Read, and mutation uses on the active plan; everything else stays index-only. Evaluation state is indexed by tool id and order, so no per-tool rescans. Retained data has a named bound; exceeding it is a hard denial naming an oversized invocation with the supported fallback. The 120 MiB acceptance journal puts most bytes inside the invocation window, and a second benchmark uses a large current invocation of many small records. CEO-25's spike compares the full rescan with a pass-one index cache under the state root (keyed by device, inode, scanned size and a hash of the last 64 KiB before the cached offset); a backward tail read cannot prove `competing_root` or `cycle`, so it is not the comparison. The cache is adopted only if the full rescan misses CEO-2's 1 s budget (taste).
-- ENG-6 (long-session observer; amends CEO-15). CEO-15's case observes the outcome through the CEO-12 guard decision log (decision path and allow for the Phase 1 entry), not the 32 MiB PTY counting reader, and a free test proves that observer on the oversized fixture before the paid run. Padding records pass the ownership checks (session id, cwd, uuid chain, before a real `compact_boundary`), and the case asserts the decision path and reason code.
-- ENG-7 (A4 transactions; replaces CEO-17's lock clause and narrows CEO-27). (a) Every gstack writer to `$GSTACK_HOME` git state (the drain, the skill-start merge, `gstack-artifacts-init`, `gstack-brain-restore`, `gstack-gbrain-source-wireup`) takes the same drain lock; a stale `.git/index.lock` is removed only while this process holds that lock and the index lock is older than 10 minutes, otherwise the drain reports the obstruction and keeps the queue. (b) Coupled groups come from an explicit map in code, starting with `decisions.jsonl` and its active snapshot; the drain expands selection to the whole group and stages a consistent generation (snapshot matching the log it was built from, checked before staging); unlisted paths are independent. (c) A failed `git commit` is distinguished from a verified empty staged diff (`git diff --cached --quiet`); any other failure keeps the queue and writes status `error`. (d) Scanner hits are attributed by splitting one staged diff on its `diff --git` headers in the existing Python block, not by one git process per path. Tests: an old index lock while another writer holds the drain lock is left alone; clean update of a group; a concurrent writer; a rejecting commit hook; a commit failure after staging; 1,000 queued paths in one scanner pass.
-- ENG-8 (A3 line mapping and history scope; amends CEO-7). Collection and chunking keep commit, path and source-line mappings from hunk headers, so each MEDIUM line points at the real file line; findings only in historical commits name the commit. For `url` and `unknown` push targets, `repoPublicEmails` uses only the remote sha's history (when present locally) and the pushed commits, never all remotes. Author and committer emails are read raw and mailmapped (`%ae %aE %ce %cE`). Suppressing third-party emails that appear in the pushed commits is documented as accepted (they become public with the push). Tests: separated hunks, a chunk boundary, content removed before the pushed tip, and an email present only in another remote's history still flags.
-- ENG-9 (`gstack-post` confirmation and argument safety; replaces DX-6's rule-id confirmation). On exit 2 the helper prints a confirmation token: a digest of the exact bytes, destination, operation and findings; `--confirm <token>` posts only those bytes, which the helper reads once and sends as scanned. Values go to `gh`/`glab` in `--flag=<value>` form or after `--`, and `<target>` must be a number or a same-host URL. Tests: replacing one flagged email with another (same rule ids and lines) needs a new token; a title of `--repo evil/x` is posted as text.
-- ENG-10 (classifier precision; refines DX-11). Severity words count only in label position (`Severity: High`, a leading `High:`, `**High**`, `High —` or a table cell), not inside words like "high-level". A panel of stored real Codex outputs keeps its current verdicts, and the three outputs from this /autoplan run are added as fixtures (CEO, DX: severity words without tags; eng: `[P1]` tags).
-- ENG-11 (canary supply chain and latency). `autoplan-schema-canary` installs the latest Claude Code with `npm install --ignore-scripts`, runs `npm audit signatures` before use, uses a budget-capped key, and runs in a job without write tokens. Its alert latency is stated as at most one day after a release (daily run, red in the periodic report), replacing "within a week".
-- ENG-12 (probe names and timeout supervisor). DX-7's subcommand names govern; CEO-9's contract maps onto them (`check-auth`, `show-sandbox`, `run-with-timeout`). `run-with-timeout` supervises the command with the existing gtimeout, timeout, then watchdog chain (not exec) and returns 124 on timeout. Tests: stdin passthrough and exit 124 on both the coreutils and the bash-watchdog branch.
-- ENG-13 (attention-line paths). Attention lines never include artifact or status-message paths; the absolute install-root helper path from DX-2 is allowed, and the no-status-text test allows it.
-- ENG-14 (unknown Agent key). A reviewer dispatch with a key outside the allowlist is denied with its own reason code and the hand-run fallback, and CEO-12's log records the unknown key names, never values.
-- ENG-15 (guard log writes; refines DX-14). Lines are append-only and carry a `schema` field; trimming to the last 1,000 lines happens through a temporary file and rename only when the file exceeds 256 KiB, and losing a concurrent trim race is tolerated. Doctor's reason-code row filters on the schema.
-- ENG-16 (B1 bounds). The below-cwd checkpoint scan reads at most the 200 newest checkpoints and, from `$HOME`, lists only projects under the cwd by recency. Generic titles (`wip`, `checkpoint`, `save`, `notes`, `todo`) never match on title alone; they need the ticket token.
-- ENG-17 (guard module layout). Reason codes, denial text and anchors live in one module beside the hook (single source for DX-1's anchor test), the payload evaluation is its own function, and `autoplan/bin/phase-publication-hook.ts` stays under the 800-line owner-module limit.
-- ENG-18 (live-run scope, taste; amends CEO-24). The automated paid PTY case uses a hermetic minimal plan and covers Phase 1 entry plus one phase transition within the ~10-minute eval budget (rule kind, one trial). The every-transition run from CEO-24 is one recorded manual PTY session on 2.1.292 attached to the PR.
-- ENG-19 (pin-bump reds, taste). PTY or gate reds on the 2.1.292 pin that are unrelated to /autoplan are repaired in this wave (one repair round each, no retries or lowered thresholds); a case still red after that round is reported as a named red through the #3059 measure loop, and whether it holds the merge is Garry's call at ship time.
-- ENG-20 (B2 abort path). If /ship stops after opening the early PR, it leaves the draft open with one comment saying /ship stopped and why; it never closes or force-pushes it. If UC2 keeps B2 on by default, the early push on a public repo asks once for consent.
-- ENG-21 (image tag binding). The pin bump runs `test/ci-image-tag-binding.test.ts` and updates any workflow image reference it requires.
+- ENG-1(バックグラウンドのディスパッチでも呼び出しは有効なまま)。この呼び出しによってディスパッチされたレビュアーの `Agent` に完了レコードがない状態での `end_turn` は、呼び出しを終了させない。また、その間にユーザーが入力したターンは、ガードを解除しない。リプレイのフィクスチャ: バックグラウンドのディスパッチ、`end_turn`、入力ターン、次のフェーズへの進入では、前のフェーズのレポートが依然として必要であること。CEO-13 のカナリアは、最新リリースにおける完了通知レコードの `promptSource` と `isMeta` を検証する。CEO-24 の PTY セッションでは、レビュアーの実行中に 1 件のメッセージを送る。
+- ENG-2(ペイロード経路の前提条件)。ペイロード経路は、ジャーナルに記録されたすべての `tool_use` に結果があるときにのみ実行される。ただし、最後にジャーナルに記録された `messageId` を持つ兄弟呼び出しは除く。最も新しいジャーナルのレコードが、現在の呼び出しの前のアシスタントメッセージより古い場合(メッセージ 1 件分を超える遅れ)、フックは最大 2 秒その レコードを待ち、その後、名前の付いたジャーナルの遅延の原因と、サポートされたフォールバックを示して拒否する。同じ呼び出しで同じ「別々に公開する」原因が 2 回発生した場合は、同じ指示を繰り返すのではなく、フォールバックの文言に切り替える。
+- ENG-3(両方の経路で 1 つのバッチ規則。CEO-1 のペイロードのみの兄弟条項を置き換える)。同じアシスタントメッセージ内で、同じフェーズを対象とするガード対象の呼び出しは、ジャーナル経路とペイロード経路の両方で 1 つのバッチとして扱う。別のフェーズを対象とする呼び出しは、引き続き拒否する。テスト: 完全にフラッシュされたバッチ、部分的にフラッシュされたバッチ、現在の呼び出しが欠けているバッチ、結果の順序の並べ替え、フェーズをまたぐ陰性対照。
+- ENG-4(重複判定の証拠はウィンドウを越えても残す)。パス 1 のインデックスは、各 `Read` の tool_use の `file_path`、`offset`、`limit` を記録する。候補の Read の結果が、Claude Code の「file unchanged since your last Read」(前回の Read から変わっていない)という応答である場合、参照されている先行レコードは、ウィンドウより前にあってもパス 2 に読み込まれる。フィクスチャ: 同じセッションで 2 回の /autoplan 実行があり、2 回目のドライバーの Read が重複判定の応答である場合。
+- ENG-5(保持するデータとコストには上限を設ける)。パス 2 が完全な内容を保持するのは、評価が読むレコードの種類に限る。すなわち、init とチェックポイントの使用による Bash の結果、候補の Read の結果、クローズの Read の後のアシスタントのテキスト、アクティブなプランに対する変更の使用。それ以外はインデックスのみとする。評価の状態は tool の ID と順序でインデックス化し、tool ごとの再スキャンをなくす。保持するデータには名前の付いた上限を設け、それを超えた場合は、過大な呼び出しであることを名指しし、サポートされたフォールバックを示す強制的な拒否とする。120 MiB の受け入れ用ジャーナルでは、大部分のバイトが呼び出しウィンドウ内に入る。2 つ目のベンチマークは、多数の小さなレコードからなる大きな現在の呼び出しを使う。CEO-25 のスパイクは、フルの再スキャンと、state root 配下にあるパス 1 のインデックスキャッシュを比較する(キーは、デバイス、inode、スキャン済みのサイズ、キャッシュされたオフセットより前の最後の 64 KiB のハッシュ)。後方の tail 読み取りでは `competing_root` や `cycle` を証明できないため、比較対象にはしない。フルの再スキャンが CEO-2 の 1 秒の予算を満たさない場合にのみ、キャッシュを採用する(好みの判断)。
+- ENG-6(長いセッションの観測者。CEO-15 を修正)。CEO-15 のケースは、結果を CEO-12 のガード判定ログ(フェーズ 1 進入の判定経路と許可)によって観測する。32 MiB の PTY カウントリーダーは使わない。有料の実行の前に、無料テストで、その観測者が大きすぎるフィクスチャ上で動作することを証明する。パディングのレコードは所有権のチェック(セッション ID、cwd、uuid のチェーン)を通過し、実際の `compact_boundary` の前に置く。ケースは、判定経路と理由コードを検証する。
+- ENG-7(A4 のトランザクション。CEO-17 のロックに関する条項を置き換え、CEO-27 を絞り込む)。(a) `$GSTACK_HOME` の git 状態に書き込むすべての gstack の処理(ドレイン、スキル開始時のマージ、`gstack-artifacts-init`、`gstack-brain-restore`、`gstack-gbrain-source-wireup`)は、同じドレインロックを取る。古い `.git/index.lock` は、このプロセスがそのロックを保持し、かつインデックスロックが 10 分より古い場合にのみ削除する。それ以外の場合、ドレインは障害を報告し、キューを維持する。(b) 連携するグループは、コード内の明示的なマップから得る。最初は `decisions.jsonl` とそのアクティブなスナップショットを対象とする。ドレインは選択をグループ全体に広げ、一貫した世代をステージする(スナップショットは、それを作成したログと一致していること。ステージの前に確認する)。マップに載っていないパスは独立している。(c) 失敗した `git commit` と、検証済みの空のステージ差分(`git diff --cached --quiet`)を区別する。それ以外の失敗の場合は、キューを維持し、ステータス `error` を書く。(d) スキャナーのヒットは、既存の Python ブロックで 1 つのステージ差分を `diff --git` のヘッダーで分割して帰属させる。パスごとに 1 つの git プロセスを起動しない。テスト: 別のライターがドレインロックを保持している間、古いインデックスロックはそのまま残すこと。グループのクリーンな更新。同時に行われる別のライター。コミットを拒否するフック。ステージ後のコミット失敗。1 回のスキャナーのパスで、キューにある 1,000 件のパス。
+- ENG-8(A3 の行の対応付けと履歴の範囲。CEO-7 を修正)。収集とチャンク分割では、ハンクヘッダーからコミット、パス、ソース行の対応付けを保持し、各 MEDIUM の行が実際のファイルの行を指すようにする。履歴にのみ現れる検出は、そのコミットを明示する。`url` と `unknown` のプッシュ先では、`repoPublicEmails` はリモートの sha の履歴(ローカルにある場合)とプッシュされたコミットのみを使い、すべてのリモートは使わない。作者と committer のメールは、生の形で読み取り、mailmap を適用する(`%ae %aE %ce %cE`)。プッシュされたコミットに現れるサードパーティのメールの抑止は、受け入れられたものとして文書化する(プッシュと同時に公開されるため)。テスト: 分離されたハンク、チャンクの境界、プッシュされた先端より前で削除された内容、別のリモートの履歴にのみ現れるメールが、引き続き検出されること。
+- ENG-9(`gstack-post` の確認と引数の安全性。DX-6 のルール ID による確認を置き換える)。終了コード 2 のとき、ヘルパーは確認トークンを表示する。このトークンは、正確なバイト列、宛先、操作、検出結果のダイジェストである。`--confirm <token>` は、その正確なバイト列のみを投稿する。ヘルパーはそのバイト列を一度だけ読み、スキャンされたとおりに送信する。値は `gh`/`glab` に `--flag=<value>` の形式で、または `--` の後に渡す。`<target>` は数字か、同じホストの URL でなければならない。テスト: 1 つのフラグの立ったメールを別のメール(同じルール ID と行)に置き換えた場合は、新しいトークンが必要になること。タイトルが `--repo evil/x` の場合は、テキストとして投稿されること。
+- ENG-10(分類器の精度。DX-11 を修正)。重大度の語は、ラベルの位置(`Severity: High`、先頭の `High:`、`**High**`、`High —`、または表のセル)にある場合のみ数える。「high-level」のような単語の中にある場合は数えない。保存された実際の Codex の出力のパネルは、現在の判定を維持する。この /autoplan 実行の 3 つの出力は、フィクスチャとして追加する(CEO と DX は、タグのない重大度の語。eng は `[P1]` のタグ)。
+- ENG-11(カナリアのサプライチェーンと遅延)。`autoplan-schema-canary` は、最新の Claude Code を `npm install --ignore-scripts` でインストールし、使用前に `npm audit signatures` を実行する。予算に上限を設けたキーを使い、書き込みトークンのないジョブで実行する。そのアラートの遅延は、リリースから最大 1 日以内と明記する(毎日実行し、定期レポートで赤になる)。「1 週間以内」という記述は置き換える。
+- ENG-12(プローブ名とタイムアウトの監視)。DX-7 のサブコマンド名に従う。CEO-9 の契約は、それらに対応させる(`check-auth`、`show-sandbox`、`run-with-timeout`)。`run-with-timeout` はコマンドを、既存の gtimeout、timeout、ウォッチドッグの連鎖(exec ではない)で監視し、タイムアウト時には 124 を返す。テスト: coreutils のブランチと bash のウォッチドッグのブランチの両方で、標準入力が通ること、および終了コードが 124 になること。
+- ENG-13(注意行のパス)。注意行には、アーティファクトのパスやステータスメッセージのパスを決して含めない。DX-2 のインストールルートからの絶対パスのヘルパーは許可し、ステータス文言がないことのテストもそれを許可する。
+- ENG-14(未知の Agent キー)。許可リストにないキーでのレビュアーのディスパッチは、独自の理由コードと、手動で実行するフォールバックを示して拒否する。CEO-12 のログには、未知のキーの名前を記録し、値は記録しない。
+- ENG-15(ガードログの書き込み。DX-14 を修正)。行は追記のみとし、各行は `schema` フィールドを持つ。最後の 1,000 行への切り詰めは、ファイルが 256 KiB を超えた場合にのみ、一時ファイルと rename を通して行う。同時の切り詰めで競合に負けた場合は許容する。doctor の理由コードの行は、スキーマでフィルタリングする。
+- ENG-16(B1 の上限)。カレントディレクトリより下のチェックポイントのスキャンは、最新の 200 件のチェックポイントのみを読み、`$HOME` からは、カレントディレクトリ配下のプロジェクトのみを新しい順に列挙する。汎用的なタイトル(`wip`、`checkpoint`、`save`、`notes`、`todo`)は、タイトルだけでは一致させず、チケットトークンが必要とする。
+- ENG-17(ガードのモジュール構成)。理由コード、拒否メッセージの文言、アンカーは、フックの隣にある 1 つのモジュールに置く(DX-1 のアンカーテストの単一の情報源とする)。ペイロードの評価は独立した関数にする。`autoplan/bin/phase-publication-hook.ts` は、所有者モジュールの 800 行の上限内に収める。
+- ENG-18(ライブ実行の範囲。CEO-24 を修正。好みの判断)。自動化された有料の PTY ケースは、最小限の使い捨てのプランを用い、約 10 分の評価予算内で、フェーズ 1 への進入と 1 回のフェーズ遷移をカバーする(ルールの種類、1 回の試行)。CEO-24 の全遷移の実行は、2.1.292 での 1 回の手動の PTY セッションとして記録し、PR に添付する。
+- ENG-19(ピン更新による赤。好みの判断)。2.1.292 のピンで、/autoplan に関係のない PTY やゲートの赤は、このウェーブで修復する(それぞれ修復は 1 ラウンドまで。再試行や閾値の引き下げはしない)。その 1 ラウンド後も赤のケースは、#3059 の計測ループを通じて名前の付いた赤として報告する。マージを保留するかどうかは、出荷時に Garry が判断する。
+- ENG-20(B2 の中止経路)。/ship が早期に開いた PR の後で停止した場合、ドラフトは開いたままにし、/ship が停止した理由を示すコメントを 1 件残す。PR をクローズしたり、強制プッシュしたりはしない。UC2 で B2 がデフォルトで有効のままの場合、公開リポジトリへの早期プッシュでは、一度だけ同意を求める。
+- ENG-21(イメージタグの紐付け)。ピン更新では `test/ci-image-tag-binding.test.ts` を実行し、それが要求するワークフローのイメージ参照を更新する。
 <!-- /autoplan-accepted:eng -->
-## Review record
+## レビュー記録
 
-### Autoplan run log (2026-10-07, base `db74567`, branch head `74cb0ca`)
+### Autoplan 実行ログ(2026-10-07、base `db74567`、ブランチの先端 `74cb0ca`)
 
-- Phase 0: SOURCE_PLAN = ACTIVE_PLAN = this file; restore point `/home/user/.gstack/projects/garrytan-gstack/garrytan-followup-wave-oct7-autoplan-restore-20261007-144939.md`. Scope check on input sha256 `d1c1884a…c6ac`: 22 term matches (REST 1, command 4, argument 3, shell 2, Claude Code 9, agent 3), `dxRequired: true` by terms, and `--developer-tool` also applies (gstack is installed and built on by developers). UI scope: none (no view/rendering terms), so Phase 2 (design) is skipped.
-- Phase 0.5: `CODEX_MODE: ready`, `CODEX_MODEL: gpt-6-astra` (config.toml). Codex CLI 0.160.1.
-- Preamble prompts auto-handled without changing user state: the upgrade offer (installed 1.91.29.0, available 1.91.33.0) was not applied so the review skills stay fixed for this run; the telemetry prompt was not answered (telemetry stays off; never enabled on the user's behalf); `cross_project_learnings` is unset and was left unchanged (project learnings: 0).
-- Host note: this run is Capy, not Claude Code. Agent dispatches are Capy subagents given the snapshot's `nativeDispatchPrompt` verbatim; the autoplan PreToolUse publication hook is not enforced here.
-- CEO methodology `/home/user/.gstack/projects/garrytan-gstack/autoplan-ceo-methodology-VazWyP/methodology.md` (2484 lines, sha256 `ae2f7e72…aa17`) read through EOF in ranges 1-516, 517-916, 917-1316, 1317-1716, 1717-2116, 2117-2484. Skip-listed sections (preamble, AskUserQuestion format, outside voice, report/dashboard) loaded only.
+- Phase 0: SOURCE_PLAN = ACTIVE_PLAN = このファイル。復元ポイントは `/home/user/.gstack/projects/garrytan-gstack/garrytan-followup-wave-oct7-autoplan-restore-20261007-144939.md`。入力 sha256 `d1c1884a…c6ac` でのスコープチェック: 用語の一致が 22 件(REST 1、command 4、argument 3、shell 2、Claude Code 9、agent 3)。用語により `dxRequired: true`。`--developer-tool` も適用される(gstack は開発者がインストールして利用するツールであるため)。UI のスコープ: なし(view やレンダリングに関する用語がない)ため、Phase 2(デザイン)はスキップ。
+- Phase 0.5: `CODEX_MODE: ready`、`CODEX_MODEL: gpt-6-astra`(config.toml)。Codex CLI 0.160.1。
+- ユーザーの状態を変えずに自動処理したプリアンブルの確認: アップグレードの提案(インストール済み 1.91.29.0、利用可能 1.91.33.0)は、今回の実行中はレビュースキルを固定するため適用しなかった。テレメトリの確認には回答しなかった(テレメトリはオフのまま。ユーザーに代わって有効にすることはしない)。`cross_project_learnings` は未設定のため、そのままにした(プロジェクトの学習: 0 件)。
+- ホストの注記: この実行は Claude Code ではなく Capy で行った。エージェントのディスパッチは、Capy のサブエージェントが、スナップショットの `nativeDispatchPrompt` をそのまま受け取る形で行われる。autoplan の PreToolUse 公開フックはここでは強制されない。
+- CEO の方法論 `/home/user/.gstack/projects/garrytan-gstack/autoplan-ceo-methodology-VazWyP/methodology.md`(2484 行、sha256 `ae2f7e72…aa17`)を、範囲 1-516、517-916、917-1316、1317-1716、1717-2116、2117-2484 に分けて末尾まで読んだ。スキップ対象の節(プリアンブル、AskUserQuestion の形式、アウトサイドボイス、レポートとダッシュボード)は読み込みのみ。
 
-### Phase 1 CEO review: Step 0
+### Phase 1 CEO レビュー: Step 0
 
-**System audit.** Branch carries one commit over main (this plan). No stashes. Most-touched files in 30 days are release files, `test/helpers/touchfiles-data.ts`, `plan-eng-review/sections/review-sections.md` and `TODOS.md`. TODOS.md "P1-P3: Oct 6 fix-wave follow-ups" is the source of A2, B2, B3, B4 and B5; this plan touches all eight entries in that block and leaves the /cso Windows transport (#3028) deferred.
+**システム監査。** ブランチには main の上に 1 つのコミット(この計画)がある。スタッシュはなし。直近 30 日で最も変更の多いファイルは、リリース関連のファイル、`test/helpers/touchfiles-data.ts`、`plan-eng-review/sections/review-sections.md`、`TODOS.md`。TODOS.md の「P1-P3: Oct 6 fix-wave follow-ups」が A2、B2、B3、B4、B5 の出典であり、この計画はそのブロック内の 8 件すべてに触れる。/cso の Windows トランスポート(#3028)は延期したまま残す。
 
-**Retrospective (recurring problem area).** The /autoplan publication guard has produced a severe user-facing break roughly weekly: #2968, #2977, #2986, #3006, #3007, #3009 (v1.91.13.0 wave), #3050 (Oct 6), and now #3062. Every one came from the guard depending on undocumented Claude Code journal behavior (root shapes, flush timing, schema parsing, size). That is an architectural concern, not a series of bugs: the plan fixes this round, but only an early-warning lane on the Claude Code users actually run (X4 below) changes the pattern. The Oct 6 review also rejected raising the 32 MiB cap ("moves the same cliff"), which this plan respects by streaming instead.
+**振り返り(繰り返し発生する問題領域)。** /autoplan の公開ガードは、ほぼ毎週のように深刻なユーザー向けの不具合を起こしてきた。#2968、#2977、#2986、#3006、#3007、#3009(v1.91.13.0 のウェーブ)、#3050(Oct 6)、そして今回の #3062。いずれもガードが、文書化されていない Claude Code のジャーナルの挙動(ルートの形、フラッシュのタイミング、スキーマの解析、サイズ)に依存していたことが原因である。これは個別のバグではなく、設計上の懸念である。この計画は今回のラウンドを修正するが、ユーザーが実際に使っている Claude Code に対する早期警告のレーン(下の X4)だけが、このパターンを変えられる。Oct 6 のレビューでは、32 MiB の上限を引き上げることを却下していた(「同じ崖を動かすだけだ」)。この計画は、ストリーミングで読むことでその判断を尊重している。
 
-**Taste calibration.** Good references: `lib/claude-public-transcript.ts` `readOwnedClaudePublicTranscript` (typed reasons, stable-read checks, one test seam that can only lower the cap) and `bin/gstack-redact-prepush` (fail-closed parse, honest "could not scan" vs "found a secret" messages). Patterns to avoid: `bin/gstack-brain-sync`'s `git add ... 2>/dev/null || true` and `reset ... || true` (swallowed failures, the root of PR #3055's stuck index lock) and its private Python secret scanner, a weaker copy of `lib/redact-patterns.ts`.
+**好みの基準。** 参考になる実装: `lib/claude-public-transcript.ts` の `readOwnedClaudePublicTranscript`(型付きの理由、安定した読み取りのチェック、上限を下げることしかできる 1 つのテストシーム)と、`bin/gstack-redact-prepush`(解析に失敗したら閉じる、「スキャンできなかった」と「秘密情報が見つかった」を正直に区別するメッセージ)。避けるべきパターン: `bin/gstack-brain-sync` の `git add ... 2>/dev/null || true` と `reset ... || true`(失敗を握りつぶしている。PR #3055 の固まったインデックスロックの原因)、および `lib/redact-patterns.ts` の劣化したコピーである、同ファイル内の独自の Python の秘密情報スキャナー。
 
-**Landscape check.** Aside is not available on this Linux host; WebSearch was used. Findings: (1) Claude Code's hooks reference states `transcript_path` "is written asynchronously and may lag the in-memory conversation"; anthropics/claude-code#100051 shows sessions where the assistant message carrying the `tool_use` is written only together with the tool's result, so no poll bound helps, and #61983/#87223 show that text written earlier in the same assistant message is invisible to PreToolUse too. (2) Greptile does not review draft PRs by default (`triggerOnDrafts: false`; `autoReview` default `["open"]`); a draft is reviewed only on "ready for review" or an `@greptileai` comment. Layer 3 synthesis: a guard on a lagging journal can only ever see *earlier* messages, so it must require that whatever it checks (the phase report) was flushed by an earlier tool result, not merely written earlier in the same message.
+**先行事例の確認。** このホストは Linux のため Aside は使えない。WebSearch を使用した。結果: (1) Claude Code のフックのリファレンスには、`transcript_path` は「非同期に書き込まれ、メモリ上の会話より遅れることがある」と記載されている。anthropics/claude-code#100051 では、`tool_use` を含むアシスタントのメッセージが、ツールの結果とともにしか書き込まれないセッションが示されている。そのため、ポーリングの上限をどれだけ取っても効果がない。#61983 と #87223 では、同じアシスタントのメッセージの中で先に書かれたテキストは PreToolUse からも見えないことが示されている。(2) Greptile は、デフォルトではドラフト PR をレビューしない(`triggerOnDrafts: false`、`autoReview` のデフォルトは `["open"]`)。ドラフトがレビューされるのは、「ready for review」にしたときか、`@greptileai` のコメントがあったときのみ。第 3 層の統合: 遅れたジャーナルを見るガードは、必ず*以前の*メッセージしか見られない。したがって、チェックする対象(フェーズのレポート)は、同じメッセージ内で先に書かれたというだけでなく、以前のツール結果によってフラッシュされたことを要求しなければならない。
 
-**Live probes (this review).**
-- Claude Code 2.1.292 is the npm latest; `claude --help` on 2.1.292 lists `--bg, --background` and `claude attach <id>`. The CI pin is 2.1.284 (`.github/docker/Dockerfile.ci:138`), and its comment requires a pin bump to run "the PTY gate against the new TUI".
-- `autoplan/bin/phase-publication-hook.ts:38` normalizes only `file_path`; `:428` deep-equals journal vs payload input; `:587` 2-second poll; `:482-483` the existing pending-Read path deliberately refuses to establish a new phase from a payload ("it cannot establish a phase, a publication, or a synthetic current use", `:479-481`). Cause B reverses that rule, so the plan must say why it is now safe.
-- `autoplan/sections/phase-close.md.tmpl:40-42` makes the phase report "the next operation before any next-phase tool call" in the same turn, so the report text and the next phase's guarded driver `Read` commonly share one assistant message.
-- `lib/claude-public-transcript.ts:74` caps at 32 MiB; `:570-577` treats any append during the read as `changing` (retry). Timing on a synthetic 120 MiB journal (4 vCPU Linux, cap lifted in a scratch copy): the current reader returns `ready` in 440-500 ms with ~684 MiB peak RSS; plain read plus `JSON.parse` of every line is ~170 ms at ~248 MiB. Memory and the append window are the real limits, not parse time.
-- `bin/gstack-redact-prepush:521` passes only `repoVisibility` and `sourcePath`; `lib/redact-engine.ts:331-332` already honors `selfEmail` and `repoPublicEmails`. The remote sha is all zeros for a new branch, the most common push.
-- `bin/gstack-brain-sync:727,735` swallow `git add`/`git reset` failures; `:131-136` prints the first 30 characters of a matched secret into the status message; `gstack-brain-restore`, `gstack-artifacts-init` and `gstack-gbrain-source-wireup` run git in `$GSTACK_HOME` without the drain lock.
-- `scripts/resolvers/aside.ts:118-131` holds the browser rules rendered into about 100 generated skill files; rule 1 forbids touching tabs the user did not name; rule 6 recommends an early `return`.
-- `gh pr view 1743`: author @habassa5, but CHANGELOG v1.64.0.0 (line 3156) credits it to @punksterlabs, the same mapping slip #3054 reports for #1822.
+**ライブ検証(このレビュー)。**
+- Claude Code 2.1.292 は npm の最新版。2.1.292 の `claude --help` には `--bg, --background` と `claude attach <id>` が並ぶ。CI のピンは 2.1.284(`.github/docker/Dockerfile.ci:138`)で、そのコメントは、ピンを上げるときに「新しい TUI に対して PTY ゲートを実行する」ことを求めている。
+- `autoplan/bin/phase-publication-hook.ts:38` は `file_path` のみを正規化する。`:428` はジャーナルとペイロードの入力を deep-equal で比較する。`:587` は 2 秒のポーリング。`:482-483` の既存の保留中の Read の経路は、ペイロードからフェーズを確立することを意図的に拒否している(「フェーズ、公開、または合成された現在の使用を確立できない」、`:479-481`)。原因 B はこのルールを覆すため、計画では、今それが安全になった理由を書く必要がある。
+- `autoplan/sections/phase-close.md.tmpl:40-42` は、フェーズのレポートを「次のフェーズのツール呼び出しの前にある次の操作」として同じターン内に置くため、レポートのテキストと次のフェーズの、ガード対象のドライバーの `Read` は、同じアシスタントのメッセージに含まれることが多い。
+- `lib/claude-public-transcript.ts:74` は 32 MiB で上限を設ける。`:570-577` は、読み取り中の追記をすべて `changing`(再試行)として扱う。合成した 120 MiB のジャーナルでの計測(4 vCPU の Linux、スクラッチコピーで上限を外した): 現在のリーダーは 440〜500 ms で `ready` を返し、ピークの RSS は約 684 MiB。単純な読み取り後に各行を `JSON.parse` すると約 170 ms で、約 248 MiB。実際の制約は解析時間ではなく、メモリと追記のウィンドウである。
+- `bin/gstack-redact-prepush:521` は `repoVisibility` と `sourcePath` のみを渡す。`lib/redact-engine.ts:331-332` はすでに `selfEmail` と `repoPublicEmails` を扱っている。新しいブランチの場合、リモートの sha はすべてゼロになる。これは最も一般的なプッシュ。
+- `bin/gstack-brain-sync:727,735` は `git add` と `git reset` の失敗を握りつぶす。`:131-136` は、一致した秘密情報の先頭 30 文字をステータスメッセージに出力する。`gstack-brain-restore`、`gstack-artifacts-init`、`gstack-gbrain-source-wireup` は、ドレインロックなしで `$GSTACK_HOME` 内の git を実行する。
+- `scripts/resolvers/aside.ts:118-131` は、約 100 個の生成されたスキルファイルに描画されるブラウザのルールを保持している。ルール 1 は、ユーザーが指定していないタブに触れることを禁じる。ルール 6 は、早期の `return` を勧めている。
+- `gh pr view 1743`: 作者は @habassa5 だが、CHANGELOG の v1.64.0.0(3156 行目)では @punksterlabs にクレジットされている。#3054 が #1822 について報告しているのと同じ対応の取り違え。
 
-**0A Premise challenge.** The real problem is three guards that make users route around gstack: /autoplan cannot enter a phase on current Claude Code, the pre-push hook warns on every push in repos that commit author emails, and the artifacts sync silently stops for weeks. Do-nothing cost: /autoplan is unusable on default Claude Code for every user who upgrades (P1), and users learn to ignore or bypass the other two guards. The plan targets the pain directly. Premises checked:
-1. "Cause B fix: evaluate the current call from the payload" is valid for calls inside a phase, but it does not fix phase transitions in lagging sessions: the phase report is written in the same assistant message as the next guarded `Read`, so it is invisible exactly when the `tool_use` is (claude-code#100051). The guard would then deny with "Publish the filled Phase N report", the model republishes in the same shape, and the loop repeats. Accepted fix below (CEO-1).
-2. "A session journal over 100 MiB no longer stops it" needs more than streaming: any append during a long read is `changing`, a retry denial, and appends are frequent in long sessions. Accepted fix (CEO-2).
-3. P1's sentence "Every denial that remains names a cause that retrying cannot fix" is stricter than the code can honor: "A prior phase-entry tool is still pending" (`:478`) is a real transient where waiting for the result does succeed. Kept as written; CEO-3 makes it testable by inventory and the wording question goes to the gate as a taste choice.
-4. "A3 reads the remote's history at `<remote sha>`" misses new-branch pushes (zero sha) and unknown remote tips. Accepted fix (CEO-7, Section 3).
-5. "B2: open a draft PR and wait for Greptile" cannot work on default Greptile settings (drafts are not auto-reviewed). Accepted fix (CEO-8).
-6. "B3: sourcing keeps working for one release ... the zsh self-locate code is no longer needed" contradicts itself: the sourced mode still runs from zsh during that release. Accepted fix (CEO-9).
-7. "B6: list the open tabs and attach to a signed-in one ... don't ask the user again" drops rule 1's consent (#3063 itself asks to confirm the tab with the user once). Accepted fix (CEO-10).
+**0A 前提の検証。** 本当の問題は、ユーザーを gstack の回避に追い込む 3 つのガードである。現在の Claude Code では /autoplan がフェーズに入れない。コミット作者のメールアドレスを記録するリポジトリでは、プッシュフックがプッシュのたびに警告する。アーティファクト同期が、何週間も静かに止まる。何もしない場合のコスト: デフォルトの Claude Code にアップグレードしたすべてのユーザーにとって /autoplan が使えなくなる(P1)。また、ユーザーは他の 2 つのガードを無視したり迂回したりすることを覚える。この計画は、その痛みに直接向き合う。確認した前提:
+1. 「原因 B の修正: 現在の呼び出しをペイロードから評価する」は、フェーズ内の呼び出しでは有効だが、遅れたセッションでのフェーズ遷移は直せない。フェーズのレポートは、次のガード対象の `Read` と同じアシスタントのメッセージに書かれるため、tool_use が見えないときは、まさにレポートも見えない(claude-code#100051)。すると、ガードは「フェーズ N のレポートを公開せよ」と拒否し、モデルは同じ形で再公開し、ループが続く。採用された修正は下記(CEO-1)。
+2. 「100 MiB を超えるセッションジャーナルでも止まらなくなる」には、ストリーミングだけでは足りない。長い読み取りの最中の追記はすべて `changing` になり、再試行の拒否になる。また、長いセッションでは追記が頻繁に起きる。採用された修正は CEO-2。
+3. P1 の「残るすべての拒否は、再試行では直せない原因を名指しする」という文言は、コードが守れる以上に厳しい。「前のフェーズ入場ツールがまだ保留中」(`:478`)は、結果を待てば実際に成功する本物の一時的な状態である。そのまま維持し、CEO-3 でインベントリにより検証可能にする。文言の判断はゲートに回す好みの判断とする。
+4. 「A3 はリモートの履歴を `<remote sha>` で読む」は、新しいブランチのプッシュ(ゼロの sha)と、未知のリモートの先端を見落とす。採用された修正は CEO-7(セクション 3)。
+5. 「B2: ドラフト PR を開き、Greptile を待つ」は、Greptile のデフォルト設定では動かない(ドラフトは自動レビューされない)。採用された修正は CEO-8。
+6. 「B3: ソースの読み込みは 1 リリースの間は動き続ける……zsh の自己位置特定のコードはプローブで不要になる」は自己矛盾している。ソースモードは、そのリリースの間も zsh から動くからである。採用された修正は CEO-9。
+7. 「B6: 開いているタブを一覧し、サインイン済みのタブに接続する。ユーザーに二度と尋ねない」は、ルール 1 の同意を失わせる(#3063 自体が、タブをユーザーに一度確認することを求めている)。採用された修正は CEO-10。
 
-**0B Existing code leverage.**
+**0B 既存コードの活用。**
 
-| Sub-problem | Existing code | Reuse |
+| 部分的な問題 | 既存のコード | 再利用 |
 |---|---|---|
-| A1 identity compare | `nativeToolInput`, `consumption()`, pending-Read path in `phase-publication-hook.ts` | Extend; the pending-Read path becomes the general payload path |
-| A1 PTY reproduction | `test/helpers/pty/launch.ts`, `session.ts`, `claude-pty-runner.ts` | Extend with a `--bg` + `claude attach` launch |
-| A1 journal canary | `test/skill-e2e-autoplan-journal-drift.test.ts` | Reuse on 2.1.292; add a latest-release run (X4) |
-| A2 bounded read | `readOwnedClaudePublicTranscript`, `ownedCausalLines`, `transcriptReadLimit()` seam | Refactor the read loop; keep causal ordering and reasons |
-| A3 email exemptions | `ScanOptions.selfEmail`/`repoPublicEmails`, `emailAllowed()`; hook's `pushTarget()`, `remotesExclusionArgs()` | Reuse; no engine change |
-| A4 per-path hold | `compute_paths_to_stage` retained set, `write_status`, `queue_summary`, skill-start `ARTIFACTS_SYNC` block | Extend |
-| B1 checkpoint scan | `gstack-slug --classify-checkpoints`, context-restore Step 1 ordering | Extend |
-| B2 Greptile | `ship/sections/greptile.md.tmpl`, `review/greptile-triage.md` | Extend timing only |
-| B3 probe | `bin/gstack-codex-probe` functions, `scripts/resolvers/outside-voice.ts` | Wrap functions as subcommands |
-| B4 posting | `FREE_TEXT_DIR` file rule, `bin/gstack-redact`, ship `pr-body` scan | New thin helper that reuses the redact CLI |
-| B5 readiness | `./setup --status`, `gstack-codex-probe`, skill-start hook check | Reuse each probe; no new probe logic |
-| B6/B7 | `scripts/resolvers/aside.ts` rules and cookbook; CHANGELOG | Edit in place |
+| A1 の識別の比較 | `nativeToolInput`、`consumption()`、`phase-publication-hook.ts` の保留中の Read の経路 | 拡張する。保留中の Read の経路を、一般的なペイロード経路にする |
+| A1 の PTY 再現 | `test/helpers/pty/launch.ts`、`session.ts`、`claude-pty-runner.ts` | `--bg` と `claude attach` での起動を加えて拡張する |
+| A1 のジャーナルのカナリア | `test/skill-e2e-autoplan-journal-drift.test.ts` | 2.1.292 で再利用し、最新リリースでの実行(X4)を追加する |
+| A2 の境界付き読み取り | `readOwnedClaudePublicTranscript`、`ownedCausalLines`、`transcriptReadLimit()` のシーム | 読み取りループをリファクタリングする。因果の順序と理由は維持する |
+| A3 のメール例外 | `ScanOptions.selfEmail`/`repoPublicEmails`、`emailAllowed()`、フックの `pushTarget()`、`remotesExclusionArgs()` | 再利用する。エンジンの変更はなし |
+| A4 のパスごとの保留 | `compute_paths_to_stage` の保持セット、`write_status`、`queue_summary`、スキル開始時の `ARTIFACTS_SYNC` ブロック | 拡張する |
+| B1 のチェックポイントのスキャン | `gstack-slug --classify-checkpoints`、context-restore の Step 1 の順序 | 拡張する |
+| B2 Greptile | `ship/sections/greptile.md.tmpl`、`review/greptile-triage.md` | タイミングのみ拡張する |
+| B3 プローブ | `bin/gstack-codex-probe` の関数、`scripts/resolvers/outside-voice.ts` | 関数をサブコマンドとしてラップする |
+| B4 投稿 | `FREE_TEXT_DIR` のファイルルール、`bin/gstack-redact`、ship の `pr-body` のスキャン | 既存の redact CLI を再利用する薄い新しいヘルパー |
+| B5 準備状態 | `./setup --status`、`gstack-codex-probe`、スキル開始時のフックのチェック | 各プローブを再利用し、新しいプローブのロジックは作らない |
+| B6/B7 | `scripts/resolvers/aside.ts` のルールとクックブック、CHANGELOG | その場で編集する |
 
-**0C Dream state.**
+**0C ドリーム状態。**
 ```
   CURRENT STATE                      THIS PLAN                              12-MONTH IDEAL
   Guard breaks on each Claude  --->  Guard tolerates schema strips,   --->  Guard verified on the Claude Code users
@@ -262,100 +270,103 @@ Each amendment below was accepted by the /autoplan review. The item text above n
   sync guards cry wolf or            and sync guards precise; one           write path for GitHub text; readiness
   fail silently                      posting helper; doctor                 visible before any skill starts
 ```
-The plan moves toward the ideal on every axis; the gap it leaves is early warning, which X4 closes for journal shape (not for flush timing, which needs an interactive session).
+この計画は、すべての軸で理想に近づく。残るギャップは早期警告であり、それは X4 がジャーナルの形については閉じる(フラッシュのタイミングについては閉じない。これは対話セッションが必要)。
 
-**0D Approach.** One plan-level approach choice was needed for A1/A2.
-- A) Targeted fixes as written, plus the corrections in CEO-1..CEO-3 (keeps exact checks; publication still required). Effort M, risk medium.
-- B) Deny only on proof: every unverifiable state (lag, `changing`, unknown shape) becomes an advisory allow like `unverifiedEntry`. Effort S, risk high: enforcement disappears whenever Claude Code lags, which on #100051 sessions is always.
-- C) Replace journal evidence with a different publication proof (for example the snapshot tool recording a hash of the published report). Effort L, risk high: the published text is only observable in the journal, so C moves rather than removes the dependency.
-Auto-decided A (P1 completeness keeps the guarantee; P5). For A2: streaming bounded read (plan) over raising the cap with a full read (Oct 6 consensus: a cap raise only moves the cliff; measured peak RSS is 5.7x journal size).
+**0D アプローチ。** A1/A2 について、計画レベルのアプローチの選択が 1 つ必要だった。
+- A) 上記の CEO-1..CEO-3 の修正を加えた、記載どおりの個別修正(正確なチェックを保ち、公開は依然として必須)。工数 M、リスク中。
+- B) 証明できた場合のみ拒否する。検証できない状態(遅れ、`changing`、未知の形)はすべて、`unverifiedEntry` のような許容の助言になる。工数 S、リスク高: Claude Code が遅れるたびに強制がなくなり、#100051 のセッションでは常にそうなる。
+- C) 別の公開の証明に置き換える(例: 公開されたレポートのハッシュを記録するスナップショットツール)。工数 L、リスク高: 公開されたテキストはジャーナルでしか観測できないため、C は依存関係を消すのではなく移すだけ。
 
-**0E Mode.** Override: SELECTIVE EXPANSION. (The skill's file-count rule would recommend SCOPE REDUCTION at well over 15 changed files; the user's one-PR rule and /autoplan's override govern.) Mode: SELECTIVE EXPANSION; approved decisions: CEO-D1 (approach A). Hardens the current scope and offers each cherry-pick individually.
+自動的に A を選択(P1 の完全性は保証を保つ。P5)。A2 については、境界付きのストリーミング読み取り(本計画)を、全体を読む形で上限を引き上げることより優先する(Oct 6 の合意: 上限を上げても崖が動くだけ。計測した RSS のピークはジャーナルサイズの 5.7 倍)。
 
-**0F/0G Cherry-picks and HOLD checks.**
-HOLD checks: complexity is far over 8 files, but each item is independent and the user wants one PR with separate commits (kept). Minimum change for each promise is the item as written plus the corrections above. Tier 2 deferral per item: all kept (P1; reducing scope on a complete plan is never auto-chosen).
-10x: one guard contract (payload-backed current call, flush-safe publication, append-tolerant reads, no unexplained retries) plus a canary on the latest Claude Code turns the guard from a weekly fire into a monitored dependency. Platform potential: `gstack-post` becomes the single, redaction-scanned write path for every skill's GitHub/GitLab text.
+**0E モード。** 上書き: SELECTIVE EXPANSION(スキルのファイル数の規則では、変更ファイルが 15 を大きく超えると SCOPE REDUCTION を勧めるが、ユーザーの「1 PR」の規則と /autoplan の上書きが優先される)。モード: SELECTIVE EXPANSION。承認された決定: CEO-D1(アプローチ A)。現在のスコープを強化し、各カットを個別に選べるようにする。
 
-| # | Proposal | Effort | Decision | Reasoning |
+**0F/0G 選択的な採用と HOLD のチェック。**
+HOLD のチェック: 複雑さは 8 ファイルを大きく超えるが、各項目は独立しており、ユーザーは「コミットを分けた 1 つの PR」を望んでいる(維持)。各約束の最小の変更は、記載された項目と上記の修正である。Tier 2 の延期は項目ごとに判断: すべて維持(P1。完全な計画のスコープを縮小することは、自動では選ばない)。
+10x: 1 つのガード契約(ペイロードに基づく現在の呼び出し、フラッシュに安全な公開、追記に耐える読み取り、理由のない再試行なし)と、最新の Claude Code に対するカナリアにより、ガードは毎週の騒動から、監視される依存関係に変わる。プラットフォームの可能性: `gstack-post` が、すべてのスキルの GitHub/GitLab の文章に対する、唯一の redact スキャン済みの書き込み経路になる。
+
+| # | 提案 | 工数 | 決定 | 理由 |
 |---|---|---|---|---|
-| X1 | B7 also corrects #1743's credit to @habassa5 (CHANGELOG v1.64.0.0) | S | ACCEPTED | Same entry, same slip; P2 |
-| X2 | A2 latency and peak memory also measured on macOS through the existing macOS CI runner | S | ACCEPTED | Restores the TODOS.md acceptance ("macOS and Linux"); P1 |
-| X3 | Every guard denial appends one content-free line (code, Claude Code version, decision kind) to `analytics/autoplan-guard.jsonl` | S | ACCEPTED | Same file and log as `unverifiedEntry`; user reports carry the cause; P2 |
-| X4 | The journal-drift canary also runs periodically on the latest Claude Code release, not only the pin | S | ACCEPTED | #3062's root cause was "CI never sees it"; 2 files; P1/P2 |
-| X5 | Pre-push MEDIUM summary names rule id, file and line (never the matched value) | S | ACCEPTED | Same output line A3 already changes; P2 |
-| X6 | `gstack-brain-sync --status` lists held paths with the two fixes (`--skip-file`, edit) | S | ACCEPTED | A4's attention line points here; P2 |
-| X7 | `gstack-doctor` checks a named session journal with the guard's reader | M | DEFERRED | Doctor runs outside a session; design unclear; P3 |
-| X8 | Replace brain-sync's Python secret scanner with `lib/redact-engine.ts` | L | DEFERRED | Cross-language rewrite outside the item; P3 |
-| X9 | Persist a parsed-prefix cache for journal reads | M | SKIPPED | 120 MiB reads take ~0.5 s; memory is the limit and streaming fixes it; a cache adds a forgeable trust input; P5 |
-| X10 | Autoplan preflight warns on `--bg`/fork-gate sessions | S | SKIPPED | Superseded once Cause B works in `--bg`; P4 |
+| X1 | B7 は、#1743 のクレジットを v1.64.0.0 の CHANGELOG で @habassa5 にも修正する | S | 採用 | 同じエントリ、同じ取り違え。P2 |
+| X2 | A2 の遅延とピークメモリを、既存の macOS CI ランナーでも計測する | S | 採用 | TODOS.md の受け入れ条件(「macOS と Linux」)を回復する。P1 |
+| X3 | すべてのガード拒否は、1 行の内容を含まないログ(コード、Claude Code のバージョン、判定の種類)を `analytics/autoplan-guard.jsonl` に追記する | S | 採用 | `unverifiedEntry` と同じファイルとログ。ユーザーの報告に原因が含まれる。P2 |
+| X4 | ジャーナルのドリフトのカナリアを、ピンだけでなく、定期的に最新の Claude Code リリースでも実行する | S | 採用 | #3062 の根本原因は「CI がそれを見ない」だった。2 ファイル。P1/P2 |
+| X5 | プッシュ前の MEDIUM の要約に、ルール ID、ファイル、行を記載する(一致した値は決して記載しない) | S | 採用 | A3 がすでに変更する同じ出力行。P2 |
+| X6 | `gstack-brain-sync --status` は、保留されたパスを 2 つの修正方法(`--skip-file`、編集)とともに一覧表示する | S | 採用 | A4 の注意行がここを指す。P2 |
+| X7 | `gstack-doctor` が、名前を指定したセッションジャーナルを、ガードのリーダーでチェックする | M | 延期 | doctor はセッションの外で動く。設計が不明確。P3 |
+| X8 | brain-sync の Python の秘密情報スキャナーを、`lib/redact-engine.ts` に置き換える | L | 延期 | 項目の範囲外の言語をまたぐ書き直し。P3 |
+| X9 | ジャーナル読み取りのためのパース済み接頭辞キャッシュを保持する | M | 見送り | 120 MiB の読み取りは約 0.5 秒。ボトルネックはメモリで、ストリーミングが解決する。キャッシュは偽造されうる信頼入力を増やす。P5 |
+| X10 | Autoplan の事前チェックで `--bg`/フォーク・ゲートのセッションに警告を出す | S | 見送り | `--bg` で原因 B が動けば不要になる。P4 |
 
-**0I Temporal interrogation** (human team / CC+gstack).
-- Hour 1 (foundations): the implementer needs claude-code#100051's flush model, the existing pending-Read rule (`:479-483`) and the phase-close ordering. (~4 h human / ~20 min CC.)
-- Hours 2-3 (core logic): ambiguities are which earlier records count as "consistent" for a synthesized call, the per-record bound for A2, and how A4 attributes scanner hits to paths (the scanner reports the first match per pattern with no path today). (~2 days / ~2 h.)
-- Hours 4-5 (integration): surprises are the `--bg` session needing `claude attach` under the PTY harness, Greptile ignoring drafts, and the pin bump moving every PTY case's TUI. (~2 days / ~2 h.)
-- Hour 6+ (polish/tests): they will wish they had the reporters' timelines as replay fixtures from day one, a macOS timing run, and the prompt-size checks for the aside rules that render into ~100 files. (~2 days / ~3 h.)
-Feasibility blockers: none that block the plan; the `--bg` PTY reproduction may prove infeasible, which CEO-5 handles by recording it unverified instead of claiming it.
+**0I 時間の検討**(人間のチーム / CC+gstack)。
+- 1 時間目(基礎): 実装者は、claude-code#100051 のフラッシュモデル、既存の保留中の Read のルール(`:479-483`)、フェーズ終了の順序を理解する必要がある。(約 4 時間 / CC で約 20 分。)
+- 2〜3 時間目(中核のロジック): 曖昧なのは、合成された呼び出しで「整合している」とみなす先行レコードの範囲、A2 のレコードごとの上限、そして A4 がスキャナーのヒットをどのパスに帰属させるか(スキャナーは現状、パターンごとに最初の一致だけを報告し、パスは持たない)。(約 2 日 / CC で約 2 時間。)
+- 4〜5 時間目(統合): 驚きが生じるのは、`--bg` セッションには PTY ハーネスの下で `claude attach` が必要なこと、Greptile がドラフトを無視すること、そしてピンの更新で PTY の全ケースの TUI が変わること。(約 2 日 / CC で約 2 時間。)
+- 6 時間目以降(仕上げとテスト): 報告者のタイムラインを最初からリプレイのフィクスチャとして持っておけばよかったと後悔するだろう。また、macOS のタイミング計測と、約 100 個のファイルに描画される aside ルールのプロンプトサイズのチェックも必要になる。(約 2 日 / CC で約 3 時間。)
+ブロッカーの有無: この計画をブロックするものはない。`--bg` の PTY 再現は実現不可能と判明するかもしれないが、その場合は CEO-5 が、確認できなかったものとして記録し、そうだと主張しないようにする。
 
-**0H CEO plan and Spec Review Loop.** CEO summary: `/home/user/.gstack/projects/garrytan-gstack/ceo-plans/2026-10-07-followup-wave-oct7.md`. Three reviewer launches (Capy subagents, both saved inputs each time): review 1 scored 6/10 (FAIL, 32 issues), review 2 7/10 (FAIL, 18; Scope passed), review 3 7/10 (FAIL, 19). Each round's issues were resolved by revising the CEO obligations and exact baseline edits; review 3's fixes landed after the three-launch cap and are not reviewer-confirmed. Metrics appended to `analytics/spec-review.jsonl` (iterations 3, found 69, reviewer-confirmed fixed 0, remaining 19, score 7). Document approval auto-decided A (both documents reflect the exact decisions). 0I is recorded above.
+**0H CEO 計画と仕様レビューのループ。** CEO の要約: `/home/user/.gstack/projects/garrytan-gstack/ceo-plans/2026-10-07-followup-wave-oct7.md`。レビュアーの起動は 3 回(Capy のサブエージェント、保存された両方の入力を毎回使用)。レビュー 1 は 6/10(不合格、32 件の指摘)、レビュー 2 は 7/10(不合格、18 件。スコープは合格)、レビュー 3 は 7/10(不合格、19 件)。各ラウンドの指摘は、CEO の義務と正確な基準の編集を改訂して解決した。レビュー 3 の修正は 3 回の起動の上限を過ぎた後に入ったため、レビュアーによる確認は受けていない。指標は `analytics/spec-review.jsonl` に追記した(反復 3、発見 69、レビュアーが確認して修正 0、残り 19、スコア 7)。ドキュメントの承認は、A を自動決定(両方のドキュメントが正確な決定を反映している)。0I は上記のとおり記録した。
 
-**CEO accepted obligations** (Step 0; later CEO sections add to this same block).
+**CEO が受け入れた義務**(Step 0。後の CEO のセクションは、この同じブロックに追加する)。
 
 <!-- autoplan-accepted:ceo -->
-- CEO-1 (A1 Cause B, payload-backed current call and flush-safe publication). The payload path covers both guarded tools, `Read` and `Agent`, and replaces the pending-Read rule that refuses to establish a phase from the hook payload. On the first complete read of a `ready` journal that lacks the current `tool_use_id`, with every journaled record passing the existing order, identity and ownership checks, the guard evaluates the call from the payload (`tool_name`, `tool_use_id`, `tool_input`) placed after the last journaled record, which anchors ancestry. It does not wait out the 2-second window first (claude-code#100051: in lagging sessions the record arrives only with the tool result); the window remains only for a journal that does not exist yet and for the unrecognized-shape double read. A new phase may be established only if the previous phase's report is present in journaled records.
-  Agent input binding on both paths: a constant in the hook lists the allowed Agent keys (`prompt`, `description`, `subagent_type`, `run_in_background`), so no snapshot manifest changes and snapshots made before the upgrade keep working; `prompt` must equal `nativeDispatchPrompt` (as `consumption()` checks today), `subagent_type` must be absent or `general-purpose`, and any other key, including `model`, is denied. On the journal path the journal-versus-payload comparison stays exact apart from `run_in_background` (Cause A), so a changed `description` is still caught there; on the payload path there is no second copy, so the `description` control applies to the journal path only.
-  Batched calls: on the payload path the hook payload has no `messageId`, so the last journaled assistant `messageId` is treated as possibly the current call's message. Pending journaled siblings count as the same batch only if they carry that `messageId` and target the same phase; then they are not "a prior phase-entry tool still pending". A sibling that targets a different phase still denies.
-  Allowlist evidence: the full schema-parsed Agent payload key set on 2.1.292 (default settings) is captured as a fixture before the allowlist is fixed, and CEO-13's canary asserts the payload keys stay inside it.
-  Publication flush: because text in the same assistant message as a guarded call is invisible to the hook in lagging sessions, a phase transition on either path counts only a report that a later journaled record follows, either a tool result or a record with a different `messageId`; a report in the last journaled assistant message with nothing after it does not count on the payload path. The outcome therefore never depends on flush timing. Phase-close step 6 publishes the phase report in a message whose only tool call is the no-op Bash `: autoplan-published <phase>` (no output, unguarded), and step 7 makes the next guarded `Read` or `Agent` (the next phase driver, or the Phase 4 tasks aggregator after any skip messages) go in a later message. When a payload-path phase entry finds no journaled report, the denial names that cause and says to publish the report in its own message with that no-op call; it never says "retry".
-  Tests: replay fixtures shaped like the #3062 timelines (the `--bg` Read batch at offsets 1, 601 and 1201, and a lone foreground `Agent` dispatch) are denied on main and allowed after the fix; a phase transition whose report shares a message with the guarded `Read` on a lagging journal gets the publish-separately denial, the same report in the same message is denied on a fully flushed journal too, a partial flush (the current message's text journaled, its `tool_use` not) is denied, and the transition after the no-op call is allowed; a same-phase sibling batch is allowed and a cross-phase sibling is denied. Negative controls stay denied: a changed prompt on either path, an added `model` on either path, a changed `description` on the journal path, and a payload-path call that would enter a new phase without a journaled report.
-- CEO-2 (A2 bounded, append-tolerant read). Approach: the hook gets its own two-pass owned reader. Pass one streams the file up to the size observed at open, ending at the last complete line, and keeps a small index per record (uuid, parent uuid, record kind, byte offset and length). Ownership, ancestry and order checks run on index metadata: uuid, parent and logical parent uuid, type and subtype, SessionStart attachment flag, `isSidechain`, `agentId`, cwd, timestamp validity, message role, `messageId`, the class of each user turn (typed, `/autoplan` slash, other), each `tool_use` name and id, and the command string of each Bash `tool_use` (so `initArguments` can find literal inits). Pass two loads full records only for the invocation window: from the latest human `user_turn` at or before the first non-reused literal init of the currently bound invocation chain (a `reused:true` init keeps the earlier binding, as `invocation()` does today), so runs started by a typed request or the Skill tool still bind init and a re-arm keeps an outstanding publication. A flag records whether an `end_turn` precedes that turn for `disarmed()`. The existing tests "a real same-restore init re-arms without erasing an outstanding publication" and "rearm excludes disarmed future Reads" stay as controls. Per-record event extraction moves into one shared module, `lib/claude-journal-records.ts`, called by both this reader and `readPlanCountTranscript`, so the two cannot drift. `readPlanCountTranscript` and its batch callers (tests and PTY runners) keep their current reader and 32 MiB cap. Appends after open never fail the read; the same device and inode and no shrink are required. Within one hook invocation, a second read compares the sha256 of bytes [0, first size) with the first read; a mismatch is a hard denial naming a rewritten journal plus the supported fallback. Rewrites between hook invocations are not detected (accepted limit, documented). The unverified-entry advisory's two-read stability check uses that same prefix hash, and the diagnostic pass is streamed so memory stays bounded. Per-record bound: 32 MiB (the old whole-file cap, so no journal readable today becomes unreadable), a named constant documented in `docs/autoplan-guard-troubleshooting.md`; any single record over it yields `too_large`.
-  Acceptance (recorded in the PR, not a CI timing gate): `scripts/measure-journal-read.ts` builds a 120 MiB journal whose record count and size mix match the reported journals (not only a few large records; the review's 440-500 ms figure came from the current full reader on a 5.7k-record synthetic), appends during the read, and measures one read plus evaluation. On a GitHub-hosted `ubuntu-latest` runner (4 vCPU) it must take at most 1 s with peak RSS at or under 256 MiB; a parse-and-index spike on that journal runs before the reader design is committed; the free suite asserts the decision and the bounded index size through the shrink seam, plus a fixture for a Skill-tool start with no slash turn. A run that misses either threshold holds the A2 commit (Tier 1 holds the PR) until it is fixed or the user grants an explicit exception.
-- CEO-3 (P1 denial inventory and codes). Every `fail()` site in `autoplan/bin/phase-publication-hook.ts` gets a stable reason code, and the PR lists each with its disposition: removed by A1/A2; a non-transient cause with the supported fallback; a named corrective action the user or model must take first (for example "restore this installation", "run init", "publish the report"); or a named transient that says what to wait for (today "a prior phase-entry tool is still pending" and "an active-plan mutation is pending"). A free test fails on any denial text that advises a retry without naming its corrective action or transient condition.
-- CEO-4 (pin bump validation). Moving `.github/docker/Dockerfile.ci` to Claude Code 2.1.292 runs the full gate tier (`bun run eval:bg:gate`) on the new pin, as the Dockerfile's own comment requires ("runs the PTY gate against the new TUI"), in addition to the autoplan paid cases and `autoplan-journal-drift`. The pin comment records why 2.1.292 was chosen, and `test/ci-image-cli-pin.test.ts` passes.
-- CEO-5 (`--bg` reproduction honesty). The PTY reproductions run with default settings (no `CLAUDE_CODE_FORK_SUBAGENT` override, clean config). One starts a session with `claude --bg` and drives it through `claude attach <id>`. If the harness cannot drive an attached session, the PR and release notes state that P1's `--bg` case was verified only by replay fixtures, and skipped item X10 (a `--bg` preflight warning) is reopened as a TODOS.md entry. The foreground session also prints whether `$CLAUDE_PROJECT_DIR` is set inside a Bash tool call, recorded in the PR for CEO-22.
-- CEO-6 (macOS measurement). `scripts/measure-journal-read.ts` runs once through a `workflow_dispatch` job on `ubuntu-latest` and `macos-latest` on the A2 branch (not on every PR); the macOS numbers are recorded in the PR next to the Linux numbers and do not gate.
-- CEO-7 (A3 remote history for new branches). When the pushed remote sha is all zeros or not present locally, `repoPublicEmails` comes from the push remote's tracking refs (`git log --format='%ae%n%ce' --remotes=<remote>`) plus the pushed commits. Every history read, including the normal `<remote sha>` path, is bounded to 50,000 commits and 5 seconds; any failure or overrun passes nothing (today's behavior). The MEDIUM summary names each finding's rule id, file and line, never the matched value.
-- CEO-8 (B2 Greptile lifecycle). Greptile is detected by `greptile.json` or a `.greptile/` folder (the folder takes precedence), or past Greptile comments. When /ship opens the early PR as a draft and the effective config does not set `triggerOnDrafts: true`, /ship posts one `@greptileai` comment to start the review. /ship marks the PR ready at its existing PR step unless the user asked for a draft; the review Greptile starts on "ready" is expected, is not awaited, and its comments are handled by the next /ship or /land-and-deploy Greptile pass, so no extra comment is posted to trigger it. Completion signal: /ship polls every 30 seconds for Greptile's check run or summary comment on the early PR's head SHA, for at most 10 minutes; only a completed check or summary counts as a finished review (zero comments allowed), and a timeout takes the existing unavailable path, never a claim of zero comments. The early draft carries the provisional title and a body saying /ship opened it early for review and will update it; the existing PR step edits that PR instead of creating one. Comments on an earlier head are triaged against the final diff. The trigger comment goes through `gstack-post` when B4 ships; otherwise through `gh pr comment --body-file` with a file written by the host's file tool (the existing free-text rule). Without Greptile nothing changes. Tests: fixture repos with and without `triggerOnDrafts` and with a `.greptile/` folder assert whether the trigger comment is posted.
-- CEO-9 (B3 every probe function has an executed form). Each of the ten probe functions generated skills call today gets a subcommand: `select-model`, `auth`, `sandbox-mode`, `sandbox-preflight`, `model-probe`, `version-check`, `first-use-notice`, `timeout` (execs the wrapped command and returns its exit code), `log-event` and `log-hang`. Contract (stdout `KEY: value` lines; human status lines stay on stderr as today; nothing is set in the caller): `select-model <exec|review>` prints `CODEX_SEL:` and `CODEX_SEL_KIND:`, keeps the `CODEX_MODEL:` stderr line, exits 0 or 1; `sandbox-mode` prints `CODEX_SANDBOX:`; `sandbox-preflight` exits 0 or non-zero with the reason on stderr; `model-probe <exec|review> --model <m> --kind <k>` prints `CODEX_PROBE_STATE:` and keeps today's exit codes (0, 2, 3, other); `auth` reports by exit code; `version-check` and `first-use-notice` print to stderr and exit 0; `timeout <secs> <cmd...>` execs the command and returns its exit code (124 on timeout); `log-event <event> [detail]` and `log-hang <skill> <n>` print nothing and exit 0. Generated blocks capture a value with `sed -n 's/^KEY: //p'`, so `CODEX_MODEL_CONFIG_FLAG` reads the captured model instead of `${_GSTACK_CODEX_SEL}`. Sourcing keeps working for one release for skills rendered before the upgrade; the zsh self-locate code stays while sourcing is supported and is removed in the same change that drops sourcing. The existing zsh sourcing test keeps passing during the compatibility release, and a free test runs each subcommand once from bash and zsh.
-- CEO-10 (B6 consent kept). Attaching to a tab the agent did not open still requires the user to confirm that tab once (rule 1). The agent may show the user only tabs whose origin equals the target origin the user named (title and origin); the rest of `listBrowserTabs()` stays private. After a confirmed sign-in, a second sign-in wall means the session is bound to the tab or URL: the agent proposes attaching to the user's signed-in tab with that one confirmation instead of asking for another sign-in. Rule 6 no longer suggests an early `return`; key presses use `pg.locator(sel).press(key)`; an `[ok` result from a very short run with no `GSTACK_STEP_OK` is a script abort. Rule text stays short because it renders into about 100 generated skill files; the details go in the browse cookbook.
-- CEO-11 (B7 second credit). In the v1.64.0.0 CHANGELOG entry, @punksterlabs is replaced by @Mike-E-Log for the extension token fix (#1822) and by @habassa5 for the polyfill `exited` promise (#1743). Commit history is not rewritten.
-- CEO-12 (guard decision log). Every guarded decision, allow or deny, appends one content-free line to `<state root>/analytics/autoplan-guard.jsonl` with the decision, the CEO-3 reason code for a denial, the evaluation path (journal or payload), the Claude Code version and the disposition class, so denials have a denominator; a logging failure never changes the decision. A free test checks the line for one allow, one hard denial and one transient denial.
-- CEO-13 (latest-release schema canary). A new periodic case `autoplan-schema-canary` (own test file, `touchfiles-data.ts` entry, periodic tier, rule kind) runs inside the CI image from `.github/workflows/evals-periodic.yml` on a daily schedule added for this case alone (existing `ANTHROPIC_API_KEY` secret, haiku, about $0.02 a run, about $0.60 a month); the weekly matrix is unchanged. It installs the latest published Claude Code into a temporary npm prefix (selected through `GSTACK_CLAUDE_BIN`), runs a headless session whose PreToolUse hook records the payload for one `Agent` and one `Read` call, and after the turn compares each payload with its journal record using the guard's own comparison (`nativeToolInput` is exported for it), asserts the payload keys stay inside CEO-1's allowlist, and asserts that the payload's key set equals the journal record's key set except for documented strips (today `run_in_background`) for both tools, so a schema strip like Cause A fails CI within a week of a release and reaches the existing periodic `report` job like any red case. The new case has no pin assertion; `autoplan-journal-drift` keeps its pin assertion unchanged. Flush timing is out of its reach (headless) and stays covered by CEO-5. A free fixture proves the comparison fails on an injected key strip. It is proven before merge by one manual dispatch on the PR branch and run again on merge day against the latest release, both linked in the PR.
-- CEO-14 (sync status detail). `gstack-brain-sync --status` JSON gains a `held` array with each held path, the scanner rule name (never the matched text) and both fixes (`gstack-brain-sync --skip-file <path>`, or edit the content). A free test covers one held path.
-- CEO-15 (P1 long-session end to end). One paid PTY case (rule kind, one trial, inside the ~10-minute eval budget) resumes a session whose journal has been padded past 100 MiB with records before a compact boundary (which Claude Code does not replay to the API) and enters /autoplan Phase 1 through the guard; its cost is estimated in the PR before it runs. If Claude Code cannot resume a padded journal, the PR says P1's long-session promise was verified only through the reader acceptance in CEO-2.
-- CEO-16 (TODOS.md edits). The implementation PR removes each "Oct 6 fix-wave follow-ups" entry only when its item ships and meets that entry's acceptance (the bounded-read entry needs CEO-15 to pass end to end; otherwise it is reworded to the remaining gap); Tier 2 items that do not ship keep their entries. It keeps the /cso Windows transport entry, adds X7 and X8 with their deferral reasons, and adds X10 when CEO-5 reopens it.
-- CEO-17 (A4 health signal and lock safety). Scanner holds: a drain that holds back flagged paths and pushes the rest writes the new status `held` (not `blocked`) with the held count; held records stay queued and are re-scanned on every drain until the content is clean or `--skip-file` names the path. Skill start shows an attention line whenever the status is `held` or `blocked`, and separately when no push happened for 24 hours while drainable records wait; scanner-held and privacy-held records never count as drainable. The drain writes a `drainable` count into the status file so skill start does not need the privacy classification. The `ARTIFACTS_SYNC:` attention line is fixed text plus a status code clamped to `ok`, `idle`, `held`, `blocked`, `push_failed` or `error` (anything else prints `unknown`), never the status message, file paths or scanner output (the status message can hold the first 30 characters of a matched secret). A stale `.git/index.lock` is removed only while this drain holds the drain lock and the index lock is older than 10 minutes, because `gstack-brain-restore`, `gstack-artifacts-init` and `gstack-gbrain-source-wireup` run git in `$GSTACK_HOME` without that lock. Per-path holds attribute scanner hits by scanning each staged path's diff. Tests: a held file reported at skill start while other files keep pushing, a held file cleared by editing and by `--skip-file`, a privacy-held queue without the alarm, a fresh index lock left alone, an old one cleared, and an attention line that contains no status text.
-- CEO-18 (generation and prompt checks per template item). Every item that edits a template or resolver (A1 phase sections and phase-close, B2, B3, B4, B6, CEO-20, and CEO-17's `scripts/resolvers/preamble/generate-brain-sync-block.ts`, which tells the model to surface the new attention line to the user and continue) regenerates with `bun run gen:skill-docs` and `bun run gen:skill-docs --host codex`, and passes `test/parity-suite.test.ts`, the prompt-size checks and the golden fixtures before its paid eval.
-- CEO-19 (B4 owns the redaction scan). `gstack-post` runs `gstack-redact` on the exact bytes it is about to send, with `--repo-visibility` from the caller's existing visibility detection and `--self-email` from `git config user.email`. It refuses on a HIGH finding with the rule names; on a MEDIUM finding (exit 2) it posts nothing and returns the findings so the caller asks its existing per-finding question before posting; and the callers it replaces (/ship's PR title and body scan in `ship/sections/pr-body.md.tmpl`, and the PR or issue write sites rendered from `scripts/resolvers/redact-doc.ts`) drop their separate scans. Tests: a HIGH secret in a body file is refused and nothing is posted; a MEDIUM finding posts nothing until the caller confirms; a clean body posts with argument-array `gh` invocation verified by a stub.
-- CEO-20 (shared foreground note). Every site that requires `run_in_background: false` adopts the conditional wording `spec-review.ts:154` already uses ("if that field is available; omit it otherwise") plus the recovery for a background run: `FOREGROUND_DISPATCH_NOTE` in `scripts/resolvers/constants.ts`, `scripts/resolvers/design.ts` (two sites), `outside-voice-steps.ts` (three sites), `review-army.ts` (two sites), `spec-review.ts:61`, and the three templates that inline the literal (autoplan `ceo-phase`, `cso`, `design-shotgun`). The bounded-wait dispatch that sets `run_in_background: true` (`outside-voice-steps.ts:482`) is unchanged.
-- CEO-21 (doctor spends nothing by default). `gstack-doctor` never runs the paid Codex model probe by default: it reports the cached result with its age, or "not probed", and runs the live probe only with `--live`.
-- CEO-22 (B1 definitions). Case 2's task match is a worktree path below the main tree, equal normalized checkpoint titles (lowercased, whitespace collapsed, punctuation and a leading date removed), or the same ticket token (`#123` or `ABC-123`) in both checkpoints' titles or branch names. Case 1's pointer is a JSON file in the starting directory's bucket holding the checkpoint path, its bucket and `project_root`; the starting directory is `$CLAUDE_PROJECT_DIR` when set in the Bash tool environment (CEO-5 records whether it is), and when it is unset no pointer is written (the below-cwd scan still finds the checkpoint).
-- CEO-23 (A3 independent fallbacks and B4 site scope). A3's two inputs fail independently: a failed `git config user.email` omits only `selfEmail`, and a failed or bounded-out history read omits only `repoPublicEmails`. B4's `gstack-post` covers the PR and issue sites; question tuning's `--summary-stdin` and the `docs/gbrain-write-surfaces.md` heredocs move to the agent-written file rule instead, since neither calls `gh` or `glab`.
-- CEO-24 (PTY-first gate and live phase transitions). Before CEO-1's payload path is built, the foreground PTY reproduction (2.1.292, default settings) runs against main and records whether the lone guarded call's record is missing at hook time, confirming the flush mechanism the design assumes. After the fix, the PTY run drives /autoplan through every phase transition in the foreground, and through `claude attach` for `--bg` when CEO-5 can drive it, including one transition that uses the `: autoplan-published <phase>` no-op on a lagging session. For any promised mode that cannot be verified live, the PR narrows P1 for that mode and #3062 stays open for it.
-- CEO-25 (tail-read spike). Before CEO-2's reader design is committed, a spike measures a backward read from end of file that stops at the invocation window start and the latest compact boundary, plus a head read for the root and SessionStart checks. The design that proves the same ownership, ancestry and order checks at lower cost is adopted, and the PR records why the other was rejected.
-- CEO-26 (admission cutoff inside the one PR). The mandatory set is Tier 1, the CEO-4 pin bump and any runtime or harness repair they need. Tier 2 items are admitted only after the mandatory set is green; a Tier 2 item still red after one repair round is reverted as its own commit and moves to TODOS.md, and P3 is reported per item that shipped. The selected eval schedule and its cost estimate are written into the PR before Tier 2 is admitted.
-- CEO-27 (A4 coupled artifacts and drain liveness). A held path holds its coupled group (artifacts that reference each other, such as a decision log and its active snapshot, as listed from the sync allowlist), so the remote never receives a partial generation. Acceptance restores onto a second `GSTACK_HOME` with a held dependency and checks the consumers read a consistent state. The drain writes `last_drain_at`; skill start alarms when it is older than 24 hours and the queue holds records, without trusting the drain's own counts. Tests: a held decision log holds its snapshot; the drain never running raises the alarm.
-- CEO-28 (outside-review severity words). `lib/outside-review-result.ts` counts severity words (`critical`, `high`) as blocking findings in review-gate outputs, or every outside-voice prompt requests `[P0]`-`[P3]` tags and the classifier treats untagged findings as `unverified`, so a review that lists high-severity findings is never reported `VERDICT: clean`. A regression fixture uses the shape of this run's Codex CEO output (seven "High"/"Medium" findings classified `clean`, `FINDINGS: none` by the installed 1.91.29.0 classifier).
-- CEO-29 (doctor triage rows). `gstack-doctor` also prints the Claude Code version, the size of the largest session journal for the current project, and the last five guard reason codes from `autoplan-guard.jsonl`; the bug-report issue template asks for its output.
-- CEO-30 (upstream request). The PR links an anthropics/claude-code issue (new, or a comment on #100051) asking for the assistant `messageId` or a flushed-before-hook guarantee in the PreToolUse payload, the supported surface that would retire the payload heuristics.
-- CEO-31 (contributor tests). Contributor code stays evidence and every fix is rewritten; contributors' regression tests are reused, adapted to the rewrite, when they pass review, and the PR says why any was not.
+- CEO-1(A1 の原因 B。ペイロードに基づく現在の呼び出しと、フラッシュに安全な公開)。ペイロード経路は、ガード対象の両方のツール、`Read` と `Agent` を対象とし、フックのペイロードからフェーズを確立することを拒否していた保留中の Read の規則を置き換える。現在の `tool_use_id` を欠く `ready` のジャーナルの最初の完全な読み取りで、ジャーナルに記録されたすべてのレコードが既存の順序、識別、所有権のチェックを通過する場合、ガードは、最後のジャーナルのレコードの後に置かれた現在の呼び出し(`tool_name`、`tool_use_id`、`tool_input`)を、ペイロードから評価する。これにより祖先関係が固定される。最初に 2 秒のウィンドウを待つことはしない(claude-code#100051: 遅れたセッションでは、レコードはツールの結果とともにしか届かない)。ウィンドウが残るのは、ジャーナルがまだ存在しない場合と、形が認識できない場合の二重読み取りだけである。新しいフェーズは、前のフェーズのレポートがジャーナルのレコードに存在する場合にのみ確立できる。
+  両方の経路での Agent の入力の紐付け: フックの定数に、許可された Agent のキー(`prompt`、`description`、`subagent_type`、`run_in_background`)を列挙する。これによりスナップショットのマニフェストは変わらず、アップグレード前のスナップショットも引き続き動く。`prompt` は `nativeDispatchPrompt` と一致しなければならない(現在の `consumption()` のチェックと同じ)。`subagent_type` は省略されているか `general-purpose` でなければならない。それ以外のキー(`model` を含む)はすべて拒否する。ジャーナル経路では、ジャーナルとペイロードの比較は `run_in_background` を除いて正確なまま(原因 A)なので、変更された `description` は引き続き検出される。ペイロード経路には 2 つ目のコピーがないため、`description` の制御はジャーナル経路にのみ適用される。
+  バッチの呼び出し: ペイロード経路では、フックのペイロードに `messageId` がないため、最後にジャーナルに記録されたアシスタントの `messageId` を、現在の呼び出しのメッセージである可能性があるものとして扱う。保留中のジャーナル上の兄弟呼び出しは、その `messageId` を持ち、同じフェーズを対象とする場合にのみ同じバッチとして数える。その場合、それらは「前のフェーズ入場ツールがまだ保留中」ではない。別のフェーズを対象とする兄弟呼び出しは、引き続き拒否する。
+  許可リストの根拠: 2.1.292(デフォルト設定)での、スキーマで解析された Agent のペイロードのキーの完全な集合を、許可リストを確定する前にフィクスチャとして記録する。CEO-13 のカナリアは、ペイロードのキーがその集合の中に収まることを検証する。
+  公開のフラッシュ: ガード対象の呼び出しと同じアシスタントのメッセージにあるテキストは、遅れたセッションではフックから見えないため、どちらの経路でも、フェーズ遷移は、その後に続くジャーナルのレコードがあるレポートのみを数える。そのレコードは、ツールの結果か、異なる `messageId` を持つレコードのいずれかである。ペイロード経路では、ジャーナルの最後のアシスタントのメッセージにあり、その後に何もないレポートは数えない。そのため、結果はフラッシュのタイミングに決して依存しない。フェーズ終了の step 6 は、フェーズのレポートを、唯一のツール呼び出しが no-op の Bash `: autoplan-published <phase>`(出力なし、ガード対象外)であるメッセージで公開する。step 7 は、次のガード対象の `Read` または `Agent`(次のフェーズのドライバー、またはスキップのメッセージの後の Phase 4 のタスクの集約)を、後のメッセージで行う。ペイロード経路のフェーズ入場で、ジャーナルにレポートが見つからない場合、拒否はその原因を名指しし、そのレポートを no-op の呼び出しとは別のメッセージで公開するよう指示する。「再試行」と言うことは決してない。
+  テスト: #3062 のタイムラインに似せたリプレイのフィクスチャ(オフセット 1、601、1201 にある `--bg` の Read のバッチと、単独のフォアグラウンドの `Agent` のディスパッチ)は、main では拒否され、修正後は許可される。ラグのあるジャーナル上で、レポートがガード対象の `Read` と同じメッセージにあるフェーズ遷移は「別々に公開せよ」の拒否を受ける。完全にフラッシュされたジャーナルでも、同じメッセージ内の同じレポートは拒否される。部分的なフラッシュ(現在のメッセージのテキストはジャーナルにあるが、その `tool_use` はない)は拒否される。no-op の呼び出しの後の遷移は許可される。同じフェーズの兄弟のバッチは許可され、別のフェーズの兄弟は拒否される。陰性対照は拒否のまま: どちらの経路でも、プロンプトの変更、どちらの経路でも `model` の追加、ジャーナル経路での `description` の変更、そしてジャーナルのレポートがないまま新しいフェーズに入るペイロード経路の呼び出し。
+- CEO-2(A2 の境界付きで追記に耐える読み取り)。方針: フックは独自の 2 パスの所有権リーダーを持つ。パス 1 は、ファイルを開いた時点のサイズまでストリーミングで読み、最後の完全な行で止まり、レコードごとに小さなインデックス(uuid、親 uuid、レコードの種類、バイトのオフセットと長さ)を保持する。所有権、祖先関係、順序のチェックは、インデックスのメタデータ上で行う。対象は、uuid、親と論理的な親の uuid、type と subtype、SessionStart の添付フラグ、`isSidechain`、`agentId`、cwd、タイムスタンプの有効性、メッセージのロール、`messageId`、ユーザーのターンの種類(入力、`/autoplan` のスラッシュ、その他)、各 `tool_use` の名前と ID、各 Bash の `tool_use` のコマンド文字列(`initArguments` がリテラルの init を見つけられるように)である。パス 2 は、呼び出しウィンドウの完全なレコードのみを読み込む。ウィンドウは、現在紐付けられている呼び出しチェーンの最初の非再利用のリテラル init(`reused:true` の init は、`invocation()` の現在の動作どおり以前の紐付けを保持する)より前にある、最新の人間の `user_turn` から始まる。これにより、入力されたリクエストや Skill ツールで始まった実行も init を紐付けられ、再アームでは未処理の公開が保持される。フラグは、`disarmed()` のために、その `user_turn` より前に `end_turn` があるかどうかを記録する。イベントの抽出はすべて、共通のモジュール `lib/claude-journal-records.ts` に移し、このリーダーと `readPlanCountTranscript` の両方から呼び出すことで、両者がずれないようにする。`readPlanCountTranscript` とそのバッチの呼び出し元(テストと PTY のランナー)は、現在のリーダーと 32 MiB の上限を維持する。オープン後の追記で読み取りが失敗することはない。同じデバイスと inode であること、縮小していないことを要求する。1 回のフックの呼び出しの中で、2 回目の読み取りは、バイト [0, 最初のサイズ) の sha256 を最初の読み取りと比較する。不一致は、書き換えられたジャーナルを名指しし、サポートされたフォールバックを示す強制的な拒否とする。フックの呼び出しをまたいだ書き換えは検出しない(受け入れられた制約、文書化する)。検証できない場合の助言の 2 回読み取りの安定性チェックも、同じ接頭辞のハッシュを使う。診断のパスはストリーミングで行い、メモリを有界に保つ。レコードごとの上限は 32 MiB(以前の全体の上限と同じ。今日読めるジャーナルが読めなくなることはない)。名前の付いた定数であり、`docs/autoplan-guard-troubleshooting.md` に文書化する。1 件のレコードがこれを超えた場合は `too_large` となる。
+  受け入れ(PR に記録する。CI のタイミングゲートではない): `scripts/measure-journal-read.ts` は、報告されたジャーナルのレコード数とサイズの構成に合う 120 MiB のジャーナルを作る(少数の大きなレコードだけではない。レビューの 440〜500 ms の数値は、5.7k レコードの合成データでの現在の完全なリーダーによるもの)。読み取り中に追記を行い、1 回の読み取りと評価の時間を計測する。GitHub がホストする `ubuntu-latest` のランナー(4 vCPU)では、最大 1 秒、ピークの RSS は 256 MiB 以下でなければならない。リーダーの設計を確定する前に、そのジャーナルに対してパースとインデックス化のスパイクを実行する。無料のスイートは、縮小のシームを通じて、判定と有界なインデックスのサイズを検証し、Skill ツールで始まりスラッシュのターンがない場合のフィクスチャも検証する。どちらかのしきい値を満たさない場合は、A2 のコミットを保留する(Tier 1 が PR を保留する)。修正されるか、ユーザーが明示的に例外を認めるまで保留する。
+- CEO-3(P1 の拒否のインベントリとコード)。`autoplan/bin/phase-publication-hook.ts` のすべての `fail()` の箇所に、安定した理由コードを付ける。PR はそれぞれを、その処理方針とともに列挙する。処理方針は次のいずれかである。A1/A2 によって削除される。サポートされたフォールバックを伴う、再試行では直らない原因。ユーザーかモデルが最初に取るべき、名指しされた是正措置(例: 「このインストールを復元する」、「init を実行する」、「レポートを公開する」)。または、何を待てばよいかを示す、名指しされた一時的な状態(今日の「前のフェーズ入場ツールがまだ保留中」と「アクティブなプランの変更が保留中」)。無料のテストは、是正措置または一時的な状態を名指しせずに再試行を勧める拒否の文言があれば失敗させる。
+- CEO-4(ピン更新の検証)。`.github/docker/Dockerfile.ci` を Claude Code 2.1.292 に移す際、Dockerfile 自身のコメントが求めるとおり(「新しい TUI に対して PTY ゲートを実行する」)、新しいピンに対してフルのゲート階層(`bun run eval:bg:gate`)を実行する。これは、autoplan の有料ケースと `autoplan-journal-drift` に加えて行う。ピンのコメントには、なぜ 2.1.292 を選んだかを記録する。`test/ci-image-cli-pin.test.ts` が通ること。
+- CEO-5(`--bg` の再現の正直さ)。PTY の再現は、デフォルト設定(`CLAUDE_CODE_FORK_SUBAGENT` の上書きなし、クリーンな設定)で実行する。1 つは `claude --bg` でセッションを開始し、`claude attach <id>` で操作する。ハーネスが接続されたセッションを操作できない場合、PR とリリースノートには、P1 の `--bg` のケースはリプレイのフィクスチャでのみ検証したと記載する。また、スキップした項目 X10(`--bg` の事前警告)を、TODOS.md の項目として再開する。フォアグラウンドのセッションは、Bash ツールの呼び出し内で `$CLAUDE_PROJECT_DIR` が設定されているかどうかも表示し、その結果を CEO-22 のために PR に記録する。
+- CEO-6(macOS での計測)。`scripts/measure-journal-read.ts` は、A2 のブランチ上で、`workflow_dispatch` のジョブとして `ubuntu-latest` と `macos-latest` で一度だけ実行する(すべての PR では実行しない)。macOS の数値は、Linux の数値の隣に PR に記録し、ゲートにはしない。
+- CEO-7(新しいブランチのための A3 のリモート履歴)。プッシュされたリモートの sha がすべてゼロの場合、またはローカルに存在しない場合、`repoPublicEmails` は、プッシュ先のリモートの追跡参照(`git log --format='%ae%n%ce' --remotes=<remote>`)と、プッシュされたコミットから得る。通常の `<remote sha>` の経路を含む、すべての履歴の読み取りは、50,000 コミットと 5 秒に制限する。失敗または超過があった場合は何も渡さない(今日の動作)。MEDIUM の要約は、各検出のルール ID、ファイル、行を名指しし、一致した値は決して表示しない。
+- CEO-8(B2 の Greptile のライフサイクル)。Greptile は、`greptile.json` または `.greptile/` フォルダ(フォルダが優先)、あるいは過去の Greptile のコメントで検出する。/ship が早期の PR をドラフトとして開き、有効な設定で `triggerOnDrafts: true` が設定されていない場合、/ship は 1 件の `@greptileai` のコメントを投稿してレビューを開始する。/ship は、ユーザーがドラフトを求めた場合を除き、既存の PR の段階で PR を ready にする。「ready」で Greptile が開始するレビューは想定どおりであり、待機しない。そのコメントは次の /ship または /land-and-deploy の Greptile のパスで処理する。そのため、レビューを開始させる追加のコメントは投稿しない。完了のシグナル: /ship は、早期の PR の head SHA に対する Greptile のチェックの実行か要約のコメントを、30 秒ごとに最大 10 分ポーリングする。完了したチェックまたは要約だけが、完了したレビューとして扱われる(コメントがゼロでもよい)。タイムアウトの場合は、既存の利用不可の経路をとり、ゼロ件のコメントだと主張しない。早期のドラフトには、暫定のタイトルと、/ship が早期に開いたためレビュー用であり、後で更新することを示す本文を付ける。既存の PR の段階では、新しく作成する代わりに、その PR を編集する。以前の head へのコメントは、最終的な差分に照らして振り分ける。トリガーのコメントは、B4 が出荷されていれば `gstack-post` を通す。そうでなければ、ホストのファイルツールで書かれたファイルを `gh pr comment --body-file` で投稿する(既存の自由記述のルール)。Greptile がない場合は何も変わらない。テスト: `triggerOnDrafts` がある場合とない場合、および `.greptile/` フォルダがあるフィクスチャのリポジトリで、トリガーのコメントが投稿されるかどうかを検証する。
+- CEO-9(B3: 生成されたスキルが呼ぶすべてのプローブ関数に、実行可能な形を持たせる)。スキルが現在呼んでいる 10 個のプローブ関数それぞれに、サブコマンドを与える: `select-model`、`auth`、`sandbox-mode`、`sandbox-preflight`、`model-probe`、`version-check`、`first-use-notice`、`timeout`(ラップしたコマンドを exec し、その終了コードを返す)、`log-event`、`log-hang`。契約(標準出力は `KEY: value` の行。人間向けのステータス行は今までどおり標準エラーに出し、呼び出し側で何も設定しない): `select-model <exec|review>` は `CODEX_SEL:` と `CODEX_SEL_KIND:` を出力し、`CODEX_MODEL:` の標準エラーの行を維持し、終了コードは 0 または 1。`sandbox-mode` は `CODEX_SANDBOX:` を出力。`sandbox-preflight` は、終了コード 0 または 0 以外で終わり、理由は標準エラーに出す。`model-probe <exec|review> --model <m> --kind <k>` は `CODEX_PROBE_STATE:` を出力し、今までの終了コード(0、2、3、その他)を維持する。`auth` は終了コードで報告する。`version-check` と `first-use-notice` は標準エラーに出力し、終了コード 0 で終わる。`timeout <secs> <cmd...>` はコマンドを exec し、その終了コードを返す(タイムアウト時は 124)。`log-event <event> [detail]` と `log-hang <skill> <n>` は何も出力せず、終了コード 0 で終わる。生成されたブロックは `sed -n 's/^KEY: //p'` で値を取り込むので、`CODEX_MODEL_CONFIG_FLAG` は `${_GSTACK_CODEX_SEL}` の代わりに、取り込んだモデルを読む。アップグレード前に描画されたスキルのため、ソースの読み込みは 1 リリースの間サポートし続ける。zsh の自己位置特定のコードは、ソースの読み込みがサポートされている間は残し、ソースの読み込みを削除する同じ変更で取り除く。既存の zsh のソースのテストは、互換リリースの間も通り続ける。無料のテストが、各サブコマンドを bash と zsh から一度ずつ実行する。
+- CEO-10(B6 の同意を維持する)。エージェントが開いたのではないタブに接続するには、ユーザーがそのタブを一度確認する必要がある(ルール 1)。エージェントは、ユーザーが指定した対象のオリジンと一致するオリジンのタブ(タイトルとオリジン)のみをユーザーに示すことができる。それ以外の `listBrowserTabs()` の結果は非公開のままにする。ユーザーがサインインを確認した後で 2 回目のサインインの壁が出た場合は、セッションがそのタブまたは URL に紐付けられていることを意味する。エージェントは、もう一度サインインを求める代わりに、その 1 回の確認で、ユーザーのサインイン済みのタブへの接続を提案する。ルール 6 は、もう早期の `return` を勧めない。キー入力には `pg.locator(sel).press(key)` を使う。`GSTACK_STEP_OK` のない非常に短い実行による `[ok` の結果は、スクリプトの中断として扱う。ルールの文章は短く保つ。約 100 個の生成されたスキルファイルに描画されるからである。詳細はブラウザのクックブックに記載する。
+- CEO-11(B7 の 2 つ目のクレジット)。v1.64.0.0 の CHANGELOG のエントリでは、トークンの修正(#1822)については @punksterlabs を @Mike-E-Log に置き換え、ポリフィルの `exited` プロミス(#1743)については @habassa5 に置き換える。コミット履歴は書き換えない。
+- CEO-12(ガードの判定ログ)。ガードによるすべての判定(許可または拒否)は、`<state root>/analytics/autoplan-guard.jsonl` に 1 行の内容を含まないログを追記する。その行には、判定、拒否の場合は CEO-3 の理由コード、判定の経路(ジャーナルまたはペイロード)、Claude Code のバージョン、処理の種類を含む。拒否の分母が得られるようにするためである。ログの書き込みに失敗しても、判定は変わらない。無料のテストは、1 回の許可、1 回の強制拒否、1 回の一時的な拒否の行を検証する。
+- CEO-13(最新リリースでのスキーマのカナリア)。新しい定期ケース `autoplan-schema-canary`(専用のテストファイル、`touchfiles-data.ts` のエントリ、定期の階層、ルールの種類)は、`.github/workflows/evals-periodic.yml` の CI イメージの中で、このケースのために追加した毎日のスケジュールで実行する(既存の `ANTHROPIC_API_KEY` のシークレット、haiku を使用。1 回あたり約 0.02 ドル、月に約 0.60 ドル)。週次のマトリクスは変更しない。公開されている最新の Claude Code を一時的な npm のプレフィックスにインストールし(`GSTACK_CLAUDE_BIN` で選択)、ヘッドレスのセッションを実行する。その PreToolUse フックは、1 回の `Agent` と 1 回の `Read` の呼び出しのペイロードを記録する。ターン後、ガード独自の比較(`nativeToolInput` を、これのためにエクスポートする)を使って、各ペイロードを対応するジャーナルのレコードと比較する。ペイロードのキーが CEO-1 の許可リストの中に収まることを検証する。また、両方のツールについて、ペイロードのキーの集合が、ジャーナルのレコードのキーの集合と、文書化された除去(現時点では `run_in_background`)を除いて等しいことを検証する。これにより、原因 A のようなスキーマの除去は、リリースから 1 週間以内に CI で失敗し、既存の定期的な `report` ジョブに、他のケースと同様に赤として届く。新しいケースにはピンのアサーションはない。`autoplan-journal-drift` はピンのアサーションをそのまま維持する。フローのタイミングはこの仕組みの範囲外である(ヘッドレスのため)。CEO-5 がこれを扱う。キーの除去を注入したフィクスチャで、比較が失敗することを無料のフィクスチャが証明する。マージの前に、PR ブランチでの手動のディスパッチ 1 回で証明し、マージ当日には最新リリースに対して再度実行する。どちらも PR にリンクする。
+<!-- /autoplan-accepted:ceo -->
+- CEO-14(同期ステータスの詳細)。`gstack-brain-sync --status` の JSON に、`held` の配列を追加する。各要素には、保留されたパス、スキャナーのルール名(一致したテキストは決して含めない)、2 つの修正方法(`gstack-brain-sync --skip-file <path>`、または内容の編集)を含める。無料のテストで、保留されたパス 1 件を検証する。
+- CEO-15(長いセッションの end-to-end)。有料の PTY ケースを 1 件(ルールの種類、1 回の試行、約 10 分の評価予算内)追加する。このケースは、100 MiB を超えるようにパディングされたジャーナルを持つセッションを再開し、コンパクト境界より前のレコード(Claude Code が API に再生しないもの)を含む状態で、ガードを通して /autoplan のフェーズ 1 に入る。このケースの実行前に、コストを PR に見積もって記載する。Claude Code がパディングされたジャーナルを再開できない場合は、P1 の長いセッションに関する約束は、CEO-2 のリーダーの受け入れテストでのみ検証したと PR に記載する。
+- CEO-16(TODOS.md の編集)。実装 PR は、各「Oct 6 fix-wave follow-ups」のエントリを、その項目が出荷され、そのエントリの受け入れ条件を満たした場合にのみ削除する(bounded-read のエントリは、CEO-15 がエンドツーエンドで通る必要がある。通らなければ、残っているギャップを示す文言に書き直す)。出荷されない Tier 2 項目のエントリは残す。/cso の Windows トランスポートのエントリは残し、X7 と X8 を延期理由とともに追加する。CEO-5 が X10 を再開する場合は、X10 も追加する。
+- CEO-17(A4 の健全性シグナルとロックの安全性)。スキャナーによる保留: フラグの立ったパスを保留し、残りをプッシュするドレインは、新しいステータス `held`(`blocked` ではない)と保留件数を書き込む。保留されたレコードはキューに残り、内容がクリーンになるか `--skip-file` でそのパスが指定されるまで、ドレインのたびに再スキャンされる。スキル開始時は、ステータスが `held` または `blocked` のとき注意行を表示する。また、ドレイン可能なレコードが残っているのに 24 時間プッシュが行われていない場合は、別途注意行を表示する。スキャナーによる保留および プライバシーによる保留のレコードは、ドレイン可能としては数えない。ドレインは `drainable` の件数をステータスファイルに書き込むので、スキル開始時にプライバシー分類を行う必要がない。`ARTIFACTS_SYNC:` の注意行は固定テキストと、`ok`、`idle`、`held`、`blocked`、`push_failed`、`error` のいずれかに制限されたステータスコードからなる(それ以外の値は `unknown` と表示する)。ステータスメッセージ、ファイルパス、スキャナーの出力は決して含めない(ステータスメッセージには、一致した秘密情報の先頭 30 文字が入る可能性があるため)。古い `.git/index.lock` は、このドレインがドレインロックを保持しており、かつインデックスロックが 10 分より古い場合にのみ削除する。`gstack-brain-restore`、`gstack-artifacts-init`、`gstack-gbrain-source-wireup` は、このロックを取らずに `$GSTACK_HOME` で git を実行するためである。パスごとの保留は、ステージされた各パスの差分をスキャンして、スキャナーのヒットを帰属させる。テスト: 他のファイルが引き続きプッシュされている間に、保留されたファイルがスキル開始時に報告されること。保留されたファイルが、編集と `--skip-file` の両方でクリアされること。プライバシーによる保留のみのキューでは警報が出ないこと。新しいインデックスロックはそのまま残し、古いものはクリアすること。注意行にステータス文言が含まれないこと。
+- CEO-18(テンプレート項目ごとの生成とプロンプトのチェック)。テンプレートまたはリゾルバーを編集する項目(A1 のフェーズ節とフェーズ終了、B2、B3、B4、B6、CEO-20、および CEO-17 の `scripts/resolvers/preamble/generate-brain-sync-block.ts`。この最後のものは、新しい注意行をユーザーに伝えて処理を続けるようモデルに指示する)は、`bun run gen:skill-docs` と `bun run gen:skill-docs --host codex` で再生成し、有料の評価を行う前に `test/parity-suite.test.ts`、プロンプトサイズのチェック、ゴールデンフィクスチャを通す。
+- CEO-19(B4 がリダクション・スキャンを担当する)。`gstack-post` は、送信しようとしている正確なバイト列に対して `gstack-redact` を実行する。`--repo-visibility` は呼び出し側の既存の公開範囲判定から渡し、`--self-email` は `git config user.email` から渡す。HIGH の検出があった場合は、ルール名を示したうえで拒否する。MEDIUM の検出(終了コード 2)があった場合は、何も投稿せず、検出結果を返して、呼び出し側が投稿前に既存の検出ごとの確認を行えるようにする。これに置き換わる呼び出し元(/ship の PR タイトルと本文のスキャン(`ship/sections/pr-body.md.tmpl` 内)、および `scripts/resolvers/redact-doc.ts` から描画される PR や Issue の書き込み箇所)は、個別のスキャンを削除する。テスト: 本文ファイル内の HIGH の秘密情報は拒否され、何も投稿されないこと。MEDIUM の検出は、呼び出し側が確認するまで何も投稿しないこと。問題のない本文は、スタブで検証された引数配列形式の `gh` 呼び出しで投稿されること。
+- CEO-20(共通のフォアグラウンド注記)。`run_in_background: false` を要求するすべての箇所は、`spec-review.ts:154` で既に使われている条件付きの文言(「そのフィールドが利用可能であれば。利用できなければ省略する」)を採用し、さらに背景実行の場合のリカバリ手順を加える。対象は、`scripts/resolvers/constants.ts` の `FOREGROUND_DISPATCH_NOTE`、`scripts/resolvers/design.ts`(2 箇所)、`outside-voice-steps.ts`(3 箇所)、`review-army.ts`(2 箇所)、`spec-review.ts:61`、そしてリテラルをインラインで持つ 3 つのテンプレート(autoplan の `ceo-phase`、`cso`、`design-shotgun`)である。`run_in_background: true` を設定する、待機時間付きのディスパッチ(`outside-voice-steps.ts:482`)は変更しない。
+- CEO-21(doctor はデフォルトでコストを発生させない)。`gstack-doctor` は、デフォルトでは有料の Codex モデルのプローブを実行しない。キャッシュされた結果とその経過時間、または「not probed」を報告し、`--live` を指定したときにのみライブのプローブを実行する。
+- CEO-22(B1 の定義)。ケース 2 のタスク一致は、メインのツリーより下にあるワークツリーのパス、正規化されたチェックポイントタイトルが一致すること(小文字化し、空白を詰め、句読点と先頭の日付を除去する)、または両方のチェックポイントのタイトルかブランチ名に同じチケットトークン(`#123` または `ABC-123`)が含まれることである。ケース 1 のポインターは、開始ディレクトリのバケット内にある JSON ファイルで、チェックポイントのパス、そのバケット、`project_root` を保持する。開始ディレクトリは、Bash ツールの環境で `$CLAUDE_PROJECT_DIR` が設定されていればその値とする(CEO-5 がそれを設定されているかどうかを記録する)。未設定の場合はポインターを書き込まない(カレントディレクトリより下のスキャンでも、チェックポイントは見つかる)。
+- CEO-23(A3 の独立したフォールバックと B4 の対象範囲)。A3 の 2 つの入力は、それぞれ独立して失敗する。`git config user.email` が失敗した場合は `selfEmail` のみを省略し、履歴の読み取りが失敗した場合、またはサイズ上限で打ち切られた場合は `repoPublicEmails` のみを省略する。B4 の `gstack-post` は PR と Issue の箇所を対象とする。質問チューニングの `--summary-stdin` と `docs/gbrain-write-surfaces.md` のヒアドキュメントは、どちらも `gh` や `glab` を呼ばないため、エージェントが書くファイルのルールに移す。
+- CEO-24(PTY 優先のゲートとライブのフェーズ遷移)。CEO-1 のペイロード経路を実装する前に、フォアグラウンドの PTY 再現(2.1.292、デフォルト設定)を main に対して実行し、唯一のガード対象の呼び出しのレコードがフック時点で欠けているかどうかを記録する。これにより、設計が前提とするフラッシュの仕組みを確認する。修正後は、PTY 実行で /autoplan をフォアグラウンドのすべてのフェーズ遷移を通して動かす。CEO-5 が操作できる場合は、`claude attach` 経由で `--bg` も動かし、そのうち 1 回の遷移は、ラグのあるセッションで `: autoplan-published <phase>` の no-op を使うものとする。ライブで検証できない約束されたモードについては、PR がそのモードの P1 を絞り込み、#3062 はそのモードについて開いたままにする。
+- CEO-25(tail-read のスパイク)。CEO-2 のリーダー設計を確定する前に、スパイクを行う。ファイル末尾から後方に読み、呼び出しウィンドウの開始位置と最新のコンパクト境界で止まる読み取りと、ルートおよび SessionStart のチェックのための先頭からの読み取りを計測する。同じ所有権、祖先関係、順序のチェックをより低いコストで証明する設計を採用し、もう一方を却下した理由を PR に記録する。
+- CEO-26(1 つの PR 内での受け入れの締め切り)。必須セットは Tier 1、CEO-4 のピン更新、およびそれらに必要なランタイムやハーネスの修復である。Tier 2 項目は、必須セットがグリーンになってからのみ受け入れる。Tier 2 項目が 1 回の修復ラウンド後もレッドのままの場合は、独立したコミットとして差し戻し、TODOS.md に移す。P3 は、出荷された項目ごとに報告する。Tier 2 を受け入れる前に、選択された評価のスケジュールとそのコストの見積もりを PR に記載する。
+- CEO-27(A4 の連携するアーティファクトとドレインの活性)。保留されたパスは、その連携グループ全体(決定ログとそのアクティブなスナップショットのように、互いを参照するアーティファクト。同期の許可リストに記載されているもの)を保留する。これにより、リモートが部分的な世代を受け取ることがなくなる。受け入れテストでは、保留された依存関係を持つ状態で、2 つ目の `GSTACK_HOME` に復元し、利用側が一貫した状態を読むことを確認する。ドレインは `last_drain_at` を書き込み、スキル開始時に、それが 24 時間より古く、かつキューにレコードがある場合に警報を出す。その際、ドレイン自身のカウントは信用しない。テスト: 保留された決定ログがスナップショットも保留すること。ドレインが一度も実行されない場合に警報が出ること。
+- CEO-28(アウトサイドレビューの重大度の語)。`lib/outside-review-result.ts` は、レビューゲートの出力において、重大度を表す語(`critical`、`high`)をブロッキングの指摘として数える。または、すべてのアウトサイドボイスのプロンプトに `[P0]`-`[P3]` のタグを要求し、分類器はタグのない指摘を `unverified` として扱う。これにより、高い重大度の指摘を列挙しているレビューが、`VERDICT: clean` と報告されることはなくなる。回帰テスト用のフィクスチャには、今回の実行の Codex CEO の出力の形(インストール済みの 1.91.29.0 の分類器によって `clean` と `FINDINGS: none` に分類された、「High」と「Medium」の指摘 7 件)を使う。
+- CEO-29(doctor のトリアージ行)。`gstack-doctor` は、Claude Code のバージョン、現在のプロジェクトで最大のセッションジャーナルのサイズ、`autoplan-guard.jsonl` の直近 5 件のガード理由コードも表示する。バグ報告の Issue テンプレートは、その出力を求める。
+- CEO-30(上流への要望)。PR は anthropics/claude-code の Issue(新規、または #100051 へのコメント)にリンクする。その Issue では、PreToolUse のペイロードに、アシスタントの `messageId` か、フラッシュ済みであることをフックの前に保証する仕組みを求める。これは、ペイロードのヒューリスティクスを不要にできる、サポートされたインターフェースである。
+- CEO-31(コントリビューターのテスト)。コントリビューターのコードは根拠として扱い、すべての修正は書き直す。コントリビューターの回帰テストは、レビューを通過した場合には、書き直しに合わせて調整したうえで再利用する。再利用しなかった場合は、その理由を PR に書く。
 <!-- /autoplan-accepted:ceo -->
 
-CEO baseline edits (exact replacements that fold CEO-1, CEO-2, CEO-4, CEO-6..CEO-11 into the item text they correct):
+CEO のベースライン編集(CEO-1、CEO-2、CEO-4、CEO-6〜CEO-11 を、それぞれが修正する項目の本文に組み込む、正確な置換):
 
 <!-- autoplan-baseline-edits:ceo {"sourceSha256":"d1c1884afaae8e492b2da96a7a6ba933dfa6b5a257a1ee27c58b515d3fd6c6ac","replacements":[{"oldText":"and keep the stability checks (same file identity and size before and after).","newText":"and keep the identity checks (same device and inode, no shrink) on an append-tolerant prefix read (CEO-2)."},{"oldText":"are measured on Linux and recorded in the PR.","newText":"are measured on Linux and macOS (CEO-6) and recorded in the PR."},{"oldText":"from the remote's history (`git log --format='%ae%n%ce' <remote sha>`)","newText":"from the remote's history (`git log --format='%ae%n%ce' <remote sha>`, or the push remote's tracking refs for a new branch or unknown remote tip, CEO-7)"},{"oldText":"(draft unless the user asked otherwise)","newText":"(draft unless the user asked otherwise; a draft gets one `@greptileai` trigger comment when Greptile skips drafts, CEO-8)"},{"oldText":"The zsh self-locate code is no longer needed in the probe.","newText":"The zsh self-locate code goes in the same change that drops sourcing (CEO-9)."},{"oldText":"Before opening a tab for a target, list the open tabs and attach to a signed-in one.","newText":"Before opening a tab for a target, list the open tabs (the list stays private) and offer to attach to a signed-in one, attaching only after the user confirms it once (CEO-10)."},{"oldText":"attach, and don't ask the user again.","newText":"propose attaching to the user's signed-in tab instead of asking for another sign-in (CEO-10)."},{"oldText":"PR #1822 is credited to @Mike-E-Log.","newText":"PR #1822 is credited to @Mike-E-Log, and the CHANGELOG entry credits PR #1743 to @habassa5 (CEO-11)."},{"oldText":"  - the PR gate;","newText":"  - the PR gate, and the full gate tier on the new Claude Code pin (CEO-4);"},{"oldText":"- One PR, separate commits per item, patch version bump.\n","newText":"- One PR, separate commits per item, patch version bump.\n\n### Accepted review amendments\n\nEach amendment below was accepted by the /autoplan review. The item text above names the amendment it folds in; where they differ, the amendment's conditions and tests apply.\n"},{"oldText":"- The MEDIUM summary line names each finding's rule id and file.","newText":"- The MEDIUM summary line names each finding's rule id, file and line (CEO-7)."},{"oldText":"The phase sections stop asking for the key and say how to recover when a dispatch runs in the background.","newText":"The phase sections and the shared foreground-dispatch note ask for the key only when the Agent schema exposes it and say how to recover when a dispatch runs in the background (CEO-20)."},{"oldText":"Every denial that remains names a cause that retrying cannot fix, with the supported fallback.","newText":"Every denial that remains names its cause; none advises a retry that cannot succeed, and every non-transient cause comes with the supported fallback (CEO-3)."},{"oldText":"Fix: when the poll times out, the journal is otherwise `ready`, and every earlier record is consistent, evaluate the current call from the hook payload: tool name, `tool_use_id` and `tool_input` appended after the last journaled event. The payload comes from Claude Code itself and carries the same input the journal record would. Every other check stays exact, so a changed prompt, description or added `model` is still denied.","newText":"Fix: when the first complete read of a `ready` journal lacks the current call and every earlier record is consistent, evaluate the current call from the hook payload: tool name, `tool_use_id` and `tool_input` appended after the last journaled event, for both `Read` and `Agent`; a phase transition counts only a report published in an earlier assistant message (CEO-1). The payload is Claude Code's own schema-normalized input, trusted but not byte-identical to the journal (Cause A shows the difference), so CEO-13 checks its key set against the journal on every new release. A changed prompt or an added `model` is denied on both paths, and a changed description on the journal path (CEO-1)."},{"oldText":"Negative controls: a changed prompt or description, or an added model, stays denied.","newText":"Negative controls: a changed prompt or an added model stays denied on both paths, and a changed description on the journal path."},{"oldText":"and the phase events since snapshot init.","newText":"and the records of the current invocation, from the human turn that started it (CEO-2)."},{"oldText":"When the repo has Greptile (a `greptile.json`, or past Greptile comments on its PRs),","newText":"When the repo has Greptile (a `.greptile/` folder, a `greptile.json`, or past Greptile comments on its PRs),"},{"oldText":"becomes an executable with subcommands (`select-model`, `auth`, `sandbox`, `model-probe`)","newText":"becomes an executable with one subcommand per probe function (CEO-9 lists them)"},{"oldText":"  - for any paid red, the ship-measure loop at the #3059 bar.","newText":"  - the long-session PTY case past 100 MiB (CEO-15), one manual dispatch of the latest-release schema canary (CEO-13), and the macOS measurement step (CEO-6);\n  - for any paid red, the ship-measure loop at the #3059 bar."},{"oldText":"PR and issue text is posted by one argument-array helper, and the remaining free-text sites use it.","newText":"PR and issue text is posted by one argument-array helper, and the remaining free-text sites use it or, where they never call `gh`/`glab`, the agent-written file rule (CEO-23)."},{"oldText":"It covers the remaining free-text sites: question tuning's `--summary-stdin`, /ship's `NEW_TITLE` restore and Step 18, and `docs/gbrain-write-surfaces.md`.","newText":"It covers /ship's `NEW_TITLE` restore and Step 18; question tuning's `--summary-stdin` and `docs/gbrain-write-surfaces.md` move to the agent-written file rule (CEO-23)."},{"oldText":"If either git call fails, it passes nothing, which is today's behavior.","newText":"If either git call fails, it omits only that input, which is today's behavior for it (CEO-23)."}]} -->
 
-Pending TODOS.md writes (the implementation PR writes these; this review edits no repository file except this plan):
-- X7: `gstack-doctor` guard check against a named session journal. Effort M (human) / S (CC). P3. Deferred: doctor runs outside a session, design unclear.
-- X8: replace `bin/gstack-brain-sync`'s Python secret scanner with `lib/redact-engine.ts`. Effort L / M. P3. Deferred: cross-language rewrite outside A4.
+保留中の TODOS.md の書き込み(実装 PR がこれらを書く。このレビューは、この計画以外のリポジトリのファイルを編集しない):
+- X7: 名前を指定したセッションジャーナルに対する `gstack-doctor` のガードチェック。工数 M(人間)/ S(CC)。P3。延期: doctor はセッションの外で動く。設計が不明確。
+- X8: `bin/gstack-brain-sync` の Python の秘密情報スキャナーを `lib/redact-engine.ts` に置き換える。工数 L / M。P3。延期: A4 の範囲外の言語をまたぐ書き直し。
 
-### Phase 1 CEO review: dual voices
+### Phase 1 CEO レビュー: 二系統の意見
 
-Voice snapshot: `/home/user/.gstack/projects/garrytan-gstack/autoplan-ceo-FHMhaX/ceo-implementation.md` (sha256 `4a95d68d…f7f5`). Both voices reviewed that exact input.
+意見のスナップショット: `/home/user/.gstack/projects/garrytan-gstack/autoplan-ceo-FHMhaX/ceo-implementation.md`(sha256 `4a95d68d…f7f5`)。両方の意見が、その正確な入力をレビューした。
 
-**Native CEO voice (Capy subagent, `nativeDispatchPrompt` verbatim): completed.** Returned `INPUT: ceo 4a95d68d…f7f5` (hash matches; native prompt 140 lines read in full). 11 findings: F1 critical (the P0 fix rides with ten unrelated items; split into a hotfix R1 = A1 + pin, R2 = A2/A3/A4, R3 = Tier 2); F2 high (the guard should fail soft, allow with warning, on environment-unverifiable states and keep hard denial for integrity failures); F3 high (Cause B rests on an unreproduced mechanism; PTY first, plus a live publish-then-read case); F4 high (spike a tail read before the two-pass reader); F5 high (weekly canary lags releases; daily or on new versions, version-aware advisory, upstream request); F6 medium (payload is schema-normalized, not "the same input"; assert key-set equality); F7 medium (stuck-sync alarm cannot fire if the drain stops; `last_drain_at`); F8 medium (B2 changes /ship's push order; opt-in, measure first); F9 medium (B3 refactor rides a fix wave); F10 medium (doctor should print Claude Code version, journal size, recent guard codes); F11 medium (P1's version will be stale at merge; verify latest on merge day).
+**ネイティブの CEO 意見(Capy のサブエージェント、`nativeDispatchPrompt` をそのまま使用): 完了。** `INPUT: ceo 4a95d68d…f7f5` を返した(ハッシュ一致。ネイティブのプロンプト 140 行を全文読んだ)。指摘は 11 件。F1 critical(P0 の修正が、関係のない 10 項目と一緒になっている。ホットフィックス R1 = A1 + ピン、R2 = A2/A3/A4、R3 = Tier 2 に分割する)。F2 high(ガードは、環境的に検証できない状態では、拒否ではなく警告付きで許可するよう、フェールソフトにすべきである。改ざんのような整合性の失敗については、強い拒否を維持する)。F3 high(原因 B は再現されていない仕組みに依拠している。まず PTY で確認し、ライブの「公開してから読む」ケースも加える)。F4 high(2 パスのリーダーの前に、tail 読み取りをスパイクする)。F5 high(週次のカナリアはリリースに遅れる。毎日、または新しいバージョンごとに実行し、バージョンを意識した助言を出す。上流への要望も出す)。F6 medium(ペイロードは、スキーマで正規化されたものであり、「同じ入力」ではない。キーの集合の一致を検証する)。F7 medium(ドレインが止まると、停滞のアラームは発火できない。`last_drain_at` を使う)。F8 medium(B2 は /ship の push の順序を変える。オプトインにし、先に計測する)。F9 medium(B3 のリファクタリングが修正のウェーブに混ざっている)。F10 medium(doctor は Claude Code のバージョン、ジャーナルのサイズ、直近のガードのコードを表示すべき)。F11 medium(P1 のバージョンはマージ時には古くなっている。マージ当日に最新を確認する)。
 
-**Codex CEO voice (gpt-6-astra, codex-cli 0.160.1): completed, `OUTSIDE_STATUS: completed provider=codex host=claude`.** 7 findings: #1 high (P1 promises more than its acceptance proves; require live phase transitions or narrow P1 and leave the issue open); #2 high (the plan deepens the private-journal dependency; time-box a supported-hook-event alternative, prove the canary catches a deliberate incompatibility, test a working fallback); #3 high (A4 can publish inconsistent artifact groups; hold coupled groups, restore on a second machine); #4 high (optional work can hold urgent recovery; keep one PR but name the mandatory set and an admission cutoff, produce the eval schedule and cost first); #5 medium (B2 may not deliver faster review; measure, keep optional); #6 medium (no denominator to show guards stopped crying wolf; log attempts and outcomes); #7 medium (blanket contributor rewrite loses tested edge cases). Recommendation: "Revise before implementation because the plan can declare recovery without proving its release promises and can publish partially usable state while optional work delays the fixes."
-Classifier note: the installed `lib/outside-review-result.ts` printed `VERDICT: clean` and `FINDINGS: none` for this seven-finding review because it counts only `[P0]`-`[P3]` tags. The verdict line is wrong; the completed text is the evidence used here. Fix accepted as CEO-28.
+**Codex の CEO 意見(gpt-6-astra、codex-cli 0.160.1): 完了。`OUTSIDE_STATUS: completed provider=codex host=claude`。** 指摘は 7 件。#1 high(P1 は、その受け入れ条件が証明する以上のことを約束している。ライブのフェーズ遷移を要求するか、P1 を絞り込んで Issue を開いたままにする)。#2 high(この計画は、プライベートなジャーナルへの依存を深めている。サポートされたフックのイベントによる代替を時間を区切って検討し、意図的な非互換をカナリアが検出できることを証明し、動作するフォールバックをテストする)。#3 high(A4 は、一貫しないアーティファクトのグループを公開しうる。連携するグループを保留し、2 台目のマシンで復元する)。#4 high(任意の作業が、緊急のリカバリを遅らせうる。1 つの PR は維持するが、必須セットと受け入れの締め切りを明記し、評価のスケジュールとコストを先に作る)。#5 medium(B2 は、レビューを速くしないかもしれない。計測し、任意のままにする)。#6 medium(ガードが騒ぎすぎなくなったことを示す分母がない。試行と結果をログに残す)。#7 medium(コントリビューターのコードを一括で書き直すと、テストされた境界ケースが失われる)。推奨: 「この計画は、リリースの約束を証明せずにリカバリを宣言でき、任意の作業が修正を遅らせる間に部分的にしか使えない状態を公開しうるため、実装の前に改訂すること」。
+
+分類器の注記: インストール済みの `lib/outside-review-result.ts` は、この 7 件の指摘を含むレビューに対して `VERDICT: clean` と `FINDINGS: none` を出力した。`[P0]`-`[P3]` のタグだけを数えるためである。判定行は誤りであり、ここでの根拠は完了したテキストである。修正は CEO-28 として採用した。
 
 ```
 CEO DUAL VOICES — CONSENSUS TABLE:
@@ -369,19 +380,19 @@ CEO DUAL VOICES — CONSENSUS TABLE:
 CONFIRMED = completed native subagent + completed Codex.
 ```
 
-**Integration of voice findings.**
-- User Challenge UC1 (both voices): when the guard cannot verify for reasons that are Claude Code's, not the model's (unrecognized shape, a record that never flushes, a rewritten journal, an unseen Claude Code version), allow with a visible warning and a log line instead of a hard deny; keep hard denial for integrity failures (changed prompt, added `model`, cross-phase sibling, missing journaled report). Native F2 and Codex #2 both say the current fail-closed stance turns each Claude Code change into an outage. The user's direction (exact checks, named hard denials) stands until the gate.
-- User Challenge UC2 (both voices): B2 ships behind an opt-in and becomes the default only after a measured net improvement (native F8, Codex #5). The user's direction (B2 on whenever Greptile is present) stands until the gate.
-- Taste T4: native F1/F9 recommend splitting the release (hotfix first); Codex #4 keeps one PR with a mandatory set and admission cutoff. Auto-decided one PR plus CEO-26 (Garry's standing one-PR rule; P6). Alternative: R1 hotfix with A1 + pin, ships /autoplan days earlier, costs a second release cycle and a second eval census.
-- Taste T5: Codex #7 (contributor rewrites). Auto-decided CEO-31: the rewrite policy stays, contributors' passing regression tests are reused. Alternative: drop the blanket rewrite rule.
-- Accepted as mechanical: CEO-24 (F3, Codex #1), CEO-25 (F4), CEO-13 daily schedule, key-set equality, injected-strip fixture and merge-day run (F5, F6, F11, Codex #2), CEO-12 allow lines (Codex #6), CEO-27 (Codex #3, F7), CEO-29 (F10), CEO-30 (F5), CEO-28 (classifier defect found in this run), baseline edit correcting the payload premise (F6).
-- Not adopted: native F5's version-aware advisory (part of UC1, waits for the gate); Codex #6's post-release baseline and review owner (gstack has no central telemetry for this; the local log is what users attach to reports); Codex #2's supported-hook-event state machine as a build item (CEO-30 asks upstream for that surface; no supported event carries the published text today).
+**意見の統合。**
+- ユーザーへの挑戦 UC1(両方の意見): ガードが、モデルの問題ではなく Claude Code 側の理由(認識されない形、フラッシュされないレコード、書き換えられたジャーナル、未知の Claude Code のバージョン)によって検証できない場合は、強い拒否の代わりに、目に見える警告とログ行付きで許可する。整合性の失敗(プロンプトの変更、`model` の追加、フェーズをまたぐ兄弟呼び出し、ジャーナルにレポートがないこと)については、強い拒否を維持する。ネイティブの F2 と Codex の #2 はどちらも、現在のフェイルクローズの姿勢は Claude Code の変更のたびに障害を起こすと指摘している。ユーザーの方針(正確なチェックと名前の付いた強い拒否)は、ゲートまでは維持する。
+- ユーザーへの挑戦 UC2(両方の意見): B2 はオプトインで出荷し、計測で明確な純改善が示された後にのみデフォルトにする(ネイティブ F8、Codex #5)。ユーザーの方針(Greptile があれば常に B2 を有効にする)は、ゲートまでは維持する。
+- 好みの判断 T4: ネイティブの F1/F9 はリリースを分割する(ホットフィックスを先に出す)ことを勧め、Codex #4 は 1 つの PR に必須セットと受け入れの締め切りを付けることを勧める。Garry の「1 PR」の方針により、1 つの PR と CEO-26 を自動決定した(P6)。代替案: R1 のホットフィックスとして A1 とピンを先に出す。/autoplan は数日早く直るが、リリースサイクルが 1 回増え、評価の対象も 2 回になる。
+- 好みの判断 T5: Codex #7(コントリビューターの書き直し)。CEO-31 として自動決定: 書き直しの方針は維持し、合格したコントリビューターの回帰テストは再利用する。代替案: 一括で書き直す規則を廃止する。
+- 機械的な修正として採用: CEO-24(F3、Codex #1)、CEO-25(F4)、CEO-13 の毎日のスケジュール、キーの集合の一致、キーの除去を注入したフィクスチャ、マージ当日の実行(F5、F6、F11、Codex #2)、CEO-12 の許可行(Codex #6)、CEO-27(Codex #3、F7)、CEO-29(F10)、CEO-30(F5)、CEO-28(この実行で見つかった分類器の欠陥)、ペイロードの前提を訂正するベースライン編集(F6)。
+- 採用しなかったもの: ネイティブ F5 のバージョンを意識した助言(UC1 の一部であり、ゲートを待つ)。Codex #6 の公開後のベースラインと、レビューの責任者(gstack には、これのための中央のテレメトリがない。ユーザーがレポートに添付するのはローカルのログである)。Codex #2 のサポートされたフックイベントの状態機械を、構築項目とすること(CEO-30 は、その仕組みを上流に求めている。今日のどのサポートされたイベントも、公開されたテキストを運ばない)。
 
-### Phase 1 CEO review: sections 1-10
+### Phase 1 CEO レビュー: セクション 1-10
 
-Current scope: mode SELECTIVE EXPANSION (override); governing rows CEO-D1 (approach A), X1-X6 accepted, X7/X8 deferred, X9/X10 skipped (X10 conditional), CEO-1..CEO-31 accepted; UC1 and UC2 pending at the gate.
+現在のスコープ: モード SELECTIVE EXPANSION(上書き)。主要な行は CEO-D1(アプローチ A)、X1-X6 承認、X7/X8 延期、X9/X10 スキップ(X10 は条件付き)、CEO-1..CEO-31 承認。UC1 と UC2 はゲートで保留中。
 
-**Section 1: Architecture.**
+**セクション 1: アーキテクチャ。**
 ```
                          Claude Code (external, unpinned for users)
          PreToolUse payload |            | journal (~/.claude/projects/<p>/<s>.jsonl)
@@ -398,10 +409,10 @@ Current scope: mode SELECTIVE EXPANSION (override); governing rows CEO-D1 (appro
   /ship -> early PR + @greptileai (B2) -> gstack-post (B4) -> gstack-redact -> gh/glab argv
   skills -> gstack-codex-probe <subcommand> (B3) ; gstack-doctor (B5) reads probes, caches, guard log
 ```
-Data flow, payload path: happy (ready journal, call absent, consistent) -> evaluate from payload; nil (no journal yet) -> wait window, then the named "journal not created" denial; empty (journal with no owned turn) -> existing unflushed handling; error (identity, rewritten prefix) -> hard denial with fallback. State: phase state machine unchanged (ceo -> design? -> dx? -> eng -> tasks); the new invalid transition prevented is "enter next phase with the report in the same unflushed message" (messageId rule). Coupling: the hook gains a shared record module and a payload trust path; justified by #100051. Scaling: per-guarded-call cost grows with journal size under the two-pass design; CEO-25 checks a tail read that scales with the invocation instead. Single points of failure: Claude Code's journal format (UC1 addresses the blast radius) and the codex probe. Security architecture: no new endpoints; new trust inputs are the hook payload (Claude Code) and the status file (local, possibly pulled). Rollback: revert the commit and re-run `./setup` (minutes); the pin bump reverts independently. Elegant to a new engineer: one record module, one reason-code table, one publication rule. Platform: the reason codes and decision log feed doctor and bug reports.
-Findings: 3. (a) Fail-closed blast radius on Claude Code drift -> UC1. (b) A4 can publish partial artifact generations -> CEO-27. (c) Payload premise misstated -> baseline edit. Decision gate: resolved as recorded.
+payload パスのデータフロー: 正常(ready なジャーナル、call なし、整合性あり) -> payload から評価。nil(ジャーナルがまだ無い) -> 待機時間の後に、名前付きの「journal not created」拒否。empty(所有ターンのないジャーナル) -> 既存の未フラッシュ処理。error(識別子の不一致、書き換えられたプレフィックス) -> フォールバック付きのハード拒否。状態: フェーズの状態機械は変更なし(ceo -> design? -> dx? -> eng -> tasks)。新たに防ぐ無効な遷移は「同じ未フラッシュのメッセージ内にレポートがある状態で次のフェーズに入る」(messageId ルール)。結合: フックは共有レコードモジュールと payload の信頼パスを新たに持つ。#100051 で正当化。スケーリング: 二パス設計では、ガード対象の呼び出し 1 回あたりのコストがジャーナルサイズとともに増える。CEO-25 は代わりに呼び出し規模に比例する末尾読み取りを検査する。単一障害点: Claude Code のジャーナル形式(UC1 が影響範囲を抑える)と codex probe。セキュリティアーキテクチャ: 新しいエンドポイントはなし。新たな信頼入力は、フックの payload(Claude Code)とステータスファイル(ローカル、取り込まれる可能性あり)。ロールバック: コミットを revert して `./setup` を再実行(数分)。pin の更新は独立して戻せる。新しいエンジニアにもわかりやすい: レコードモジュールは 1 つ、理由コード表は 1 つ、公開ルールは 1 つ。プラットフォーム: 理由コードと判定ログは doctor とバグ報告に渡される。
+発見事項: 3 件。(a) Claude Code の変化時に fail-closed の影響範囲が広がる -> UC1。(b) A4 が成果物の世代を部分的に公開しうる -> CEO-27。(c) payload の前提の記述が誤り -> ベースラインの編集。判断ゲート: 記録どおり解決済み。
 
-**Section 2: Error & Rescue Map.**
+**セクション 2: エラーと救済のマップ。**
 ```
   METHOD/CODEPATH                      | WHAT CAN GO WRONG                         | CLASS
   runPublicationHook (payload path)     | call absent, journal ready                 | unflushed (handled: payload eval)
@@ -432,18 +443,18 @@ Findings: 3. (a) Fail-closed blast radius on Claude Code drift -> UC1. (b) A4 ca
   Greptile timeout      | Y        | unavailable path                            | "Greptile triage did not complete"
   gstack-post MEDIUM    | Y        | caller's per-finding question               | question before posting
 ```
-No catch-all rescue is added; the hook's final catch maps to a named "installation unavailable" denial today and gets a CEO-3 code. GAPS: 0 after CEO-17/27 (the drain-never-runs path was the one silent gap).
+包括的な救済処理は追加しない。フックの最終 catch は現在「installation unavailable」という名前の拒否にマップされ、CEO-3 のコードを得る。GAPS: CEO-17/27 の後は 0 (drain が一度も実行されないパスだけが唯一の無音のギャップだった)。
 
-**Section 3: Security & threat model.**
-- B6 attach-to-any-tab (High likelihood if unfixed, Medium impact: reading or acting in a tab the user did not offer): mitigated by CEO-10 (confirm once, show only the named origin's tabs).
-- A4 attention line as an injection channel (Medium/Medium: the status message carries scanner snippets with up to 30 characters of a secret, and a pulled checkout could plant text): mitigated by CEO-17 (fixed text, clamped codes, no message).
-- B4 posting without redaction (Medium/High: free text to public PRs): mitigated by CEO-19 (scan exact bytes; HIGH refuses; MEDIUM returns to the caller).
-- A3 email suppression abuse (Low/Low: an author can set someone else's email to suppress a MEDIUM PII warning; HIGH secrets are unaffected): accepted, documented.
-- Payload path trust (Low/Medium: a forged payload would need control of Claude Code itself): accepted; the guard is an anti-skip barrier, not an adversarial boundary.
-- B2 early push of unreviewed code on public repos (Medium/Medium: secrets still blocked by the pre-push hook, but code becomes public before /ship's review): routed to UC2 (opt-in).
-- Dependencies: none new. Secrets: none new. Issues found: 6, all mitigated or routed.
+**セクション 3: セキュリティと脅威モデル。**
+- B6 任意のタブへのアタッチ(未修正の場合は発生可能性が高く、影響は中: ユーザーが提供していないタブの読み取りや操作): CEO-10 で緩和(一度確認し、指定されたオリジンのタブのみ表示)。
+- インジェクション経路としての A4 の注意行(中/中: ステータスメッセージにはシークレットを最大 30 文字含むスキャナの抜粋が入り、取り込まれたチェックアウトがテキストを仕込みうる): CEO-17 で緩和(固定テキスト、コードを上限で切り詰め、メッセージなし)。
+- B4 リダクションなしの投稿(中/高: 公開 PR への自由記述): CEO-19 で緩和(正確なバイト列をスキャン、HIGH は拒否、MEDIUM は呼び出し元に返す)。
+- A3 メール抑制の悪用(低/低: 作成者が他人のメールを設定して MEDIUM の PII 警告を抑制できる。HIGH のシークレットには影響なし): 承認、文書化済み。
+- payload パスの信頼(低/中: 偽造された payload には Claude Code 自体の制御が必要): 承認。ガードはスキップ防止の障壁であり、敵対的な境界ではない。
+- 公開リポジトリへの未レビューのコードの早期 push という B2(中/中: シークレットは pre-push フックでブロックされるが、/ship のレビュー前にコードが公開される): UC2 に回す(オプトイン)。
+- 依存関係: 新規なし。シークレット: 新規なし。発見した問題: 6 件。すべて緩和済みか回送済み。
 
-**Section 4: Data flow and interaction edge cases.**
+**セクション 4: データフローと相互作用のエッジケース。**
 ```
   Flush ordering (one assistant message M = [report text, Read(next driver)]):
   time ->     Claude Code writer            hook process                 shared state (journal)
@@ -455,33 +466,33 @@ No catch-all rescue is added; the hook's final catch maps to a named "installati
   t1'         M1 tool runs, result lands -> M1 + result written           ...M1, result
   t2'         M2 PreToolUse fires           read journal                 M1 followed by result -> counts
 ```
-Both completion orders for a lagging and a fast writer give the same verdict under the messageId rule (CEO-1), which is the invariant. A partial flush (text written, tool_use not) is the other order and is denied (fixture in CEO-1). Interaction edge cases: double-dispatch of the same phase (sibling rule), compaction mid-phase (existing logical-parent handling plus CEO-2 window), `reused:true` re-init (CEO-2 anchor, existing tests kept), two drains racing (singleton lock), Greptile comments on a stale head (triaged against final diff), held file edited then re-queued (re-scan clears). Unhandled: 0 after amendments.
+遅いライターと速いライターの両方の完了順序は、messageId ルール(CEO-1)の下で同じ判定になる。これが不変条件である。部分的なフラッシュ(テキストは書かれたが tool_use は書かれていない)は別の順序で、拒否される(CEO-1 のフィクスチャ)。相互作用のエッジケース: 同じフェーズの二重ディスパッチ(兄弟ルール)、フェーズの途中でのコンパクション(既存の論理親の処理と CEO-2 のウィンドウ)、`reused:true` の再初期化(CEO-2 のアンカー、既存テストは維持)、二つの drain の競合(シングルトンロック)、古い head への Greptile コメント(最終 diff に対してトリアージ)、保留中のファイルの編集後の再キュー(再スキャンでクリア)。未処理: 修正後 0 件。
 
-**Section 5: Code quality.** `autoplan/bin/phase-publication-hook.ts` is 633 lines; adding the payload path, allowlist and reason codes risks the 800-line owner-module ratchet (`test/module-size-ratchet.test.ts`), so the shared record module and a reason-code table belong outside it. `lib/claude-public-transcript.ts` (596 lines) gets smaller once extraction moves to `lib/claude-journal-records.ts`. `bin/gstack-brain-sync` (1012-line bash) gains per-path logic; keep it in the existing embedded Python, not new bash. B3's ten subcommands replace sourced functions with one dispatcher; no duplication if generated blocks stop defining helpers inline. Issues: 2 (module size, brain-sync scanner duplication deferred as X8).
+**セクション 5: コード品質。** `autoplan/bin/phase-publication-hook.ts` は 633 行。payload パス、許可リスト、理由コードを追加すると 800 行のオーナーモジュールの ratchet(`test/module-size-ratchet.test.ts`)に抵触するリスクがあるため、共有レコードモジュールと理由コード表はその外に置くべき。`lib/claude-public-transcript.ts`(596 行)は `lib/claude-journal-records.ts` への抽出により小さくなる。`bin/gstack-brain-sync`(1012 行の bash)は、パスごとのロジックが増える。既存の埋め込み Python に残し、新たな bash にはしないこと。B3 の 10 個のサブコマンドは、ソースされた関数を 1 つのディスパッチャに置き換える。生成されたブロックがヘルパーをインラインで定義しなくなれば、重複はない。問題: 2 件(モジュールサイズ、brain-sync のスキャナの重複。X8 として延期)。
 
-**Section 6: Tests.** Every new codepath has a named test in the accepted block: payload path, messageId rule, sibling batch, allowlist (CEO-1); reader prefix, rewrite, record bound, window anchor, Skill-tool start, reused init (CEO-2); denial inventory text (CEO-3); guard log lines (CEO-12); schema canary plus injected-strip fixture (CEO-13); A3 true-positive controls plus independent fallbacks (CEO-23); A4 held, privacy, lock, liveness and coupled-group restore (CEO-17/27); Greptile trigger decisions (CEO-8); `gstack-post` HIGH and MEDIUM (CEO-19); probe subcommands in bash and zsh (CEO-9); classifier fixture (CEO-28). 2am-Friday test: the PTY run through every phase transition on default 2.1.292 (CEO-24). Hostile QA: a journal whose current message is partially flushed. Chaos: appends during a 120 MiB read. Flakiness risk: PTY and paid cases (rule kind, one trial; failures go to the #3059 measure loop, no retries). Prompt changes (phase sections, phase-close, foreground note, aside rules, brain-sync preamble) run CEO-18's generation, parity and size checks before their evals. Gaps: 0 after amendments.
+**セクション 6: テスト。** 承認済みブロックのすべての新しいコードパスには名前付きのテストがある。payload パス、messageId ルール、兄弟バッチ、許可リスト(CEO-1)。リーダーのプレフィックス、書き換え、レコード上限、ウィンドウのアンカー、Skill ツールの開始、再利用された初期化(CEO-2)。拒否一覧のテキスト(CEO-3)。ガードのログ行(CEO-12)。スキーマのカナリアと注入ストリップのフィクスチャ(CEO-13)。A3 の真陽性コントロールと独立したフォールバック(CEO-23)。A4 の保留、プライバシー、ロック、生存確認、結合グループの復元(CEO-17/27)。Greptile のトリガー判定(CEO-8)。`gstack-post` の HIGH と MEDIUM(CEO-19)。bash と zsh での probe サブコマンド(CEO-9)。分類器のフィクスチャ(CEO-28)。金曜深夜 2 時のテスト: 既定の 2.1.292 上で、すべてのフェーズ遷移を通る PTY 実行(CEO-24)。敵対的 QA: 現在のメッセージが部分的にフラッシュされたジャーナル。カオス: 120 MiB の読み取り中の追記。不安定さのリスク: PTY と有料ケース(ルールの種類、一試行。失敗は #3059 の計測ループに送り、リトライはしない)。プロンプトの変更(フェーズセクション、phase-close、フォアグラウンドの注記、aside ルール、brain-sync の前置き)は、評価の前に CEO-18 の生成、パリティ、サイズのチェックを実行する。ギャップ: 修正後 0 件。
 
-**Section 7: Performance.** Hot path: the hook's journal read on each guarded call. Measured: the current full reader takes 440-500 ms and ~684 MiB RSS at 120 MiB (synthetic, 4 vCPU); CEO-2 bounds memory and CEO-25 can make cost proportional to the invocation. CEO-1 removes the 2-second wait per lone guarded call (~25-50 calls per run, up to ~100 s saved). A3 history read bounded to 50,000 commits and 5 s. B2 adds up to 10 minutes of polling in /ship only when Greptile is present (UC2). Issues: 1 (per-call cost growth), mitigated by CEO-25.
+**セクション 7: パフォーマンス。** ホットパス: ガード対象の呼び出しごとのフックのジャーナル読み取り。計測: 現在の完全なリーダーは 120 MiB で 440-500 ms、約 684 MiB の RSS を要する(合成データ、4 vCPU)。CEO-2 はメモリを抑え、CEO-25 はコストを呼び出し規模に比例させられる。CEO-1 は、単独のガード対象呼び出しごとの 2 秒の待機を取り除く(実行ごとに約 25-50 回の呼び出し、最大約 100 秒の節約)。A3 の履歴読み取りは 50,000 コミットと 5 秒に制限。B2 は Greptile が存在する場合のみ /ship で最大 10 分のポーリングを追加する(UC2)。問題: 1 件(呼び出しごとのコスト増加)。CEO-25 で緩和。
 
-**Section 8: Observability.** New: per-decision guard log (CEO-12), reason codes (CEO-3), doctor triage rows (CEO-29), sync `held` status, `drainable`, `last_drain_at` and the `--status` held array (CEO-14/17/27), schema canary reporting to the periodic report job (CEO-13). Runbooks: `docs/autoplan-guard-troubleshooting.md` gains rows for each new code. Debuggability three weeks out: a user report with doctor output and the guard log names the Claude Code version, path and code. Gaps: 0 after amendments.
+**セクション 8: 可観測性。** 新規: 判定ごとのガードログ(CEO-12)、理由コード(CEO-3)、doctor のトリアージ行(CEO-29)、同期の `held` ステータス、`drainable`、`last_drain_at`、`--status` の held 配列(CEO-14/17/27)、定期レポートジョブへのスキーマカナリアの報告(CEO-13)。ランブック: `docs/autoplan-guard-troubleshooting.md` に新しいコードごとの行を追加。3 週間後のデバッグ可能性: doctor の出力とガードログを添えたユーザー報告で、Claude Code のバージョン、パス、コードが特定できる。ギャップ: 修正後 0 件。
 
-**Section 9: Deployment and rollout.** No migrations. Rollout risk window: users on the old guard keep failing until they upgrade; release notes tell #3062 reporters the upgrade command and the `CLAUDE_CODE_FORK_SUBAGENT=false` workaround for older installs. B3's one-release sourcing compatibility covers skills rendered before upgrade. Feature flag: only B2 if UC2 is accepted. Post-deploy: merge-day canary run on latest (CEO-13), issue closure checks per Tracker hygiene. Rollback: per-commit revert, re-run `./setup`. Risks flagged: 2 (pin bump moves every PTY case's TUI, covered by CEO-4; B2 changes /ship push order, UC2).
+**セクション 9: デプロイとロールアウト。** マイグレーションなし。ロールアウトのリスク期間: 古いガードを使っているユーザーは、アップグレードするまで失敗し続ける。リリースノートでは、#3062 の報告者にアップグレードコマンドと、古いインストール向けの `CLAUDE_CODE_FORK_SUBAGENT=false` の回避策を伝える。B3 の 1 リリース分のソース互換性は、アップグレード前にレンダリングされたスキルをカバーする。フィーチャーフラグ: UC2 が承認された場合のみ B2。デプロイ後: マージ当日に latest で canary を実行(CEO-13)、Tracker hygiene に従って issue のクローズを確認。ロールバック: コミットごとに revert し、`./setup` を再実行。フラグが立ったリスク: 2 件(pin の更新によりすべての PTY ケースの TUI が変わる。CEO-4 でカバー。B2 は /ship の push 順序を変える。UC2)。
 
-**Section 10: Long-term trajectory.** Debt: the guard still depends on private journal behavior (UC1 and CEO-30 are the exits); B3 leaves a one-release compatibility shim with a named removal. Reversibility: 4/5 (all items revert per commit; B2 and the probe contract are the least reversible once other skills depend on them). Path dependency: CEO-1's payload heuristics become unnecessary if Claude Code adds `messageId` to PreToolUse (CEO-30). The 1-year question: one record module, one reason table and one write path are obvious to a new engineer; the payload heuristic needs its #100051 comment. Phase 2: supported hook surface; Phase 3: retire journal reading. Retrospective on cherry-picks: X4 was accepted on a wrong premise and had to be redesigned (now CEO-13); X7 (doctor guard check) partly returns as CEO-29's lighter rows. Debt items: 2.
+**セクション 10: 長期的な方向性。** 負債: ガードは依然として非公開のジャーナルの挙動に依存している(出口は UC1 と CEO-30)。B3 は、名前付きの削除予定を伴う 1 リリース分の互換シムを残す。可逆性: 4/5(すべての項目はコミットごとに revert 可能。B2 とプローブの契約は、他のスキルが依存すると最も戻しにくい)。経路依存: Claude Code が PreToolUse に `messageId` を追加すれば(CEO-30)、CEO-1 の payload のヒューリスティクスは不要になる。1 年後の問い: 新しいエンジニアにとって、レコードモジュールが 1 つ、理由表が 1 つ、書き込みパスが 1 つであることは明快。payload のヒューリスティクスには #100051 のコメントが必要。フェーズ 2: サポートされたフックの面。フェーズ 3: ジャーナル読み取りを廃止。cherry-pick の振り返り: X4 は誤った前提で承認され、再設計が必要だった(現在は CEO-13)。X7(doctor のガードチェック)は CEO-29 のより軽い行として一部戻ってくる。負債項目: 2 件。
 
-**Section 11: Design & UX.** SKIPPED (no UI scope).
+**セクション 11: デザインと UX。** スキップ(UI のスコープなし)。
 
-### Phase 1 CEO review: required outputs
+### Phase 1 CEO レビュー: 必須の成果物
 
-**NOT in scope.** Deferred (pending TODOS.md writes): X7 doctor guard check against a named journal (design unclear); X8 brain-sync scanner unification (L, cross-language); the /cso Windows transport (#3028, plan's own deferral). Rejected: X9 parsed-prefix cache (not the bottleneck; adds a forgeable input); X10 bg preflight (superseded unless CEO-5 reopens it); Codex #6's post-release baseline owner (no central data); #3061, #3058 and Dependabot #3053 (plan's own exclusions).
+**スコープ外。** 延期(TODOS.md への記載待ち): 名前付きジャーナルに対する X7 doctor のガードチェック(設計が不明確)、X8 brain-sync スキャナの統合(L、言語横断)、/cso の Windows トランスポート(#3028、計画自身による延期)。却下: X9 の解析済みプレフィックスキャッシュ(ボトルネックではなく、偽造可能な入力を追加する)、X10 の bg プリフライト(CEO-5 が再検討しない限り置き換え済み)、Codex #6 のリリース後ベースラインの所有者(中央データなし)、#3061、#3058、Dependabot #3053(計画自身の除外)。
 
-**What already exists.** See the 0B table: the hook's pending-Read path (generalized by CEO-1), the owned reader and test seam (CEO-2), the redact engine's email exemptions (A3), the drain's retained set, status writer and skill-start block (A4), `gstack-slug --classify-checkpoints` (B1), the Greptile section (B2), the probe's ten functions (B3), the free-text file rule and `gstack-redact` (B4), `./setup --status` and the probe cache (B5), the aside rules and cookbook (B6), the journal-drift canary (CEO-13), `outside-review-result.ts` (CEO-28).
+**既存のもの。** 0B の表を参照: フックの保留中の Read パス(CEO-1 で一般化)、所有リーダーとテストの継ぎ目(CEO-2)、redact エンジンのメール除外(A3)、drain の保持セット、ステータス書き込みと skill-start ブロック(A4)、`gstack-slug --classify-checkpoints`(B1)、Greptile のセクション(B2)、probe の 10 個の関数(B3)、自由記述ファイルのルールと `gstack-redact`(B4)、`./setup --status` と probe キャッシュ(B5)、aside のルールとクックブック(B6)、ジャーナルのドリフトのカナリア(CEO-13)、`outside-review-result.ts`(CEO-28)。
 
-**Dream state delta.** After this plan: /autoplan works on current Claude Code with a canary on the latest release, bounded memory on long sessions, honest denials and a decision log; pre-push and sync guards are precise and visible. Still short of the 12-month ideal: the guard depends on a private journal (UC1/CEO-30), flush timing has no automated canary, and there is no supported publication surface.
+**理想状態との差分。** この計画の後: /autoplan は、最新リリースのカナリア付きで現在の Claude Code 上で動作し、長いセッションでもメモリが抑えられ、正直な拒否と判定ログを持つ。pre-push と sync のガードは正確で可視化される。12 か月後の理想には、まだ届かない: ガードは非公開のジャーナルに依存している(UC1/CEO-30)、フラッシュのタイミングには自動化されたカナリアがない、サポートされた公開の面がない。
 
-**Error & Rescue Registry.** The Section 2 tables are the registry: 18 codepath rows, 0 critical gaps after amendments.
+**エラーと救済のレジストリ。** セクション 2 の表がレジストリである: コードパスの行 18 件、修正後のクリティカルなギャップ 0 件。
 
-**Failure Modes Registry.**
+**障害モードのレジストリ。**
 ```
   CODEPATH              | FAILURE MODE                     | RESCUED? | TEST? | USER SEES?               | LOGGED?
   guard payload path    | report in same message           | Y        | Y     | publish-separately text  | Y
@@ -496,9 +507,9 @@ Both completion orders for a lagging and a fast writer give the same verdict und
   probe B3              | stale skill sources old probe    | Y        | Y     | works for one release    | N
   outside voice         | high findings classified clean   | Y        | Y     | correct verdict          | Y      (CEO-28)
 ```
-Critical gaps (RESCUED=N, TEST=N, silent): 0.
+クリティカルなギャップ(RESCUED=N、TEST=N、無音): 0 件。
 
-**Diagrams produced:** system architecture, data flow with shadow paths (Section 1), flush-ordering schedule (Section 4), error flow (Section 2). State machine: unchanged phase machine plus the one new invalid transition (described in Section 1). Deployment sequence and rollback: per-commit revert (Section 9). **Stale diagrams:** the ASCII comment above `ownedCausalLines` and the hook's flush comment (`:479-481`) become stale under CEO-1/CEO-2 and must be updated.
+**作成した図:** システムアーキテクチャ、シャドウパス付きのデータフロー(セクション 1)、フラッシュ順序のスケジュール(セクション 4)、エラーフロー(セクション 2)。状態機械: 変更のないフェーズの機械に、新しい無効な遷移を 1 つ加えたもの(セクション 1 で説明)。デプロイ順序とロールバック: コミットごとの revert(セクション 9)。**古くなった図:** `ownedCausalLines` の上の ASCII コメントと、フックのフラッシュのコメント(`:479-481`)は、CEO-1/CEO-2 の下で古くなるため更新が必要。
 
 ```
   +====================================================================+
@@ -535,91 +546,91 @@ Critical gaps (RESCUED=N, TEST=N, silent): 0.
   | Unresolved decisions | 0 (UC1, UC2 decided at the final gate)      |
   +====================================================================+
 ```
-Unresolved decisions: UC1 (fail-soft on environment-unverifiable guard states) and UC2 (B2 behind opt-in) wait for the user at the final gate.
+未解決の判断: UC1(環境で検証できないガード状態でのフェイルソフト)と UC2(オプトインの背後にある B2)は、最終ゲートでユーザーの判断を待つ。
 
-### Phase 1 CEO review: Implementation Tasks
-Synthesized from this review's findings (assumption: human/CC ratios ~20x for fixes, ~5x for design spikes).
+### Phase 1 CEO レビュー: 実装タスク
+本レビューの指摘から統合(前提: 修正では人間対 CC の比率が約 20 倍、設計のスパイクでは約 5 倍)。
 
-- [ ] **T1 (P1, human: ~1 day / CC: ~1.5h)** — autoplan guard — Payload path, Agent allowlist, messageId publication rule, sibling batch (CEO-1)
-  - Surfaced by: Step 0 premise 1; spec reviews; native F3
-  - Files: autoplan/bin/phase-publication-hook.ts, test/autoplan-publication-guard.test.ts
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T2 (P1, human: ~4h / CC: ~30min)** — autoplan sections — Phase-close publishes with ': autoplan-published <phase>'; conditional run_in_background wording at every site (CEO-1, CEO-20)
-  - Surfaced by: Step 0 probe phase-close:40-42; spec review 3
-  - Files: autoplan/sections/phase-close.md.tmpl, scripts/resolvers/constants.ts, scripts/resolvers/design.ts, scripts/resolvers/outside-voice-steps.ts, scripts/resolvers/review-army.ts, scripts/resolvers/spec-review.ts
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T3 (P1, human: ~2 days / CC: ~2h)** — journal reader — Bounded append-tolerant reader after tail-read spike; shared record module (CEO-2, CEO-25)
-  - Surfaced by: Step 0 premise 2; native F4
-  - Files: lib/claude-public-transcript.ts, lib/claude-journal-records.ts, scripts/measure-journal-read.ts
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T4 (P1, human: ~4h / CC: ~30min)** — guard codes — Reason code per fail() site, denial inventory, decision log (CEO-3, CEO-12)
-  - Surfaced by: Step 0 premise 3; Codex #6
-  - Files: autoplan/bin/phase-publication-hook.ts, docs/autoplan-guard-troubleshooting.md
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T5 (P1, human: ~1 day / CC: ~1h)** — CI pin — Pin Claude Code 2.1.292, full gate tier, PTY-first reproduction incl. --bg attach and live transitions (CEO-4, CEO-5, CEO-24)
-  - Surfaced by: Dockerfile.ci:127-138 rule; native F3; Codex #1
-  - Files: .github/docker/Dockerfile.ci, test/helpers/pty/launch.ts
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T6 (P1, human: ~4h / CC: ~45min)** — canary — autoplan-schema-canary daily on latest Claude Code with key-set equality and injected-strip fixture (CEO-13)
-  - Surfaced by: native F5/F6; spec review 1
-  - Files: test/skill-e2e-autoplan-schema-canary.test.ts, test/helpers/touchfiles-data.ts, .github/workflows/evals-periodic.yml
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T7 (P1, human: ~4h / CC: ~45min)** — long session — Paid PTY case on a journal padded past 100 MiB before a compact boundary (CEO-15) plus macOS/Linux measurement dispatch (CEO-6)
-  - Surfaced by: spec review 1-3
-  - Files: test/skill-e2e-autoplan-long-session.test.ts
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T8 (P1, human: ~4h / CC: ~20min)** — pre-push — selfEmail and bounded repoPublicEmails incl. tracking refs; rule/file/line summary; independent fallbacks (A3, CEO-7, CEO-23)
-  - Surfaced by: Step 0 probe redact-prepush:521
-  - Files: bin/gstack-redact-prepush, test/redact-prepush.test.ts
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T9 (P1, human: ~2 days / CC: ~2h)** — artifacts sync — Per-path and coupled-group holds, held status, drainable and last_drain_at, safe index.lock, fixed attention line, --status held array (A4, CEO-14, CEO-17, CEO-27)
-  - Surfaced by: Step 0 probes brain-sync:727-736; Codex #3; native F7
-  - Files: bin/gstack-brain-sync, bin/gstack-skill-start, scripts/resolvers/preamble/generate-brain-sync-block.ts, test/brain-sync.test.ts
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T10 (P2, human: ~2h / CC: ~15min)** — outside voice — Classifier counts severity words so high findings never read clean (CEO-28)
-  - Surfaced by: Discovered in CEO outside voice
-  - Files: lib/outside-review-result.ts, test/outside-review-result.test.ts
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T11 (P2, human: ~1 day / CC: ~1h)** — ship Greptile — Early PR, draft trigger, completion signal, ready transition (B2, CEO-8; UC2 pending)
-  - Surfaced by: Landscape: Greptile skips drafts
-  - Files: ship/sections/greptile.md.tmpl, ship/SKILL.md.tmpl
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T12 (P2, human: ~1 day / CC: ~1h)** — codex probe — Ten subcommands with KEY: value contract; generated blocks use them; zsh self-locate kept (B3, CEO-9)
-  - Surfaced by: Step 0 premise 6; spec review 1/3
-  - Files: bin/gstack-codex-probe, scripts/resolvers/outside-voice.ts, scripts/resolvers/constants.ts
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T13 (P2, human: ~1 day / CC: ~1h)** — posting helper — gstack-post with redaction of exact bytes, MEDIUM back to caller; file rule for non-gh sites (B4, CEO-19, CEO-23)
-  - Surfaced by: spec reviews 1/3
-  - Files: bin/gstack-post, ship/sections/pr-body.md.tmpl, scripts/resolvers/redact-doc.ts, scripts/resolvers/question-tuning.ts, docs/gbrain-write-surfaces.md
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T14 (P2, human: ~4h / CC: ~30min)** — doctor — gstack-doctor rows incl. Claude Code version, journal size, guard codes; no paid probe by default (B5, CEO-21, CEO-29)
-  - Surfaced by: native F10; Section 7
-  - Files: bin/gstack-doctor, setup
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T15 (P2, human: ~4h / CC: ~30min)** — context-restore — Below-cwd scan, task match, conditional pointer (B1, CEO-22)
-  - Surfaced by: #3065
-  - Files: context-restore/SKILL.md.tmpl, context-save/SKILL.md.tmpl, bin/gstack-slug
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T16 (P2, human: ~2h / CC: ~15min)** — browse rules — Rule 1 consent kept, rule 6 wording, press form, cookbook detail (B6, CEO-10)
-  - Surfaced by: Step 0 premise 7
-  - Files: scripts/resolvers/aside.ts
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
-- [ ] **T17 (P3, human: ~2h / CC: ~15min)** — release hygiene — Credits for #1822 and #1743, TODOS.md edits, upstream claude-code request, generation and parity checks (B7, CEO-11, CEO-16, CEO-18, CEO-30)
-  - Surfaced by: Step 0 probe gh pr view 1743
-  - Files: CHANGELOG.md, browse/test/extension-sender-auth.test.ts, TODOS.md
-  - Verify: the named tests in the cited CEO obligation, then CEO-18's generation and parity checks where templates change
+- [ ] **T1 (P1, 人間: 約 1 日 / CC: 約 1.5 時間)** — autoplan ガード — payload パス、Agent の許可リスト、messageId の公開ルール、兄弟バッチ(CEO-1)
+  - 発見元: ステップ 0 の前提 1; 仕様レビュー; native F3
+  - 対象ファイル: autoplan/bin/phase-publication-hook.ts, test/autoplan-publication-guard.test.ts
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T2 (P1, 人間: 約 4 時間 / CC: 約 30 分)** — autoplan セクション — phase-close は ': autoplan-published <phase>' で公開する。すべての箇所で run_in_background の条件付き記述(CEO-1, CEO-20)
+  - 発見元: ステップ 0 のプローブ phase-close:40-42; 仕様レビュー 3
+  - 対象ファイル: autoplan/sections/phase-close.md.tmpl, scripts/resolvers/constants.ts, scripts/resolvers/design.ts, scripts/resolvers/outside-voice-steps.ts, scripts/resolvers/review-army.ts, scripts/resolvers/spec-review.ts
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T3 (P1, 人間: 約 2 日 / CC: 約 2 時間)** — ジャーナルリーダー — tail-read のスパイク後の境界付き・追記耐性のあるリーダー。共有レコードモジュール(CEO-2, CEO-25)
+  - 発見元: ステップ 0 の前提 2; native F4
+  - 対象ファイル: lib/claude-public-transcript.ts, lib/claude-journal-records.ts, scripts/measure-journal-read.ts
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T4 (P1, 人間: 約 4 時間 / CC: 約 30 分)** — ガードコード — fail() サイトごとの理由コード、拒否の一覧、判定ログ(CEO-3, CEO-12)
+  - 発見元: ステップ 0 の前提 3; Codex #6
+  - 対象ファイル: autoplan/bin/phase-publication-hook.ts, docs/autoplan-guard-troubleshooting.md
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T5 (P1, 人間: 約 1 日 / CC: 約 1 時間)** — CI の pin — Claude Code 2.1.292 に固定、フルゲートのティア、--bg のアタッチとライブ遷移を含む PTY ファーストの再現(CEO-4, CEO-5, CEO-24)
+  - 発見元: Dockerfile.ci:127-138 のルール; native F3; Codex #1
+  - 対象ファイル: .github/docker/Dockerfile.ci, test/helpers/pty/launch.ts
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T6 (P1, 人間: 約 4 時間 / CC: 約 45 分)** — カナリア — 最新の Claude Code で毎日実行する autoplan-schema-canary。キーセットの一致と注入ストリップのフィクスチャ(CEO-13)
+  - 発見元: native F5/F6; 仕様レビュー 1
+  - 対象ファイル: test/skill-e2e-autoplan-schema-canary.test.ts, test/helpers/touchfiles-data.ts, .github/workflows/evals-periodic.yml
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T7 (P1, 人間: 約 4 時間 / CC: 約 45 分)** — 長いセッション — compact 境界の前に 100 MiB 超にパディングしたジャーナルでの有料 PTY ケース(CEO-15)と macOS/Linux の計測ディスパッチ(CEO-6)
+  - 発見元: 仕様レビュー 1-3
+  - 対象ファイル: test/skill-e2e-autoplan-long-session.test.ts
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T8 (P1, 人間: 約 4 時間 / CC: 約 20 分)** — pre-push — selfEmail と境界付きの repoPublicEmails(追跡参照を含む)。ルール/ファイル/行の要約。独立したフォールバック(A3, CEO-7, CEO-23)
+  - 発見元: ステップ 0 のプローブ redact-prepush:521
+  - 対象ファイル: bin/gstack-redact-prepush, test/redact-prepush.test.ts
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T9 (P1, 人間: 約 2 日 / CC: 約 2 時間)** — 成果物の同期 — パスごとと結合グループの保留、held ステータス、drainable と last_drain_at、安全な index.lock、固定の注意行、--status の held 配列(A4, CEO-14, CEO-17, CEO-27)
+  - 発見元: ステップ 0 のプローブ brain-sync:727-736; Codex #3; native F7
+  - 対象ファイル: bin/gstack-brain-sync, bin/gstack-skill-start, scripts/resolvers/preamble/generate-brain-sync-block.ts, test/brain-sync.test.ts
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T10 (P2, 人間: 約 2 時間 / CC: 約 15 分)** — outside voice — 分類器が重大度の語を数え、high の指摘が clean と読まれないようにする(CEO-28)
+  - 発見元: CEO の outside voice で発見
+  - 対象ファイル: lib/outside-review-result.ts, test/outside-review-result.test.ts
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T11 (P2, 人間: 約 1 日 / CC: 約 1 時間)** — ship の Greptile — 早期 PR、draft トリガー、完了シグナル、ready への移行(B2, CEO-8; UC2 保留中)
+  - 発見元: ランドスケープ: Greptile は draft をスキップ
+  - 対象ファイル: ship/sections/greptile.md.tmpl, ship/SKILL.md.tmpl
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T12 (P2, 人間: 約 1 日 / CC: 約 1 時間)** — codex probe — KEY: value 契約を持つ 10 個のサブコマンド。生成ブロックがそれを使う。zsh のセルフロケートを維持(B3, CEO-9)
+  - 発見元: ステップ 0 の前提 6; 仕様レビュー 1/3
+  - 対象ファイル: bin/gstack-codex-probe, scripts/resolvers/outside-voice.ts, scripts/resolvers/constants.ts
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T13 (P2, 人間: 約 1 日 / CC: 約 1 時間)** — 投稿ヘルパー — 正確なバイト列のリダクションを行う gstack-post。MEDIUM は呼び出し元に返す。gh 以外のサイトのファイルルール(B4, CEO-19, CEO-23)
+  - 発見元: 仕様レビュー 1/3
+  - 対象ファイル: bin/gstack-post, ship/sections/pr-body.md.tmpl, scripts/resolvers/redact-doc.ts, scripts/resolvers/question-tuning.ts, docs/gbrain-write-surfaces.md
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T14 (P2, 人間: 約 4 時間 / CC: 約 30 分)** — doctor — gstack-doctor の行。Claude Code のバージョン、ジャーナルサイズ、ガードコードを含む。既定では有料プローブなし(B5, CEO-21, CEO-29)
+  - 発見元: native F10; セクション 7
+  - 対象ファイル: bin/gstack-doctor, setup
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T15 (P2, 人間: 約 4 時間 / CC: 約 30 分)** — context-restore — cwd 以下のスキャン、タスクの一致、条件付きポインタ(B1, CEO-22)
+  - 発見元: #3065
+  - 対象ファイル: context-restore/SKILL.md.tmpl, context-save/SKILL.md.tmpl, bin/gstack-slug
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T16 (P2, 人間: 約 2 時間 / CC: 約 15 分)** — browse ルール — ルール 1 の同意は維持、ルール 6 の文言、press フォーム、クックブックの詳細(B6, CEO-10)
+  - 発見元: ステップ 0 の前提 7
+  - 対象ファイル: scripts/resolvers/aside.ts
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
+- [ ] **T17 (P3, 人間: 約 2 時間 / CC: 約 15 分)** — リリースの衛生 — #1822 と #1743 のクレジット、TODOS.md の編集、upstream の claude-code 要望、生成とパリティのチェック(B7, CEO-11, CEO-16, CEO-18, CEO-30)
+  - 発見元: ステップ 0 のプローブ gh pr view 1743
+  - 対象ファイル: CHANGELOG.md, browse/test/extension-sender-auth.test.ts, TODOS.md
+  - 検証: 引用された CEO の義務に名前付きのテスト、次にテンプレートが変わる箇所では CEO-18 の生成とパリティのチェック
 
-### Phase 1 close and Phase 2
+### Phase 1 の締めと Phase 2
 
-Phase 1 close packet `/home/user/.gstack/projects/garrytan-gstack/autoplan-ceo-HwsVO4/close-packet.md` (179 lines) read through EOF and verified against the accepted decisions; report published to the parent. CEO tasks JSONL: `/home/user/.gstack/projects/garrytan-gstack/tasks-ceo-review-20261007-155246.jsonl` (17 tasks).
+Phase 1 の締めパケット `/home/user/.gstack/projects/garrytan-gstack/autoplan-ceo-HwsVO4/close-packet.md`(179 行)を末尾まで読み、承認済みの決定事項と照合しました。レポートは親に公開済みです。CEO タスクの JSONL: `/home/user/.gstack/projects/garrytan-gstack/tasks-ceo-review-20261007-155246.jsonl`(17 件のタスク)。
 
-**Phase 2 (design) skipped: no UI scope detected.** This is a skip, not a completed review; outside_status skipped.
+**Phase 2(デザイン)はスキップ: UI スコープが検出されませんでした。** これは完了したレビューではなくスキップです。outside_status は skipped。
 
-### Phase 2.5 DX review: Step 0
+### Phase 2.5 DX レビュー: Step 0
 
-DX methodology `/home/user/.gstack/projects/garrytan-gstack/autoplan-dx-methodology-M2q68R/methodology.md` (2128 lines) read through EOF: 1-36 and 420-2128 read directly; 37-419 (shared preamble) verified byte-identical, apart from the skill name, to the CEO methodology's preamble already read; 1360-1599 (skip-listed outside voice) loaded only. Mode: DX POLISH (override). No prior DX reviews (`gstack-review-read` has no `plan-devex-review` rows).
+DX の手法書 `/home/user/.gstack/projects/garrytan-gstack/autoplan-dx-methodology-M2q68R/methodology.md`(2128 行)を読みました。1-36 行と 420-2128 行は直接読み、37-419 行(共通のプリアンブル)はスキル名を除いて CEO 手法書のプリアンブルと同一であることを確認済みです。1360-1599 行(スキップ対象の外部視点)は読み込みのみです。モード: DX POLISH(上書き)。過去の DX レビューはありません(`gstack-review-read` に `plan-devex-review` の行がないため)。
 
-**Product type (auto-confirmed):** Claude Code skill suite plus CLI helpers (`bin/gstack-*`). The plan's developer surface: the /autoplan guard and its denial messages, the pre-push hook output, the `ARTIFACTS_SYNC:` skill-start line and `gstack-brain-sync --status`, /ship's Greptile flow, `gstack-codex-probe` subcommands, `gstack-post`, `gstack-doctor`, the browse cookbook and /context-restore prompts.
+**プロダクト種別(自動確認済み):** Claude Code スキルスイートと CLI ヘルパー(`bin/gstack-*`)。計画上の開発者向けの接点は、/autoplan のガードとその拒否メッセージ、pre-push フックの出力、スキル開始時の `ARTIFACTS_SYNC:` 行と `gstack-brain-sync --status`、/ship の Greptile フロー、`gstack-codex-probe` のサブコマンド、`gstack-post`、`gstack-doctor`、browse のクックブックと /context-restore のプロンプトです。
 
 ```
 TARGET DEVELOPER PERSONA
@@ -630,22 +641,22 @@ Tolerance: About 2 minutes of recovery before they abandon /autoplan for manual 
 Expects:   One upgrade command fixes it; any denial says what is wrong, why, and the exact next command.
 ```
 
-**Empathy narrative (observed evidence from #3062/#3060/#3055; predictions labeled).** "I updated Claude Code yesterday and typed `/autoplan docs/plan.md`. The CEO methodology Reads came back `[autoplan] Native parent evidence has not reached the journal yet. Retry this phase-entry tool` (observed, #3062). I retried; same text, every time (observed: a solo retry is always first in its message). I searched the issues and found a thread telling me to set `CLAUDE_CODE_FORK_SUBAGENT=false` and relaunch without `--bg` (observed). Twenty minutes gone. Meanwhile every push prints `N MEDIUM finding(s) ... Review before this becomes public` with no file or rule (observed, #3060), so I have started ignoring it. My artifacts have not synced in weeks and nothing told me (observed, #3055). After this wave I expect (predicted): `/gstack-upgrade`, rerun `/autoplan`, and Phase 1 starts; if the guard does stop me, it says which message to send and the exact no-op command, with a docs link; the pre-push hook names `pii.email docs/x.md:12`; skill start says one file is held and how to see it."
+**共感のナラティブ(#3062/#3060/#3055 から観測した証拠。予測には印を付けています)。** 「Claude Code を昨日アップデートして、`/autoplan docs/plan.md` と入力した。CEO 手法の Read が `[autoplan] Native parent evidence has not reached the journal yet. Retry this phase-entry tool` と返ってきた(観測, #3062)。再試行したが、毎回同じ文言だった(観測: 単独の再試行は常に同じメッセージの先頭になる)。Issue を検索すると、`CLAUDE_CODE_FORK_SUBAGENT=false` を設定して `--bg` を付けずに起動し直せという書き込みが見つかった(観測)。20 分が消えた。その間、push のたびに `N MEDIUM finding(s) ... Review before this becomes public` が出るが、どのファイルやどのルールかは分からない(観測, #3060)。そのため表示を無視するようになった。成果物は何週間も同期されておらず、何も知らされなかった(観測, #3055)。この wave の後は次のようになると予想する(予測): `/gstack-upgrade` を実行し、/autoplan を再実行すると Phase 1 が始まる。ガードが止めた場合でも、送るべきメッセージと正確な no-op コマンドを、ドキュメントへのリンク付きで示す。pre-push フックは `pii.email docs/x.md:12` と名指しする。スキル開始時には、保留されているファイルが 1 件あり、その確認方法が分かると表示する。」
 
-**Competitive DX benchmark (WebSearch; Aside not available on Linux).**
+**競合の DX ベンチマーク(WebSearch。Linux では Aside は使えない)。**
 
-| Tool | Start -> result | Time + evidence type | DX choice | Source |
+| ツール | 開始 -> 結果 | 所要時間 + 証拠の種類 | DX の選択 | 出典 |
 |---|---|---|---|---|
-| Claude Code `claude doctor` / `/doctor` | broken setup -> named diagnosis | seconds (reported) | read-only CLI doctor without a session; in-session doctor proposes fixes | code.claude.com/docs/en/debug-your-config |
-| Claude Code `claude update` | old -> current version | about 30 s (estimated) | one command | Claude Code docs |
-| gstack today (affected user) | upgrade CC -> /autoplan Phase 1 | blocked; ~20+ min to find the workaround (observed in #3062 thread) | retry denial, no doc anchor | #3062 |
-| gstack after plan (predicted) | `/gstack-upgrade` -> /autoplan Phase 1 entered | ~2-3 min (estimated: ~1 min upgrade + ~1 min to Phase 1) | upgrade fixes it; named denials with anchors | this plan |
+| Claude Code `claude doctor` / `/doctor` | 壊れたセットアップ -> 名指しされた診断 | 数秒(報告値) | セッションなしで動く読み取り専用の CLI doctor。セッション内の doctor は修正を提案 | code.claude.com/docs/en/debug-your-config |
+| Claude Code `claude update` | 古い -> 最新のバージョン | 約 30 秒(推定) | コマンド 1 つ | Claude Code docs |
+| gstack の現状(影響を受けるユーザー) | CC をアップグレード -> /autoplan Phase 1 | ブロック中。回避策を見つけるのに約 20 分以上(#3062 のスレッドで観測) | 再試行の拒否、ドキュメントへのアンカーなし | #3062 |
+| 計画後の gstack(予測) | `/gstack-upgrade` -> /autoplan Phase 1 に入る | 約 2-3 分(推定: アップグレード約 1 分 + Phase 1 まで約 1 分) | アップグレードで解決。拒否メッセージには名前とアンカーが付く | 本計画 |
 
-**TTHW target (auto-decided, P5):** Competitive (2-5 min) for the clock "start: an affected user runs `/gstack-upgrade`; result: /autoplan enters Phase 1 on Claude Code latest, default settings." Champion (< 2 min) is not reachable because `./setup` rebuilds binaries.
+**TTHW の目標(自動決定、P5):** Competitive(2-5 分)。計測の起点は「影響を受けるユーザーが `/gstack-upgrade` を実行する」、終点は「デフォルト設定の Claude Code 最新版で /autoplan が Phase 1 に入る」。`./setup` がバイナリを再ビルドするため、Champion(2 分未満)は到達できない。
 
-**Magical moment (auto-decided, lowest-effort vehicle):** the first `/autoplan` after upgrading simply enters Phase 1 with no denial, and if a denial does appear it contains the exact one-line fix (`: autoplan-published <phase>` or the fallback reviews) and a docs anchor. Vehicle: existing guard messages plus `docs/autoplan-guard-troubleshooting.md` anchors; no new surface.
+**魅力的な瞬間(自動決定、最も低コストな手段):** アップグレード後の最初の `/autoplan` は、拒否なしでそのまま Phase 1 に入る。拒否が出る場合も、正確な 1 行の修正(`: autoplan-published <phase>` またはフォールバックのレビュー)とドキュメントのアンカーを含む。手段: 既存のガードのメッセージと `docs/autoplan-guard-troubleshooting.md` のアンカー。新しい接点は追加しない。
 
-**Developer journey (0F, DX POLISH traces all stages).**
+**開発者の体験フロー(0F、DX POLISH はすべての段階を追跡)。**
 ```
 STAGE           | DEVELOPER DOES                                   | FRICTION POINTS                                         | STATUS
 ----------------|--------------------------------------------------|---------------------------------------------------------|--------
@@ -657,7 +668,7 @@ STAGE           | DEVELOPER DOES                                   | FRICTION PO
 6. Upgrade      | next release; stale rendered skills              | sourced probe and old phase-close text                  | fixed (DX-3, DX-7)
 ```
 
-**First-time developer confusion report (0G, grounded in current code).**
+**初めて使う開発者の混乱レポート(0G、現在のコードに基づく)。**
 ```
 FIRST-TIME DEVELOPER REPORT
 Persona: daily gstack user on Claude Code 2.1.292
@@ -669,13 +680,13 @@ T+6:02  Denial: "[autoplan] The Phase 1 report is in the same message as this ph
 T+6:30  Phase 2.5 starts. Success. Confusion points: the publication protocol change (addressed by the denial text) and whether the old env workaround should stay (DX-2).
 ```
 
-### Phase 2.5 DX review: dual voices
+### Phase 2.5 DX レビュー: 両方の意見
 
-Voice snapshot: `/home/user/.gstack/projects/garrytan-gstack/autoplan-dx-MkZn7h/dx-implementation.md` (sha256 `4174d402…0ba0`).
+意見のスナップショット: `/home/user/.gstack/projects/garrytan-gstack/autoplan-dx-MkZn7h/dx-implementation.md`(sha256 `4174d402…0ba0`)。
 
-**Claude SUBAGENT (DX — independent review): completed.** `INPUT: dx 4174d402…0ba0` (hash matches). 0 critical, 6 high, 9 medium: helpers not on PATH in user-facing text; `gstack-post` interface and confirm path; guard docs not a deliverable and the current page contradicts P1; B2 has no opt-out; no per-email allow for pre-push; (high, counted with docs) misleading retry guidance. Medium: in-flight session after upgrade; setup-status/doctor link; three A4 staleness predicates; `--skip-file` permanent; B3 naming/help/deprecation; runnable fallback commands; A3 partial history; doc touchpoints and the CEO-28 either/or; guard advisory mode plus doctor `--json`, log rotation, bound overrides, no-op permission check.
+**Claude SUBAGENT(DX、独立レビュー): 完了。** `INPUT: dx 4174d402…0ba0`(ハッシュ一致)。critical 0 件、high 6 件、medium 9 件。high: ユーザー向けの文言でヘルパーが PATH 上にない。`gstack-post` のインターフェースと確認の流れ。ガイドのドキュメントが成果物になっておらず、現在のページは P1 と矛盾している。B2 に opt-out がない。pre-push にメール単位の許可がない。(high、ドキュメントを含めて数えた)誤解を招く再試行の案内。Medium: アップグレード後に実行中のセッション。setup-status/doctor のリンク。A4 の 3 つの古さ判定の述語。`--skip-file` が恒久的。B3 の命名・ヘルプ・非推奨化。実行可能なフォールバックのコマンド。A3 の部分的な履歴。ドキュメントの接点と CEO-28 の二者択一。ガードのアドバイザリーモードに加え、doctor の `--json`、ログのローテーション、上書きの上限、no-op の権限チェック。
 
-**Codex SAYS (DX — developer experience challenge): completed, `OUTSIDE_STATUS: completed provider=codex host=claude`.** 8 findings: high: post-after-approval has no contract; `select-model` drops the per-request `--model` precedence (tested in `test/codex-model-probe.test.ts:282`); one-release sourcing window is unsafe; early PR still automatic despite the open challenge. Medium: doctor cannot tell optional-absent from broken; recovery docs not an acceptance requirement (and `docs/troubleshooting.md:53` teaches sourcing); `--skip-file` is permanent with no undo; novice hello world under 5 minutes is unproven. Recommendation: "revise before implementation because approval resumption, model-selection compatibility, upgrade continuity, and early-publication defaults lack complete developer-facing contracts". The installed classifier again printed `VERDICT: clean`/`FINDINGS: none` for an eight-finding review (CEO-28 defect, second occurrence).
+**Codex SAYS(DX、開発者体験への異議): 完了。`OUTSIDE_STATUS: completed provider=codex host=claude`。** 8 件の指摘。high: 承認後の post に契約がない。`select-model` がリクエストごとの `--model` の優先順位を落とす(`test/codex-model-probe.test.ts:282` でテスト済み)。one-release の sourcing 猶予期間は安全でない。異議が未解決なのに初回 PR が依然として自動で行われる。Medium: doctor は「任意で不在」と「壊れている」を区別できない。リカバリのドキュメントが受け入れ要件になっていない(`docs/troubleshooting.md:53` は sourcing を教えている)。`--skip-file` は恒久的で取り消せない。新人向けの hello world が 5 分以内に終わることは未検証。推奨: 「承認の再開、モデル選択の互換性、アップグレードの連続性、早期公開のデフォルトに、開発者向けの完全な契約がないため、実装の前に改訂すること」。インストールされた分類器は、8 件の指摘があるレビューに対して再び `VERDICT: clean`/`FINDINGS: none` を出力した(CEO-28 の欠陥、2 回目)。
 
 ```
 DX DUAL VOICES — CONSENSUS TABLE:
@@ -689,31 +700,31 @@ DX DUAL VOICES — CONSENSUS TABLE:
 CONFIRMED = completed native subagent + completed Codex.
 ```
 
-Integration: UC2 (B2 opt-in) is reinforced by both DX voices (Claude high, Codex high), a cross-phase theme. Taste T6: pre-push per-email allowlist (Claude only; accepted provisionally as DX-17). Taste T7: B3 compatibility window of at least one release and 14 days (Codex high, Claude asked for a deprecation notice; the plan said "one release"; accepted provisionally as DX-18). Guard advisory mode (Claude medium) is part of UC1. Deferred (DX POLISH, no new surfaces): doctor `--json`; env overrides for the A3 bounds (the partial-history rule covers monorepos); a timed novice install journey (Codex #8: out of this fix wave's scope).
+統合: UC2(B2 のオプトイン)は両方の DX の意見が支持(Claude は high、Codex は high)。フェーズを横断するテーマ。テイスト T6: pre-push のメール単位の許可リスト(Claude のみ。DX-17 として暫定採用)。テイスト T7: B3 の互換期間を少なくとも 1 リリースかつ 14 日(Codex は high、Claude は非推奨の通知を要求。計画は「1 リリース」としていた。DX-18 として暫定採用)。ガードのアドバイザリーモード(Claude は medium)は UC1 の一部。延期(DX POLISH、新しい接点は追加しない): doctor の `--json`、A3 の境界値の環境変数による上書き(部分的な履歴のルールがモノレポを扱う)、新人の導入を時間計測すること(Codex #8: この修正 wave の範囲外)。
 
-### Phase 2.5 DX review: passes 1-8 (pre-fix -> post-fix)
+### Phase 2.5 DX レビュー: パス 1-8(修正前 -> 修正後)
 
-**Pass 1 Getting Started: 2 -> 7.** Recovery journey (the wave's hello world): today blocked with no working path; after the plan, `/gstack-upgrade` then `/autoplan` (2 steps, ~2-3 min estimated). Gaps were bare command names and the unmeasured clock: DX-2, DX-16. What 10 looks like: measured upgrade-to-Phase-1 under 2 minutes in both session kinds; not reachable while `./setup` rebuilds binaries.
+**パス 1 はじめての利用: 2 -> 7。** リカバリの流れ(wave の hello world): 現状はブロックされ、動く手段がない。計画後は `/gstack-upgrade` の後に `/autoplan`(2 手順、推定 2-3 分)。残っていた不足は、コマンド名がむき出しであることと、計測されていない時間の起点: DX-2、DX-16。10 点とは、アップグレードから Phase 1 までの時間が両方のセッション種別で 2 分未満と計測されること。`./setup` がバイナリを再ビルドするため、現状では到達できない。
 
-**Pass 2 API/CLI design: 5 -> 8.** `gstack-doctor` matches the `gstack-*` convention and mirrors Claude Code's `claude doctor`. Fixed: `gstack-post` synopsis and exit codes (DX-6), probe naming, help and `--model` precedence (DX-7), doctor states (DX-8). Residual: two readiness entry points, now linked.
+**パス 2 API/CLI 設計: 5 -> 8。** `gstack-doctor` は `gstack-*` の命名規則に合い、Claude Code の `claude doctor` を踏襲している。修正: `gstack-post` の構文と終了コード(DX-6)、probe の命名・ヘルプ・`--model` の優先順位(DX-7)、doctor の状態(DX-8)。残り: 準備状態を確認する入口が 2 つあるが、相互にリンクした。
 
-**Pass 3 Error messages: 3 -> 8.** Traced three paths. (1) Guard lone call: today "Native parent evidence has not reached the journal yet. Retry this phase-entry tool" (no fix, retry useless); after CEO-1 allowed, and any remaining denial names cause, fix, runnable fallback and anchor (DX-1). (2) Pre-push: today "N MEDIUM finding(s) ... Review before this becomes public" (no rule/file); after: `MEDIUM pii.email docs/x.md:12` with a fix line (CEO-7, DX-9, DX-17). (3) Sync stall: today silent; after a fixed attention line with the absolute `--status` path (CEO-17, DX-2, DX-4).
+**パス 3 エラーメッセージ: 3 -> 8。** 3 つの経路を追跡。(1) ガードの単独呼び出し: 現状は「Native parent evidence has not reached the journal yet. Retry this phase-entry tool」(修正案なし、再試行は無意味)。CEO-1 の後は、残る拒否はすべて原因、修正、実行可能なフォールバック、アンカーを示す(DX-1)。(2) pre-push: 現状は「N MEDIUM finding(s) ... Review before this becomes public」(ルールもファイルもない)。修正後は `MEDIUM pii.email docs/x.md:12` と修正行(CEO-7、DX-9、DX-17)。(3) 同期の停滞: 現状は無言。修正後は絶対パスの `--status` 付きの注意行(CEO-17、DX-2、DX-4)。
 
-**Pass 4 Documentation: 4 -> 7.** The troubleshooting page currently tells users to retry non-transient codes and says the cap has no override reason that A2 changes; `docs/troubleshooting.md` teaches sourcing. Fixed by DX-1 and DX-12. Residual: docs are prose, no interactive check beyond doctor.
+**パス 4 ドキュメント: 4 -> 7。** トラブルシューティングのページは、一時的でないコードの再試行を勧めており、上限には A2 が変える理由の上書きがないと書いている。`docs/troubleshooting.md` は sourcing を教えている。DX-1 と DX-12 で修正。残り: ドキュメントは文章のみで、doctor 以外に対話的な確認はない。
 
-**Pass 5 Upgrade path: 5 -> 8.** In-flight sessions (DX-3), deprecation notice and window (DX-7, DX-18), snapshot compatibility (CEO-1's hook-constant allowlist), TODO removals tied to acceptance (CEO-16).
+**パス 5 アップグレードの経路: 5 -> 8。** 実行中のセッション(DX-3)、非推奨の通知と期間(DX-7、DX-18)、スナップショットの互換性(CEO-1 のフック定数の許可リスト)、受け入れに紐づく TODO の削除(CEO-16)。
 
-**Pass 6 Dev environment: 6 -> 7.** macOS measurement (CEO-6), Windows coverage for new helpers (DX-15), no paid probe by default (CEO-21), bounded guard log (DX-14). Residual: no doctor `--json` (deferred).
+**パス 6 開発環境: 6 -> 7。** macOS の計測(CEO-6)、新しいヘルパーの Windows 対応(DX-15)、デフォルトでは有料の probe を使わない(CEO-21)、ガードログの上限(DX-14)。残り: doctor の `--json` なし(延期)。
 
-**Pass 7 Community: 7 -> 8.** Credits fixed (CEO-11), contributor tests reused (CEO-31), upstream request (CEO-30), doctor output in the issue template (CEO-29, DX-2).
+**パス 7 コミュニティ: 7 -> 8。** クレジットの修正(CEO-11)、コントリビューターのテストを再利用(CEO-31)、上流への要望(CEO-30)、doctor の出力を issue テンプレートに含める(CEO-29、DX-2)。
 
-**Pass 8 DX measurement: 3 -> 6.** Guard decision log with a denominator (CEO-12), recovery TTHW recorded once (DX-16). Residual: data stays on users' machines; no recurring measurement owner (not proposed; would need a policy decision).
+**パス 8 DX の計測: 3 -> 6。** 分母付きのガード決定ログ(CEO-12)、リカバリの TTHW を 1 回記録(DX-16)。残り: データはユーザーのマシンに残る。定期的な計測の担当者は不在(提案しない。方針の決定が必要)。
 
-**Claude Code skill checklist (appendix).** Checked against the plan: skills regenerate from templates (CEO-18); preflight probes are executed commands (B3); every denial is problem + cause + fix (DX-1); hooks fail with named causes; outside-voice verdicts parse correctly (CEO-28/DX-11). Unchecked items: none beyond those addressed.
+**Claude Code スキルのチェックリスト(付録)。** 計画と照合済み: スキルはテンプレートから再生成される(CEO-18)。事前確認の probe は実行されるコマンド(B3)。すべての拒否は「問題 + 原因 + 修正」(DX-1)。フックは原因を名指しして失敗する。外部視点の判定は正しく解析される(CEO-28/DX-11)。未チェックの項目: 対応済みのものを除き、なし。
 
-### Phase 2.5 DX review: required outputs
+### Phase 2.5 DX レビュー: 必須の成果物
 
-**DX Scorecard.**
+**DX スコアカード。**
 ```
 +====================================================================+
 |              DX PLAN REVIEW — SCORECARD                             |
@@ -745,11 +756,11 @@ Integration: UC2 (B2 opt-in) is reinforced by both DX voices (Claude high, Codex
 | Magical Moments    | covered (first /autoplan just works)           |
 +====================================================================+
 ```
-DX Measurement stays at 6 (only below-7 dimension; not critical debt below 6). TTHW is under 10 minutes.
+DX Measurement は 6 のまま(7 未満の唯一の項目。ただし危機的な負債となる 6 未満ではない)。TTHW は 10 分未満。
 
-**TTHW assessment.** Current: blocked for affected users; the reported workaround took ~20+ minutes to find (observed in the #3062 thread). Target: Competitive, 2-5 minutes from `/gstack-upgrade` to /autoplan Phase 1 entry on Claude Code latest, default settings, measured by DX-16.
+**TTHW の評価。** 現状: 影響を受けるユーザーはブロックされ、報告された回避策を見つけるのに 20 分以上かかった(#3062 のスレッドで観測)。目標: Competitive、最新の Claude Code、デフォルト設定で `/gstack-upgrade` から /autoplan の Phase 1 entry まで 2-5 分(DX-16 で計測)。
 
-**DX Implementation Checklist.**
+**DX の実装チェックリスト。**
 ```
 [ ] Recovery TTHW (upgrade -> Phase 1) measured under 5 minutes (DX-16)
 [ ] Upgrade is one command; no restart needed (DX-3)
@@ -767,106 +778,106 @@ DX Measurement stays at 6 (only below-7 dimension; not critical debt below 6). T
 [ ] Changelog sections per symptom with copy-paste recovery (DX-12)
 ```
 
-**NOT in scope (DX).** Doctor `--json` (deferred, DX POLISH adds no surfaces; pending TODOS.md write); A3 bound env overrides (rejected: partial-history rule covers large repos); timed novice install journey (deferred: install is not changed by this wave; pending TODOS.md write); recurring DX measurement owner (not proposed).
+**対象外(DX)。** doctor の `--json`(延期。DX POLISH は新しい接点を追加しないため。TODOS.md への記載は保留)。A3 の境界値の環境変数による上書き(却下: 部分的な履歴のルールが大規模リポジトリを扱う)。新人の導入を時間計測すること(延期: この wave では導入を変えないため。TODOS.md への記載は保留)。定期的な DX 計測の担当者(提案しない)。
 
-**What already exists (DX).** `docs/autoplan-guard-troubleshooting.md` and the `lib/gate-outcomes.ts` anchor convention (reused by DX-1); `./setup --status` (linked by DX-8); `bin/gstack-paths` (DX-2 lookups); `gstack-brain-sync --status`/`--skip-file` (extended by DX-4/DX-5); `scripts/resolvers/redact-doc.ts` per-finding acknowledgment (DX-6 keeps its semantics); the curated Windows subset (DX-15); Claude Code's own `claude doctor` as the naming model.
+**既存の資産(DX)。** `docs/autoplan-guard-troubleshooting.md` と `lib/gate-outcomes.ts` のアンカーの規約(DX-1 が再利用)。`./setup --status`(DX-8 がリンク)。`bin/gstack-paths`(DX-2 の検索に使用)。`gstack-brain-sync --status`/`--skip-file`(DX-4/DX-5 で拡張)。`scripts/resolvers/redact-doc.ts` の指摘ごとの確認(DX-6 は意味を維持)。Windows の選別されたサブセット(DX-15)。Claude Code 自身の `claude doctor` を命名の手本とする。
 
-Pending TODOS.md writes (DX): doctor `--json` output; timed full novice install journey (Codex DX #8).
+保留中の TODOS.md への記載(DX): doctor の `--json` 出力。新人の導入を全体で時間計測(Codex DX #8)。
 
-### Phase 2.5 DX review: Implementation Tasks
+### Phase 2.5 DX レビュー: 実装タスク
 
-- [ ] **DX-T1 (P1, human: ~4h / CC: ~30min)** — guard docs — Rewrite autoplan guard troubleshooting page with per-code anchors and runnable fallbacks (DX-1)
-  - Surfaced by: Codex DX #6; Claude DX docs high
-  - Files: docs/autoplan-guard-troubleshooting.md, autoplan/bin/phase-publication-hook.ts
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T2 (P1, human: ~2h / CC: ~15min)** — helper paths — Absolute helper paths in attention lines, doctor, issue template, changelog (DX-2)
-  - Surfaced by: Claude DX PATH high
-  - Files: bin/gstack-skill-start, .github/ISSUE_TEMPLATE
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T3 (P1, human: ~2h / CC: ~15min)** — upgrade — Old-template close replay fixture and release-note upgrade text (DX-3)
-  - Surfaced by: Claude DX in-flight session
-  - Files: test/autoplan-publication-guard.test.ts, CHANGELOG.md
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T4 (P1, human: ~4h / CC: ~30min)** — artifacts sync — Status table driving attention lines and tests; --unskip-file (DX-4, DX-5)
-  - Surfaced by: Both DX voices
-  - Files: bin/gstack-brain-sync, bin/gstack-skill-start, test/brain-sync.test.ts
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T5 (P2, human: ~4h / CC: ~30min)** — gstack-post — Synopsis, exit codes, --confirm bound to exact bytes (DX-6)
-  - Surfaced by: Both DX voices high
-  - Files: bin/gstack-post, test/gstack-post.test.ts
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T6 (P2, human: ~4h / CC: ~30min)** — codex probe — Verb-first subcommands, help, exit 64, --model precedence, deprecation line, compat window (DX-7, DX-18)
-  - Surfaced by: Codex DX #2/#3
-  - Files: bin/gstack-codex-probe, test/codex-model-probe.test.ts
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T7 (P2, human: ~2h / CC: ~15min)** — doctor — Row states and setup --status link (DX-8)
-  - Surfaced by: Codex DX #5
-  - Files: bin/gstack-doctor, setup
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T8 (P1, human: ~3h / CC: ~20min)** — pre-push — Partial history, fix lines, per-email allowlist (DX-9, DX-17)
-  - Surfaced by: Claude DX escape hatch
-  - Files: bin/gstack-redact-prepush, test/redact-prepush.test.ts
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T9 (P2, human: ~1h / CC: ~10min)** — ship Greptile — Signal, push and wait status lines (DX-10)
-  - Surfaced by: Claude DX B2 high
-  - Files: ship/sections/greptile.md.tmpl
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T10 (P2, human: ~2h / CC: ~15min)** — outside voice — Classifier contract: tags and severity words, untagged = unverified, documented (DX-11)
-  - Surfaced by: Both CEO and DX Codex runs printed clean
-  - Files: lib/outside-review-result.ts, docs/troubleshooting.md
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T11 (P2, human: ~3h / CC: ~20min)** — docs — Documentation touchpoints and per-symptom changelog recovery (DX-12)
-  - Surfaced by: Claude DX docs
-  - Files: CHANGELOG.md, README.md, docs/troubleshooting.md
-  - Verify: tests named in the cited DX obligation
-- [ ] **DX-T12 (P2, human: ~3h / CC: ~20min)** — tests — No-op prompt check, guard log trim, Windows subset, recovery TTHW record (DX-13..16)
-  - Surfaced by: Claude DX medium
-  - Files: test/helpers/pty/launch.ts, scripts/lib/windows-curation.ts
-  - Verify: tests named in the cited DX obligation
+- [ ] **DX-T1 (P1, 人手: 約 4 時間 / CC: 約 30 分)** — ガードのドキュメント — 原因ごとのアンカーと実行可能なフォールバックを付けて、ガードのトラブルシューティングページを書き直す(DX-1)
+  - 指摘元: Codex DX #6、Claude DX docs high
+  - ファイル: docs/autoplan-guard-troubleshooting.md, autoplan/bin/phase-publication-hook.ts
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T2 (P1, 人手: 約 2 時間 / CC: 約 15 分)** — ヘルパーのパス — 注意行、doctor、issue テンプレート、CHANGELOG で絶対パスを使う(DX-2)
+  - 指摘元: Claude DX PATH high
+  - ファイル: bin/gstack-skill-start, .github/ISSUE_TEMPLATE
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T3 (P1, 人手: 約 2 時間 / CC: 約 15 分)** — アップグレード — 古いテンプレートの close の再生フィクスチャと、リリースノートのアップグレード文面(DX-3)
+  - 指摘元: Claude DX 実行中のセッション
+  - ファイル: test/autoplan-publication-guard.test.ts, CHANGELOG.md
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T4 (P1, 人手: 約 4 時間 / CC: 約 30 分)** — 成果物の同期 — 注意行を駆動する状態表と `--unskip-file`(DX-4, DX-5)
+  - 指摘元: 両方の DX の意見
+  - ファイル: bin/gstack-brain-sync, bin/gstack-skill-start, test/brain-sync.test.ts
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T5 (P2, 人手: 約 4 時間 / CC: 約 30 分)** — gstack-post — 構文、終了コード、完全に一致するバイトに結び付けた `--confirm`(DX-6)
+  - 指摘元: 両方の DX の意見(high)
+  - ファイル: bin/gstack-post, test/gstack-post.test.ts
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T6 (P2, 人手: 約 4 時間 / CC: 約 30 分)** — codex probe — 動詞が先のサブコマンド、ヘルプ、終了コード 64、`--model` の優先順位、非推奨の表示、互換期間(DX-7, DX-18)
+  - 指摘元: Codex DX #2/#3
+  - ファイル: bin/gstack-codex-probe, test/codex-model-probe.test.ts
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T7 (P2, 人手: 約 2 時間 / CC: 約 15 分)** — doctor — 行の状態と setup --status のリンク(DX-8)
+  - 指摘元: Codex DX #5
+  - ファイル: bin/gstack-doctor, setup
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T8 (P1, 人手: 約 3 時間 / CC: 約 20 分)** — pre-push — 部分的な履歴、修正行、メール単位の許可リスト(DX-9, DX-17)
+  - 指摘元: Claude DX のエスケープハッチ
+  - ファイル: bin/gstack-redact-prepush, test/redact-prepush.test.ts
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T9 (P2, 人手: 約 1 時間 / CC: 約 10 分)** — ship の Greptile — シグナル、push、待機の状態行(DX-10)
+  - 指摘元: Claude DX B2 high
+  - ファイル: ship/sections/greptile.md.tmpl
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T10 (P2, 人手: 約 2 時間 / CC: 約 15 分)** — 外部視点 — 分類器の契約: タグと重大度の語、タグなしは未検証、文書化する(DX-11)
+  - 指摘元: CEO と DX の Codex の実行がどちらもクリーンと表示
+  - ファイル: lib/outside-review-result.ts, docs/troubleshooting.md
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T11 (P2, 人手: 約 3 時間 / CC: 約 20 分)** — ドキュメント — ドキュメントの接点と、症状ごとの CHANGELOG のリカバリ(DX-12)
+  - 指摘元: Claude DX docs
+  - ファイル: CHANGELOG.md, README.md, docs/troubleshooting.md
+  - 検証: 引用された DX の義務で指定されたテスト
+- [ ] **DX-T12 (P2, 人手: 約 3 時間 / CC: 約 20 分)** — テスト — no-op のプロンプトチェック、ガードログの切り詰め、Windows のサブセット、リカバリ TTHW の記録(DX-13..16)
+  - 指摘元: Claude DX medium
+  - ファイル: test/helpers/pty/launch.ts, scripts/lib/windows-curation.ts
+  - 検証: 引用された DX の義務で指定されたテスト
 
-**DX accepted obligations.**
+**DX で受け入れた義務。**
 
 <!-- autoplan-accepted:dx -->
-- DX-1 (guard troubleshooting page is a deliverable). `docs/autoplan-guard-troubleshooting.md` is rewritten with the guard changes: one anchor per CEO-3 reason code; the "Retry denials" section becomes CEO-3's dispositions (no "retry the same tool" for `identity` or `malformed`); the `too_large` section matches the bounded reader; the "no environment variable turns the guard off" line stays unless the user changes it at the gate. Every denial message ends with its anchor URL and prints the fallback as runnable commands (`/plan-ceo-review`, then `/plan-devex-review`, then `/plan-eng-review`; or `/context-save`, a new session, `/context-restore`, then `/autoplan <plan path>`). The `model` or extra-key denial says that a model override is not allowed for /autoplan reviewer dispatch. `docs/troubleshooting.md` stops teaching the sourced probe once B3 ships. CEO-3's free test also asserts that every code has an anchor and every denial string cites one.
-- DX-2 (runnable paths). Every user-facing mention of a gstack helper (the `ARTIFACTS_SYNC:` attention lines, doctor's fix lines, the bug-report issue template, CHANGELOG recovery steps, denial fallbacks) prints the absolute path resolved from the install root, not a bare `gstack-*` name; the issue template gives the Claude Code path plus a `gstack-paths` lookup for other hosts. A free test asserts that rendered attention lines and the template contain no bare `gstack-` command.
-- DX-3 (upgrade in place). Release notes say an upgrade needs no restart: an in-flight /autoplan session may get at most one publish-separately denial, which names the exact fix, and `CLAUDE_CODE_FORK_SUBAGENT=false` is no longer needed (harmless if kept). A replay fixture runs an old-template close sequence (report and next driver `Read` in one message) against the new hook and shows recovery after the denial without a restart.
-- DX-4 (one sync status table). The plan's three staleness predicates are replaced by one table in `bin/gstack-brain-sync`'s usage header and the docs: `held` (scanner hold, held count), `blocked` (re-scan still flags), `push_failed`, `error`, stale-push (no push for 24 hours while the drain's `drainable` count is above zero), stale-drain (`last_drain_at` older than 24 hours while the queue directory holds records), each with its trigger, exact fixed attention-line text and fix command; `ok` and `idle` print no attention line. The skill-start tests are generated from that table.
-- DX-5 (skip is permanent and reversible). `held` entries and the docs say `--skip-file` permanently excludes the path from future syncs, and a new `gstack-brain-sync --unskip-file <path>` reverses it. Each held group lists its blocking path and its held dependents. A test unskips a path and shows normal syncing resumes without publishing a partial group.
-- DX-6 (`gstack-post` interface). Synopsis: `gstack-post {pr-comment|issue-comment|reply|pr-title|pr-body} <target> --body-file <file> [--host github|gitlab] [--confirm <rule-id>...]`; the host is detected from the remote unless `--host` is given. Exit codes: 0 posted; 1 HIGH finding refused; 2 MEDIUM findings need confirmation, printed on stdout as `RULE: <id> LINE: <n>` lines; 3 `gh`/`glab` failed. `--confirm` must name exactly the rule ids returned for those bytes; the helper re-scans every call, so changed bytes need a fresh confirmation and a HIGH finding is always refused. Tests: refusal then confirmation then post; changed content after confirmation re-prompts; HIGH refused even with `--confirm`.
-- DX-7 (probe subcommand naming and help). Subcommands use one verb-first order: `select-model`, `check-auth`, `show-sandbox`, `check-sandbox`, `probe-model`, `check-version`, `show-first-use-notice`, `run-with-timeout`, `log-event`, `log-hang`, plus `help`; an unknown subcommand prints usage to stderr and exits 64. `select-model <exec|review> [--model <id>]` keeps today's precedence (per-request model over environment over config) and provenance, and the same model is used for probing and dispatch. While sourcing is still supported, sourcing prints one stderr line naming the deprecation and `/gstack-upgrade`.
-- DX-8 (doctor result states). Each `gstack-doctor` row is `ok`, `warn`, `not configured` or `fail`; only `fail` makes the exit code non-zero. Intentionally absent Codex, disabled artifacts sync, an unbuilt optional browser and "not probed" are `not configured` or `warn` with the affected features named. Doctor's install row reuses the `./setup --status` check, and `./setup --status` ends with the absolute path to `gstack-doctor`.
-- DX-9 (A3 partial history and fix lines). Hitting the 50,000-commit cap uses the partial author set; only an error or the 5-second timeout passes nothing, and either case prints one line saying existing-email suppression was limited for this push. Each MEDIUM line names rule id, file and line and a fix (remove the value, or allow it per DX-17).
-- DX-10 (B2 says what it is doing). Before the early push, /ship prints the Greptile signal it used (config folder, `greptile.json`, or a Greptile comment within the last 90 days; older comments do not count), that it will push and open a draft now, and the wait cap; during the wait it prints progress. These lines apply whether B2 ends up default or opt-in (UC2).
-- DX-11 (CEO-28 contract chosen). The classifier recognizes both `[P0]`-`[P3]` tags and severity words (`critical`, `high` blocking; `medium`, `low` non-blocking); a review with neither tags, severity words nor an explicit no-findings statement is `unverified`, never `clean`. The behavior is documented in `docs/troubleshooting.md` next to the gate outcomes.
-- DX-12 (documentation touchpoints). The PR updates: CHANGELOG sections per symptom with copy-paste recovery ("If /autoplan denied every reviewer on Claude Code 2.1.29x", "If the pre-push hook warned on your own email", "If artifacts sync stopped pushing"); the guard troubleshooting page (DX-1); a README troubleshooting entry pointing at doctor; `gstack-brain-sync` usage (held, `--status` `held`, skip and unskip); the bug-report issue template; the browse cookbook (CEO-10); `gstack-post` usage; `docs/troubleshooting.md` (probe, classifier).
-- DX-13 (no-op never prompts). The CEO-5/CEO-24 PTY runs assert that `: autoplan-published <phase>` runs without a permission prompt in the foreground session and, when driven, the `--bg` session.
-- DX-14 (guard log bounded). `autoplan-guard.jsonl` keeps the last 1,000 lines (older lines are dropped on write); a free test covers the trim.
-- DX-15 (Windows coverage of new helpers). `gstack-post`, `gstack-doctor` and the probe subcommands are added to the curated Windows free subset, or the PR names each one as not supported on native Windows yet.
-- DX-16 (recovery TTHW measured). The CEO-24 foreground PTY run records the upgrade duration and the time from `/autoplan` invocation to Phase 1 entry; the PR reports them against the Competitive target (2-5 minutes for upgrade plus Phase 1 entry).
-- DX-17 (pre-push email allowlist, taste). `git config --add gstack.redact.allowEmail <address>` allows that address for MEDIUM `pii.email` findings only; it never affects HIGH findings or other rules, and the MEDIUM fix line names it. Paired controls: an allowed address does not flag, a different address still flags, and a HIGH secret next to an allowed address still blocks.
-- DX-18 (B3 compatibility window, taste). Sourcing stays supported for at least one release and at least 14 days, whichever is later; the CHANGELOG names the release that removes it, and the deprecation line (DX-7) appears from the first release.
+- DX-1(ガードのトラブルシューティングページは成果物である)。`docs/autoplan-guard-troubleshooting.md` は、ガードの変更に合わせて書き直す。CEO-3 の理由コードごとに 1 つのアンカーを置く。「Retry denials」の節は CEO-3 の処理方針になる(`identity` や `malformed` に対して「同じツールを再試行」とは書かない)。`too_large` の節は、上限付きのリーダーと一致させる。「環境変数でガードを無効化できない」という行は、ゲートでユーザーが変更しない限り残す。すべての拒否メッセージは末尾にアンカーの URL を付け、フォールバックを実行可能なコマンドとして表示する(`/plan-ceo-review`、次に `/plan-devex-review`、次に `/plan-eng-review`。または `/context-save`、新しいセッション、`/context-restore`、次に `/autoplan <plan path>`)。`model` や余分なキーの拒否は、/autoplan のレビュアー派遣ではモデルの上書きが許可されないと伝える。`docs/troubleshooting.md` は、B3 が出荷されたら sourced probe を教えるのをやめる。CEO-3 の無料テストは、すべてのコードにアンカーがあり、すべての拒否文字列がアンカーを引用していることを検証する。
+- DX-2(実行可能なパス)。ヘルパーへのユーザー向けの言及はすべて(`ARTIFACTS_SYNC:` の注意行、doctor の修正行、バグ報告の issue テンプレート、CHANGELOG のリカバリ手順、拒否のフォールバック)、インストールルートから解決した絶対パスを表示する。裸の `gstack-*` の名前は使わない。issue テンプレートには Claude Code のパスと、他のホスト向けの `gstack-paths` の検索方法を載せる。無料テストで、描画された注意行とテンプレートに裸の `gstack-` コマンドが含まれないことを検証する。
+- DX-3(その場でのアップグレード)。リリースノートには、アップグレードに再起動は不要と書く。実行中の /autoplan セッションは、「別々に公開せよ」という拒否を最大 1 回受けることがあり、その拒否は正確な修正を示す。`CLAUDE_CODE_FORK_SUBAGENT=false` はもう必要ない(残しても害はない)。リプレイのフィクスチャは、古いテンプレートの close の流れ(レポートと次の driver の `Read` が 1 つのメッセージに入っている)を新しいフックに対して実行し、再起動なしで拒否の後に回復することを示す。
+- DX-4(同期状態の表を 1 つにまとめる)。計画の 3 つの古さの述語は、`bin/gstack-brain-sync` の usage ヘッダーとドキュメントにある 1 つの表に置き換える。`held`(スキャナーによる保留、保留数)、`blocked`(再スキャンでも検出される)、`push_failed`、`error`、stale-push(ドレインの `drainable` 件数が 0 より大きいのに 24 時間 push がない)、stale-drain(キューのディレクトリにレコードがあるのに `last_drain_at` が 24 時間より古い)。それぞれに、トリガー、正確に固定された注意行の文言、修正コマンドを付ける。`ok` と `idle` は注意行を出さない。スキル開始のテストは、この表から生成する。
+- DX-5(スキップは恒久的で、取り消し可能)。`held` のエントリとドキュメントには、`--skip-file` は将来の同期からそのパスを恒久的に除外すると書く。新しく `gstack-brain-sync --unskip-file <path>` を追加し、これを取り消せるようにする。保留中の各グループには、ブロックしているパスと、それに依存して保留になっているパスを列挙する。テストでは、パスを unskip して通常の同期が再開し、部分的なグループが公開されないことを示す。
+- DX-6(`gstack-post` のインターフェース)。構文: `gstack-post {pr-comment|issue-comment|reply|pr-title|pr-body} <target> --body-file <file> [--host github|gitlab] [--confirm <rule-id>...]`。ホストは、`--host` が指定されない限りリモートから検出する。終了コード: 0 投稿済み。1 HIGH の指摘により拒否。2 MEDIUM の指摘が確認を必要とする(標準出力に `RULE: <id> LINE: <n>` の行として出す)。3 `gh`/`glab` が失敗。`--confirm` は、そのバイト列に対して返されたルール ID を正確に指定しなければならない。ヘルパーは呼び出しのたびに再スキャンするため、変更されたバイト列には新しい確認が必要で、HIGH の指摘は常に拒否される。テスト: 拒否の後に確認、次に投稿。確認後に内容が変わると再確認を求める。HIGH は `--confirm` があっても拒否される。
+- DX-7(probe のサブコマンドの命名とヘルプ)。サブコマンドは動詞が先の 1 つの順序に統一する: `select-model`、`check-auth`、`show-sandbox`、`check-sandbox`、`probe-model`、`check-version`、`show-first-use-notice`、`run-with-timeout`、`log-event`、`log-hang`、加えて `help`。未知のサブコマンドは用法を標準エラーに出し、終了コード 64 で終わる。`select-model <exec|review> [--model <id>]` は現在の優先順位(リクエストごとのモデル > 環境 > 設定)と由来を維持し、probe と派遣で同じモデルを使う。sourcing がまだサポートされている間は、sourcing が「非推奨であること」と `/gstack-upgrade` を名指しする 1 行を標準エラーに出す。
+- DX-8(doctor の結果の状態)。`gstack-doctor` の各行は `ok`、`warn`、`not configured`、`fail` のいずれか。終了コードを非ゼロにするのは `fail` だけ。意図的に無い Codex、無効化された成果物の同期、ビルドされていない任意のブラウザ、「未検査」は、`not configured` か `warn` として、影響を受ける機能の名前を挙げる。doctor のインストール行は `./setup --status` と同じチェックを再利用し、`./setup --status` の末尾に `gstack-doctor` の絶対パスを表示する。
+- DX-9(A3 の部分的な履歴と修正行)。50,000 コミットの上限に達した場合は部分的な作者の集合を使う。エラーか 5 秒のタイムアウトの場合にのみ何も渡さない。どちらの場合も、今回の push で既存メールの抑制が制限されたことを示す 1 行を出す。MEDIUM の各行には、ルール ID、ファイル、行番号、修正(値を削除するか、DX-17 に従って許可する)を示す。
+- DX-10(B2 は自分が何をしているかを示す)。早期の push の前に、/ship は使用した Greptile のシグナル(設定フォルダ、`greptile.json`、または 90 日以内の Greptile のコメント。より古いコメントは数えない)、今から push してドラフトを開くこと、待機の上限を表示する。待機中は進捗を表示する。これらの行は、B2 がデフォルトになるかオプトインになるか(UC2)にかかわらず適用される。
+- DX-11(CEO-28 の契約を選択)。分類器は `[P0]`-`[P3]` のタグと重大度の語(`critical`、`high` はブロック、`medium`、`low` は非ブロック)の両方を認識する。タグも重大度の語も、「指摘なし」という明示的な記述もないレビューは `unverified` であり、決して `clean` にはならない。この動作は `docs/troubleshooting.md` のゲートの結果の隣に文書化する。
+- DX-12(ドキュメントの接点)。PR で更新するもの: 症状ごとの CHANGELOG のセクションと、コピペで実行できるリカバリ(「Claude Code 2.1.29x で /autoplan のレビュアーがすべて拒否された場合」「自分のメールで pre-push フックが警告した場合」「成果物の同期が push されなくなった場合」)。ガードのトラブルシューティングページ(DX-1)。doctor を指す README のトラブルシューティングの項目。`gstack-brain-sync` の usage(held、`--status` の `held`、skip と unskip)。バグ報告の issue テンプレート。browse のクックブック(CEO-10)。`gstack-post` の使い方。`docs/troubleshooting.md`(probe、分類器)。
+- DX-13(no-op はプロンプトを出さない)。CEO-5/CEO-24 の PTY 実行では、`: autoplan-published <phase>` が、フォアグラウンドのセッションでは権限のプロンプトなしに実行されること、そして操作した場合は `--bg` セッションでも同様であることを検証する。
+- DX-14(ガードログの上限)。`autoplan-guard.jsonl` は直近 1,000 行を保持する(書き込み時に古い行を捨てる)。無料テストで切り詰めを検証する。
+- DX-15(新しいヘルパーの Windows 対応)。`gstack-post`、`gstack-doctor`、probe のサブコマンドを、選別された Windows の無料サブセットに追加する。または、ネイティブ Windows でまだサポートされていないことを、PR で各ヘルパーごとに明記する。
+- DX-16(リカバリの TTHW を計測)。CEO-24 のフォアグラウンドの PTY 実行で、アップグレードの所要時間と、`/autoplan` の起動から Phase 1 entry までの時間を記録する。PR では、これらを Competitive の目標(アップグレードと Phase 1 entry を合わせて 2-5 分)と比較して報告する。
+- DX-17(pre-push のメール許可リスト、テイスト)。`git config --add gstack.redact.allowEmail <address>` で、そのアドレスを MEDIUM の `pii.email` の指摘に限って許可する。HIGH の指摘や他のルールには決して影響しない。MEDIUM の修正行には許可の方法を示す。対になる制御: 許可されたアドレスは指摘されない。別のアドレスは指摘される。許可されたアドレスの隣にある HIGH の秘密情報は、依然としてブロックされる。
+- DX-18(B3 の互換期間、テイスト)。sourcing は、少なくとも 1 リリースかつ少なくとも 14 日の、いずれか長い方の期間サポートされ続ける。CHANGELOG には、それを削除するリリースを明記する。非推奨の行(DX-7)は、最初のリリースから表示される。
 <!-- /autoplan-accepted:dx -->
 
-### Phase 2.5 close
+### Phase 2.5 のクローズ
 
-DX close packet `/home/user/.gstack/projects/garrytan-gstack/autoplan-dx-j9q1uq/close-packet.md` (199 lines): lines 140-199 read directly, lines 1-139 byte-identical to the verified CEO packet apart from the binding line; report published. DX tasks JSONL: `/home/user/.gstack/projects/garrytan-gstack/tasks-devex-review-20261007-160952.jsonl` (12 tasks).
+DX の締めパケット `/home/user/.gstack/projects/garrytan-gstack/autoplan-dx-j9q1uq/close-packet.md`(199 行): 140-199 行は直接読み、1-139 行は検証済みの CEO パケットとバイト単位で一致(拘束する行を除く)。レポートは公開済み。DX タスクの JSONL: `/home/user/.gstack/projects/garrytan-gstack/tasks-devex-review-20261007-160952.jsonl`(12 件のタスク)。
 
-### Phase 3 Eng review
+### Phase 3 エンジニアリングレビュー
 
-Eng methodology `/home/user/.gstack/projects/garrytan-gstack/autoplan-eng-methodology-Ed0kui/methodology.md` (2228 lines) read through EOF: 1-103, 427-1486 and 1741-2228 read directly; 104-426 (shared preamble) diffed against the CEO preamble (51 differing lines, all scope-gate and wording variants of the same rules); 1487-1740 (skip-listed outside voice) loaded only. Scope gate: target is this plan (named by the parent). Mode: FULL_REVIEW.
+Eng の手法書 `/home/user/.gstack/projects/garrytan-gstack/autoplan-eng-methodology-Ed0kui/methodology.md`(2228 行): 1-103、427-1486、1741-2228 行は直接読み、104-426 行(共通のプリアンブル)は CEO のプリアンブルと diff を取った(51 行が異なり、すべてスコープゲートと文言のバリエーションで、同じルールの表現違い)。1487-1740 行(スキップ対象の外部視点)は読み込みのみ。スコープゲート: 対象は本計画(親が指定)。モード: FULL_REVIEW。
 
-**Step 0: Scope Challenge (grounded in code).**
-- What already solves each sub-problem: see CEO 0B and DX "What already exists"; additionally `_gstack_codex_timeout_wrapper` (B3 timeout supervisor), `pushTarget()`/`remotesExclusionArgs()` in `bin/gstack-redact-prepush:96-114` (A3 history scope), `autoplanReadRange` dedup handling (`phase-publication-hook.ts:267-286`), `test/ci-image-tag-binding.test.ts` (pin bump).
-- Complexity check: about 45 changed files (estimate) and 4 new modules/commands (`lib/claude-journal-records.ts`, guard reason module, `bin/gstack-post`, `bin/gstack-doctor`), so the gate trips. Feature cuts: none (override: never reduce). Structure: original arrangement with two smaller-module moves inside it (reason table and record extraction out of their 600-line owners, ENG-17), which preserves every approved feature and fix. Scope record: feature answers none; structure A (original with module split, auto-decided P5); accepted scope as-is; pending remedies UC1, UC2.
-- Search check: Claude Code hooks docs and claude-code#100051 (payload over journal for the current call, [Layer 3]); Greptile draft behavior docs ([Layer 1]).
-- TODOS cross-reference: this plan closes seven "Oct 6 fix-wave follow-ups" entries conditionally (CEO-16); nothing in TODOS.md blocks it.
-- Distribution check: two new executables (`gstack-post`, `gstack-doctor`) ship through `./setup` like other `bin/` helpers; Windows coverage by DX-15.
-- Retrospective: the guard and brain-sync paths have been touched by five fix waves since September (#2999, #3017, #3023, #3025, #3057); no reverts, but repeated repair of the same boundaries.
-Scope Challenge result: scope accepted as-is.
+**Step 0: スコープの検討(コードに基づく)。**
+- 各サブ問題をすでに解決しているもの: CEO 0B と DX の「What already exists」を参照。加えて `_gstack_codex_timeout_wrapper`(B3 のタイムアウト監視)、`bin/gstack-redact-prepush:96-114` の `pushTarget()`/`remotesExclusionArgs()`(A3 の履歴の範囲)、`autoplanReadRange` の重複排除(`phase-publication-hook.ts:267-286`)、`test/ci-image-tag-binding.test.ts`(pin の更新)。
+- 複雑さのチェック: 変更されるファイルは約 45 件(推定)、新しいモジュール/コマンドは 4 件(`lib/claude-journal-records.ts`、ガードの理由モジュール、`bin/gstack-post`、`bin/gstack-doctor`)。そのためゲートが作動する。機能の削減: なし(上書き: 決して減らさない)。構造: 元の配置に、2 つの小さなモジュールへの分離を加える(理由の表と、レコードの抽出を、600 行の所有者ファイルから分離する。ENG-17)。承認済みの機能と修正はすべて維持する。スコープの記録: 機能の回答は なし。構造 A(モジュール分離を加えた元の配置。自動決定 P5)。受け入れたスコープはそのまま。保留中の判断 UC1、UC2。
+- 検索の確認: Claude Code のフックのドキュメントと claude-code#100051(現在の呼び出しのペイロードを、ジャーナルより優先する。[Layer 3])。Greptile のドラフトの動作のドキュメント([Layer 1])。
+- TODOS の相互参照: 本計画は「Oct 6 fix-wave follow-ups」の 7 件のエントリを条件付きで閉じる(CEO-16)。TODOS.md でこれをブロックするものはない。
+- 配布の確認: 新しい実行ファイル 2 件(`gstack-post`、`gstack-doctor`)は、他の `bin/` ヘルパーと同様に `./setup` で配布される。新しいヘルパーの Windows 対応は DX-15。
+- 振り返り: ガードと brain-sync のパスは、9 月以降 5 回の修正 wave で触られてきた(#2999、#3017、#3023、#3025、#3057)。リバートはないが、同じ境界を繰り返し修復している。
+Scope Challenge の結果: スコープはそのまま受け入れ。
 
-**Claude SUBAGENT (eng — independent review): completed.** `INPUT: eng 2f0f254d…b103` (hash matches). 12 findings plus 5 test and 4 security items and 5 consistency items. High: E1 background dispatch plus a typed turn disarms the guard (`disarmed()`, `phase-publication-hook.ts:336`); E2 the invocation window loses dedup witnesses (`:267-286`); E3 pass two is bounded by time, not memory; E7 the payload path assumes one message of lag and can fail open or loop; T1 missing fixtures for E1/E2. Medium: E4 per-call full rescan (index cache), E5 coupling map does not exist, E8 allowlist outage class, E9 history scope for url/unknown targets, E12 log race, T2 padding validity, T3 classifier false positives, S1 canary supply chain, S2 flag injection, S3 early push, C1 conflicting subcommand names, C4 pin-bump reds can hold Tier 1. Low: E6, E10, E11, T4, T5, S4, C2, C3, C5.
+**Claude SUBAGENT(eng、独立レビュー): 完了。** `INPUT: eng 2f0f254d…b103`(ハッシュ一致)。12 件の指摘、テスト 5 件、セキュリティ 4 件、一貫性 5 件。High: E1 バックグラウンドの派遣と、入力されたターンがガードを解除する(`disarmed()`、`phase-publication-hook.ts:336`)。E2 呼び出しのウィンドウが重複排除の証跡を失う(`:267-286`)。E3 2 回目のパスは時間で制限され、メモリでは制限されていない。E7 ペイロードの経路は 1 メッセージ分の遅延を前提としており、フェイルオープンになるか無限ループする恐れがある。T1 E1/E2 のフィクスチャが欠けている。Medium: E4 呼び出しごとの全再スキャン(インデックスのキャッシュ)、E5 結合マップが存在しない、E8 許可リストの停止クラス、E9 url/unknown のターゲットの履歴の範囲、E12 ログの競合、T2 パディングの有効性、T3 分類器の誤検出、S1 カナリアのサプライチェーン、S2 フラグの注入、S3 早期の push、C1 競合するサブコマンド名、C4 pin 更新による赤が Tier 1 を保留させうる。Low: E6、E10、E11、T4、T5、S4、C2、C3、C5。
 
-**Codex SAYS (eng — architecture challenge): completed, `OUTSIDE_STATUS: completed provider=codex host=claude`, `VERDICT: findings`, `FINDINGS: P1`.** 8 findings: [P1] same-phase batches still timing-dependent on the journal path (`:476`); [P1] a 10-minute age does not prove an index lock is abandoned (skill-start merge `gstack-skill-start:326`, artifacts-init `:444` run outside the drain lock); [P1] rule-id confirmation cannot bind exact bytes (`redact-doc.ts:79`); [P1] holding coupled files does not make publication atomic (`gstack-decision-log:84` enqueues only the log); [P1] a failed commit still finalizes the queue as `idle` (`gstack-brain-sync:763`); [P2] A2 bounds record size, not total memory or evaluation cost (quadratic filters at `:441`, `:462`); [P1] the long-session PTY case would be observed by the 32 MiB counting reader (`claude-public-transcript.ts:349`, `pty/runners/counting.ts:476`); [P2] A3 line numbers are slice-relative (`gstack-redact-prepush:310,369`). Recommendation: "Revise before implementation because batch handling, sync transactions, posting confirmations, and long-session validation still contain concrete correctness gaps."
+**Codex SAYS(eng、アーキテクチャへの異議): 完了。`OUTSIDE_STATUS: completed provider=codex host=claude`、`VERDICT: findings`、`FINDINGS: P1`。** 8 件の指摘: [P1] 同じフェーズのバッチが、ジャーナルの経路でタイミングに依存する(`:476`)。[P1] 10 分の経過は、インデックスのロックが放棄されたことを証明しない(skill-start のマージ `gstack-skill-start:326`、artifacts-init `:444` はドレインのロックの外で実行される)。[P1] ルール ID による確認は、正確なバイト列を結び付けられない(`redact-doc.ts:79`)。[P1] 結合したファイルを保留にしても、公開が原子的になるわけではない(`gstack-decision-log:84` はログだけをキューに入れる)。[P1] コミットが失敗しても、キューは `idle` として確定する(`gstack-brain-sync:763`)。[P2] A2 はレコードのサイズを制限するが、合計のメモリや評価のコストは制限しない(`:441`、`:462` の二次的なフィルター)。[P1] 長いセッションの PTY のケースは、32 MiB のカウントするリーダーに観測される(`claude-public-transcript.ts:349`、`pty/runners/counting.ts:476`)。[P2] A3 の行番号はスライス相対(`gstack-redact-prepush:310,369`)。推奨: 「バッチの処理、同期のトランザクション、投稿の確認、長いセッションの検証に、なお具体的な正しさの欠陥が残るため、実装の前に改訂すること。」
 
 ```
 ENG DUAL VOICES — CONSENSUS TABLE:
@@ -879,9 +890,9 @@ ENG DUAL VOICES — CONSENSUS TABLE:
   6. Deployment risk manageable?       Risk    OK     DISAGREE -> taste T10 (pin-bump reds: quarantine vs repair in wave)
 CONFIRMED = completed native subagent + completed Codex.
 ```
-Single-voice critical findings: none rated critical; Codex's five [P1] items and Claude's four highs are all accepted below.
+単独の意見による critical の指摘: なし。Codex の [P1] 5 件と Claude の high 4 件は、すべて以下で受け入れる。
 
-**Section 1: Architecture.**
+**第 1 節: アーキテクチャ。**
 ```
   Claude Code hook payload ----------------------------+
   Claude Code journal (.jsonl, append-only, may lag)   |
@@ -900,11 +911,11 @@ Single-voice critical findings: none rated critical; Codex's five [P1] items and
   generated skills --> bin/gstack-codex-probe <subcommand> (B3, DX-7/ENG-12)
   evals-periodic.yml daily --> autoplan-schema-canary (NEW) --> latest Claude Code (ENG-11)
 ```
-Findings: [P1] (9/10) `phase-publication-hook.ts:336` `disarmed()` ends the invocation on any typed turn after `end_turn`; background dispatch makes that reachable mid-phase (ENG-1). [P1] (8/10) Codex/Claude: A4 group publication is not atomic and the lock rule cannot prove abandonment (ENG-7). [P2] (7/10) one realistic production failure per integration: Claude Code adds an Agent schema default (ENG-14 names it), Greptile never posts (CEO-8 unavailable path), a commit hook rejects the sync commit (ENG-7c). Dispositions: accepted (ENG-1, ENG-7, ENG-14).
+指摘: [P1](9/10)`phase-publication-hook.ts:336` の `disarmed()` は、`end_turn` の後に入力されたどのターンでも呼び出しを終了させる。バックグラウンドの派遣により、フェーズの途中でもこれが起こりうる(ENG-1)。[P1](8/10)Codex と Claude の指摘: A4 のグループの公開は原子的でなく、ロックのルールは放棄されたことを証明できない(ENG-7)。[P2](7/10)統合ごとに、現実的な本番の失敗が 1 つずつある。Claude Code が Agent のスキーマに既定値を追加する(ENG-14 が名指し)。Greptile が投稿しない(CEO-8 の利用不可の経路)。コミットのフックが同期のコミットを拒否する(ENG-7c)。処置: 受け入れ(ENG-1、ENG-7、ENG-14)。
 
-**Section 2: Code quality.** [P2] (8/10) `bin/gstack-codex-probe` subcommand names conflict between CEO-9 and DX-7 (ENG-12). [P2] (7/10) guard reason codes would add 51 call-site edits to a 633-line file; move to a module (ENG-17). [P2] (7/10) `bin/gstack-brain-sync:727,735,763` swallow `git add`/`reset`/`commit` failures (ENG-7c plus A4). [P3] (6/10) shared-code: `lib/claude-journal-records.ts` has two verified callers (`readOwnedClaudePublicTranscript` at `lib/claude-public-transcript.ts:554` and `readPlanCountTranscript` at `:322`), net savings expected once extraction is shared; Python scanner duplication with `lib/redact-patterns.ts` stays deferred (X8, cross-language). Stale diagrams: the hook's flush comment (`:479-481`) and the causal-order comment (`claude-public-transcript.ts:207-208`) must change with CEO-1/CEO-2. Dispositions: accepted.
+**第 2 節: コード品質。** [P2](8/10)`bin/gstack-codex-probe` のサブコマンド名が CEO-9 と DX-7 で衝突する(ENG-12)。[P2](7/10)ガードの理由コードは、633 行のファイルに 51 箇所の呼び出し側の変更を加えることになる。モジュールに移す(ENG-17)。[P2](7/10)`bin/gstack-brain-sync:727,735,763` は `git add`/`reset`/`commit` の失敗を握りつぶしている(ENG-7c と A4)。[P3](6/10)共有コード: `lib/claude-journal-records.ts` には検証済みの呼び出し元が 2 つある(`lib/claude-public-transcript.ts:554` の `readOwnedClaudePublicTranscript` と、`:322` の `readPlanCountTranscript`)。抽出を共有すれば純粋な削減が見込める。`lib/redact-patterns.ts` との Python のスキャナーの重複は、言語をまたぐため延期(X8)。古くなった図: フックのフラッシュのコメント(`:479-481`)と、因果順序のコメント(`claude-public-transcript.ts:207-208`)は、CEO-1/CEO-2 に合わせて変更する必要がある。処置: 受け入れ。
 
-**Section 3: Test review.** Framework: bun test (CLAUDE.md "Testing"; `bun run test` via `scripts/test-free-shards.ts`). Existing relevant tests read for mapping: `test/autoplan-publication-guard.test.ts` (1478 lines), `test/brain-sync.test.ts` (998), `test/redact-prepush-*.test.ts` (4 files), `test/codex-model-probe.test.ts`, `test/outside-review-result.test.ts`, `test/ship-greptile-pr-check.test.ts`, `test/gstack-skill-start.test.ts`, `test/ci-image-cli-pin.test.ts`, `test/skill-e2e-autoplan-journal-drift.test.ts`, `test/skill-e2e-autoplan-dual-voice.test.ts` (SDK-headless; does not exercise flush lag).
+**第 3 節: テストのレビュー。** フレームワーク: bun test(CLAUDE.md の「Testing」。`bun run test` は `scripts/test-free-shards.ts` 経由)。マッピング用に既存の関連テストを読んだ: `test/autoplan-publication-guard.test.ts`(1478 行)、`test/brain-sync.test.ts`(998 行)、`test/redact-prepush-*.test.ts`(4 ファイル)、`test/codex-model-probe.test.ts`、`test/outside-review-result.test.ts`、`test/ship-greptile-pr-check.test.ts`、`test/gstack-skill-start.test.ts`、`test/ci-image-cli-pin.test.ts`、`test/skill-e2e-autoplan-journal-drift.test.ts`、`test/skill-e2e-autoplan-dual-voice.test.ts`(SDK のヘッドレス。フラッシュの遅延は扱わない)。
 ```
 CODE PATHS                                                   USER FLOWS
 [+] autoplan/bin/phase-publication-hook.ts                   [+] /autoplan on CC 2.1.292 (default settings)
@@ -934,11 +945,12 @@ LLM integration: [→EVAL] phase-close/phase sections, foreground note, aside ru
 COVERAGE: 4/29 paths tested today (14%) | GAPS: 25 (5 E2E, prompt evals per CEO-18)
 QUALITY: ★★★:1 ★★:3
 ```
-Every GAP above maps to a named test in the CEO, DX or ENG obligations, each with a value card in the test plan artifact `/home/user/.gstack/projects/garrytan-gstack/user-garrytan-followup-wave-oct7-eng-review-test-plan-20261007-161238.md`. Regression rule: the existing pending-Read tests and the `reused:true` re-arm tests (`autoplan-publication-guard.test.ts:736,1062`) are kept as controls (CRITICAL regression contract carried from CEO-2). LLM/eval scope: template edits run `test/parity-suite.test.ts`, prompt-size checks and goldens, then the autoplan paid case (ENG-18), `autoplan-journal-drift`, the full gate tier on the new pin (CEO-4) and `autoplan-dual-voice`. Tests to retire: none.
+各 GAP は、CEO、DX、ENG の義務で名前の付いたテストに対応する。それぞれのテストには、テスト計画の成果物 `/home/user/.gstack/projects/garrytan-gstack/user-garrytan-followup-wave-oct7-eng-review-test-plan-20261007-161238.md` に価値カードがある。回帰のルール: 既存の pending-Read のテストと、`reused:true` の再武装のテスト(`autoplan-publication-guard.test.ts:736,1062`)は、対照群として残す(CEO-2 から引き継いだ重大な回帰の契約)。LLM/評価の範囲: テンプレートの編集では `test/parity-suite.test.ts`、プロンプトのサイズのチェック、ゴールデンを実行し、その後に autoplan の有料ケース(ENG-18)、`autoplan-journal-drift`、新しい pin でのフルゲートの階層(CEO-4)、`autoplan-dual-voice` を実行する。廃止するテスト: なし。
 
-**Section 4: Performance.** [P2] (8/10) per-guarded-call full parse at 120 MiB times 20-40 calls per run (measured current reader ~0.45-0.5 s and ~684 MiB RSS per call on a 5.7k-record synthetic); ENG-5 bounds retained data and removes per-tool rescans, and the spike decides on an index cache. [P2] (7/10) A4 scanner attribution would spawn one git process per queued path (1,390 in PR #3055's case); one-pass split (ENG-7d). [P3] (6/10) A3 history read bounded to 50,000 commits and 5 s. No database or N+1 concerns.
 
-**Failure modes (critical gaps).**
+**第 4 節: パフォーマンス。** [P2](8/10)保護された呼び出しのたびに 120 MiB の全体を解析し、それが 1 回の実行で 20-40 回起きる(測定値: 現在のリーダーは 5.7k レコードの合成データで、呼び出しごとに約 0.45-0.5 秒、約 684 MiB の RSS)。ENG-5 は保持するデータを制限し、ツールごとの再スキャンを取り除く。スパイクでインデックスのキャッシュを採用するかを決める。[P2](7/10)A4 のスキャナーの帰属は、キューに入ったパスごとに git プロセスを 1 つ起動することになる(PR #3055 の場合は 1,390 件)。1 パスでの分割にする(ENG-7d)。[P3](6/10)A3 の履歴の読み取りは 50,000 コミットと 5 秒に制限する。データベースや N+1 の懸念はない。
+
+**失敗モード(重大なギャップ)。**
 ```
   CODEPATH              | FAILURE MODE                         | RESCUED? | TEST? | USER SEES?            | CRITICAL?
   guard disarm          | typed turn during bg reviewer        | N->Y     | N->Y  | silent allow (before) | was CRITICAL, fixed by ENG-1
@@ -949,217 +961,217 @@ Every GAP above maps to a named test in the CEO, DX or ENG obligations, each wit
   pre-push A3           | slice-relative line numbers          | Y        | Y     | correct file line     | no
   PTY long-session case | observer hits 32 MiB cap             | Y        | Y     | guard-log witness     | no
 ```
-Critical gaps flagged: 2, both resolved by accepted obligations; 0 remain.
+フラグの立った重大なギャップ: 2 件。どちらも受け入れた義務で解決済み。残りは 0 件。
 
-**Worktree parallelization strategy.**
+**並列化の戦略(worktree)。**
 
-| Step | Modules touched | Depends on |
+| ステップ | 変更されるモジュール | 依存先 |
 |------|----------------|------------|
-| Guard (A1, A2, CEO-1/2/3/12, ENG-1..6/14/15/17) | autoplan/bin, lib (transcript, records), autoplan/sections, test | — |
-| Pin + canaries (CEO-4/13/15, ENG-11/18/19/21) | .github, test/helpers/pty, test | Guard |
-| Pre-push (A3, CEO-7, ENG-8, DX-9/17) | bin (redact-prepush), test | — |
-| Sync (A4, CEO-14/17/27, ENG-7/13, DX-4/5) | bin (brain-sync, skill-start, artifacts-init, brain-restore), scripts/resolvers/preamble | — |
-| Probe + post + doctor (B3/B4/B5, ENG-9/12, DX-6/7/8) | bin, scripts/resolvers | — |
-| Ship Greptile (B2, CEO-8, ENG-20, DX-10) | ship | Probe + post (gstack-post) |
-| Context-restore, browse, classifier, credits (B1, B6, B7, CEO-28) | context-*, scripts/resolvers/aside.ts, lib/outside-review-result.ts, CHANGELOG | — |
+| ガード(A1, A2, CEO-1/2/3/12, ENG-1..6/14/15/17) | autoplan/bin, lib(transcript, records), autoplan/sections, test | — |
+| pin + カナリア(CEO-4/13/15, ENG-11/18/19/21) | .github, test/helpers/pty, test | ガード |
+| プッシュ前(A3, CEO-7, ENG-8, DX-9/17) | bin(redact-prepush), test | — |
+| 同期(A4, CEO-14/17/27, ENG-7/13, DX-4/5) | bin(brain-sync, skill-start, artifacts-init, brain-restore), scripts/resolvers/preamble | — |
+| プローブ + 投稿 + doctor(B3/B4/B5, ENG-9/12, DX-6/7/8) | bin, scripts/resolvers | — |
+| Greptile の /ship 対応(B2, CEO-8, ENG-20, DX-10) | ship | プローブ + 投稿(gstack-post) |
+| Context-restore, browse, 分類器, クレジット(B1, B6, B7, CEO-28) | context-*, scripts/resolvers/aside.ts, lib/outside-review-result.ts, CHANGELOG | — |
 
-Parallel lanes: Lane A: Guard -> Pin + canaries. Lane B: Pre-push. Lane C: Sync. Lane D: Probe + post + doctor -> Ship Greptile. Lane E: Context-restore, browse, classifier. Execution order: launch A, B, C, D, E; merge B, C, E; merge A then run the pin gate; merge D. Release files (CHANGELOG, VERSION, TODOS.md) last. Conflict flags: `scripts/resolvers/constants.ts` (CEO-20 in A, B3 in D), `bin/gstack-skill-start` (C and the doctor link in D), `test/helpers/touchfiles-data.ts` (A and E).
+並列のレーン: レーン A: ガード -> pin + カナリア。レーン B: Pre-push。レーン C: 同期。レーン D: Probe + post + doctor -> Ship Greptile。レーン E: Context-restore, browse, 分類器。実行の順序: A、B、C、D、E を起動。B、C、E をマージ。A をマージしてから pin のゲートを実行。D をマージ。リリースのファイル(CHANGELOG、VERSION、TODOS.md)は最後。競合の注意点: `scripts/resolvers/constants.ts`(A の CEO-20、D の B3)、`bin/gstack-skill-start`(C と、D の doctor のリンク)、`test/helpers/touchfiles-data.ts`(A と E)。
 
-**NOT in scope (eng).** Supported-hook-event state machine (no supported event carries the published text; CEO-30 asks upstream); quarantining unrelated pin-bump reds (taste T10, repaired instead); a persisted index cache unless the spike shows the rescan misses budget (ENG-5).
+**対象外(eng)。** サポートされるフックのイベントのステートマシン(サポートされるイベントのどれも公開されたテキストを運ばない。CEO-30 は上流に依頼)。無関係の pin 更新による赤の隔離(テイスト T10。代わりに修復する)。スパイクでリスクの予算を満たさないと示されない限り、永続化されたインデックスのキャッシュは作らない(ENG-5)。
 
-**What already exists (eng).** `_gstack_codex_timeout_wrapper` (reused by ENG-12), `pushTarget()`/`remotesExclusionArgs()` (reused by ENG-8), the hook's existing pending-Read path (generalized), `autoplanReadRange` (kept; ENG-4 preserves its witness), the existing drain lock (extended to all writers by ENG-7), `test/ci-image-tag-binding.test.ts` (ENG-21), `GSTACK_TRANSCRIPT_TEST_MAX_BYTES` seam (reused).
+**既存の資産(eng)。** `_gstack_codex_timeout_wrapper`(ENG-12 が再利用)、`pushTarget()`/`remotesExclusionArgs()`(ENG-8 が再利用)、フックの既存の pending-Read の経路(一般化する)、`autoplanReadRange`(維持。ENG-4 が証跡を保つ)、既存のドレインのロック(ENG-7 で全ての書き込み元に拡張)、`test/ci-image-tag-binding.test.ts`(ENG-21)、`GSTACK_TRANSCRIPT_TEST_MAX_BYTES` の継ぎ目(再利用)。
 
-**TODOS.md updates collected from every phase (pending writes; this run edits no repository file except the plan).** X7 doctor guard check against a named journal (CEO, P3); X8 brain-sync scanner unification with `lib/redact-engine.ts` (CEO, P3); doctor `--json` (DX, P3); timed full novice install journey (DX, P3); X10 `--bg` preflight warning, only if CEO-5 reopens it (CEO, conditional); removal of the closed "Oct 6 fix-wave follow-ups" entries per CEO-16.
+**TODOS.md への更新(各フェーズから収集。保留中の書き込み。この実行では計画以外のリポジトリのファイルは編集しない)。** X7 名前の付いたジャーナルに対する doctor のガードチェック(CEO、P3)。X8 brain-sync のスキャナーを `lib/redact-engine.ts` と統合(CEO、P3)。doctor の `--json`(DX、P3)。新人の導入を全体で時間計測(DX、P3)。X10 `--bg` の事前警告。CEO-5 が再開する場合のみ(CEO、条件付き)。CEO-16 に従い、閉じた「Oct 6 fix-wave follow-ups」のエントリを削除。
 
-**Completion summary (eng).**
-- Step 0: Scope Challenge — scope accepted as-is (structure: original arrangement with module split)
-- Architecture Review: 3 issues found
-- Code Quality Review: 4 issues found
-- Test Review: diagram produced, 25 gaps identified (all mapped to named tests)
-- Performance Review: 3 issues found
-- NOT in scope: written
-- What already exists: written
-- TODOS.md updates: 6 items collected (pending writes)
-- Failure modes: 2 critical gaps flagged (both resolved by ENG-1 and ENG-7)
-- Unresolved decisions: 2 (UC1, UC2 at the final gate)
-- Outside voice: Codex gpt-6-astra, completed
-- Parallelization: 5 lanes, 4 parallel / 1 sequential dependency chain
-- Lake Score: N/A (no coverage-scored questions were asked)
+**完了の要約(eng)。**
+- Step 0: スコープの検討 — スコープはそのまま受け入れ(構造: モジュール分離を加えた元の配置)
+- アーキテクチャのレビュー: 3 件の問題
+- コード品質のレビュー: 4 件の問題
+- テストのレビュー: 図を作成、25 件のギャップを特定(すべて名前の付いたテストに対応)
+- パフォーマンスのレビュー: 3 件の問題
+- 対象外: 記載済み
+- 既存の資産: 記載済み
+- TODOS.md への更新: 6 件を収集(保留中の書き込み)
+- 失敗モード: 重大なギャップ 2 件にフラグ(ENG-1 と ENG-7 で解決)
+- 未解決の判断: 2 件(UC1、UC2。最終ゲートで)
+- 外部視点: Codex gpt-6-astra、完了
+- 並列化: 5 レーン、4 並列 / 1 つの逐次の依存チェーン
+- Lake Score: 該当なし(スコアリングされる網羅性の質問はしなかった)
 
-### Phase 3 Eng review: Implementation Tasks
+### Phase 3 エンジニアリングレビュー: 実装タスク
 
-- [ ] **ENG-T1 (P1, human: ~4h / CC: ~30min)** — autoplan guard — Keep invocation armed during background reviewer dispatch; replay fixtures (ENG-1)
-  - Surfaced by: Codex/Claude eng; phase-publication-hook.ts:336
-  - Files: autoplan/bin/phase-publication-hook.ts, test/autoplan-publication-guard.test.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T2 (P1, human: ~6h / CC: ~45min)** — autoplan guard — Payload-path preconditions, bounded lag wait, shared batch rule on both paths (ENG-2, ENG-3)
-  - Surfaced by: Claude E7; Codex P1 batch
-  - Files: autoplan/bin/phase-publication-hook.ts, test/autoplan-publication-guard.test.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T3 (P1, human: ~1 day / CC: ~1.5h)** — journal reader — Read-args index for dedup witnesses; class-limited pass two; tool-id indexed evaluation; retained bound; spike vs index cache (ENG-4, ENG-5)
-  - Surfaced by: Claude E2/E3/E4; Codex P2 memory
-  - Files: lib/claude-journal-records.ts, lib/claude-public-transcript.ts, scripts/measure-journal-read.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T4 (P1, human: ~3h / CC: ~20min)** — long session — Guard-log observer for the padded-journal PTY case, proven on the fixture first (ENG-6)
-  - Surfaced by: Codex P1 observer cap
-  - Files: test/skill-e2e-autoplan-long-session.test.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T5 (P1, human: ~1 day / CC: ~1.5h)** — artifacts sync — Shared drain lock for all writers, explicit group map with consistent generation, commit failure keeps queue, one-pass attribution (ENG-7)
-  - Surfaced by: Codex P1 x3; Claude E5/E6
-  - Files: bin/gstack-brain-sync, bin/gstack-skill-start, bin/gstack-artifacts-init, bin/gstack-brain-restore, bin/gstack-gbrain-source-wireup, test/brain-sync.test.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T6 (P1, human: ~4h / CC: ~30min)** — pre-push — Source-line mapping, history scope for url/unknown targets, mailmap emails (ENG-8)
-  - Surfaced by: Codex P2 lines; Claude E9
-  - Files: bin/gstack-redact-prepush, test/redact-prepush-scan-range.test.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T7 (P2, human: ~3h / CC: ~20min)** — gstack-post — Byte-digest confirmation token and flag-injection-safe argv (ENG-9)
-  - Surfaced by: Codex P1; Claude S2/T4
-  - Files: bin/gstack-post, test/gstack-post.test.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T8 (P2, human: ~2h / CC: ~15min)** — outside voice — Label-position severity matching and stored-output panel incl. this run's three outputs (ENG-10)
-  - Surfaced by: Claude T3
-  - Files: lib/outside-review-result.ts, test/outside-review-result.test.ts, test/fixtures
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T9 (P1, human: ~2h / CC: ~15min)** — canary — Supply-chain hardening and stated one-day alert latency (ENG-11)
-  - Surfaced by: Claude S1/C3
-  - Files: .github/workflows/evals-periodic.yml, test/skill-e2e-autoplan-schema-canary.test.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T10 (P2, human: ~2h / CC: ~15min)** — codex probe — DX-7 names, supervised run-with-timeout, stdin and 124 tests (ENG-12)
-  - Surfaced by: Claude C1/T5
-  - Files: bin/gstack-codex-probe, test/codex-model-probe.test.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T11 (P2, human: ~3h / CC: ~20min)** — guard module — Reason-code module, unknown-key code, append-only schema log with threshold trim (ENG-14, ENG-15, ENG-17)
-  - Surfaced by: Claude C5/E8/E12
-  - Files: autoplan/bin/phase-publication-hook.ts, autoplan/bin/guard-reasons.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T12 (P2, human: ~1h / CC: ~10min)** — context-restore — Scan cap, home-directory filter, generic-title stoplist (ENG-16)
-  - Surfaced by: Claude E10/E11
-  - Files: context-restore/SKILL.md.tmpl, bin/gstack-slug
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T13 (P1, human: ~1 day / CC: ~1h)** — CI pin — Automated Phase 1 + one-transition PTY case, manual every-transition session, unrelated reds repaired once, image tag binding (ENG-18, ENG-19, ENG-21)
-  - Surfaced by: Taste T9/T10; Claude C4
-  - Files: .github/docker/Dockerfile.ci, test/helpers/pty/launch.ts, test/ci-image-tag-binding.test.ts
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
-- [ ] **ENG-T14 (P2, human: ~1h / CC: ~10min)** — ship Greptile — Abort path leaves draft with a comment; public-repo consent if default-on (ENG-20)
-  - Surfaced by: Claude S3
-  - Files: ship/sections/greptile.md.tmpl
-  - Verify: tests named in the cited ENG obligation and the test plan artifact
+- [ ] **ENG-T1 (P1, 人手: 約 4 時間 / CC: 約 30 分)** — autoplan のガード — バックグラウンドのレビュアーの派遣中も呼び出しを武装したままにする。リプレイのフィクスチャ(ENG-1)
+  - 指摘元: Codex/Claude eng、phase-publication-hook.ts:336
+  - ファイル: autoplan/bin/phase-publication-hook.ts, test/autoplan-publication-guard.test.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T2 (P1, 人手: 約 6 時間 / CC: 約 45 分)** — autoplan のガード — ペイロード経路の前提条件、上限付きの遅延の待機、両方の経路で共通のバッチルール(ENG-2, ENG-3)
+  - 指摘元: Claude E7、Codex P1 batch
+  - ファイル: autoplan/bin/phase-publication-hook.ts, test/autoplan-publication-guard.test.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T3 (P1, 人手: 約 1 日 / CC: 約 1.5 時間)** — ジャーナルのリーダー — 重複排除の証跡のための読み取り引数のインデックス、2 回目のパスをクラスで制限、ツール ID でインデックスした評価、保持の上限、スパイク対インデックスのキャッシュ(ENG-4, ENG-5)
+  - 指摘元: Claude E2/E3/E4、Codex P2 memory
+  - ファイル: lib/claude-journal-records.ts, lib/claude-public-transcript.ts, scripts/measure-journal-read.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T4 (P1, 人手: 約 3 時間 / CC: 約 20 分)** — 長いセッション — パディングされたジャーナルの PTY ケースのためのガードログの観測者。まずフィクスチャで証明する(ENG-6)
+  - 指摘元: Codex P1 observer cap
+  - ファイル: test/skill-e2e-autoplan-long-session.test.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T5 (P1, 人手: 約 1 日 / CC: 約 1.5 時間)** — 成果物の同期 — すべての書き込み元で共有するドレインのロック、一貫した世代を持つ明示的なグループマップ、コミットの失敗時にキューを保持、1 パスでの帰属(ENG-7)
+  - 指摘元: Codex P1 x3、Claude E5/E6
+  - ファイル: bin/gstack-brain-sync, bin/gstack-skill-start, bin/gstack-artifacts-init, bin/gstack-brain-restore, bin/gstack-gbrain-source-wireup, test/brain-sync.test.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T6 (P1, 人手: 約 4 時間 / CC: 約 30 分)** — pre-push — ソース行のマッピング、url/unknown のターゲットの履歴の範囲、mailmap のメール(ENG-8)
+  - 指摘元: Codex P2 lines、Claude E9
+  - ファイル: bin/gstack-redact-prepush, test/redact-prepush-scan-range.test.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T7 (P2, 人手: 約 3 時間 / CC: 約 20 分)** — gstack-post — バイトのダイジェストによる確認トークンと、フラグ注入に安全な argv(ENG-9)
+  - 指摘元: Codex P1、Claude S2/T4
+  - ファイル: bin/gstack-post, test/gstack-post.test.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T8 (P2, 人手: 約 2 時間 / CC: 約 15 分)** — 外部視点 — ラベルの位置による重大度の照合と、この実行の 3 つの出力を含む保存済み出力のパネル(ENG-10)
+  - 指摘元: Claude T3
+  - ファイル: lib/outside-review-result.ts, test/outside-review-result.test.ts, test/fixtures
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T9 (P1, 人手: 約 2 時間 / CC: 約 15 分)** — カナリア — サプライチェーンの強化と、明示した 1 日の通知の遅延(ENG-11)
+  - 指摘元: Claude S1/C3
+  - ファイル: .github/workflows/evals-periodic.yml, test/skill-e2e-autoplan-schema-canary.test.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T10 (P2, 人手: 約 2 時間 / CC: 約 15 分)** — codex probe — DX-7 の名前、監視付きの run-with-timeout、stdin と 124 のテスト(ENG-12)
+  - 指摘元: Claude C1/T5
+  - ファイル: bin/gstack-codex-probe, test/codex-model-probe.test.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T11 (P2, 人手: 約 3 時間 / CC: 約 20 分)** — ガードのモジュール — 理由コードのモジュール、未知のキーのコード、スキーマ付きの追記専用のログ(しきい値で切り詰め)(ENG-14, ENG-15, ENG-17)
+  - 指摘元: Claude C5/E8/E12
+  - ファイル: autoplan/bin/phase-publication-hook.ts, autoplan/bin/guard-reasons.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T12 (P2, 人手: 約 1 時間 / CC: 約 10 分)** — context-restore — スキャンの上限、ホームディレクトリのフィルター、一般的なタイトルのストップリスト(ENG-16)
+  - 指摘元: Claude E10/E11
+  - ファイル: context-restore/SKILL.md.tmpl, bin/gstack-slug
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T13 (P1, 人手: 約 1 日 / CC: 約 1 時間)** — CI の pin — 自動化された Phase 1 + 1 回の遷移の PTY ケース、遷移ごとに手動のセッション、無関係の赤を 1 回修復、イメージのタグの紐付け(ENG-18, ENG-19, ENG-21)
+  - 指摘元: テイスト T9/T10、Claude C4
+  - ファイル: .github/docker/Dockerfile.ci, test/helpers/pty/launch.ts, test/ci-image-tag-binding.test.ts
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
+- [ ] **ENG-T14 (P2, 人手: 約 1 時間 / CC: 約 10 分)** — ship の Greptile — 中断の経路で、コメント付きのドラフトを残す。デフォルトオンなら公開リポジトリの同意(ENG-20)
+  - 指摘元: Claude S3
+  - ファイル: ship/sections/greptile.md.tmpl
+  - 検証: 引用された ENG の義務とテスト計画の成果物で指定されたテスト
 
-**Eng accepted obligations.**
+**ENG で受け入れた義務。**
 
 <!-- autoplan-accepted:eng -->
-- ENG-1 (background dispatch keeps the invocation armed). An `end_turn` while a reviewer `Agent` dispatched by this invocation has no completion record does not end the invocation, and a typed user turn during that window does not disarm the guard. Replay fixtures: background dispatch, `end_turn`, typed turn, next phase entry still requires the previous report. CEO-13's canary asserts the completion-notification record's `promptSource` and `isMeta` on the latest release, and the CEO-24 PTY session sends one typed message while a reviewer runs.
-- ENG-2 (payload-path preconditions). The payload path runs only when every journaled `tool_use` has its result, except siblings with the last journaled `messageId`. When the newest journaled record is older than the assistant message before the current call (lag of more than one message), the hook waits up to 2 seconds for that record, then denies with a named journal-lag cause and the supported fallback. The same publish-separately cause seen twice in one invocation switches to the fallback text instead of repeating the instruction.
-- ENG-3 (one batch rule on both paths; replaces CEO-1's payload-only sibling clause). Guarded calls in the same assistant message that target the same phase are one batch on the journal path and the payload path; a call targeting another phase still denies. Tests: fully flushed, partially flushed and missing-current batches, result-order permutations, and cross-phase negative controls.
-- ENG-4 (dedup witnesses survive the window). The pass-one index records each `Read` tool_use's `file_path`, `offset` and `limit`; when a candidate Read's result is Claude Code's "file unchanged since your last Read" reply, the cited earlier record is loaded into pass two even if it predates the window. Fixture: two /autoplan runs in one session where the second driver Read is a dedup reply.
-- ENG-5 (retained data and cost are bounded). Pass two keeps full content only for the record classes the evaluation reads: Bash results of init and checkpoint uses, results of candidate Reads, assistant text after the close Read, and mutation uses on the active plan; everything else stays index-only. Evaluation state is indexed by tool id and order, so no per-tool rescans. Retained data has a named bound; exceeding it is a hard denial naming an oversized invocation with the supported fallback. The 120 MiB acceptance journal puts most bytes inside the invocation window, and a second benchmark uses a large current invocation of many small records. CEO-25's spike compares the full rescan with a pass-one index cache under the state root (keyed by device, inode, scanned size and a hash of the last 64 KiB before the cached offset); a backward tail read cannot prove `competing_root` or `cycle`, so it is not the comparison. The cache is adopted only if the full rescan misses CEO-2's 1 s budget (taste).
-- ENG-6 (long-session observer; amends CEO-15). CEO-15's case observes the outcome through the CEO-12 guard decision log (decision path and allow for the Phase 1 entry), not the 32 MiB PTY counting reader, and a free test proves that observer on the oversized fixture before the paid run. Padding records pass the ownership checks (session id, cwd, uuid chain, before a real `compact_boundary`), and the case asserts the decision path and reason code.
-- ENG-7 (A4 transactions; replaces CEO-17's lock clause and narrows CEO-27). (a) Every gstack writer to `$GSTACK_HOME` git state (the drain, the skill-start merge, `gstack-artifacts-init`, `gstack-brain-restore`, `gstack-gbrain-source-wireup`) takes the same drain lock; a stale `.git/index.lock` is removed only while this process holds that lock and the index lock is older than 10 minutes, otherwise the drain reports the obstruction and keeps the queue. (b) Coupled groups come from an explicit map in code, starting with `decisions.jsonl` and its active snapshot; the drain expands selection to the whole group and stages a consistent generation (snapshot matching the log it was built from, checked before staging); unlisted paths are independent. (c) A failed `git commit` is distinguished from a verified empty staged diff (`git diff --cached --quiet`); any other failure keeps the queue and writes status `error`. (d) Scanner hits are attributed by splitting one staged diff on its `diff --git` headers in the existing Python block, not by one git process per path. Tests: an old index lock while another writer holds the drain lock is left alone; clean update of a group; a concurrent writer; a rejecting commit hook; a commit failure after staging; 1,000 queued paths in one scanner pass.
-- ENG-8 (A3 line mapping and history scope; amends CEO-7). Collection and chunking keep commit, path and source-line mappings from hunk headers, so each MEDIUM line points at the real file line; findings only in historical commits name the commit. For `url` and `unknown` push targets, `repoPublicEmails` uses only the remote sha's history (when present locally) and the pushed commits, never all remotes. Author and committer emails are read raw and mailmapped (`%ae %aE %ce %cE`). Suppressing third-party emails that appear in the pushed commits is documented as accepted (they become public with the push). Tests: separated hunks, a chunk boundary, content removed before the pushed tip, and an email present only in another remote's history still flags.
-- ENG-9 (`gstack-post` confirmation and argument safety; replaces DX-6's rule-id confirmation). On exit 2 the helper prints a confirmation token: a digest of the exact bytes, destination, operation and findings; `--confirm <token>` posts only those bytes, which the helper reads once and sends as scanned. Values go to `gh`/`glab` in `--flag=<value>` form or after `--`, and `<target>` must be a number or a same-host URL. Tests: replacing one flagged email with another (same rule ids and lines) needs a new token; a title of `--repo evil/x` is posted as text.
-- ENG-10 (classifier precision; refines DX-11). Severity words count only in label position (`Severity: High`, a leading `High:`, `**High**`, `High —` or a table cell), not inside words like "high-level". A panel of stored real Codex outputs keeps its current verdicts, and the three outputs from this /autoplan run are added as fixtures (CEO, DX: severity words without tags; eng: `[P1]` tags).
-- ENG-11 (canary supply chain and latency). `autoplan-schema-canary` installs the latest Claude Code with `npm install --ignore-scripts`, runs `npm audit signatures` before use, uses a budget-capped key, and runs in a job without write tokens. Its alert latency is stated as at most one day after a release (daily run, red in the periodic report), replacing "within a week".
-- ENG-12 (probe names and timeout supervisor). DX-7's subcommand names govern; CEO-9's contract maps onto them (`check-auth`, `show-sandbox`, `run-with-timeout`). `run-with-timeout` supervises the command with the existing gtimeout, timeout, then watchdog chain (not exec) and returns 124 on timeout. Tests: stdin passthrough and exit 124 on both the coreutils and the bash-watchdog branch.
-- ENG-13 (attention-line paths). Attention lines never include artifact or status-message paths; the absolute install-root helper path from DX-2 is allowed, and the no-status-text test allows it.
-- ENG-14 (unknown Agent key). A reviewer dispatch with a key outside the allowlist is denied with its own reason code and the hand-run fallback, and CEO-12's log records the unknown key names, never values.
-- ENG-15 (guard log writes; refines DX-14). Lines are append-only and carry a `schema` field; trimming to the last 1,000 lines happens through a temporary file and rename only when the file exceeds 256 KiB, and losing a concurrent trim race is tolerated. Doctor's reason-code row filters on the schema.
-- ENG-16 (B1 bounds). The below-cwd checkpoint scan reads at most the 200 newest checkpoints and, from `$HOME`, lists only projects under the cwd by recency. Generic titles (`wip`, `checkpoint`, `save`, `notes`, `todo`) never match on title alone; they need the ticket token.
-- ENG-17 (guard module layout). Reason codes, denial text and anchors live in one module beside the hook (single source for DX-1's anchor test), the payload evaluation is its own function, and `autoplan/bin/phase-publication-hook.ts` stays under the 800-line owner-module limit.
-- ENG-18 (live-run scope, taste; amends CEO-24). The automated paid PTY case uses a hermetic minimal plan and covers Phase 1 entry plus one phase transition within the ~10-minute eval budget (rule kind, one trial). The every-transition run from CEO-24 is one recorded manual PTY session on 2.1.292 attached to the PR.
-- ENG-19 (pin-bump reds, taste). PTY or gate reds on the 2.1.292 pin that are unrelated to /autoplan are repaired in this wave (one repair round each, no retries or lowered thresholds); a case still red after that round is reported as a named red through the #3059 measure loop, and whether it holds the merge is Garry's call at ship time.
-- ENG-20 (B2 abort path). If /ship stops after opening the early PR, it leaves the draft open with one comment saying /ship stopped and why; it never closes or force-pushes it. If UC2 keeps B2 on by default, the early push on a public repo asks once for consent.
-- ENG-21 (image tag binding). The pin bump runs `test/ci-image-tag-binding.test.ts` and updates any workflow image reference it requires.
+- ENG-1(バックグラウンドの派遣が呼び出しを武装したままにする)。この呼び出しが派遣した reviewer の `Agent` に完了記録がない間の `end_turn` は、呼び出しを終了させず、その間に入力されたユーザーのターンはガードを解除しない。リプレイのフィクスチャ: バックグラウンドの派遣、`end_turn`、入力されたターン、次のフェーズ entry は、前のレポートを依然として要求する。CEO-13 のカナリアは、最新リリースで完了通知の記録の `promptSource` と `isMeta` を検証する。CEO-24 の PTY セッションは、reviewer の実行中に 1 件の入力メッセージを送る。
+- ENG-2(ペイロード経路の前提条件)。ペイロード経路は、ジャーナルに記録されたすべての `tool_use` に結果があるときにのみ実行する。ただし、最後にジャーナルに記録された `messageId` を持つ兄弟は除く。最も新しいジャーナルのレコードが、現在の呼び出しの前のアシスタントのメッセージより古い場合(1 メッセージを超える遅延)、フックは最大 2 秒そのレコードを待ち、その後、名前の付いたジャーナルの遅延の原因と、サポートされたフォールバックを添えて拒否する。1 回の呼び出しの中で同じ「別々に公開せよ」の原因が 2 回起きた場合は、同じ指示を繰り返さず、フォールバックの文言に切り替える。
+- ENG-3(両方の経路で 1 つのバッチルール。CEO-1 のペイロードだけの兄弟条項を置き換える)。同じアシスタントのメッセージ内で同じフェーズを対象とする保護された呼び出しは、ジャーナルの経路でもペイロードの経路でも 1 つのバッチとなる。別のフェーズを対象とする呼び出しは、依然として拒否する。テスト: 完全にフラッシュされたバッチ、部分的にフラッシュされたバッチ、現在の呼び出しが欠けているバッチ、結果の順序の並べ替え、フェーズをまたぐ否定の対照群。
+- ENG-4(重複排除の証跡をウィンドウの外へ持ち越す)。パス 1 のインデックスは、各 `Read` の tool_use の `file_path`、`offset`、`limit` を記録する。候補となる Read の結果が Claude Code の「file unchanged since your last Read」という返答である場合、その返答が引用する以前のレコードは、ウィンドウより前であってもパス 2 に読み込む。フィクスチャ: 1 つのセッションで /autoplan を 2 回実行し、2 回目の driver Read が重複排除の返答になるケース。
+- ENG-5(保持するデータと処理コストを制限する)。パス 2 は、評価が読むレコードのクラスだけ、完全な内容を保持する。すなわち、init とチェックポイントの用途の Bash の結果、候補となる Read の結果、close の Read の後のアシスタントのテキスト、アクティブな計画に対する変更の用途。それ以外はインデックスのみとする。評価の状態はツール ID と順序でインデックスし、ツールごとの再スキャンをなくす。保持するデータには名前の付いた上限があり、それを超える場合は、サポートされたフォールバックとともに、大きすぎる呼び出しという名前で拒否する。120 MiB の受け入れ用ジャーナルは、ほとんどのバイトを呼び出しのウィンドウ内に置く。2 つ目のベンチマークは、多数の小さなレコードからなる大きな現在の呼び出しを使う。CEO-25 のスパイクは、フルの再スキャンと、状態のルート配下のパス 1 のインデックスのキャッシュ(デバイス、inode、スキャンしたサイズ、キャッシュされたオフセットの前の最後の 64 KiB のハッシュで鍵付け)を比較する。末尾からの逆方向の読み取りは `competing_root` や `cycle` を証明できないため、比較の対象ではない。キャッシュは、フルの再スキャンが CEO-2 の 1 秒の予算を満たさない場合にのみ採用する(テイスト)。
+- ENG-6(長いセッションの観測者。CEO-15 を修正)。CEO-15 のケースは、結果を CEO-12 のガードの決定ログ(Phase 1 entry の決定経路と許可)で観測し、32 MiB の PTY のカウントするリーダーでは観測しない。無料のテストが、有料の実行の前に、その観測者が肥大化したフィクスチャで機能することを証明する。パディングのレコードは所有権のチェックを通る(セッション ID、cwd、uuid の連鎖。実際の `compact_boundary` の前)。ケースは、決定経路と理由コードを検証する。
+- ENG-7(A4 のトランザクション。CEO-17 のロックの条項を置き換え、CEO-27 を狭める)。(a) `$GSTACK_HOME` の git 状態へのすべての gstack の書き込み元(ドレイン、skill-start のマージ、`gstack-artifacts-init`、`gstack-brain-restore`、`gstack-gbrain-source-wireup`)は、同じドレインのロックを取る。古い `.git/index.lock` は、このプロセスがそのロックを保持している間、かつ index のロックが 10 分より古い場合にのみ削除する。それ以外は、ドレインが妨害を報告し、キューを保持する。(b) 結合したグループは、コード内の明示的なマップから得る。最初は `decisions.jsonl` とそのアクティブなスナップショット。ドレインは、選択をグループ全体に広げ、一貫した世代をステージする(スナップショットは、それを構築したログと一致する。ステージの前に確認する)。マップにないパスは独立している。(c) 失敗した `git commit` は、検証済みの空のステージ済みの差分(`git diff --cached --quiet`)と区別する。それ以外の失敗は、キューを保持し、ステータス `error` を書く。(d) スキャナーのヒットは、パスごとに git プロセスを 1 つ起動するのではなく、既存の Python のブロックで、1 つのステージ済みの差分を `diff --git` のヘッダーで分割して帰属させる。テスト: 別のライターがドレインのロックを保持している間、古いインデックスのロックは触れられない。グループのクリーンな更新。並行するライター。拒否するコミットのフック。ステージの後のコミットの失敗。1 回のスキャナーのパスで 1,000 件のキュー済みのパス。
+- ENG-8(A3 の行のマッピングと履歴の範囲。CEO-7 を修正)。収集と分割では、ハンクヘッダーからコミット、パス、ソース行のマッピングを保持し、各 MEDIUM の行が実際のファイルの行を指すようにする。履歴のコミットにのみ指摘がある場合は、コミットを名指しする。`url` と `unknown` の push のターゲットでは、`repoPublicEmails` はリモートの sha の履歴(ローカルにある場合)と push されたコミットのみを使い、すべてのリモートは使わない。作者と committer のメールは raw で読み、mailmap を適用する(`%ae %aE %ce %cE`)。push されたコミットに現れるサードパーティのメールを抑制しないことは、受け入れた事項として文書化する(push とともに公開されるため)。テスト: 分離されたハンク、チャンクの境界、pushed tip より前に削除された内容、別のリモートの履歴にだけ現れるメールは依然として指摘される。
+- ENG-9(`gstack-post` の確認とargv の安全性。DX-6 のルール ID による確認を置き換える)。終了コード 2 のとき、ヘルパーは確認トークンを表示する。これは、正確なバイト列、宛先、操作、指摘のダイジェストである。`--confirm <token>` は、それらのバイト列だけを投稿する。ヘルパーはそれを 1 回読み、スキャンしたとおりに送る。値は `--flag=<value>` の形式、または `--` の後に `gh`/`glab` に渡す。`<target>` は数字か、同じホストの URL でなければならない。テスト: 1 件のフラグの立ったメールを別のメールに置き換える(同じルール ID と行)と、新しいトークンが必要。タイトルが `--repo evil/x` の場合、テキストとして投稿される。
+- ENG-10(分類器の精度。DX-11 を修正)。重大度の語は、ラベルの位置(`Severity: High`、先頭の `High:`、`**High**`、`High —`、またはテーブルのセル)でのみ数える。"high-level" のような単語の中では数えない。保存された実際の Codex の出力のパネルは、現在の判定を維持する。この /autoplan の実行の 3 つの出力をフィクスチャとして追加する(CEO、DX: タグのない重大度の語。eng: `[P1]` のタグ)。
+- ENG-11(カナリアのサプライチェーンと遅延)。`autoplan-schema-canary` は、`npm install --ignore-scripts` で最新の Claude Code を入れ、使用する前に `npm audit signatures` を実行し、予算に上限のあるキーを使い、書き込みトークンのないジョブで実行する。通知の遅延は、リリースから高々 1 日(毎日の実行、定期レポートで赤)と明記する。「1 週間以内」を置き換える。
+- ENG-12(probe の名前とタイムアウトの監視)。DX-7 のサブコマンド名が優先する。CEO-9 の契約はそれに対応づける(`check-auth`、`show-sandbox`、`run-with-timeout`)。`run-with-timeout` は、既存の gtimeout、timeout、ウォッチドッグの順に従ってコマンドを監視する(exec ではない)。タイムアウト時は 124 を返す。テスト: coreutils のブランチと bash のウォッチドッグのブランチの両方で、stdin の受け渡しと終了コード 124。
+- ENG-13(注意行のパス)。注意行には、成果物やステータスメッセージのパスを含めない。DX-2 のインストールルートからの絶対パスのヘルパーは許可する。ステータステキストなしのテストはこれを許可する。
+- ENG-14(未知の Agent のキー)。許可リストにないキーを持つ reviewer の派遣は、独自の理由コードと手動実行のフォールバックで拒否する。CEO-12 のログは、未知のキーの名前を記録するが、値は決して記録しない。
+- ENG-15(ガードのログへの書き込み。DX-14 を修正)。行は追記のみで、`schema` フィールドを持つ。最後の 1,000 行への切り詰めは、一時ファイルとリネームで行い、ファイルが 256 KiB を超えたときにのみ行う。切り詰めの競合に負けた場合は許容する。doctor の理由コードの行は、スキーマで絞り込む。
+- ENG-16(B1 の上限)。cwd より下のチェックポイントのスキャンは、最新の 200 件のチェックポイントのみを読む。`$HOME` からは、cwd 配下のプロジェクトのみを新しい順に列挙する。一般的なタイトル(`wip`、`checkpoint`、`save`、`notes`、`todo`)は、タイトルだけでは一致させない。チケットのトークンが必要。
+- ENG-17(ガードのモジュールの配置)。理由コード、拒否の文言、アンカーは、フックの隣にある 1 つのモジュールに置く(DX-1 のアンカーのテストの単一の情報源)。ペイロードの評価は独自の関数とする。`autoplan/bin/phase-publication-hook.ts` は、所有者モジュールの 800 行の上限内に収める。
+- ENG-18(ライブ実行の範囲。テイスト。CEO-24 を修正)。自動化された有料の PTY ケースは、最小限の使い捨ての計画を使い、約 10 分の評価の予算内で、Phase 1 entry と 1 回のフェーズ遷移をカバーする(ルールの種類、1 回の試行)。CEO-24 の、すべての遷移を対象とする実行は、2.1.292 上で記録された 1 回の手動の PTY セッションとし、PR に添付する。
+- ENG-19(pin 更新による赤。テイスト)。2.1.292 の pin での PTY やゲートの赤で、/autoplan と無関係なものは、この wave で修復する(修復は 1 ラウンドずつ。再試行や閾値の引き下げはしない)。そのラウンドの後も赤いケースは、#3059 の計測ループを通じて名前の付いた赤として報告し、それがマージを保留するかどうかは、ship の時点で Garry が判断する。
+- ENG-20(B2 の中断の経路)。/ship が早期の PR を開いた後で停止した場合、ドラフトを開いたままにし、/ship が停止した理由を示すコメントを 1 件付ける。閉じたり、force-push したりはしない。UC2 で B2 をデフォルトでオンに保つ場合、公開リポジトリへの早期の push は、一度だけ同意を求める。
+- ENG-21(イメージのタグの紐付け)。pin の更新は `test/ci-image-tag-binding.test.ts` を実行し、それが要求するワークフローのイメージの参照を更新する。
 <!-- /autoplan-accepted:eng -->
 
-### Phase 3 close and Phase 4 pre-gate verification
+### Phase 3 のクローズと Phase 4 の事前ゲート検証
 
-Eng close packet `/home/user/.gstack/projects/garrytan-gstack/autoplan-eng-tHG7jp/close-packet.md` (220 lines): lines 163-220 read directly, lines 1-162 byte-identical to the verified DX packet apart from the binding line; report published. Eng tasks JSONL: `/home/user/.gstack/projects/garrytan-gstack/tasks-eng-review-20261007-162630.jsonl` (14 tasks). Test plan: `/home/user/.gstack/projects/garrytan-gstack/user-garrytan-followup-wave-oct7-eng-review-test-plan-20261007-161238.md`.
+Eng の締めパケット `/home/user/.gstack/projects/garrytan-gstack/autoplan-eng-tHG7jp/close-packet.md`(220 行): 163-220 行は直接読み、1-162 行は検証済みの DX パケットとバイト単位で一致(拘束する行を除く)。レポートは公開済み。Eng タスクの JSONL: `/home/user/.gstack/projects/garrytan-gstack/tasks-eng-review-20261007-162630.jsonl`(14 件のタスク)。テスト計画: `/home/user/.gstack/projects/garrytan-gstack/user-garrytan-followup-wave-oct7-eng-review-test-plan-20261007-161238.md`。
 
-Pre-gate verification (all present): CEO premise challenges, Sections 1-10 with Section 11 skipped, Error & Rescue and Failure Modes registries, NOT in scope, What already exists, dream state delta, Completion Summary, consensus table; DX scores for 8 dimensions, journey map, empathy narrative, TTHW assessment and target, DX Implementation Checklist, consensus table; Eng scope challenge, architecture diagram, codepath-to-test diagram, test plan on disk, NOT in scope, What already exists, failure modes with critical gaps, Completion Summary, consensus table. Voices: native and Codex completed in CEO, DX and Eng; Design skipped. Aggregated tasks: 43 (17 CEO, 12 DX, 14 Eng). Not done by instruction: the final gate question and review logs. Not done by host restriction: TODOS.md writes (collected as pending writes) and the plan-ceo/devex/eng terminal `## GSTACK REVIEW REPORT` blocks (skip-listed under /autoplan).
+Pre-gate の検証(すべて存在): CEO の前提への異議、セクション 1-10(セクション 11 はスキップ)、エラー処理と失敗モードのレジストリ、対象外、既存の資産、dream state の差分、完了の要約、コンセンサス表。DX の 8 つの観点のスコア、ジャーニーマップ、共感のナラティブ、TTHW の評価と目標、DX の実装チェックリスト、コンセンサス表。Eng のスコープ検討、アーキテクチャ図、コードパスとテストの対応図、ディスク上のテスト計画、対象外、既存の資産、重大なギャップを含む失敗モード、完了の要約、コンセンサス表。意見: CEO、DX、Eng のいずれでもネイティブと Codex が完了。Design はスキップ。タスクの合計: 43 件(CEO 17、DX 12、Eng 14)。指示により行わなかったこと: 最終ゲートの質問とレビューのログ。ホストの制限により行わなかったこと: TODOS.md への書き込み(保留中の書き込みとして収集)と、plan-ceo/devex/eng の端末の `## GSTACK REVIEW REPORT` ブロック(/autoplan では除外対象)。
 
-Cross-phase themes: (1) the guard's dependence on Claude Code's private journal and flush timing (CEO F2/F5 and Codex #2; DX advisory-mode note; Eng E1/E7 and Codex batch/observer findings); (2) B2's early push should be opt-in (CEO both voices, DX both voices, Eng S3); (3) live proof of P1 rather than fixtures (CEO-24/Codex #1, DX-16, Eng ENG-6/ENG-18); (4) A4 sync correctness beyond visibility (CEO Codex #3 and F7, DX status table, Eng ENG-7); (5) the outside-review classifier printed `VERDICT: clean` for severity-word reviews twice (CEO, DX), fixed by CEO-28/DX-11/ENG-10.
+横断テーマ: (1) ガードが Claude Code の非公開のジャーナルとフラッシュのタイミングに依存している(CEO F2/F5 と Codex #2。DX のアドバイザリーモードの注記。Eng E1/E7 と Codex のバッチ/観測者の指摘)。(2) B2 の早期の push はオプトインにすべき(CEO の両方の意見、DX の両方の意見、Eng S3)。(3) フィクスチャではなく P1 のライブ証明(CEO-24/Codex #1、DX-16、Eng ENG-6/ENG-18)。(4) A4 の同期の正しさは、可視性を超えて必要(CEO の Codex #3 と F7、DX のステータス表、Eng ENG-7)。(5) 外部視点のレビュー分類器は、重大度の語を含むレビューに対して `VERDICT: clean` を 2 回出力した(CEO、DX)。CEO-28/DX-11/ENG-10 で修正。
 
 <!-- AUTONOMOUS DECISION LOG -->
-## Decision Audit Trail
+## 決定の監査証跡
 
-| # | Phase | Decision | Classification | Principle | Rationale | Rejected |
+| # | フェーズ | 決定 | 分類 | 原則 | 根拠 | 却下した案 |
 |---|-------|----------|----------------|-----------|-----------|----------|
-| 1 | Preamble | Do not apply gstack upgrade 1.91.29.0 → 1.91.33.0 mid-run | Mechanical | P6 | Keeps review skills fixed; parent provisioned this install | Upgrade now |
-| 2 | Preamble | Leave telemetry and cross_project_learnings unchanged | Mechanical | P5 | Never change user settings on their behalf | Enable |
-| 3 | CEO 0D | Approach A: targeted fixes plus CEO-1..3 corrections | Mechanical | P1, P5 | Keeps the publication guarantee; B removes enforcement on lagging sessions; C moves the dependency | B deny-only-on-proof, C new evidence source |
-| 4 | CEO 0D | A2 streams a bounded read instead of raising the cap | Mechanical | P1, P4 | Oct 6 consensus; peak RSS measured at 5.7x journal size | Raise cap with full read |
-| 5 | CEO 0E | Mode SELECTIVE EXPANSION | Mechanical | override | /autoplan override; one-PR rule | SCOPE REDUCTION (file count) |
-| 6 | CEO 0G | Keep every Tier 1 and Tier 2 item | Mechanical | P1 | Never reduce a complete plan | Defer Tier 2 items |
-| 7 | CEO 0A | CEO-1 payload path for Read and Agent plus publication flush rule | Mechanical | P1 | Cause B as written loops at phase transitions on lagging journals | Agent-only payload path |
-| 8 | CEO 0A | CEO-2 append-tolerant prefix read | Mechanical | P1 | `changing` would deny long sessions, breaking P1 | Keep size-equality stability check |
-| 9 | CEO 0A | CEO-3 denial inventory, P1 wording kept | Taste | P1, P6 | One real transient remains; wording question surfaced at gate | Rewrite P1 now |
-| 10 | CEO 0A | CEO-4 full gate tier on the 2.1.292 pin | Mechanical | P1 | Dockerfile.ci rule for pin bumps | Autoplan cases only |
-| 11 | CEO 0A | CEO-5 record `--bg` unverified if attach cannot be driven | Mechanical | P1 | Never claim unverified coverage | Claim P1 for `--bg` from fixtures |
-| 12 | CEO 0G | X2/CEO-6 macOS measurement via CI runner | Mechanical | P1, P2 | Restores TODO acceptance | Linux only |
-| 13 | CEO 0A | CEO-7 remote history from tracking refs, bounded | Mechanical | P1 | Zero sha on every new-branch push | `<remote sha>` only |
-| 14 | CEO 0A | CEO-8 `@greptileai` trigger on drafts | Mechanical | P1 | Greptile skips drafts by default | Draft and wait |
-| 15 | CEO 0A | CEO-9 keep zsh self-locate during compat release | Mechanical | P1 | Removing it re-breaks zsh sourcing | Remove now |
-| 16 | CEO 0A | CEO-10 keep rule 1 tab consent | Mechanical | P1 | Plan text dropped consent the issue itself keeps | Attach without asking |
-| 17 | CEO 0G | X1/CEO-11 #1743 credit | Mechanical | P2 | Same entry, same slip | Leave |
-| 18 | CEO 0G | X3/CEO-12 denial log line | Mechanical | P2 | Same file and log | Skip |
-| 19 | CEO 0G | X4/CEO-13 canary on latest Claude Code | Mechanical | P1, P2 | Root cause of #3062 was CI never seeing the version | Pin only |
-| 20 | CEO 0G | X5 line number in MEDIUM summary (inside CEO-7) | Mechanical | P2 | Same line | Rule and file only |
-| 21 | CEO 0G | X6/CEO-14 `--status` lists held paths | Mechanical | P2 | A4 points users there | Status JSON only |
-| 22 | CEO 0G | X7 doctor guard check deferred | Mechanical | P3 | Design unclear | Add |
-| 23 | CEO 0G | X8 scanner unification deferred | Mechanical | P3 | L effort, cross-language | Add |
-| 24 | CEO 0G | X9 parsed-prefix cache skipped | Mechanical | P5 | Not the bottleneck; adds trust input | Add |
-| 25 | CEO 0G | X10 bg preflight skipped | Mechanical | P4 | Superseded by CEO-1 | Add |
-| 26 | CEO 0H spec 1 | CEO-1 Agent key allowlist in manifest; `description` control on journal path only | Mechanical | P1, P5 | Payload path has no second copy; `model` must stay denied | Claim description control on both paths |
-| 27 | CEO 0H spec 1 | CEO-1 payload path on first ready read, no 2 s wait | Taste | P3, P5 | Lagging sessions never flush within the window (#100051); saves ~2 s per guarded call | Wait out the 2 s poll (plan text) |
-| 28 | CEO 0H spec 1 | CEO-1 same-phase siblings allowed; flush via `scope` call | Mechanical | P5 | Explicit carrier for every transition incl. Phase 4 | Unnamed unguarded call |
-| 29 | CEO 0H spec 1 | CEO-2 hook-only two-pass reader; 32 MiB per-record bound; 1 s / 256 MiB acceptance | Mechanical | P1, P5 | Leaves 35 batch callers untouched; no journal readable today becomes unreadable | Change shared reader; unbounded record size |
-| 30 | CEO 0H spec 1 | CEO-3 four disposition classes with reason codes | Mechanical | P5 | Inventory had two transients and corrective-action denials | One transient class |
-| 31 | CEO 0H spec 1 | CEO-8 Greptile detection, ready transition, B4 fallback | Mechanical | P1 | Draft lifecycle and config precedence were unspecified | Draft-only flow |
-| 32 | CEO 0H spec 1 | CEO-9 subcommand for every probe function | Mechanical | P1 | Templates call ten functions across blocks | Four subcommands |
-| 33 | CEO 0H spec 1 | CEO-10 show only tabs on the user-named origin | Mechanical | P1 | Reconciles offer-to-attach with rule 1 privacy | Show full tab list |
-| 34 | CEO 0H spec 1 | CEO-13 redesigned as payload-vs-journal schema canary on latest | Taste | P1, P2 | Shape-only canary would not have caught Cause A; scope grew to M | Relabel as shape-only drift |
-| 35 | CEO 0H spec 1 | CEO-15 one paid PTY case past 100 MiB | Mechanical | P1 | P1 promises an end-to-end outcome | Reader-only acceptance |
-| 36 | CEO 0H spec 1 | CEO-16..22 (TODOS edits, A4 safety, regen checks, gstack-post scan, shared note, doctor probe, B1 definitions) | Mechanical | P1, P2 | Spec gaps in items already in scope | Leave implicit |
-| 37 | CEO 0H spec 1 | B5 kept as the plan states | Mechanical | P6 | Plan text is the user's direction, not a CEO expansion | Trim to TODO rows |
-| 38 | CEO 0H spec 2 | P1 denial sentence reworded to match CEO-3 | Taste | P5, P6 | Literal text contradicted real transients; user can restore the original at the gate | Keep literal P1 |
-| 39 | CEO 0H spec 2 | CEO-1 allowlist as hook constant; `messageId` publication rule on both paths; `: autoplan-published` no-op carrier | Mechanical | P5 | Removes manifest compat issue and flush-timing dependence; carrier has no output to act on | Manifest field; payload-path-only rule; `scope` carrier |
-| 40 | CEO 0H spec 2 | CEO-2 invocation-window anchor, metadata index, shared extraction module, miss holds commit | Mechanical | P1, P4 | Skill-tool starts keep working; memory bounded; one parser | Slash-turn anchor; duplicate parser |
-| 41 | CEO 0H spec 2 | CEO-8 Greptile completion signal and early PR content | Mechanical | P1 | "No comments yet" vs "done" was indistinguishable | Triage-timeout bound |
-| 42 | CEO 0H spec 2 | CEO-9 named subcommands with `KEY: value` contract | Mechanical | P5 | Callers need values without shell state | Unspecified |
-| 43 | CEO 0H spec 2 | CEO-17 `held` status lifecycle | Mechanical | P1 | P2 "says so at every skill start" was unmet while other files push | Reuse `blocked` |
-| 44 | CEO 0H spec 2 | CEO-7 50,000 commits / 5 s bound on every history read | Mechanical | P5 | Large repos | Unbounded main path |
-| 45 | CEO 0H spec 2 | CEO-5 default settings; CEO-22 worktree criterion and conditional pointer | Mechanical | P1, P5 | "Default settings" unproven; B1 text keeps worktree rule | Fork override; drop pointer |
-| 46 | CEO 0H spec 3 | Post-loop fixes for all 19 review-3 issues (CEO-1/2/6/9/13/15..20/22, CEO-23, 3 baseline edits) | Mechanical | P1, P5 | Loop cap reached; fixes recorded, not reviewer-confirmed | Stop with issues open |
-| 47 | CEO 0H spec 3 | CEO-19 MEDIUM returns to caller's question | Mechanical | P1 | P2 "without getting weaker" | Post MEDIUM silently |
-| 48 | CEO 0H spec 3 | CEO-6 one-off dispatch instead of a per-PR macOS step | Mechanical | P3 | Avoids a permanent required-check cost for a one-time record | Per-PR step |
-| 49 | CEO 0H | Approve CEO scope documents and continue to 0I (document approval, option A) | Mechanical | P6 | Both inputs reflect the exact decisions; reviewer concerns recorded | Revise / pause |
-| 50 | CEO voices | UC1 fail-soft on environment-unverifiable guard states | User Challenge | — | Native F2 and Codex #2 agree; never auto-decided | — |
-| 51 | CEO voices | UC2 B2 behind opt-in until measured | User Challenge | — | Native F8 and Codex #5 agree; never auto-decided | — |
-| 52 | CEO voices | One PR with admission cutoff (CEO-26) over a release split | Taste | P6 | Garry's one-PR rule; Codex agrees; native recommends split | Three releases |
-| 53 | CEO voices | CEO-31 reuse contributor tests, keep rewrite policy | Taste | P4 | Codex #7 valid; user policy kept | Drop rewrite rule |
-| 54 | CEO voices | CEO-24 PTY-first gate and live transitions | Mechanical | P1 | Both voices: promise needs live proof | Fixture-only |
-| 55 | CEO voices | CEO-25 tail-read spike | Mechanical | P1, P3 | Alternative not analyzed | Commit two-pass now |
-| 56 | CEO voices | CEO-13 daily, key-set equality, injected-strip fixture, merge-day run | Mechanical | P1 | F5/F6/F11, Codex #2 | Weekly allowlist-only |
-| 57 | CEO voices | CEO-27 coupled artifact groups and drain liveness | Mechanical | P1 | Codex #3, native F7 | Per-file holds only |
-| 58 | CEO voices | CEO-12 log allows too | Mechanical | P2 | Denominator for "stop crying wolf" | Denials only |
-| 59 | CEO voices | CEO-28 classifier counts severity words | Mechanical | P2 | Discovered defect: 7-finding review printed clean | Leave |
-| 60 | CEO voices | CEO-29 doctor triage rows; CEO-30 upstream request | Mechanical | P2 | Faster triage; path to supported surface | Skip |
-| 61 | CEO voices | Payload premise corrected (baseline edit) | Mechanical | P5 | Cause A contradicts "same input" | Keep wording |
-| 62 | CEO S1-10 | Sections 1-10 findings resolved by existing CEO rows; no new rows | Mechanical | P6 | Each finding maps to an accepted obligation or UC | — |
-| 63 | DX 0A-0E | Product type skill suite + CLI; persona daily gstack user; TTHW target Competitive; magical moment via existing messages; mode POLISH | Mechanical | P5, P6 | Overrides and README evidence | Champion target; new surfaces |
-| 64 | DX voices | DX-1..DX-16 accepted (docs deliverable, paths, upgrade, status table, skip reversal, gstack-post contract, probe naming/--model, doctor states, partial history, B2 status lines, classifier contract, doc touchpoints, no-op prompt check, log bound, Windows, TTHW) | Mechanical | P1, P5 | Both voices confirmed all six dimensions | Leave as written |
-| 65 | DX voices | DX-17 pre-push per-email allowlist | Taste | P1, P2 | Escape hatch short of --no-verify; Claude only | No allowlist |
-| 66 | DX voices | DX-18 B3 window >= 1 release and 14 days | Taste | P1 | Codex high; plan said one release | One release |
-| 67 | DX voices | B2 opt-in reinforced (UC2) | User Challenge | — | Both DX voices agree with CEO voices | — |
-| 68 | DX voices | Doctor --json and novice install timing deferred; bound env overrides rejected | Mechanical | P3, P5 | DX POLISH adds no surfaces | Add now |
-| 69 | Eng Step 0 | Scope accepted as-is; structure = original arrangement with reason/record modules split out | Mechanical | P2, P5 | Override never reduces; module split keeps owners under 800 lines | Smaller arrangement with cuts |
-| 70 | Eng voices | ENG-1..ENG-17, ENG-20, ENG-21 accepted | Mechanical | P1, P5 | Both voices confirmed five dimensions; each item cites code | Leave as written |
-| 71 | Eng voices | ENG-5 index cache only if rescan misses 1 s budget | Taste | P3, P5 | Claude recommends cache; CEO skipped X9 over trust input; spike decides | Adopt cache now / never |
-| 72 | Eng voices | ENG-18 automated paid case = Phase 1 entry + one transition; every-transition run manual | Taste | P3, P6 | ~10-minute eval preference vs CEO-24 every-transition | Automated every-transition case |
-| 73 | Eng voices | ENG-19 repair unrelated pin-bump reds in wave (one round), named reds to Garry | Taste | P6 | Garry's fix-in-same-PR rule; Claude suggested quarantine | Quarantine under CASE_QUARANTINE |
-| 74 | Eng voices | ENG-9 replaces DX-6 rule-id confirm with byte digest token | Mechanical | P1 | Codex P1: rule ids cannot bind bytes | Rule-id confirm |
-| 75 | Eng voices | ENG-7 replaces CEO-17 lock clause; narrows CEO-27 to an explicit group map | Mechanical | P1, P5 | Age cannot prove abandonment; coupling map did not exist | Age-only rule; allowlist-derived groups |
-| 76 | Eng voices | ENG-8 amends CEO-7 for url/unknown targets; line mapping; mailmap | Mechanical | P1 | Private-remote emails must not count as public | All remotes |
-| 77 | Eng TODOs | Collected 6 TODO items as pending writes (no repo edits allowed in this run) | Mechanical | P6 | Parent restricted edits to the plan | Write TODOS.md now |
-| 78 | Final gate | UC1 accepted: Claude-Code-caused unverifiable states allow with warning; integrity failures stay denied | User Challenge (user) | — | Garry chose A | Keep fail-closed |
-| 79 | Final gate | UC2 rejected: B2 on automatically for Greptile repos, per-user off switch, public-repo consent once | User Challenge (user) | — | Garry chose B | Opt-in until measured |
+| 1 | Preamble | gstack のアップグレード 1.91.29.0 → 1.91.33.0 を実行中には適用しない | Mechanical | P6 | レビュー用のスキルを固定しておく。親がこのインストールを用意した | 今すぐアップグレード |
+| 2 | Preamble | telemetry と cross_project_learnings は変更しない | Mechanical | P5 | ユーザーの設定を本人の代わりに変更しない | 有効化 |
+| 3 | CEO 0D | アプローチ A: 対象を絞った修正と CEO-1..3 の修正 | Mechanical | P1, P5 | 公開の保証を保つ。B は遅延するセッションで強制を外してしまう。C は依存を移すだけ | B 証明がある場合のみ拒否、C 新しい証拠源 |
+| 4 | CEO 0D | A2 は上限を引き上げず、上限付きの読み取りをストリーミングする | Mechanical | P1, P4 | Oct 6 のコンセンサス。ピーク時の RSS はジャーナルサイズの 5.7 倍と測定された | 全体の読み取りで上限を引き上げる |
+| 5 | CEO 0E | モードは SELECTIVE EXPANSION | Mechanical | override | /autoplan の上書き。1 PR のルール | SCOPE REDUCTION(ファイル数) |
+| 6 | CEO 0G | Tier 1 と Tier 2 のすべての項目を維持 | Mechanical | P1 | 完全な計画は減らさない | Tier 2 の項目を延期 |
+| 7 | CEO 0A | CEO-1 Read と Agent のペイロード経路と、公開のフラッシュのルール | Mechanical | P1 | 原因 B をそのまま書くと、遅延するジャーナルでフェーズ遷移のたびにループする | Agent のみのペイロード経路 |
+| 8 | CEO 0A | CEO-2 追記に耐える接頭辞の読み取り | Mechanical | P1 | `changing` は長いセッションを拒否し、P1 を壊す | サイズ一致の安定性チェックを維持 |
+| 9 | CEO 0A | CEO-3 拒否の棚卸し。P1 の文言は維持 | Taste | P1, P6 | 本物の一時的な失敗が 1 件残る。文言の問題はゲートで提示 | P1 を今書き直す |
+| 10 | CEO 0A | CEO-4 2.1.292 の pin でフルゲートの階層 | Mechanical | P1 | pin 更新に関する Dockerfile.ci のルール | autoplan のケースのみ |
+| 11 | CEO 0A | CEO-5 attach を駆動できない場合、`--bg` を未検証として記録 | Mechanical | P1 | 未検証のカバレッジを主張しない | フィクスチャから `--bg` の P1 を主張する |
+| 12 | CEO 0G | X2/CEO-6 CI ランナーによる macOS の計測 | Mechanical | P1, P2 | TODO の受け入れ条件を回復する | Linux のみ |
+| 13 | CEO 0A | CEO-7 追跡用の ref からリモートの履歴を取得し、上限を付ける | Mechanical | P1 | 新しいブランチの push で sha がゼロになる | `<remote sha>` のみ |
+| 14 | CEO 0A | CEO-8 ドラフトに対する `@greptileai` のトリガー | Mechanical | P1 | Greptile はデフォルトでドラフトをスキップする | ドラフトのまま待機 |
+| 15 | CEO 0A | CEO-9 互換リリースの間は zsh の自己位置特定を残す | Mechanical | P1 | 削除すると zsh での sourcing が壊れる | 今すぐ削除 |
+| 16 | CEO 0A | CEO-10 ルール 1 のタブの同意を維持 | Mechanical | P1 | 計画の本文は、issue 自体が残している同意を落としていた | 確認せずに添付 |
+| 17 | CEO 0G | X1/CEO-11 #1743 のクレジット | Mechanical | P2 | 同じ項目で、同じ見落とし | そのまま |
+| 18 | CEO 0G | X3/CEO-12 拒否のログの行 | Mechanical | P2 | 同じファイルとログ | スキップ |
+| 19 | CEO 0G | X4/CEO-13 最新の Claude Code でのカナリア | Mechanical | P1, P2 | #3062 の根本原因は、CI がそのバージョンを一度も見ていなかったこと | pin のみ |
+| 20 | CEO 0G | X5 MEDIUM の要約の行番号(CEO-7 に含む) | Mechanical | P2 | 同じ行 | ルールとファイルのみ |
+| 21 | CEO 0G | X6/CEO-14 `--status` に保留中のパスを表示 | Mechanical | P2 | A4 がユーザーをそこへ案内する | ステータスの JSON のみ |
+| 22 | CEO 0G | X7 doctor のガードチェックは延期 | Mechanical | P3 | 設計が不明確 | 追加 |
+| 23 | CEO 0G | X8 スキャナーの統合は延期 | Mechanical | P3 | 作業量が大きく、言語をまたぐ | 追加 |
+| 24 | CEO 0G | X9 解析済みの接頭辞のキャッシュは省略 | Mechanical | P5 | ボトルネックではない。信頼の入力が増える | 追加 |
+| 25 | CEO 0G | X10 bg の事前確認は省略 | Mechanical | P4 | CEO-1 で置き換えられた | 追加 |
+| 26 | CEO 0H spec 1 | CEO-1 マニフェストの Agent キーの許可リスト。`description` の制御はジャーナルの経路のみ | Mechanical | P1, P5 | ペイロードの経路に 2 つ目の写しがない。`model` は拒否を維持する必要がある | 両方の経路で description の制御を主張する |
+| 27 | CEO 0H spec 1 | CEO-1 ペイロードの経路は最初に読めた時点で実行し、2 秒の待機はしない | Taste | P3, P5 | 遅延するセッションは、そのウィンドウ内では決してフラッシュされない(#100051)。ガードの呼び出しごとに約 2 秒を節約する | 計画の本文どおり 2 秒のポーリングを待つ |
+| 28 | CEO 0H spec 1 | CEO-1 同じフェーズの兄弟は許可。`scope` の呼び出しでフラッシュする | Mechanical | P5 | Phase 4 を含むすべての遷移に明示的な運び手がいる | 名前のない保護されない呼び出し |
+| 29 | CEO 0H spec 1 | CEO-2 フックのみの 2 パスのリーダー。レコードごとに 32 MiB の上限。受け入れは 1 秒 / 256 MiB | Mechanical | P1, P5 | 35 件のバッチの呼び出し元を変更しない。今日読めるジャーナルが読めなくならない | 共有のリーダーを変更する。レコードのサイズに上限がない |
+| 30 | CEO 0H spec 1 | CEO-3 理由コード付きの 4 つの処理方針のクラス | Mechanical | P5 | 棚卸しには一時的な失敗が 2 件と、是正措置の拒否があった | 一時的な失敗のクラスを 1 つにする |
+| 31 | CEO 0H spec 1 | CEO-8 Greptile の検出、ready への移行、B4 のフォールバック | Mechanical | P1 | ドラフトのライフサイクルと設定の優先順位が未定義だった | ドラフトのみの流れ |
+| 32 | CEO 0H spec 1 | CEO-9 probe の関数ごとにサブコマンドを用意 | Mechanical | P1 | テンプレートは複数のブロックで 10 個の関数を呼ぶ | 4 つのサブコマンド |
+| 33 | CEO 0H spec 1 | CEO-10 ユーザーが指定した発信元のタブのみ表示 | Mechanical | P1 | 「接続を提案」とルール 1 のプライバシーを両立させる | タブの全リストを表示 |
+| 34 | CEO 0H spec 1 | CEO-13 最新版に対するペイロードとジャーナルのスキーマのカナリアとして再設計 | Taste | P1, P2 | 形だけのカナリアでは原因 A を捕まえられなかった。範囲が M に広がった | 形だけのドリフトとして再ラベル |
+| 35 | CEO 0H spec 1 | CEO-15 100 MiB を超える 1 件の有料の PTY ケース | Mechanical | P1 | P1 はエンドツーエンドの結果を約束している | リーダーだけの受け入れ |
+| 36 | CEO 0H spec 1 | CEO-16..22(TODOS の編集、A4 の安全性、再生成のチェック、gstack-post のスキャン、共有の注記、doctor の probe、B1 の定義) | Mechanical | P1, P2 | 範囲に既に入っている項目の仕様の穴 | 暗黙のまま残す |
+| 37 | CEO 0H spec 1 | B5 は計画どおり維持 | Mechanical | P6 | 計画の本文はユーザーの指示であり、CEO による拡大ではない | TODO の行に縮小 |
+| 38 | CEO 0H spec 2 | P1 の拒否の文を CEO-3 に合わせて言い換え | Taste | P5, P6 | 文字どおりの文言は、実際の一時的な失敗と矛盾していた。元の文言はゲートで戻せる | 文字どおりの P1 を維持 |
+| 39 | CEO 0H spec 2 | CEO-1 許可リストをフックの定数とする。両方の経路で `messageId` の公開ルール。`: autoplan-published` の no-op の運び手 | Mechanical | P5 | マニフェストの互換性の問題を除き、フラッシュのタイミングへの依存をなくす。運び手には処理すべき出力がない | マニフェストのフィールド。ペイロードの経路のみのルール。`scope` の運び手 |
+| 40 | CEO 0H spec 2 | CEO-2 呼び出しウィンドウのアンカー、メタデータのインデックス、共有の抽出モジュール、欠落時はコミットを保留 | Mechanical | P1, P4 | Skill ツールの開始は引き続き動く。メモリを有限にする。パーサーを 1 つにする | スラッシュのターンのアンカー。パーサーの重複 |
+| 41 | CEO 0H spec 2 | CEO-8 Greptile の完了シグナルと早期 PR の内容 | Mechanical | P1 | 「まだコメントなし」と「完了」が区別できなかった | トリアージのタイムアウトの上限 |
+| 42 | CEO 0H spec 2 | CEO-9 `KEY: value` の契約による名前付きのサブコマンド | Mechanical | P5 | 呼び出し側は、シェルの状態なしで値を必要とする | 未指定 |
+| 43 | CEO 0H spec 2 | CEO-17 `held` のステータスのライフサイクル | Mechanical | P1 | 他のファイルが push されている間、P2「毎回のスキル開始で伝える」が満たされていなかった | `blocked` を再利用 |
+| 44 | CEO 0H spec 2 | CEO-7 すべての履歴の読み取りに 50,000 コミット / 5 秒の上限 | Mechanical | P5 | 大規模なリポジトリ | 上限のない主経路 |
+| 45 | CEO 0H spec 2 | CEO-5 デフォルト設定。CEO-22 worktree の基準と条件付きのポインタ | Mechanical | P1, P5 | 「デフォルト設定」は証明されていなかった。B1 の本文は worktree のルールを残す | fork の上書き。ポインタを削除 |
+| 46 | CEO 0H spec 3 | 3 回目のレビューの 19 件すべてに、ループ後の修正(CEO-1/2/6/9/13/15..20/22、CEO-23、基準の編集 3 件) | Mechanical | P1, P5 | ループの上限に達した。修正は記録し、レビュアーの確認はない | 未解決のまま停止 |
+| 47 | CEO 0H spec 3 | CEO-19 MEDIUM は呼び出し側の質問に戻す | Mechanical | P1 | P2「弱めずに」 | MEDIUM を黙って投稿 |
+| 48 | CEO 0H spec 3 | CEO-6 PR ごとの macOS のステップではなく、1 回限りの派遣 | Mechanical | P3 | 一度きりの記録のために、必須チェックの恒久的なコストを避ける | PR ごとのステップ |
+| 49 | CEO 0H | CEO のスコープ文書を承認し、0I に進む(文書の承認、オプション A) | Mechanical | P6 | 両方の入力が正確な決定を反映している。レビュアーの懸念は記録済み | 修正する / 一時停止 |
+| 50 | CEO voices | UC1 環境では検証できないガードの状態をフェイルソフトにする | User Challenge | — | Native F2 と Codex #2 が一致。自動では決めない | — |
+| 51 | CEO voices | UC2 B2 は測定されるまでオプトインの背後に置く | User Challenge | — | Native F8 と Codex #5 が一致。自動では決めない | — |
+| 52 | CEO voices | リリースを分割するより、入場の締め切り(CEO-26)付きの 1 PR | Taste | P6 | Garry の 1 PR のルール。Codex も同意。Native は分割を推奨 | 3 つのリリース |
+| 53 | CEO voices | CEO-31 コントリビューターのテストを再利用し、書き直しのポリシーは維持 | Taste | P4 | Codex #7 は妥当。ユーザーのポリシーは維持 | 書き直しのルールを削除 |
+| 54 | CEO voices | CEO-24 PTY を先頭にしたゲートとライブの遷移 | Mechanical | P1 | 両方の意見: 約束にはライブでの証明が必要 | フィクスチャのみ |
+| 55 | CEO voices | CEO-25 末尾読み取りのスパイク | Mechanical | P1, P3 | 代替案が分析されていない | 2 パスを今コミット |
+| 56 | CEO voices | CEO-13 毎日実行、キーセットの一致、注入した削除のフィクスチャ、マージ当日の実行 | Mechanical | P1 | F5/F6/F11、Codex #2 | 毎週の許可リストのみ |
+| 57 | CEO voices | CEO-27 結合された成果物のグループと、ドレインの生存性 | Mechanical | P1 | Codex #3、Native F7 | ファイルごとの保留のみ |
+| 58 | CEO voices | CEO-12 ログは許可も対象にする | Mechanical | P2 | 「狼少年になる」ことを測るための分母 | 拒否のみ |
+| 59 | CEO voices | CEO-28 分類器は重大度の語を数える | Mechanical | P2 | 発見された欠陥: 7 件の指摘があるレビューがクリーンと表示された | 放置 |
+| 60 | CEO voices | CEO-29 doctor のトリアージの行。CEO-30 上流への依頼 | Mechanical | P2 | トリアージを速くする。サポートされた接点への道筋 | スキップ |
+| 61 | CEO voices | ペイロードの前提を修正(基準の編集) | Mechanical | P5 | 原因 A は「同じ入力」と矛盾する | 文言を維持 |
+| 62 | CEO S1-10 | セクション 1-10 の指摘は既存の CEO の行で解決。新しい行は追加しない | Mechanical | P6 | 各指摘は、受け入れた義務か UC に対応する | — |
+| 63 | DX 0A-0E | プロダクト種別はスキルスイート + CLI。ペルソナは日常的に gstack を使うユーザー。TTHW の目標は Competitive。魅力的な瞬間は既存のメッセージで実現。モードは POLISH | Mechanical | P5, P6 | 上書きと README の証拠 | Champion の目標。新しい接点 |
+| 64 | DX voices | DX-1..DX-16 を受け入れ(ドキュメントの成果物、パス、アップグレード、状態の表、スキップの取り消し、gstack-post の契約、probe の命名と --model、doctor の状態、部分的な履歴、B2 の状態行、分類器の契約、ドキュメントの接点、no-op のプロンプトのチェック、ログの上限、Windows、TTHW) | Mechanical | P1, P5 | 両方の意見が 6 つの観点すべてを確認 | そのまま残す |
+| 65 | DX voices | DX-17 pre-push のメール単位の許可リスト | Taste | P1, P2 | --no-verify より手前の逃げ道。Claude のみ | 許可リストなし |
+| 66 | DX voices | DX-18 B3 の期間は 1 リリース以上かつ 14 日 | Taste | P1 | Codex high。計画は「1 リリース」としていた | 1 リリース |
+| 67 | DX voices | B2 のオプトインを強化(UC2) | User Challenge | — | 両方の DX の意見が、CEO の意見と一致 | — |
+| 68 | DX voices | doctor の `--json` と新人の導入の時間計測は延期。境界値の環境変数による上書きは却下 | Mechanical | P3, P5 | DX POLISH は新しい接点を追加しない | 今すぐ追加 |
+| 69 | Eng Step 0 | スコープはそのまま受け入れ。構造 = 元の配置。理由とレコードのモジュールを分離 | Mechanical | P2, P5 | 上書きは決して減らさない。モジュールの分離で所有者を 800 行未満に保つ | 削減を伴うより小さい配置 |
+| 70 | Eng voices | ENG-1..ENG-17、ENG-20、ENG-21 を受け入れ | Mechanical | P1, P5 | 両方の意見が 5 つの観点を確認。各項目はコードを引用している | そのまま残す |
+| 71 | Eng voices | ENG-5 インデックスのキャッシュは、再スキャンが 1 秒の予算を満たさない場合のみ | Taste | P3, P5 | Claude はキャッシュを推奨。CEO は信頼の入力を理由に X9 をスキップした。スパイクで決める | 今すぐキャッシュを採用 / 採用しない |
+| 72 | Eng voices | ENG-18 自動化された有料ケース = Phase 1 entry + 1 回の遷移。すべての遷移の実行は手動 | Taste | P3, P6 | 約 10 分の評価の好みと、CEO-24 のすべての遷移 | 自動化されたすべての遷移のケース |
+| 73 | Eng voices | ENG-19 無関係な pin 更新による赤を wave の中で修復(1 ラウンド)。名前の付いた赤は Garry へ | Taste | P6 | Garry の「同じ PR で修正」のルール。Claude は隔離を提案 | CASE_QUARANTINE での隔離 |
+| 74 | Eng voices | ENG-9 DX-6 のルール ID による確認を、バイトのダイジェストのトークンに置き換え | Mechanical | P1 | Codex P1: ルール ID はバイトを結び付けられない | ルール ID による確認 |
+| 75 | Eng voices | ENG-7 CEO-17 のロックの条項を置き換え。CEO-27 を明示的なグループマップに絞る | Mechanical | P1, P5 | 経過時間は放棄されたことを証明できない。結合のマップが存在しなかった | 経過時間のみのルール。許可リストから導出したグループ |
+| 76 | Eng voices | ENG-8 url/unknown のターゲットについて CEO-7 を修正。行のマッピング。mailmap | Mechanical | P1 | プライベートなリモートのメールを公開として数えてはならない | すべてのリモート |
+| 77 | Eng TODOs | TODO の 6 項目を保留中の書き込みとして収集(この実行ではリポジトリの編集は不可) | Mechanical | P6 | 親が編集を計画のみに制限した | 今すぐ TODOS.md を書く |
+| 78 | Final gate | UC1 採用: Claude Code が引き起こした検証できない状態は、警告付きで許可。整合性の失敗は拒否のまま | User Challenge (user) | — | Garry が A を選択 | フェイルクローズを維持 |
+| 79 | Final gate | UC2 却下: Greptile のリポジトリでは B2 を自動でオン。ユーザーごとのオフスイッチ。公開リポジトリへの同意は 1 回 | User Challenge (user) | — | Garry が B を選択 | 測定されるまでオプトイン |

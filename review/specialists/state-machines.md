@@ -1,62 +1,39 @@
-# State Machine Round-Trip Specialist Review Checklist
+# ステートマシンのラウンドトリップ・スペシャリストのレビューチェックリスト
 
-Scope: When SCOPE_STATE_MACHINE=true (`gstack-state-matrix detect`: the diff adds or changes a proposal, hold or approval state machine)
-Output: one matrix record per state machine, then one finding per gap, each a JSON object on its own line.
+適用範囲: SCOPE_STATE_MACHINE=true の場合(`gstack-state-matrix detect`: 差分が、提案、保留、承認のステートマシンを追加または変更している場合)
+出力: ステートマシンごとに 1 つのマトリクスのレコード。その後、ギャップごとに 1 件の指摘。それぞれ 1 行の JSON オブジェクト。
 
-Matrix record (not a finding; the parent checks it with `gstack-state-matrix check`):
+マトリクスのレコード(指摘ではない。親が `gstack-state-matrix check` で確認する):
 {"specialist":"state-machines","matrix":{"machine":"name (path)","kinds":["kind",...],"actions":["accept","drop",...],"cells":[{"kind":"kind","action":"accept","row":"the resulting rows after the action","test":"path/to/test:LINE"}]}}
-Use `"test":null` for a cell no test covers.
+どのテストもカバーしていないセルには `"test":null` を使う。
 
-Finding schema:
+指摘のスキーマ:
 {"severity":"CRITICAL","confidence":N,"path":"file","line":N,"category":"state-matrix","summary":"untested cell: <kind> × <action> → <row>","fix":"...","fingerprint":"path:state-matrix:<kind>:<action>","specialist":"state-machines","cell":{"kind":"<kind>","action":"<action>"}}
-Optional: test_stub, evidence.
-If the diff adds or changes no proposal, hold or approval state machine: output `NO FINDINGS` and nothing else.
+任意: test_stub, evidence。
+差分が提案、保留、承認のステートマシンを追加も変更もしない場合: `NO FINDINGS` とだけ出力する。
 
 ---
 
-## Why this specialist exists
+## このスペシャリストが存在する理由
 
-A change that passed a full gate deleted user data: accepting a "deactivate" or a
-same-claim "replace" proposal went down the "remove" path, because only remove was
-tested. Kinds that share a branch look covered when one of them is. This review
-writes down every kind × owner action, the row each one must leave, and the test
-that proves it, so the untested cells are named before merge.
+完全なゲートを通過した変更が、ユーザーのデータを削除してしまった。「deactivate(無効化)」や同じ主張の「replace(置き換え)」の提案を承認すると、「remove(削除)」の経路に流れてしまったのだ。テストされていたのは remove だけだった。同じ分岐を共有する種類は、そのうち 1 つをテストするだけで網羅されているように見えてしまう。このレビューは、種類とオーナーのアクションの組み合わせごとに、結果として残るべき行と、それを証明するテストを書き出す。マージの前に、テストされていないセルを明らかにするためである。
 
-## Build the matrix
+## マトリクスを作る
 
-1. **Find the machine.** A record with a kind (type, enum, tag) and a pending
-   status that an owner action settles: proposals, holds, approvals, moderation or
-   review queues, invitations. Read the code after the diff, not only the hunks.
-2. **List every kind** the settle path handles after the diff: the type or enum,
-   each `case`, each dispatch-table key. A `case` that falls through to a sibling
-   is its own kind. Include kinds the diff did not add when the diff changed the
-   shared path.
-3. **List every owner action** that settles a pending record: accept or approve,
-   drop or reject, and any other (expire, withdraw, release, hold).
-4. **Write the resulting row for each kind × action** from the kind's meaning, as
-   the owner expects it, not from what the code does: the target record (deleted,
-   kept, deactivated, rewritten) and the proposal's own status. Deactivate keeps
-   the record with its flag off; a same-claim replace keeps it; only remove
-   deletes; a drop leaves the target untouched.
-5. **Map each cell to a test** that exercises exactly that kind and action and
-   asserts the resulting row, as `path:line` in this checkout. A test of a sibling
-   kind, a test that checks only the status field, or a test that mocks the store
-   does not cover the cell. Use `null` when nothing covers it. Never invent a path.
+1. **ステートマシンを見つける。** 種類(type、enum、tag)を持ち、オーナーのアクションによって解決される保留の状態があるレコード。提案、保留、承認、モデレーションやレビューのキュー、招待などである。差分のハンクだけでなく、差分の後のコードを読むこと。
+2. **扱われるすべての種類を列挙する。** 差分の後で、解決の経路が扱うもの: 型や enum、各 `case`、各ディスパッチテーブルのキー。ある `case` が兄弟の処理に落ちる場合、それは独立した種類である。差分が共有の経路を変更した場合は、差分が追加していない種類も含める。
+3. **保留のレコードを解決するすべてのオーナーのアクションを列挙する。** accept または approve、drop または reject、そしてそれ以外(expire、withdraw、release、hold)。
+4. **種類 × アクションごとに、結果として残る行を書く。** コードが何をしているかではなく、種類の意味から、オーナーが期待するとおりに書くこと。対象のレコード(削除、保持、無効化、書き換え)と、提案そのもののステータスである。deactivate はフラグをオフにしてレコードを残す。同じ主張の replace はレコードを残す。削除するのは remove だけである。drop は対象に触れない。
+5. **各セルを、その種類とアクションをちょうど通り、結果の行をアサートするテストに対応付ける。** このチェックアウト内の `path:line` として書く。兄弟の種類のテスト、ステータスフィールドだけを確認するテスト、ストアをモックするテストでは、そのセルはカバーされていない。何もカバーしていない場合は `null` を使う。パスを捏造してはいけない。
 
-## Findings
+## 指摘
 
-- **Untested cell (CRITICAL; this rule's High tier).** One finding per cell with
-  `"test":null`, carrying `cell`, the expected row in `summary` and a
-  `test_stub` that settles a pending record of that kind and asserts the row.
-- **Wrong row (CRITICAL).** When the code leaves a different row than step 4's
-  (for example a deactivate that deletes), report it as its own finding with the
-  same `cell` and the line that takes the wrong path.
-- **Collapsed kinds (CRITICAL).** A branch that sends several kinds down one
-  destructive path is a finding at that line, even when a test covers one kind.
+- **テストされていないセル(CRITICAL。このルールでは High の段階)。** `"test":null` のセルごとに 1 件の指摘を出す。`cell`、`summary` に期待される行、そしてその種類の保留のレコードを解決して行をアサートする `test_stub` を含める。
+- **誤った行(CRITICAL)。** コードが、手順 4 の行と異なる行を残している場合(例: 無効化が削除してしまう)、同じ `cell` を持つ独立した指摘として報告し、誤った経路を取る行を示す。
+- **種類の統合(CRITICAL)。** 複数の種類を 1 つの破壊的な経路に送る分岐は、その行の指摘になる。その 1 つの種類にテストがあっても同様である。
 
-## Never
+## 禁止事項
 
-- Never mark a cell covered because a sibling kind's test passes through the same
-  function.
-- Never drop a kind or action from the lists to shrink the matrix.
-- Never output prose; the parent parses JSON lines only.
+- 兄弟の種類のテストが同じ関数を通って合格するからといって、セルをカバー済みとしてはいけない。
+- マトリクスを小さく見せるために、種類やアクションをリストから削ってはいけない。
+- 散文を出力してはいけない。親は JSON の行だけを解析する。

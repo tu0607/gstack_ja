@@ -1,11 +1,11 @@
 <!-- AUTO-GENERATED from pretext-patterns.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-### Pretext Wiring Patterns
+### Pretext の配線パターン
 
-Use these patterns based on the tier selected in Step 2. These are the correct
-Pretext API usage patterns. Follow them exactly.
+Step 2 で選んだ階層に基づいて、これらのパターンを使います。これらは正しい Pretext API の使い方のパターンです。
+そのとおりに従ってください。
 
-**Pattern 1: Basic height computation (Simple layout, Card/grid)**
+**パターン 1: 基本的な高さの計算 (シンプルなレイアウト、カード/グリッド)**
 ```js
 import { prepare, layout } from '@chenglou/pretext'
 // Vanilla HTML: omit the import; this code follows the inlined bundle in the same <script type="module">
@@ -45,7 +45,7 @@ for (const el of elements) {
 }
 ```
 
-**Pattern 2: Shrinkwrap / tight-fit containers (Chat bubbles)**
+**パターン 2: シュリンクラップ / ぴったり収まるコンテナ (チャットの吹き出し)**
 ```js
 import { prepareWithSegments, walkLineRanges } from '@chenglou/pretext'
 
@@ -60,7 +60,7 @@ function shrinkwrap(text, font, maxWidth) {
 }
 ```
 
-**Pattern 3: Text around obstacles (Editorial layout)**
+**パターン 3: 障害物の周りのテキスト (エディトリアルのレイアウト)**
 ```js
 import { prepareWithSegments, layoutNextLine } from '@chenglou/pretext'
 
@@ -91,7 +91,7 @@ function layoutAroundObstacles(text, font, containerWidth, lineHeight, obstacles
 }
 ```
 
-**Pattern 4: Full line-by-line rendering (Complex editorial)**
+**パターン 4: 行ごとの完全なレンダリング (複雑なエディトリアル)**
 ```js
 import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext'
 
@@ -110,7 +110,7 @@ lines.forEach((line, i) => {
 })
 ```
 
-### Pretext API Reference
+### Pretext API リファレンス
 
 ```
 PRETEXT API CHEATSHEET:

@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -6,8 +7,13 @@ import { buildCookieWorkflowJudgeInput, COOKIE_WORKFLOW_JUDGE } from './helpers/
 import { COOKIE_MANUAL_REVIEW_FILE, getCookieWorkflowManualReview, isManualReviewEntry, manualReviewProblem } from './helpers/cookie-workflow-manual-review';
 import { approvedCookieWorkflowSource, manualReviewFixture } from './helpers/manual-judge-review-fixture';
 import { validWorkflowJudgeScore } from './helpers/workflow-judge-cache';
+import { readLedger } from '../lib/translation-ledger';
 
 const ROOT = resolve(import.meta.dir, '..');
+// 承認(.github/cookie-workflow-manual-review.json)は upstream の英語プロンプトに対するもの。
+// 翻訳済みのチェックアウトからは英語の原文を復元できないので、台帳の upstream_base から読む。
+const UPSTREAM_BASE = readLedger(ROOT).upstream_base;
+const upstreamSource = (file: string) => execFileSync('git', ['show', `${UPSTREAM_BASE}:${file}`], { cwd: ROOT, encoding: 'utf8' });
 const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 
@@ -15,7 +21,7 @@ function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'cookie-policy-')); roots.push(root);
   for (const file of [COOKIE_MANUAL_REVIEW_FILE, 'setup-browser-cookies/SKILL.md', 'BROWSER.md']) {
     const target = join(root, file); mkdirSync(resolve(target, '..'), { recursive: true });
-    const source = readFileSync(join(ROOT, file), 'utf8');
+    const source = file === COOKIE_MANUAL_REVIEW_FILE ? readFileSync(join(ROOT, file), 'utf8') : upstreamSource(file);
     writeFileSync(target, file === COOKIE_MANUAL_REVIEW_FILE ? source : approvedCookieWorkflowSource(source));
   }
   const entry = manualReviewFixture(root);

@@ -9,6 +9,7 @@ import { spawnSync } from 'child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { expectMentions } from './helpers/prompt-structure';
 
 const ROOT = join(import.meta.dir, '..');
 const CONFIG_BIN = join(ROOT, 'bin', 'gstack-config');
@@ -61,9 +62,11 @@ describe('transcript consent gates recognize every value form', () => {
     test(`${name}: two questions, nothing stored until both are answered, scope before mode`, () => {
       const text = readFileSync(file, 'utf-8');
       expect(text).toContain('`new`');
-      expect(text).toMatch(/second, separate question/i);
-      expect(text).toMatch(/only this repo/i);
-      expect(text).toMatch(/store nothing until\s+both answers are known/i);
+      // The rendered Japanese differs per gate, so the meaning keywords are per gate.
+      const words = name.startsWith('setup-gbrain')
+        ? [['2つ目', '別の質問', "Which repos' sessions?"], ['B)', 'このリポジトリのみ', '`git remote get-url origin`'], ['両方の回答', '何も保存しないでください']]
+        : [['別の質問', 'どのリポジトリのセッション'], ['B)', 'このリポジトリのみ', '`git remote get-url origin`'], ['両方の答え', '何も保存しません']];
+      expectMentions(text, words, name);
       const scopeAt = text.indexOf('gstack-config set transcript_repos');
       const modeAt = text.indexOf('gstack-config set transcript_ingest_mode', scopeAt);
       expect(scopeAt).toBeGreaterThan(0);

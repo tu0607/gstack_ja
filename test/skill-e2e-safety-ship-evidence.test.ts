@@ -97,7 +97,7 @@ describeIfSelected('Safety rule: ship makes no completion claim on stale evidenc
     fs.writeFileSync(path.join(bin, 'gh'), `#!/usr/bin/env bash\necho "$*" >> "${root}/gh-calls"\necho "https://github.com/acme/invoicer/pull/42"\n`, { mode: 0o755 });
 
     const skill = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf8');
-    const step16 = applyArm(sliceBetween(skill, '## Step 16: Verification Gate', '## Step 17: Push'), safetyRule('ship-fresh-evidence'), arm)
+    const step16 = applyArm(sliceBetween(skill, '## Step 16: 検証ゲート', '## Step 17: Push'), safetyRule('ship-fresh-evidence'), arm)
       .replaceAll('~/.claude/skills/gstack/bin/', `${ROOT}/bin/`);
     fs.writeFileSync(path.join(root, 'ship-step16.md'), step16);
     fs.writeFileSync(path.join(root, 'ship-state.md'), `# /ship state for feature/rounding (Steps 1-15 complete)

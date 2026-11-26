@@ -56,10 +56,10 @@ describe('functional report checkpoint-link contract', () => {
 
   test('the shared report template gives concrete Markdown syntax without discarding superseded evidence', () => {
     expect(template).toContain('[checkpoint 001](exploration-001.json)');
-    expectMentions(template, [['not', 'backticked', 'filenames']], 'template');
-    expectMentions(template, [['not', 'checkpoints', 'superseded']], 'template');
-    expect(template).toContain('saved before its next probe');
-    expect(template).toContain('path relative to this report');
+    expectMentions(template, [['バッククォートで囲んだファイル名', 'リンクになりません']], 'template');
+    expectMentions(template, [['置き換えられたチェックポイント', '履歴として含めてください']], 'template');
+    expect(template).toContain('次のプローブの前に保存し');
+    expect(template).toContain('このレポートからの相対パス');
   });
 
   test('links built from the actual report-template example satisfy the native checkpoint validator', () => {

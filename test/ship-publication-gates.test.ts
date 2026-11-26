@@ -21,8 +21,8 @@ const fenceAfter = (marker: string) => {
   return template.slice(open, template.indexOf('\n```', open));
 };
 const composeBlock = template.match(/```bash\n(: "\$\{DOCS_SECTION_FILE:[\s\S]*?)\n```/)?.[1]!;
-const editBlock = fenceAfter('**Existing open PR/MR**');
-const createBlock = fenceAfter('**No open PR/MR:**');
+const editBlock = fenceAfter('**既存の open な PR/MR**');
+const createBlock = fenceAfter('**open な PR/MR がない場合:**');
 
 /**
  * A repo whose origin is GitHub, a stub gh that records argv and stdin, and
@@ -173,12 +173,13 @@ test('publication reports unavailable triage separately from an empty successful
 });
 
 test('publication refreshes the open review and title without treating lookup failure as absence', () => {
-  const lookup = template.slice(0, template.indexOf('### Resolve Linked Spec'));
-  expect(lookup.replace(/\s+/g, ' ')).toContain('Errors or ambiguous matches STOP publication');
-  expectMentions(lookup.replace(/\s+/g, ' '), [['fresh body', 'before', 'publishing']], 'lookup.replace(/\s+/g,  )');
+  const specAt = template.indexOf('### 本文を作成する前にリンク先の Spec を解決する');
+  expect(specAt).toBeGreaterThan(-1);
+  const lookup = template.slice(0, specAt);
+  expectMentions(lookup.replace(/\s+/g, ' '), [['エラー', '曖昧', '公開を停止'], ['新しい本文', '公開前']], 'lookup');
   expect(lookup).not.toContain('Ship control flow');
   expect(lookup).not.toContain('|| echo "NO_PR"');
   expect(lookup).not.toContain('|| echo "NO_MR"');
-  expectMentions(template, [['blocks', 'error', 'exit']], 'template');
-  expect(template).toContain('public-strict policy');
+  expectMentions(template, [['公開をブロック', 'エラー', '終了コード']], 'template');
+  expect(template).toContain('public-strict');
 });

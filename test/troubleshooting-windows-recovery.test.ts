@@ -25,7 +25,7 @@ describe('troubleshooting: the Git Bash hook false positive', () => {
     test(`#${anchor} names the false positive and the one recovery`, () => {
       const text = section(anchor);
       expect(text).toContain('Git Bash');
-      expect(text).toContain('from 1.91.31');
+      expect(text).toContain('1.91.31');
       expect(text).toContain('bun could not bundle the TypeScript entry');
       expect(text).toContain(RECOVERY);
       expect(text).toContain('is not a gstack checkout');

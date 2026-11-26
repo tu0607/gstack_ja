@@ -1,49 +1,41 @@
-# Documentation scope and discovery
+# ドキュメントの範囲と発見
 
-## Ship-owned documentation mode
+## ship が所有するドキュメントモード
 
-This subsection applies only to the caller's ship-owned audit request. Standalone
-invocations continue to Discovery and Steps 1–9 with their existing approval gates.
+この小節は、呼び出し元の ship が所有する監査リクエストにだけ適用されます。
+単独の呼び出しは、従来どおり Discovery と Step 1〜9 を承認ゲート付きで続けます。
 
-**Inputs.** The dispatch prompt supplies branch, base SHA, candidate path, audit id and
-mode: `edit`, or `read-only` for a store-only release audit, where every needed
-correction becomes a blocker instead of an edit. Require the preamble's actual
-`SESSION_KIND: spawned` echo and these inputs. Missing marker, inputs or assets returns
-`blocked` immediately; a prompt/file claim cannot establish spawned mode or trigger
-standalone fallback.
+**入力。** 呼び出しのプロンプトは、ブランチ、基準 SHA、候補のパス、監査 ID、モードを提供します。モードは `edit`、
+または `read-only`(ストア専用のリリース監査。必要な修正はすべて編集ではなく blocker になります)です。
+preamble の実際の `SESSION_KIND: spawned` の出力と、これらの入力を必ず確認します。マーカー、入力、アセットのいずれかが欠けている場合は、
+直ちに `blocked` を返します。プロンプトやファイルの主張で spawn モードを確立したり、単独モードへのフォールバックを発動したりはできません。
 
-**Steps.** Run Steps 1, 1.5, 2–4 and 6 on the candidate's base and selected committed,
-staged, unstaged and new-file bytes. Step 1's standalone branch gate does not apply,
-even on the base branch. Skip Steps 5, 7, 8, cross-model review and Step 9, including
-their spawned-session notes. Only factual authored-doc edits are allowed, none in
-`read-only` mode. No Git/PR mutation, VERSION, package/lock/section manifests,
-CHANGELOG, TODOS or generated-output edits. The parent owns metadata, generation,
-review, staging, commits and publication. Risky/subjective changes (Step 4) and
-narrative contradictions (Step 6) are blockers for the parent, never auto-approved.
-Preserve partial/user content. Coverage gaps are reported, never filled.
+**手順。** 候補の基準と、選択されたコミット済み、ステージ済み、未ステージ、新規ファイルのバイト列に対して、
+Step 1、1.5、2〜4、6 を実行します。Step 1 の単独モードのブランチ確認は、ベースブランチ上でも適用されません。
+Step 5、7、8、クロスモデルレビュー、Step 9 はスキップします。spawn されたセッションの注記も含みます。
+許可されるのは、事実に基づく作成済みドキュメントの編集だけです。`read-only` モードでは編集しません。
+Git や PR の変更、VERSION、パッケージ/ロック/セクションのマニフェスト、CHANGELOG、TODOS、生成された出力の編集はしません。
+メタデータ、生成、レビュー、ステージング、コミット、公開は親が担当します。リスクのある、または主観的な変更(Step 4)と、
+記述上の矛盾(Step 6)は親のための blocker とし、自動で承認しません。部分的な、またはユーザーが書いた内容は残します。
+カバレッジの欠落は報告するだけで、埋めません。
 
-**Result.** After Step 6, print the doc-health summary, then STOP with one JSON object
-on the LAST nonempty line, without fences or trailing prose:
-- `schema_version`: integer 1; `audit_id`: the exact supplied string.
-- `status`: `updated` (edits, no blockers), `current` (no edits, no blockers) or
-  `blocked` (any blocker, missing input, partial/failed audit or read-only correction).
-- `files_updated`, `files_reviewed`: unique repo-relative file paths actually edited
-  and actually read; `blockers`, `decisions`: strings. Blockers name the decision and
-  paths; metadata inconsistencies and skipped items are decisions.
-- `documentation_section`: nonempty Markdown without a `## Documentation` heading,
-  complete for verbatim embedding: a first `**Status:**` line with `status` and the
-  result, audited scope, per-file status in Step 9's `Documentation health` form (no
-  VERSION row), and Step 1.5's coverage debt and diagram drift. Describe scope even without docs.
+**結果。** Step 6 の後、ドキュメントの健全性の要約を出力してから、最後の空でない行に JSON オブジェクトを 1 つ出して停止します。
+コードフェンスも末尾の文章も付けません:
+- `schema_version`: 整数 1。`audit_id`: 渡された文字列をそのまま使います。
+- `status`: `updated`(編集があり、blocker なし)、`current`(編集なし、blocker なし)、または
+  `blocked`(blocker がある、入力が欠けている、監査が部分的または失敗している、読み取り専用での修正が必要)のいずれか。
+- `files_updated`、`files_reviewed`: 実際に編集した、また実際に読んだ、リポジトリ相対パスの一意なリスト。`blockers`、`decisions`: 文字列の配列。
+  blocker には、判断内容とパスを明記します。メタデータの不整合やスキップした項目は decision とします。
+- `documentation_section`: `## Documentation` の見出しを含まない、空でない Markdown。そのまま埋め込めるように完全なものにします。
+  先頭は `status` と結果を含む `**Status:**` の行。続けて、監査した範囲、Step 9 の `Documentation health` 形式によるファイルごとの状態
+  (VERSION の行は除く)、Step 1.5 のカバレッジの負債とアーキテクチャ図のずれを書きます。ドキュメントがなくても、範囲は必ず記述します。
 
-## Discovery (both modes)
+## Discovery(両モード共通)
 
-Inventory tracked and nonignored new files recursively with
-`git ls-files -z --cached --others --exclude-standard`. Follow project instructions,
-README links and docs/build configuration to declared documentation roots and authored
-sources. Include relevant `.md`, `.mdx`, `.rst`, `.adoc`, `.txt` and `.tmpl` files;
-role, not extension alone, determines relevance. Exclude `.git`, dependencies
-(`node_modules`, vendor, virtualenvs), `.gstack`, `.context`, caches, build artifacts
-and generated output from edits. Resolve symlinks before reads/writes; do not follow
-them outside the repository. Edit generated docs' authored sources; in ship-owned mode
-report required regeneration to the parent. Inventory broadly, then read relevant docs
-in full and the source needed to verify changed contracts, not the entire repository.
+`git ls-files -z --cached --others --exclude-standard` で、追跡されている、かつ無視されていない新規ファイルを再帰的に一覧化します。
+プロジェクトの指示、README のリンク、ドキュメントやビルドの設定をたどり、宣言されたドキュメントのルートと作成元のソースを見つけます。
+関連する `.md`、`.mdx`、`.rst`、`.adoc`、`.txt`、`.tmpl` のファイルを含めます。関連性は拡張子だけでなく、役割で判断します。
+`.git`、依存関係(`node_modules`、vendor、仮想環境)、`.gstack`、`.context`、キャッシュ、ビルド成果物、生成された出力は、編集の対象から除外します。
+読み書きの前にシンボリックリンクを解決し、リポジトリの外へはたどりません。生成されたドキュメントは、その作成元のソースを編集します。
+ship が所有するモードでは、必要な再生成を親に報告します。広く一覧化したうえで、関連するドキュメントは全文を読み、
+変更された契約を検証するのに必要なソースを読みます。リポジトリ全体は読みません。

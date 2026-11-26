@@ -1,216 +1,218 @@
 {
-  "source": "Step and phase headings of the judged workflow skills, derived on 2026-10-04 from the generated Claude SKILL.md and sections (templates at the integration head). qa-only lists its template's own top-level headings. C1 calibration showed the workflow judges pass a bundle with a required step removed, so missing-step coverage lives here.",
+  "source": "Step and phase headings of the judged workflow skills, derived on 2026-10-04 from the generated Claude SKILL.md and sections (templates at the integration head). qa-only lists its template's own top-level headings. C1 calibration showed the workflow judges pass a bundle with a required step removed, so missing-step coverage lives here. 日本語版では、生成済みの日本語 SKILL.md / sections の見出しから同じ規則で再導出(2026-11-16)。 日本語版では、生成済みの日本語 SKILL.md / sections の見出しから同じ規則で再導出(2026-11-16)。 日本語版では、生成済みの日本語 SKILL.md / sections の見出しから同じ規則で再導出(2026-11-16)。 日本語版では、生成済みの日本語 SKILL.md / sections の見出しから同じ規則で再導出(2026-11-16)。",
   "skills": {
     "qa": {
       "SKILL.md": [
-        "## Step 0: Detect platform and base branch",
-        "## Phases 1-6: QA Baseline",
-        "## Phase 7: Triage",
-        "## Phase 8: Fix Loop",
-        "### 8a. Diagnose and reproduce",
-        "### 8a.5. Regression test before repair",
-        "### 8b. Fix",
-        "### 8c. Re-test",
-        "### 8d. Commit verified work",
-        "### 8e. Classify",
-        "### 8e.5. Regression Test record",
-        "### 8f. Self-Regulation (STOP AND EVALUATE)",
-        "## Phase 9: Final QA",
-        "## Phase 10: Report",
-        "## Phase 11: TODOS.md Update"
+        "## Step 0: プラットフォームとベースブランチを検出する",
+        "## Phases 1-6: QA のベースライン",
+        "## Phase 7: トリアージ",
+        "## Phase 8: 修正ループ",
+        "### 8a. 診断と再現",
+        "### 8a.5. 修復の前に回帰テストを書く",
+        "### 8b. 修正",
+        "### 8c. 再テスト",
+        "### 8d. 検証済みの作業をコミットする",
+        "### 8e. 分類",
+        "### 8e.5. 回帰テストの記録",
+        "### 8f. 自己規制(STOP して評価する)",
+        "## Phase 9: 最終 QA",
+        "## Phase 10: レポート",
+        "## Phase 11: TODOS.md の更新"
       ],
       "sections/exploratory.md": [
-        "## 1. Charter and preflight",
-        "## 2. Probe loop",
-        "## 3. Parent handoff",
-        "## 4. Final report"
+        "## 1. Charter and preflight(チャーターと事前確認)",
+        "## 2. Probe loop(プローブのループ)",
+        "## 3. Parent handoff(親への引き継ぎ)",
+        "## 4. Final report(最終レポート)"
       ],
       "sections/qa-patterns.md": [
-        "### Phase 1: Initialize",
-        "### Phase 2: Authenticate (if needed)",
-        "### Phase 3: Orient",
-        "### Phase 4: Explore",
-        "### Phase 5: Document",
-        "### Phase 6: Wrap Up"
+        "### Phase 1: 初期化",
+        "### Phase 2: 認証(必要な場合)",
+        "### Phase 3: オリエンテーション",
+        "### Phase 4: 探索",
+        "### Phase 5: 記録",
+        "### Phase 6: まとめ"
       ]
     },
     "qa-only": {
       "SKILL.md": [
-        "## Request Parameters",
-        "## Test Plan Context",
-        "## Select Surfaces and Isolation",
-        "## Prepare Report Artifacts",
-        "## Browser Setup (conditional)",
-        "## Run the Selected Checks",
-        "## Output",
-        "## Additional Rules (qa-only specific)"
+        "## Request Parameters(リクエストのパラメーター)",
+        "## Test Plan Context(テストプランの文脈)",
+        "## Select Surfaces and Isolation(対象の選択と隔離)",
+        "## Prepare Report Artifacts(レポートの成果物の準備)",
+        "## Browser Setup(条件付き)",
+        "## Run the Selected Checks(選択したチェックの実行)",
+        "## Output(出力)",
+        "## 追加ルール(qa-only 固有)"
       ],
       "sections/exploratory.md": [
-        "## 0. Preparation gate",
-        "## 1. Charter and preflight",
-        "## 2. Probe loop",
-        "## 3. Parent handoff",
-        "## 4. Final report"
+        "## 0. Preparation gate(準備ゲート)",
+        "## 1. Charter and preflight(チャーターと事前確認)",
+        "## 2. Probe loop(プローブのループ)",
+        "## 3. Parent handoff(親への引き継ぎ)",
+        "## 4. Final report(最終レポート)"
       ],
       "sections/reporting.md": [
-        "## 1. Establish each finding once",
-        "## 2. Fill timing fields from their actual boundaries",
-        "## 3. Assemble and check every repetition before writing",
-        "## 4. Capture permitted notes, then write the report"
+        "## 1. 各指摘を一度だけ確定する",
+        "## 2. タイミングのフィールドを実際の境界から記入する",
+        "## 3. 書き込む前に、すべての繰り返しを組み立てて確認する",
+        "## 4. 許可されたメモを記録してから、レポートを書く"
       ]
     },
     "review": {
       "SKILL.md": [
-        "## Step 0: Detect platform and base branch",
-        "## Step 1: Check branch",
-        "## Step 1.5: Scope Drift Detection",
-        "## Step 2: Read the checklist",
-        "## Step 2.5: Check for Greptile review comments",
-        "## Step 3: Get the diff",
-        "## Step 3.4: Workspace-aware queue status (advisory)",
-        "## Step 3.5: Diff scans",
-        "## Step 3.6: Gather review context",
-        "## Step 4: Critical pass (core review)",
-        "### Step 4.7: Exploratory QA (before Fix-First)",
-        "## Step 5: Fix-First Review",
-        "### Step 5.0: Cross-review finding dedup",
-        "### Step 5a: Classify each finding",
-        "### Step 5b: Auto-fix all AUTO-FIX items",
-        "### Step 5c: Batch-ask about ASK items",
-        "### Step 5d: Apply user-approved fixes",
-        "## Step 5.8: Persist Eng Review result",
-        "### 1. Re-review after edits",
-        "### 2. Fill the record"
+        "## Step 0: プラットフォームとベースブランチを検出する",
+        "## Step 1: ブランチの確認",
+        "## Step 1.5: Scope Drift Detection(スコープのずれの検出)",
+        "## Step 2: チェックリストの読み込み",
+        "## Step 2.5: Greptile のレビューコメントの確認",
+        "## Step 3: 差分の取得",
+        "## Step 3.4: ワークスペースを考慮したキューの状態(助言的)",
+        "## Step 3.5: 差分のスキャン",
+        "## Step 3.6: レビューの文脈を集める",
+        "## Step 4: 重大な問題のパス(コアのレビュー)",
+        "### Step 4.7: Exploratory QA (before Fix-First)(探索的 QA、Fix-First の前)",
+        "## Step 5: Fix-First レビュー",
+        "### Step 5.0: Cross-review finding dedup(レビュー間の指摘の重複排除)",
+        "### Step 5a: 各指摘を分類する",
+        "### Step 5b: すべての AUTO-FIX 項目を自動修正する",
+        "### Step 5c: ASK 項目についてまとめて確認する",
+        "### Step 5d: ユーザーが承認した修正を適用する",
+        "## Step 5.8: エンジニアリングレビューの結果を保存する",
+        "### 1. 編集後の再レビュー",
+        "### 2. 記録を埋める"
       ],
       "sections/adversarial.md": [
-        "## Step 4.8: Adversarial review (always-on)"
+        "## Step 4.8: 敵対的レビュー(常時実行)"
       ],
       "sections/review-army.md": [
-        "## Step 4.5: Review Army — Specialist Dispatch",
-        "### Step 4.6: Collect and merge findings",
-        "#### 1. Parse outputs",
-        "#### 2. Validate severity",
-        "#### 3. Identify and merge",
-        "#### 4. Apply specialist confidence gates",
-        "#### 5. Score and present specialists",
-        "#### 6. Save specialist activity",
-        "#### 7. Hand off to Fix-First"
+        "## Step 4.5: Review Army — Specialist Dispatch(レビュー部隊。専門家の派遣)",
+        "### Step 4.6: 指摘の収集とマージ",
+        "#### 1. 出力を解析する",
+        "#### 2. 重大度を検証する",
+        "#### 3. 識別とマージ",
+        "#### 4. スペシャリストの信頼度ゲートを適用する",
+        "#### 5. スペシャリストをスコア化して提示する",
+        "#### 6. スペシャリストの活動を保存する",
+        "#### 7. Fix-First に引き継ぐ"
       ]
     },
     "ship": {
       "SKILL.md": [
-        "## Step 0: Detect platform and base branch",
-        "## Step 0.9: Apple target detection",
-        "## Step 1: Pre-flight",
-        "## Step 2: Distribution Pipeline Check",
-        "## Step 3: Merge the base branch (BEFORE tests)",
-        "## Step 11.5: Bind the reviews",
-        "## Step 12: Version bump (auto-decide)",
-        "## Step 14: TODOS.md (auto-update)",
-        "## Step 14.5: Documentation audit (every ship)",
-        "## Step 15: Commit (bisectable chunks)",
-        "## Step 16: Verification Gate",
-        "### 1. Finish writers and prepare outputs",
-        "### 2. Choose the change route",
-        "### 3. Resolve documentation freshness",
-        "### 4. Verify the frozen candidate",
-        "### 5. Report, then push",
-        "## Step 17: Push",
-        "## Step 18: Prepare publication metadata",
-        "## Step 20: Persist ship metrics",
-        "## Step 21: Plan-tune discoverability nudge (first-successful-ship only)"
+        "## Step 0: プラットフォームとベースブランチを検出する",
+        "## Step 0.9: Apple ターゲットの検出",
+        "## Step 1: 事前確認",
+        "## Step 2: 配布パイプラインの確認",
+        "## Step 3: ベースブランチのマージ(テストの前に)",
+        "## Step 11.5: レビューの紐付け",
+        "## Step 12: バージョンの更新(自動判断)",
+        "## Step 14: TODOS.md(自動更新)",
+        "## Step 14.5: ドキュメント監査(毎回の Ship)",
+        "## Step 15: コミット(二分探索しやすい単位)",
+        "## Step 16: 検証ゲート",
+        "### 1. 書き込みを終えて、出力を準備する",
+        "### 2. 変更ルートを選ぶ",
+        "### 3. ドキュメントの鮮度を解決する",
+        "### 4. 凍結された候補を検証する",
+        "### 5. 報告してから push する",
+        "## Step 17: Push(プッシュ)",
+        "## Step 18: 公開用メタデータの準備",
+        "## Step 20: Ship のメトリクスを保存する",
+        "## Step 21: Plan-tune の発見しやすさの案内(初めて成功した Ship のみ)"
       ],
       "sections/adversarial.md": [
-        "## Step 11: Adversarial review (always-on)"
+        "## Step 11: 敵対的レビュー(常時実行)"
       ],
       "sections/changelog.md": [
-        "## Step 13: CHANGELOG (auto-generate)"
+        "## Step 13: CHANGELOG(自動生成)"
       ],
       "sections/greptile-early.md": [
-        "## Step 6.5: Early Greptile PR (after the free tests pass)"
+        "## Step 6.5: 早期の Greptile PR(無料のテストが合格した後)"
       ],
       "sections/greptile.md": [
-        "## Step 10: Address Greptile review comments (if PR exists)"
+        "## Step 10: Greptile のレビューコメントへの対応(PR がある場合)"
       ],
       "sections/plan-completion.md": [
-        "## Step 8: Plan Completion Audit",
-        "## Step 8.1: Plan Verification",
-        "## Step 8.2: Scope Drift Detection"
+        "## Step 8: 計画の完了監査",
+        "## Step 8.1: Plan Verification(プランの検証)",
+        "## Step 8.2: Scope Drift Detection(スコープのずれの検出)"
       ],
       "sections/pr-body.md": [
-        "## Step 19: Create PR/MR"
+        "## Step 19: PR/MR を作成する"
       ],
       "sections/review-army.md": [
-        "## Step 9: Pre-Landing Review",
-        "## Step 9.1: Review Army — Specialist Dispatch",
-        "### Step 9.2: Collect and merge findings",
-        "#### 1. Parse outputs",
-        "#### 2. Validate severity",
-        "#### 3. Identify and merge",
-        "#### 4. Apply specialist confidence gates",
-        "#### 5. Score and present specialists",
-        "#### 6. Save specialist activity",
-        "#### 7. Hand off to Fix-First",
-        "### Step 9.2.1: Exploratory QA (before Fix-First)",
-        "### Step 9.3: Cross-review finding dedup",
-        "## Step 9.4: Fix-First and persistence"
+        "## Step 9: Pre-Landing Review(ステップ 9。着地前レビュー)",
+        "## Step 9.1: Review Army — Specialist Dispatch(レビュー部隊。専門家の派遣)",
+        "### Step 9.2: 指摘の収集とマージ",
+        "#### 1. 出力を解析する",
+        "#### 2. 重大度を検証する",
+        "#### 3. 識別とマージ",
+        "#### 4. スペシャリストの信頼度ゲートを適用する",
+        "#### 5. スペシャリストをスコア化して提示する",
+        "#### 6. スペシャリストの活動を保存する",
+        "#### 7. Fix-First に引き継ぐ",
+        "### Step 9.2.1: Exploratory QA (before Fix-First)(探索的 QA、Fix-First の前)",
+        "### Step 9.3: Cross-review finding dedup(レビュー間の指摘の重複排除)",
+        "## Step 9.4: Fix-First と永続化",
+        "### Step 9 を繰り返すかどうか判断する"
       ],
       "sections/test-coverage.md": [
-        "## Step 7: Test Coverage Audit"
+        "## Step 7: テストカバレッジ監査"
       ],
       "sections/tests.md": [
-        "## Step 4: Test Framework Bootstrap",
-        "## Step 5: Run tests (on merged code)",
-        "## Step 6: Eval Suites (conditional)"
+        "## Step 4: テストフレームワークのブートストラップ",
+        "## Step 5: テストを実行する (マージ後のコード)",
+        "## Step 6: Eval スイート (条件付き)"
       ]
     },
     "plan-ceo-review": {
       "SKILL.md": [
-        "## Step 0: Detect platform and base branch",
-        "## Step 0: Nuclear Scope Challenge + Mode Selection",
-        "### 0A. Premise Challenge",
-        "### 0B. Existing Code Leverage",
-        "### 0C. Dream State Mapping",
-        "### 0D. Alternatives (reusable decision procedure)",
-        "### 0E. Mode Selection",
-        "### 0F. Expansion Framing (shared by EXPANSION and SELECTIVE EXPANSION)",
-        "### 0G. Mode-Specific Analysis",
-        "### 0H. Persist CEO Plan (EXPANSION and SELECTIVE EXPANSION only)",
-        "### 0I. Temporal Interrogation (EXPANSION, SELECTIVE EXPANSION, and HOLD modes)"
+        "## Step 0: プラットフォームとベースブランチを検出する",
+        "## ステップ 0: スコープへの大胆な挑戦 + モードの選択",
+        "### 0A. 前提への挑戦",
+        "### 0B. 既存コードの活用",
+        "### 0C. 夢の状態のマッピング",
+        "### 0D. 代替案(再利用可能な判断の手順)",
+        "### 0E. モード選択",
+        "### 0F. 拡張の枠組み(EXPANSION と SELECTIVE EXPANSION で共通)",
+        "### 0G. モード別の分析",
+        "### 0H. CEO プランの保存(EXPANSION と SELECTIVE EXPANSION のみ)",
+        "### 0I. 時間軸の追及(EXPANSION、SELECTIVE EXPANSION、HOLD のモード)",
+        "## ステップ 0 の後の続行(すべてのモード)"
       ],
       "sections/review-sections.md": [
-        "### Section 1: Architecture Review",
-        "### Section 2: Error & Rescue Map",
-        "### Section 3: Security & Threat Model",
-        "### Section 4: Data Flow & Interaction Edge Cases",
-        "### Section 5: Code Quality Review",
-        "### Section 6: Test Review",
-        "### Section 7: Performance Review",
-        "### Section 8: Observability & Debuggability Review",
-        "### Section 9: Deployment & Rollout Review",
-        "### Section 10: Long-Term Trajectory Review",
-        "### Section 11: Design & UX Review (skip if no UI scope detected)"
+        "### セクション 1: アーキテクチャのレビュー",
+        "### セクション 2: エラーとレスキューのマップ",
+        "### セクション 3: セキュリティと脅威モデル",
+        "### セクション 4: データの流れと相互作用のエッジケース",
+        "### セクション 5: コード品質のレビュー",
+        "### セクション 6: テストのレビュー",
+        "### セクション 7: パフォーマンスのレビュー",
+        "### セクション 8: 可観測性とデバッグ容易性のレビュー",
+        "### セクション 9: デプロイとロールアウトのレビュー",
+        "### セクション 10: 長期的な方向性のレビュー",
+        "### セクション 11: デザインとUXのレビュー(UIのスコープが検出されない場合はスキップ)"
       ]
     },
     "plan-eng-review": {
       "SKILL.md": [
-        "### Step 0: Scope Challenge"
+        "### Step 0: Scope Challenge(ステップ 0。スコープチャレンジ)"
       ],
       "sections/review-sections.md": [
-        "### 1. Architecture review",
-        "### 2. Code quality review",
-        "### 3. Test review",
-        "### 4. Performance review"
+        "### 1. アーキテクチャのレビュー",
+        "### 2. コード品質のレビュー",
+        "### 3. テストのレビュー",
+        "### 4. パフォーマンスのレビュー"
       ]
     },
     "setup-deploy": {
       "SKILL.md": [
-        "### Step 1: Check existing configuration",
-        "### Step 2: Detect platform",
-        "### Step 3: Platform-specific setup",
-        "### Step 4: Write configuration",
-        "### Step 5: Verify",
-        "### Step 6: Summary"
+        "### Step 1: 既存の設定を確認する",
+        "### Step 2: プラットフォームを検出する",
+        "### Step 3: プラットフォーム固有のセットアップ",
+        "### Step 4: 設定を書き込む",
+        "### Step 5: 検証する",
+        "### Step 6: 概要"
       ]
     }
   }

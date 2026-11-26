@@ -28,16 +28,16 @@ describe('cross-model synthesis emit instructions', () => {
   // each mode section must still carry its own emit instruction so the rule is
   // in context when that (mutually exclusive) mode's section is loaded.
   const CODEX_MODE_SECTIONS: Array<[string, string]> = [
-    ['review-mode.md.tmpl', '## Step 2A:'],
-    ['challenge-mode.md.tmpl', '## Step 2B:'],
-    ['consult-mode.md.tmpl', '## Step 2C:'],
+    ['review-mode.md.tmpl', '## ステップ 2A:'],
+    ['challenge-mode.md.tmpl', '## ステップ 2B:'],
+    ['consult-mode.md.tmpl', '## ステップ 2C:'],
   ];
 
   for (const [file, heading] of CODEX_MODE_SECTIONS) {
     test(`codex/sections/${file} requires a synthesis Recommendation`, () => {
       const tmpl = fs.readFileSync(path.join(ROOT, 'codex', 'sections', file), 'utf-8');
       expect(tmpl, `${file} lost its ${heading} heading`).toContain(heading);
-      expect(tmpl).toMatch(/Synthesis recommendation \(REQUIRED\)/);
+      expect(tmpl).toMatch(/総合的な推奨\(必須\)/);
       expect(tmpl).toMatch(/Recommendation:\s*<action>\s*because/);
     });
   }
@@ -47,7 +47,7 @@ describe('cross-model synthesis emit instructions', () => {
     // canonical rule in the ALWAYS-LOADED skeleton, not only in the on-demand
     // mode sections — a question can fire before any section is read.
     const tmpl = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md.tmpl'), 'utf-8');
-    expect(tmpl).toMatch(/Synthesis recommendation \(REQUIRED\)/);
+    expect(tmpl).toMatch(/総合的な推奨\(必須\)/);
     expect(tmpl).toMatch(/Recommendation:\s*<action>\s*because/);
   });
 
@@ -55,14 +55,14 @@ describe('cross-model synthesis emit instructions', () => {
     const resolver = generateAdversarialStep({ host: 'claude', paths: HOST_PATHS.claude, skillName: 'review', tmplPath: 'review/SKILL.md.tmpl' });
     // The Claude subagent prompt must instruct the model to emit a final
     // canonical Recommendation line.
-    expect(resolver).toMatch(/Claude adversarial subagent[\s\S]+?Recommendation:\s*<action>\s*because/);
+    expect(resolver).toMatch(/Claude 敵対的サブエージェント[\s\S]+?Recommendation:\s*<action>\s*because/);
   });
 
   test('scripts/resolvers/outside-voice-steps.ts Codex adversarial command requires Recommendation', () => {
     const resolver = generateAdversarialStep({ host: 'claude', paths: HOST_PATHS.claude, skillName: 'review', tmplPath: 'review/SKILL.md.tmpl' });
     // The codex exec command's prompt string must include the emit
     // instruction. Match within the codex adversarial section.
-    expect(resolver).toMatch(/Codex adversarial challenge[\s\S]+?Recommendation:\s*<action>\s*because/);
+    expect(resolver).toMatch(/Codex 敵対的チャレンジ[\s\S]+?Recommendation:\s*<action>\s*because/);
   });
 });
 

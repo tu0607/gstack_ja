@@ -1,22 +1,14 @@
-# Tailscale ACL example for the iOS QA daemon
+# iOS QA デーモン向け Tailscale ACL の例
 
-The Mac-side daemon binds the Tailscale interface only when you pass
-`--tailnet`. By default the daemon is local-USB-only. This doc walks through
-the steps to expose your iPhone to remote agents safely so they can run iOS QA over the tailnet.
+Mac 側のデーモンは、`--tailnet` を渡したときにだけ Tailscale のインターフェースにバインドします。デフォルトでは、デーモンはローカル USB 専用です。この文書では、リモートのエージェントが tailnet 越しに iOS QA を安全に実行できるよう、iPhone を公開する手順を説明します。
 
-## Threat model recap
+## 脅威モデルの要点
 
-- **iOS app StateServer:** loopback-only always. Reachable from the Mac via
-  the CoreDevice IPv6 tunnel. Never directly bound to tailnet.
-- **Mac daemon:** owns the tailnet interface. Binds two listeners — loopback
-  (full surface, never forwarded) and tailnet (locked allowlist with
-  capability tiers).
-- **Auth:** Tailscale identity validation via the local `tailscaled` socket
-  (`/var/run/tailscale.sock` LocalAPI WhoIs). Allowlist file at
-  `~/.gstack/ios-qa-allowlist.json` is the single source of truth for who can
-  do what.
+- **iOS アプリの StateServer:** 常にループバックのみ。Mac からは CoreDevice の IPv6 トンネル経由で到達できます。tailnet に直接バインドされることはありません。
+- **Mac のデーモン:** tailnet のインターフェースを持ちます。リスナーは二つあります。ループバック(全機能。転送されることはない)と、tailnet(機能ティア付きの厳格な許可リスト)です。
+- **認証:** ローカルの `tailscaled` ソケット(`/var/run/tailscale.sock` の LocalAPI WhoIs)による Tailscale ID の検証。`~/.gstack/ios-qa-allowlist.json` の許可リストファイルが、誰が何をできるかの唯一の正となる情報源です。
 
-## Step 1: Install and run Tailscale
+## Step 1: Tailscale をインストールして起動する
 
 ```bash
 brew install --cask tailscale
@@ -24,18 +16,17 @@ brew install --cask tailscale
 tailscale status
 ```
 
-Confirm the daemon can read the LocalAPI socket:
+デーモンが LocalAPI のソケットを読めることを確認します:
 
 ```bash
 test -S /var/run/tailscale.sock && echo "socket present" || echo "MISSING"
 ```
 
-If missing, the daemon will refuse to open the tailnet listener (fail-closed).
+ソケットがない場合、デーモンは tailnet のリスナーを開くのを拒否します(フェイルクローズ)。
 
-## Step 2: Set up the daemon's ACL
+## Step 2: デーモンの ACL を設定する
 
-The daemon needs to know which Tailscale identities are allowed to control
-which devices at which capability tier. The allowlist file is JSON:
+デーモンは、どの Tailscale ID がどのデバイスを、どの機能ティアで操作してよいかを知る必要があります。許可リストファイルは JSON で、次の形式です:
 
 ```json
 {
@@ -63,19 +54,17 @@ which devices at which capability tier. The allowlist file is JSON:
 }
 ```
 
-Identities are canonicalized via WhoIs:
+ID は WhoIs によって正規化されます:
 
-- **User OAuth:** `user@example.com` (no `acct:`, no domain rewriting).
-- **Tagged nodes:** `tag:<tagname>` (lowercased).
-- **Node keys:** `node:<nodekey-hex>` (rare; use tags instead).
+- **ユーザーの OAuth:** `user@example.com`(`acct:` は付けず、ドメインの書き換えもしない)。
+- **タグ付きノード:** `tag:<tagname>`(小文字に変換される)。
+- **ノードキー:** `node:<nodekey-hex>`(まれ。代わりにタグを使うこと)。
 
-Capability tiers are ordered: `observe` < `interact` < `mutate` < `restore`.
-Granting `restore` implies all lower tiers.
+機能ティアは順序があります: `observe` < `interact` < `mutate` < `restore`。`restore` を付与すると、それより下のすべてのティアも含まれます。
 
-## Step 3: Mint a session token for a remote agent
+## Step 3: リモートのエージェント向けにセッショントークンを発行する
 
-You can let agents self-mint (if their identity is allowlisted) or you can
-mint server-side for them:
+エージェントが自分で発行することも(その ID が許可リストに入っていれば)、サーバー側で代わりに発行することもできます:
 
 ```bash
 # Server-side mint (owner-only, runs locally on the Mac with the device):
@@ -88,10 +77,9 @@ curl -X POST http://<mac-tailnet-ip>:9999/auth/mint \
 # → {"session_token": "...", "expires_at": "...", "capability": "interact"}
 ```
 
-## Step 4: Tighten the Tailscale ACL (defense in depth)
+## Step 4: Tailscale の ACL を絞る(多層防御)
 
-The daemon's allowlist is the primary access control. Belt-and-suspenders:
-restrict the tailnet ACL to limit who can even *reach* the daemon port.
+デーモンの許可リストが一次のアクセス制御です。それに加えて、tailnet の ACL を絞り、デーモンのポートに**到達できる**人を制限します。
 
 ```jsonc
 // In your tailscale admin console:
@@ -119,39 +107,34 @@ restrict the tailnet ACL to limit who can even *reach* the daemon port.
 }
 ```
 
-## Step 5: Audit trail
+## Step 5: 監査証跡
 
-Every authenticated mutating request through the tailnet listener writes a
-row to `~/.gstack/security/ios-qa-audit.jsonl`:
+tailnet のリスナーを通じた、認証済みの書き込みリクエストは、それぞれ `~/.gstack/security/ios-qa-audit.jsonl` に行を書き込みます:
 
 ```jsonl
 {"ts":"2026-05-18T14:23:00Z","identity":"ci@example.com","device_udid":"00008101-XXXX","endpoint":"/tap","session_id":"abc...","capability":"interact","request_id":"req_001","status":200}
 ```
 
-Rejections (no token, expired token, capability-insufficient, identity not
-allowlisted, rate limit hit) write to `~/.gstack/security/attempts.jsonl`.
+拒否された操作(トークンがない、トークンの期限切れ、機能が不足、ID が許可リストにない、レート制限に達した)は、`~/.gstack/security/attempts.jsonl` に書き込まれます。
 
-## Rate limits
+## レート制限
 
-- `/auth/mint`: 10 mints / 60s per identity. 11th returns 429.
-- Per-tailnet-request body: 1MB hard cap (413 above).
-- Screenshot response: 10MB hard cap (500 above with sanitized error).
+- `/auth/mint`: ID ごとに 60 秒で 10 回まで。11 回目は 429 を返します。
+- tailnet のリクエストごとのボディ: 1MB のハードリミット(超えると 413)。
+- スクリーンショットのレスポンス: 10MB のハードリミット(超えるとサニタイズされたエラーとともに 500)。
 
-## Token lifetime
+## トークンの有効期間
 
-- Daemon-minted session tokens: default 1h TTL, max 24h via
-  `--tailnet-session-ttl`.
-- Refreshable via `POST /session/heartbeat` (extends by `ttl_seconds`, capped
-  at the original max).
-- Boot token (between iOS app launch and daemon rotation): ~5s lifetime —
-  daemon rotates immediately on first scrape.
+- デーモンが発行するセッショントークン: デフォルトの有効期間は 1 時間。`--tailnet-session-ttl` で最大 24 時間まで延長できます。
+- `POST /session/heartbeat` で更新できます(`ttl_seconds` 分延長され、元の最大値が上限)。
+- ブートトークン(iOS アプリの起動からデーモンのローテーションまでの間): 約 5 秒の寿命です。デーモンは最初のスクレイプの直後にすぐローテーションします。
 
-## Failure modes
+## 失敗モード
 
 | Symptom | Cause | Action |
 |---|---|---|
-| Daemon refuses to open tailnet listener | `/var/run/tailscale.sock` missing or permission-denied | Install Tailscale; verify `tailscale status` works as the user running daemon |
-| `403 identity_not_allowed` | identity missing from allowlist | Owner mint: `gstack-ios-qa-mint --remote <identity>` |
-| `403 capability_insufficient` | token tier below endpoint requirement | Owner mint with higher `--capability` tier |
-| `429 rate_limited` | >10 mints/min from one identity | Wait 60s; investigate why the agent is re-minting so often |
-| `409 schema_mismatch` on `/state/restore` | snapshot from older app build | Discard the snapshot; re-capture from current app build |
+| Daemon refuses to open tailnet listener | `/var/run/tailscale.sock` missing or permission-denied | Tailscale をインストールし、デーモンを実行しているユーザーで `tailscale status` が動くことを確認する |
+| `403 identity_not_allowed` | identity missing from allowlist | 所有者による発行: `gstack-ios-qa-mint --remote <identity>` |
+| `403 capability_insufficient` | token tier below endpoint requirement | より上位の `--capability` ティアで所有者が発行する |
+| `429 rate_limited` | >10 mints/min from one identity | 60 秒待つ。エージェントがなぜこれほど頻繁に再発行しているのかを調べる |
+| `409 schema_mismatch` on `/state/restore` | snapshot from older app build | スナップショットを破棄し、現在のアプリのビルドから取り直す |

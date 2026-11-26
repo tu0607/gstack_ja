@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { usePrivateStateRoot } from './helpers/private-state-root';
 import { gitArgvIn } from './helpers/scratch-repo';
+import { expectMentions } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 usePrivateStateRoot();
@@ -163,7 +164,7 @@ describe('generated hook matchers cover PowerShell and NotebookEdit (#3067)', ()
 
   test('careful/SKILL.md says PowerShell coverage is best-effort and points to permission deny rules', () => {
     const content = fs.readFileSync(path.join(ROOT, 'careful', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('**Best-effort on PowerShell.**');
+    expectMentions(content, [['PowerShell', 'ベストエフォート'], ['パーミッション', '拒否']]);
     expect(content).toContain('"PowerShell(Remove-Item *)"');
   });
 });
@@ -1328,7 +1329,7 @@ describe('check-freeze.sh NotebookEdit boundary (#3067)', () => {
   test('Edit denials name the tool and file_path too', () => {
     withFreezeDir(BOUNDARY, (stateDir) => {
       const { output } = runHook(FREEZE_SCRIPT, { tool_name: 'Edit', tool_input: { file_path: '/etc/hosts' } }, freezeEnv(stateDir));
-      expect(output.hookSpecificOutput?.permissionDecisionReason).toContain('Edit file_path /etc/hosts');
+      expect(output.hookSpecificOutput?.permissionDecisionReason).toMatch(/Edit file_path \S*\/etc\/hosts/);
     });
   });
 

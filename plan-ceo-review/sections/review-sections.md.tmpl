@@ -1,149 +1,102 @@
-## Review Sections (11 sections, after scope and mode are agreed)
+## Review Sections(レビューのセクション。11 のセクション。スコープとモードが合意された後)
 
-**Anti-skip rule:** Evaluate Sections 1–10 in full for every plan, including strategy,
-spec, code and infra. Run Section 11 if accepted work adds or changes UI screens,
-components, user interactions, frontend frameworks, user-visible states,
-mobile/responsive behavior or the design system. Otherwise record `SKIPPED (no UI scope)`. In evaluated sections,
-say "No issues found" only when there are zero findings.
+**スキップ禁止のルール:** 戦略、スペック、コード、インフラを含め、すべてのプランについて、セクション 1〜10 を全文評価してください。承認された作業が UI の画面、コンポーネント、ユーザー操作、フロントエンドのフレームワーク、ユーザーに見える状態、
+モバイルやレスポンシブの挙動、またはデザインシステムを追加または変更する場合は、セクション 11 を実行してください。それ以外の場合は `SKIPPED (no UI scope)` と記録してください。評価したセクションでは、指摘がゼロの場合にのみ「指摘なし」と言ってください。
 
-**Use the review depth chosen in Step 0.** For scope prioritization, use each
-section to decide inclusion and feasibility under accepted constraints. Diagrams
-and maps must show candidate boundaries, failure mechanisms, feasibility conditions
-and unresolved risks. Resolve material blockers now; revisit priorities when new
-evidence changes them. Leave non-blocking implementation choices pending with an
-owner and required verification. Use Step 0's depth-expansion decision before
-designing endpoint, method or state-machine contracts beyond that depth. In strategy-only depth, use
-capability-level rows and "implementation owner must prove ___" notes instead
-of method-level registries. In implementation-ready depth, require the concrete
-method/codepath, contract, rescue and test rows. Report what is approved, what
-is verified and what remains unchosen; completing prioritization does not mean
-the implementation is ready.
+**ステップ 0 で選んだレビューの深さを使ってください。** スコープの優先順位付けでは、各セクションを使って、承認された制約の下での含める範囲と実現可能性を判断してください。図やマップには、候補となる境界、失敗のメカニズム、実現可能性の条件、未解決のリスクを示す必要があります。重大なブロッカーは今解決してください。新しい根拠が優先順位を変えた場合は、優先順位を見直してください。ブロックしない実装の選択は、担当者と必要な検証とともに保留のままにしてください。その深さを超えて、エンドポイント、メソッド、ステートマシンの契約を設計する前に、ステップ 0 のレビュー深さの拡張の判断を使ってください。戦略のみの深さでは、メソッド単位のレジストリではなく、機能単位の行と「実装の担当者は___を証明しなければならない」という注記を使ってください。実装可能な深さでは、具体的なメソッドやコードパス、契約、レスキュー、テストの行を必須としてください。承認されたこと、検証されたこと、まだ選ばれていないことを報告してください。優先順位付けを完了しても、実装が準備完了になるわけではありません。
 
-**Preserve accepted requirements.** Compare the proposed implementation with
-stated invariants and acceptance criteria. Report gaps and propose remedies,
-including omitted mechanisms in HOLD SCOPE. Never weaken a guarantee, accept its
-violation or change a test to expect it. Low frequency, bounded impact and
-documentation do not meet stricter requirements. Changing a requirement needs
-explicit authority; until then, keep both the proposal and original gap unresolved.
-Carry prior approvals into findings, tasks and the report. Routine auto-decide
-cannot override user constraints or non-goals.
+**承認された要件を保持してください。** 提案された実装を、明示された不変条件や受け入れ基準と比較してください。ギャップを報告し、対処案を提案してください。HOLD SCOPE で抜けている仕組みも含みます。保証を弱めたり、その違反を受け入れたり、それを期待するようテストを変えたりしてはいけません。発生頻度が低い、影響が限定的である、文書化されている、といった理由では、より厳しい要件を満たしたことにはなりません。要件の変更には明示的な権限が必要です。それまでは、提案と元のギャップの両方を未解決のまま残してください。
+以前の承認は、指摘、タスク、報告に引き継いでください。日常的な自動判断は、ユーザーの制約や対象外の事項を覆すことはできません。
 
-## How to ask questions
-Use 0D's decision procedure and the preamble's AskUserQuestion format:
-* **One decision unit = one AskUserQuestion call.** Use Step 0D boundaries, not topic labels.
-* Describe the concrete problem with file/line references. Offer 2-3 options,
-  including "do nothing" when reasonable.
-* Give each option one line covering effort, risk and maintenance.
-* The recommended option's description must offer a complete remedy for this
-  issue: rescue behavior, verification and failure visibility. Exclude unrelated
-  work; ask about independent findings and new TODOs separately.
-* Connect the recommendation to one engineering preference in a sentence.
-* Use `D<N>` and A/B/C labels. Cite the stable ledger ID separately to retain
-  reopened decision history.
-* An "obvious fix" still needs approval when it is not covered by an exact accepted choice.
+## 質問の仕方
+0D の判断の手順と、前文の AskUserQuestion の形式を使ってください:
+* **一つの判断単位 = AskUserQuestion の一回の呼び出し。** トピックのラベルではなく、ステップ 0D の境界を使ってください。
+* 具体的な問題をファイルや行の参照とともに説明してください。適切であれば「何もしない」を含めて、2〜3 個の選択肢を提示してください。
+* 各選択肢には、労力、リスク、保守を含む一行を付けてください。
+* 推奨する選択肢の説明は、この問題に対する完全な対処を示す必要があります。レスキューの振る舞い、検証、失敗の可視性を含みます。関係のない作業は除外し、独立した指摘や新しい TODO は別に尋ねてください。
+* 推奨を、一つのエンジニアリングの好みに一文で結びつけてください。
+* `D<N>` と A/B/C のラベルを使ってください。再開された判断の履歴を保つため、安定した台帳の ID は別に引用してください。
+* 「明らかな修正」であっても、正確に承認された選択でカバーされていなければ、承認が必要です。
 
-## Formatting Rules
-* Use short labels and 0D's exact `currentDecision` question and option descriptions.
-* Use **CRITICAL GAP** / **WARNING** / **OK** for scannability.
+## 書式のルール
+* 短いラベルと、0D の正確な `currentDecision` の質問と選択肢の説明を使ってください。
+* 見て分かりやすくするため、**CRITICAL GAP** / **WARNING** / **OK** を使ってください。
 
-## Mode Quick Reference
+## モードの早見表
 
-Mode controls included work, not depth or section coverage. Review and produce
-outputs for accepted work in every mode.
+モードが制御するのは、含まれる作業であり、深さやセクションのカバレッジではありません。どのモードでも、承認された作業をレビューし、その成果物を作成してください。
 
-| Step | SCOPE EXPANSION | SELECTIVE EXPANSION | HOLD SCOPE | SCOPE REDUCTION |
+| 手順 | SCOPE EXPANSION | SELECTIVE EXPANSION | HOLD SCOPE | SCOPE REDUCTION |
 |------|-----------------|---------------------|------------|-----------------|
-| Scope proposals | Offer additions individually | Offer cherry-picks individually | No expansions | Offer cuts individually |
-| 10x check | Required; additions need approval | Required; additions need approval | Skip | Skip |
-| Platonic ideal | Required | Skip | Skip | Skip |
-| Delight opportunities | At least 5, each opt-in | At least 5, each opt-in | Skip | Skip |
-| Complexity | Review accepted ambition | Review baseline and accepted additions | Simplest correct accepted scope | Minimum valuable scope |
-| Temporal interrogation (0I) | Run | Run | Run | Skip |
-| Separate CEO archive (0H) | Write | Write | Skip | Skip |
-| Future direction (Section 10) | Review accepted trajectory | Review accepted cherry-picks | Maintainability; no expansions | Maintainability of remaining scope |
-| Design (Section 11) | Review if UI scope | Review if UI scope | Review if UI scope | Review if UI scope |
+| スコープの提案 | 追加を一つずつ提示 | つまみ食いを一つずつ提示 | 拡張なし | 削減を一つずつ提示 |
+| 10 倍のチェック | 必須。追加には承認が必要 | 必須。追加には承認が必要 | 省略 | 省略 |
+| 理想の姿 | 必須 | 省略 | 省略 | 省略 |
+| 喜びの機会 | 少なくとも 5 つ。各々オプトイン | 少なくとも 5 つ。各々オプトイン | 省略 | 省略 |
+| 複雑さ | 承認された野心をレビュー | ベースラインと承認された追加をレビュー | 最もシンプルで正しい、承認されたスコープ | 最小限の価値があるスコープ |
+| 時間軸の追及(0I) | 実行 | 実行 | 実行 | 省略 |
+| CEO のアーカイブを分けて保存(0H) | 書き込む | 書き込む | 省略 | 省略 |
+| 将来の方向性(セクション 10) | 承認された軌道をレビュー | 承認されたつまみ食いをレビュー | 保守性。拡張なし | 残りのスコープの保守性 |
+| デザイン(セクション 11) | UI のスコープがあればレビュー | UI のスコープがあればレビュー | UI のスコープがあればレビュー | UI のスコープがあればレビュー |
 
-Save to the permitted working plan; with no permitted plan/report write, present
-it in chat as not persisted and end with completion blocked. The CEO archive is
-additional expansion-mode output.
+許可された作業プランに保存します。プランや報告を書き込めない場合は、チャットで未保存として提示し、完了がブロックされた状態で終えてください。CEO のアーカイブは、拡張モードでの追加の出力です。
 
-### Working review decisions
+### 作業中のレビューの判断
 
-At each section's **Decision gate**, follow Analyze → Resolve → Apply below.
-Continue the six-column ledger with each row's owner section. Review only;
-do not change code.
+各セクションの**判断ゲート**では、下の分析 → 解決 → 適用に従ってください。
+6 列の台帳を、各行の担当セクションとともに継続してください。レビューのみです。
+コードは変更しないでください。
 
-**Analyze.** Check input, source and actual approvals. Correct false claims and
-dependent test/runbook text without changing approved behavior. Preserve contracts
-and mitigations even if later text omits them. Flag approval conflicts. Unavailable
-code proves neither failure nor safety; record unknown risks with their owners
-and required verification.
+**分析。** 入力、情報源、実際の承認を確認してください。誤った主張や、それに依存するテストや運用手順書の文章は、承認された振る舞いを変えずに修正してください。後の文章でそれらが省かれていても、契約や緩和策は保持してください。承認の矛盾にはフラグを立ててください。利用できないコードは、失敗も安全性も証明しません。不明なリスクは、担当者と必要な検証とともに記録してください。
 
-**Resolve.** Take the first applicable path for each finding:
-1. This section needs a new choice, or evidence warrants reopening its prior
-   answer: use 0D's Plan decision route through its post-answer save, then
-   return here to Apply.
-   Use the same row ID in the ledger, `currentDecision` and question; complete
-   the pre-question checkpoint before asking. Resolve critical risks now.
-2. An exact prior answer covers it: cite that answer and go to Apply.
-3. A non-blocking choice belongs to a later section: reference its pending row
-   and owner; leave it undecided here.
+**解決。** 各指摘について、最初に当てはまる経路を選んでください:
+1. このセクションで新しい選択が必要な場合、またはその証拠が以前の回答を再検討する根拠になる場合: 0D のプランの判断のルートを、回答後の保存まで使い、その後ここに戻って適用してください。
+   台帳、`currentDecision`、質問で同じ行 ID を使ってください。質問の前に、質問前のチェックポイントを完了してください。重大なリスクは今解決してください。
+2. 正確な以前の回答がそれをカバーしている場合: その回答を引用し、適用に進んでください。
+3. ブロックしない選択が後のセクションに属する場合: その保留中の行と担当者を参照し、ここでは決めないままにしてください。
 
-Keep independent safety fixes and throughput improvements in separate rows,
-following 0D's test table. No path selects the mode again.
+独立した安全性の修正とスループットの改善は、0D のテストの表に従って、別々の行に分けてください。どの経路でも、モードを再び選ぶことはありません。
 
-**Apply.** Check the saved plan against each answer's exact scope. Preserve existing
-content, approved behavior, required implementation, tests and success/failure
-contracts. Leave unapproved remedies and extra verification pending; do not put
-them into tasks or prescribe them in diagrams. If the plan already matches, do
-not save again. Correct discrepancies under the storage policy; if a correction
-needs approval, resolve it through 0D before repeating this check.
+**適用。** 保存されたプランを、各回答の正確なスコープと照合してください。既存の内容、承認された振る舞い、必須の実装、テスト、成功と失敗の契約を保持してください。承認されていない対処や追加の検証は保留のままにし、タスクに入れたり、図に書いたりしないでください。プランがすでに一致している場合は、再保存しないでください。保存ポリシーに従って不一致を修正してください。修正に承認が必要な場合は、この確認を繰り返す前に、0D で解決してください。
 
-Record findings and dispositions, then review the next section. Do not write its
-conclusions or tasks before reviewing it. After Sections 1–10 and Section 11's
-review or no-UI skip, follow Closing sequence. Keep unresolved choices in the
-ledger and report; an approval is not proof of implementation or verification.
+指摘と処分を記録してから、次のセクションをレビューしてください。レビューする前に、そのセクションの結論やタスクを書いてはいけません。セクション 1〜10 と、セクション 11 のレビューまたは UI なしのスキップの後は、締めくくりの手順に従ってください。未解決の選択は台帳と報告に残してください。承認は、実装や検証の証拠ではありません。
 
-### Section 1: Architecture Review
-Publish **Current scope** in chat before the architecture analysis:
-- Retain 0E's selected mode, rationale and preference attribution.
-- Show each governing row's ID, disposition and answer reference, including scope
-  decisions after 0E. Keep earlier answers as history.
-- Distinguish accepted, deferred, rejected and pending work.
+### セクション 1: アーキテクチャのレビュー
+アーキテクチャの分析の前に、チャットで **Current scope** を公開してください:
+- 0E で選んだモード、根拠、好みの帰属を保持します。
+- 各支配的な行の ID、処分、回答への参照を示します。0E の後のスコープの判断も含みます。以前の回答は履歴として残してください。
+- 承認、先送り、却下、保留中の作業を区別してください。
 
-This is a scope update, not another mode handoff; do not ask or log the mode again.
-Then say `Section 1: Architecture Review`.
+これはスコープの更新であり、モードの引き継ぎを再び行うものではありません。モードを再度尋ねたり、記録したりしないでください。
+その後、`Section 1: Architecture Review` と言ってください。
 
-Evaluate and diagram:
-* System design and component boundaries. Draw the dependency graph.
-* Data flow — all four paths. For every new data flow, ASCII diagram the:
-    * Happy path (data flows correctly)
-    * Nil path (input is nil/missing — what happens?)
-    * Empty path (input is present but empty/zero-length — what happens?)
-    * Error path (upstream call fails — what happens?)
-* State machines. ASCII diagram for every new stateful object. Include impossible/invalid transitions and what prevents them.
-* Coupling concerns. What new coupling exists, and is it justified? Draw before/after dependencies.
-* Scaling characteristics. What breaks first under 10x and 100x load?
-* Single points of failure. Map them.
-* Security architecture. Auth boundaries, data access patterns, API surfaces. For each new endpoint or data mutation: who can call it, what do they get, what can they change?
-* Production failure scenarios. For each integration point, describe one realistic failure and whether the plan handles it.
-* Rollback posture. If this ships broken, name the rollback path and time.
-* Value test for artifacts about the work. When the plan adds a status report, audit matrix, certificate, meta-report or conformance check that nothing consumes, ask: who uses it, what decision or delivered behavior changes because it exists, why this is the smallest useful version, and when it retires. An explicit user request answers the first two and is recorded as provenance; the last two are still answered. A credible, explicitly identified preventive risk is a valid answer; prior occurrence is not required. Manufacturing a code consumer to pass the question is the pathology, not an answer. Carve-out: product observability (dashboards, alerts, runbooks for the shipped system) is launch scope under Prime Directive 5 and never a process artifact; user-facing docs and agent-consumed instructions are product. The question applies to artifacts about the work, not about the system.
+評価し、図にしてください:
+* システム設計とコンポーネントの境界。依存関係のグラフを描いてください。
+* データの流れ — 4 つの経路すべて。新しいデータの流れごとに、次の ASCII 図を描いてください:
+    * 正常系(データが正しく流れる)
+    * nil の経路(入力が nil または欠落 — 何が起きるか?)
+    * 空の経路(入力はあるが空、またはゼロ長 — 何が起きるか?)
+    * エラーの経路(上流の呼び出しが失敗 — 何が起きるか?)
+* ステートマシン。新しいステートフルなオブジェクトごとに ASCII 図を描いてください。不可能な、または無効な遷移と、それを防ぐものを含めてください。
+* 結合の懸念。どのような新しい結合が生まれ、それは正当化できるか? 変更前と変更後の依存関係を描いてください。
+* スケーリングの特性。10 倍と 100 倍の負荷で、最初に壊れるものは何か?
+* 単一障害点。それらをマップしてください。
+* セキュリティのアーキテクチャ。認証の境界、データへのアクセスのパターン、API の表面。新しいエンドポイントやデータの変更ごとに、誰が呼び出せるか、何を得られるか、何を変更できるかを示してください。
+* 本番での失敗のシナリオ。統合ポイントごとに、現実的な失敗を一つ説明し、プランがそれを扱えるかどうかを述べてください。
+* ロールバックの姿勢。もしこれが壊れた状態で出荷されたら、ロールバックの経路と所要時間を挙げてください。
+* 作業に関する成果物の価値テスト。プランがステータス報告、監査マトリクス、証明書、メタ報告、適合性チェックを追加する場合で、それを消費するものが何もないときは、次を問うてください: 誰が使うのか、その存在によってどの判断や提供される振る舞いが変わるのか、なぜこれが最小の有用な版なのか、いつ廃止されるのか。ユーザーの明示的な依頼は最初の二つに答え、出所として記録します。最後の二つにも答える必要があります。信頼できる、明示的に特定された予防的なリスクは、有効な答えです。過去に発生していることは必要ありません。この問いを通すために、コードの消費者をでっち上げるのは、答えではなく病理です。例外: プロダクトの可観測性(出荷されたシステムのダッシュボード、アラート、運用手順書)は、最優先の指示 5 の下でリリースのスコープであり、決してプロセスの成果物ではありません。ユーザー向けの文書やエージェントが読む指示はプロダクトです。この問いは、作業についての成果物に適用され、システムについてのものには適用されません。
 
-**EXPANSION and SELECTIVE EXPANSION additions:**
-* What would make this architecture elegant and obvious to a new engineer?
-* What infrastructure makes this a platform for later features?
+**EXPANSION と SELECTIVE EXPANSION の追加:**
+* 何があれば、このアーキテクチャは新しいエンジニアにとってエレガントで分かりやすくなるか?
+* どんなインフラがあれば、これが後の機能のためのプラットフォームになるか?
 
-**SELECTIVE EXPANSION:** If any accepted cherry-picks from Step 0G affect the architecture, evaluate their architectural fit here. Flag any that create coupling concerns or don't integrate cleanly — this is a chance to revisit the decision with new information.
+**SELECTIVE EXPANSION:** ステップ 0G のつまみ食いで承認されたものがアーキテクチャに影響する場合は、ここでそのアーキテクチャへの適合性を評価してください。結合の懸念を生んだり、きれいに統合されなかったりするものにはフラグを立ててください。これは、新しい情報で判断を見直す機会です。
 
-Required ASCII diagram: full system architecture showing new components and their relationships to existing ones.
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+必須の ASCII 図: 新しいコンポーネントと既存のものとの関係を示す、システム全体のアーキテクチャ。
+**判断ゲート。** 次に進む前に、このセクションについて上の分析 → 解決 → 適用を完了してください。
 
-### Section 2: Error & Rescue Map
-This is the section that catches silent failures.
-For strategy-only depth, map each retained capability, integration or data
-boundary that can fail. For implementation-ready depth, map every new method,
-service or codepath that can fail. Use the same table shape for both:
+### セクション 2: エラーとレスキューのマップ
+これは、静かな失敗を見つけるセクションです。
+戦略のみの深さでは、残すべき機能、統合、データの境界のうち、失敗しうるものをマップしてください。実装可能な深さでは、失敗しうる新しいメソッド、サービス、コードパスをすべてマップしてください。両方とも同じ表の形を使ってください:
 ```
   METHOD/CODEPATH          | WHAT CAN GO WRONG           | EXCEPTION CLASS
   -------------------------|-----------------------------|-----------------
@@ -158,319 +111,317 @@ service or codepath that can fail. Use the same table shape for both:
   RateLimitError               | Y         | Backoff + retry         | Transparent
   JSONParseError               | N ← GAP   | —                      | 500 error ← BAD
 ```
-Rules for this section:
-* Catch-all error handling (`rescue StandardError`, `catch (Exception e)`, `except Exception`) is a smell. Name the specific exceptions.
-* Generic-only logging is insufficient. Log what was attempted, with what args and for what user/request.
-* Every rescued error must retry with backoff, degrade gracefully with a user-visible message, or re-raise with added context. "Swallow and continue" is almost never acceptable.
-* For each GAP (unrescued error that should be rescued): specify the rescue action and what the user should see.
-* For LLM/AI calls: handle malformed, empty, hallucinated-invalid JSON and refusals as distinct failure modes.
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+このセクションのルール:
+* すべてを捕捉するエラー処理(`rescue StandardError`、`catch (Exception e)`、`except Exception`)は、悪い兆候です。具体的な例外名を挙げてください。
+* 汎用的なログだけでは不十分です。何を試みたのか、どの引数で、どのユーザーやリクエストについてなのかを記録してください。
+* 捕捉されたエラーはすべて、バックオフ付きで再試行する、ユーザーに見えるメッセージで穏やかに機能を落とす、または文脈を追加して再送出する必要があります。「握りつぶして続行」は、ほぼ決して許容されません。
+* 各ギャップ(捕捉されるべきなのに捕捉されていないエラー)について、レスキューの処置と、ユーザーに何が見えるべきかを明記してください。
+* LLM や AI の呼び出しについては、不正な形式、空、幻覚による無効な JSON、拒否を、それぞれ別の失敗モードとして扱ってください。
+**判断ゲート。** 次に進む前に、このセクションについて上の分析 → 解決 → 適用を完了してください。
 
-### Section 3: Security & Threat Model
-Security is not a sub-bullet of architecture. It gets its own section.
-Evaluate:
-* Attack surface expansion. What new attack vectors does this plan introduce? New endpoints, new params, new file paths, new background jobs?
-* Input validation. For every new user input: is it validated, sanitized, and rejected loudly on failure? What happens with: nil, empty string, string when integer expected, string exceeding max length, unicode edge cases, HTML/script injection attempts?
-* Authorization. For every new data access: is it scoped to the right user/role? Is there a direct object reference vulnerability? Can user A access user B's data by manipulating IDs?
-* Secrets and credentials. New secrets? In env vars, not hardcoded? Rotatable?
-* Dependency risk. New gems/npm packages? Security track record?
-* Data classification. PII, payment data, credentials? Handling consistent with existing patterns?
-* Injection vectors. SQL, command, template, LLM prompt injection — check all.
-* Audit logging. For sensitive operations: is there an audit trail?
+### セクション 3: セキュリティと脅威モデル
+セキュリティは、アーキテクチャの小項目ではありません。独自のセクションを持ちます。
+評価してください:
+* 攻撃対象領域の拡大。このプランはどのような新しい攻撃ベクトルをもたらすか? 新しいエンドポイント、新しいパラメータ、新しいファイルパス、新しいバックグラウンドジョブはないか?
+* 入力の検証。新しいユーザー入力ごとに、検証され、サニタイズされ、失敗時には大きな声で拒否されるか? 次の場合はどうなるか: nil、空文字列、整数を期待する場所に文字列、最大長を超える文字列、Unicode のエッジケース、HTML/スクリプトのインジェクションの試み?
+* 認可。新しいデータアクセスごとに、適切なユーザーや役割に限定されているか? 直接のオブジェクト参照の脆弱性はないか? ユーザー A が ID を操作して、ユーザー B のデータにアクセスできないか?
+* 秘密情報と認証情報。新しい秘密情報はあるか? 環境変数に入っているか、ハードコードされていないか? ローテーション可能か?
+* 依存関係のリスク。新しい gem や npm パッケージはあるか? セキュリティ上の実績は?
+* データの分類。PII、決済データ、認証情報はあるか? 扱いは既存のパターンと一貫しているか?
+* インジェクションの経路。SQL、コマンド、テンプレート、LLM のプロンプトインジェクション — すべて確認してください。
+* 監査ログ。機密性の高い操作について、監査証跡はあるか?
 
-For each finding: threat, likelihood (High/Med/Low), impact (High/Med/Low), and whether the plan mitigates it.
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+各指摘について、脅威、発生可能性(High/Med/Low)、影響(High/Med/Low)、そしてプランがそれを軽減するかどうかを示してください。
+**判断ゲート。** 次に進む前に、このセクションについて上の分析 → 解決 → 適用を完了してください。
 
-### Section 4: Data Flow & Interaction Edge Cases
-Trace data and user interactions adversarially.
+### セクション 4: データの流れと相互作用のエッジケース
+データとユーザーの相互作用を、敵対的な視点でたどってください。
 
-**Data Flow Tracing:** For every new data flow, produce an ASCII diagram showing:
-`INPUT -> VALIDATION -> TRANSFORM -> PERSIST -> OUTPUT`, with shadow paths for
-nil/empty/wrong type, invalid/too long, exception/timeout/OOM, conflict/dup/lock,
-stale/partial/encoding.
-For each node: what happens on each shadow path? Is it tested?
+**データの流れの追跡:** 新しいデータの流れごとに、次を示す ASCII 図を作成してください:
+`INPUT -> VALIDATION -> TRANSFORM -> PERSIST -> OUTPUT`。各ノードには、nil/空/型違い、無効/長すぎる、例外/タイムアウト/OOM、競合/重複/ロック、古い/部分的/エンコーディングの、シャドウの経路を付けてください。
+各ノードについて、各シャドウの経路で何が起きるか? それはテストされているか?
 
-**Async ordering:** For flows sharing mutable state:
-1. **Define the boundary.** State the invariant and its exact caller/time boundary. Draw a combined ASCII schedule with one column per operation and one for shared state.
-2. **Exercise both orders.** For each pair of overlapping awaits that can affect that invariant, show both completion orders. At each relevant `await`, callback or job handoff: pause, let a competing operation complete, resume, then start a fresh consumer. Exclude an order only by naming the mechanism that prevents it.
-3. **Compare the result.** Show the observed result against the invariant. The invariant is a requirement, not proof that the implementation meets it. If safe, name the mechanism that prevents the violating schedule. Separate diagrams, one favorable schedule, single-thread execution and atomic calls do not prove ordering across awaits. An accepted exception needs its exact contract clause; bounded damage is insufficient.
-4. **Specify regression proof.** Test the relevant completion orders with controlled pause/release points. Compare relevant pairs; exhaustive permutations are unnecessary.
+**非同期の順序:** 可変の状態を共有する流れについて:
+1. **境界を定義する。** 不変条件と、その正確な呼び出し元と時間の境界を述べてください。操作ごとに一列、共有の状態に一列を設けた、組み合わせた ASCII のスケジュールを描いてください。
+2. **両方の順序を試す。** その不変条件に影響しうる、重なり合う await の組ごとに、両方の完了順序を示してください。関連する各 `await`、コールバック、またはジョブの受け渡しで、一時停止し、競合する操作を完了させ、再開し、その後、新しい消費者を開始してください。順序を除外するのは、それを防ぐメカニズムを名指しする場合だけです。
+3. **結果を比較する。** 観察された結果を不変条件と照合して示してください。不変条件は要件であり、実装がそれを満たすことの証明ではありません。安全な場合は、違反するスケジュールを防ぐメカニズムを名指ししてください。個別の図、一つの都合の良いスケジュール、シングルスレッドの実行、アトミックな呼び出しは、await をまたいだ順序を証明しません。承認された例外には、その正確な契約の条項が必要です。限定的な被害では不十分です。
+4. **回帰の証明を指定する。** 制御された一時停止と再開の地点で、関連する完了順序をテストしてください。関連する組を比較してください。網羅的な順列は不要です。
 
-**Interaction Edge Cases:** For every new user-visible interaction, evaluate:
-`INTERACTION | EDGE CASE | HANDLED? | HOW?`. Include Double-click/stale submit,
-navigate away/timeout/retry, zero/large/changing list, and failed/duplicate/backlogged jobs.
-Flag any unhandled edge case as a gap. For each gap, specify the fix.
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+**相互作用のエッジケース:** 新しいユーザーに見える相互作用ごとに、次を評価してください:
+`INTERACTION | EDGE CASE | HANDLED? | HOW?`。ダブルクリックや古い送信、画面を離れる/タイムアウト/再試行、ゼロ/大きい/変化するリスト、失敗・重複・滞留したジョブを含めてください。
+扱われていないエッジケースは、ギャップとしてフラグを立ててください。各ギャップについて、修正方法を明記してください。
+**判断ゲート。** 次に進む前に、このセクションについて上の分析 → 解決 → 適用を完了してください。
 
-### Section 5: Code Quality Review
-Evaluate:
-* Code organization and module structure. Does new code fit existing patterns?
-* Duplicated behavior. If the same logic exists elsewhere, flag it with the file and line; similar-looking code alone is not a reason to extract.
-* Naming quality. Are new classes, methods, and variables named for what they do, not how they do it?
-* Error handling patterns. (Cross-reference with Section 2 — this section reviews the patterns; Section 2 maps the specifics.)
-* Missing edge cases: nil, empty, 429/timeouts and boundary values.
-* Over-engineering: abstractions for problems that do not exist yet.
-* Under-engineering: happy-path fragility or missing defensive checks.
-* Cyclomatic complexity. Flag any new method that branches more than 5 times. Propose a refactor.
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+### セクション 5: コード品質のレビュー
+評価してください:
+* コードの構成とモジュールの構造。新しいコードは既存のパターンに合っているか?
+* 重複した振る舞い。同じロジックが他にもある場合は、ファイルと行を挙げてフラグを立ててください。似て見えるコードだけでは、抽出する理由にはなりません。
+* 命名の質。新しいクラス、メソッド、変数は、どう実装するかではなく、何をするかで名付けられているか?
+* エラー処理のパターン。(セクション 2 と相互参照してください。このセクションはパターンをレビューし、セクション 2 は詳細をマップします。)
+* 欠けているエッジケース: nil、空、429/タイムアウト、境界値。
+* 過剰な設計: まだ存在しない問題のための抽象化。
+* 設計不足: 正常系の脆さや、防御的なチェックの欠落。
+* 循環的複雑度。5 回を超えて分岐する新しいメソッドにはフラグを立ててください。リファクタリングを提案してください。
+**判断ゲート。** 次に進む前に、このセクションについて上の分析 → 解決 → 適用を完了してください。
 
-### Section 6: Test Review
-Carry requested or approved coverage forward, including directly determined tests, without re-asking. For an unresolved test-method choice or additional verification scope/depth, name the distinct regression existing tests miss and resolve that choice through 0D before prescribing it. An approved runtime contract alone does not choose extra verification scope.
+### セクション 6: テストのレビュー
+要求された、または承認されたカバレッジを、直接決まったテストを含めて引き継ぎ、再び尋ねないでください。未解決のテストの方法の選択や、追加の検証の範囲や深さについては、既存のテストが見逃す、明確な回帰を名指しし、それを提案する前に 0D でその選択を解決してください。承認された実行時の契約だけでは、追加の検証の範囲は決まりません。
 
-Make a complete diagram of every new thing this plan introduces:
-new UX flows, data flows, codepaths, background jobs/async work,
-integrations/external calls, and error/rescue paths (cross-reference Section 2).
-For each item in the diagram:
-* What type of test covers it? (Unit / Integration / System / E2E)
-* Does a test for it exist in the plan? If not, draft its header within requested or approved coverage; keep new verification proposals pending until their decision.
-* What is the happy path test?
-* What is the failure path test? (Be specific — which failure?)
-* What is the edge case test? (nil, empty, boundary values, concurrent access)
+このプランが導入するものすべての完全な図を描いてください:
+新しい UX の流れ、データの流れ、コードパス、バックグラウンドジョブや非同期の作業、
+統合や外部呼び出し、エラーとレスキューの経路(セクション 2 と相互参照)。
+図の各項目について:
+* どの種類のテストがカバーするか?(ユニット / 統合 / システム / E2E)
+* プランにそのテストは存在するか? 存在しなければ、要求された、または承認されたカバレッジの範囲内で、そのヘッダーを下書きしてください。新しい検証の提案は、その判断が出るまで保留のままにしてください。
+* 正常系のテストは何か?
+* 失敗経路のテストは何か?(具体的に — どの失敗か?)
+* エッジケースのテストは何か?(nil、空、境界値、同時アクセス)
 
-For each behavior, complete this assertion check:
-1. **Map the requirement.** Name its observable assertion, a wrong result it rejects, and its `no_claim`: one sentence on what a green result does not prove and which fixtures or mocks stand in for what (`no_claim=provider acceptance (mocked provider; unit only)`, or `no_claim=none beyond protects` when nothing is left unproven; never reflexive filler). Author it yourself; never ask the user for it, and never let it waive a required live check or an unresolved test-method decision. Map the requirement to the user's exact requirement or individually approved remedy. A stated outcome plus its retained caller contract can determine the assertion, even without assertion syntax. Translate semantic counts, conditions and quantifiers exactly; never weaken an exact count to a lower bound.
-2. **Reuse settled proof.** Selecting an existing probe or spelling out a determined check is implementation work, not another approval. Reuse these requirements without asking again. Verify the caller's path; helper coverage alone does not prove it. Honor previously accepted risks and equivalent caller coverage.
-3. **Resolve actual gaps.** Explain what the existing requirement or approved remedy fails to cover before calling a check missing. Ask individually only for an unresolved behavioral choice, new outcome, or independent uncovered failure mode. Vague success labels do not settle values; scope/approach approval does not resolve an individual assertion gap. Never silently add, defer or waive a missing behavioral assertion. Keep required behaviors mandatory unless the user explicitly approves changing them.
+振る舞いごとに、次のアサーションの確認を行ってください:
+1. **要件をマップする。** その観測可能なアサーション、それが拒否する誤った結果、そして `no_claim` を挙げてください。`no_claim` は、緑の結果が何を証明しないか、どのフィクスチャやモックが何の代わりか、を一文で述べたものです(`no_claim=provider acceptance (mocked provider; unit only)`、証明されずに残るものがない場合は `no_claim=none beyond protects`。反射的な埋め草は禁止)。自分で書き、ユーザーに求めてはいけません。必須のライブ確認や、未解決のテスト方法の判断を、それで免除してはいけません。要件を、ユーザーの正確な要件か、個別に承認された対処にマップしてください。明示された結果と、保持された呼び出し元の契約があれば、アサーションの構文がなくてもアサーションを決められます。意味的な数、条件、量化子は正確に訳してください。正確な数を下限に弱めてはいけません。
+2. **確定した証明を再利用する。** 既存のプローブを選んだり、決まったチェックを明記したりすることは、再度の承認ではなく、実装の作業です。これらの要件は、再び尋ねずに再利用してください。呼び出し元の経路を確認してください。ヘルパーのカバレッジだけでは、それは証明されません。以前に受け入れたリスクや、同等の呼び出し元のカバレッジを尊重してください。
+3. **実際のギャップを解決する。** チェックが欠けていると言う前に、既存の要件や承認された対処が何をカバーしていないかを説明してください。個別に尋ねるのは、未解決の振る舞いの選択、新しい結果、独立してカバーされていない失敗モードの場合だけです。曖昧な成功のラベルでは値は決まりません。スコープやアプローチの承認では、個々のアサーションのギャップは解決しません。必要な振る舞いのアサーションを、黙って追加、先送り、免除してはいけません。ユーザーが明示的に変更を承認しない限り、必須の振る舞いは必須のままにしてください。
 
-Test ambition check (all modes): For each new feature, answer:
-* What's the test that would make you confident shipping at 2am on a Friday?
-* What's the test a hostile QA engineer would write to break this?
-* What's the chaos test?
+テストの野心の確認(すべてのモード): 新しい機能ごとに、次に答えてください:
+* 金曜の深夜 2 時にリリースする自信を与えてくれるテストは何か?
+* 敵対的な QA エンジニアが、これを壊すために書くテストは何か?
+* カオステストは何か?
 
-Test pyramid check: Many unit, fewer integration, few E2E? Or inverted?
-Flakiness risk: Flag any test depending on time, randomness, external services, or ordering.
-Load/stress test requirements: For any new codepath called frequently or processing significant data.
+テストピラミッドの確認: ユニットが多く、統合は少なく、E2E はさらに少ないか? それとも逆になっているか?
+不安定さのリスク: 時間、ランダム性、外部サービス、順序に依存するテストにはフラグを立ててください。
+負荷・ストレステストの要件: 頻繁に呼び出される、または大量のデータを処理する新しいコードパスすべてについて。
 
-For LLM/prompt changes: Check CLAUDE.md for the "Prompt/LLM changes" file patterns. If this plan touches ANY of those patterns, state which eval suites must be run, which cases should be added, and what baselines to compare against.
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+LLM やプロンプトの変更については: CLAUDE.md の「Prompt/LLM changes」のファイルパターンを確認してください。このプランがそのパターンのいずれかに触れる場合は、どの評価スイートを実行しなければならないか、どのケースを追加すべきか、どのベースラインと比較すべきかを述べてください。
+**判断ゲート。** 次に進む前に、このセクションについて上の分析 → 解決 → 適用を完了してください。
 
-### Section 7: Performance Review
-Evaluate:
-* N+1 queries. For ORM-backed data access, especially association traversal: does the plan preload/batch instead of querying in a loop?
-* Memory usage. For every new data structure: what's the maximum size in production?
-* Database indexes. For every new query: is there an index?
-* Caching opportunities. For every expensive computation or external call: should it be cached?
-* Background job sizing. For every new job: worst-case payload, runtime, retry behavior?
-* Slow paths. Top 3 slowest new codepaths and estimated p99 latency.
-* Connection pool pressure. New DB connections, Redis connections, HTTP connections?
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+### セクション 7: パフォーマンスのレビュー
+評価してください:
+* N+1 クエリ。ORM が背後にあるデータアクセス、特に関連をたどる箇所: プランはループでクエリを発行する代わりに、事前読み込みやバッチ処理をしているか?
+* メモリ使用量。新しいデータ構造ごとに、本番での最大サイズは?
+* データベースのインデックス。新しいクエリごとに、インデックスはあるか?
+* キャッシュの機会。高コストな計算や外部呼び出しごとに、キャッシュすべきか?
+* バックグラウンドジョブの規模。新しいジョブごとに、最悪のペイロード、実行時間、再試行の挙動は?
+* 遅い経路。新しいコードパスのうち遅い上位 3 つと、推定の p99 レイテンシ。
+* コネクションプールの負荷。新しい DB コネクション、Redis コネクション、HTTP コネクションはあるか?
+**判断ゲート。** 次に進む前に、このセクションについて上の分析 → 解決 → 適用を完了してください。
 
-### Section 8: Observability & Debuggability Review
-New systems break. This section ensures you can see why.
-Evaluate:
-* Logging. For every new codepath: structured log lines at entry, exit, and each significant branch?
-* Metrics. For every new feature: what metric tells you it's working? What tells you it's broken?
-* Tracing. For new cross-service or cross-job flows: trace IDs propagated?
-* Alerting. What new alerts should exist?
-* Dashboards. What new dashboard panels do you want on day 1?
-* Debuggability. If a bug is reported 3 weeks post-ship, can you reconstruct what happened from logs alone?
-* Admin tooling. New operational tasks that need admin UI or rake tasks?
-* Runbooks. For each new failure mode: what's the operational response?
+### セクション 8: 可観測性とデバッグ容易性のレビュー
+新しいシステムは壊れるものです。このセクションでは、なぜ壊れたのかを確認できるようにします。
+評価項目:
+* ログ。新しいコードパスごとに、開始・終了・主要な分岐ごとに構造化ログが出力されるか?
+* メトリクス。新機能ごとに、動作していることを示す指標は何か? 壊れていることを示す指標は何か?
+* トレーシング。新しいサービス間やジョブ間のフローで、トレースIDが伝播されているか?
+* アラート。新たに必要なアラートは何か?
+* ダッシュボード。リリース初日に必要な新しいダッシュボードのパネルは何か?
+* デバッグ容易性。リリースから3週間後にバグが報告されたとき、ログだけで何が起きたかを再構成できるか?
+* 管理ツール。新しい運用作業には管理UIやrakeタスクが必要か?
+* ランブック。新しい障害モードごとに、運用上の対応は何か?
 
-**EXPANSION and SELECTIVE EXPANSION addition:**
-* What observability would make this feature a joy to operate? (For SELECTIVE EXPANSION, include observability for any accepted cherry-picks.)
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+**EXPANSIONおよびSELECTIVE EXPANSIONの追加項目:**
+* どのような可観測性があれば、この機能を運用するのが楽しくなるか? (SELECTIVE EXPANSIONでは、採用されたcherry-pickごとの可観測性も含めてください。)
+**判断ゲート。** 先に進む前に、このセクションについて上記の Analyze → Resolve → Apply を完了してください。
 
-### Section 9: Deployment & Rollout Review
-Evaluate:
-* Migration safety. For every new DB migration: backward-compatible? Zero-downtime? Table locks?
-* Feature flags. Should any part be behind a feature flag?
-* Rollout order. Correct sequence: migrate first, deploy second?
-* Rollback plan. Explicit step-by-step.
-* Deploy-time risk window. Old code and new code running simultaneously — what breaks?
-* Environment parity. Tested in staging?
-* Post-deploy verification checklist. First 5 minutes? First hour?
-* Smoke tests. What automated checks should run immediately post-deploy?
+### セクション 9: デプロイとロールアウトのレビュー
+評価項目:
+* マイグレーションの安全性。新しいDBマイグレーションごとに、後方互換か? ダウンタイムなしか? テーブルロックは発生しないか?
+* フィーチャーフラグ。一部をフィーチャーフラグの背後に置くべきか?
+* ロールアウトの順序。正しい順番は、先にマイグレーション、次にデプロイか?
+* ロールバック計画。段階ごとの手順を明示する。
+* デプロイ時のリスク期間。旧コードと新コードが同時に動く間に何が壊れるか?
+* 環境の一致性。ステージングで検証済みか?
+* デプロイ後の検証チェックリスト。最初の5分? 最初の1時間?
+* スモークテスト。デプロイ直後に自動実行すべきチェックは何か?
 
-**EXPANSION and SELECTIVE EXPANSION addition:**
-* What deploy infrastructure would make shipping this feature routine? (For SELECTIVE EXPANSION, assess whether accepted cherry-picks change the deployment risk profile.)
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+**EXPANSIONおよびSELECTIVE EXPANSIONの追加項目:**
+* どのようなデプロイ基盤があれば、この機能のリリースが日常業務になるか? (SELECTIVE EXPANSIONでは、採用されたcherry-pickがデプロイのリスク特性を変えるかどうかを評価してください。)
+**判断ゲート。** 先に進む前に、このセクションについて上記の Analyze → Resolve → Apply を完了してください。
 
-### Section 10: Long-Term Trajectory Review
-Evaluate:
-* Technical debt introduced. Code debt, operational debt, testing debt, documentation debt.
-* Path dependency. Does this make future changes harder?
-* Knowledge concentration. Documentation sufficient for a new engineer?
-* Reversibility. Rate 1-5: 1 = one-way door, 5 = easily reversible.
-* Ecosystem fit. Aligns with this repo's framework conventions?
-* The 1-year question. Is this obvious to a new engineer in 12 months?
+### セクション 10: 長期的な方向性のレビュー
+評価項目:
+* 導入される技術的負債。コードの負債、運用の負債、テストの負債、ドキュメントの負債。
+* 経路依存性。将来の変更を難しくしないか?
+* 知識の集中。新しいエンジニアが理解できるだけのドキュメントがあるか?
+* 可逆性。1〜5で評価: 1 = 一方向のドア(元に戻せない)、5 = 容易に元に戻せる。
+* エコシステムとの適合性。このリポジトリのフレームワークの慣習に沿っているか?
+* 1年後の問い。12か月後の新しいエンジニアにとっても自明か?
 
-**EXPANSION and SELECTIVE EXPANSION additions:**
-* What comes after this ships? Phase 2? Phase 3? Does the architecture support that trajectory?
-* Platform potential. Does this create capabilities other features can leverage?
-* (SELECTIVE EXPANSION only) Retrospective: Were the right cherry-picks accepted? Did any rejected expansions turn out to be load-bearing for the accepted ones?
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+**EXPANSIONおよびSELECTIVE EXPANSIONの追加項目:**
+* この機能のリリース後に何が来るか? フェーズ2? フェーズ3? アーキテクチャはその方向性を支えられるか?
+* プラットフォームとしての可能性。他の機能が活用できる能力を生み出すか?
+* (SELECTIVE EXPANSIONのみ)振り返り: 正しいcherry-pickが採用されたか? 却下した拡張のうち、採用したものを支える要になっていたものはなかったか?
+**判断ゲート。** 先に進む前に、このセクションについて上記の Analyze → Resolve → Apply を完了してください。
 
-### Section 11: Design & UX Review (skip if no UI scope detected)
-The CEO calling in the designer. Not a pixel-level audit — that's /plan-design-review and /design-review. This is ensuring the plan has design intentionality.
+### セクション 11: デザインとUXのレビュー(UIのスコープが検出されない場合はスキップ)
+CEOがデザイナーを呼び出す場面です。ピクセル単位の監査ではありません。それは /plan-design-review と /design-review の役目です。ここでは、計画に意図的なデザインがあることを確認します。
 
-Evaluate:
-* Information architecture — what does the user see first, second, third?
-* Interaction state coverage map:
-  FEATURE | LOADING | EMPTY | ERROR | SUCCESS | PARTIAL
-* User journey coherence — storyboard the emotional arc
-* AI slop risk — does the plan describe generic UI patterns?
-* DESIGN.md alignment — does the plan match the stated design system?
-* Responsive intention — is mobile mentioned or afterthought?
-* Accessibility basics — keyboard nav, screen readers, contrast, touch targets
+評価項目:
+* 情報設計。ユーザーが最初、次、その次に見るものは何か?
+* インタラクション状態の網羅マップ:
+  FEATURE | ローディング | 空状態 | エラー | 成功 | 部分的
+* ユーザージャーニーの一貫性。感情の流れを絵コンテとして描く
+* AIスロップのリスク。計画が汎用的なUIパターンを記述していないか?
+* DESIGN.mdとの整合性。計画は明示されたデザインシステムに合っているか?
+* レスポンシブへの意図。モバイルは言及されているか、それとも後付けか?
+* アクセシビリティの基本。キーボード操作、スクリーンリーダー、コントラスト、タッチターゲット
 
-**EXPANSION and SELECTIVE EXPANSION additions:**
-* What would make this UI feel *inevitable*?
-* What 30-minute UI touches would make users think "oh nice, they thought of that"?
+**EXPANSIONおよびSELECTIVE EXPANSIONの追加項目:**
+* どうすれば、このUIが *必然的* に感じられるか?
+* どんな30分程度のUIの工夫があれば、ユーザーに「お、これは気が利いている」と思ってもらえるか?
 
-Required ASCII diagram: user flow showing screens/states and transitions.
+必須のASCII図: 画面・状態と遷移を示すユーザーフロー。
 
-If this plan has significant UI scope, recommend: "Consider running /plan-design-review for a deep design review of this plan before implementation."
+この計画にUIのスコープが大きい場合は、次を推奨してください: 「実装前に、この計画の詳細なデザインレビューのため /plan-design-review の実行を検討してください。」
 
-**Post-Implementation Design Audit (if UI scope detected):** After implementation, run `/design-review` on the live site to catch visual issues that can only be evaluated with rendered output.
-**Decision gate.** Complete Analyze → Resolve → Apply above for this section before continuing.
+**実装後のデザイン監査(UIのスコープが検出された場合):** 実装後、描画された出力でしか評価できない見た目の問題を見つけるため、公開サイトで `/design-review` を実行してください。
+**判断ゲート。** 先に進む前に、このセクションについて上記の Analyze → Resolve → Apply を完了してください。
 
-## Closing sequence
+## 締めくくりの手順
 
-Continue through the blocks below in file order:
-1. **Outside Voice:** run the configured review and resolve its findings through 0D. Record disabled or unavailable coverage and continue when no reviewer runs.
-2. **Resolve remaining TODO choices:** use the selected mode's scope rules.
-3. **Approval readiness:** check the ledger and record PASS before writing outputs. Its complete checklist is immediately after the TODO choices; no report or log is needed yet.
-4. **Required Outputs:** follow the three stages below: prepare the plan body and summary, save and verify the terminal report, then publish the summary in chat.
-5. **Cleanup and history:** archive old CEO plans only if the user approved it (otherwise skip cleanup), attempt Review Log under the Artifact outcomes policy, then display the dashboard with the actual logging outcome.
-6. **Navigation:** choose Next Steps and any docs/designs promotion; queue the next skill. For a substantive answer, call 0D for only that change, repeat Approval readiness and Required Outputs, then repeat step 5. Resume navigation without asking settled choices again. Navigation alone does not reopen decisions.
-7. **Learnings:** finish learning and brain write-back. Return to this skill's main `SKILL.md`, at **Section self-check**. Its EXIT gate verifies completed work and saved readiness without asking again. After a passing gate, refresh the cache, run telemetry last, then exit or return to the caller.
+以下のブロックを、ファイル内の順序どおりに進めてください:
 
-### Outside Voice Integration Rule
+1. **Outside Voice:** 設定されたレビューを実行し、その指摘を0Dで解決します。無効または利用できない範囲は記録し、レビュアーが実行されない場合は先に進みます。
+2. **残りのTODOの選択を解決:** 選択されたモードのスコープのルールを使ってください。
+3. **承認の準備確認:** 出力を書く前に台帳を確認し、PASSを記録します。完全なチェックリストはTODOの選択の直後にあります。この時点ではレポートやログはまだ必要ありません。
+4. **必須の出力:** 次の3段階に従ってください。計画本文とサマリーを準備し、最終レポートを保存して検証し、その後チャットでサマリーを公開します。
+5. **後片付けと履歴:** 古いCEO計画は、ユーザーが承認した場合のみアーカイブします(承認がなければ後片付けはスキップ)。Artifact outcomesポリシーのもとでレビューログの記録を試み、その後、実際のログ記録の結果とともにダッシュボードを表示します。
+6. **ナビゲーション:** 次のステップと、docs/designsへの昇格(該当する場合)を選び、次のスキルをキューに入れます。実質的な回答の場合は、その変更についてのみ0Dを呼び出し、承認の準備確認と必須の出力を繰り返し、その後ステップ5を繰り返します。決定済みの選択を改めて尋ねることなく、ナビゲーションを再開します。ナビゲーションだけでは判断は再開されません。
+7. **学び:** 学習と brain への書き戻しを完了します。このスキルのメインの `SKILL.md` に戻り、**セクションの自己チェック** を行ってください。そのEXITゲートは、完了した作業と保存された準備状態を、改めて尋ねることなく検証します。ゲートが通ったら、キャッシュを更新し、テレメトリを最後に実行してから、終了するか呼び出し元に戻ります。
 
-Apply Analyze above to each outside finding before adding it to the same ledger.
-Correct unsupported draft claims and preserve unknown risks. Reviewer agreement
-is not new evidence or approval. Reopen a choice only for a supported material
-risk, citing its prior answer and the new evidence; resolve it through 0D before
-amending the plan.
+### Outside Voice 統合ルール
+
+外部からの指摘を同じ台帳に追加する前に、それぞれに上記の Analyze を適用してください。
+根拠のない草稿の主張は訂正し、不明なリスクは保持してください。レビュアーが同意しても、
+それは新たな根拠や承認にはなりません。根拠のある重大なリスクに限って選択を再度開き、
+その際は以前の回答と新たな根拠を引用し、
+計画を修正する前に0Dを通じて解決してください。
 
 {{CODEX_PLAN_REVIEW}}
 
-## Resolve remaining TODO choices
+## 残りのTODOの選択を解決
 
-### TODOS.md updates
-**Keep the selected mode.** In HOLD SCOPE, a potential TODO must address an
-evidenced gap in the accepted scope or its required correctness and operability.
-Hypothetical future capacity, optional features, and alternatives to an adequate
-approved remedy are expansions even when labeled TODOs; do not surface them in
-HOLD SCOPE. Still audit observability and performance against the requirements,
-and approve each real deferred gap individually. Expansion modes retain their
-expansion scan and opt-in ceremony.
+### TODOS.md の更新
+**選択したモードを維持してください。** HOLD SCOPE では、候補のTODOは
+採用されたスコープ内の根拠のあるギャップ、または必要な正しさと運用性に対処するものでなければなりません。
+仮定上の将来の余力、任意の機能、そして十分な承認済みの対処法の代替案は、
+TODOとラベルされていても拡張とみなします。それらは
+HOLD SCOPE では提示しないでください。とはいえ、可観測性と性能は要件に照らして監査し、
+実際に先送りされたギャップは一つずつ個別に承認してください。拡張モードでは、
+拡張のスキャンとオプトインの手続きを残します。
 
-Only unanswered TODO proposals reach this menu. Do not ask again about an item
-already deferred, skipped or kept; carry its actual answer and destination forward.
-Resolve each remaining proposal through all four steps of 0D, using the menu
-below. Keep its full comparison, saved question/options, Read-back and actual
-answer. Never batch TODOs — one per question. If none remain, record that and continue.
-Follow the format in `~/.claude/skills/gstack/review/TODOS-format.md`.
+このメニューに出るのは、未回答のTODO提案だけです。すでに先送り、スキップ、または保持と決めた項目については改めて尋ねず、
+その実際の回答と行き先を引き継いでください。
+残りの各提案は、0Dの4つのステップすべてを使って、下のメニューにより解決してください。
+その完全な比較、保存された質問と選択肢、読み戻し、実際の回答を保持してください。
+TODOをまとめて扱うことは決してせず、1問につき1件にしてください。残りがなければ、その旨を記録して先に進みます。
+`~/.claude/skills/gstack/review/TODOS-format.md` の形式に従ってください。
 
-For each TODO, describe:
-* **What:** One-line description of the work.
-* **Why:** The concrete problem it solves or value it unlocks.
-* **Pros:** What you gain by doing this work.
-* **Cons:** Cost, complexity, or risks of doing it.
-* **Context:** Enough detail that someone picking this up in 3 months understands the motivation, the current state, and where to start.
-* **Effort estimate:** Give separate human-team and CC+gstack S/M/L/XL labels.
-  For a rough backlog estimate, start with S→S, M→S, L→M, XL→L. These are size
-  categories, not time ratios. When work is decomposed into Implementation Tasks,
-  estimate hours/minutes using that section's task-type ratios and actual work;
-  use those estimates to refine the backlog labels.
-* **Priority:** P1/P2/P3
-* **Depends on / blocked by:** Any prerequisites or ordering constraints.
+各TODOについて、次を記述してください:
+* **内容:** 作業の一行説明。
+* **理由:** 解決する具体的な問題、または解放される価値。
+* **メリット:** この作業によって得られるもの。
+* **デメリット:** この作業のコスト、複雑さ、またはリスク。
+* **背景:** 3か月後にこの作業を引き継ぐ人が、動機、現状、どこから始めるべきかを理解できるだけの詳細。
+* **工数見積もり:** 人間のチームと CC+gstack について、それぞれ S/M/L/XL のラベルを付けてください。
+  バックログの大まかな見積もりでは、S→S、M→S、L→M、XL→L から始めてください。これらは規模の区分であり、
+  時間の比率ではありません。作業が実装タスクに分解された場合は、
+  そのセクションのタスク種別ごとの比率と実際の作業を使って時間・分を見積もり、
+  その見積もりを使ってバックログのラベルを絞り込んでください。
+* **優先度:** P1/P2/P3
+* **依存関係 / ブロックされている理由:** 前提条件や順序の制約があれば記載。
 
-Then present options: **A)** Add to TODOS.md **B)** Skip — not valuable enough **C)** Keep in the current plan as required work, only when it is already part of accepted scope.
+次に選択肢を提示します: **A)** TODOS.md に追加 **B)** スキップ — 価値が十分でない **C)** 現在の計画に必須の作業として残す(すでに採用されたスコープの一部である場合に限る)。
 
 {{PLAN_REVIEW_APPROVAL_CHECK}}
 
-## Required Outputs
+## 必須の出力
 
-Complete these three stages in order. They separate preparing review content from
-announcing saved completion; no stage depends on a completion log written later.
+次の3段階を順番に完了してください。レビュー内容の準備と、
+保存の完了を告知することは分けています。どの段階も、後で書かれる完了ログに依存しません。
 
-### Stage 1 — Prepare the plan body and summary
+### 段階1 — 計画本文とサマリーを準備
 
-Write the following sections, registries, diagrams, Markdown tasks and Completion
-Summary in the working plan from approved changes. Keep them before the terminal
-report. Task JSONL and approved TODOs use their specified paths, separate from the
-0H CEO archive. The prepared summary supplies the report's current facts; it is
-not yet a chat announcement of saved completion.
+承認された変更から、作業中の計画に次のセクション、レジストリ、図、Markdownのタスク、完了
+サマリーを書いてください。これらは最終レポートより前に置いてください。タスクのJSONLと承認されたTODOは、指定されたパスを使い、
+0H の CEO アーカイブとは分けてください。
+準備されたサマリーは、レポートの現時点の事実を提供します。これはまだ、保存の完了を
+チャットで告知するものではありません。
 
-### Review facts
+### レビューの事実
 
-Derive facts from the approved ledger and completed sections: mode, findings,
-unresolved choices, critical gaps, scope dispositions and each outside attempt's
-coverage. Status is `clean` only with zero unresolved choices and critical gaps;
-otherwise `issues_open`. No report or completion log is needed yet.
+承認された台帳と完了したセクションから事実を導いてください: モード、指摘事項、
+未解決の選択、重大なギャップ、スコープの処理、各外部レビューの試行のカバー範囲。
+ステータスは、未解決の選択と重大なギャップがゼロの場合に限って `clean` とし、
+それ以外は `issues_open` とします。この時点ではレポートや完了ログは不要です。
 
-Use these facts in the Summary, report row and Review Log. Artifact cells stay
-pending until confirmed writes, or not persisted when forbidden. A substantive
-late decision repeats readiness and recomputes facts before refreshing outputs.
+これらの事実は、サマリー、レポートの行、レビューログで使用してください。Artifact のセルは、
+書き込みが確認されるまで保留のままにし、禁止されている場合は保存されないままにしてください。実質的な
+後からの判断があれば、準備状態を再確認し、出力を更新する前に事実を再計算してください。
 
-### Reality rows
+### 現実の確認行
 
-The `REALITY:` lines from 0A/0B (one per applicable row) and the `PLAN_REALITY`
-check line, kept above the Completion Summary that tallies them.
+0A/0B の `REALITY:` 行(該当する行ごとに1行)と、`PLAN_REALITY`
+チェックの行を、それらを集計する完了サマリーの上に置いてください。
 
-### "NOT in scope" section
-List explicitly deferred and rejected work separately, with each actual answer
-and one-line rationale. Deferred work also goes to TODOS.md; rejected work does not.
+### 「スコープ外」セクション
+明示的に先送りおよび却下された作業を別々に列挙し、それぞれの実際の回答と
+一行の理由を記載してください。先送りされた作業はTODOS.mdにも追加し、却下された作業は追加しないでください。
 
-### "What already exists" section
-List existing code/flows that partially solve sub-problems and whether the plan reuses them.
+### 「既存のもの」セクション
+部分的に下位の問題を解決している既存のコードやフローと、計画がそれらを再利用しているかどうかを列挙してください。
 
-### "Dream state delta" section
-Where this plan leaves us relative to the 12-month ideal.
+### 「夢の状態の差分」セクション
+この計画によって、12か月後の理想状態に対して今どこに位置するか。
 
-### Error & Rescue Registry (from Section 2)
-Match the approved review depth. For implementation-ready work, list every method
-that can fail, its exception classes, rescue status/action and user impact.
-For strategy-only work, use capability rows with failure mechanisms, user impact,
-known safeguards, and an owner who must verify each unknown before implementation.
-Do not invent method contracts. For one narrow decision, include only its dependencies.
+### エラーとリカバリのレジストリ(セクション 2から)
+承認されたレビューの深さに合わせてください。実装可能な作業の場合は、失敗しうるすべてのメソッドを列挙し、
+その例外クラス、リカバリの状態/アクション、ユーザーへの影響を記載してください。
+戦略のみの作業の場合は、能力ごとの行を使い、失敗のメカニズム、ユーザーへの影響、
+既知の安全策と、実装前に各不明点を検証すべき担当者を記載してください。
+メソッドの契約を捏造しないでください。狭い範囲の一つの判断については、その依存関係だけを含めてください。
 
-### Failure Modes Registry
+### 障害モードのレジストリ
 ```
   CODEPATH | FAILURE MODE   | RESCUED? | TEST? | USER SEES?     | LOGGED?
   ---------|----------------|----------|-------|----------------|--------
 ```
-Any row with RESCUED=N, TEST=N, USER SEES=Silent → **CRITICAL GAP**.
-For strategy-only rows, CODEPATH names the capability; mark unknown rescue/test
-coverage as unknown and name the verification owner. Count capability rows in the
-Completion Summary; implementation-ready reviews count method/codepath rows.
+RESCUED=N、TEST=N、USER SEES=Silent の行はすべて **CRITICAL GAP** とします。
+戦略のみの行では、CODEPATH は能力の名前を示します。リカバリとテストのカバレッジが不明な場合は
+不明と記し、検証の担当者を明記してください。完了サマリーでは能力の行を数え、
+実装可能なレビューではメソッド/コードパスの行を数えてください。
 
-### Scope Expansion Decisions (EXPANSION and SELECTIVE EXPANSION only)
-For EXPANSION and SELECTIVE EXPANSION, reference the CEO plan's full 0G scope record
-under the storage policy. List its dispositions without asking again:
-* Accepted: {list items added to scope}
-* Deferred: {list items sent to TODOS.md}
-* Skipped: {list items rejected}
+### スコープ拡張の判断(EXPANSION および SELECTIVE EXPANSION のみ)
+EXPANSION および SELECTIVE EXPANSION では、ストレージポリシーに従って、CEO計画の完全な 0G のスコープ記録を参照してください。
+改めて尋ねることなく、その処理を列挙してください:
+* 採用: {スコープに追加された項目を列挙}
+* 先送り: {TODOS.md に送られた項目を列挙}
+* スキップ: {却下された項目を列挙}
 
-### Diagrams (mandatory, produce all that apply)
-1. System architecture
-2. Data flow (including shadow paths)
-3. State machine
-4. Error flow
-5. Deployment sequence
-6. Rollback flowchart
+### 図(必須、該当するものはすべて作成)
+1. システムアーキテクチャ
+2. データフロー(シャドウパスを含む)
+3. 状態機械
+4. エラーのフロー
+5. デプロイのシーケンス
+6. ロールバックのフローチャート
 
-### Stale Diagram Audit
-List every ASCII diagram in files this plan touches. Still accurate?
+### 古くなった図の監査
+この計画が変更するファイル内のASCII図をすべて列挙してください。まだ正確か?
 
 {{TASKS_SECTION_EMIT:ceo-review}}
 
-### Completion Summary
-Fill this plan-body template from Review facts. Artifact outcomes stay pending
-until writes are confirmed. Stage 3 publishes it after report verification;
-forbidden writes stay labeled not persisted.
+### 完了サマリー
+このテンプレートを、レビューの事実から埋めてください。Artifact の結果は、
+書き込みが確認されるまで保留のままにしてください。段階3は、レポートの検証後にそれを公開します。
+禁止された書き込みは、保存されていないとラベルを付けたままにしてください。
 
-Use the full mode name from Step 0E; replace spaces with underscores only in the
-review log's `MODE` field. "System Audit" summarizes repository findings from
-Step 0 and the review sections. Compute "Lake Score" (complete options selected):
-1. Select answered questions scored for coverage under 0D that offered a 10/10
-   option. Exclude unscored mode/scope choices and unanswered questions.
-2. Count a reopened choice only once, using its latest answered option.
-3. Y is the number of eligible questions; X is how many selected the 10/10
-   option. Report X/Y, or `N/A` when Y is zero.
+ステップ0Eの完全なモード名を使ってください。スペースをアンダースコアに置き換えるのは、
+レビューログの `MODE` フィールドでのみにしてください。「System Audit」は、ステップ0とレビューのセクションから、
+リポジトリの指摘事項を要約します。「Lake Score」(完全な選択肢が選ばれた割合)を計算してください:
+1. 0Dのもとでカバレッジを採点され、10/10の選択肢を提示した回答済みの質問を選びます。
+   採点されていないモード/スコープの選択と、未回答の質問は除外してください。
+2. 再度開いた選択は一度だけ数え、その最新の回答済みの選択肢を使ってください。
+3. Y は対象となる質問の数、X は10/10の選択肢を選んだ数です。
+   X/Y を報告してください。Y がゼロの場合は `N/A` とします。
 
 ```
   +====================================================================+
@@ -508,54 +459,53 @@ Step 0 and the review sections. Compute "Lake Score" (complete options selected)
   +====================================================================+
 ```
 
-### Unresolved Decisions
-If any AskUserQuestion goes unanswered, note it here. Never silently default.
+### 未解決の決定事項
+AskUserQuestion に回答がないものがあれば、ここに記録してください。黙ってデフォルトにすることは決してしないでください。
 
-### Stage 2 — Save and verify the terminal report
+### 段階2 — 最終レポートを保存して検証
 
-Use the prepared summary above, then follow this report procedure. Preserve the
-complete body and summary before the report; no new body section follows it.
+上で準備したサマリーを使い、次のレポート手順に従ってください。本文とサマリーの全体は
+レポートの前に保持し、その後に新しい本文のセクションを続けないでください。
 
 {{PLAN_FILE_REVIEW_REPORT}}
 
-### Stage 3 — Publish the Completion Summary
+### 段階3 — 完了サマリーを公開
 
-**Publish the Completion Summary:** After the report Read-back gate passes, show
-the prepared summary in chat with confirmed artifact outcomes. Do not append it
-after the report in the file. If no plan/report write is permitted, show the
-complete plan, report and summary as not persisted, then use **Gate outcome:
-Blocked**. This delivers the review content without claiming saved completion;
-skip Review Log, success telemetry and the next-skill handoff.
+**完了サマリーを公開:** レポートの読み戻しゲートを通過した後、
+確認済みの Artifact の結果とともに、準備したサマリーをチャットに表示してください。ファイル内でレポートの後ろに追記しないでください。
+計画/レポートの書き込みが許可されていない場合は、
+計画、レポート、サマリーの全体を保存されていないものとして表示し、その後 **Gate outcome:
+Blocked** を使ってください。これにより、保存の完了を主張せずにレビュー内容を届けられます。
+レビューログ、成功のテレメトリ、次のスキルへの引き継ぎはスキップしてください。
 
-## Review Log
+## レビューログ
 
-Attempt these history writes only after the plan/report's successful write and
-Read-back. A failed plan/report save or verification stops before this block.
-If metadata writes are forbidden, skip these commands and show their actual
-fields in chat as **not persisted**.
+これらの履歴の書き込みは、計画/レポートの書き込みと読み戻しが成功した後にのみ試みてください。
+計画/レポートの保存または検証が失敗した場合は、このブロックの前で停止します。
+メタデータの書き込みが禁止されている場合は、これらのコマンドをスキップし、その実際の項目をチャットに
+**保存されていません**として表示してください。
 
-Both history commands below are best-effort under Step 0's **Artifact outcomes**
-policy. If one fails, retain its diagnostic, show its actual unsaved fields and
-continue; do not claim that entry was recorded. Display the dashboard from saved
-history, clearly identifying this run as unlogged when its review-log write failed
-or was forbidden. This differs from 0H's required spec-metrics write.
-This payload omits the dashboard's optional `plan_sha256`: use age for freshness
-without claiming a content match when no hash was recorded.
+以下の両方の履歴コマンドは、ステップ0の **Artifact outcomes** ポリシーのもとでベストエフォートです。
+どちらかが失敗した場合は、その診断情報を残し、実際に保存されなかった項目を表示して、
+処理を続けてください。その項目が記録されたと主張しないでください。保存された履歴からダッシュボードを表示し、
+レビューログの書き込みが失敗または禁止された場合は、この実行をログなしと明記してください。
+これは、0H で必須となる spec-metrics の書き込みとは異なります。
+このペイロードは、ダッシュボードの任意の `plan_sha256` を省略します。鮮度には経過時間を使い、
+ハッシュが記録されていない場合は、内容が一致すると主張しないでください。
 
-Substitute these values from the Completion Summary before running the commands:
-- **TIMESTAMP**: current UTC ISO 8601 datetime (e.g., 2026-03-16T14:30:00Z)
-- **STATUS**: "clean" if 0 unresolved decisions AND 0 critical gaps; otherwise "issues_open"
-- **unresolved**: number from "Unresolved decisions" in the summary
-- **critical_gaps**: number from "Failure modes: ___ CRITICAL GAPS" in the summary
-- **MODE**: the mode the user selected (SCOPE_EXPANSION / SELECTIVE_EXPANSION / HOLD_SCOPE / SCOPE_REDUCTION)
-- **scope_proposed**: number from "Scope proposals: ___ proposed" in the summary (0 for HOLD/REDUCTION)
-- **scope_accepted**: number from "Scope proposals: ___ accepted" in the summary (0 for HOLD/REDUCTION)
-- **scope_deferred**: number of items deferred to TODOS.md from scope decisions (0 for HOLD/REDUCTION)
-- **COMMIT**: output of `git rev-parse --short HEAD`
+コマンドを実行する前に、完了サマリーから次の値を代入してください:
+- **TIMESTAMP**: 現在の UTC の ISO 8601 形式の日時(例: 2026-03-16T14:30:00Z)
+- **STATUS**: 未解決の決定事項が0件かつ重大なギャップが0件なら "clean"。それ以外は "issues_open"
+- **unresolved**: サマリーの「Unresolved decisions」の数
+- **critical_gaps**: サマリーの「Failure modes: ___ CRITICAL GAPS」の数
+- **MODE**: ユーザーが選んだモード(SCOPE_EXPANSION / SELECTIVE_EXPANSION / HOLD_SCOPE / SCOPE_REDUCTION)
+- **scope_proposed**: サマリーの「Scope proposals: ___ proposed」の数(HOLD/REDUCTION では 0)
+- **scope_accepted**: サマリーの「Scope proposals: ___ accepted」の数(HOLD/REDUCTION では 0)
+- **scope_deferred**: スコープの判断から TODOS.md に先送りされた項目数(HOLD/REDUCTION では 0)
+- **COMMIT**: `git rev-parse --short HEAD` の出力
 
-The second command records the accepted scope so later sessions can reuse it.
-Substitute `SCOPE_SUMMARY` (e.g. "accepted 4 of 6 proposals", "held scope" or
-"cut 3 items") and `VERDICT` (the summary's one-line verdict).
+2つ目のコマンドは、採用されたスコープを記録し、後のセッションで再利用できるようにします。
+`SCOPE_SUMMARY`(例: "6件中4件を採用"、"スコープを維持"、"3件を削減")と `VERDICT`(サマリーの一行の判定)を代入してください。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-ceo-review","timestamp":"TIMESTAMP","status":"STATUS","unresolved":N,"critical_gaps":N,"mode":"MODE","scope_proposed":N,"scope_accepted":N,"scope_deferred":N,"commit":"COMMIT"}' || { _CEO_LOG_EXIT=$?; echo "Review history not persisted (exit $_CEO_LOG_EXIT)." >&2; }
@@ -564,37 +514,37 @@ Substitute `SCOPE_SUMMARY` (e.g. "accepted 4 of 6 proposals", "held scope" or
 
 {{REVIEW_DASHBOARD}}
 
-## Next Steps — Review Chaining
+## 次のステップ — レビューの連鎖
 
-After displaying the Review Readiness Dashboard, recommend the next review(s) based on what this CEO review discovered. Read the dashboard output to see which reviews have already been run and whether they are stale.
+Review Readiness Dashboard を表示した後、この CEO レビューで判明したことに基づいて、次のレビューを推奨してください。ダッシュボードの出力を読み、どのレビューがすでに実行されているか、古くなっているかを確認してください。
 
-**Recommend /plan-eng-review if eng review is not skipped globally** — check the dashboard output for `skip_eng_review`. If it is `true`, eng review is opted out — do not recommend it. Otherwise, eng review is the required shipping gate. If this CEO review expanded scope, changed architectural direction, or accepted scope expansions, emphasize that a fresh eng review is needed. If an eng review already exists in the dashboard but the commit hash shows it predates this CEO review, note that it may be stale and should be re-run.
+**エンジニアリングレビューがグローバルにスキップされていない場合は /plan-eng-review を推奨** — ダッシュボードの出力で `skip_eng_review` を確認してください。`true` の場合、エンジニアリングレビューは対象外なので推奨しないでください。それ以外では、エンジニアリングレビューは必須の出荷ゲートです。この CEO レビューでスコープが拡張された、アーキテクチャの方向性が変わった、またはスコープ拡張を採用した場合は、新しいエンジニアリングレビューが必要であることを強調してください。ダッシュボードにエンジニアリングレビューが既にあっても、そのコミットハッシュが今回の CEO レビューより前のものであれば、古くなっている可能性があり再実行すべきと記してください。
 
-**Recommend /plan-design-review if UI scope was detected** — specifically if Section 11 (Design & UX Review) was NOT skipped, or if accepted scope expansions included UI-facing features. If an existing design review is stale (commit hash drift), note that. In SCOPE REDUCTION mode, skip this recommendation — design review is unlikely relevant for scope cuts.
+**UIのスコープが検出された場合は /plan-design-review を推奨** — 具体的には、セクション 11(デザインとUXのレビュー)がスキップされなかった場合、または採用されたスコープ拡張にUI向けの機能が含まれていた場合です。既存のデザインレビューが古くなっている場合(コミットハッシュのずれ)は、その旨を記してください。SCOPE REDUCTION モードでは、この推奨はスキップしてください。スコープの削減では、デザインレビューはほぼ関係がないためです。
 
-**If both are needed, recommend eng review first** (required gate), then design review.
+**両方が必要な場合は、先にエンジニアリングレビューを推奨**(必須のゲート)し、その後にデザインレビューとしてください。
 
-Use AskUserQuestion to present the next step. Include only applicable options:
-- **A)** Run /plan-eng-review next (required gate)
-- **B)** Run /plan-design-review next (only if UI scope detected)
-- **C)** Skip — I'll handle reviews manually
+AskUserQuestion で次のステップを提示してください。該当する選択肢のみを含めてください:
+- **A)** 次に /plan-eng-review を実行(必須のゲート)
+- **B)** 次に /plan-design-review を実行(UIのスコープが検出された場合のみ)
+- **C)** スキップ — レビューは自分で対応します
 
-## docs/designs Promotion (EXPANSION and SELECTIVE EXPANSION only)
+## docs/designs への昇格(EXPANSION および SELECTIVE EXPANSION のみ)
 
-At the end of the review, if the vision produced a compelling feature direction, offer to promote the CEO plan to the project repo. AskUserQuestion:
+レビューの最後に、ビジョンから説得力のある機能の方向性が生まれていれば、CEO計画をプロジェクトのリポジトリへ昇格させることを提案してください。AskUserQuestion:
 
-"The vision from this review produced {N} accepted scope expansions. Want to promote it to a design doc in the repo?"
-- **A)** Promote to `docs/designs/{FEATURE}.md` (committed to repo, visible to the team)
-- **B)** Keep in `~/.gstack/projects/` only (local, personal reference)
-- **C)** Skip
+「このレビューのビジョンから、{N}件のスコープ拡張が採用されました。リポジトリの設計ドキュメントとして昇格させますか?」
+- **A)** `docs/designs/{FEATURE}.md` に昇格(リポジトリにコミットされ、チーム全体に見える)
+- **B)** `~/.gstack/projects/` にのみ保持(ローカルの個人用の参照)
+- **C)** スキップ
 
-If promoted and those writes are permitted, copy the CEO plan content to `docs/designs/{FEATURE}.md` (create the directory if needed) and update the original CEO plan's `status` from `ACTIVE` to `PROMOTED`. Otherwise present the proposed design document in chat, marked not persisted; do not claim promotion occurred.
+昇格し、その書き込みが許可されている場合は、CEO計画の内容を `docs/designs/{FEATURE}.md` にコピーし(必要ならディレクトリを作成)、元の CEO 計画の `status` を `ACTIVE` から `PROMOTED` に更新してください。そうでなければ、提案された設計ドキュメントを「保存されていません」と明記してチャットに提示し、昇格が行われたと主張しないでください。
 
-## Learnings and brain write-back
+## 学びと brain への書き戻し
 
-Finish these review tasks without changing the plan. Then return to
-this skill's main `SKILL.md` at **Section self-check** for terminal verification.
-Success telemetry and exit happen there.
+計画を変更せずに、これらのレビュー作業を完了してください。その後、
+このスキルのメインの `SKILL.md` の **セクションの自己チェック** に戻り、最終検証を行ってください。
+成功のテレメトリと終了は、そこで行われます。
 
 {{LEARNINGS_LOG}}
 
@@ -602,4 +552,4 @@ Success telemetry and exit happen there.
 
 {{BRAIN_WRITE_BACK}}
 
-Return to this skill's main `SKILL.md`: Section self-check → EXIT PLAN MODE GATE.
+このスキルのメインの `SKILL.md` に戻ってください: セクションの自己チェック → EXIT PLAN MODE GATE。

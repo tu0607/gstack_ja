@@ -35,30 +35,29 @@ function phaseFor(ctx: TemplateContext, arg: string | undefined): string {
 export function generatePlanRealityRows(ctx: TemplateContext, args?: string[]): string {
   const mode = args?.[0];
   if (mode === 'deep') {
-    return `### Reality rows (why each exists)
+    return `### Reality rows(各行が存在する理由)
 
-Each row is tied to the incident that earned it; its check is what
-\`${BIN} rows --phase <p> --deep\` prints. Tier 1 rows are required in every review and never
-\`n/a\`; a tier 2 row is required only when the detected scope names its scope (\`--scope\`).
+各行は、それを生んだインシデントに紐づいています。そのチェック内容は
+\`${BIN} rows --phase <p> --deep\` が出力するものです。Tier 1 の行はすべてのレビューで必須で、\`n/a\` にはできません。Tier 2 の行は、検出されたスコープがそのスコープ(\`--scope\`)を挙げている場合にのみ必須です。
 
 ${renderIncidentTable(REALITY_ROWS)}`;
   }
-  if (mode === 'summary') return `- Reality rows: ___/___ applicable rows emitted (\`PLAN_REALITY\` line), ___ unverified premises`;
+  if (mode === 'summary') return `- Reality rows: ___/___ 件の該当行を出力済み(\`PLAN_REALITY\` 行)、未検証の前提 ___ 件`;
   if (mode === 'pregate') {
-    return `Reality rows: each phase's \`PLAN_REALITY: … verdict=complete\` from
-\`${BIN} check --phase <ceo|eng> <review-file|->\`. A missing applicable row is \`incomplete\`
-in an unattended run, never a warning; interactive runs follow the repair rule above.`;
+    return `Reality rows: 各フェーズの \`PLAN_REALITY: … verdict=complete\` を
+\`${BIN} check --phase <ceo|eng> <review-file|->\` から取得します。該当行が欠けている場合、無人実行では
+警告ではなく \`incomplete\` です。対話実行では上記の修復ルールに従います。`;
   }
   if (mode === 'autoplan') {
-    return `Reality rows: the loaded skill's \`REALITY:\` lines, one per applicable row;
-   \`${BIN} check --phase ${args?.[1] ?? 'ceo'} --plan <reviewed snapshot> <review-file|->\` prints \`PLAN_REALITY: … verdict=complete\` before the phase closes
-   (unattended: \`incomplete\` keeps it open).`;
+    return `Reality rows: 読み込んだスキルの \`REALITY:\` 行(該当行ごとに 1 行)。
+   フェーズを閉じる前に \`${BIN} check --phase ${args?.[1] ?? 'ceo'} --plan <reviewed snapshot> <review-file|->\` が \`PLAN_REALITY: … verdict=complete\` を出力します
+   (無人実行では \`incomplete\` のままフェーズは閉じません)。`;
   }
   const phase = phaseFor(ctx, mode);
-  return `**Reality rows (required):** run \`${BIN} rows --phase ${phase}\` and work its
-rows (tier 1 always, never \`n/a\`: ${TIER1_ROW_IDS.join(', ')}; tier 2 by detected scope, \`--scope <csv>\`).
-Every row cites a file:line receipt (with no linked issue, deferred-asks is \`pass\`); the premise table counts \`unverified=<n>\`. End with
-one line per row, \`${REALITY_LINE_SHAPE}\`, then run
-\`${BIN} check --phase ${phase} <review-file|->\`: a missing row is \`incomplete\`
-unattended; interactive runs repair twice, then warn at the gate.`;
+  return `**Reality rows(必須):** \`${BIN} rows --phase ${phase}\` を実行し、その
+行を順に処理します(tier 1 は常に対象で \`n/a\` 不可: ${TIER1_ROW_IDS.join(', ')}。tier 2 は検出されたスコープに応じ、\`--scope <csv>\`)。
+すべての行は file:line の証跡を引用します(リンクされた issue がない場合、deferred-asks は \`pass\`)。前提テーブルは \`unverified=<n>\` を数えます。最後に
+行ごとに 1 行、\`${REALITY_LINE_SHAPE}\` を出力し、続けて
+\`${BIN} check --phase ${phase} <review-file|->\` を実行します。行が欠けている場合、無人実行では \`incomplete\` です。
+対話実行では 2 回修復を試み、それでも欠けていればゲートで警告します。`;
 }

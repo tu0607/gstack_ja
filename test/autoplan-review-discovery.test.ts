@@ -8,6 +8,7 @@ import { ALL_HOST_CONFIGS } from '../hosts';
 import { generateAutoplanReviewFile } from '../scripts/resolvers/composition';
 import { HOST_PATHS, type TemplateContext } from '../scripts/resolvers/types';
 import { E2E_TOUCHFILES } from './helpers/touchfiles';
+import { expectMentions } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const REVIEWS = ['plan-ceo-review', 'plan-design-review', 'plan-devex-review', 'plan-eng-review'];
@@ -77,7 +78,7 @@ describe('autoplan reads installed host methodology', () => {
         const refs = [...body.matchAll(/`(\.\.\/gstack-plan-[a-z-]+\/SKILL\.md)`/g)].map(match => match[1]!);
         expect([...new Set(refs)].sort()).toEqual(REVIEWS.map(name => `../gstack-${name}/SKILL.md`).sort());
         for (const review of REVIEWS) expect(body).not.toContain(`$GSTACK_ROOT/${review}/SKILL.md`);
-        expect(body.replace(/\s+/g, ' ')).toContain("Use /autoplan's installed registry; resolve siblings from its discovered SKILL.md");
+        expectMentions(body.replace(/\s+/g, ' '), [['/autoplan', 'レジストリ', 'SKILL.md']], 'autoplan entrypoint');
       }
       const roots = host.name === 'claude'
         ? [path.join(owned, host.name, mode, 'home', host.globalRoot)]
@@ -107,7 +108,7 @@ describe('autoplan reads installed host methodology', () => {
           const phaseBody = host.name === 'claude'
             ? fs.readFileSync(path.join(generatedRoot, 'autoplan', 'sections', `${phase}-phase.md`), 'utf8')
             : body;
-          const directive = phaseBody.split('\n').find(line => line.startsWith('Before dispatch, Read ')
+          const directive = phaseBody.split('\n').find(line => line.startsWith('ディスパッチの前に、')
             && (line.includes(`methodology ${phase} `) || line.includes(`/${review}/SKILL.md`) || line.includes(`/gstack-${review}/SKILL.md`)));
           expect(directive).toBeDefined();
           expect(phaseBody.indexOf(directive!)).toBeLessThan(phaseBody.indexOf(`create ${phase} `));

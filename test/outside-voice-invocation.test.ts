@@ -9,7 +9,7 @@ import { type TemplateContext, HOST_PATHS } from '../scripts/resolvers/types';
 import { validateOutsideReview } from '../lib/outside-review-result';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'outside-invocation-'));
+const TMP = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'outside-invocation-')));
 // Shell metacharacters in both the repository and prompt filename must remain data.
 const DIR = path.join(TMP, 'repo " with $(touch NEVER)');
 const BIN = path.join(TMP, 'bin');

@@ -1,19 +1,16 @@
 <!-- AUTO-GENERATED from first-run-validation.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Step 1.5 (dry-run flow): First-run / config-changed validation
+## Step 1.5(ドライランのフロー): 初回・設定変更後の検証
 
-You are here because the Step 1.5 detection in the skeleton printed `FIRST_RUN`
-or `CONFIG_CHANGED` (a `CONFIRMED` run never reads this section). Nothing has
-been merged or deployed yet.
+スケルトンの Step 1.5 の検出が `FIRST_RUN` または `CONFIG_CHANGED` を出力したため、ここに来ています(`CONFIRMED` の実行ではこのセクションは読みません)。まだ何もマージもデプロイもされていません。
 
-**CONFIG_CHANGED:** Say "Your deploy configuration changed; I'll validate it again."
-**FIRST_RUN:** Say "This is the first run for this project. I'll detect the setup,
-test read-only access, and show you what merge would trigger before asking for approval."
-Both follow 1.5a-e. Explain each check in plain English; nothing deploys in this dry run.
+**CONFIG_CHANGED:** "Your deploy configuration changed; I'll validate it again." と伝えます。
+**FIRST_RUN:** "This is the first run for this project. I'll detect the setup, test read-only access, and show you what merge would trigger before asking for approval." と伝えます。
+どちらの場合も 1.5a〜e に従います。各チェックをわかりやすい言葉で説明してください。このドライランでは何もデプロイされません。
 
-### 1.5a: Deploy infrastructure detection
+### 1.5a: デプロイ基盤の検出
 
-Run the deploy configuration bootstrap to detect the platform and settings:
+デプロイ設定のブートストラップを実行し、プラットフォームと設定を検出します:
 
 ```bash
 # Check for persisted deploy config in CLAUDE.md
@@ -46,20 +43,18 @@ for f in $(find .github/workflows -maxdepth 1 \( -name '*.yml' -o -name '*.yaml'
 done
 ```
 
-If `PERSISTED_PLATFORM` and `PERSISTED_URL` were found in CLAUDE.md, use them directly
-and skip manual detection. If no persisted config exists, use the auto-detected platform
-to guide deploy verification. If nothing is detected, ask the user via AskUserQuestion
-in the decision tree below.
+CLAUDE.md に `PERSISTED_PLATFORM` と `PERSISTED_URL` が見つかった場合は、それらをそのまま使い、
+手動の検出はスキップします。永続化された設定がない場合は、自動検出したプラットフォームを
+デプロイ検証の手がかりにします。何も検出されなかった場合は、以下のデシジョンツリーで
+AskUserQuestion を使ってユーザーに尋ねます。
 
-If you want to persist deploy settings for future runs, suggest the user run `/setup-deploy`.
+今後の実行のためにデプロイ設定を永続化したい場合は、ユーザーに `/setup-deploy` の実行を提案します。
 
-Parse the output and record: the detected platform, production URL, deploy workflow (if any),
-and any persisted config from CLAUDE.md.
+出力を解析し、検出したプラットフォーム、本番の URL、デプロイのワークフロー(あれば)、CLAUDE.md に保存されている設定を記録します。
 
-### 1.5b: Command validation
+### 1.5b: コマンドの検証
 
-Test each detected read-only command. Gather staging facts in 1.5c before displaying
-the combined validation table below; no deploy trigger runs during this dry run.
+検出されたそれぞれの読み取り専用コマンドをテストします。以下の統合検証の表を表示する前に、1.5c でステージングの事実を集めてください。このドライランの間は、デプロイのトリガーは実行されません。
 
 ```bash
 # Test gh auth (already passed in Step 1, but confirm)
@@ -74,7 +69,7 @@ gh auth status 2>&1 | head -3
 # curl -sf {production-url} -o /dev/null -w "%{http_code}" 2>/dev/null
 ```
 
-Run whichever commands are relevant based on the detected platform. Build the results into this table:
+検出されたプラットフォームに応じて、関連するコマンドを実行します。結果を次の表にまとめてください:
 
 ```
 ╔══════════════════════════════════════════════════════════╗
@@ -103,74 +98,66 @@ Run whichever commands are relevant based on the detected platform. Build the re
 ╚══════════════════════════════════════════════════════════╝
 ```
 
-**Validation failures are WARNINGs, not BLOCKERs** (except `gh auth status` which already
-failed at Step 1). If `curl` fails, note "I couldn't reach that URL — might be a network
-issue, VPN requirement, or incorrect address. Health verification is unavailable."
-If platform CLI is not installed, note "The {platform} CLI isn't installed on this machine.
-Platform status is unavailable. HTTP checks can show reachability, not a deployed
-revision; I'll need the configured trigger and its deployment evidence."
+**検証の失敗は、BLOCKER ではなく WARNING です**(ただし `gh auth status` は Step 1 ですでに失敗していれば例外です)。`curl` が失敗した場合は、"I couldn't reach that URL — might be a network issue, VPN requirement, or incorrect address. Health verification is unavailable." と記載します。プラットフォームの CLI がインストールされていない場合は、"The {platform} CLI isn't installed on this machine. Platform status is unavailable. HTTP checks can show reachability, not a deployed revision; I'll need the configured trigger and its deployment evidence." と記載します。
 
-### 1.5c: Staging detection
+### 1.5c: ステージングの検出
 
-Check for staging environments in this order:
+次の順序でステージング環境を確認します:
 
-1. **CLAUDE.md persisted config:** Check for a staging URL in the Deploy Configuration section:
+1. **CLAUDE.md に保存された設定:** Deploy Configuration のセクションにあるステージングの URL を確認します:
 ```bash
 grep -i "staging" CLAUDE.md 2>/dev/null | head -3
 ```
 
-2. **GitHub Actions staging workflow:** Check for workflow files with "staging" in the name or content:
+2. **GitHub Actions のステージングのワークフロー:** 名前または内容に "staging" を含むワークフローファイルを確認します:
 ```bash
 for f in $(find .github/workflows -maxdepth 1 \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null); do
   [ -f "$f" ] && grep -qiE "staging" "$f" 2>/dev/null && echo "STAGING_WORKFLOW:$f"
 done
 ```
 
-3. **Vercel/Netlify preview deploys:** Check PR status checks for preview URLs:
+3. **Vercel/Netlify のプレビューデプロイ:** プレビューの URL がないか、PR のステータスチェックを確認します:
 ```bash
 gh pr checks "$PR_NUMBER" --repo "$REPO" --json name,state,bucket,link
 ```
-Look for check names containing "vercel", "netlify", or "preview" and inspect the
-link for a preview URL. A check-details link is not necessarily the preview itself.
+チェック名に "vercel"、"netlify"、"preview" を含むものを探し、link にプレビューの URL がないか確認します。チェックの詳細のリンクが、必ずしもプレビューそのものとは限りません。
 
-Record candidates, not proof that this revision is deployed. Step 3.5 refreshes
-deployment facts on every run, and handles any true staging-first request before merge.
+候補は記録しますが、このリビジョンがデプロイ済みであることの証明にはしません。Step 3.5 は毎回デプロイの事実を更新し、マージの前にステージングを優先するという要求があればそれを処理します。
 
-### 1.5d: Readiness preview
+### 1.5d: 準備状況のプレビュー
 
-Tell the user: "Before I merge any PR, I run a series of readiness checks — code reviews, tests, documentation, PR accuracy. Let me show you what that looks like for this project."
+ユーザーに伝えます: "Before I merge any PR, I run a series of readiness checks — code reviews, tests, documentation, PR accuracy. Let me show you what that looks like for this project."
 
-Preview the readiness checks that will run at Step 3.5 (without re-running tests):
+Step 3.5 で実行される準備状況のチェックをプレビューします(テストは再実行しません):
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-read 2>/dev/null
 ```
 
-Show a summary of review status: which reviews have been run, how stale they are.
-Also check if CHANGELOG.md and VERSION have been updated.
+レビューの状況の要約を表示します。どのレビューが実行され、それがどれくらい古いかを示してください。
+あわせて、CHANGELOG.md と VERSION が更新されているかも確認します。
 
-Explain in plain English: "When I merge, I'll check: has the code been reviewed recently? Do the tests pass? Is the CHANGELOG updated? Is the PR description accurate? If anything looks off, I'll flag it before merging."
+わかりやすい言葉で説明します: "When I merge, I'll check: has the code been reviewed recently? Do the tests pass? Is the CHANGELOG updated? Is the PR description accurate? If anything looks off, I'll flag it before merging."
 
-### 1.5e: Dry-run confirmation
+### 1.5e: ドライランの確認
 
-Tell the user: "That's everything I detected. Take a look at the table above — does this match how your project actually deploys?"
+ユーザーに伝えます: "That's everything I detected. Take a look at the table above — does this match how your project actually deploys?"
 
-Present the full dry-run results to the user via AskUserQuestion:
+AskUserQuestion で、ドライランの結果をすべてユーザーに提示します:
 
-- **Re-ground:** "First deploy dry-run for [project] on branch [branch]. Above is what I detected about your deploy infrastructure. Nothing has been merged or deployed yet — this is just my understanding of your setup."
-- Show the infrastructure validation table from 1.5b above.
-- List any warnings from command validation, with plain-English explanations.
-- If staging was detected: "I found {url/workflow}. A staging URL does not prove production is held. Before merge I'll check the triggers; afterward I can verify an existing staging deployment, but production may already be live."
-- If no staging was detected: "I didn't find staging. I'll identify what merge triggers before asking you to approve it."
-- **RECOMMENDATION:** Choose A if all validations passed. Choose B if there are issues to fix. Choose C to run /setup-deploy for a more thorough configuration.
-- A) That's right — this is how my project deploys. Let's go. (Completeness: 10/10)
-- B) Something's off — let me tell you what's wrong (Completeness: 10/10)
-- C) I want to configure this more carefully first (runs /setup-deploy) (Completeness: 10/10)
+- **状況の再確認:** "First deploy dry-run for [project] on branch [branch]. Above is what I detected about your deploy infrastructure. Nothing has been merged or deployed yet — this is just my understanding of your setup."
+- 上の 1.5b のインフラの検証の表を表示します。
+- コマンドの検証による警告があれば、わかりやすい説明とともに一覧にします。
+- ステージングが検出された場合: "I found {url/workflow}. A staging URL does not prove production is held. Before merge I'll check the triggers; afterward I can verify an existing staging deployment, but production may already be live."
+- ステージングが検出されなかった場合: "I didn't find staging. I'll identify what merge triggers before asking you to approve it."
+- **推奨:** すべての検証が通っていれば A を選んでください。直すべき問題があれば B を選んでください。より徹底した設定をするなら、C を選んで /setup-deploy を実行してください。
+- A) それで合っています — これが私のプロジェクトのデプロイの方法です。進めてください。(完全性: 10/10)
+- B) 何かが違います — 何が間違っているか教えます(完全性: 10/10)
+- C) まず、これをより慎重に設定したいです(/setup-deploy を実行します)(完全性: 10/10)
 
-**If A:** Say "Setup confirmed. I'll save its fingerprint, skip unchanged dry runs,
-and still refresh deployment facts before each merge approval."
+**A の場合:** "Setup confirmed. I'll save its fingerprint, skip unchanged dry runs, and still refresh deployment facts before each merge approval." と伝えます。
 
-Save the deploy config fingerprint so we can detect future changes:
+今後の変更を検出できるように、デプロイ設定の指紋を保存します:
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
 SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null)
@@ -179,10 +166,10 @@ CURRENT_HASH=$(sed -n '/## Deploy Configuration/,/^## /p' CLAUDE.md 2>/dev/null 
 WORKFLOW_HASH=$(find .github/workflows -maxdepth 1 \( -name '*deploy*' -o -name '*cd*' \) 2>/dev/null | xargs cat 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
 echo "${CURRENT_HASH}-${WORKFLOW_HASH}" > "$GSTACK_STATE_ROOT"/projects/$SLUG/land-deploy-confirmed
 ```
-Continue to Step 2.
+Step 2 に進みます。
 
-**If B:** **STOP.** "Tell me what's different about your setup and I'll adjust. You can also run `/setup-deploy` to walk through the full configuration."
+**B の場合:** **STOP.** "Tell me what's different about your setup and I'll adjust. You can also run `/setup-deploy` to walk through the full configuration." と伝えます。
 
-**If C:** **STOP.** "Running `/setup-deploy` will walk through your deploy platform, production URL, and health checks in detail. It saves everything to CLAUDE.md so I'll know exactly what to do next time. Run `/land-and-deploy` again when that's done."
+**C の場合:** **STOP.** "Running `/setup-deploy` will walk through your deploy platform, production URL, and health checks in detail. It saves everything to CLAUDE.md so I'll know exactly what to do next time. Run `/land-and-deploy` again when that's done." と伝えます。
 
 ---

@@ -30,12 +30,12 @@ function bashBlockAfter(skillFile: string, heading: string, contains?: string): 
   throw new Error(`${skillFile}: no bash block after ${heading}`);
 }
 
-const SAVE_PATH_BLOCK = bashBlockAfter('context-save/SKILL.md', '### Step 4: Write saved-context file').replace(
+const SAVE_PATH_BLOCK = bashBlockAfter('context-save/SKILL.md', '### Step 4: 保存するコンテキストのファイルを書く').replace(
   'TIMESTAMP=$(date +%Y%m%d-%H%M%S)',
   'TIMESTAMP="$TEST_TIMESTAMP"',
 );
-const STAMP_BLOCK = bashBlockAfter('context-save/SKILL.md', '### Step 4: Write saved-context file', '--stamp-checkpoint');
-const RESTORE_BLOCK = bashBlockAfter('context-restore/SKILL.md', '### Step 1: Find saved contexts');
+const STAMP_BLOCK = bashBlockAfter('context-save/SKILL.md', '### Step 4: 保存するコンテキストのファイルを書く', '--stamp-checkpoint');
+const RESTORE_BLOCK = bashBlockAfter('context-restore/SKILL.md', '### Step 1: 保存済みコンテキストを探す');
 
 let tmp: string;
 let home: string;

@@ -1,49 +1,49 @@
-# API Contract Specialist Review Checklist
+# API コントラクト・スペシャリストのレビューチェックリスト
 
-Scope: When SCOPE_API=true
-Output: JSON objects, one finding per line. Schema:
+適用範囲: SCOPE_API=true の場合
+出力: JSON オブジェクト。1 行に 1 件の指摘。スキーマ:
 {"severity":"CRITICAL|INFORMATIONAL","confidence":N,"path":"file","line":N,"category":"api-contract","summary":"...","fix":"...","fingerprint":"path:line:api-contract","specialist":"api-contract"}
-Optional: line, fix, fingerprint, evidence, test_stub.
-If no findings: output `NO FINDINGS` and nothing else.
+任意: line, fix, fingerprint, evidence, test_stub。
+指摘がない場合: `NO FINDINGS` とだけ出力する。
 
 ---
 
-## Categories
+## カテゴリ
 
-### Breaking Changes
-- Removed fields from response bodies (clients may depend on them)
-- Changed field types (string → number, object → array)
-- New required parameters added to existing endpoints
-- Changed HTTP methods (GET → POST) or status codes (200 → 201)
-- Renamed endpoints without maintaining the old path as a redirect/alias
-- Changed authentication requirements (public → authenticated)
+### 破壊的変更
+- レスポンスボディから項目を削除している(クライアントがそれに依存しているかもしれない)
+- 項目の型を変更している(文字列から数値、オブジェクトから配列など)
+- 既存のエンドポイントに新しい必須パラメーターを追加している
+- HTTP メソッドを変更している(GET から POST など)、またはステータスコードを変更している(200 から 201 など)
+- 旧パスをリダイレクトやエイリアスとして残さずにエンドポイントの名前を変更している
+- 認証要件を変更している(公開から認証必須へ)
 
-### Versioning Strategy
-- Breaking changes made without a version bump (v1 → v2)
-- Multiple versioning strategies mixed in the same API (URL vs header vs query param)
-- Deprecated endpoints without a sunset timeline or migration guide
-- Version-specific logic scattered across controllers instead of centralized
+### バージョニング戦略
+- バージョンを上げずに破壊的変更を行っている(v1 から v2 への移行がない)
+- 同じ API の中で複数のバージョニング方式を混在させている(URL、ヘッダー、クエリパラメーターの混在)
+- 廃止予定のエンドポイントに、終了時期や移行ガイドがない
+- バージョン固有のロジックがコントローラーに散らばっており、一箇所にまとまっていない
 
-### Error Response Consistency
-- New endpoints returning different error formats than existing ones
-- Error responses missing standard fields (error code, message, details)
-- HTTP status codes that don't match the error type (200 for errors, 500 for validation)
-- Error messages that leak internal implementation details (stack traces, SQL)
+### エラーレスポンスの一貫性
+- 新しいエンドポイントが、既存のものと異なるエラー形式を返している
+- エラーレスポンスに標準の項目(エラーコード、メッセージ、詳細)が欠けている
+- エラーの種類と合わない HTTP ステータスコードを返している(エラーなのに 200、バリデーションなのに 500 など)
+- エラーメッセージが内部の実装の詳細(スタックトレース、SQL)を漏らしている
 
-### Rate Limiting & Pagination
-- New endpoints missing rate limiting when similar endpoints have it
-- Pagination changes (offset → cursor) without backwards compatibility
-- Changed page sizes or default limits without documentation
-- Missing total count or next-page indicators in paginated responses
+### レート制限とページネーション
+- 類似のエンドポイントにはレート制限があるのに、新しいエンドポイントにはない
+- ページネーションの変更(オフセットからカーソルへ)が後方互換性を保っていない
+- 文書化せずにページサイズやデフォルトの上限を変更している
+- ページネーションされたレスポンスに、総件数や次のページの指標がない
 
-### Documentation Drift
-- OpenAPI/Swagger spec not updated to match new endpoints or changed params
-- README or API docs describing old behavior after changes
-- Example requests/responses that no longer work
-- Missing documentation for new endpoints or changed parameters
+### ドキュメントのずれ
+- 新しいエンドポイントや変更されたパラメーターに合わせて、OpenAPI/Swagger の仕様が更新されていない
+- 変更後も、README や API ドキュメントが古い動作を説明している
+- 例のリクエストやレスポンスが、もう動かない
+- 新しいエンドポイントや変更されたパラメーターのドキュメントがない
 
-### Backwards Compatibility
-- Clients on older versions: will they break?
-- Mobile apps that can't force-update: does the API still work for them?
-- Webhook payloads changed without notifying subscribers
-- SDK or client library changes needed to use new features
+### 後方互換性
+- 古いバージョンのクライアントは壊れないか?
+- 強制アップデートできないモバイルアプリで、API は引き続き動くか?
+- 購読者に通知せずに Webhook のペイロードを変更している
+- 新機能を使うのに、SDK やクライアントライブラリの変更が必要になる

@@ -1,389 +1,64 @@
-# Building and qualifying CSO runtimes
+# CSO ランタイムのビルドと認定
 
-`bun run build:cso` compiles the trusted launcher, helper, and independent
-watchdog. Bun must support all four `--no-compile-autoload-*` switches. macOS and
-Linux also require a C compiler (`cc`, Clang, or GCC). Linux links the launcher
-statically; macOS signs it with the hardened runtime. `bun run build` includes
-this step and remains a strict release/developer build. Setup feature-probes the
-four Bun switches and the host native toolchain before building. If either is
-unavailable, it builds the rest of gstack, removes any stale CSO helpers, and
-reports `/cso` unavailable; the skill then reports `not assessed` and never
-substitutes repository tooling. Re-run setup after installing the prerequisite.
-When the probe succeeds, setup keeps the strict failure behavior and checks the
-artifacts for freshness. The generated
-`bin/gstack-cso-launcher` is the setup-built direct command; the compiled core
-is not the entrypoint. The core's direct-invocation marker catches accidental
-misuse; it does not authenticate a process against the trusted same-user host.
-The native launcher is the pre-runtime boundary that strips Bun, Node, and
-loader injection variables. CSO is not exposed as an npm package bin: its native
-launcher, compiled core, watchdog, and hidden `.gstack-cso-generation` manifest
-must be built and installed together for the current host. Windows also requires
-the empty `.gstack-cso-generation.lock` file from that same publication. Windows
-builds the native launcher with Visual Studio 2022 Build Tools (Desktop
-development with C++), discovered from Git Bash through the installed Developer
-PowerShell script; only the core is compiled with Bun.
-The dedicated Windows CI job checks startup, argument forwarding, and runtime
-injection separately from static audit and private-state support. POSIX
-watchdog execution remains unavailable there.
+`bun run build:cso` は、信頼されたランチャー、ヘルパー、独立したウォッチドッグをコンパイルします。Bun は 4 つの `--no-compile-autoload-*` スイッチすべてに対応している必要があります。macOS と Linux では、C コンパイラ(`cc`、Clang、GCC のいずれか)も必要です。Linux ではランチャーを静的リンクします。macOS ではハードンドランタイムでランチャーに署名します。`bun run build` にはこの手順が含まれ、厳格なリリース/開発者ビルドのままです。セットアップは、ビルドの前に Bun の 4 つのスイッチとホストのネイティブツールチェーンを機能検出します。どちらかが利用できない場合は、gstack の残りをビルドし、古い CSO ヘルパーを削除して、`/cso` が利用不可であると報告します。その場合、スキルは `not assessed` と報告し、リポジトリのツールで代用することはありません。前提条件をインストールしたら、セットアップを再実行してください。検出が成功すると、セットアップは厳格な失敗の動作を保ち、成果物が最新かどうかを確認します。生成される `bin/gstack-cso-launcher` は、セットアップがビルドする直接のコマンドです。コンパイル済みのコアはエントリポイントではありません。コアの直接実行マーカーは、偶発的な誤用を検出しますが、同じユーザーの信頼されたホストに対して、プロセスを認証するものではありません。ネイティブのランチャーは、ランタイムの前段の境界として、Bun、Node、およびローダーの注入用の変数を取り除きます。CSO は npm パッケージの bin として公開されません。そのネイティブのランチャー、コンパイル済みのコア、ウォッチドッグ、そして隠しの `.gstack-cso-generation` マニフェストは、現在のホスト向けに一緒にビルドし、インストールしなければなりません。Windows では、同じ公開から得た空の `.gstack-cso-generation.lock` ファイルも必要です。Windows では、Visual Studio 2022 Build Tools(「C++ によるデスクトップ開発」)でネイティブのランチャーをビルドします。これは、インストールされた Developer PowerShell スクリプトを通じて Git Bash から検出されます。Bun でコンパイルされるのはコアだけです。
+Windows の専用 CI ジョブは、起動、引数の転送、ランタイムへの注入を、静的監査やプライベート状態のサポートとは別に確認します。POSIX のウォッチドッグの実行は、そこでは引き続き利用できません。
 
-Both catalogs are qualified. The scanner catalog
-(`lib/cso/scanner-images/catalog.json`) lists twelve scanner images: six
-scanners, each on linux/amd64 and linux/arm64. The runtime catalog
-(`lib/cso/runtime-catalog.json`) lists ten runtime images: Node, Bun, Python,
-Rails and PostgreSQL, each on both platforms. The private evaluator qualified
-them, and `cso-runtime-promote.yml` promoted them (described below).
+両方のカタログは認定済みです。スキャナーのカタログ(`lib/cso/scanner-images/catalog.json`)には 6 つのスキャナーが、それぞれ linux/amd64 と linux/arm64 で、合計 12 のスキャナーイメージがあります。ランタイムのカタログ(`lib/cso/runtime-catalog.json`)には、Node、Bun、Python、Rails、PostgreSQL が、それぞれ両方のプラットフォームで、合計 10 のランタイムイメージがあります。プライベートの評価者がこれらを認定し、`cso-runtime-promote.yml` が昇格させました(後述)。
 
-Every successful fresh install or upgrade asks the trusted launcher to preload
-the current host platform's qualified runtime and scanner images. This is the
-only automatic image acquisition path. It first validates the committed
-catalogs, pins a local Unix-socket Docker endpoint, rejects remote TCP/SSH
-contexts, and uses a new empty Docker configuration so pulls are anonymous.
-Only fully qualified `registry/repository@sha256:...` catalog entries are
-requested. Missing Docker or public registry access is a visible, nonfatal
-prerequisite: static audits remain available and a later `./setup` retries.
-The preload stage reserves 30 seconds for endpoint admission and gives each
-declared image a separate 30-second inspection/download window. Set
-`GSTACK_CSO_IMAGE_PULL_TIMEOUT_SECONDS=120` when registry speed requires a
-longer per-image window (accepted range: 5–300 seconds). The helper derives an aggregate deadline from the
-catalog size and caps the complete stage at one hour. A per-image timeout leaves
-that digest unavailable and continues with the next entry; reaching the hard
-aggregate deadline stops all remaining work. When a registry prerequisite stops
-further downloads, setup still checks later catalog entries locally and reports
-every already-present digest. A later setup resumes from exact local digests.
-Application, verifier, and scanner execution still use `--pull=never` with no
-egress. `gstack-cso doctor --repo PATH` never downloads; it reports a qualified
-profile unavailable until that exact digest and platform are already present
-in the local daemon.
+新規インストールまたはアップグレードが成功するたびに、信頼されたランチャーに、現在のホストプラットフォームの認定済みランタイムとスキャナーのイメージを事前に読み込むよう求めます。これがイメージを自動取得する唯一の経路です。まず、コミット済みのカタログを検証し、ローカルの Unix ソケットの Docker エンドポイントを固定し、リモートの TCP/SSH のコンテキストを拒否します。そして、プルが匿名になるよう、新しい空の Docker 設定を使います。要求されるのは、`registry/repository@sha256:...` の形で完全に修飾されたカタログのエントリだけです。Docker がない、またはパブリックレジストリにアクセスできないことは、目に見えるが致命的ではない前提条件です。静的監査は引き続き利用できます。後の `./setup` が再試行します。事前読み込みの段階では、エンドポイントの受け入れに 30 秒を確保し、宣言された各イメージに、検査/ダウンロードのための 30 秒の別々のウィンドウを与えます。レジストリの速度が必要とする場合は、`GSTACK_CSO_IMAGE_PULL_TIMEOUT_SECONDS=120` を設定して、イメージごとのウィンドウを長くできます(受け入れる範囲は 5〜300 秒)。ヘルパーは、カタログのサイズから全体の期限を算出し、段階全体を 1 時間で打ち切ります。イメージごとのタイムアウトは、そのダイジェストを利用不可のままにして、次のエントリに進みます。全体の厳密な期限に達すると、残りのすべての作業を止めます。レジストリの前提条件によって以後のダウンロードが止まっても、セットアップはその後のカタログのエントリもローカルで確認し、すでに存在するすべてのダイジェストを報告します。後のセットアップは、正確なローカルのダイジェストから再開します。適用、検証、スキャナーの実行は、引き続き `--pull=never` を使い、外部へのアクセスは行いません。`gstack-cso doctor --repo PATH` は決してダウンロードしません。正確なダイジェストとプラットフォームがローカルのデーモンに既に存在するまで、認定済みのプロファイルを利用不可として報告します。
 
-The ordinary free suite exercises contracts without requiring Docker. The free
-lane's `cso-docker-integration` job sets `GSTACK_CSO_DOCKER_TESTS=1` and runs
-`test/cso-docker-integration.test.ts`; unavailable Docker or missing containment
-prerequisites fail that job. The node-lifecycle and stack-cold files need a
-staged stack image, so they run in the CSO runtime workflows through
-`test:cso:docker`. Run all three locally with a working local daemon:
+通常の無料スイートは、Docker を必要とせずに契約を検証します。無料レーンの `cso-docker-integration` ジョブは `GSTACK_CSO_DOCKER_TESTS=1` を設定し、`test/cso-docker-integration.test.ts` を実行します。Docker が利用できない、またはコンテナの封じ込めの前提条件がない場合、そのジョブは失敗します。node のライフサイクルと stack-cold のファイルには、ステージング済みのスタックイメージが必要なため、CSO のランタイムのワークフローで `test:cso:docker` を通して実行されます。動作しているローカルのデーモンがあれば、3 つすべてをローカルで実行できます。
 
 ```bash
 bun run build:cso
 GSTACK_CSO_DOCKER_TESTS=1 bun run test:cso:docker
 ```
 
-When the staged-image workflow supplies `GSTACK_CSO_TEST_IMAGE`, platform,
-stack, and exact tool versions, the same command also runs stack-specific
-qualification journeys. A second native qualification job waits for every
-same-architecture staging job, so Rails receives both its application digest
-and the staged PostgreSQL digest; a missing matching artifact fails the gate.
-The Node journey starts with an empty public archive
-cache, acquires an integrity-pinned dependency through the registry-restricted
-broker, installs and executes it offline, reproduces a producer-visible fixture
-defect, and verifies a patch bound to its recorded closure and preparation
-proofs. The helper issues a `runtime_tested` `RepairBundle` only when its
-out-of-process witness authenticates the external assertions. Canonical project
-tests run in a target-controlled process, so their completion remains
-`self_reported`: target code can forge reporter output or terminate the runner.
-Recorded command, count, exit, and output hashes are diagnostic evidence; they
-do not establish target-independent test completion. The `tested` state remains
-reserved for a future target-independent witness and is not emitted today.
-Until the runtime-tested bundle, replay, and current-source recheck journey
-passes, the held-out repair gate remains pending and catalog
-promotion is prohibited. The candidate journey also asserts that no run-owned
-containers, preparation call directories, archive staging directories, or
-verification work directories remain. A skipped staged-image journey is not a
-passing cold-start or private held-out-repair result. Bun and Python have cold acquisition, offline install,
-boot, control, and project-test journeys. Rails runs those checks twice against
-the same cold public-gem inputs: once with two disposable SQLite connections
-and once with two databases in a fresh staged PostgreSQL sidecar. The Rails
-fixture builds the source-platform `sqlite3` and `pg` native gems only in the
-offline execution phase.
+ステージングのイメージのワークフローが `GSTACK_CSO_TEST_IMAGE`、プラットフォーム、スタック、正確なツールのバージョンを供給すると、同じコマンドはスタック固有の認定の経路も実行します。同じアーキテクチャのステージングジョブすべてを待つ 2 つ目のネイティブの認定ジョブがあり、Rails はアプリケーションのダイジェストとステージング済みの PostgreSQL のダイジェストの両方を受け取ります。対応する成果物が欠けていれば、ゲートは失敗します。Node の経路は、空の公開アーカイブのキャッシュから始まります。レジストリで制限されたブローカーを通して、整合性が固定された依存関係を取得し、オフラインでインストールして実行します。プロデューサーに見える欠陥を再現し、記録されたクロージャーと準備の証明に結びつけられたパッチを検証します。ヘルパーが `runtime_tested` の `RepairBundle` を発行するのは、そのプロセス外の証人が外部の主張を認証した場合だけです。正規のプロジェクトのテストは、ターゲットが制御するプロセスで実行されるため、その完了は `self_reported` のままです。ターゲットのコードは、レポーターの出力を偽造したり、ランナーを終了させたりできます。記録されたコマンド、件数、終了コード、出力のハッシュは、診断用の証拠です。ターゲットから独立したテストの完了を証明するものではありません。`tested` の状態は、将来のターゲットから独立した証人のために予約されており、現時点では出力されません。`runtime_tested` のバンドル、リプレイ、現在のソースの再確認の経路が合格するまで、保留中のホールドアウトの修復ゲートは残り、カタログの昇格は禁止されます。候補の経路は、実行に属するコンテナ、準備の呼び出しディレクトリ、アーカイブのステージングディレクトリ、検証の作業ディレクトリが残っていないことも確認します。スキップされたステージング済みイメージの経路は、コールドスタートまたはプライベートのホールドアウト修復の合格結果にはなりません。Bun と Python には、コールドの取得、オフラインのインストール、起動、制御、プロジェクトのテストの経路があります。Rails は、同じコールドのパブリック gem の入力に対して、これらのチェックを 2 回実行します。1 回目は 2 つの使い捨ての SQLite 接続、2 回目は新しいステージング済み PostgreSQL のサイドカーにある 2 つのデータベースです。Rails のフィクスチャは、ソースのプラットフォーム向けの `sqlite3` と `pg` のネイティブ gem を、オフラインの実行段階でのみビルドします。
 
-Preparation output leaves its containers through `docker cp`, which cannot read
-a tmpfs mount. The acquisition `/archives` directory and the offline `/work`
-directory are therefore Docker local volumes backed by bounded tmpfs, created
-per container with private mode, the runtime uid/gid, `nosuid`, and `nodev`
-(`/archives` is also `noexec`; `/work` must stay executable for virtualenv and
-binstub launchers). The runner inspects each container and refuses to start it
-if Docker did not preserve those options. npm's user and global configs point
-at two different empty files, because npm refuses to load one file in both
-roles. Rails application and test containers hold on `sleep` after `run-app`
-copies the source; `db:prepare` starts only once that copy has finished.
-Changes to `/opt/cso/preparation` or an image recipe need a new staging run
-before native qualification can pass.
+準備の出力は、`docker cp` を通してコンテナの外に出されます。これは tmpfs のマウントを読めません。そのため、取得用の `/archives` ディレクトリと、オフラインの `/work` ディレクトリは、制限付きの tmpfs に支えられた Docker のローカルボリュームです。コンテナごとに、プライベートモード、ランタイムの uid/gid、`nosuid`、`nodev` で作成されます(`/archives` には `noexec` も付きます。`/work` は、virtualenv やバイナリスタブのランチャーのため実行可能でなければなりません)。ランナーは各コンテナを検査し、Docker がそれらのオプションを保持していなければ、そのコンテナの起動を拒否します。npm のユーザー用とグローバル用の設定は、2 つの異なる空のファイルを指します。npm は 1 つのファイルを両方の役割で読み込むことを拒否するためです。`run-app` がソースをコピーした後、Rails のアプリケーションとテストのコンテナは `sleep` で待機します。`db:prepare` は、そのコピーが終わってから開始します。準備の出力や、イメージのレシピの `/opt/cso/preparation` を変更するには、ネイティブの認定が合格する前に、新しいステージングの実行が必要です。
 
-Each supervised command has a 300-second ceiling (`COMMAND_TIMEOUT_MS` in
-`lib/cso/process.ts`). Only the dependency fetch and install commands of the
-acquisition and offline preparation phases get `PREPARATION_COMMAND_TIMEOUT_MS`,
-900 seconds. A Rails lockfile that lists only the `ruby` platform compiles
-nokogiri, sqlite3 and pg offline, which takes about 385 seconds at the app
-role's 0.85 CPU share. Both ceilings are cut to the time left before the
-journey's aggregate deadline, so the longer ceiling never extends a journey.
-Helper probes, exports, application starts, `db:prepare` and project tests keep
-the 300-second ceiling. A free test in `test/cso-docker-mounts.test.ts` pins
-which calls may request the longer ceiling. The CPU share is unchanged, so
-`ISOLATION_POLICY_HASH` and the profiles bound to it are unaffected.
+監視対象の各コマンドには、300 秒の上限があります(`lib/cso/process.ts` の `COMMAND_TIMEOUT_MS`)。取得段階と、オフライン準備段階の依存関係の取得とインストールのコマンドだけが、`PREPARATION_COMMAND_TIMEOUT_MS`、つまり 900 秒を受けます。ロックファイルが `ruby` プラットフォームだけを列挙する Rails は、nokogiri、sqlite3、pg をオフラインでコンパイルします。これは、アプリのロールの 0.85 CPU の割り当てで約 385 秒かかります。どちらの上限も、その経路の全体の期限までに残っている時間に切り詰められるため、長い上限が経路を延ばすことはありません。ヘルパーのプローブ、エクスポート、アプリケーションの起動、`db:prepare`、プロジェクトのテストは、300 秒の上限のままです。`test/cso-docker-mounts.test.ts` の無料テストは、どの呼び出しが長い上限を要求できるかを固定します。CPU の割り当ては変わらないため、`ISOLATION_POLICY_HASH` とそれに結びつくプロファイルには影響しません。
 
-When the in-image helper refuses to export a prepared tree, preparation fails
-with error code `PREPARED_EXPORT_REJECTED` instead of the generic
-`TOOL_FAILED`. The message carries the helper's exit status and its fixed
-reason, such as `prepared tree contains a hard-linked file`, or the filesystem
-errno and syscall. It never includes target paths. Nothing retries. Treat a
-recurrence as evidence for a defect, not as a flake to rerun.
+イメージ内のヘルパーが準備済みのツリーのエクスポートを拒否すると、準備は汎用の `TOOL_FAILED` ではなく、エラーコード `PREPARED_EXPORT_REJECTED` で失敗します。メッセージには、ヘルパーの終了ステータスと、`prepared tree contains a hard-linked file` のような固定の理由、またはファイルシステムの errno と syscall が含まれます。ターゲットのパスは決して含まれません。再試行は行われません。再発は、フレークの再実行ではなく、欠陥の証拠として扱ってください。
 
-The Rails offline install runs `bundle install --jobs 1`. Ruby's
-`File.umask` getter sets the process umask to 0 for an instant, and RubyGems
-calls it for every file it extracts. With two Bundler install threads, a
-directory created by one thread during that instant comes out 0777, and the
-export refuses the tree with `prepared tree contains a publicly writable
-directory`. That refusal is correct, so the install runs on one thread rather
-than the gate being relaxed. At the app role's 0.85 CPU share the second thread
-saved no measurable time.
+Rails のオフラインのインストールは、`bundle install --jobs 1` を実行します。Ruby の `File.umask` の getter は、一瞬だけプロセスの umask を 0 に設定します。RubyGems は、展開するファイルごとにこれを呼び出します。2 つの Bundler のインストールスレッドがあると、その一瞬の間に 1 つのスレッドが作ったディレクトリが 0777 になり、エクスポートはそのツリーを `prepared tree contains a publicly writable directory` で拒否します。この拒否は正しい動作です。そのため、ゲートを緩める代わりに、インストールは 1 つのスレッドで実行します。アプリのロールの 0.85 CPU の割り当てでは、2 つ目のスレッドによって測定可能な時間は節約されませんでした。
 
-For hashed Python requirements resolved by pip, the broker records the requested
-index URL, allowed contacted hosts, and verified wheel hash. Pip's internal
-`files.pythonhosted.org` response URL is opaque to that TLS boundary, so
-`resolvedUrl` remains `null`; `registryResponseSha256` identifies the acquired
-archive bytes, not a verified response URL.
+pip が解決した、ハッシュ付きの Python の要件については、ブローカーが要求されたインデックスの URL、接触を許可されたホスト、検証済みの wheel のハッシュを記録します。pip の内部の `files.pythonhosted.org` のレスポンス URL は、その TLS の境界からは見えないため、`resolvedUrl` は `null` のままです。`registryResponseSha256` は、検証済みのレスポンス URL ではなく、取得されたアーカイブのバイト列を識別します。
 
-Image publication starts with the committed
-[`build-inputs.json`](../lib/cso/images/build-inputs.json). Its reviewed revision
-pins distinct native manifests for every stack and the SBOM generator. Each
-profile records the inspected source tag and immutable index for provenance,
-then `baseImages` keyed by `linux/amd64` and `linux/arm64`; Python additionally
-records native uv manifests. CI fails if a source tag no longer resolves to the
-reviewed index, a platform manifest is absent from that index, its image
-configuration names another architecture, or an executable reports a different
-runtime or package-manager version. Bun does not declare a Node version because
-its container's `node` path is a Bun-backed fallback rather than a Node release.
-A Bun project with a Node engine constraint therefore receives an explicit
-prerequisite instead of a fabricated compatibility result.
+イメージの公開は、コミット済みの [`build-inputs.json`](../lib/cso/images/build-inputs.json) から始まります。その確認済みのリビジョンは、すべてのスタックと SBOM 生成ツールについて、異なるネイティブのマニフェストを固定します。各プロファイルは、来歴のために、検査したソースタグと不変のインデックスを記録します。その後、`linux/amd64` と `linux/arm64` をキーとする `baseImages` を記録します。Python はさらに、ネイティブの uv のマニフェストを記録します。CI は、ソースタグが確認済みのインデックスに解決されなくなった場合、プラットフォームのマニフェストがそのインデックスにない場合、イメージの設定が別のアーキテクチャを指している場合、または実行ファイルが別のランタイムやパッケージマネージャーのバージョンを報告する場合に失敗します。Bun は、コンテナの `node` のパスが Node のリリースではなく Bun に支えられたフォールバックであるため、Node のバージョンを宣言しません。そのため、Node の engine 制約を持つ Bun のプロジェクトは、互換性の結果を捏造される代わりに、明示的な前提条件を受け取ります。
 
-Configure the repository's `cso-runtime-release` GitHub environment with required
-maintainer review and deployments restricted to protected `main`. The
-[`cso-runtime-images.yml`](../.github/workflows/cso-runtime-images.yml) workflow
-runs a build-only native matrix on pull requests. Its manual publication jobs
-only accept `main`. They build on native amd64 and arm64 runners, publish to
-the `cso-staging` namespace, signs provenance and SBOM attestations, and verifies
-the workflow identity and source commit. It then pulls that exact digest into
-the local daemon for tests that prohibit implicit pulls. The per-image smoke test executes
-the embedded verifier against a loopback service with both a passing control
-and an intentionally failing control, alongside the containment suite. After
-all staging rows finish, native qualification jobs run the matching cold-start
-journey described above. The Node row additionally runs the complete lifecycle
-journey. Each native job is named `qualify-native <runtimeId>` and runs the
-Docker suites with Bun's JUnit reporter
-(`--reporter=junit --reporter-outfile=native-tests.junit.xml`).
-[`cso-native-evidence.ts`](../scripts/cso-native-evidence.ts) maps every native
-check key to the named tests that prove it for that stack and records the key
-true only when the report has no failed testcase and each named test appears
-once, passed, and made at least one assertion. A test that the environment
-skips, such as the staged-runtime smoke test without `GSTACK_CSO_TEST_IMAGE`,
-reports as skipped and leaves its checks false; any false native check fails the
-job. The pending private checks are the stack's required release gates from
-`cso-runtime-promotion.ts` minus its native keys: `secretCanaryPassed` and
-`watchdogCleanupPassed` for PostgreSQL, plus `heldOutRepairPassed` and
-`accuracyGatesPassed` for application stacks. The job uploads the JUnit report
-beside `qualification-evidence.json`, which records its digest.
-Registry publication is staging, not runtime qualification.
+リポジトリの `cso-runtime-release` GitHub 環境には、必須のメンテナーのレビューと、保護された `main` に限定されたデプロイを設定してください。[`cso-runtime-images.yml`](../.github/workflows/cso-runtime-images.yml) ワークフローは、プルリクエストでビルドのみのネイティブのマトリクスを実行します。その手動の公開ジョブは `main` からのみ受け付けます。それらは、ネイティブの amd64 と arm64 のランナーでビルドし、`cso-staging` の名前空間に公開し、来歴と SBOM の証明に署名し、ワークフローの ID とソースのコミットを検証します。その後、暗黙のプルを禁止するテストのために、そのイメージの正確なダイジェストをローカルのデーモンに取り込みます。イメージごとのスモークテストは、同梱の検証器を、合格する対照と意図的に失敗する対照の両方を持つループバックのサービスに対して実行します。これは封じ込めのスイートと並行して行われます。ステージングの行がすべて終わった後、ネイティブの認定ジョブが、上で説明した一致するコールドスタートの経路を実行します。Node の行は、完全なライフサイクルの経路も追加で実行します。各ネイティブのジョブは `qualify-native <runtimeId>` と名付けられ、Bun の JUnit レポーター(`--reporter=junit --reporter-outfile=native-tests.junit.xml`)で Docker のスイートを実行します。[`cso-native-evidence.ts`](../scripts/cso-native-evidence.ts) は、ネイティブのチェックキーごとに、そのスタックとそれを証明する名前付きのテストを対応づけます。レポートに失敗したテストケースがなく、名前付きの各テストが 1 回だけ現れ、合格し、少なくとも 1 つのアサーションを行った場合にのみ、そのキーを true と記録します。環境がスキップするテスト(`GSTACK_CSO_TEST_IMAGE` がないステージング済みランタイムのスモークテストなど)は、スキップとして報告され、そのチェックは false のままです。false のネイティブのチェックが 1 つでもあれば、ジョブは失敗します。保留中のプライベートのチェックは、`cso-runtime-promotion.ts` にあるスタックの必須のリリースゲートから、ネイティブのキーを除いたものです。PostgreSQL では `secretCanaryPassed` と `watchdogCleanupPassed`、アプリケーションのスタックでは `heldOutRepairPassed` と `accuracyGatesPassed` です。ジョブは、JUnit レポートを `qualification-evidence.json` の隣にアップロードします。そのファイルは、そのダイジェストを記録します。レジストリへの公開はステージングであり、ランタイムの認定ではありません。
 
-GitHub Container Registry creates new packages private. Before a staging digest
-can enter native or private qualification, a package administrator must make
-its package public in GitHub's package settings. This is an explicit bootstrap
-step because GitHub documents the visibility change as irreversible and does
-not provide a supported workflow API for it. The release jobs use their scoped
-workflow token to require `visibility: public` from GitHub's package REST
-endpoint, then pull the exact platform digest with `docker --config` pointing
-at a new directory whose `config.json` contains only an empty `auths` object.
-The GitHub token, Docker credentials, contexts, certificate paths, and
-credential helpers are absent from that Docker client. A private package,
-metadata mismatch, failed anonymous pull, or different returned digest stops
-staging, qualification, and promotion. Both
-runtime and scanner promotion repeat this anonymous pull check on fresh hosted
-runners before opening a catalog PR.
+GitHub Container Registry は、新しいパッケージをプライベートとして作成します。ステージングのダイジェストがネイティブまたはプライベートの認定に入る前に、パッケージの管理者が GitHub のパッケージ設定で、そのパッケージを公開にしなければなりません。GitHub がこの公開範囲の変更を不可逆と文書化しており、サポートされたワークフローの API を提供していないため、これは明示的なブートストラップの手順です。リリースのジョブは、ワークフローのスコープ付きトークンを使って、GitHub のパッケージ REST エンドポイントから `visibility: public` を要求します。その後、`config.json` が空の `auths` オブジェクトだけを含む新しいディレクトリを指す `docker --config` で、正確なプラットフォームのダイジェストをプルします。GitHub トークン、Docker の認証情報、コンテキスト、証明書のパス、認証情報ヘルパーは、その Docker クライアントには存在しません。プライベートのパッケージ、メタデータの不一致、匿名のプルの失敗、または返されたダイジェストの相違があると、ステージング、認定、昇格が停止します。ランタイムとスキャナーのどちらの昇格も、カタログの PR を開く前に、新しいホストのランナーで、この匿名のプルの確認を繰り返します。
 
-The first protected-main staging run therefore stops at the public-package
-check by design: its push creates the ten `cso-staging` packages as private. A
-package administrator makes those ten packages public, then dispatches the
-staging workflow again. Later runs publish new digests into the same public
-packages.
+そのため、保護された `main` でのステージングの最初の実行は、設計どおり、パブリックパッケージの確認で止まります。そのプッシュは、10 個の `cso-staging` パッケージをプライベートとして作成するためです。パッケージの管理者がその 10 個のパッケージを公開にし、その後ステージングのワークフローを再度ディスパッチします。以降の実行は、同じパブリックパッケージに新しいダイジェストを公開します。
 
-Review the retained staging artifacts together with all checks in
-[`qualification.json`](../lib/cso/images/qualification.json). Cold-start fixtures,
-held-out repair evaluations, precision/recall thresholds, crash cleanup, and all
-secret-canary checks must pass before a reviewed catalog change can make a
-digest executable. A successful protected-main qualification run packages one
-`qualified-runtime.json` statement for each stack and architecture under the
-`cso-qualified-runtime-statements` artifact. All ten statements bind the same
-source commit and workflow run. The protected
-[`cso-runtime-promote.yml`](../.github/workflows/cso-runtime-promote.yml) workflow
-authenticates that run through the Actions API, checks every statement against
-the committed build profiles, and emits an attested
-`runtime-catalog.candidate.json`. The protected job immediately verifies the
-candidate attestation against its workflow identity, protected-main source ref,
-source commit, and exact file digest. It then compares `previousRevision` with
-the source catalog, commits those same bytes to a fresh branch, and opens a
-normal review PR. Pushes and pull requests made with the workflow's
-`GITHUB_TOKEN` start no workflows, so after pushing the branch the job dispatches
-[`free-tests.yml`](../.github/workflows/free-tests.yml) on it with
-`gh workflow run free-tests.yml --ref <branch>` (its `actions: write` grant).
-That run reports the required `free-tests` check on the branch head the PR
-proposes. Opening the PR also requires the repository setting **Allow GitHub
-Actions to create and approve pull requests** (Settings → Actions → General →
-Workflow permissions). Without it `gh pr create` fails after the push and the
-dispatch, and a maintainer opens the PR from the pushed branch. A concurrent
-catalog promotion fails the compare-and-swap or
-produces a merge conflict instead of silently replacing the newer matrix.
-The catalog stores a separately recomputable digest of the retained runtime
-matrix and the digest of the complete external qualification statements. The
-helper rejects a post-generation image or qualification mutation even if the
-statement digest field was left unchanged.
-Rollback retains the prior compatible catalog revision.
+保持されたステージングの成果物は、[`qualification.json`](../lib/cso/images/qualification.json) のすべてのチェックとともに確認してください。コールドスタートのフィクスチャ、ホールドアウトの修復の評価、適合率と再現率のしきい値、クラッシュ後のクリーンアップ、そしてすべてのシークレットのカナリアのチェックが合格しなければ、レビュー済みのカタログの変更で、そのダイジェストを実行可能にすることはできません。保護された `main` の認定の実行が成功すると、スタックとアーキテクチャごとに 1 つの `qualified-runtime.json` の声明がまとめられ、`cso-qualified-runtime-statements` の成果物に入ります。10 個すべての声明は、同じソースのコミットとワークフローの実行に結びつきます。保護された [`cso-runtime-promote.yml`](../.github/workflows/cso-runtime-promote.yml) ワークフローは、Actions API を通してその実行を認証し、各声明をコミット済みのビルドプロファイルと照合し、来歴が証明された `runtime-catalog.candidate.json` を出力します。保護されたジョブは、直後に、候補の証明をそのワークフローの ID、保護された main のソースの ref、ソースのコミット、正確なファイルのダイジェストに対して検証します。その後、`previousRevision` をソースのカタログと比較し、同じバイト列を新しいブランチにコミットして、通常のレビュー PR を開きます。ワークフローの `GITHUB_TOKEN` で行われたプッシュとプルリクエストは、ワークフローを開始しません。そのため、ブランチをプッシュした後、ジョブは `gh workflow run free-tests.yml --ref <branch>`(`actions: write` の権限による)で、そのブランチに対して [`free-tests.yml`](../.github/workflows/free-tests.yml) をディスパッチします。その実行は、PR が提案するブランチの先頭に対して、必須の `free-tests` チェックを報告します。PR を開くには、リポジトリの設定 **Allow GitHub Actions to create and approve pull requests**(Settings → Actions → General → Workflow permissions)も必要です。これがないと、プッシュとディスパッチの後で `gh pr create` が失敗し、メンテナーがプッシュされたブランチから PR を開きます。同時に行われるカタログの昇格は、比較とスワップに失敗するか、マージの衝突を起こします。より新しいマトリクスを黙って置き換えることはありません。カタログは、保持されたランタイムのマトリクスの、別個に再計算可能なダイジェストと、完全な外部の認定声明のダイジェストを記録します。ヘルパーは、生成後にイメージや認定が変更された場合、たとえ声明のダイジェストのフィールドが変更されていなくても拒否します。ロールバックでは、以前の互換性のあるカタログのリビジョンが保持されます。
 
-The public qualification ingress is
-[`cso-runtime-qualification.yml`](../.github/workflows/cso-runtime-qualification.yml).
-Set the protected environment variable `CSO_QUALIFICATION_ACTOR` to the GitHub
-service account used by the private evaluator. After its held-out assertions and
-accuracy run pass, that account sends a `repository_dispatch` event of type
-`cso-runtime-qualified`. The payload has the key `statements` and, optionally,
-`evaluationRef`; no other key is accepted. `statements` contains ten objects
-with `schemaVersion`, `helperAbi`, `state`, `buildRevision`, `runtimeId`,
-`stack`, `platform`, immutable `image`, exact `versions`, `sourceCommit`, and
-the true-valued `checks` accepted by `cso-runtime-promotion.ts`. All ten name
-one `sourceCommit`. `evaluationRef` is an opaque `sha256:<64 hex>` reference
-that lets the approver match the dispatch to the private evaluator's verdict.
-An unprotected `dispatch-summary` job with no token permissions validates the
-payload shape and writes `evaluationRef`, the source commit, and each
-`runtimeId` and `image` pair to the run's job summary. The reviewer reads it
-there before approving the protected `qualify` job. `evaluationRef` never enters
-the normalized statements, the uploaded evidence, or the catalog.
+公開される認定の入口は、[`cso-runtime-qualification.yml`](../.github/workflows/cso-runtime-qualification.yml) です。保護された環境変数 `CSO_QUALIFICATION_ACTOR` に、プライベートの評価者が使う GitHub のサービスアカウントを設定してください。そのホールドアウトの主張とアキュラシーの実行が合格した後、そのアカウントは `cso-runtime-qualified` という型の `repository_dispatch` イベントを送ります。ペイロードは `statements` というキーを持ち、任意で `evaluationRef` を持ちます。それ以外のキーは受け付けられません。`statements` には、`schemaVersion`、`helperAbi`、`state`、`buildRevision`、`runtimeId`、`stack`、`platform`、不変の `image`、正確な `versions`、`sourceCommit`、そして `cso-runtime-promotion.ts` が受け付ける真の値の `checks` を持つオブジェクトが 10 個入ります。10 個すべてが 1 つの `sourceCommit` を指します。`evaluationRef` は、`sha256:<64 hex>` の不透明な参照で、承認者がディスパッチを、プライベートの評価者の判定と照合できるようにします。トークンの権限を持たない、保護されていない `dispatch-summary` ジョブが、ペイロードの形を検証し、`evaluationRef`、ソースのコミット、各 `runtimeId` と `image` の組を、実行のジョブサマリーに書き出します。レビュアーは、保護された `qualify` ジョブを承認する前に、そこでそれを読みます。`evaluationRef` は、正規化された声明、アップロードされる証拠、カタログのいずれにも入ることはありません。
 
-The protected job checks the actor, re-verifies both OCI attestations against
-the protected staging workflow and source commit, and replaces the workflow,
-time, SBOM digest, and provenance digest with values it observed. Attestations
-are signed in the staging job, before native qualification runs, so a valid
-attestation alone does not show that native gates passed.
-[`cso-staging-run.ts`](../scripts/cso-staging-run.ts) therefore resolves the
-staging run from each verified SLSA provenance statement: the predicate's
-`runDetails.metadata.invocationId` must equal the signing certificate's
-`runInvocationURI`, and all ten images must resolve to the same run of this
-repository. Through the Actions API (`actions: read`) the ingress then requires
-that run to be `.github/workflows/cso-runtime-images.yml`, started by
-`workflow_dispatch` on `main` in this repository, completed with conclusion
-`success`, and built from the statements' `sourceCommit`. The latest attempt's
-`qualify-native <runtimeId>` jobs, read across every page of the jobs API, must
-be exactly one per committed matrix row (ten) and all `success`. The run and job
-records are retained as `staging-run-evidence`. The catalog generator runs last
-as the final schema gate, and the ingress uploads the statements only after that
-gate passes. The payload carries no held-out assertion, application source,
-finding, or repair bundle.
+保護されたジョブは、アクターを確認し、保護されたステージングのワークフローとソースのコミットに対して両方の OCI の証明を再検証し、ワークフロー、時刻、SBOM のダイジェスト、来歴のダイジェストを、観測した値で置き換えます。証明はネイティブの認定が実行される前、ステージングのジョブで署名されるため、有効な証明だけでは、ネイティブのゲートが合格したことにはなりません。そのため [`cso-staging-run.ts`](../scripts/cso-staging-run.ts) は、検証済みの SLSA の来歴の声明ごとに、ステージングの実行を解決します。述語の `runDetails.metadata.invocationId` は、署名証明書の `runInvocationURI` と一致しなければならず、10 個のイメージすべてが、このリポジトリの同じ実行に解決されなければなりません。Actions API(`actions: read`)を通して、入口は、その実行が `.github/workflows/cso-runtime-images.yml` であり、`main` 上の `workflow_dispatch` によって開始され、結論 `success` で完了し、声明の `sourceCommit` からビルドされたことを要求します。コミット済みのマトリクスの行 1 つにつき 1 つ(合計 10 個)の `qualify-native <runtimeId>` ジョブが、ジョブ API のすべてのページにわたって読まれ、ちょうど存在し、すべて `success` でなければなりません。実行とジョブの記録は、`staging-run-evidence` として保持されます。カタログの生成は最後に、最終のスキーマゲートとして実行されます。入口は、そのゲートに合格した後にのみ声明をアップロードします。ペイロードには、ホールドアウトの主張、アプリケーションのソース、発見事項、修復のバンドルは含まれません。
 
-A qualification stays valid only while the inputs it was measured under are
-unchanged. [`cso-requalification.ts`](../scripts/cso-requalification.ts) defines
-four requalification triggers: the helper ABI (`CSO_HELPER_ABI`), the isolation
-policy (`ISOLATION_POLICY_HASH`, which covers the `cso-isolation-v1` policy
-version and every limit), `preparationSha256` (a digest of every source byte
-compiled or copied into a runtime image: the import closure of the image's
-verifier and preparation helpers plus the image build context), and the
-`build-inputs.json` revision. Each helper entrypoint's leading `#!` line is
-hashed as absent: it is compiled into the binary as an unused string and never
-runs inside the image. Every other byte of the helpers counts, and so does
-every byte of every other file, shebang lines included. The staging run's `reviewed-inputs` job records
-these values for its source commit as the `cso-requalification-triggers`
-artifact. The ingress downloads that artifact from the verified staging run
-into the evidence, and the promotion generator writes it into
-`promotion.requalification`. When a recorded `preparationSha256` differs from
-the promoting checkout's, generation re-measures it at the staged commit from
-the checkout's git history. The record must match that commit under either the
-current rule or the earlier rule that also hashed the helpers' `#!` lines, and
-the current-rule value is what gets compared and recorded. Generation refuses
-triggers that differ from the promoting checkout, so a trigger that changed between staging and promotion
-requires a new staging run. The free suite's
-[`cso-requalification.test.ts`](../test/cso-requalification.test.ts) compares
-the committed catalog's recorded triggers with the current source and fails
-when any differs. A change to a trigger therefore either lands with a
-requalified catalog or withdraws the catalog's runtimes in the same pull
-request. Independently, the helper refuses to select a runtime recorded under
-another isolation policy.
+認定は、それが測定された入力が変わらない限り有効です。[`cso-requalification.ts`](../scripts/cso-requalification.ts) は、4 つの再認定のトリガーを定義します。ヘルパーの ABI(`CSO_HELPER_ABI`)、分離ポリシー(`ISOLATION_POLICY_HASH`。`cso-isolation-v1` のポリシーのバージョンと、すべての上限を対象とします)、`preparationSha256`(ランタイムのイメージにコンパイルまたはコピーされるすべてのソースバイトのダイジェストです。イメージの検証器と準備ヘルパーのインポートの閉包に、イメージのビルドコンテキストを加えたもの)、そして `build-inputs.json` のリビジョンです。各ヘルパーのエントリポイントの先頭の `#!` 行は、不在としてハッシュされます。これはバイナリに未使用の文字列としてコンパイルされ、イメージ内では決して実行されないためです。ヘルパーのそれ以外のすべてのバイトは数えられ、`#!` 行を含むそれ以外のすべてのファイルのバイトも数えられます。ステージングの実行の `reviewed-inputs` ジョブは、そのソースのコミットについて、これらの値を `cso-requalification-triggers` の成果物として記録します。入口は、その成果物を検証済みのステージングの実行から証拠へダウンロードし、昇格のジェネレーターがそれを `promotion.requalification` に書き込みます。記録された `preparationSha256` が昇格するチェックアウトのものと異なる場合、生成はステージングされたコミットで、そのチェックアウトの git 履歴から再計測します。記録は、現在のルールか、`#!` 行もハッシュしていた以前のルールのどちらかの下で、そのコミットと一致しなければなりません。比較され記録されるのは現在のルールの値です。生成は、昇格するチェックアウトとは異なるトリガーを拒否します。そのため、ステージングと昇格の間に変わったトリガーには、新しいステージングの実行が必要です。無料のスイートの [`cso-requalification.test.ts`](../test/cso-requalification.test.ts) は、コミット済みのカタログに記録されたトリガーを現在のソースと比較し、どれかが異なれば失敗します。そのため、トリガーの変更は、再認定されたカタログとともに入るか、同じプルリクエストでそのカタログのランタイムを取り下げるかのどちらかになります。独立して、ヘルパーは、別の分離ポリシーの下で記録されたランタイムを選ぶことを拒否します。
 
-The daily precision gate (`dailyPrecision95` in
-[`cso-eval.ts`](../scripts/cso-eval.ts)) divides true positives by reported
-findings. Hypotheses count in neither term. A finding the evaluator marks
-`instrumentation` also counts in neither term: it targets the evaluator's
-declared fixture instrumentation, such as the canary overlay files or the egress
-probe route. The seeded issue adds one true positive per cell, however many
-times it is restated. A finding the evaluator marks `incidental` is a different
-issue that a unanimous judge panel confirmed is real in that source. It adds one
-true positive per distinct `incidentalKey` in its cell, never counts toward
-recall, and needs no seeded match. Recall still measures only the seeded issue,
-and the thresholds are unchanged.
+日次の適合率ゲート([`cso-eval.ts`](../scripts/cso-eval.ts) の `dailyPrecision95`)は、真陽性を報告された検出件数で割ります。仮説はどちらの項にも数えません。評価者が `instrumentation` と判定した検出も、どちらの項にも数えません。それは評価者が宣言したフィクスチャの計装、たとえばカナリアのオーバーレイファイルや egress のプローブのルートを対象とするためです。シードされた問題は、何度言い換えられても、セルごとに真陽性を 1 つ加算します。評価者が `incidental` と判定した検出は、別の問題です。それは、全員一致の審査員パネルが、そのソースで実在すると確認したものです。そのセルの異なる `incidentalKey` ごとに真陽性を 1 つ加算し、再現率には決して数えず、シードされた一致も必要ありません。再現率は、依然としてシードされた問題だけを測定し、しきい値は変わりません。
 
-The falsely-tested gate (`zeroFalselyTestedRepairs`) counts every finding the
-producer claimed was tested that trusted evidence does not certify. A claim on
-the seeded issue is certified only by the judge's own held-out repair
-verification. A claim on an `incidental` finding is certified only when the
-evaluator replayed the helper's signed repair bundle for that finding against
-the trusted source and the replay passed: the evaluator records
-`trustedReplay: { result: "passed", replayEvidenceHash }`. A `failed` replay or a
-`missing` bundle leaves the claim falsely tested. A claim on an
-`instrumentation` finding counts in neither direction, the same way precision
-leaves it out. Neither a replay nor an instrumentation claim ever counts toward
-recall, repair or held-out rates, which need the seeded issue.
+誤ってテスト済みとされたゲート(`zeroFalselyTestedRepairs`)は、生成者がテスト済みと主張したすべての検出を数えます。信頼された証拠が認定しないものです。シードされた問題への主張は、審査員自身のホールドアウトの修復の検証によってのみ認定されます。`incidental` の検出への主張は、評価者が、信頼されたソースに対してその検出についてヘルパーの署名済みの修復バンドルを再生し、その再生が合格した場合にのみ認定されます。評価者は `trustedReplay: { result: "passed", replayEvidenceHash }` を記録します。`failed` の再生、または `missing` のバンドルは、その主張を誤ってテスト済みのままにします。`instrumentation` の検出への主張は、どちらの方向にも数えません。適合率がそれを除外するのと同じです。再生や計装の主張は、再現率、修復率、ホールドアウトの率には決して数えません。これらにはシードされた問題が必要です。
 
-The judge observes held-out attacks in one boot: a `VerificationRequest`'s
-`security` field is either one assertion or an array of up to eight assertions
-with distinct names, judged in a single before/after pair. The before phase is
-`intended_failure` only when every assertion shows its vulnerable expectation,
-and the after phase passes only when every assertion passes its fixed
-expectation. A single assertion keeps its original hashes. The verifier is
-compiled into the runtime images, so array requests need images staged from a
-commit that includes it.
+審査員は、1 回の起動の中でホールドアウトの攻撃を観測します。`VerificationRequest` の `security` フィールドは、1 つの主張か、名前が互いに異なる最大 8 個の主張の配列のいずれかです。それらは 1 組の前後の判定で、まとめて評価されます。前フェーズが `intended_failure` になるのは、すべての主張がその脆弱な期待値を示した場合だけです。後フェーズが合格するのは、すべての主張がその修正後の期待値に合格した場合だけです。単一の主張は、元のハッシュを保ちます。検証器はランタイムのイメージにコンパイルされるため、配列の要求には、それを含むコミットから作られたイメージが必要です。
 
-### Evaluation-only helper builds
+### 評価専用のヘルパービルド
 
-The private evaluator drives the real helper against staged digests before
-any gate is measured. It never edits the committed catalog. Instead,
-`bun scripts/cso-runtime-promotion.ts evaluation-candidate --staged-root <dir>
---output <new-file>` converts one staging run's ten `staged-image.json` records
-into an evaluation-only catalog. Its revision is `cso-eval-<runId>-<sha12>`, it
-carries an `evaluation` record instead of `promotion`, and every runtime is an
-`evaluation_candidate` whose qualification has `kind: "evaluation"` and no
-release-gate field. Each runtime's `qualifiedAt` is the current time unless
-`--created-at <ISO time>` names it. An evaluation that builds one unit per
-platform must pass the same `--created-at` to every build: the scorer requires
-both platforms' producers to embed identical catalog bytes. Then
+プライベートの評価者は、いかなるゲートも測定される前に、実際のヘルパーをステージング済みのダイジェストに対して動かします。評価者がコミット済みのカタログを編集することは決してありません。その代わりに、`bun scripts/cso-runtime-promotion.ts evaluation-candidate --staged-root <dir> --output <new-file>` が、1 回のステージングの実行の 10 個の `staged-image.json` の記録を、評価専用のカタログに変換します。そのリビジョンは `cso-eval-<runId>-<sha12>` で、`promotion` の代わりに `evaluation` の記録を持ち、すべてのランタイムは `evaluation_candidate` です。その認定は `kind: "evaluation"` を持ち、リリースゲートのフィールドは持ちません。各ランタイムの `qualifiedAt` は、`--created-at <ISO time>` が指定されない限り現在の時刻です。1 プラットフォームにつき 1 つのユニットをビルドする評価では、スコアラーが両プラットフォームの生成者に同一のカタログのバイト列を埋め込むことを要求するため、すべてのビルドに同じ `--created-at` を渡さなければなりません。その後、
 
 ```bash
 bun run build:cso -- --evaluation-candidate <catalog.json> --output <new-directory>
 ```
 
-compiles the helper core and `cso-eval-producer` from a private copy of the
-source with that catalog embedded, adds the native launcher and watchdog, and
-writes the five-artifact producer unit to a new directory outside the checkout.
-Beside the unchanged `.gstack-cso-generation` manifest, it writes
-`.gstack-cso-evaluation`, which marks the unit evaluation-only and records the
-catalog revision, catalog SHA-256, and core SHA-256. The helper reports
-`"evaluationOnly": true` from `--version`, labels its catalog evaluation-only
-in runtime readiness, and refuses `provision-images --setup-summary`.
-Distribution refuses it at every step. A normal `build:cso` stops when
-`lib/cso/runtime-catalog.json` carries a `cso-eval-` revision. Setup fails when
-`bin/` holds an `.gstack-cso-evaluation` manifest or a launcher that reports
-`evaluationOnly`. Catalog promotion and transitions reject evaluation catalogs,
-and the runtime catalog validator rejects an evaluation catalog that carries
-`promotion`, release-gate fields, or a revision that does not name its staging
-run and source commit.
+は、埋め込まれたそのカタログを持つ、ソースのプライベートなコピーから、ヘルパーのコアと `cso-eval-producer` をコンパイルし、ネイティブのランチャーとウォッチドッグを追加して、チェックアウトの外の新しいディレクトリに、5 つの成果物からなる生成者のユニットを書き出します。変更されていない `.gstack-cso-generation` マニフェストの隣に、ユニットを評価専用と示す `.gstack-cso-evaluation` を書き出します。これには、カタログのリビジョン、カタログの SHA-256、コアの SHA-256 が記録されます。ヘルパーは `--version` から `"evaluationOnly": true` を報告し、ランタイムの準備状態でそのカタログに評価専用のラベルを付け、`provision-images --setup-summary` を拒否します。配布は、どの段階でも拒否します。通常の `build:cso` は、`lib/cso/runtime-catalog.json` が `cso-eval-` のリビジョンを持つと停止します。`bin/` に `.gstack-cso-evaluation` のマニフェスト、または `evaluationOnly` を報告するランチャーがあると、セットアップは失敗します。カタログの昇格と遷移は、評価用のカタログを拒否します。ランタイムのカタログのバリデーターは、`promotion`、リリースゲートのフィールド、またはステージングの実行とソースのコミットを指定しないリビジョンを持つ評価用のカタログを拒否します。
 
-The current reviewed profiles and unpromoted catalog establish this release
-process; they do not claim published gstack images, passed containment, or
-measured security accuracy.
-Private held-out find-to-repair evaluations remain mandatory release gates for
-Node, Bun, Python, and Rails. The producer-visible Node lifecycle fixture and the
-other cold-start journeys do not satisfy those gates. Qualification artifacts
-therefore record private checks as `"pending"` and `qualified: false` until all
-four private evaluations and the accuracy thresholds pass. The remaining
-external prerequisite is one successful protected-main run that uploads all ten
-authenticated statements. This sandbox cannot create that evidence because it
-has neither a native arm64 runner nor the private held-out assertions.
+現在のレビュー済みのプロファイルと、未昇格のカタログは、このリリースの過程を確立するものです。公開済みの gstack のイメージ、合格した封じ込め、または測定された安全性の精度を主張するものではありません。
+プライベートのホールドアウトの find-to-repair の評価は、Node、Bun、Python、Rails の必須のリリースゲートとして引き続き必要です。プロデューサーに見える Node のライフサイクルのフィクスチャや、他のコールドスタートの経路は、それらのゲートを満たしません。そのため、4 つのプライベートの評価と精度のしきい値がすべて合格するまで、認定の成果物はプライベートのチェックを `"pending"` と記録し、`qualified: false` にします。残る外部の前提条件は、10 個の認証済みの声明をすべてアップロードする、保護された main での成功した実行 1 回です。このサンドボックスにはネイティブの arm64 ランナーも、プライベートのホールドアウトの主張もないため、その証拠を作成できません。
 
-Attestation behavior follows [Docker's SBOM documentation](https://docs.docker.com/build/metadata/attestations/sbom/)
-and [GitHub CLI's verification policy](https://cli.github.com/manual/gh_attestation_verify).
-Public-package behavior follows [GitHub's package permissions documentation](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages),
-[GitHub's package REST endpoint](https://docs.github.com/en/rest/packages/packages#get-a-package-for-a-user),
-and [Docker's client configuration documentation](https://docs.docker.com/reference/cli/docker/),
-inspected on September 11, 2026.
+Docker の SBOM のドキュメント([Docker's SBOM documentation](https://docs.docker.com/build/metadata/attestations/sbom/))と GitHub CLI の検証ポリシー([GitHub CLI's verification policy](https://cli.github.com/manual/gh_attestation_verify))に従って、証明の動作が決まります。パッケージの公開に関する動作は、[GitHub's package permissions documentation](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages)、[GitHub's package REST endpoint](https://docs.github.com/en/rest/packages/packages#get-a-package-for-a-user)、および [Docker's client configuration documentation](https://docs.docker.com/reference/cli/docker/) に従います。これらは 2026 年 9 月 11 日に確認しました。

@@ -109,13 +109,13 @@ export function extractHeading(text: string, heading: string): string | undefine
 
 export const RESULT_FORMAT = (phase: string, sha256: string, resultPath: string) => `
 ---
-RESULT FORMAT (required by gstack-autoplan; the parent binds your file by this contract):
-1. The first line of your result is exactly: INPUT: ${phase} ${sha256}
-2. Write the complete review as prose, then END with one fenced block of canonical findings, one JSON object per line:
+RESULT FORMAT(gstack-autoplan が要求します。親はこの契約に従ってあなたのファイルを紐づけます):
+1. 結果の 1 行目は、次の行そのものにしてください: INPUT: ${phase} ${sha256}
+2. レビュー全体を文章で書き、最後に、正規の指摘を入れたフェンス付きブロックを 1 つだけ置いて終えてください(1 行につき JSON オブジェクト 1 つ):
 \`\`\`gstack-findings
 {"id":"F1","severity":"High","title":"<one line>","file":"<path or omit>","line":12,"fix":"<the fix>"}
 \`\`\`
-   severity is Critical | High | Medium | Low | Informational. Add "user_challenge": true only when you recommend changing the plan's stated direction AND the change alters its scope, cost or direction (then also add "changes": "scope" | "cost" | "direction") or only its delivery packaging or ordering, with no Implementation-plan edit (then "changes": "packaging" | "ordering"). Naming and other reversible choices are ordinary findings, not user challenges. Add "urgent": true and "suggested_owner": "<who>" for a security or data-loss finding this plan does not own. An empty fence means no findings; a missing fence is refused.
+   severity は Critical | High | Medium | Low | Informational のいずれかです。"user_challenge": true を付けるのは、プランが掲げる方向性の変更を勧め、かつその変更がスコープ、コスト、方向性を変える場合(その場合は "changes": "scope" | "cost" | "direction" も付けます)、または変えるのが提供の形(パッケージング)や順序だけで Implementation plan の編集を伴わない場合(その場合は "changes": "packaging" | "ordering" を付けます)に限ります。命名など元に戻せる選択は通常の指摘であり、ユーザーへの異議ではありません。このプランの責任範囲外にあるセキュリティまたはデータ損失の指摘には、"urgent": true と "suggested_owner": "<who>" を付けてください。フェンスが空なら指摘なしを意味します。フェンスがない結果は拒否されます。
 3. Write the whole result to this file: ${resultPath}
 `;
 

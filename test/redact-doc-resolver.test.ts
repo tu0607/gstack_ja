@@ -30,7 +30,7 @@ describe("REDACT_INVOCATION_BLOCK", () => {
     expect(block).toContain('/.gstack/tmp/<redact-file-name>"');
     expect(block).not.toContain("<<");
     expect(block).toContain("--from-file");
-    expect(block).toMatch(/exact bytes/i);
+    expect(block).toContain("まさにそのバイト列");
   });
 
   test("encodes exit-code branches 3/2/0", () => {
@@ -53,8 +53,8 @@ describe("REDACT_INVOCATION_BLOCK", () => {
 
   test("HIGH has no skip flag; framed as guardrail not enforcement", () => {
     const block = generateRedactInvocationBlock(ctx, ["pre-archive"]);
-    expect(block).toMatch(/no skip flag for HIGH/i);
-    expect(block).toMatch(/guardrail, not airtight enforcement/i);
+    expect(block).toContain("HIGH にスキップフラグはありません");
+    expect(block).toContain("ガードレールであり、厳密な強制ではありません");
   });
 
   test("PII subset offers auto-redact; non-PII MEDIUM does not", () => {
@@ -64,8 +64,8 @@ describe("REDACT_INVOCATION_BLOCK", () => {
   });
 
   test("sink label drives the prose noun/verb", () => {
-    expect(generateRedactInvocationBlock(ctx, ["pre-commit"])).toContain("commit");
-    expect(generateRedactInvocationBlock(ctx, ["pre-archive"])).toContain("write the archive");
+    expect(generateRedactInvocationBlock(ctx, ["pre-commit"])).toContain("コミット");
+    expect(generateRedactInvocationBlock(ctx, ["pre-archive"])).toContain("アーカイブの書き込み");
   });
 
   test("unknown sink label falls back without throwing", () => {

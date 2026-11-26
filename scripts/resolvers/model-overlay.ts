@@ -50,19 +50,19 @@ export function generateModelOverlay(ctx: TemplateContext): string {
   if (!content) return '';
 
   const precedence = ctx.model === 'gpt-5.6-sol'
-    ? `The following instructions disambiguate scope for the ${ctx.model} model.
-They govern ambiguous completeness words such as \`complete\`, \`full\`, \`every\`,
-\`exhaustive\`, \`100%\`, and \`Boil the Ocean\`, and when to stop iterating on
-work the user did not ask for. Concrete skill workflow steps, STOP points,
-AskUserQuestion gates, plan-mode safety, required tests, skill-mandated
-re-verification and re-review loops, and /ship review gates still win.
-Never use this patch to skip a concrete requirement.`
-    : `The following nudges are tuned for the ${ctx.model} model family. They are
-**subordinate** to skill workflow, STOP points, AskUserQuestion gates, plan-mode
-safety, and /ship review gates. If a nudge below conflicts with skill instructions,
-the skill wins. Treat these as preferences, not rules.`;
+    ? `以下の指示は、${ctx.model} モデルにおけるスコープの曖昧さを解消します。
+これらは、あいまいな「完全さ」を表す語、たとえば \`complete\`, \`full\`, \`every\`,
+\`exhaustive\`、\`100%\`、および \`Boil the Ocean\` と、ユーザーが求めていない
+作業の反復をいつ止めるかを規定します。スキルの具体的なワークフロー手順、STOP ポイント、
+AskUserQuestion のゲート、プランモードの安全性、必須テスト、スキルが定める
+再検証・再レビューのループ、/ship のレビューゲートは、引き続きこの指示より優先されます。
+このパッチを、具体的な要件を省略するために使ってはいけません。`
+    : `以下のヒントは ${ctx.model} モデルファミリー向けに調整されています。これらは、スキルのワークフロー、
+STOP ポイント、AskUserQuestion のゲート、プランモードの安全性、/ship のレビューゲートに
+**従属**します。以下のヒントがスキルの指示と矛盾する場合は、スキルが優先されます。
+これらはルールではなく、好みとして扱ってください。`;
 
-  return `## Model-Specific Behavioral Patch (${ctx.model})
+  return `## Model-Specific Behavioral Patch (${ctx.model})(モデル固有の動作パッチ)
 
 ${precedence}
 

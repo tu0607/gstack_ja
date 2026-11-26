@@ -1,3 +1,4 @@
+import { expectMentions } from './helpers/prompt-structure';
 import { describe, test, expect } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -47,8 +48,8 @@ describe('pair-agent ngrok token hygiene (#2335)', () => {
 
   test.each(files)('%s: instructs that the token never enters the chat', (rel) => {
     const content = fs.readFileSync(path.join(ROOT, rel), 'utf-8');
-    expect(content.toLowerCase()).toContain('never enter this chat');
+    expectMentions(content, [['トークン', 'チャット', '決して']]);
     // The recovery path for an accidentally pasted token must exist.
-    expect(content.toLowerCase()).toContain('rotate');
+    expectMentions(content, [['トークン', '再発行']]);
   });
 });

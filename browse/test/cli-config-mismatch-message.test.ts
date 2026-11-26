@@ -58,15 +58,18 @@ describe('#3030: BROWSER.md says how to enable WebGL', () => {
 
   test('the GSTACK_DISABLE_GPU row states the effect and the only recognized value', () => {
     const row = browserMd.split('\n').find(line => line.startsWith('| `GSTACK_DISABLE_GPU`')) ?? '';
-    expect(row).toContain('also disables WebGL');
-    expect(row).toContain('Set `GSTACK_DISABLE_GPU=off` to enable WebGL (`off` is the only recognized value).');
+    expect(row).toContain('WebGL');
+    expect(row).toContain('`GSTACK_DISABLE_GPU=off`');
+    // The row names `off` as the only recognized value, in one sentence with the enabling instruction.
+    expect(row.split(/[。.]/).some(sentence => sentence.includes('GSTACK_DISABLE_GPU=off') && sentence.includes('WebGL') && sentence.includes('`off`'))).toBe(true);
   });
 
   test('the Daemon discipline paragraph sits under the heading the refusal links to', () => {
-    const heading = browserMd.indexOf('### Headed mode + proxy + browser-native downloads (v1.28.0.0)');
-    const discipline = browserMd.indexOf('**Daemon discipline.**');
+    // The refusal links to the English slug; BROWSER.md keeps it as an explicit anchor above the Japanese heading.
+    const heading = browserMd.indexOf('<a id="headed-mode--proxy--browser-native-downloads-v12800"></a>');
+    const discipline = browserMd.indexOf('**デーモンの規律。**');
     expect(heading).toBeGreaterThan(-1);
     expect(discipline).toBeGreaterThan(heading);
-    expect(browserMd.slice(heading + 3, discipline).replace(/```[\s\S]*?```/g, '')).not.toMatch(/\n#{1,3} /);
+    expect(browserMd.slice(heading + 3, discipline).replace(/^[^\n]*\n### [^\n]*/, '').replace(/```[\s\S]*?```/g, '')).not.toMatch(/\n#{1,3} /);
   });
 });

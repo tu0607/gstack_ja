@@ -8,14 +8,14 @@
       "id": "review-sections",
       "file": "review-sections.md",
       "title": "7 design passes, required outputs + review report",
-      "trigger": "running the 7 design passes, required outputs, and review report (only after Step 0 scope is agreed)",
+      "trigger": "7 つのデザインパス、必須の出力、レビューレポートの実行(Step 0 でスコープに合意した後のみ)",
       "scope": "always"
     },
     {
       "id": "checklist",
       "file": "checklist.md",
       "title": "Operative checklist: steps and required outputs mapped to their producing section",
-      "trigger": "runner profile only (unattended or light autoplan runs); interactive runs read review-sections.md in full",
+      "trigger": "ランナープロファイルのみ(無人実行または軽量な autoplan 実行)。対話実行では review-sections.md を全文 Read する",
       "scope": "always",
       "runner_only": true
     }

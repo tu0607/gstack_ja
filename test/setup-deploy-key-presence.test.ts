@@ -11,7 +11,7 @@ const SKILL = fs.readFileSync(path.resolve(import.meta.dir, '..', 'setup-deploy'
 const KEY = 'rnd_D4testKeyValue1234567890';
 
 describe('D4: setup-deploy reports Render key presence, never key bytes', () => {
-  const at = SKILL.indexOf('Check only whether the Render API key is set');
+  const at = SKILL.indexOf('#### Render\n');
   const block = SKILL.slice(at).match(/```bash\n([\s\S]*?)\n```/)?.[1] ?? '';
 
   test('the check runs and prints only set / not set', () => {

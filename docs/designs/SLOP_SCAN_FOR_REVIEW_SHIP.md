@@ -1,21 +1,18 @@
-# Design: slop-scan integration in /review and /ship
+# 設計: /review と /ship への slop-scan 統合
 
-Status: deferred
-Created: 2026-04-09
-Depends on: slop-diff script (scripts/slop-diff.ts, already landed)
+ステータス: 延期
+作成日: 2026-04-09
+依存: slop-diff スクリプト(scripts/slop-diff.ts、マージ済み)
 
-## Problem
+## 課題
 
-slop-scan findings are only visible if you run `bun run slop:diff` manually. They
-should surface automatically during code review and shipping, the same way SQL safety
-and trust boundary checks do.
+slop-scan の指摘は、`bun run slop:diff` を手動で実行しないと見えない。SQL の安全性チェックや信頼境界のチェックと同じように、レビューと出荷の過程で自動的に表示されるべきである。
 
-## Integration points
+## 統合ポイント
 
-### /review (Step 4, after checklist pass)
+### /review(Step 4、チェックリストの確認の後)
 
-Run `bun run slop:diff` after the critical/informational checklist pass. Show new
-findings inline with other review output:
+チェックリストによる重大/情報の確認の後に `bun run slop:diff` を実行する。新しい指摘は、他のレビュー出力と並べてインラインで表示する。
 
 ```
 Pre-Landing Review: 3 issues (1 critical, 2 informational)
@@ -27,15 +24,13 @@ AI Slop: +2 new findings, -0 removed
       line 87: empty catch, boundary=process
 ```
 
-Classification: INFORMATIONAL (never blocks merge, just surfaces the pattern).
+分類: INFORMATIONAL(マージを止めることはなく、パターンを示すだけ)。
 
-Fix-First heuristic applies: if the finding is an empty catch around a file op,
-auto-fix with `safeUnlink()`. If it's a catch-and-log in extension code, skip
-(that's the correct pattern per CLAUDE.md guidelines).
+Fix-First のヒューリスティック: 指摘が、ファイル操作を囲む空の catch なら、`safeUnlink()` で自動修正する。拡張機能のコードで catch してログを出しているだけなら、スキップする(CLAUDE.md のガイドラインでは、それが正しいパターン)。
 
-### /ship (Step 3.5, pre-landing review + PR body)
+### /ship(Step 3.5、事前のレビューと PR 本文)
 
-Same integration as /review. Additionally, show a one-line summary in the PR body:
+/review と同じ統合を行う。加えて、PR 本文に 1 行の要約を表示する。
 
 ```markdown
 ## Pre-Landing Review
@@ -43,42 +38,39 @@ Same integration as /review. Additionally, show a one-line summary in the PR bod
 - AI Slop: +0 new / -3 removed ✓
 ```
 
-### Review Readiness Dashboard
+### レビュー準備状況ダッシュボード
 
-Do NOT add a row. Slop is a diagnostic on the diff, not a review that gets "run"
-independently. It shows up inside Eng Review output, not as its own dashboard entry.
+行は**追加しない**。Slop は差分に対する診断であり、独立して「実行される」レビューではない。Eng Review の出力の中に表示され、ダッシュボードに独立した項目としては現れない。
 
-## What to auto-fix vs what to skip
+## 自動修正するものとスキップするもの
 
-Follow CLAUDE.md "Slop-scan" section. Summary:
+CLAUDE.md の "Slop-scan" の節に従う。要約は次のとおり。
 
-**Auto-fix (genuine quality improvements):**
-- Empty catch around `fs.unlinkSync` → replace with `safeUnlink()`
-- Empty catch around `process.kill` → replace with `safeKill()`
-- `return await` with no enclosing try → remove `await`
-- Untyped catch around URL parsing → add `instanceof TypeError` check
+**自動修正(本当の品質改善):**
+- `fs.unlinkSync` を囲む空の catch → `safeUnlink()` に置き換える
+- `process.kill` を囲む空の catch → `safeKill()` に置き換える
+- 囲む try がない `return await` → `await` を削除する
+- URL パースを囲む型のない catch → `instanceof TypeError` のチェックを追加する
 
-**Skip (correct patterns that slop-scan flags):**
-- `.catch(() => {})` on fire-and-forget browser ops (page.close, bringToFront)
-- Catch-and-log in Chrome extension code (uncaught errors crash extensions)
-- `safeUnlinkQuiet` in shutdown/emergency paths (swallowing all errors is correct)
-- Pass-through wrappers that delegate to active session (API stability layer)
+**スキップ(slop-scan が指摘するが、正しいパターン):**
+- 発火して忘れる(fire-and-forget)ブラウザ操作(page.close、bringToFront)に対する `.catch(() => {})`
+- Chrome 拡張機能のコードでの catch とログ出力(捕捉されない例外は拡張機能をクラッシュさせる)
+- シャットダウンや緊急時の経路での `safeUnlinkQuiet`(あらゆるエラーを握りつぶすのが正しい)
+- アクティブなセッションに処理を委譲するだけのパススルーのラッパー(API の安定性のための層)
 
-## Implementation notes
+## 実装メモ
 
-- `scripts/slop-diff.ts` already handles the heavy lifting (worktree-based base
-  comparison, line-number-insensitive fingerprinting, graceful fallback)
-- The review/ship skills run bash blocks. Integration is: run the script, parse
-  the output, include in the review findings
-- If slop-scan is not installed (`npx slop-scan` fails), skip silently
-- The script exits 0 always (diagnostic, never gates)
+- `scripts/slop-diff.ts` が、重い処理(ワークツリーによるベースとの比較、行番号に依存しないフィンガープリント、フォールバック)をすでに担っている
+- /review と /ship のスキルは bash ブロックを実行する。統合の内容は、スクリプトを実行し、出力を解析して、レビューの指摘に含めることである
+- slop-scan がインストールされていない場合(`npx slop-scan` が失敗する場合)は、黙ってスキップする
+- スクリプトは常に終了コード 0 で終わる(診断であり、ゲートにはしない)
 
-## Effort estimate
+## 工数の見積もり
 
-| Task | Human | CC+gstack |
+| 作業 | 人間 | CC+gstack |
 |------|-------|-----------|
-| Add to review/SKILL.md.tmpl | 2 hours | 10 min |
-| Add to ship/SKILL.md.tmpl | 2 hours | 10 min |
-| Add to review/checklist.md | 1 hour | 5 min |
-| Test with actual PRs | 2 hours | 15 min |
-| Regenerate SKILL.md files | — | 1 min |
+| review/SKILL.md.tmpl への追加 | 2 時間 | 10 分 |
+| ship/SKILL.md.tmpl への追加 | 2 時間 | 10 分 |
+| review/checklist.md への追加 | 1 時間 | 5 分 |
+| 実際の PR でのテスト | 2 時間 | 15 分 |
+| SKILL.md ファイルの再生成 | — | 1 分 |

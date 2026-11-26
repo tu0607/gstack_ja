@@ -55,7 +55,7 @@ export function generateVoiceTriggerRouting(ctx: TemplateContext): string {
     const content = fs.readFileSync(path.join(ROOT, skillDir, 'SKILL.md.tmpl'), 'utf-8').replace(/\r\n/g, '\n');
     const triggers = extractVoiceTriggers(content);
     if (triggers.length === 0) continue;
-    out += `\n- Voice trigger ${triggers.map(t => `"${t}"`).join(', ')} → invoke \`/${skillDir}\``;
+    out += `\n- 音声トリガー ${triggers.map(t => `"${t}"`).join(', ')} → \`/${skillDir}\` を実行`;
   }
   return out;
 }

@@ -444,7 +444,7 @@ end
     // Use the actual merge stage without copying its classification or score
     // logic into the prompt. The supplied malformed metadata is the regression.
     fs.writeFileSync(path.join(dir, 'review-merge.md'), sliceBetween(
-      readReviewSection('review-army.md'), '### Step 4.6: Collect and merge findings', '### Red Team dispatch',
+      readReviewSection('review-army.md'), '### Step 4.6: 指摘の収集とマージ', '### Red Team のディスパッチ',
     ));
     fs.writeFileSync(path.join(dir, 'specialist-findings.jsonl'), [
       { severity: 'CRITICAL', advisory: true, confidence: 9, path: 'user_controller.rb', line: 3,
@@ -607,7 +607,7 @@ describeIfSelected('Review Army: State-machine matrix', ['review-army-state-matr
   afterAll(() => { try { fs.rmSync(repo.root, { recursive: true, force: true }); } catch {} });
 
   testConcurrentIfSelected('review-army-state-matrix', async () => {
-    const dispatch = sliceBetween(readReviewSection('review-army.md'), '"You are a specialist code reviewer.', '**Subagent configuration:**')
+    const dispatch = sliceBetween(readReviewSection('review-army.md'), '"あなたは専門分野のコードレビュアーです。', '**サブエージェントの設定:**')
       .trim().replace(/^"|"$/g, '').replace(/\\"/g, '"')
       .replace('{checklist path}', 'review-specialists/state-machines.md').replace('origin/<base>', 'origin/main')
       .replace('{TEST_FW}', 'unknown').replace('{STACK}', 'node').replace("{learnings or 'none'}", 'none');

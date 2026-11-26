@@ -3,11 +3,10 @@ name: make-pdf
 preamble-tier: 1
 version: 1.0.0
 description: |
-  Turn any markdown file into a publication-quality PDF. Proper 1in margins,
-  intelligent page breaks, page numbers, cover pages, running headers, curly
-  quotes and em dashes, clickable TOC, diagonal DRAFT watermark. Not a draft
-  artifact — a finished artifact. Use when asked to "make a PDF", "export to
-  PDF", "turn this markdown into a PDF", or "generate a document". (gstack)
+  任意のマークダウンファイルを出版品質の PDF に変換します。1 インチの正しい余白、賢い改ページ、ページ番号、
+  表紙、柱(ヘッダー)、カーリークォートとエムダッシュ、クリッカブルな目次、斜めの DRAFT 透かしに対応します。
+  下書き用の成果物ではなく、完成品の成果物です。「make a PDF」「export to PDF」「turn this markdown into a PDF」
+  「generate a document」と言われたときに使います。(gstack)
 voice-triggers:
   - "make this a pdf"
   - "make it a pdf"
@@ -30,87 +29,79 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# make-pdf: publication-quality PDFs from markdown
+# make-pdf: マークダウンから出版品質の PDF を作る
 
-Turn `.md` files into PDFs that look like Faber & Faber essays: 1in margins,
-left-aligned body, Helvetica throughout, curly quotes and em dashes, optional
-cover page and clickable TOC, diagonal DRAFT watermark when you need it.
-Copy-paste from the PDF produces clean words, never "S a i l i n g".
+`.md` ファイルを、Faber & Faber のエッセイのような見た目の PDF に変換します。1 インチの余白、左揃えの本文、
+全体に Helvetica、カーリークォートとエムダッシュ、必要に応じて表紙とクリッカブルな目次、必要なときは斜めの DRAFT 透かしを付けられます。
+PDF からコピー&ペーストしても、「S a i l i n g」のように文字が分かれることはなく、きれいな単語になります。
 
-On Linux, install `fonts-liberation` for correct rendering — Helvetica and Arial
-aren't present by default, and Liberation Sans is the standard metric-compatible
-fallback. CI and Docker builds install it automatically via Dockerfile.ci.
+Linux では、正しく描画するために `fonts-liberation` をインストールしてください。Helvetica と Arial は既定では入っておらず、
+Liberation Sans が標準的なメトリクス互換のフォールバックです。CI と Docker のビルドでは Dockerfile.ci 経由で自動的にインストールされます。
 
-Emoji need a color-emoji font. macOS (Apple Color Emoji) and Windows (Segoe UI
-Emoji) ship one; most Linux distros and containers ship none, so emoji render as
-empty boxes (▯). `./setup` auto-installs `fonts-noto-color-emoji` on Linux
-(apt/dnf/pacman/apk, best-effort) and the print CSS falls back through Apple /
-Segoe / Noto emoji families. Set `GSTACK_SKIP_FONTS=1` to skip the install (CI
-without sudo, managed or offline machines). These matter on the gstack-browser
-fallback; Aside renders with the fonts already on the Mac.
+絵文字にはカラー絵文字用のフォントが必要です。macOS(Apple Color Emoji)と Windows(Segoe UI Emoji)には標準で入っていますが、
+ほとんどの Linux ディストリビューションやコンテナには入っていないため、絵文字は空の四角(▯)として描画されます。
+`./setup` は Linux で `fonts-noto-color-emoji` を自動インストールします(apt/dnf/pacman/apk、ベストエフォート)。また、印刷用 CSS は
+Apple / Segoe / Noto の絵文字フォントファミリの順にフォールバックします。インストールを省略したい場合(sudo のない CI、管理されたマシン、
+オフラインのマシンなど)は `GSTACK_SKIP_FONTS=1` を設定してください。これらが重要になるのは gstack-browser のフォールバックを使う場合で、
+Aside は Mac に入っているフォントで描画します。
 
-PDF output prints through the Aside browser (macOS 15+, aside.com) when it is
-running, and falls back to gstack's own headless browser (built by `./setup`;
-`GSTACK_BROWSE_BIN` / `BROWSE_BIN` point at a different build) everywhere
-else — Linux, Windows, or a closed Aside app. Exit 4 means neither browser is
-available. `--to html` and `--to docx` need no browser at all (diagrams in
-DOCX need one to rasterize; without it they embed as source text).
+PDF の出力は、Aside ブラウザ(macOS 15 以降、aside.com)が起動していればそれを使って印刷し、それ以外の環境
+(Linux、Windows、Aside が閉じている場合)では gstack 独自のヘッドレスブラウザ(`./setup` でビルド。
+`GSTACK_BROWSE_BIN` / `BROWSE_BIN` で別のビルドを指定できます)にフォールバックします。終了コード 4 は、どちらのブラウザも
+利用できないことを意味します。`--to html` と `--to docx` はブラウザをまったく必要としません(DOCX 内の図をラスタライズするにはブラウザが必要ですが、
+ない場合はソーステキストとして埋め込まれます)。
 
-## Core patterns
+## 基本パターン
 
-### 80% case — memo/letter
+### 80% のケース — メモ/手紙
 
-One command, no flags. Gets a clean PDF with running header + page numbers
-+ CONFIDENTIAL footer by default.
+コマンド一つで、フラグは不要です。既定で、柱(ヘッダー)にページ番号と CONFIDENTIAL のフッターが付いたきれいな PDF が出力されます。
 
 ```bash
 "$P" generate letter.md                 # writes /tmp/letter.pdf
 "$P" generate letter.md letter.pdf      # explicit output path
 ```
 
-### Publication mode — cover + TOC + chapter breaks
+### 出版モード — 表紙 + 目次 + 章の改ページ
 
 ```bash
 "$P" generate --cover --toc --author "Garry Tan" --title "On Horizons" \
   essay.md essay.pdf
 ```
 
-Each top-level H1 in the markdown starts a new page. Disable with
-`--no-chapter-breaks` for memos that happen to have multiple H1s.
+マークダウン内の最上位の H1 ごとに、新しいページが始まります。複数の H1 を持つメモで無効にしたい場合は
+`--no-chapter-breaks` を使ってください。
 
-### Draft-stage watermark
+### 下書き段階の透かし
 
 ```bash
 "$P" generate --watermark DRAFT memo.md draft.pdf
 ```
 
-Diagonal 10% opacity DRAFT across every page. When the draft is final, drop
-the flag and regenerate.
+すべてのページに、不透明度 10% の斜めの DRAFT が入ります。下書きが完成したら、フラグを外して再生成してください。
 
-### Fast iteration via preview
+### プレビューによる素早い反復
 
 ```bash
 "$P" preview essay.md
 ```
 
-Renders HTML with the same print CSS and opens it in your browser. Refresh
-as you edit the markdown. Skip the PDF round trip until you're ready.
+同じ印刷用 CSS で HTML を描画し、ブラウザで開きます。マークダウンを編集したら再読み込みしてください。準備ができるまでは、
+PDF の変換を省略できます。
 
-### Brand-free (no CONFIDENTIAL footer)
+### 透かしなし(CONFIDENTIAL のフッターなし)
 
 ```bash
 "$P" generate --no-confidential memo.md memo.pdf
 ```
 
-### Diagrams — mermaid and excalidraw fences render as pictures
+### 図 — mermaid と excalidraw のフェンスは画像として描画される
 
-A column-0 ` ```mermaid ` or ` ```excalidraw ` fence in the markdown renders
-as a crisp vector diagram, fully offline (vendored bundle, no CDN). Indented
-fences (inside lists) stay plain code blocks by design. A broken fence
-produces a visible red diagnostic block with the parse error — never silent
-raw code.
+マークダウン内で、列 0 から始まる ` ```mermaid ` または ` ```excalidraw ` のフェンスは、鮮明なベクター図として描画されます。
+完全にオフラインで動きます(同梱のバンドルを使い、CDN は使いません)。インデントされたフェンス(リストの中)は、設計上そのままのコードブロックになります。
+壊れたフェンスは、パースエラーを含む赤い診断ブロックとして目に見える形で表示されます。黙って生のコードが出ることはありません。
 
-Fence info-string options:
+フェンスの info 文字列のオプション:
 
 ```
 ```mermaid title="Auth flow"        ← caption + aria-label
@@ -119,26 +110,21 @@ Fence info-string options:
 ```mermaid page=portrait            ← veto auto-landscape for this diagram
 ```
 
-A ` ```excalidraw ` fence contains a full .excalidraw scene file (what
-excalidraw.com saves). Authoring NEW diagrams from English is `/diagram`'s
-job — it emits an editable triplet (source, .excalidraw, SVG/PNG) and pairs
-with this skill: embed the `.mmd` source in your markdown, not the PNG.
+` ```excalidraw ` のフェンスには、完全な .excalidraw のシーンファイル(excalidraw.com が保存する形式)を入れます。英語から新しい図を作成するのは `/diagram` の仕事です。
+`/diagram` は編集可能な三点セット(ソース、.excalidraw、SVG/PNG)を出力し、このスキルと組み合わせて使います。マークダウンには PNG ではなく
+`.mmd` のソースを埋め込んでください。
 
-### Images — scaled right, never truncated
+### 画像 — 右に縮小し、決して切り取らない
 
-Local images inline automatically (relative paths resolve against the
-markdown file). Every image caps at the content box — zero truncation, ever.
-Oversized photos downscale to print resolution (300dpi) so payloads stay
-small with no visible quality loss.
+ローカルの画像は自動的にインラインで埋め込まれます(相対パスはマークダウンファイルを基準に解決されます)。すべての画像は本文の領域に収まるよう
+上限が設けられており、切り取りは一切行いません。大きすぎる写真は印刷解像度(300dpi)にダウンサンプリングされるため、
+見た目の画質を損なわずにペイロードを小さく保てます。
 
-Remote (http/https) images are **blocked with a visible placeholder** by
-default — offline posture; pass `--allow-network` to fetch them. An image
-that resolves outside the markdown's directory (even via symlink) still
-inlines, but warns loudly; `--strict` makes it fatal. Files over 64MB or
-non-regular files (fifos, devices) degrade to a placeholder instead of
-hanging the run.
+リモート(http/https)の画像は、既定では**目に見えるプレースホルダーで遮断されます**(オフラインの方針です)。取得するには `--allow-network` を渡してください。
+マークダウンのディレクトリの外に解決される画像(シンボリックリンク経由であっても)はインラインで埋め込まれますが、大きな警告が出ます。`--strict` を指定すると致命的なエラーになります。
+64MB を超えるファイルや、通常ではないファイル(fifo、デバイス)は、実行をハングさせる代わりにプレースホルダーに置き換えられます。
 
-Per-image directives, written immediately after the image:
+画像の直後に書く、画像ごとの指定:
 
 ```
 ![chart](data.png){width=full}      ← stretch to content-box width
@@ -147,13 +133,12 @@ Per-image directives, written immediately after the image:
 ![wide](shot.png){page=portrait}    ← veto auto-landscape
 ```
 
-Wide, small-text diagram images auto-promote to their own landscape page
-(conservative: aspect ≥ 1.8, width over ~2.5x the content box, AND a
-diagram-ish alt word — diagram/architecture/flowchart/chart/graph). The
-promoted page is vertically centered. When the heuristic guesses wrong,
-`{page=portrait}` vetoes it; false negatives just need `{page=landscape}`.
+横長で文字の小さい図の画像は、自動的に専用の横向きページに昇格されます(保守的な判定です: アスペクト比 ≥ 1.8、幅が本文領域の約 2.5 倍を超える、
+かつ代替テキストに diagram/architecture/flowchart/chart/graph のような図を示す語が含まれる、の 3 条件をすべて満たす必要があります)。
+昇格されたページは縦方向の中央に配置されます。ヒューリスティックが誤った場合は、`{page=portrait}` で取り消せます。
+見逃された場合は `{page=landscape}` を付けてください。
 
-### Other formats — single-file HTML and Word
+### その他の形式 — 単一ファイルの HTML と Word
 
 ```bash
 "$P" generate readme.md out.html --to html    # ONE self-contained file: inline
@@ -164,10 +149,9 @@ promoted page is vertically centered. When the heuristic guesses wrong,
                                             # layout is Word's, not ours
 ```
 
-`--to` is the output format. `--format` is something else entirely (a
-`--page-size` alias) — don't confuse them.
+`--to` は出力形式です。`--format` はまったく別物です(`--page-size` の別名)。混同しないでください。
 
-### CI mode — fail loud on missing assets
+### CI モード — 足りない素材があれば大きく失敗させる
 
 ```bash
 "$P" generate docs.md --strict     # missing, remote, out-of-tree, oversized,
@@ -175,7 +159,7 @@ promoted page is vertically centered. When the heuristic guesses wrong,
                                  # instead of warn + placeholder
 ```
 
-## Common flags
+## よく使うフラグ
 
 ```
 Page layout:
@@ -215,30 +199,26 @@ Metadata:
   --date "..."               Date for cover (defaults to today)
 ```
 
-## When to run it
+## 実行するタイミング
 
-Run `"$P" generate` when the user wants markdown as a PDF. If the user has a `.md`
-file open and says "make it look nice", propose `"$P" generate --cover --toc` and ask
-before running.
+ユーザーがマークダウンを PDF にしたいときに `"$P" generate` を実行してください。ユーザーが `.md` ファイルを開いていて
+「きれいにして」と言った場合は、`"$P" generate --cover --toc` を提案し、実行する前に確認してください。
 
-## Debugging
+## デバッグ
 
-- Exit 4 / "no browser available" → neither the Aside browser (macOS 15+,
-  aside.com) nor gstack's own headless browser is usable. Open Aside, or run
-  `./setup` in the gstack repo to build the fallback, re-run. `"$P" setup` checks
-  the whole chain and says which browser it found.
-- Diagram shows a red "failed to render" block → the parse error is printed in
-  the block. If EVERY diagram fails with "diagram renderer:", the browser went
-  away mid-run (Aside closed, or the fallback daemon died).
-- Fragmented text on copy-paste → remove fenced code blocks and regenerate
-  (no flag turns code styling off).
-- Exit 3 (`$P: --toc: …`) → TOC page numbers could not be verified against the printed PDF; the message says why. Drop `--toc`, or shorten very long TOC headings if it says the numbers did not settle.
-- "[remote image blocked]" placeholder in the output → add `--allow-network`
-  (understand you're giving the markdown file permission to fetch from its
-  image URLs).
-- Generated PDF too tall/wide → `--page-size a4` or `--margins 0.75in`.
+- 終了コード 4 / 「no browser available」 → Aside ブラウザ(macOS 15 以降、aside.com)も gstack 独自のヘッドレスブラウザも使えません。
+  Aside を開くか、gstack のリポジトリで `./setup` を実行してフォールバックをビルドし、再実行してください。`"$P" setup` は
+  チェーン全体を確認し、どのブラウザが見つかったかを示します。
+- 図に赤い「failed to render」ブロックが表示される → パースエラーがそのブロック内に出力されています。すべての図が「diagram renderer:」で失敗する場合は、
+  実行の途中でブラウザがいなくなっています(Aside が閉じられた、またはフォールバックのデーモンが停止した)。
+- コピー&ペーストでテキストが分断される → コードのフェンスブロックを削除して再生成してください(コードのスタイルを無効にするフラグはありません)。
+- 終了コード 3(`$P: --toc: …`) → 目次のページ番号を、印刷された PDF に対して検証できませんでした。理由はメッセージに出ています。`--toc` を外すか、
+  番号が確定しなかったと出ている場合は非常に長い目次の見出しを短くしてください。
+- 出力に「[remote image blocked]」のプレースホルダーが出る → `--allow-network` を追加してください(マークダウンファイルに、画像 URL から
+  取得する許可を与えることを理解したうえで行ってください)。
+- 生成された PDF が縦長/横長すぎる → `--page-size a4` または `--margins 0.75in` を使ってください。
 
-## Output contract
+## 出力の契約
 
 ```
 stdout: /tmp/letter.pdf          ← just the path, one line
@@ -250,4 +230,4 @@ exit code: 0 success / 1 bad args / 2 render error / 3 TOC page numbers failed
            / 4 no browser available (Aside not open, fallback not built)
 ```
 
-Capture the path: `PDF=$("$P" generate letter.md)` — then use `$PDF`.
+パスを取得するには `PDF=$("$P" generate letter.md)` とし、その後 `$PDF` を使ってください。

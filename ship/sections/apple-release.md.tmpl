@@ -1,4 +1,4 @@
-# Apple App Store release
+# Apple App Store リリース
 
 <!-- Ported from time-attack/gstack (GStack 2) APPLE-RELEASE.md, refined
      across 21 live App Store releases. Portions copyright (c) 2026
@@ -7,90 +7,92 @@
      contract, and an idempotency log in place of the fork's durable-state
      wrapper. All credential examples are placeholders, never live formats. -->
 
-Applies when the ship target is an Apple platform app: the repository contains an `.xcodeproj` or `.xcworkspace`, or a Swift package with an app product. Read this BEFORE Step 1's branch gate and any preflight. This adapter extends ship's judgment to the App Store journey end to end, and every upload or submission is treated as a durable external effect (idempotency contract below) — but store distribution is its own release path, not repository landing: ship's branch/PR ceremony (feature-branch gate, commit-review-PR pipeline, merge queue) applies only when the user asked to land repository changes. A user shipping to the App Store or TestFlight proceeds through this adapter from whatever branch they are on; a clean working tree on the base branch is a normal and valid state to archive and upload from. Never abort an App Store release over branch topology.
+Ship の対象が Apple プラットフォームのアプリである場合に適用されます。リポジトリに `.xcodeproj` または `.xcworkspace` があるか、アプリのプロダクトを持つ Swift パッケージがある場合です。Step 1 のブランチゲートや事前確認の前に、これを必ず読んでください。このアダプタは、Ship の判断を App Store への提出までの全体に拡張します。すべてのアップロードや提出は、永続的な外部への影響として扱います(下記の冪等性の契約)。ただし、ストア配布は独自のリリース経路であり、リポジトリへの取り込みではありません。Ship のブランチ/PR の手順(機能ブランチのゲート、コミット・レビュー・PR のパイプライン、マージキュー)は、ユーザーがリポジトリの変更の取り込みを求めた場合にのみ適用されます。App Store や TestFlight に出すユーザーは、現在どのブランチにいても、このアダプタを通して進みます。ベースブランチでワークツリーがクリーンな状態は、アーカイブとアップロードを行うための正常で有効な状態です。ブランチの構成を理由に App Store のリリースを中止しないでください。
 
-**Documentation preflight:** Before archive/upload/submission, Read `~/.claude/skills/gstack/ship/sections/documentation.md` and execute its audit gate in `read-only` mode against the selected release source, including on the base branch. No source edits, Git operations that mutate state, or repository-landing ceremony are authorized by this audit. Resolve blockers or obtain an explicit named documentation-risk exception before distribution; include `updated`/`current`/`blocked` and any exception in the final store-release report. This pointer changes no App Store permissions below.
+**ドキュメントの事前確認:** アーカイブ/アップロード/提出の前に、`~/.claude/skills/gstack/ship/sections/documentation.md` を読み、選択されたリリースのソースに対して、その監査ゲートを `read-only` モードで実行してください。ベースブランチ上でも同様です。この監査により、ソースの編集、状態を変える Git 操作、リポジトリへの取り込みの手順は許可されません。配布の前に、ブロッカーを解消するか、明示的な名指しのドキュメントリスクの例外を取得してください。最終的なストアリリースの報告に `updated`/`current`/`blocked` と例外があれば含めます。この案内は、以下の App Store の権限をいっさい変更しません。
 
-One tool runs the entire release: machine-level fastlane — `produce` (app record and bundle ID), `cert` and `sigh` (signing), `gym` (archive and signed export), `pilot` (TestFlight), `deliver` (metadata, screenshots, Submit for Review), `frameit` (device frames). Install it when missing (`brew install fastlane`) with a one-line announcement, not a question — the release authorization covers machine-tool installs. Never install additional App Store CLI tools, and never mention API keys, `.p8` files, sessions, or any credential format to the user DURING the run — the sole exception is the one-line standing-credential disclosure in the closing report (see Storefront completion), which names the durable key the release created so the user can revoke it later; they paid US$99 and want to ship, and the release itself adds no new dependency to the user's project.
+1 つのツールでリリース全体を実行します。マシンレベルの fastlane です。`produce`(アプリレコードとバンドル ID)、`cert` と `sigh`(署名)、`gym`(アーカイブと署名済みエクスポート)、`pilot`(TestFlight)、`deliver`(メタデータ、スクリーンショット、審査への提出)、`frameit`(デバイスフレーム)を使います。見つからない場合はインストールします(`brew install fastlane`)。質問ではなく、一行の告知で行います。リリースの承認はマシンツールのインストールを含みます。追加の App Store CLI ツールは決してインストールしないでください。実行中にユーザーへ API キー、`.p8` ファイル、セッション、認証情報の形式について決して言及しないでください。例外は、閉会の報告にある 1 行の常設の認証情報の開示だけです(「ストアの仕上げ」を参照)。これは、後で取り消せるように、リリースで作成された永続的なキーを名指しします。ユーザーは 99 米ドルを支払い、Ship したいと考えています。また、リリース自体はユーザーのプロジェクトに新たな依存関係を追加しません。
 
-A Mac is required only for the build legs. Archiving, signing, and the binary upload ride Xcode's macOS-only toolchain — Apple ships it nowhere else, and no tool routes around that. On a non-macOS host, say so plainly, then route exactly those legs through a macOS CI runner (a GitHub Actions `macos` runner executing the same `gym` and `deliver`/`pilot` commands, with the minted upload key supplied as a CI secret — key auth is precisely what CI wants); sign-in, key minting, metadata, screenshots, pricing, and submission judgment are plain API work that stays on the user's machine. Never claim the whole release is impossible off a Mac, and never pretend the build leg is possible there.
+Mac が必要なのはビルドの工程だけです。アーカイブ、署名、バイナリのアップロードは Xcode の macOS 専用ツールチェーンに依存します。Apple はそれを他の環境に提供しておらず、これを回避するツールはありません。macOS 以外のホストでは、そのことを明確に伝えたうえで、その工程だけを macOS の CI ランナーに回してください(同じ `gym` と `deliver`/`pilot` のコマンドを実行する GitHub Actions の `macos` ランナーを使い、発行したアップロードキーを CI のシークレットとして渡します。キー認証は、まさに CI が求めるものです)。サインイン、キーの発行、メタデータ、スクリーンショット、価格設定、提出の判断は、単純な API の作業であり、ユーザーのマシン上で行います。Mac 以外では全体のリリースが不可能だと主張したり、そこでビルドの工程が可能であるかのように装ったりしないでください。
 
-## The one authorization moment
+## 承認の機会は 1 回だけ
 
-Plan for two routine interactions. A genuine blocker may require a safety or named documentation-risk decision; STOP for that decision rather than treating release authorization as a waiver.
+2 回の通常のやり取りを計画してください。本当のブロッカーには、安全上の判断や名指しのドキュメントリスクの判断が必要な場合があります。その場合は、リリースの承認をその免除として扱わず、その判断のために STOP してください。
 
-FIRST, up front: confirm the user holds a paid Apple Developer Program membership (US$99/year — the App Store and TestFlight both require it) and authorize the release.
+最初に、まとめて確認します。ユーザーが有料の Apple Developer Program のメンバーシップ(年 99 米ドル。App Store と TestFlight の両方で必要です)を保持しているかを確認し、リリースを承認してもらいます。
 
-Pricing belongs to this same breath, once per app EVER: ask free or paid (and the price if paid) inside the authorization question — never as a separate interruption — after checking the decision store (`bin/gstack-decision-search --scope repo --query "pricing"`); persist the answer (`~/.claude/skills/gstack/bin/gstack-decision-log`, scope `repo`) so no later release re-asks, and a paid answer names the one-time Paid Apps banking/tax agreement honestly right there, since nothing sells until it is signed. Price is a launch decision the agent never defaults silently: a free launch cannot be un-launched.
+価格も同じ機会に、アプリごとに一度だけ確認します。判断ストア(`bin/gstack-decision-search --scope repo --query "pricing"`)を確認した後、承認の質問の中で、無料か有料か(有料の場合は価格)を尋ねます。別の割り込みとして尋ねることはしません。回答は保存します(`~/.claude/skills/gstack/bin/gstack-decision-log`、スコープ `repo`)。これにより、以降のリリースで再度尋ねられることはありません。有料と回答された場合は、その場で、一度だけの Paid Apps の銀行・税務契約を正直に伝えてください。これに署名するまでは何も販売されないためです。価格は、エージェントが黙ってデフォルトを選ぶことのない、ローンチの判断です。無料でのローンチは取り消せません。
 
-Apple sign-in happens inside this same moment: run `fastlane spaceauth -u <apple-id>` through the host's interactive command path (in Claude Code, the user types `! fastlane spaceauth -u <email>` so their password and one two-factor code go directly to Apple in-session; a separate terminal window is the fallback only when the host has no interactive path). Keep the printed session token out of the transcript — the cached cookie in `~/.fastlane/spaceship/` is the credential fastlane actually uses; never store, echo, or log the password or token, and re-run the same one command when the session expires.
+Apple のサインインは、この同じ機会の中で行います。ホストの対話型コマンドの経路を通して `fastlane spaceauth -u <apple-id>` を実行します(Claude Code では、ユーザーが `! fastlane spaceauth -u <email>` と入力すると、パスワードと 2 要素認証のコードがセッション内で直接 Apple に送られます。ホストに対話型の経路がない場合のみ、別のターミナルウィンドウを予備として使います)。表示されたセッショントークンは、トランスクリプトに残さないでください。fastlane が実際に使う認証情報は `~/.fastlane/spaceship/` にキャッシュされた Cookie です。パスワードやトークンを決して保存、表示、ログに記録しないでください。セッションが切れた場合は、同じコマンドを 1 つだけ再実行してください。
 
-Immediately after the first sign-in, mint the permanent upload key from the session (step 4 of Archive and upload) — when that key already sits at `~/.gstack/apple/api-key.json` and no new app record is needed, skip the sign-in entirely: repeat releases authorize and proceed with zero sign-in.
+最初のサインインの直後に、そのセッションから永続的なアップロードキーを発行します(「アーカイブとアップロード」の手順 4)。そのキーがすでに `~/.gstack/apple/api-key.json` にあり、新しいアプリレコードが不要な場合は、サインインを完全にスキップしてください。2 回目以降のリリースは、サインインなしで承認され、進みます。
 
-SECOND, only when preflight finds the icon or screenshots missing: the store-assets question below.
+2 回目は、事前確認でアイコンまたはスクリーンショットが見つからなかった場合に限ります。以下のストアアセットの質問です。
 
-After blockers clear, tool installs, upload, storefront and submission are covered by the authorization and proceed without asking. Auth menus, tool-choice questions, plan confirmations, and step-by-step narration requests are contract violations.
+ブロッカーが解消された後は、ツールのインストール、アップロード、ストアの設定、提出は承認の範囲に含まれ、追加の確認なしで進みます。認証メニュー、ツールの選択の質問、計画の確認、手順ごとの説明の要求は、契約違反です。
 
-No membership: STOP the App Store path. Offer to walk enrollment at developer.apple.com through the Third-Party Web Actions contract (earlier in this skill) (a purchase the user completes themselves; activation can take a day or two), and name the free-account ceiling honestly: personal-team installs on the user's own devices only, expiring after 7 days, no TestFlight, no App Store.
+メンバーシップがない場合: App Store の経路を停止してください。登録の手順を、developer.apple.com で(このスキルの前半にある Third-Party Web Actions の契約を通して)案内することを申し出てください(購入はユーザーが自分で行います。有効化には 1〜2 日かかる場合があります)。無料アカウントの上限も正直に伝えてください。ユーザー自身のデバイスへのパーソナルチームのインストールに限られ、7 日で期限が切れ、TestFlight も App Store も利用できません。
 
-## Release preflight
+## リリース前の事前確認
 
-Resolve and verify before archiving. Fix what the printed mutation boundary authorizes; report everything else as a blocking finding.
+アーカイブの前に、解決して検証します。表示された変更の境界が許可する範囲で修正し、それ以外はすべてブロッキングの指摘として報告します。
 
-- Signing: development team on the app target; `cert` and `sigh` mint the distribution certificate and App Store profile when none exist.
-- Versioning: a marketing version users should see and a build number strictly greater than any build already uploaded for that version.
-- Dependencies: `xcodebuild -resolvePackageDependencies` succeeds; if a `Podfile` or `Cartfile` exists, its install step has been run and lockfiles are current.
-- App Store validation blockers: complete app icon set including the 1024pt marketing icon, launch screen, a usage-description string for every privacy-gated API the app touches, required privacy manifests, an export-compliance answer (`ITSAppUsesNonExemptEncryption`), and a sane deployment target.
+- 署名: アプリのターゲットに開発チームが設定されていること。配布証明書と App Store のプロファイルが存在しない場合は、`cert` と `sigh` が発行します。
+- バージョン: ユーザーに見えるマーケティングバージョンと、そのバージョンですでにアップロードされたどのビルド番号よりも厳密に大きいビルド番号。
+- 依存関係: `xcodebuild -resolvePackageDependencies` が成功すること。`Podfile` や `Cartfile` がある場合は、そのインストール手順が実行され、ロックファイルが最新であること。
+- App Store の検証のブロッカー: 1024pt のマーケティングアイコンを含む完全なアプリアイコンセット、起動画面、アプリが利用するプライバシー保護対象のすべての API に対する利用目的の説明文字列、必要なプライバシーマニフェスト、輸出コンプライアンスの回答(`ITSAppUsesNonExemptEncryption`)、そして妥当なデプロイメントターゲット。
 
-## Store assets
+## ストアアセット
 
-Only when preflight finds the icon or screenshots missing, ask once — the journey's second and final permitted question — then act on the choice without further prompts. Once per app, EVER: before asking, check the decision store (`bin/gstack-decision-search --scope repo --query "store assets"`); a settled choice (including "defer screenshots" or "TestFlight only") is applied silently, never re-asked. After the user answers, persist it (`~/.claude/skills/gstack/bin/gstack-decision-log` with scope `repo`) so no future run asks again; the user changes it by saying so, not by being re-prompted. Offer:
+事前確認でアイコンまたはスクリーンショットが見つからない場合にのみ、1 回だけ質問します。これは、この経路で許可される 2 番目で最後の質問です。その後は、追加の確認なしで選択に従って行動します。アプリごとに一度だけ、決して再度尋ねないこと。質問の前に、判断ストア(`bin/gstack-decision-search --scope repo --query "store assets"`)を確認してください。確定した選択(「スクリーンショットは保留」や「TestFlight のみ」を含む)は、黙って適用し、二度と尋ねません。ユーザーが回答した後は、保存します(スコープ `repo` で `~/.claude/skills/gstack/bin/gstack-decision-log`)。今後の実行で再度尋ねられることはありません。ユーザーが変更したい場合は、再度尋ねられるのではなく、そう伝えてもらいます。選択肢は次のとおりです:
 
-- **App icon**: SnapAI (`npx snapai`, the app-icon agent skill) generates the single 1024×1024 with the user's own image-generation key; Xcode 15+ derives every size from that one image.
-- **Marketing screenshots, free and local, no API key**: the app-store-screenshots deck editor skill — scaffold it, prefill its deck JSON with simulator captures and benefit headlines, and export one bundle covering every required iPhone size (the export is headlessly automatable). Marketing-grade does NOT require an image backend; never claim screenshots need an API key while this skill is installed.
-- **Plain frames, free and local**: capture the built app in the simulator and frame with fastlane `frameit` — the minimal option when no designed deck is wanted.
-- **AI-enhanced marketing screenshots**: the aso-appstore-screenshots agent skill (benefit headlines, breakout panels, exact App Store dimensions) — the only option that needs the user's own image-generation key; when installed, follow its workflow rather than reimplementing it.
-- **User-supplied files**: always a valid answer; validate dimensions and move on.
+- **アプリアイコン**: SnapAI(`npx snapai`、アプリアイコンのエージェントスキル)が、ユーザー自身の画像生成キーを使って、単一の 1024×1024 を生成します。Xcode 15 以降は、その 1 枚の画像からすべてのサイズを生成します。
+- **マーケティング用スクリーンショット、無料かつローカル、API キー不要**: app-store-screenshots のデッキ編集スキル。雛形を作成し、デッキの JSON をシミュレータのキャプチャと利点の見出しで埋め、必要なすべての iPhone サイズを含むバンドルを 1 つエクスポートします(エクスポートはヘッドレスで自動化できます)。マーケティンググレードには画像バックエンドは不要です。このスキルがインストールされている間は、スクリーンショットに API キーが必要だと決して主張しないでください。
+- **シンプルなフレーム、無料かつローカル**: シミュレータでビルドしたアプリをキャプチャし、fastlane の `frameit` でフレームを付けます。デザインされたデッキが不要な場合の最小限の選択肢です。
+- **AI で強化したマーケティング用スクリーンショット**: aso-appstore-screenshots のエージェントスキル(利点の見出し、ブレイクアウトパネル、App Store の正確なサイズ)。ユーザー自身の画像生成キーが必要な唯一の選択肢です。インストールされている場合は、再実装するのではなく、そのワークフローに従ってください。
+- **ユーザーが用意したファイル**: 常に有効な回答です。寸法を検証して先に進みます。
 
-Build this question's options from a LIVE check of installed skills at ask time — never from memory or an earlier conversation turn. Whenever the app-store-screenshots deck editor skill is installed, its free no-key option MUST appear in the list; omitting it is a contract violation equal to claiming screenshots need an API key. Assets already present skip this entirely. Announce what was generated at exit.
+この質問の選択肢は、質問する時点でインストール済みのスキルをライブで確認して作成してください。記憶や以前の会話のターンから作ってはいけません。app-store-screenshots のデッキ編集スキルがインストールされている場合は、その無料でキー不要の選択肢を必ずリストに含めてください。省略することは、スクリーンショットに API キーが必要だと主張することと同じ契約違反です。アセットがすでにある場合は、これを完全にスキップします。終了時に、何が生成されたかを告知してください。
 
-## Archive and upload
+## アーカイブとアップロード
 
-1. Archive and export the signed Release build with `gym` (it drives xcodebuild and the signing minted in preflight). Projects with custom archive requirements may drop to `xcodebuild archive` directly; the output either way is an App Store-signed `.ipa`.
-2. The upload is an external effect: run `pilot` (TestFlight) or `deliver` (App Store) under the durable-effect contract: before executing, append the key `appstore.upload.<bundle-id>.<build>` to `$GSTACK_STATE_ROOT/projects/$SLUG/apple-effects.log` (resolve the state root and slug in the same command that reads or appends it); if the key is already present from a prior run (crash, retry), treat the upload as possibly-done and do NOT re-run it. Never re-upload on ambiguity; inspect App Store Connect for the build first.
-3. The cached session, the minted key, and every credential file are env- or file-level secrets: never argv, never echoed, never committed.
-4. NEVER demand an app-specific password — the session MINTS the upload key instead.
+1. `gym` で署名済みの Release ビルドをアーカイブし、エクスポートします(xcodebuild を実行し、事前確認で発行された署名を使います)。アーカイブの要件が独自のプロジェクトでは、直接 `xcodebuild archive` を使っても構いません。どちらの方法でも、出力は App Store 署名済みの `.ipa` です。
+2. アップロードは外部への影響です。永続的な影響の契約の下で `pilot`(TestFlight)または `deliver`(App Store)を実行します。実行前に、キー `appstore.upload.<bundle-id>.<build>` を `$GSTACK_STATE_ROOT/projects/$SLUG/apple-effects.log` に追記します(state root と slug は、それを読み書きするのと同じコマンドで解決します)。以前の実行(クラッシュや再試行)からそのキーがすでにある場合は、アップロードが完了している可能性があるものとして扱い、再実行しないでください。あいまいな場合は、決して再アップロードしないでください。まず App Store Connect でビルドを確認します。
+3. キャッシュされたセッション、発行されたキー、およびすべての認証情報ファイルは、環境変数またはファイルレベルのシークレットです。引数に渡さず、表示せず、コミットしないでください。
+4. アプリ固有のパスワードを決して要求しないこと。代わりにセッションからアップロードキーを発行します。
 
-   Per fastlane's documented authentication, Apple's binary-upload tool (iTMSTransporter, which `deliver`/`pilot` shell out to for the `.ipa`) does not accept the web session: it takes only an App Store Connect API key or an app-specific password, and Apple's error `-22938` ("Sign in with the app-specific password") is Transporter saying exactly this.
+   fastlane の公式ドキュメントにある認証の仕様では、Apple のバイナリアップロードツール(iTMSTransporter。`deliver`/`pilot` が `.ipa` のために呼び出します)は、Web セッションを受け付けません。受け付けるのは App Store Connect API キーかアプリ固有のパスワードだけです。Apple のエラー `-22938`(「Sign in with the app-specific password」)は、Transporter がまさにこのことを伝えているものです。
 
-   That is not a gate and not a question, because the web session creates the key itself, silently: through fastlane's bundled spaceship (`Spaceship::Tunes.login(<apple-id>)` reuses the cached cookie, then raw client requests), `POST https://appstoreconnect.apple.com/iris/v1/apiKeys` with a JSON:API body SCOPED to the app being released, not all apps: `{data:{type:"apiKeys",attributes:{nickname:"gstack-upload",allAppsVisible:false,roles:["APP_MANAGER"],keyType:"PUBLIC_API"},relationships:{apps:{data:[{type:"apps",id:"<asc-app-id>"}]}}}}`, where `<asc-app-id>` is the App Store Connect app id (from `produce`'s output, or `GET https://appstoreconnect.apple.com/iris/v1/apps?filter[bundleId]=<bundle-id>`).
+   これはゲートでも質問でもありません。Web セッションがキー自体をサイレントに作成するからです。fastlane に同梱されている spaceship を通じて(`Spaceship::Tunes.login(<apple-id>)` がキャッシュされた Cookie を再利用し、その後で生のクライアントのリクエストを送ります)、`POST https://appstoreconnect.apple.com/iris/v1/apiKeys` を送ります。JSON:API のボディは、全アプリではなく、リリース対象のアプリに**限定**します: `{data:{type:"apiKeys",attributes:{nickname:"gstack-upload",allAppsVisible:false,roles:["APP_MANAGER"],keyType:"PUBLIC_API"},relationships:{apps:{data:[{type:"apps",id:"<asc-app-id>"}]}}}}`。ここで `<asc-app-id>` は App Store Connect のアプリ ID です(`produce` の出力から、または `GET https://appstoreconnect.apple.com/iris/v1/apps?filter[bundleId]=<bundle-id>` から取得します)。
 
-   `allAppsVisible:false` with an explicit `apps` relationship is least-privilege on purpose — an `allAppsVisible:true` APP_MANAGER key is standing authority over every app on the team, a needless blast radius if the machine is later compromised. The `apps` relationship is REQUIRED, not optional: a key with no app association can see nothing and uploads fail with a permissions error, so scope it to the target app rather than flipping the flag alone.
+   明示的な `apps` の関係を伴う `allAppsVisible:false` は、意図的な最小権限です。`allAppsVisible:true` の APP_MANAGER キーは、チーム内のすべてのアプリに対する常設の権限になります。マシンが後で侵害された場合、不必要に影響範囲が広がります。`apps` の関係は任意ではなく必須です。アプリの関連付けがないキーは何も見えず、アップロードは権限エラーで失敗します。フラグを切り替えるだけでなく、対象のアプリに限定してください。
 
-   Mint it only after the app record exists (so `produce` runs first when the app is new).
+   キーを発行するのは、アプリレコードが存在した後だけです(新規アプリの場合は、先に `produce` を実行します)。
 
-   Then `GET .../iris/v1/apiKeys/<id>?fields[apiKeys]=privateKey` — the `privateKey` attribute is base64 of the COMPLETE PEM file: decode it exactly once and write `~/.appstoreconnect/private_keys/AuthKey_<id>.p8` (0600) immediately, it is downloadable only at creation. The issuer ID is `provider.publicProviderId` from `GET https://appstoreconnect.apple.com/olympus/v1/session`.
+   その後、`GET .../iris/v1/apiKeys/<id>?fields[apiKeys]=privateKey` を実行します。`privateKey` の属性は、完全な PEM ファイルの base64 です。一度だけデコードし、直ちに `~/.appstoreconnect/private_keys/AuthKey_<id>.p8`(0600)に書き込みます。作成時にしかダウンロードできないためです。発行者 ID は、`GET https://appstoreconnect.apple.com/olympus/v1/session` の `provider.publicProviderId` です。
 
-   Record key id, issuer id, and key content as a fastlane api-key JSON at `~/.gstack/apple/api-key.json` (0600) and run `deliver`/`pilot` with `api_key_path` from then on.
+   キー ID、発行者 ID、キーの内容を fastlane の API キー JSON として `~/.gstack/apple/api-key.json`(0600)に記録し、以降は `api_key_path` を使って `deliver`/`pilot` を実行します。
 
-   The key never expires, so every later release of the SAME app skips sign-in; releasing a DIFFERENT app re-associates that app onto the key (`PATCH .../iris/v1/apiKeys/<id>` adding it to the `apps` relationship) or mints a fresh app-scoped key, because the key is deliberately not all-apps. The session stays necessary only for `produce` (Apple's public API cannot create app records), for that re-association, and for re-minting if the key is ever revoked.
+   キーには有効期限がないため、同じアプリの後続のリリースはすべてサインインをスキップします。別のアプリをリリースする場合は、そのアプリをキーに再関連付けします(`PATCH .../iris/v1/apiKeys/<id>` で `apps` の関係に追加)。または、新しいアプリ単位のキーを発行します。キーは意図的に全アプリ対象にはしていないためです。セッションが必要になるのは、`produce`(Apple の公開 API ではアプリレコードを作成できません)、その再関連付け、そしてキーが取り消された場合の再発行のためだけです。
 
-   Stating that the user must generate any credential themselves while key minting is untried is a contract violation.
+   キーの発行を試しもせずに、ユーザーが自分で認証情報を生成しなければならないと伝えることは、契約違反です。
 
-   CLASSIFY the error before touching credentials: an error is an authentication failure ONLY when it says so (401/403, session invalid or expired, "sign in", "app-specific password" in Apple's own words). A `Spaceship::UnexpectedResponse`, missing/invalid attribute, validation, or precheck error is a METADATA problem — fix the payload (for example, Apple's expanded age-rating attributes such as `lootBox`, `ageAssurance`, `parentalControls`, `messagingAndChat` in `app_rating_config.json`) and retry from the CLI. Treating a metadata error as a credential problem is a contract violation.
-5. Within an Apple release, this adapter OVERRIDES the Third-Party Web Actions contract (earlier in this skill): the general agentic-browser offer never applies to App Store Connect, Apple ID, or credential work here. The entire release is CLI (fastlane) plus the routine interactions and blocking decisions above; the ONLY browser use this adapter allows, ever, is the paid-app agreements/banking/tax residue named at the end of this document. Opening a browser — driven or manual — for anything else in this journey is a contract violation.
+   認証情報に触れる前に、エラーを分類してください。エラーが認証の失敗であるのは、Apple 自身の言葉でそのように示された場合だけです(401/403、セッションが無効または期限切れ、「sign in」、「app-specific password」)。`Spaceship::UnexpectedResponse`、属性の欠落や不正、検証、または事前チェックのエラーは、メタデータの問題です。ペイロードを修正し(例えば `app_rating_config.json` 内の、Apple の拡張されたレーティング属性 `lootBox`、`ageAssurance`、`parentalControls`、`messagingAndChat` など)、CLI から再試行してください。メタデータのエラーを認証情報の問題として扱うことは、契約違反です。
+5. Apple のリリース中は、このアダプタが(このスキルの前半にある)Third-Party Web Actions の契約を**上書き**します。一般的なエージェントブラウザの提案は、ここでは App Store Connect、Apple ID、または認証情報の作業には決して適用されません。リリース全体は CLI(fastlane)と、上記の通常のやり取りおよびブロッキングの判断で行います。このアダプタが許可するブラウザの利用は、本文末尾で述べる有料アプリの契約・銀行・税務の残りの手続きだけです。それ以外でこの経路の中でブラウザを開く(操作であれ手動であれ)ことは、契約違反です。
 
-   When a real error does force the fallback, QUOTE the error verbatim, then escalate in this order: FIRST mint (or re-mint) the upload key from the session per step 4 and retry the upload with `api_key_path` — an upload-auth error with no key on disk means the mint was skipped, not that the user owes a credential.
+   本当のエラーによってフォールバックが必要になった場合は、エラーを一字一句引用してから、次の順序でエスカレーションします。最初に、手順 4 に従ってセッションからアップロードキーを発行(または再発行)し、`api_key_path` を使ってアップロードを再試行します。ディスク上にキーがないアップロードの認証エラーは、ユーザーが認証情報を用意すべきという意味ではなく、発行が省略されたという意味です。
 
-   SECOND, if the minting itself fails with a session error, ask the user to sign in again (the same `! fastlane spaceauth -u <apple-id>` moment as the original authorization), re-mint, and retry.
+   次に、発行自体がセッションエラーで失敗した場合は、ユーザーに再度サインインしてもらい(最初の承認のときと同じ `! fastlane spaceauth -u <apple-id>` の機会)、再発行して再試行します。
 
-   Only when a FRESH session still cannot mint a key — a permissions refusal because the signed-in Apple ID is not Admin or Account Holder on its team — does the app-specific-password path open, and its only shape is self-service: the user generates the password on any device and enters it through the host's in-session masked prompt into the macOS keychain (`fastlane fastlane-credentials add --username <apple-id>`), then the upload is retried.
+   新しいセッションでもキーを発行できない場合に限り、つまり、サインインした Apple ID がそのチームの Admin または Account Holder ではないために権限が拒否された場合に限り、アプリ固有のパスワードの経路を開きます。その形式は、セルフサービスのみです。ユーザーは任意のデバイスでパスワードを生成し、ホストのセッション内のマスクされたプロンプトを通して macOS のキーチェーンに入力します(`fastlane fastlane-credentials add --username <apple-id>`)。その後、アップロードを再試行します。
 
-   NEVER offer or recommend a browser drive to create credentials — no agentic browser of any kind, for any password, key, or token, under any framing.
-6. App Review contact details (name, email, phone) are required metadata for submission: infer name and email from the signed-in Apple ID and git config, collect the phone number once inside the authorization moment, persist it to the decision store, and never re-ask. Contact details are metadata, not a blocking gate to announce mid-run.
+   認証情報を作成するためにブラウザでの操作を提案したり推奨したりすることは決してしないでください。どのような枠組みであっても、どのようなパスワード、キー、トークンについても、エージェントブラウザのいかなる種類も使わないこと。
+6. App Review の連絡先(氏名、メール、電話番号)は、提出に必要なメタデータです。氏名とメールは、サインインした Apple ID と git の設定から推測します。電話番号は承認の機会の中で一度だけ集め、判断ストアに保存し、再度尋ねないでください。連絡先はメタデータであり、実行中に告知するブロッキングのゲートではありません。
 
-## Storefront completion
+## ストアの仕上げ
 
-`produce` already created the app record and bundle ID during the run — never call the app record a manual gate. Apply the pricing settled in the authorization moment through the App Store Connect price-schedule endpoint (`POST /v1/appPriceSchedules` via the session or the minted key): fastlane's `price_tier` option is broken against the current API ("'prices' is not a relationship on 'apps'"), so never route pricing through it or call its failure an account problem. `deliver` owns everything else the store listing needs: description, keywords, localizations, screenshot upload per device size, attaching the uploaded build, and Submit for Review; `pilot` manages TestFlight groups and testers as an intermediate round when the user asked for one. Submission follows the same durable-effect contract with key `appstore.submit.<bundle-id>.<version>` — on ambiguity, inspect App Store Connect before re-running. Monitor review status from the CLI afterward.
+`produce` が、実行中にアプリレコードとバンドル ID をすでに作成しています。アプリレコードを手動のゲートと呼ばないでください。承認の機会で決めた価格は、App Store Connect の価格スケジュールのエンドポイントを通じて適用します(セッションまたは発行されたキーを使い、`POST /v1/appPriceSchedules`)。fastlane の `price_tier` オプションは、現在の API では壊れています(「'prices' is not a relationship on 'apps'」)。そのため、価格設定をそこに通してはいけません。その失敗をアカウントの問題と呼ぶことも避けてください。`deliver` は、ストアの掲載に必要なその他すべてを担当します。説明文、キーワード、ローカライズ、デバイスサイズごとのスクリーンショットのアップロード、アップロードしたビルドの添付、審査への提出です。`pilot` は、ユーザーが求めた場合の中間ラウンドとして、TestFlight のグループとテスターを管理します。提出は、キー `appstore.submit.<bundle-id>.<version>` を使い、同じ永続的な影響の契約に従います。あいまいな場合は、再実行する前に App Store Connect を確認してください。その後は、CLI から審査の状況を監視してください。
 
-What remains web-only, ever: the paid Apple Developer Program membership purchase itself (a precondition, not a release step) and, for PAID apps only, the one-time Paid Apps agreement with banking and tax — offer the agentic-browser drive per the Third-Party Web Actions contract (earlier in this skill) before any manual checklist for those. A free app needs no browser at any point. After submission, report that App Review typically answers within a day or two and close the run; review outcome is not a gate this workflow can hold open. In that SAME closing report, disclose the durable credential the release created — one line, once per run: "This created an App Store Connect API key (`gstack-upload`, scoped to this app) that persists for future releases; revoke it anytime at App Store Connect → Users and Access → Integrations, or delete `~/.gstack/apple/api-key.json` locally." This is the deliberate exception to the mid-run no-credential-talk rule in this adapter's opening section: the user is otherwise never told a standing credential now exists on their account and on disk, so it never reaches their revocation checklist. Disclosure at exit, not a mid-run question, so the one-authorization-moment contract holds.
+常に Web 上でのみ行うものは次のとおりです。有料の Apple Developer Program のメンバーシップの購入そのもの(リリースの手順ではなく前提条件です)と、有料アプリに限り、銀行と税務を含む一度だけの Paid Apps 契約です。これらについては、手動のチェックリストの前に、(このスキルの前半にある)Third-Party Web Actions の契約に従って、エージェントブラウザでの操作を提案してください。無料のアプリでは、どの時点でもブラウザは不要です。提出の後は、App Review は通常 1〜2 日以内に回答することを報告し、実行を終えてください。審査の結果は、このワークフローが保留にできるゲートではありません。
+
+その同じ閉会の報告の中で、リリースが作成した永続的な認証情報を開示してください。実行ごとに一度、1 行で書きます。「This created an App Store Connect API key (`gstack-upload`, scoped to this app) that persists for future releases; revoke it anytime at App Store Connect → Users and Access → Integrations, or delete `~/.gstack/apple/api-key.json` locally.」(これにより、このアプリに限定された App Store Connect API キー(`gstack-upload`)が作成されました。このキーは今後のリリースのために残ります。App Store Connect の「ユーザとアクセス」→「統合」からいつでも取り消せます。ローカルでは `~/.gstack/apple/api-key.json` を削除してください。)これは、このアダプタの冒頭にある、実行中に認証情報について話さないというルールに対する意図的な例外です。そうしないと、ユーザーのアカウントとディスク上に常設の認証情報が存在することが知らされず、取り消しのチェックリストに載りません。開示は終了時に行い、実行中の質問にはしません。そのため、承認の機会を 1 回に限るという契約は守られます。

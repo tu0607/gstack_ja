@@ -1,66 +1,66 @@
-# Plan Tuning v0 — Design Doc
+# Plan Tuning v0 — 設計ドキュメント
 
-**Status:** Approved for v1 implementation
-**Branch:** garrytan/plan-tune-skill
-**Authors:** Garry Tan (user), with AI-assisted reviews from Claude Opus 4.7 + OpenAI Codex gpt-5.4
-**Date:** 2026-04-16
+**ステータス:** v1 の実装として承認済み
+**ブランチ:** garrytan/plan-tune-skill
+**作成者:** Garry Tan(ユーザー)。AI によるレビューは Claude Opus 4.7 + OpenAI Codex gpt-5.4 による。
+**日付:** 2026-04-16
 
-## What this document is
+## このドキュメントについて
 
-A canonical record of what `/plan-tune` v1 is, what it is NOT, what we considered, and why we made each call. Committed to the repo so future contributors (and future Garry) can trace reasoning without archeology. Supersedes the two `~/.gstack/projects/` artifacts (office-hours design doc + CEO plan) which are per-user local records.
+`/plan-tune` v1 が何であり、何でないか、何を検討し、なぜそれぞれの判断をしたかの正式な記録。将来のコントリビューター(および未来の Garry)が、古い資料を掘り起こさずに理由をたどれるように、リポジトリにコミットしている。ユーザーごとのローカルの記録である `~/.gstack/projects/` にある2つの成果物(office-hours の設計ドキュメントと CEO の計画)を置き換える。
 
-## The feature, in one paragraph
+## 機能の概要(1段落)
 
-gstack's 40+ skills fire AskUserQuestion constantly. Power users answer the same questions the same way repeatedly and have no way to tell gstack "stop asking me this." More fundamentally, gstack has no model of how each user prefers to steer their work — scope-appetite, risk-tolerance, detail-preference, autonomy, architecture-care — so every skill's defaults are middle-of-the-road for everyone. `/plan-tune` v1 builds the schema + observation layer: a typed question registry, per-question explicit preferences, inline "tune:" feedback, and a profile (declared + inferred dimensions) inspectable via plain English. It does not yet adapt skill behavior based on the profile. That comes in v2, after v1 proves the substrate works.
+gstack の40以上のスキルは、AskUserQuestion を絶えず発火させる。パワーユーザーは、同じ質問に毎回同じように答えているが、「この質問はもう聞かないで」と gstack に伝える手段がない。さらに根本的には、gstack はユーザーがどのようにして作業を操縦したいかのモデルを持っていない。スコープへの意欲、リスク許容度、詳細の好み、自律性、アーキテクチャへの配慮。そのため、どのスキルのデフォルトも、全員にとって中庸な値になっている。`/plan-tune` v1 は、スキーマと観察の層を作る。型付きの質問レジストリ、質問ごとの明示的な好み、インラインの「tune:」フィードバック、そしてプロファイル(宣言された次元と推論された次元)。プレーンな英語で確認できる。プロファイルに基づいてスキルの振る舞いを適応させることはまだしない。それは v2 で、v1 が基盤として機能することを証明した後に行う。
 
-## Why we're building the smaller version
+## なぜより小さいバージョンを作るのか
 
-The feature started life as a full adaptive substrate: psychographic dimensions driving auto-decisions, blind-spot coaching, LANDED celebration HTML page, all bundled. Four rounds of review (office-hours, CEO EXPANSION, DX POLISH, eng review) cleared it. Then outside voice (Codex) delivered a 20-point critique. The critical findings, in priority order:
+この機能は、本来は完全な適応型の基盤として始まった。心理特性の次元がアクションを自動決定し、死角のコーチング、LANDED の祝賀 HTML ページなど、すべてを束ねていた。4回のレビュー(office-hours、CEO EXPANSION、DX POLISH、エンジニアリングレビュー)を通過した。その後、外部の声(Codex)が 20 項目の批評を出した。重大な指摘は優先順位順に次のとおり。
 
-1. **"Substrate" was false.** The plan wired 5 skills to read the profile on preamble, but AskUserQuestion is a prompt convention, not middleware. Agents can silently skip the instructions. You cannot reliably build auto-decide on top of an unenforceable convention. Without a typed question registry that every AskUserQuestion routes through, the substrate claim is marketing.
-2. **Internal logical contradictions.** E4 (blind-spot) + E6 (mismatch) + ±0.2 clamp on declared dimensions do not compose. If user self-declaration is ground truth via the clamp, E6's mismatch detection is detecting noise. If behavior can correct the profile, the clamp suppresses the signal E6 needs.
-3. **Profile poisoning.** Inline "tune: never ask" could be emitted by malicious repo content (README, PR description, tool output) and the agent would dutifully write it. No prior review caught this security gap.
-4. **E5 LANDED page in preamble.** `gh pr view` + HTML write + browser open on every skill's preamble is latency, auth failures, rate limits, surprise browser opens, and nondeterminism injected into the hottest path.
-5. **Implementation order was backwards.** The plan started with classifiers and bins. The correct order: build the integration point first (typed question registry), then infrastructure, then consumers.
+1. **「基盤」は偽りだった。** 計画では、5つのスキルがプリアンブルでプロファイルを読んで振る舞いを変えるように配線されていた。しかし AskUserQuestion はプロンプトの約束事であり、ミドルウェアではない。エージェントは指示を黙って飛ばすことができる。強制できない約束事の上に、自動決定を作ることはできない。すべての AskUserQuestion が通過する型付きの質問レジストリがなければ、「基盤」という主張は宣伝にすぎない。
+2. **内部の論理矛盾。** E4(死角)+ E6(不一致)+ 宣言された次元に対する ±0.2 のクランプは、組み合わせると成り立たない。ユーザーの自己申告を、クランプによって正解として扱うなら、E6 の不一致検出はノイズを検出していることになる。行動によってプロファイルを修正できるなら、クランプは E6 が必要とするシグナルを抑え込んでしまう。
+3. **プロファイルの汚染。** インラインの「tune: never ask」は、悪意のあるリポジトリの内容(README、PR の説明、ツールの出力)によって出力されうる。エージェントはそれを忠実に書き込んでしまう。以前のレビューは、このセキュリティの欠陥を見つけていなかった。
+4. **プリアンブルにおける E5 の LANDED ページ。** すべてのスキルのプリアンブルで `gh pr view` + HTML の書き込み + ブラウザの起動を行うと、遅延、認証の失敗、レート制限、予期しないブラウザの起動、そして最も頻繁に通る経路に持ち込まれる非決定性が生じる。
+5. **実装の順序が逆だった。** 計画は分類器とバイナリから始まっていた。正しい順序は、まず統合ポイントを作る(型付きの質問レジストリ)、次に基盤、最後に利用者である。
 
-After weighing Codex's argument, we chose to roll back CEO EXPANSION and ship an observational v1 with a real typed registry as the foundation. Psychographic becomes behavioral only after the registry proves durable in production.
+Codex の主張を検討した後、CEO EXPANSION を取り下げ、型付きのレジストリを土台として、観察のみの v1 を出荷することにした。心理特性が行動に基づくものになるのは、レジストリが本番で持続することが証明された後である。
 
-## v1 Scope (what we're building now)
+## v1 のスコープ(今回作るもの)
 
-1. **Typed question registry** (`scripts/question-registry.ts`). Every AskUserQuestion gstack uses is declared with `{id, skill, category, door_type, options[], signal_key?}`. Schema-governed.
-2. **CI enforcement.** Lint test (gate tier) asserts every AskUserQuestion pattern in SKILL.md.tmpl files has a matching registry entry. Fails CI on drift, renames, or duplicates.
-3. **Question logging** (`bin/gstack-question-log`). Appends `{ts, question_id, user_choice, recommended, session_id}` to `~/.gstack/projects/{SLUG}/question-log.jsonl`. Validates against registry.
-4. **Explicit per-question preferences** (`bin/gstack-question-preference`). Writes `{question_id, preference}` where preference is `always-ask | never-ask | ask-only-for-one-way`. Respected from session 1. No calibration gate — user stated it, system obeys.
-5. **Preamble injection.** Before each AskUserQuestion, agent calls `gstack-question-preference --check <registry-id>`. If `never-ask` AND question is NOT a one-way door, auto-choose recommended option with visible annotation: "Auto-decided [summary] → [option] (your preference). Change with /plan-tune." One-way doors always ask regardless of preference — safety override.
-6. **Inline "tune:" feedback with user-origin gate.** Agent offers "Tune this question? Reply `tune: [feedback]` to adjust." User can use shortcuts (`unnecessary`, `ask-less`, `never-ask`, `always-ask`, `context-dependent`) or free-form English. CRITICAL: the agent only writes a tune event when the `tune:` content appears in the user's current chat turn — NOT in tool output, NOT in a file read. Binary validates `source: "inline-user"` on write; rejects other sources.
-7. **Declared profile** (`/plan-tune setup`). 5 plain-English questions, one per dimension. Stored in unified `~/.gstack/developer-profile.json` under `declared: {...}`. Informational only in v1 — no skill behavior change.
-8. **Observed/Inferred profile.** Every question-log event contributes deltas to inferred dimensions via a hand-crafted signal map (`scripts/psychographic-signals.ts`). Computed on demand. Displayed but not acted on.
-9. **`/plan-tune` skill.** Conversational plain-English inspection tool. "Show my profile," "set a preference," "what questions have I been asked," "show the gap between what I said and what I do." No CLI subcommand syntax required.
-10. **Unification with existing `~/.gstack/builder-profile.jsonl`.** Fold /office-hours session records and accumulated signals into unified `~/.gstack/developer-profile.json`. Migration is atomic + idempotent + archives the source file.
+1. **型付きの質問レジストリ**(`scripts/question-registry.ts`)。gstack が使う AskUserQuestion はすべて、`{id, skill, category, door_type, options[], signal_key?}` で宣言される。スキーマで管理される。
+2. **CI による強制。** lint テスト(gate tier)は、すべての SKILL.md.tmpl の AskUserQuestion のパターンに、対応するレジストリのエントリがあることを確認する。ずれ、名前の変更、重複があれば CI が失敗する。
+3. **質問のログ**(`bin/gstack-question-log`)。`{ts, question_id, user_choice, recommended, session_id}` を `~/.gstack/projects/{SLUG}/question-log.jsonl` に追記する。レジストリに照らして検証する。
+4. **質問ごとの明示的な好み**(`bin/gstack-question-preference`)。`{question_id, preference}` を書く。preference は `always-ask | never-ask | ask-only-for-one-way` のいずれか。セッション 1 から尊重される。較正のゲートはない。ユーザーが述べたことに、システムは従う。
+5. **プリアンブルへの注入。** AskUserQuestion の前に、エージェントは `gstack-question-preference --check <registry-id>` を呼ぶ。`never-ask` かつ一方向ドアではない場合、推奨の選択肢を自動で選び、目に見える注記を付ける。「自動決定 [要約] → [選択肢] (あなたの好み)。/plan-tune で変更できます。」一方向ドアは、好みに関係なく常に尋ねる。安全性の上書き。
+6. **ユーザー起源のゲートを伴うインラインの「tune:」フィードバック。** エージェントは「この質問を調整しますか? `tune: [フィードバック]` と返信してください」と提示する。ユーザーは短縮形(`unnecessary`、`ask-less`、`never-ask`、`always-ask`、`context-dependent`)か、自由形式の英語を使える。重要: エージェントが tune のイベントを書くのは、`tune:` の内容がユーザーの現在のチャットのターンに現れた場合に限る。ツールの出力や、読み込んだファイルの中ではいけない。バイナリは書き込み時に `source: "inline-user"` を検証し、それ以外は拒否する。
+7. **宣言されたプロファイル**(`/plan-tune setup`)。次元ごとに 1 問、平易な英語の 5 問。統一された `~/.gstack/developer-profile.json` の `declared: {...}` に保存する。v1 では情報提供のみで、スキルの振る舞いは変えない。
+8. **観察された/推論されたプロファイル。** すべての質問ログのイベントは、手作業のシグナルマップ(`scripts/psychographic-signals.ts`)を通じて、推論された次元に差分を加える。オンデマンドで計算される。表示されるが、行動には使われない。
+9. **`/plan-tune` スキル。** 会話形式の、平易な英語による確認ツール。「プロファイルを見せて」「好みを設定して」「どんな質問をされたか」「自分が言ったことと実際にしていることの差を見せて」。CLI のサブコマンドの構文は不要。
+10. **既存の `~/.gstack/builder-profile.jsonl` との統合。** `/office-hours` のセッションの記録と蓄積されたシグナルを、統一された `~/.gstack/developer-profile.json` に取り込む。移行は、アトミックで冪等であり、元のファイルをアーカイブする。
 
-## Deferred to v2 (not in this PR, but explicit acceptance criteria)
+## v2 に延期(この PR では扱わないが、明示的な受け入れ基準がある)
 
-| Item | Why deferred | Acceptance criteria for v2 promotion |
+| 項目 | 延期の理由 | v2 への昇格の受け入れ基準 |
 |------|--------------|--------------------------------------|
-| E1 Substrate wiring (5 skills read profile and adapt) | Requires v1 registry proving durable. Requires real observed data to calibrate signal deltas. Risk of psychographic drift. | v1 registry stable for 90+ days. Inferred dimensions show clear stability across 3+ skills. User dogfood validates that defaults informed by profile feel right. |
-| E3 `/plan-tune narrative` + `/plan-tune vibe` | Event-anchored narrative needs stable profile. Without v1 data, output will be generic slop. | Profile diversity check passes for 2+ weeks real usage. Narrative test proves it quotes specific events, not clichés. |
-| E4 Blind-spot coach | Logically conflicts with E1/E6 without explicit interaction-budget design. Needs global session budget, escalation rules, exclusion from mismatch detection. | Design spec for interaction budget + escalation. Dogfood confirms challenges feel coaching, not nagging. |
-| E5 LANDED celebration HTML page | Cannot live in preamble (Codex #9, #10). When promoted, moves to explicit command `/plan-tune show-landed` OR post-ship hook — not passive detection in the hot path. | Explicit command or hook design. /design-shotgun → /design-html for the visual direction. Security + privacy review for PR data aggregation. |
-| E6 Auto-adjustment based on mismatch | In v1, /plan-tune shows the gap between declared and inferred. In v2, it could suggest declaration updates. Requires dual-track profile to be stable. | Real mismatch data from v1 shows consistent patterns. Suggestion UX designed separately. |
-| Psychographic-driven auto-decide | Zero behavioral change in v1. Only explicit preferences act. | Real usage shows explicit preferences cover most cases. Inferred profile stable enough to trust. |
+| E1 サブストレートの配線(5つのスキルがプロファイルを読んで適応する) | v1 のレジストリが持続することの証明が必要。シグナルの差分を較正するための実際の観察データが必要。心理特性のドリフトのリスク。 | v1 のレジストリが 90 日以上安定している。推論された次元が 3 つ以上のスキルにわたって明確な安定性を示す。プロファイルに基づくデフォルトが妥当に感じられることを、ユーザーのドッグフーディングで検証する。 |
+| E3 `/plan-tune narrative` + `/plan-tune vibe` | 出来事に基づくナラティブには、安定したプロファイルが必要。v1 のデータがなければ、出力は汎用的な中身のない文章になる。 | プロファイルの多様性チェックが、2 週間以上の実際の利用で合格する。ナラティブのテストが、具体的な出来事を引用していることを示す(決まり文句ではない)。 |
+| E4 死角のコーチ | E1/E6 と論理的に衝突する。明示的な対話の予算の設計が必要。 | 対話の予算とエスカレーションの設計仕様。ドッグフーディングで、指摘がうるさい催促ではなくコーチングに感じられることを確認する。 |
+| E5 LANDED の祝賀 HTML ページ | プリアンブルには置けない(Codex #9、#10)。昇格する場合は、明示的なコマンド `/plan-tune show-landed` か、マージ後のフックに移す。 | 明示的なコマンドかフックの設計。見た目の方向性は /design-shotgun → /design-html。PR データの集計に関するセキュリティとプライバシーのレビュー。 |
+| E6 不一致に基づく自動調整 | v1 では、/plan-tune が宣言と推論の差を表示する。v2 では、宣言の更新を提案できる。二重のトラックのプロファイルが安定している必要がある。 | v1 の実際の不一致データに一貫したパターンがある。提案の UX は別途設計する。 |
+| 心理特性に基づく自動決定 | v1 では行動の変化はゼロ。明示的な好みだけが作用する。 | 実際の利用で、明示的な好みがほとんどのケースをカバーすることが分かる。推論されたプロファイルが十分に安定していて信頼できる。 |
 
-## Rejected entirely (Codex was right, we're not doing these)
+## 完全に却下(Codex の指摘は正しい。これらはやらない)
 
-| Item | Why rejected |
+| 項目 | 却下の理由 |
 |------|--------------|
-| Substrate-as-prompt-convention (vs. typed registry) | Codex #1. Agents can silently skip instructions. Building psychographic on top is sand. |
-| ±0.2 clamp on declared dimensions | Codex #6. Creates logical contradiction with E6 mismatch detection. Pick ONE: editable preference OR inferred behavior. Now: both, tracked separately (dual-track profile). |
-| One-way door classification by parsing prose summaries | Codex #4. Safety depends on wording. door_type must be declared at question definition site (registry), not inferred. |
-| Single event-schema file mixing declarations + overrides + verdicts + feedback | Codex #5. Incompatible domain objects. Now split into three files: question-log.jsonl, question-preferences.json, question-events.jsonl. |
-| TTHW telemetry for /plan-tune onboarding | Codex #14. Contradicts local-first framing. Local logging only. |
-| Inline tune: writes without user-origin verification | Codex #16. Profile poisoning attack. Now: user-origin gate is non-optional. |
+| 型付きレジストリの代わりに、約束事としてのサブストレート | Codex #1。エージェントは指示を黙って飛ばせる。その上に心理特性を積むのは砂の上の城。 |
+| 宣言された次元に対する ±0.2 のクランプ | Codex #6。E6 の不一致検出と論理的に矛盾する。編集可能な好みか、推論された行動のどちらか一つを選ぶ。現在は両方を、別々に追跡している(二重のトラックのプロファイル)。 |
+| 要約の散文を解析して一方向ドアを分類する | Codex #4。安全性が言い回しに依存する。door_type は、質問の定義箇所(レジストリ)で宣言しなければならず、推論してはいけない。 |
+| 宣言と上書きと判定とフィードバックを混ぜた単一のイベントスキーマファイル | Codex #5。性質の異なるドメインのオブジェクトが混在している。現在は 3 つのファイルに分ける: question-log.jsonl、question-preferences.json、question-events.jsonl。 |
+| /plan-tune のオンボーディングの TTHW テレメトリ | Codex #14。ローカルファーストの枠組みと矛盾する。ローカルのログのみ。 |
+| ユーザー起源の検証のない、インラインの tune: の書き込み | Codex #16。プロファイルの汚染攻撃。現在は、ユーザー起源のゲートは必須。 |
 
-## Architecture
+## アーキテクチャ
 
 ```
 ~/.gstack/
@@ -72,7 +72,7 @@ After weighing Codex's argument, we chose to roll back CEO EXPANSION and ship an
   question-events.jsonl             # tune: feedback events, user-origin gated
 ```
 
-**Unified profile schema** (superseding both v0.16.2.0 builder-profile.jsonl and the proposed developer-profile.json):
+**統一されたプロファイルのスキーマ**(v0.16.2.0 の builder-profile.jsonl と、提案されていた developer-profile.json の両方を置き換える):
 
 ```json
 {
@@ -103,303 +103,304 @@ After weighing Codex's argument, we chose to roll back CEO EXPANSION and ship an
 }
 ```
 
-**Diversity check** (Codex #13): `inferred` is considered "enough data" only when `sample_size >= 20 AND skills_covered >= 3 AND question_ids_covered >= 8 AND days_span >= 7`. Below this, `/plan-tune profile` shows "not enough observed data yet" instead of a potentially-misleading inferred value.
+**多様性チェック**(Codex #13): `inferred` が「十分なデータがある」とみなされるのは、`sample_size >= 20 AND skills_covered >= 3 AND question_ids_covered >= 8 AND days_span >= 7` のときだけ。これを下回る場合、`/plan-tune profile` は、誤解を招きかねない推論値を示す代わりに「観察データはまだ十分ではありません」と表示する。
 
-## Data flow (v1)
+## データフロー(v1)
 
-1. Preamble: check `question_tuning` config. If off, do nothing.
-2. Before each AskUserQuestion:
-   - Agent calls `gstack-question-preference --check <registry-id>`
-   - If `never-ask` AND question is NOT one-way door → auto-choose recommended with annotation
-   - If `always-ask`, unset, or question IS one-way door → ask normally
-3. After AskUserQuestion:
-   - Append log record to question-log.jsonl (registry-validated, rejects unknown IDs)
-4. Offer inline: "Tune this question? Reply `tune: [feedback]` to adjust."
-5. If user's NEXT turn message contains `tune:` prefix AND the content originated in the user's own message (not tool output):
-   - Agent calls `gstack-question-preference --write` with `source: "inline-user"`
-   - Binary validates source field; rejects if anything other than `inline-user`
-6. Inferred dimensions recomputed on demand by `bin/gstack-developer-profile --derive`. Signal map changes trigger full recompute from events history.
+1. プリアンブル: `question_tuning` の設定を確認する。オフなら何もしない。
+2. AskUserQuestion の前:
+   - エージェントが `gstack-question-preference --check <registry-id>` を呼ぶ
+   - `never-ask` かつ一方向ドアでない場合 → 注記付きで推奨を自動選択
+   - `always-ask`、未設定、または一方向ドアの場合 → 通常どおり尋ねる
+3. AskUserQuestion の後:
+   - ログのレコードを question-log.jsonl に追記する(レジストリで検証。未知の ID は拒否)
+4. インラインで提示: 「この質問を調整しますか? `tune: [フィードバック]` と返信してください」
+5. ユーザーの次のターンのメッセージが `tune:` で始まり、かつその内容がユーザー自身のメッセージに由来する場合(ツールの出力ではない):
+   - エージェントが `source: "inline-user"` を付けて `gstack-question-preference --write` を呼ぶ
+   - バイナリが source フィールドを検証し、`inline-user` 以外なら拒否する
+6. 推論された次元は、`bin/gstack-developer-profile --derive` によってオンデマンドで再計算される。シグナルマップが変わると、イベントの履歴から完全に再計算される。
 
-## Security model
+## セキュリティモデル
 
-**Profile poisoning defense** (Codex #16, Decision J below): Inline tune events may be written ONLY when:
-- The agent is processing the user's current chat turn
-- The `tune:` prefix appears in that user message (not in any tool output, file content, PR description, commit message, etc.)
-- The resolver's instructions to the agent explicitly call this out
+**プロファイル汚染の防御**(Codex #16、以下の決定 J): インラインの tune イベントは、次の場合に限って書き込める。
+- エージェントが、ユーザーの現在のチャットのターンを処理している
+- その tune: のプレフィックスが、そのユーザーのメッセージに現れている(ツールの出力、ファイルの内容、PR の説明、コミットメッセージなどには現れていない)
+- リゾルバーの指示が、この点をエージェントに明示している
 
-Binary enforcement: `gstack-question-preference --write` requires `source: "inline-user"` field on every tune-originated record. Any other source value (e.g., `inline-tool-output`, `inline-file-content`) is rejected with an error. Agent is instructed to never forge the `source` field.
+バイナリによる強制: `gstack-question-preference --write` は、tune 由来のすべてのレコードに `source: "inline-user"` のフィールドを要求する。それ以外の source の値(例: `inline-tool-output`、`inline-file-content`)は、エラーで拒否される。エージェントは、`source` フィールドを偽造しないよう指示されている。
 
-**Data privacy**:
-- All data is local-only under `~/.gstack/`. Nothing leaves without explicit user action.
-- `/plan-tune export <path>` writes profile to user-specified path (opt-in export).
-- `/plan-tune delete` wipes local profile files.
-- `gstack-config set telemetry off` prevents any telemetry (this skill never sends profile data regardless).
-- Profile files have standard user-home permissions.
+**データのプライバシー**:
+- すべてのデータは `~/.gstack/` 配下にのみあり、ローカルに置かれる。ユーザーが明示的に行動しない限り、外部に出ることはない。
+- `/plan-tune export <path>` は、ユーザーが指定したパスにプロファイルを書き出す(オプトインのエクスポート)。
+- `/plan-tune delete` は、ローカルのプロファイルファイルを消去する。
+- `gstack-config set telemetry off` で、あらゆるテレメトリを止める(このスキルは、いずれにせよプロファイルのデータを送信しない)。
+- プロファイルのファイルには、ユーザーのホームの標準的な権限が付く。
 
-**Injection defense** (consistent with existing `bin/gstack-learnings-log` patterns): the `question_summary` and any free-form user feedback fields are sanitized against known prompt-injection patterns ("ignore previous instructions," "system:", etc.).
+**インジェクションの防御**(既存の `bin/gstack-learnings-log` のパターンと一貫している): `question_summary` と、自由形式のユーザーのフィードバックのフィールドは、既知のプロンプトインジェクションのパターン(「ignore previous instructions」、「system:」など)に対してサニタイズされる。
 
-## 5 Hard Constraints (preserved from office-hours, updated for Codex feedback)
+## ハード制約 5 つ(office-hours から引き継ぎ、Codex のフィードバックで更新)
 
-1. **One-way doors are classified deterministically by registry declaration**, NOT by runtime summary parsing. Each registry entry declares `door_type: one-way | two-way`. Keyword pattern fallback (`scripts/one-way-doors.ts`) is a belt-and-suspenders secondary check for edge cases.
-2. **Profile dimensions are inspectable AND editable.** `/plan-tune profile` shows declared + inferred + gap. Edits via plain English go to `declared` only. System tracks `inferred` independently.
-3. **Signal map is hand-crafted in TypeScript.** `scripts/psychographic-signals.ts` maps `{question_id, user_choice} → {dimension, delta}`. Not agent-inferred. In v1, consumed only for `inferred.values` display — not for driving decisions.
-4. **No psychographic-driven auto-decide in v1.** Only explicit per-question preferences act. This sidesteps the "calibration gate can be gamed" critique (Codex #13) entirely — v1 doesn't have a gate to pass.
-5. **Per-project preferences beat global preferences.** `~/.gstack/projects/{SLUG}/question-preferences.json` wins over any future global preference file. Global profile (`~/.gstack/developer-profile.json`) is a starting point for diversity across projects.
+1. **一方向ドアは、レジストリの宣言によって決定的に分類する**。実行時の要約の解析では分類しない。各レジストリのエントリは `door_type: one-way | two-way` を宣言する。キーワードのパターンによるフォールバック(`scripts/one-way-doors.ts`)は、エッジケースのための二重のチェックである。
+2. **プロファイルの次元は、確認も編集もできる。** `/plan-tune profile` は、宣言 + 推論 + ギャップを表示する。平易な英語による編集は `declared` にのみ反映される。システムは `inferred` を独立して追跡する。
+3. **シグナルマップは TypeScript で手作業で書く。** `scripts/psychographic-signals.ts` は `{question_id, user_choice} → {dimension, delta}` を対応づける。エージェントが推論するものではない。v1 では `inferred.values` の表示にのみ使い、判断の駆動には使わない。
+4. **v1 では心理特性による自動決定はしない。** 作用するのは、質問ごとの明示的な好みだけ。これにより、「較正のゲートは回避されうる」という批判(Codex #13)を完全に避ける。v1 にはクリアすべきゲートがない。
+5. **プロジェクトごとの好みは、グローバルな好みより優先する。** `~/.gstack/projects/{SLUG}/question-preferences.json` は、将来のグローバルな好みのファイルより優先される。グローバルなプロファイル(`~/.gstack/developer-profile.json`)は、プロジェクトをまたぐ多様性のための出発点。
 
-## Why event-sourced + dual-track
+## イベントソースとデュアルトラックにした理由
 
-**Why event-sourced for the inferred profile**:
-- Signal map can change between gstack versions. Recompute from events, no data migration needed.
-- Auditable: `/plan-tune profile --trace autonomy` shows every event that contributed to the value.
-- Future-proof: new dimensions can be derived from existing history.
+**推論されたプロファイルをイベントソースにした理由**:
+- シグナルマップは gstack のバージョンごとに変わりうる。イベントから再計算すれば、データの移行は不要。
+- 監査可能: `/plan-tune profile --trace autonomy` は、その値に寄与したすべてのイベントを表示する。
+- 将来の拡張に強い: 既存の履歴から、新しい次元を導出できる。
 
-**Why dual-track (declared + inferred, separately)** (Decision B below):
-- Resolves the logical contradiction Codex #6 identified.
-- `declared` is user sovereignty. User states who they are. System obeys for anything user-driven (preferences, declarations, overrides).
-- `inferred` is observation. System tracks behavioral patterns. Displayed but not acted on in v1.
-- `gap` is the interesting signal. Large gaps suggest the user's self-description isn't matching their behavior — valuable self-insight, but not auto-corrected.
+**デュアルトラック(宣言と推論を別々に持つ)にした理由**(決定 B):
+- Codex #6 が指摘した論理的な矛盾を解消する。
+- `declared` はユーザーの主権。ユーザーは自分がどういう人かを述べる。システムは、ユーザー主導のもの(好み、宣言、上書き)には従う。
+- `inferred` は観察。システムは行動のパターンを追跡する。v1 では表示するが、行動には使わない。
+- `gap` が興味深いシグナル。ギャップが大きいと、ユーザーの自己記述が行動と一致していないことを示す。貴重な自己理解の材料だが、自動では修正しない。
 
-## Interaction model — plain English everywhere
+## 対話モデル — どこでも平易な英語
 
-(From /plan-devex-review, user correction on CLI syntax):
+(/plan-devex-review から。CLI の構文についてのユーザーの指摘を受けて):
 
-`/plan-tune` (no args) enters conversational mode. No CLI subcommand syntax required.
+`/plan-tune`(引数なし)は会話モードに入る。CLI のサブコマンドの構文は不要。
 
-Menu in plain language:
-- "Show me my profile"
-- "Review questions I've been asked"
-- "Set a preference about a question"
-- "Update my profile — I've changed my mind about something"
-- "Show me the gap between what I said and what I do"
-- "Turn it off"
+平易な言葉のメニュー:
+- 「プロファイルを見せて」
+- 「私に聞いた質問を見直したい」
+- 「質問についての好みを設定したい」
+- 「プロファイルを更新したい — 考えが変わった」
+- 「自分が言ったことと実際にしていることの差を見せて」
+- 「オフにする」
 
-User replies conversationally. Agent interprets, confirms the intended change, then writes. For example:
-- User: "I'm more of a boil-the-ocean person than 0.5 suggests"
-- Agent: "Got it — update `declared.scope_appetite` from 0.5 to 0.8? [Y/n]"
-- User: "Yes"
-- Agent writes the update
+ユーザーは会話形式で返信する。エージェントが意図を解釈し、意図した変更を確認してから書き込む。例:
+- ユーザー:「私は 0.5 が示すより、海を煮るほど大きくやるタイプだ」
+- エージェント:「わかりました。`declared.scope_appetite` を 0.5 から 0.8 に更新しますか? [Y/n]」
+- ユーザー:「はい」
+- エージェントが更新を書き込む
 
-Confirmation step is required for any mutation of `declared` from free-form input (Codex #15 trust boundary).
+自由形式の入力から `declared` を変更するときは、必ず確認のステップを挟む(Codex #15 の信頼境界)。
 
-Power users can type shortcuts (`narrative`, `vibe`, `reset`, `stats`, `enable`, `disable`, `diff`). Neither is required. Both work.
+パワーユーザーは短縮形(`narrative`、`vibe`、`reset`、`stats`、`enable`、`disable`、`diff`)を入力できる。どちらも必須ではない。両方とも使える。
 
-## Files to Create
+## 作成するファイル
 
-### Core schema
-- `scripts/question-registry.ts` — typed registry. Seeded from audit of all SKILL.md.tmpl AskUserQuestion invocations.
-- `scripts/one-way-doors.ts` — secondary keyword fallback. Primary: `door_type` in registry.
-- `scripts/psychographic-signals.ts` — hand-crafted signal map for inferred computation.
+### コアのスキーマ
+- `scripts/question-registry.ts` — 型付きのレジストリ。すべての SKILL.md.tmpl の AskUserQuestion の監査から初期値を作る。
+- `scripts/one-way-doors.ts` — 二次的なキーワードのフォールバック。第一の手段は、レジストリの `door_type`。
+- `scripts/psychographic-signals.ts` — 推論の計算のための、手作業のシグナルマップ。
 
-### Binaries
-- `bin/gstack-question-log` — append log record, validate against registry.
-- `bin/gstack-question-preference` — read/write/check/clear explicit preferences.
-- `bin/gstack-developer-profile` — supersedes `bin/gstack-builder-profile`. Subcommands: `--read` (legacy compat), `--derive`, `--gap`, `--profile`.
+### バイナリ
+- `bin/gstack-question-log` — ログのレコードを追記し、レジストリに照らして検証する。
+- `bin/gstack-question-preference` — 明示的な好みの読み取り、書き込み、確認、消去。
+- `bin/gstack-developer-profile` — `bin/gstack-builder-profile` を置き換える。サブコマンド: `--read`(旧版との互換)、`--derive`、`--gap`、`--profile`。
 
-### Resolvers
-- `scripts/resolvers/question-tuning.ts` — three generators: `generateQuestionPreferenceCheck(ctx)` (pre-question check), `generateQuestionLog(ctx)` (post-question log), `generateInlineTuneFeedback(ctx)` (post-question tune: prompt with user-origin gate instructions).
+### リゾルバー
+- `scripts/resolvers/question-tuning.ts` — 3 つの生成関数: `generateQuestionPreferenceCheck(ctx)`(質問の前の確認)、`generateQuestionLog(ctx)`(質問の後のログ)、`generateInlineTuneFeedback(ctx)`(ユーザー起源のゲートの指示を含む、質問の後の tune: プロンプト)。
 
-### Skill
-- `plan-tune/SKILL.md.tmpl` — conversational, plain-English inspection and preference tool.
+### スキル
+- `plan-tune/SKILL.md.tmpl` — 会話形式で、平易な英語による確認と好みの設定のツール。
 
-### Tests
-- `test/plan-tune.test.ts` — registry completeness, duplicate ID check, preference precedence (never-ask + not-one-way → AUTO_DECIDE; never-ask + one-way → ASK_NORMALLY), user-origin gate (rejects non-inline-user sources), derivation + recompute, unified profile schema, migration regression with 7-session fixture.
+### テスト
+- `test/plan-tune.test.ts` — レジストリの完全性、ID の重複チェック、好みの優先順位(never-ask + 一方向でない → AUTO_DECIDE、never-ask + 一方向 → ASK_NORMALLY)、ユーザー起源のゲート(inline-user 以外の source を拒否)、導出と再計算、統一されたプロファイルのスキーマ、7 セッションのフィクスチャによる移行の回帰。
 
-## Files to Modify
+## 変更するファイル
 
-- `scripts/resolvers/index.ts` — register 3 new resolvers.
-- `scripts/resolvers/preamble.ts` — `_QUESTION_TUNING` config read; inject 3 resolvers for tier >= 2.
-- `bin/gstack-builder-profile` — legacy shim delegates to `bin/gstack-developer-profile --read`.
-- Migration script — folds existing builder-profile.jsonl into unified developer-profile.json. Atomic, idempotent, archives source as `.migrated-YYYY-MM-DD`.
+- `scripts/resolvers/index.ts` — 3 つの新しいリゾルバーを登録する。
+- `scripts/resolvers/preamble.ts` — `_QUESTION_TUNING` の設定を読む。tier >= 2 のスキルに 3 つのリゾルバーを注入する。
+- `bin/gstack-builder-profile` — 旧版の shim。`bin/gstack-developer-profile --read` に委譲する。
+- 移行スクリプト — 既存の builder-profile.jsonl を統一された developer-profile.json に取り込む。アトミックで冪等。元のファイルは `.migrated-YYYY-MM-DD` としてアーカイブする。
 
-## NOT touched in v1
+## v1 で変更しないもの
 
-Explicitly unchanged — no `{{PROFILE_ADAPTATION}}` placeholders, no behavior change based on profile:
+明示的に変更しない。`{{PROFILE_ADAPTATION}}` のプレースホルダーはなく、プロファイルに基づく振る舞いの変更もない。
 
-- `ship/SKILL.md.tmpl`, `review/SKILL.md.tmpl`, `office-hours/SKILL.md.tmpl`, `plan-ceo-review/SKILL.md.tmpl`, `plan-eng-review/SKILL.md.tmpl`
+- `ship/SKILL.md.tmpl`、`review/SKILL.md.tmpl`、`office-hours/SKILL.md.tmpl`、`plan-ceo-review/SKILL.md.tmpl`、`plan-eng-review/SKILL.md.tmpl`
 
-These skills gain preamble injection for logging / preference checking / tune feedback only. No profile-driven defaults. v2 work.
+これらのスキルは、ログ、好みの確認、tune のフィードバックのためのプリアンブルの注入を得るだけ。プロファイルに基づくデフォルトは持たない。v2 の作業。
 
-## Decisions log (with pros/cons for each)
+## 決定のログ(それぞれの長所と短所つき)
 
-### Decision A: Bundle all three (question-log + sensitivity + psychographic) vs. ship smaller wedge — INITIAL ANSWER: BUNDLE; REVISED: REGISTRY-FIRST OBSERVATIONAL
+### 決定 A: 3 つをまとめて作る(question-log + 感度 + 心理特性) vs. より小さな切り口で出荷 — 初期の答え: まとめる。改訂後: レジストリ優先の観察型
 
-Initial user position (office-hours): "The psychographic IS the differentiation. Ship the whole thing so the feedback loop can actually tune behavior." This drove CEO EXPANSION.
+ユーザーの初期の立場(office-hours): 「心理特性こそが差別化。フィードバックのループが実際に振る舞いを調整できるよう、全部出荷する。」これが CEO EXPANSION を後押しした。
 
-**Pros of bundling:** Ambition. The learning layer is what makes this more than config. Without psychographic, it's a fancy settings menu.
+**まとめることの長所:** 野心。学習の層があるからこそ、単なる設定以上のものになる。心理特性がなければ、ただの気の利いた設定画面にすぎない。
 
-**Cons of bundling (surfaced by Codex):** The substrate didn't exist. Psychographic on top of prompt-convention is sand. E1/E4/E6 compose incoherently. Profile poisoning was unaddressed. E5 in preamble is a hidden hot-path side effect. Implementation order built machinery around an unenforceable convention.
+**まとめることの短所(Codex が指摘):** サブストレートが存在しなかった。強制できない約束事の上に心理特性を積むのは砂の上の城。E1/E4/E6 は一貫して組み合わさらない。プロファイルの汚染が未対処だった。E5 のプリアンブルは、隠れた最も頻繁に通る経路での副作用。実装の順序が、強制できない約束事の周りに仕組みを作ってしまっていた。
 
-**Revised answer:** Registry-first observational v1 (this doc). Preserves the ambition as a v2 target with explicit acceptance criteria. Ships a defensible foundation. User accepted this after seeing Codex's 20-point critique.
+**改訂後の答え:** レジストリ優先の観察型 v1(この文書)。野心は、明示的な受け入れ基準を持つ v2 の目標として残す。防御可能な基盤を出荷する。Codex の 20 項目の批評を見たうえで、ユーザーが受け入れた。
 
-### Decision B: Event-sourced vs. stored dimensions vs. hybrid — ANSWER: EVENT-SOURCED + USER-DECLARED ANCHOR (B+C)
+### 決定 B: イベントソース vs. 格納した次元 vs. ハイブリッド — 答え: イベントソース + ユーザー宣言のアンカー(B+C)
 
-**Approach A (stored dimensions):** Mutate in place. Simple.
-- Pros: Smallest data model. Easy to reason about.
-- Cons: Lossy. No history. Signal map changes require migration. Profile changes are opaque to the user.
+**アプローチ A(格納した次元):** その場で書き換える。単純。
+- 長所: 最小のデータモデル。理解しやすい。
+- 短所: 情報が失われる。履歴がない。シグナルマップの変更には移行が必要。プロファイルの変化はユーザーにとって不透明。
 
-**Approach B (event-sourced):** Store raw events, derive dimensions.
-- Pros: Auditable. Recomputable on signal map changes. No data migration ever. Matches existing learnings.jsonl pattern.
-- Cons: More complex derivation. Events file grows over time (compaction deferred to v2).
+**アプローチ B(イベントソース):** 生のイベントを保存し、次元を導出する。
+- 長所: 監査可能。シグナルマップの変更に対して再計算できる。データの移行は一切不要。既存の learnings.jsonl のパターンに合う。
+- 短所: 導出がより複雑。イベントのファイルが時間とともに大きくなる(圧縮は v2 に延期)。
 
-**Approach C (hybrid — user-declared anchor, events refine):** Initial profile is user-stated; events refine within ±0.2.
-- Pros: Day-1 value. User sovereignty. Calibration anchor instead of starting from zero.
-- Cons: ±0.2 clamp creates logical conflict with mismatch detection (Codex #6 caught this).
+**アプローチ C(ハイブリッド: ユーザー宣言のアンカーを、イベントで洗練する):** 初期のプロファイルはユーザーが述べたもの。イベントが ±0.2 の範囲で洗練する。
+- 長所: 初日から価値がある。ユーザー主権。ゼロからではなく、較正のアンカーから始まる。
+- 短所: ±0.2 のクランプが、不一致の検出と論理的に衝突する(Codex #6 が指摘)。
 
-**Chosen: B+C combined with ±0.2 CLAMP REMOVED.** Event-sourced underneath, declared profile as first-class separate field. No clamp. Declared and inferred live as independent values. Gap between them is displayed but not auto-corrected in v1.
 
-### Decision C: One-way door classification — runtime prose parsing vs. registry declaration — ANSWER: REGISTRY DECLARATION (post-Codex)
+**選んだもの: B+C を組み合わせ、±0.2 のクランプを削除。** イベントソースを基礎に、宣言されたプロファイルを独立した第一級のフィールドとする。クランプはなし。宣言と推論は独立した値として扱う。両者のギャップは表示するが、v1 では自動修正しない。
 
-**Runtime prose parsing (original):** `isOneWayDoor(skill, category, summary)` plus keyword patterns.
-- Pros: Minimal friction for skill authors. No schema to maintain.
-- Cons (Codex #4): Safety depends on wording. A destructive-op question phrased mildly could be misclassified. Unacceptable for a safety gate.
+### 決定 C: 一方向ドアの分類 — 実行時の散文の解析 vs. レジストリでの宣言 — 答え: レジストリでの宣言(Codex の指摘後)
 
-**Registry declaration (revised):** Every registry entry declares `door_type`.
-- Pros: Deterministic. Auditable. CI-enforceable (all questions must declare).
-- Cons: Maintenance burden. Every new skill question must classify.
+**実行時の散文の解析(当初):** `isOneWayDoor(skill, category, summary)` とキーワードのパターン。
+- 長所: スキル作成者にとっての摩擦が最小。維持するスキーマがない。
+- 短所(Codex #4): 安全性が言い回しに依存する。破壊的な操作についての質問が穏当な言い方で書かれていれば、誤って分類されうる。安全のゲートとしては受け入れられない。
 
-**Chosen: registry declaration as primary, keyword patterns as fallback.** Schema governance is the cost of safety.
+**レジストリでの宣言(改訂後):** すべてのレジストリのエントリが `door_type` を宣言する。
+- 長所: 決定的。監査可能。CI で強制できる(すべての質問が宣言しなければならない)。
+- 短所: 維持の負担。新しいスキルの質問はすべて分類が必要。
 
-### Decision D: Inline tune feedback grammar — structured keywords vs. free-form natural language — ANSWER: STRUCTURED WITH FREE-FORM FALLBACK
+**選んだもの: 主はレジストリでの宣言、フォールバックはキーワードのパターン。** 安全性を保つためのコストとして、スキーマの管理を受け入れる。
 
-**Structured keywords only:** `tune: unnecessary | ask-less | never-ask | always-ask | context-dependent`.
-- Pros: Unambiguous. Clean profile data.
-- Cons: Users must memorize.
+### 決定 D: インラインの tune フィードバックの文法 — 構造化されたキーワード vs. 自由形式の自然言語 — 答え: 両方を併用
 
-**Free-form only:** Agent interprets whatever user says.
-- Pros: Natural. No syntax to learn.
-- Cons: Inconsistent profile data. Hard to debug why a tune didn't take effect.
+**構造化されたキーワードのみ:** `tune: unnecessary | ask-less | never-ask | always-ask | context-dependent`。
+- 長所: 曖昧さがない。プロファイルのデータがきれい。
+- 短所: ユーザーが覚えなければならない。
 
-**Chosen: both.** Shortcuts documented for power users; agent accepts and normalizes free English. Plain-English interaction is the default; structured keywords are an optional fast-path.
+**自由形式のみ:** エージェントが、ユーザーの言ったことを何でも解釈する。
+- 長所: 自然。覚える構文がない。
+- 短所: プロファイルのデータが一貫しない。tune が効かなかった理由をデバッグしにくい。
 
-### Decision E: CLI subcommand structure for /plan-tune — ANSWER: PLAIN ENGLISH CONVERSATIONAL (no subcommand syntax required)
+**選んだもの: 両方。** パワーユーザー向けに短縮形を文書化する。エージェントは、自由な英語を受け入れて正規化する。平易な英語による対話がデフォルトで、構造化されたキーワードは任意の高速な経路。
 
-**`/plan-tune profile`, `/plan-tune profile set autonomy 0.4`, etc.** (original):
-- Pros: Fast for power users. Self-documenting via --help.
-- Cons: Users must memorize. Every invocation feels like a CLI session, not a conversation.
+### 決定 E: /plan-tune の CLI のサブコマンド構造 — 答え: 平易な英語の会話形式(サブコマンドの構文は不要)
 
-**Plain-English conversational (revised after user correction):** `/plan-tune` enters a menu. User says what they want in natural language.
-- Pros: Zero memorization. Feels like talking to a coach, not a shell.
-- Cons: Slower for power users. Requires good agent interpretation.
+**`/plan-tune profile`、`/plan-tune profile set autonomy 0.4` など(当初):**
+- 長所: パワーユーザーにとって速い。--help で自己文書化される。
+- 短所: ユーザーが覚えなければならない。どの呼び出しも、会話ではなく CLI のセッションのように感じられる。
 
-**Chosen: conversational with optional shortcuts.** Neither path is required. Most users never see the shortcuts. Confirmation step required before mutating declared profile (safety against agent misinterpretation — Codex #15 trust boundary).
+**平易な英語の会話形式(ユーザーの修正を受けて改訂):** `/plan-tune` はメニューに入る。ユーザーは、やりたいことを自然な言葉で言う。
+- 長所: 覚える必要がない。シェルではなく、コーチと話している感覚になる。
+- 短所: パワーユーザーにとっては遅い。エージェントの解釈が良い必要がある。
 
-### Decision F: Landed celebration — passive preamble detection vs. explicit command vs. post-ship hook — ANSWER: DEFERRED TO v2; WHEN PROMOTED, NOT IN PREAMBLE
+**選んだもの: 会話形式と任意の短縮形。** どちらの経路も必須ではない。ほとんどのユーザーは短縮形を見ることがない。宣言されたプロファイルを変更する前には、確認のステップを必須とする(エージェントの誤解から守るため。Codex #15 の信頼境界)。
 
-**Passive detection in preamble (original):** Every skill's preamble runs `gh pr view` to detect recent merges.
-- Pros: Works regardless of which skill the user runs. User doesn't need to do anything special.
-- Cons (Codex #9): Latency, auth failures, rate limits, surprise browser opens, nondeterminism injected into every skill's preamble. Side effect in hot path.
+### 決定 F: LANDED の祝賀 — プリアンブルでの受動的な検出 vs. 明示的なコマンド vs. マージ後のフック — 答え: v2 に延期。昇格する際は、プリアンブルには置かない
 
-**Explicit command (`/plan-tune show-landed`):** User opts in.
-- Pros: No hot-path side effects. User controls when to see it.
-- Cons: Requires user discovery. The "surprise you when you earned it" magic is lost.
+**プリアンブルでの受動的な検出(当初):** すべてのスキルのプリアンブルで `gh pr view` を実行し、最近のマージを検出する。
+- 長所: どのスキルを実行しても機能する。ユーザーは特別なことをする必要がない。
+- 短所(Codex #9): 遅延、認証の失敗、レート制限、予期しないブラウザの起動、すべてのスキルのプリアンブルに持ち込まれる非決定性。最も頻繁に通る経路での副作用。
 
-**Post-ship hook (`/ship` triggers detection after PR creation):** Tied to /ship.
-- Pros: Natural timing. No preamble cost.
-- Cons: /ship isn't always the landing event (manual merges, team members merging, etc.).
+**明示的なコマンド(`/plan-tune show-landed`):** ユーザーがオプトインする。
+- 長所: 最も頻繁に通る経路での副作用がない。いつ見るかをユーザーが決められる。
+- 短所: ユーザーが見つけなければならない。「努力が報われた瞬間に驚かせる」という魅力が失われる。
 
-**Chosen: DEFERRED entirely.** v2 will design this properly. When promoted, it moves out of preamble. User accepted Codex's argument that a celebration page in the preamble is strategic misfit for an already-risky feature.
+**マージ後のフック(`/ship` が PR 作成後に検出を実行):** /ship に結び付ける。
+- 長所: 自然なタイミング。プリアンブルのコストがない。
+- 短所: /ship が常にマージのイベントとは限らない(手動のマージ、チームメンバーによるマージなど)。
 
-### Decision G: Calibration gate — 20 events vs. diversity-checked — ANSWER: DIVERSITY-CHECKED
+**選んだもの: 完全に延期。** v2 で適切に設計する。昇格する場合、プリアンブルの外に移す。Codex の論点を、ユーザーが受け入れた。すでにリスクの高い機能にとって、プリアンブルの中の祝賀ページは戦略的に合わない。
 
-**"20 events" (original):** Simple count.
-- Pros: Trivial to implement.
-- Cons (Codex #13): Gameable. 20 inline "unnecessary" replies to ONE question should not calibrate five dimensions.
+### 決定 G: 較正のゲート — 20 イベント vs. 多様性を確認 — 答え: 多様性を確認
 
-**Diversity check (revised):** `sample_size >= 20 AND skills_covered >= 3 AND question_ids_covered >= 8 AND days_span >= 7`.
-- Pros: Profile has actually been exercised across the system before it's trusted.
-- Cons: Slightly more complex.
+**「20 イベント」(当初):** 単純な件数。
+- 長所: 実装が簡単。
+- 短所(Codex #13): 抜け道がある。1 つの質問に対する 20 件の inline の「unnecessary」の返信で、5 つの次元を較正してはならない。
 
-**Chosen: diversity check.** In v1 used only for "enough data to display" threshold. In v2 will be the gate for psychographic-driven auto-decide.
+**多様性のチェック(改訂後):** `sample_size >= 20 AND skills_covered >= 3 AND question_ids_covered >= 8 AND days_span >= 7`。
+- 長所: 信頼される前に、プロファイルがシステム全体で実際に使われていることを確認できる。
+- 短所: 少し複雑になる。
 
-### Decision H: Implementation order — classifiers first vs. integration point first — ANSWER: INTEGRATION POINT FIRST (registry + CI lint)
+**選んだもの: 多様性のチェック。** v1 では「表示するのに十分なデータがあるか」の閾値としてのみ使う。v2 では、心理特性に基づく自動決定のゲートになる。
 
-**Classifiers first (original):** Build bin tools, then resolvers, then skill template.
-- Pros: Atomic building blocks. Can unit-test before integration.
-- Cons (Codex #19): Builds machinery around an unenforceable convention. If the convention doesn't hold, all the work is wasted.
+### 決定 H: 実装の順序 — 分類器を先に vs. 統合ポイントを先に — 答え: 統合ポイントを先に(レジストリ + CI の lint)
 
-**Integration point first (revised):** Build typed registry + CI lint first. Prove the integration works before building infrastructure on top.
-- Pros: Foundation is proven. Infrastructure has something durable to rely on.
-- Cons: Requires auditing every existing AskUserQuestion in gstack — substantial up-front work.
+**分類器を先に(当初):** まず bin のツールを作り、次にリゾルバー、最後にスキルのテンプレート。
+- 長所: 独立したビルディングブロック。統合の前に単体テストできる。
+- 短所(Codex #19): 強制できない約束事の周りに仕組みを作ってしまう。約束事が成り立たなければ、作業はすべて無駄になる。
 
-**Chosen: integration point first.** Codex's argument was decisive. The audit is exactly the point — it forces us to catalog what we actually have before building adaptation on top.
+**統合ポイントを先に(改訂後):** まず型付きのレジストリと CI の lint を作る。その上に仕組みを作る前に、統合が機能することを証明する。
+- 長所: 基盤が証明されている。インフラが頼れる、持続するものを得られる。
+- 短所: gstack のすべての AskUserQuestion を監査する必要があり、最初に大きな作業が必要になる。
 
-### Decision I: Telemetry for TTHW — opt-in telemetry vs. local-only — ANSWER: LOCAL-ONLY
+**選んだもの: 統合ポイントを先に。** Codex の論点が決定的だった。監査こそが要点である。何があるのかを先に目録にし、その上に適応を積む前に、強制する。
 
-**Opt-in telemetry (original, suggested in DX review):** Instrument TTHW via telemetry event.
-- Pros: Quantitative measure of onboarding experience across all users.
-- Cons (Codex #14): Contradicts local-first OSS framing. Adds telemetry surface specifically for this skill.
+### 決定 I: TTHW のテレメトリ — オプトインのテレメトリ vs. ローカルのみ — 答え: ローカルのみ
 
-**Local-only (revised):** Logging is local. Respect existing `telemetry` config; skill adds no new telemetry channels.
-- Pros: Consistent with gstack's local-first ethos.
-- Cons: No aggregate view of onboarding time.
+**オプトインのテレメトリ(当初、DX レビューで提案):** テレメトリのイベントで TTHW を計測する。
+- 長所: すべてのユーザーのオンボーディング体験を定量的に計測できる。
+- 短所(Codex #14): ローカルファーストのオープンソースの枠組みと矛盾する。このスキルのためだけに、テレメトリの窓口を増やす。
 
-**Chosen: local-only.** If we need TTHW data later, we add it as a gstack-wide telemetry event behind existing opt-in, not a skill-specific one.
+**ローカルのみ(改訂後):** ログはローカルに残す。既存の `telemetry` の設定を尊重する。スキルは新しいテレメトリの経路を追加しない。
+- 長所: gstack のローカルファーストの理念と一貫する。
+- 短所: オンボーディングの時間の集計ビューがない。
 
-### Decision J: Profile poisoning defense — no defense vs. confirmation gate vs. user-origin gate — ANSWER: USER-ORIGIN GATE
+**選んだもの: ローカルのみ。** 後で TTHW のデータが必要になったら、このスキル専用ではなく、既存のオプトインの背後にある gstack 全体のテレメトリのイベントとして追加する。
 
-**No defense (original — caught by Codex):** Agent writes any tune event it sees.
-- Pros: Simplest. No additional trust checks.
-- Cons (Codex #16): Malicious repo content, PR descriptions, tool output can inject `tune: never ask` and poison the profile. This is a real attack surface.
+### 決定 J: プロファイル汚染の防御 — 防御なし vs. 確認のゲート vs. ユーザー起源のゲート — 答え: ユーザー起源のゲート
 
-**Confirmation gate:** Every tune write prompts "Confirmed? [Y/n]".
-- Pros: Universal defense.
-- Cons: Friction on every legitimate use.
+**防御なし(当初。Codex が指摘):** エージェントは、見た tune のイベントをすべて書き込む。
+- 長所: 最も単純。追加の信頼のチェックがない。
+- 短所(Codex #16): 悪意のあるリポジトリの内容、PR の説明、ツールの出力が、`tune: never ask` を注入してプロファイルを汚染しうる。これは現実の攻撃対象である。
 
-**User-origin gate:** Agent only writes tune events when the `tune:` prefix appears in the user's own chat message for the current turn (not tool output, not file content). Binary validates `source: "inline-user"`.
-- Pros: Blocks the attack without friction on legitimate use.
-- Cons: Relies on agent correctly identifying source. Binary-level validation is the enforcement.
+**確認のゲート:** tune を書くたびに「確認しますか? [Y/n]」と尋ねる。
+- 長所: 汎用的な防御。
+- 短所: 正当な利用のすべてで摩擦になる。
 
-**Chosen: user-origin gate.** Matches the threat model (malicious content in automated inputs) without degrading the normal flow.
+**ユーザー起源のゲート:** エージェントは、現在のターンでユーザー自身のチャットのメッセージに `tune:` のプレフィックスが現れた場合にのみ、tune のイベントを書く(ツールの出力やファイルの内容は不可)。バイナリは `source: "inline-user"` を検証する。
+- 長所: 正当な利用に摩擦を生まずに、攻撃を防げる。
+- 短所: エージェントが source を正しく識別することに依存する。バイナリレベルの検証が強制の手段。
 
-## Success Criteria
+**選んだもの: ユーザー起源のゲート。** 脅威モデル(自動化された入力に含まれる悪意のあるコンテンツ)に合い、通常の流れを損なわない。
 
-- `bun test` passes including new `test/plan-tune.test.ts`.
-- Every AskUserQuestion invocation in every SKILL.md.tmpl has a registry entry. CI lint enforces.
-- Migration from `~/.gstack/builder-profile.jsonl` preserves 100% of sessions + signals_accumulated. Regression test with 7-session fixture.
-- One-way door registry-declared entries: 100% of destructive ops, architecture forks, scope-adds > 1 day CC effort, security/compliance choices are classified `one-way`.
-- User-origin gate test: attempting to write a tune event with `source: "inline-tool-output"` is rejected.
-- Dogfood: Garry uses `/plan-tune` for 2+ weeks. Reports back whether:
-  - `tune: never-ask` felt natural to type or got ignored
-  - Registry maintenance (adding new questions) felt like reasonable discipline or schema bureaucracy
-  - Inferred dimensions were stable across sessions or noisy
-  - Plain-English interaction felt like a coach or like arguing with a chatbot
+## 成功基準
 
-## Implementation Order
+- `bun test` が、新しい `test/plan-tune.test.ts` を含めてすべて通る。
+- すべての SKILL.md.tmpl の AskUserQuestion の呼び出しに、レジストリのエントリがある。CI の lint で強制する。
+- `~/.gstack/builder-profile.jsonl` からの移行で、セッションと signals_accumulated の 100% が保持される。7 セッションのフィクスチャによる回帰テスト。
+- 一方向ドアとして宣言されたエントリ: 破壊的な操作、アーキテクチャの分岐、1 日超の CC の工数に当たるスコープの追加、セキュリティ/コンプライアンスの選択、のすべてが `one-way` に分類される(100%)。
+- ユーザー起源のゲートのテスト: `source: "inline-tool-output"` で tune のイベントを書こうとすると拒否される。
+- ドッグフーディング: Garry が `/plan-tune` を 2 週間以上使い、次を報告する。
+  - `tune: never-ask` は、打ちやすかったか、無視されたか
+  - レジストリの維持(新しい質問の追加)は、妥当な規律に感じられたか、スキーマの官僚主義に感じられたか
+  - 推論された次元は、セッションをまたいで安定していたか、それともノイズが多かったか
+  - 平易な英語の対話は、コーチと話している感じだったか、チャットボットと言い合っている感じだったか
 
-1. Audit every `AskUserQuestion` invocation in every gstack SKILL.md.tmpl. Build initial `scripts/question-registry.ts` with IDs, categories, door_types, options. This is the foundation; everything else sits on it.
-2. Write `test/plan-tune.test.ts` registry-completeness test (gate tier). Verify it catches drift — temporarily remove one registry entry, confirm CI fails.
-3. Seed `scripts/one-way-doors.ts` with keyword-pattern fallback classifier.
-4. Seed `scripts/psychographic-signals.ts` with initial `{question_id, user_choice} → {dimension, delta}` mappings. Numbers are tentative — v1 ships, v2 recalibrates.
-5. Seed `scripts/archetypes.ts` with archetype definitions (referenced by future v2 `/plan-tune vibe`).
-6. `bin/gstack-question-log` — validates against registry, rejects unknown IDs.
-7. `bin/gstack-question-preference` — all subcommands + tests.
-8. `bin/gstack-developer-profile` — `--read` (legacy), `--derive`, `--gap`, `--profile`.
-9. Migration script — builder-profile.jsonl → unified developer-profile.json. Atomic, idempotent, archives source. Regression test with fixture.
-10. `scripts/resolvers/question-tuning.ts` — three generators (preference check, log, inline tune with user-origin gate instructions).
-11. Register the 3 resolvers in `scripts/resolvers/index.ts`.
-12. Update `scripts/resolvers/preamble.ts` — `_QUESTION_TUNING` config read; conditionally inject for tier >= 2 skills.
-13. `plan-tune/SKILL.md.tmpl` — conversational plain-English skill.
-14. `bun run gen:skill-docs` — all SKILL.md files regenerated; verify each stays under 100KB token ceiling.
-15. `bun test` — all 45+ test cases green.
-16. Dogfood 2+ weeks. Collect real question-log + preferences data. Measure against success criteria.
-17. `/ship` v1. v2 scope discussion after dogfood.
+## 実装の順序
 
-## Open Questions (v2 scope decisions, deferred until real data)
+1. すべての gstack の SKILL.md.tmpl の AskUserQuestion の呼び出しを監査する。ID、カテゴリ、door_type、選択肢を含む、初期の `scripts/question-registry.ts` を作る。これが基盤であり、他のすべてはその上に乗る。
+2. `test/plan-tune.test.ts` のレジストリの完全性テスト(gate tier)を書く。ずれを検出できることを確認する。一つのレジストリのエントリを一時的に削除し、CI が失敗することを確かめる。
+3. `scripts/one-way-doors.ts` にキーワードのパターンによるフォールバックの分類器を用意する。
+4. `scripts/psychographic-signals.ts` に、初期の `{question_id, user_choice} → {dimension, delta}` の対応づけを用意する。数値は暫定的。v1 で出荷し、v2 で再較正する。
+5. `scripts/archetypes.ts` に、アーキタイプの定義を用意する(将来の v2 の `/plan-tune vibe` が参照する)。
+6. `bin/gstack-question-log` — レジストリに照らして検証し、未知の ID を拒否する。
+7. `bin/gstack-question-preference` — すべてのサブコマンドとテスト。
+8. `bin/gstack-developer-profile` — `--read`(旧版)、`--derive`、`--gap`、`--profile`。
+9. 移行スクリプト — builder-profile.jsonl を統一された developer-profile.json に取り込む。アトミック、冪等、元のファイルをアーカイブする。フィクスチャによる回帰テスト。
+10. `scripts/resolvers/question-tuning.ts` — 3 つの生成関数(好みの確認、ログ、ユーザー起源のゲートの指示を含む inline tune)。
+11. `scripts/resolvers/index.ts` に 3 つのリゾルバーを登録する。
+12. `scripts/resolvers/preamble.ts` を更新する — `_QUESTION_TUNING` の設定を読む。tier >= 2 のスキルに条件付きで注入する。
+13. `plan-tune/SKILL.md.tmpl` — 会話形式で平易な英語のスキル。
+14. `bun run gen:skill-docs` — すべての SKILL.md を再生成する。各ファイルが 100KB のトークン上限の内に収まることを確認する。
+15. `bun test` — 45 件を超えるテストケースがすべて通る。
+16. 2 週間以上ドッグフーディングする。実際の question-log と好みのデータを集める。成功基準に照らして測定する。
+17. `/ship` で v1 を出荷する。v2 のスコープの議論は、ドッグフーディングの後に行う。
 
-1. Exact signal map deltas. v1 ships with initial guesses; v2 recalibrates from observed data.
-2. When `inferred` and `declared` gap becomes large, do we auto-suggest updating `declared`? Or just display?
-3. When a signal map version changes, do we auto-recompute or prompt user? Default: auto-recompute with diff display.
-4. Cross-project profile inheritance vs. isolation. v1 is per-project preferences + global profile; v2 may add explicit cross-project learning opt-ins.
-5. Should /plan-tune support a "team profile" mode where a shared developer-profile informs collaboration? v2+.
+## 未解決の問題(v2 のスコープの決定。実データが得られるまで延期)
 
-## Reviews incorporated
+1. シグナルマップの正確な差分。v1 は初期の推測値で出荷する。v2 は観察データをもとに再較正する。
+2. `inferred` と `declared` のギャップが大きくなったとき、`declared` の更新を自動で提案するか。それとも表示するだけか。
+3. シグナルマップのバージョンが変わったとき、自動で再計算するか、ユーザーに尋ねるか。デフォルト: 差分の表示とともに自動で再計算する。
+4. プロジェクトをまたぐプロファイルの継承と分離。v1 はプロジェクトごとの好みとグローバルなプロファイル。v2 では、明示的なプロジェクト横断の学習へのオプトインを追加するかもしれない。
+5. /plan-tune は「チームのプロファイル」モードを持つべきか。共有の developer-profile が協業に役立つ場合。v2 以降。
 
-- **/office-hours (2026-04-16, 1 session):** Set 5 hard constraints, chose event-sourced + user-declared architecture.
-- **/plan-ceo-review (2026-04-16, EXPANSION mode):** 6 expansions accepted, later rolled back after Codex review.
-- **/plan-devex-review (2026-04-16, POLISH mode):** Plain-English interaction model; this survived to v1.
-- **/plan-eng-review (2026-04-16):** Test plan and completeness checks; partially superseded by registry-first rewrite.
-- **/codex (2026-04-16, gpt-5.4 high reasoning):** 20-point critique drove the rollback. 15+ legitimate findings the Claude reviews missed.
+## 取り込まれたレビュー
 
-## Credits and caveats
+- **/office-hours(2026-04-16、1 セッション):** ハード制約 5 つを設定。イベントソース + ユーザー宣言のアーキテクチャを選択。
+- **/plan-ceo-review(2026-04-16、EXPANSION モード):** 6 件の拡張を受け入れたが、Codex のレビュー後にロールバックした。
+- **/plan-devex-review(2026-04-16、POLISH モード):** 平易な英語の対話モデル。これは v1 まで残った。
+- **/plan-eng-review(2026-04-16):** テスト計画と完全性のチェック。レジストリ優先の書き直しにより、一部が置き換えられた。
+- **/codex(2026-04-16、gpt-5.4 high reasoning):** ロールバックのきっかけとなった 20 項目の批評。Claude によるレビューが見落としていた 15 件以上の妥当な指摘。
 
-This plan was developed through an iterative AI-collaboration loop over ~6 hours of planning. The author (Garry Tan) directed every scope decision; AI voices (Claude Opus 4.7 and OpenAI Codex gpt-5.4) challenged and refined the plan. Without Codex's outside voice, a much larger and less-defensible plan would have shipped. The value of cross-model review on high-stakes architectural changes is real and measurable.
+## クレジットと注意点
+
+この計画は、約 6 時間にわたる反復的な AI との共同作業のループを通じて作られた。作者(Garry Tan)がすべてのスコープの決定を指示した。AI の声(Claude Opus 4.7 と OpenAI Codex gpt-5.4)が、計画に異議を唱え、洗練させた。Codex の外部の視点がなければ、はるかに大きく、弁護しにくい計画が出荷されていたはずだ。重大なアーキテクチャの変更に対するクロスモデルのレビューの価値は、現実的で測定可能である。

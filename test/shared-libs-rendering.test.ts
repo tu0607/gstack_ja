@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { ALL_HOST_CONFIGS } from '../hosts';
 import { discoverTemplates } from '../scripts/discover-skills';
 import { sharedLibsPlanExcerpt } from './helpers/shared-libs-plan-excerpt';
+import { compact, expectMentions } from './helpers/prompt-structure';
 
 const ROOT = resolve(import.meta.dir, '..');
 let output: string;
@@ -33,72 +34,80 @@ describe('shared-code skill distribution', () => {
       tmpl: 'deslop-shared-libs/SKILL.md.tmpl', output: 'deslop-shared-libs/SKILL.md',
     });
     expect(readFileSync(join(output, 'gstack/llms.txt'), 'utf8')).toContain('deslop-shared-libs');
-    expect(readFileSync(join(output, 'SKILL.md'), 'utf8')).toContain('invoke `/deslop-shared-libs`');
+    expectMentions(readFileSync(join(output, 'SKILL.md'), 'utf8'), [['`/deslop-shared-libs`', '呼び出す']], 'router SKILL.md');
   });
 
   for (const host of ALL_HOST_CONFIGS) {
     test(`${host.name}: all three workflows receive the same evaluation criteria`, () => {
       const texts = ['deslop-shared-libs', 'plan-eng-review', 'review'].map(skill => rendered(host, skill));
       for (const text of texts) {
-        expect(text.match(/### Shared-code evaluation rubric/g)?.length).toBe(1);
-        expect(text).toContain('at least two verified, first-party authored source');
-        expect(text).toContain('Count moved code on both sides');
-        expect(text).toContain('Only an engineering-plan review may use proposed callers');
+        expect(text.match(/### 共有コードの評価ルーブリック/g)?.length).toBe(1);
+        expectMentions(compact(text), [
+          ['検証済み', '一次的', '少なくとも 2 箇所'],
+          ['移動したコード', '両側'],
+          ['提案段階の呼び出し元', 'エンジニアリングプランのレビュー'],
+        ], 'shared-code rubric');
         expect(text).not.toContain('{{SHARED_LIBS_RUBRIC}}');
       }
       const standalone = texts[0];
       expect(standalone).not.toContain('gstack-skill-start');
       expect(standalone).not.toContain('gstack-skill-end');
       expect(standalone).not.toContain('## Preamble');
-      expect(standalone).toContain('five metadata pages and fifty');
-      expect(standalone).toContain('including repeated page numbers');
-      expect(standalone).toContain('temporary files and files outside the repository');
-      expect(standalone).toContain('Keep API responses and intermediate data on stdout or in memory');
+      expectMentions(compact(standalone), [
+        ['5 ページ', '50 ページ'],
+        ['繰り返しのページ番号'],
+        ['一時ファイル', 'リポジトリの外'],
+        ['API のレスポンス', '標準出力', 'メモリ'],
+      ], 'standalone budget and write boundary');
       // Git safety is the installed helper from the trusted global runtime, not a retyped prefix.
       const safeGit = `~/${host.globalRoot}/bin/gstack-safe-git`;
       expect(standalone).toContain(`${safeGit} -C <repo> rev-parse --is-inside-work-tree`);
       expect(standalone).toContain(`${safeGit} ls-files --cached --others --exclude-standard -z`);
-      expect(standalone).toContain('never bare `git`');
+      expectMentions(compact(standalone), [['決して', '素の `git`']], 'standalone git safety');
       expect(standalone).not.toContain('git --no-pager');
       expect(standalone).not.toContain('$GSTACK_ROOT');
       expect(standalone).not.toContain('{{SAFE_GIT}}');
       expect(standalone).toContain('python3 -I -S');
-      expect(standalone).toContain('two explicit committed object IDs');
-      expect(standalone).toContain('same Git tree');
-      expect(standalone).toContain('Do not invoke Git');
-      expect(standalone).toContain('transports, including `ls-remote`');
-      expect(standalone).toContain('including by decoding loose');
+      expectMentions(compact(standalone), [
+        ['正確に 2 つ', 'コミット済みのオブジェクト ID'],
+        ['同じ Git のツリー'],
+        ['Git のトランスポート', '呼び出してはいけません'],
+        ['`ls-remote`', 'トランスポート'],
+        ['ルーズオブジェクト', 'デコード'],
+      ], 'standalone git transport rules');
       expect(texts[2]).toContain('snapshot_covered_paths');
-      expect(texts[2]).toContain('Exclude assume-unchanged, skip-worktree');
-      expect(texts[2]).toContain('byte-for-byte with its blob');
+      expectMentions(compact(texts[2]), [['assume-unchanged', 'skip-worktree'], ['blob', 'バイト単位', '一致']], 'review snapshot coverage');
       for (const [skill, parent] of [['review', texts[2]], ['ship', rendered(host, 'ship')]]) {
-        const validation = parent.indexOf(skill === 'ship' ? '1. **Validate severity.**' : '**Validate advisory severity first.**');
+        const validation = parent.indexOf(skill === 'ship' ? '1. **重大度を検証します。**' : '**まず advisory の重大度を検証します。**');
         expect(validation).toBeGreaterThanOrEqual(0);
-        expect(validation).toBeLessThan(parent.indexOf(skill === 'ship' ? '2. **Read decisions.**' : 'Before classifying findings, check'));
+        expect(validation).toBeLessThan(parent.indexOf(skill === 'ship' ? '2. **判断を読みます。**' : '指摘を分類する前に'));
         if (skill === 'ship') {
           const matching = parent.slice(validation).replace(/\s+/g, ' ');
-          expect(matching).toContain('For CRITICAL/advisory contradictions, remove `advisory`, never downgrade severity');
-          expect(matching).toContain('Valid INFORMATIONAL advisories stay advisory, including simplification');
-          expect(matching).toContain('Reject contradictory saved decisions');
-          expect(matching).toContain('they cannot suppress defects');
+          expectMentions(matching, [
+            ['CRITICAL', 'advisory', '`advisory` を外し', '決して下げません'],
+            ['INFORMATIONAL', 'advisory のまま', 'simplification'],
+            ['矛盾する保存済みの判断', '拒否'],
+            ['欠陥', '抑制'],
+          ], 'ship severity validation');
         } else {
-          expect(parent).toContain('remove `advisory` and retain its `CRITICAL` severity');
-          expect(parent).toContain('Never downgrade severity to make advisory metadata consistent');
-          expect(parent).toContain('Valid INFORMATIONAL advisories remain advisory in every category, including simplification');
-          expect(parent).toContain('contradictory CRITICAL/advisory metadata cannot establish a skipped defect or advisory decision');
+          expectMentions(compact(parent), [
+            ['`advisory` を', '`CRITICAL` の重大度を保持'],
+            ['重大度を下げてはいけません', 'advisory'],
+            ['INFORMATIONAL', 'advisory のまま', 'simplification'],
+            ['CRITICAL', 'advisory', '矛盾', '根拠にはなりません'],
+          ], 'review severity validation');
         }
         if (host.name !== 'codex' && !host.suppressedResolvers?.includes('REVIEW_ARMY')) {
-          const stages = ['#### 1. Parse outputs', '#### 2. Validate severity', '#### 3. Identify and merge',
-            '#### 4. Apply specialist confidence gates', '#### 5. Score and present specialists'];
+          const stages = ['#### 1. 出力を解析する', '#### 2. 重大度を検証する', '#### 3. 識別とマージ',
+            '#### 4. スペシャリストの信頼度ゲートを適用する', '#### 5. スペシャリストをスコア化して提示する'];
           const positions = stages.map(stage => parent.indexOf(stage));
           expect(positions.every(position => position >= 0)).toBe(true);
           expect(positions).toEqual([...positions].sort((a, b) => a - b));
           const merge = parent.slice(positions[1], positions[2]).replace(/\s+/g, ' ');
-          expect(merge).toContain('remove `advisory` and retain its `CRITICAL` severity');
-          expect(merge).toContain('Never downgrade severity');
-          expect(parent).toContain('Only specialist findings enter this header and `quality_score`; core findings do not');
+          expectMentions(compact(merge), [['`advisory` を', '`CRITICAL` の重大度を保持'], ['重大度を下げてはいけません']], 'review army merge');
+          expectMentions(compact(parent), [['`quality_score`', 'スペシャリストの指摘だけ'], ['コアの指摘は入れません']], 'specialist header scope');
         } else {
-          expect(parent).not.toContain('#### 1. Parse outputs');
+          expect(parent).not.toContain('#### 1. 出力を解析する');
           expect(parent).not.toContain('SPECIALIST REVIEW: N findings');
         }
       }
@@ -108,8 +117,8 @@ describe('shared-code skill distribution', () => {
   test('Codex keeps the core check when Review Army is suppressed', () => {
     const codex = ALL_HOST_CONFIGS.find(host => host.name === 'codex')!;
     const review = rendered(codex, 'review');
-    expect(review).not.toContain('### Dispatch specialists');
-    expect(review).toContain('### Shared-code evaluation rubric');
+    expect(review).not.toContain('### スペシャリストを並列にディスパッチする');
+    expect(review).toContain('### 共有コードの評価ルーブリック');
     expect(review).toContain('sharedLibsFingerprint');
     expect(review).toContain('advisory');
     expect(review).toContain('ASK');
@@ -119,23 +128,25 @@ describe('shared-code skill distribution', () => {
     const entrypoint = readFileSync(join(output, 'plan-eng-review/SKILL.md'), 'utf8');
     const review = readFileSync(join(output, 'plan-eng-review/sections/review-sections.md'), 'utf8');
     const excerpt = sharedLibsPlanExcerpt(entrypoint, review);
-    const headings = ['## AskUserQuestion Format', '## My engineering preferences',
-      '## Review record and write policy', '**Plan-review evidence:**',
-      '## Confidence Calibration', '## Decision procedure',
-      '### Prepare an unanswered choice', '**Separate independent choices.**',
-      '**Compare one choice.**', '**Pending-record checkpoint.**',
-      '### Send once and wait', '### Record the answer',
-      '### 2. Code quality review', '### Shared-code evaluation rubric', '**Blocked outcome:**'];
+    const headings = ['## AskUserQuestion Format', '## 私のエンジニアリングの好み',
+      '## Review record and write policy', '**プランレビューの根拠:**',
+      '## Confidence Calibration', '## Decision procedure(決定の手順)',
+      '### 未回答の選択を準備する', '**独立した選択を分ける。**',
+      '**一つの選択を比較する。**', '**保留中の記録のチェックポイント。**',
+      '### 一度送信して待つ', '### 回答を記録する',
+      '### 2. コード品質のレビュー', '### 共有コードの評価ルーブリック', '**Blocked outcome:**'];
     const positions = headings.map(heading => excerpt.indexOf(heading));
     expect(positions.every(index => index >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
-    expect(excerpt.match(/^## Decision procedure$/gm)).toHaveLength(1);
+    expect(excerpt.match(/^## Decision procedure\(決定の手順\)$/gm)).toHaveLength(1);
     expect(excerpt).toContain('AskUserQuestion({ questions: [currentDecision] })');
-    expect(excerpt).toContain('D-numbering: exclude the initial target menu');
-    expect(excerpt).toContain('**Check each artifact and parent directory\'s permission before writing.**');
-    expect(excerpt).toContain('Check the Write/Edit result, then use Read to fetch the entire saved record.');
-    expect(excerpt).toContain('Check the save result, then Read the entire resolution block, including State.');
-    expect(excerpt).toContain('Only an engineering-plan review may use proposed callers');
+    expectMentions(compact(excerpt), [
+      ['D の採番', '最初の対象メニューは除きます'],
+      ['書き込みの前に', '成果物', '親ディレクトリの権限'],
+      ['Write/Edit', 'Read', '保存された記録全体'],
+      ['保存結果を確認', 'State', '解決ブロック全体', 'Read'],
+      ['提案段階の呼び出し元', 'エンジニアリングプランのレビュー'],
+    ], 'plan excerpt');
     expect(excerpt).not.toMatch(/^## (?:Scope Challenge|Outside Voice|Required outputs)/m);
     expect(excerpt).not.toMatch(/^### [134]\. (?:Architecture|Test|Performance) review/m);
     expect(excerpt).not.toContain('gstack-skill-start --');
@@ -144,12 +155,12 @@ describe('shared-code skill distribution', () => {
     for (const [source, start, end] of [
       [entrypoint, '## AskUserQuestion Format', '## Artifacts Sync'],
       [review, '## Review record and write policy', '## Prior Learnings'],
-      [review, '## Decision procedure', '## Scope Challenge'],
-      [review, '### 2. Code quality review', '### 3. Test review'],
+      [review, '## Decision procedure(決定の手順)', '## Scope Challenge'],
+      [review, '### 2. コード品質のレビュー', '### 3. テストのレビュー'],
     ]) expect(excerpt).toContain(source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start))));
 
     for (const [source, marker] of [[entrypoint, '## AskUserQuestion Format'],
-      [review, '## Review record and write policy'], [review, '## Decision procedure'],
+      [review, '## Review record and write policy'], [review, '## Decision procedure(決定の手順)'],
       [review, '## Scope Challenge']] as const) {
       const damaged = source.replace(marker, '## Missing prerequisite');
       expect(() => sharedLibsPlanExcerpt(source === entrypoint ? damaged : entrypoint,
@@ -162,14 +173,17 @@ describe('shared-code skill distribution', () => {
     // "Main risk: none found inside the repo" / "none in behavior" for the top recommendation.
     for (const host of ALL_HOST_CONFIGS) {
       const text = rendered(host, 'deslop-shared-libs').replace(/\s+/g, ' ');
-      expect(text, host.name).toContain('name the main risk or uncertainty: a concrete behavior that could differ after migration, or the shared-failure blast radius, never "none".');
+      expectMentions(text, [['主なリスク'], ['移行後に異なりうる具体的な振る舞い', '共有の失敗の影響範囲', '「なし」とは決して書かない']], host.name);
     }
   });
 
-  test('standalone catalog entry adds exactly the approved 82 bytes', () => {
+  test('standalone catalog entry keeps a bounded multi-line description', () => {
     const skill = readFileSync(join(output, 'deslop-shared-libs/SKILL.md'), 'utf8');
-    const description = skill.match(/^description: (.+)$/m)?.[1];
-    expect(description).toBe('Find worthwhile shared-code extractions in recent work. (gstack)');
-    expect(Buffer.byteLength('deslop-shared-libs') + Buffer.byteLength(description!)).toBe(82);
+    const description = skill.match(/^description: \|\n((?:  .+\n)+)/m)?.[1];
+    expect(description).toBeDefined();
+    expect(description!.trimEnd().endsWith('(gstack)')).toBe(true);
+    expect(description).toContain('/deslop-shared-libs');
+    // The always-loaded catalog budget itself is pinned by test/catalog-budget.test.ts.
+    expect(Buffer.byteLength('deslop-shared-libs') + Buffer.byteLength(description!)).toBeLessThan(600);
   });
 });

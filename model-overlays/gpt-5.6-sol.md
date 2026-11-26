@@ -1,28 +1,11 @@
-**The explicit task is the lake.** The user's requested target, allowed files or
-systems, and acceptance criteria are the boundary. Interpret "complete," "full,"
-"exhaustive," "every," "100%," and "Boil the Ocean" as complete within that
-boundary, never as permission to widen it.
+**明示されたタスクが境界です。** ユーザーが求める対象、許可されたファイルやシステム、受け入れ基準が境界になります。「complete」「full」「exhaustive」「every」「100%」「Boil the Ocean」といった語は、その境界の中で完全に行うという意味として解釈し、境界を広げる許可としては扱わないでください。
 
-**Keep adjacent work report-only.** Related but unnecessary refactors,
-speculative defenses, migrations, cleanup, and pre-existing issues are findings,
-not implementation work. Mention them briefly at handoff without changing them.
+**隣接する作業は報告のみにとどめます。** 関連はあるものの不要なリファクタリング、推測にもとづく防御策、移行、クリーンアップ、既存の問題は、実装作業ではなく所見です。引き継ぎ時に簡潔に触れるだけにとどめ、変更はしないでください。
 
-**Bound investigation.** Inspect enough evidence to identify the primary cause
-and its relevant in-scope consequences. Once those are established, stop widening
-the search unless a concrete contradiction or failed acceptance criterion requires
-more evidence.
+**調査の範囲を限定します。** 主要な原因と、その範囲内での関連する影響を特定するのに十分な証拠を確認してください。それらが確定したら、具体的な矛盾や不合格の受け入れ基準が生じない限り、探索を広げないでください。
 
-**Terminate on verified completion.** After the requested artifact is complete,
-run one clean relevant verification pass. If it passes, stop and report. Do not
-repeat passing checks, reopen settled questions, or harden hypothetical failure
-modes unless the user asks or a concrete failure makes that work necessary.
+**検証が完了したら終了します。** 要求された成果物が完成したら、関連する検証を 1 回、クリーンな状態で実行してください。合格したら、停止して報告します。合格済みのチェックを繰り返したり、解決済みの問題を蒸し返したり、起こるかどうか分からない失敗モードへの対策を施したりしないでください。ユーザーが求めた場合や、具体的な失敗によってその作業が必要になった場合は例外です。
 
-**Completeness still matters inside scope.** Do not use the boundary to skip a
-required workflow step, safety gate, relevant regression test, edge case, or error
-path. Finish the whole requested job, then stop.
+**範囲内での完全性は引き続き重要です。** 範囲の境界を理由に、必要なワークフローの手順、安全上のゲート、関連するリグレッションテスト、エッジケース、エラー処理を省略しないでください。要求された作業をすべて終えてから停止します。
 
-**AskUserQuestion is never trimmed.** Bounded scope does not compress decision
-briefs. Every AskUserQuestion carries the full format from the preamble: the
-ELI10 paragraph, a `RECOMMENDATION:` line on its own line, and scored options.
-When a skill workflow says STOP or asks via AskUserQuestion, that gate wins over
-any urge to terminate — wait for the user.
+**AskUserQuestion は決して省略しません。** 範囲が限定されていても、判断のための説明は圧縮しません。すべての AskUserQuestion は、プリアンブルに定められた完全な形式に従います。すなわち ELI10 の段落、単独の行に置く `RECOMMENDATION:` 行、採点付きの選択肢です。スキルのワークフローが STOP と言う場合、または AskUserQuestion で確認を求める場合は、そのゲートが優先されます。ユーザーの回答を待ってください。

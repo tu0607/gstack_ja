@@ -190,13 +190,13 @@ function omitDisabledSkills(content: string, disabled: string[]): string {
   if (off.size === 0) return content;
   const isOff = (ref: string) => off.has(ref.replace(/^`\/(?:gstack-)?|`$/g, ''));
   const routed = content.split('\n').flatMap(line => {
-    const m = line.match(/^(- .*→ invoke )(`\/[a-z0-9-]+`(?: or `\/[a-z0-9-]+`)*)(.*)$/);
+    const m = line.match(/^(- .*→ )(`\/[a-z0-9-]+`(?: または `\/[a-z0-9-]+`)*)( を呼び出す.*)$/);
     if (!m) return [line];
-    const kept = m[2].split(' or ').filter(ref => !isOff(ref));
-    return kept.length ? [`${m[1]}${kept.join(' or ')}${m[3]}`] : [];
+    const kept = m[2].split(' または ').filter(ref => !isOff(ref));
+    return kept.length ? [`${m[1]}${kept.join(' または ')}${m[3]}`] : [];
   }).join('\n');
   const names = [...off].map(n => `\`/${n}\``).join(', ');
-  return routed.replace('\n## Route first\n', `\n## Route first\n\nDisabled on this install (never invoke or suggest them): ${names}.\n`);
+  return routed.replace('\n## 最初にルーティング\n', `\n## 最初にルーティング\n\nこのインストールでは無効です(呼び出しも提案も決してしないこと): ${names}。\n`);
 }
 
 /** Repoint only Claude section links, retaining global bin/browse/doc paths. */
@@ -234,7 +234,7 @@ function processVoiceTriggers(content: string): string {
   if (!description) return content;
 
   // Build new description with voice triggers appended
-  const voiceLine = `Voice triggers (speech-to-text aliases): ${triggers.map(t => `"${t}"`).join(', ')}.`;
+  const voiceLine = `音声トリガー(音声入力の別名): ${triggers.map(t => `"${t}"`).join(', ')}。`;
   const newDescription = description + '\n' + voiceLine;
 
   // Replace old indented description with new in frontmatter
@@ -273,7 +273,7 @@ export interface CatalogParts {
 
 export function splitCatalogDescription(description: string): CatalogParts {
   // Voice triggers line (folded in by processVoiceTriggers earlier)
-  const voiceMatch = description.match(/Voice triggers \(speech-to-text aliases\):[^\n]+/);
+  const voiceMatch = description.match(/音声トリガー\(音声入力の別名\):[^\n]+/);
   const voiceLine = voiceMatch ? voiceMatch[0] : null;
   let working = voiceLine ? description.replace(voiceLine, '').trim() : description.trim();
 
@@ -289,7 +289,8 @@ export function splitCatalogDescription(description: string): CatalogParts {
   // exists at all, we fall back to a 20-word cut below.
   // First normalize to single-line for sentence detection, then back out.
   const collapsed = working.replace(/\s+/g, ' ').trim();
-  const sentenceMatch = collapsed.match(/^((?:[^.!?]|[.!?](?!\s|$))*[.!?])(?:\s|$)/);
+  // 日本語の文末(。！？)は後続の空白を必要としない。
+  const sentenceMatch = collapsed.match(/^((?:[^.!?。！？]|[.!?](?!\s|$))*(?:[.!?](?=\s|$)|[。！？]))/);
   // sentenceLead is the FULL first sentence (no truncation). We compute routing
   // from this position, then optionally truncate the displayed lead afterwards.
   // Truncating first then computing routing was the v1.45.0.0 bug — when the
@@ -436,7 +437,7 @@ function generateOpenAIYaml(displayName: string, shortDescription: string): stri
   return `interface:
   display_name: ${JSON.stringify(displayName)}
   short_description: ${JSON.stringify(shortDescription)}
-  default_prompt: ${JSON.stringify(`Use ${displayName} for this task.`)}
+  default_prompt: ${JSON.stringify(`このタスクには ${displayName} を使ってください。`)}
 policy:
   allow_implicit_invocation: true
 `;
@@ -563,16 +564,16 @@ function extractHookSafetyProse(tmplContent: string, hostConfig: HostConfig): st
 
   // Build safety prose based on what tools are hooked
   const toolDescriptions: Record<string, string> = {
-    Bash: 'check bash commands for destructive operations (rm -rf, DROP TABLE, force-push, git reset --hard, etc.) before execution',
-    Edit: 'verify file edits are within the allowed scope boundary before applying',
-    Write: 'verify file writes are within the allowed scope boundary before applying',
+    Bash: '実行前に、bash コマンドが破壊的な操作(rm -rf、DROP TABLE、force-push、git reset --hard など)を含まないか確認する',
+    Edit: '適用前に、ファイルの編集が許可されたスコープの境界内にあるか検証する',
+    Write: '適用前に、ファイルへの書き込みが許可されたスコープの境界内にあるか検証する',
   };
 
   const safetyChecks = matchers
-    .map(t => toolDescriptions[t] || `check ${t} operations for safety`)
-    .join(', and ');
+    .map(t => toolDescriptions[t] || `${t} の操作の安全性を確認する`)
+    .join('、および ');
 
-  return `> **Safety Advisory — not enforced on ${hostConfig.displayName}:** advisory, not blocked. ${hostConfig.displayName} runs no gstack safety hooks, so nothing stops a command automatically. On Claude Code this skill's hooks ${safetyChecks}; here, do those checks yourself: always pause and verify before executing potentially destructive operations. If uncertain about a command's safety, ask the user for confirmation before proceeding.`;
+  return `> **安全に関する注意 (Safety Advisory) — ${hostConfig.displayName} では強制されません:** 助言であり、ブロックはされません。${hostConfig.displayName} は gstack の安全フックを実行しないため、コマンドを自動的に止めるものはありません。Claude Code では、このスキルのフックが次を行います: ${safetyChecks}。ここでは、それらの確認を自分で行ってください。破壊的になりうる操作を実行する前には、必ず一度立ち止まって確認します。コマンドの安全性に確信が持てない場合は、先へ進む前に、ユーザーに確認を求めます。`;
 }
 
 // ─── External Host Config (now derived from hosts/*.ts) ──────

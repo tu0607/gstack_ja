@@ -17,6 +17,7 @@
 import { describe, test, expect } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { expectMentions } from './helpers/prompt-structure';
 
 const ROOT = path.join(import.meta.dir, '..');
 const read = (p: string) => fs.readFileSync(path.join(ROOT, p), 'utf-8');
@@ -30,17 +31,17 @@ describe('writer: AUQ format preamble mandates the marker', () => {
   test('resolver emits the full marker grammar and its guardrails', () => {
     expect(resolver).toContain('gstack-shortcut(dec-<id>): <ceiling>, upgrade when <trigger>');
     // User-sovereignty guardrail: the marker is never agent-initiated.
-    expect(resolver).toContain('Never agent-initiated');
+    expectMentions(resolver, [['エージェント主導']], 'resolver');
     // The trail is joined to the decision store, not free-floating.
     expect(resolver).toContain('gstack-decision-log');
     // Scope guard: turn-level choices never leave debt markers.
-    expect(resolver).toContain('never a turn-level choice');
+    expectMentions(resolver, [['ターン単位', '対象外']], 'resolver');
   });
 
   test('rendered tier-2+ skeletons carry the trail rule (always-loaded, like the AUQ format itself)', () => {
     for (const skill of ['plan-ceo-review', 'ship', 'retro']) {
       const body = read(`${skill}/SKILL.md`);
-      expect(body).toContain('Accepted shortcuts leave a trail');
+      expectMentions(body, [['受け入れた近道', '痕跡'], ['gstack-decision-log', 'トリガー']], `${skill}/SKILL.md`);
       expect(body).toContain('gstack-shortcut(dec-<id>)');
     }
   });
@@ -52,7 +53,7 @@ describe('harvester: /retro Step 11.5 debt ledger', () => {
 
   test('template ships the ledger step, and generation carries it into SKILL.md', () => {
     for (const body of [tmpl, rendered]) {
-      expect(body).toContain('### Step 11.5: Shortcut Debt Ledger');
+      expect(body).toContain('### Step 11.5: ショートカット負債の台帳');
       expect(body).toContain(`grep -rn "${MARKER}"`);
       // Zero markers is the healthy case — the step must say so, not fail.
       expect(body).toContain('No shortcut debt. Clean ledger.');
@@ -79,7 +80,7 @@ describe('harvester: /retro Step 11.5 debt ledger', () => {
     expect(step).toContain('gstack-decision-search');
     expect(step).toContain('`unlinked`');
     expect(step).toContain('`no-trigger`');
-    expect(step).toContain('never double-count');
+    expectMentions(step, [['二重に数えない']], 'retro Step 11.5');
   });
 });
 

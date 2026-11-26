@@ -109,8 +109,8 @@ that ships V1 client-side and promotes to gbrain in V1.5.
   const fullSkill = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
   const fmtStart = fullSkill.indexOf('## AskUserQuestion Format');
   const fmtEnd = fullSkill.indexOf('\n## ', fmtStart + 1);
-  const phase4Start = fullSkill.indexOf('## Phase 4: Alternatives Generation');
-  const phase4End = fullSkill.indexOf('\n## Phase 4.5', phase4Start);
+  const phase4Start = fullSkill.indexOf('## フェーズ 4: 代替案の生成');
+  const phase4End = fullSkill.indexOf('\n## フェーズ 4.5', phase4Start);
   if (fmtStart < 0 || phase4Start < 0 || phase4End < 0) {
     throw new Error('skill-e2e-office-hours-phase4: failed to slice SKILL.md — section markers not found.');
   }

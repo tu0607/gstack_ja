@@ -1,9 +1,9 @@
 <!-- AUTO-GENERATED from tasks-aggregator.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Implementation Tasks aggregator
+## Implementation Tasks aggregator(実装タスクの集約)
 
-Before rendering the Final Approval Gate output block below, aggregate the
-per-phase task lists each review skill wrote.
+以下の Final Approval Gate の出力ブロックを描画する前に、各レビュースキルが書き込んだ
+フェーズごとのタスクリストを集約します。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -57,15 +57,14 @@ else
 fi
 ```
 
-In the Final Approval Gate output template below, render the aggregated markdown
-in the `### Implementation Tasks (aggregated across phases)` section: substitute
-`$AGGREGATED_TASKS` (the bash variable above) at runtime before printing the
-message; it is not a gen-skill-docs placeholder.
+以下の Final Approval Gate の出力テンプレートでは、集約した markdown を
+`### Implementation Tasks (aggregated across phases)` セクションに描画します。
+メッセージを表示する前に、実行時に `$AGGREGATED_TASKS`(上記の bash 変数)を代入してください。
+これは gen-skill-docs のプレースホルダーではありません。
 
-If `$AGGREGATED_TASKS` is empty (no JSONL files found — none of the review
-skills ran in this session), render:
+`$AGGREGATED_TASKS` が空の場合(JSONL ファイルが見つからない、つまりこのセッションでレビュースキルが 1 つも実行されていない場合)は、次を描画します:
 
-`_No per-phase task lists found in $TASKS_DIR for branch $BRANCH. Each review
-skill writes its own; if you ran one of them but no list appears here, check
-that jq is installed and the tasks-<phase>-*.jsonl files exist._`
+`_ブランチ $BRANCH のフェーズ別タスクリストが $TASKS_DIR に見つかりません。各レビュー
+スキルが自分のリストを書き出します。実行したのにここにリストが出ない場合は、
+jq がインストールされているか、tasks-<phase>-*.jsonl ファイルがあるかを確認してください。_`
 

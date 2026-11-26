@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { extractSkillSections } from './skill-fixture';
 import { claudeOutsideExecutions } from './outside-voice-evidence';
 
-export const OUTSIDE_PLAN_SECTION = 'Outside Voice — Independent Plan Challenge (default-on)';
+export const OUTSIDE_PLAN_SECTION = 'Outside Voice — 独立したプランへのチャレンジ(デフォルトで有効)';
 
 /** Extract generated instructions; runtime paths are the only content substitution. */
 export function installDisabledPlanReviewFixture(rendered: string, repo: string, runtimeRoot: string) {

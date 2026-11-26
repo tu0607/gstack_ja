@@ -1,38 +1,27 @@
 <!-- AUTO-GENERATED from review-sections.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Review Sections (7 passes, after scope is agreed)
+## Review Sections(レビューのセクション。7つのパス、スコープ合意後)
 
-**Anti-skip rule:** Never condense, abbreviate, or skip any review pass (1-7) regardless of plan type (strategy, spec, code, infra). Every pass in this skill exists for a reason. "This is a strategy doc so design passes don't apply" is always wrong — design gaps are where implementation breaks down. If a pass genuinely has zero findings, say "No issues found" and move on — but you must evaluate it.
+**誤スキップ防止ルール:** プランの種類(戦略、仕様、コード、インフラ)にかかわらず、レビューパス(1〜7)を圧縮、省略、スキップしないでください。このスキルのすべてのパスには理由があります。「これは戦略ドキュメントなので設計パスは適用されない」という判断は常に誤りです。設計上のギャップこそ実装が破綻する箇所だからです。パスに本当に指摘事項がない場合は「指摘事項なし」と述べて次に進んでかまいませんが、そのパスを必ず評価しなければなりません。
 
-**Context:** This section continues `plan-design-review/SKILL.md`. If its setup
-is no longer in context, Read `~/.claude/skills/gstack/plan-design-review/SKILL.md`
-for the System Audit, Design Philosophy, Step 0, Step 0.5 mockup setup (`$D`),
-and Section self-check. Use their existing results; do not restart the review.
+**文脈:** このセクションは `plan-design-review/SKILL.md` の続きです。そのセットアップがもう文脈にない場合は、`~/.claude/skills/gstack/plan-design-review/SKILL.md` を Read して、システム監査、デザイン哲学、Step 0、Step 0.5 のモックアップセットアップ(`$D`)、セクションの自己チェックを確認してください。既存の結果を使い、レビューを最初からやり直さないでください。
 
-**Anti-shortcut clause:** Complete one decision cycle per unresolved finding:
-explain the gap, recommend options, obtain its individual decision, then apply
-the selected fix. Scope, focus, setup, and next-step choices approve no remedies.
-Never use the final next-step AskUserQuestion to satisfy the issue-approval loop.
-With no unresolved findings, no issue question is required.
+**誤った先送り防止条項:** 未解決の指摘事項ごとに、意思決定サイクルを1回完了させてください。ギャップを説明し、選択肢を推奨し、ユーザーから個別の決定を得てから、選ばれた修正を適用します。スコープ、フォーカス、セットアップ、次のステップの選択は、いかなる修正も承認しません。最後の次のステップの AskUserQuestion を、指摘事項の承認ループの代わりに使わないでください。未解決の指摘事項がなければ、指摘事項に関する質問は不要です。
 
-**Carry decisions across passes.** An issue is one unresolved design requirement
-or tradeoff, even when it appears in several plan locations. Before each pass,
-compare the plan, DESIGN.md, and the decisions already made:
+**パス間で決定を引き継ぐ。** 指摘事項とは、プランの複数箇所に現れても、1つの未解決のデザイン要件またはトレードオフのことです。各パスの前に、プラン、DESIGN.md、既に行われた決定を比較してください:
 
-| Situation | Required action |
+| 状況 | 必要な対応 |
 |-----------|-----------------|
-| The exact fix already has an individual user decision or a preamble-authorized per-issue auto-decision. | Reuse that decision. Apply it to all affected references and matching tokens; do not ask again. |
-| An accepted requirement needs to be copied unchanged into a required artifact, such as the journey storyboard. | Create the artifact without a separate format question. This records the requirement; it approves no new remedy. |
-| The plan violates DESIGN.md or has a gap, and no individual decision has approved its fix. | Ask about that issue and wait before fixing it, even if the input names the gap or DESIGN.md prescribes the exact token. Keep the proposed remedy pending meanwhile. |
-| New evidence introduces a missing requirement, a conflict, or a new tradeoff. | Name the new issue, offer alternatives, and obtain its individual decision before changing the plan. |
+| 修正案に、ユーザーの個別の決定、またはプリアンブルで承認された指摘ごとの自動決定が既にある。 | その決定を再利用し、影響するすべての参照と一致するトークンに適用する。再度質問しない。 |
+| 承認済みの要件を、ジャーニーのストーリーボードなど必須の成果物にそのまま写す必要がある。 | 別途フォーマットを尋ねずに成果物を作成する。これは要件を記録するだけで、新たな修正は承認しない。 |
+| プランが DESIGN.md に違反している、またはギャップがあり、その修正を承認する個別の決定がまだない。 | 入力がそのギャップを指摘していても、また DESIGN.md が正確なトークンを指定していても、その指摘について質問し、修正する前に回答を待つ。提案された修正は保留のままにする。 |
+| 新しい証拠により、不足している要件、矛盾、または新たなトレードオフが生じた。 | 新しい指摘を明示し、代替案を提示し、プランを変更する前にその指摘の個別の決定を得る。 |
 
-Writing a report, mapping a token, creating a mockup, or listing a task does not
-approve a remedy. If findings exist but only navigation was answered, the review
-is still waiting for its first issue decision.
+レポートの作成、トークンのマッピング、モックアップの作成、タスクの一覧化は、いずれも修正を承認しません。指摘事項はあるがナビゲーションにしか回答がない場合、レビューはまだ最初の指摘事項の決定を待っている状態です。
 
-## Prior Learnings
+## Prior Learnings(過去の学び)
 
-Search for relevant learnings from previous sessions:
+過去のセッションから関連する学びを検索します:
 
 ```bash
 _CROSS_PROJ=$(~/.claude/skills/gstack/bin/gstack-config get cross_project_learnings 2>/dev/null || echo "unset")
@@ -45,200 +34,198 @@ fi
 [ "$_LR" = 0 ] || { _LE=${_LE%%$'\n'*}; echo "LEARNINGS: unavailable (${_LE:-exit $_LR})"; }
 ```
 
-If `CROSS_PROJECT` is `unset` (first time): Use AskUserQuestion:
+`CROSS_PROJECT` が `unset`(初回)の場合: AskUserQuestion を使います:
 
-> gstack can search learnings from your other projects on this machine to find
-> patterns that might apply here. This stays local (no data leaves your machine).
-> Recommended for solo developers. Skip if you work on multiple client codebases
-> where cross-contamination would be a concern.
+> gstack は、このマシン上の他のプロジェクトの学びを検索して、ここに当てはまりそうな
+> パターンを見つけることができます。これはローカルで完結します(データがマシンの外に出ることはありません)。
+> 個人開発者におすすめです。複数のクライアントのコードベースを扱っていて、
+> 相互汚染が懸念される場合は、スキップしてください。
 
-Options:
-- A) Enable cross-project learnings (recommended)
-- B) Keep learnings project-scoped only
+選択肢:
+- A) プロジェクト横断の学びを有効にする(推奨)
+- B) 学びをプロジェクト内に限定する
 
-If A: run `~/.claude/skills/gstack/bin/gstack-config set cross_project_learnings true`
-If B: run `~/.claude/skills/gstack/bin/gstack-config set cross_project_learnings false`
+A の場合: `~/.claude/skills/gstack/bin/gstack-config set cross_project_learnings true` を実行します
+B の場合: `~/.claude/skills/gstack/bin/gstack-config set cross_project_learnings false` を実行します
 
-Then re-run the search with the appropriate flag.
+その後、適切なフラグを付けて検索を再実行します。
 
-If learnings are found, incorporate them into your analysis. When a review finding
-matches a past learning, display:
+学びが見つかった場合は、分析に取り入れます。review の指摘が過去の学びに
+一致した場合は、次のように表示します:
 
-**"Prior learning applied: [key] (confidence N/10, from [date])"**
+**「過去の学びを適用: [key](確信度 N/10、[date] から)」**
 
-This makes the compounding visible. The user should see that gstack is getting
-smarter on their codebase over time.
+これにより、学びが積み重なっていく様子が見えるようになります。ユーザーには、gstack が
+時間とともにそのコードベースについて賢くなっていることが伝わるはずです。
 
-Evaluate every pass using the plan and referenced existing contracts. An explicitly excluded artifact is not a missing requirement: assess the same dimension with permitted evidence. Reopen that exclusion only for a concrete design gap, and ask before changing it.
+すべてのパスは、プランと参照されている既存の契約を使って評価してください。明示的に除外された成果物は、不足している要件ではありません。許可された証拠を使って同じ観点を評価してください。除外を見直すのは、具体的なデザイン上のギャップがある場合だけで、変更する前に質問してください。
 
-**Pass protocol (1-6):** Record the initial 0-10 score. Every `FIX TO 10` below is a proposal: ask about each issue, wait for approval, then edit the plan and re-rate that pass with the reason for the score change. Never edit first and ask afterward.
+**パスのプロトコル(1〜6):** 初期の 0〜10 のスコアを記録してください。以下の `FIX TO 10` はすべて提案です。各指摘について質問し、承認を待ち、そのうえでプランを編集し、スコアが変わった理由とともにそのパスを再評価してください。先に編集して後で質問することは決してしないでください。
 
-A declined fix remains documented: the unresolved gap keeps the rating below 10. Carry each pass's before/after scores and remaining gaps into the Completion Summary below. Compute the overall score as specified in the Completion Summary; do not treat litmus answers or Pass 7's decision counts as numeric ratings. Pass 7 is the unscored decision register, not a seventh rating.
+却下された修正は記録として残します。解消されていないギャップがあるパスのスコアは 10 未満のままです。各パスの修正前後のスコアと残りのギャップは、以下の完了サマリーに引き継いでください。総合スコアは完了サマリーの規定どおりに計算し、リトマス質問の回答やパス7の決定件数を数値評価として扱わないでください。パス7は採点しない決定事項の登録簿であり、7つ目の評価ではありません。
 
-A faithful restatement of an existing or already approved contract, such as a wireframe of the unchanged layout, is review evidence rather than a new design choice. Record it directly; ask if producing it would introduce or change a design decision. Finish with the Required Outputs and terminal Plan File Review Report below, including any unanswered decisions.
+既存の、または既に承認された契約の忠実な再記述(たとえば変更のないレイアウトのワイヤーフレーム)は、新しいデザイン上の選択ではなくレビューの証拠です。それを直接記録してください。作成することで設計上の決定が新たに導入されたり変更されたりする場合は質問してください。最後に、以下の必須成果物と最終的なプラン ファイルのレビューレポートで締めくくります。未回答の決定もそこに含めてください。
 
-### Pass 1: Information Architecture
-Rate 0-10: Does the plan define what the user sees first, second, third?
-FIX TO 10: Add information hierarchy to the plan. Include ASCII diagram of screen/page structure and navigation flow. Apply "constraint worship" — if you can only show 3 things, which 3?
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY. If no issues, say so and move on. Do NOT proceed until user responds.
+### パス 1: 情報アーキテクチャ
+評価 0〜10: プランは、ユーザーが最初、2番目、3番目に何を見るかを定義しているか?
+FIX TO 10: 情報階層をプランに追加する。画面/ページ構造とナビゲーションの流れを示す ASCII 図を含める。「制約への執着」を適用する。3つしか表示できないなら、どの3つか?
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。指摘がなければ、その旨を伝えて次に進む。ユーザーが応答するまで先に進まないこと。
 
-### Pass 2: Interaction State Coverage
-Rate 0-10: Does the plan specify loading, empty, error, success, partial states?
-FIX TO 10: Add interaction state table to the plan:
+### パス 2: インタラクション状態の網羅
+評価 0〜10: プランは、読み込み中、空、エラー、成功、一部成功の状態を定義しているか?
+FIX TO 10: インタラクション状態の表をプランに追加する:
 ```
   FEATURE              | LOADING | EMPTY | ERROR | SUCCESS | PARTIAL
   ---------------------|---------|-------|-------|---------|--------
   [each UI feature]    | [spec]  | [spec]| [spec]| [spec]  | [spec]
 ```
-For each state: describe what the user SEES, not backend behavior.
-Empty states are features — specify warmth, primary action, context.
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY.
+各状態について、バックエンドの動作ではなく、ユーザーが実際に目にするものを記述する。
+空の状態は機能の一部として扱う。温かみ、主要なアクション、文脈を指定する。
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。
 
-### Pass 3: User Journey & Emotional Arc
-Rate 0-10: Does the plan consider the user's emotional experience?
-FIX TO 10: Render the accepted journey as the required storyboard; do not ask whether to create it:
+### パス 3: ユーザージャーニーと感情の流れ
+評価 0〜10: プランはユーザーの感情的な体験を考慮しているか?
+FIX TO 10: 承認されたジャーニーを、必須のストーリーボードとして描く。作成するかどうかは尋ねないこと:
 ```
   STEP | USER DOES        | USER FEELS      | PLAN SPECIFIES?
   -----|------------------|-----------------|----------------
   1    | Lands on page    | [what emotion?] | [what supports it?]
   ...
 ```
-Apply time-horizon design: 5-sec visceral, 5-min behavioral, 5-year reflective.
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY.
+時間軸の設計を適用する: 5秒の本能的反応、5分の行動、5年の内省。
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。
 
-### Pass 4: AI Slop Risk
+### パス 4: AI スロップのリスク
 
-**Pass 4 evaluation:** Rate 0-10: Does the plan describe specific, intentional UI, or generic patterns? Record each hard-rejection hit and litmus YES/NO with evidence. An unresolved hard rejection caps this pass below 8 (not design-complete); it does not automatically set the score to 0. Litmus answers support findings, not a separate numeric score.
-Use plan text and any available mockups as evidence for the rules below.
+**パス4の評価:** 評価 0〜10: プランは、具体的で意図のある UI を記述しているか、それとも汎用的なパターンか? 各ハードリジェクションの該当と、リトマス質問への YES/NO を、根拠とともに記録する。解消されていないハードリジェクションがあると、このパスの評価は 8 未満に抑えられます(デザインが完成していない扱い)。自動的に 0 点になるわけではありません。リトマス質問の回答は指摘を裏付けるためのもので、独立した数値評価ではありません。
+以下のルールの根拠として、プランのテキストと、利用可能な場合はモックアップを使ってください。
 
 #### Design Hard Rules
 
-Review these as UI requirements in the plan, approved mockups, and referenced existing contracts. Inspect pixels or computed values when a rendered surface is available; otherwise assess what the plan specifies and identify concrete gaps.
+これらを、計画、承認済みのモックアップ、参照している既存の契約における UI 要件としてレビューします。レンダリングされたサーフェスがある場合は、ピクセルまたは計算済みの値を確認します。ない場合は、計画が規定している内容を評価し、具体的な欠落を特定します。
 
-**Classifier: name the mode before you apply the rules.** The mode is what the visitor's win looks like on THIS surface, not what the product is. A dev tool's landing page is Persuade. A fashion house's docs are Read.
-- **PERSUADE** (MARKETING/LANDING PAGE: hero-driven, brand-forward, pricing, campaigns) → they decide and act. Design IS the product. Apply Landing Page Rules.
-- **OPERATE** (APP UI: dashboards, admin, settings, editors, tools) → they finish a task. Scanability and native expectations beat expression; the brand lives in the details. Apply App UI Rules.
-- **READ** (docs, articles, guides, changelogs) → they understand something. Structure for comprehension, then make staying worth it. Apply Read Rules.
-- **EXPERIENCE** (portfolios, galleries, showcases) → they are inside the work. The artifact owns the first viewport; the interface gets out of the way. Apply Experience Rules.
-- **HYBRID** (marketing shell with app-like sections) → classify per section, not per page.
+**Classifier: ルールを適用する前に、モードを名指しします。** モードとは、プロダクトが何であるかではなく、THIS サーフェスで訪問者にとっての成功がどういう姿か、です。開発ツールのランディングページは Persuade です。ファッションハウスのドキュメントは Read です。
+- **PERSUADE**(MARKETING/LANDING PAGE: ヒーロー主導、ブランド前面、料金、キャンペーン)→ 訪問者が決断して行動します。デザインそのものがプロダクトです。Landing Page Rules を適用します。
+- **OPERATE**(APP UI: ダッシュボード、管理画面、設定、エディター、ツール)→ 訪問者がタスクを終わらせます。一覧性とネイティブの期待が表現に勝ります。ブランドはディテールに宿ります。App UI Rules を適用します。
+- **READ**(ドキュメント、記事、ガイド、変更履歴)→ 訪問者が何かを理解します。理解しやすい構造にし、そのうえで留まる価値を作ります。Read Rules を適用します。
+- **EXPERIENCE**(ポートフォリオ、ギャラリー、ショーケース)→ 訪問者は作品の中にいます。最初のビューポートは作品のものであり、インターフェースは身を引きます。Experience Rules を適用します。
+- **HYBRID**(アプリのようなセクションを持つマーケティングのシェル)→ ページ単位ではなく、セクション単位で分類します。
 
-**Hard rejection criteria** (instant-fail patterns — flag if ANY apply):
-1. Generic SaaS card grid as first impression
-2. Beautiful image with weak brand
-3. Strong headline with no clear action
-4. Busy imagery behind text
-5. Sections repeating same mood statement
-6. Carousel with no narrative purpose
-7. App UI made of stacked cards instead of layout
+**Hard rejection criteria**(即不合格のパターン — 1 つでも該当すればフラグを立てる):
+1. ありきたりな SaaS のカードグリッドが第一印象になっている
+2. 美しい画像だが、ブランドが弱い
+3. 強い見出しだが、明確なアクションがない
+4. テキストの背後に雑多な画像がある
+5. 複数のセクションが同じムードの訴えを繰り返している
+6. 物語上の目的のないカルーセル
+7. レイアウトではなく、積み重ねたカードで作られたアプリ UI
 
-**Litmus checks** (answer YES/NO for each with evidence; compare with the outside-voice litmus scorecard when available. These support findings, not an additional numeric score):
-1. Brand/product unmistakable in first screen?
-2. One strong visual anchor present?
-3. Page understandable by scanning headlines only?
-4. Each section has one job?
-5. Are cards actually necessary?
-6. Does motion improve hierarchy or atmosphere?
-7. Would design feel premium with all decorative shadows removed?
+**Litmus checks**(各項目に、証拠とともに YES/NO で答えます。利用可能な場合は、外部ボイスのリトマススコアカードと比較します。これらは指摘を裏付けるもので、追加の数値スコアではありません):
+1. 最初の画面で、ブランドやプロダクトがはっきり分かるか。
+2. 強い視覚的なアンカーが 1 つあるか。
+3. 見出しをざっと読むだけでページが理解できるか。
+4. 各セクションの役割は 1 つか。
+5. カードは本当に必要か。
+6. モーションは階層構造や雰囲気を改善しているか。
+7. 装飾的なシャドウをすべて取り除いても、デザインは上質に感じられるか。
 
-**Landing page rules** (apply when classifier = PERSUADE / MARKETING/LANDING):
-- First viewport reads as one composition, not a dashboard
-- Brand-first hierarchy: brand > headline > body > CTA
-- Typography: expressive, purposeful — no default stacks (Inter, Roboto, Arial, system)
-- No flat single-color backgrounds by default: texture from the brand or a real asset, never a halo, spotlight, stripe, or grid-paper gradient (see the AI Slop blacklist and detector rule ids below)
-- Hero: full-bleed, edge-to-edge, no inset/tiled/rounded variants
-- Hero budget: brand, one headline, one supporting sentence, one CTA group, one image
-- No cards in hero. Cards only when card IS the interaction
-- One job per section: one purpose, one headline, one short supporting sentence
-- Motion: one authored moment on the first viewport (an entrance or a scroll-linked reveal), ease-out from a visible default; hover states only where they carry information
-- Color: define CSS variables, avoid purple-on-white defaults, one accent color default
-- Copy: product language not design commentary. "If deleting 30% improves it, keep deleting"
-- Beautiful defaults: composition-first, brand as loudest text, two text faces max (plus a mono for data and code), cardless by default, first viewport as one composition, not a document (poster in stance, not in type size: display stays under 6rem)
+**Landing page rules**(classifier = PERSUADE / MARKETING/LANDING の場合に適用):
+- 最初のビューポートは、ダッシュボードではなく、1 つの構図として読める
+- ブランド優先の階層: ブランド > 見出し > 本文 > CTA
+- タイポグラフィ: 表現力があり、目的がある — デフォルトのスタック(Inter、Roboto、Arial、system)は使わない
+- デフォルトで単色のフラットな背景にしない: ブランドまたは実在のアセットによるテクスチャを使い、ハロー、スポットライト、ストライプ、方眼紙のグラデーションは決して使わない(下の AI Slop blacklist とディテクタールールの id を参照)
+- ヒーロー: フルブリード、端から端まで。インセット/タイル状/角丸のバリエーションは使わない
+- ヒーローの予算: ブランド、見出し 1 つ、補足の文 1 つ、CTA グループ 1 つ、画像 1 つ
+- ヒーローにカードを置かない。カードは、カード自体がインタラクションである場合のみ
+- 1 セクションにつき 1 つの役割: 1 つの目的、1 つの見出し、1 つの短い補足の文
+- モーション: 最初のビューポートに作り込まれた見せ場を 1 つ(登場、またはスクロール連動の表示)。見えているデフォルトからの ease-out。ホバー状態は、情報を伴う場合のみ
+- 色: CSS 変数を定義し、白地に紫というデフォルトを避け、アクセントカラーはデフォルトで 1 色
+- コピー: デザインの解説ではなく、プロダクトの言葉。「30% 削って良くなるなら、削り続ける」
+- Beautiful defaults: 構図優先、ブランドを最も大きな文字に、書体は最大 2 つ(加えてデータとコード用のモノスペース)、デフォルトでカードなし、最初のビューポートはドキュメントではなく 1 つの構図(ポスターの姿勢であって、文字サイズではない。display は 6rem 未満に収める)
 
-**App UI rules** (apply when classifier = OPERATE / APP UI):
-- Calm surface hierarchy, strong typography, few colors
-- Dense but readable, minimal chrome
-- Organize: primary workspace, navigation, secondary context, one accent
-- Avoid: dashboard-card mosaics, thick borders, decorative gradients, ornamental icons
-- Copy: utility language — orientation, status, action. Not mood/brand/aspiration
-- Cards only when card IS the interaction
-- Section headings state what area is or what user can do ("Selected KPIs", "Plan status")
+**App UI rules**(classifier = OPERATE / APP UI の場合に適用):
+- 落ち着いたサーフェスの階層、強いタイポグラフィ、少ない色
+- 密度は高いが読みやすい、最小限のクローム
+- 構成: プライマリのワークスペース、ナビゲーション、補助的なコンテキスト、アクセント 1 つ
+- 避けるもの: ダッシュボードのカードのモザイク、太い枠線、装飾的なグラデーション、飾りのアイコン
+- コピー: 実用的な言葉 — 現在地の案内、状態、アクション。気分/ブランド/願望ではない
+- カードは、カード自体がインタラクションである場合のみ
+- セクション見出しは、そこが何の領域か、またはユーザーに何ができるかを述べる(「Selected KPIs」「Plan status」)
 
-**Read rules** (apply when classifier = READ):
-- Measure 65-75ch, one reading column, headings closer to what follows than to what precedes
-- Wayfinding is a feature: where am I, what is next, where do I search
-- A docs index is Read, not Persuade: no hero, no CTA theater
+**Read rules**(classifier = READ の場合に適用):
+- 行長 65〜75ch、読みの列は 1 本、見出しは前よりも後に続くものに近づける
+- 道案内は機能です: 今どこにいるか、次は何か、どこで検索するか
+- ドキュメントの索引は Persuade ではなく Read です: ヒーローなし、CTA の芝居なし
 
-**Experience rules** (apply when classifier = EXPERIENCE):
-- The work fills the first viewport; chrome earns every pixel
-- One authored transition, not a scroll-jacked tour
-- Never crop the artifact to fit a template
+**Experience rules**(classifier = EXPERIENCE の場合に適用):
+- 作品が最初のビューポートを埋める。クロームは、1 ピクセルごとにその場所に値しなければならない
+- 作り込まれたトランジションは 1 つ。スクロールジャックのツアーにはしない
+- テンプレートに合わせて作品を切り取ってはいけない
 
-**Universal rules** (apply to ALL types):
-- Define CSS variables for color system
-- No default font stacks as the display voice (Inter, Roboto, Arial, system); DM Sans, Instrument Sans, IBM Plex Sans are allowed for body/UI on an Operate or Read surface when the proposal explicitly assigns that role
-- One job per section
-- "If deleting 30% of the copy improves it, keep deleting"
-- Cards earn their existence — no decorative card grids
-- NEVER use small, low-contrast type (body text < 16px or contrast ratio < 4.5:1 on body text)
-- NEVER put labels inside form fields as the only label (placeholder-as-label pattern — labels must be visible when the field has content)
-- ALWAYS preserve visited vs unvisited link distinction (visited links must have a different color)
-- NEVER float headings between paragraphs (heading must be visually closer to the section it introduces than to the preceding section)
+**Universal rules**(すべてのタイプに適用):
+- 色のシステムに CSS 変数を定義する
+- ディスプレイの声として、デフォルトのフォントスタック(Inter、Roboto、Arial、system)を使わない。DM Sans, Instrument Sans, IBM Plex Sans は、提案がその役割を明示的に割り当てている場合に限り、Operate または Read のサーフェスの body/UI として使ってよい
+- 1 セクションにつき 1 つの役割
+- 「コピーの 30% を削って良くなるなら、削り続ける」
+- カードはその存在に値しなければならない — 装飾的なカードのグリッドは不可
+- 小さい、またはコントラストの低い文字を決して使わない(本文が 16px 未満、または本文のコントラスト比が 4.5:1 未満)
+- ラベルを、入力欄の中だけに置いてはならない(placeholder-as-label のパターン — 入力欄に内容があるときもラベルが見えていなければならない)
+- 訪問済みと未訪問のリンクの区別を必ず保つ(訪問済みのリンクは別の色にする)
+- 見出しを段落の間に浮かせてはならない(見出しは、前のセクションよりも、それが導入するセクションに視覚的に近くなければならない)
 
-**Reflexes no detector catches** (check by hand, every time):
-- **Browser surfaces carry the design.** Selection color, caret, scrollbars, focus rings, underline offset, tabular numerals all ship with browser defaults that belong to no design system. Theme them from the palette. Cheapest tell that a page was designed rather than assembled, and the one models skip most.
-- **One authored motion moment.** Not the same entrance on every section, not a hover effect on everything. Exponential ease-out from an already-visible default. Content never hides behind animation timing.
-- **Depth has an offset.** Shadows are offset plus soft blur. A zero-offset colored halo is decoration, not depth.
-- **Secondary text on a colored surface is tinted from that hue.** Never gray.
-- **More space above a heading than below it.** Read the computed values.
-- **Light or dark comes from the use scene.** Who, where, under what light: one sentence. Never from the category.
+**ディテクターが捕まえない反射的な習慣**(毎回、手で確認する):
+- **Browser surfaces carry the design.** 選択色、キャレット、スクロールバー、フォーカスリング、下線のオフセット、等幅数字は、どのデザインシステムにも属さないブラウザのデフォルトのまま出荷されます。パレットに合わせてテーマ化します。ページが寄せ集めではなく設計されたものであることを示す最も安上がりな目印で、モデルが最も飛ばしがちなものです。
+- **One authored motion moment.** すべてのセクションで同じ登場演出にしない、すべてにホバー効果を付けない。すでに見えているデフォルトからの指数関数的な ease-out にします。コンテンツがアニメーションのタイミングの陰に隠れてはいけません。
+- **Depth has an offset.** 影はオフセットとやわらかいぼかしです。オフセットがゼロの色付きのハローは装飾であり、奥行きではありません。
+- **Secondary text on a colored surface is tinted from that hue.** 決してグレーにしません。
+- **More space above a heading than below it.** 計算済みの値を読みます。
+- **Light or dark comes from the use scene.** 誰が、どこで、どんな光の下で: 1 文で。カテゴリからは決して決めません。
 
-**Calibration: the three looks.** AI-built interfaces land in one of three looks no matter what the product is: (1) cream ground, high-contrast serif display, terracotta or signal-red accent; (2) near-black, one neon accent, glowing edges; (3) broadsheet hairlines, italic display serif, tiny tracked mono labels. Each is fine when the brief asks for it. If the brief left the look open and you landed in one anyway, you stopped looking. The test: could someone guess your look from the category alone? From "the category, but avoiding the obvious"? Either way, start over. "It's about books, so cream and a serif" fails this test. Book cloth and jackets come in every saturated color there is.
+**Calibration: the three looks.** AI が作ったインターフェースは、プロダクトが何であれ、3 つの見た目のどれかに落ち着きます: (1) クリーム色の地、コントラストの高いセリフのディスプレイ、テラコッタまたはシグナルレッドのアクセント。(2) ほぼ黒、ネオンのアクセント 1 色、光る縁。(3) 新聞の紙面のような細い罫線、イタリックのディスプレイセリフ、小さなトラッキング付きのモノスペースのラベル。それぞれ、ブリーフが求めているのであれば問題ありません。ブリーフが見た目を決めていなかったのにいずれかに着地したなら、見ることをやめています。テスト: カテゴリだけから、あなたの見た目を当てられるか? 「そのカテゴリ、ただし明白なものを避けて」から当てられるか? どちらであっても、やり直します。「本の話だからクリーム色とセリフ」は、このテストに落ちます。ブッククロスやジャケットは、ありとあらゆる彩度の高い色で作られています。
 
-**AI Slop blacklist** (the 11 patterns that scream "AI-generated"):
-1. Purple/violet/indigo gradient backgrounds or blue-to-purple color schemes
-2. **The 3-column feature grid:** icon-in-colored-circle + bold title + 2-line description, repeated 3x symmetrically. THE most recognizable AI layout.
-3. Icons in colored circles as section decoration (SaaS starter template look)
-4. Centered everything (`text-align: center` on all headings, descriptions, cards)
-5. Uniform bubbly border-radius on every element (same large radius on everything)
-6. Decorative blobs, floating circles, wavy SVG dividers (if a section feels empty, it needs better content, not decoration)
-7. Emoji as design elements (rockets in headings, emoji as bullet points)
-8. Colored left-border on cards (`border-left: 3px solid <accent>`)
-9. Generic hero copy ("Welcome to [X]", "Unlock the power of...", "Your all-in-one solution for...")
-10. Cookie-cutter section rhythm (hero → 3 features → testimonials → pricing → CTA, every section same height)
-11. system-ui or `-apple-system` as the PRIMARY display/body font — the "I gave up on typography" signal. Pick a real typeface.
+**AI Slop blacklist**(「AI 生成」と一目でわかる 11 件のパターン):
+1. 紫・バイオレット・インディゴのグラデーション背景、または青から紫へのカラースキーム
+2. **3 カラムのフィーチャーグリッド(3-column feature grid):** 色付き円の中のアイコン + 太字のタイトル + 2 行の説明を、左右対称に 3 回繰り返す。AI が作るレイアウトとして最も見分けやすい型。
+3. セクションの飾りとして、色付きの円の中に置いたアイコン(SaaS スターターテンプレートの見た目)
+4. すべてを中央揃えにする(見出し・説明・カードのすべてに `text-align: center`)
+5. すべての要素に同じ丸い border-radius を付ける(どの要素にも同じ大きな角丸)
+6. 装飾的なブロブ、浮かぶ円、波形の SVG 区切り線(セクションが空に感じるなら、必要なのは装飾ではなく良いコンテンツ)
+7. 絵文字をデザイン要素として使う(見出しのロケット、箇条書きの絵文字)
+8. カード上の色付き左ボーダー(`border-left: 3px solid <accent>`)
+9. ありきたりなヒーローコピー(「Welcome to [X]」「Unlock the power of...」「Your all-in-one solution for...」)
+10. 型にはまったセクションのリズム(ヒーロー → 特徴 3 つ → お客様の声 → 料金 → CTA、どのセクションも同じ高さ)
+11. system-ui や `-apple-system` を主要な見出し/本文フォントにする。これは「タイポグラフィを諦めた」サインだ。ちゃんとした書体を選ぶ。
 
-Detector rule ids for the rest of the catalog (a `[rule-id]` in a finding is one of these): border-accent-on-rounded: Border accent on a rounded card; overused-font: Overused display font; flat-type-hierarchy: Flat type hierarchy; gradient-text: Gradient text; cream-palette: Cream default palette; nested-cards: Nested cards; monotonous-spacing: Monotonous spacing; bounce-easing: Bounce easing; pulsing-dot: Pulsing status dot; blinking-cursor: Blinking cursor effect; shape-assembled-illustration: Shape-assembled illustration; dark-glow: Dark-mode glow; radial-halo: Radial halo; radial-spotlight-glow: Radial spotlight glow; marquee: Logo marquee; icon-tile-stack: Icon tile above every heading; italic-serif-display: Italic serif display; hero-eyebrow-chip: Hero eyebrow chip; kicker-above-heading: Kicker above heading; numbered-section-labels: Numbered section labels; em-dash-overuse: Em-dash overuse; marketing-buzzword: Marketing buzzwords; aphoristic-cadence: Aphoristic cadence; oversized-h1: Oversized h1; extreme-negative-tracking: Extreme negative tracking; gpt-thin-border-wide-shadow: Thin border plus wide shadow; repeating-stripes-gradient: Repeating stripes gradient; codex-grid-background: Grid-paper background; theater-slop-phrase: Theater phrases; image-hover-transform: Image hover zoom.
-Judgment tells with no detector rule: gradient cta button, stock-photo hero, cards as the default component, generic testimonial section, left-text right-image hero, generic cta labels, hero metric template, identical card grids, glassmorphism, hand-drawn svg illustration, modal by default, monospace as costume, content stand-ins, mode picked by category, unthemed browser surfaces, missing states.
+カタログの残りに対するディテクタールールの id(指摘の中の `[rule-id]` は、これらのいずれかです): border-accent-on-rounded: Border accent on a rounded card; overused-font: Overused display font; flat-type-hierarchy: Flat type hierarchy; gradient-text: Gradient text; cream-palette: Cream default palette; nested-cards: Nested cards; monotonous-spacing: Monotonous spacing; bounce-easing: Bounce easing; pulsing-dot: Pulsing status dot; blinking-cursor: Blinking cursor effect; shape-assembled-illustration: Shape-assembled illustration; dark-glow: Dark-mode glow; radial-halo: Radial halo; radial-spotlight-glow: Radial spotlight glow; marquee: Logo marquee; icon-tile-stack: Icon tile above every heading; italic-serif-display: Italic serif display; hero-eyebrow-chip: Hero eyebrow chip; kicker-above-heading: Kicker above heading; numbered-section-labels: Numbered section labels; em-dash-overuse: Em-dash overuse; marketing-buzzword: Marketing buzzwords; aphoristic-cadence: Aphoristic cadence; oversized-h1: Oversized h1; extreme-negative-tracking: Extreme negative tracking; gpt-thin-border-wide-shadow: Thin border plus wide shadow; repeating-stripes-gradient: Repeating stripes gradient; codex-grid-background: Grid-paper background; theater-slop-phrase: Theater phrases; image-hover-transform: Image hover zoom.
+ディテクタールールのない、判断で見つける兆候: gradient cta button, stock-photo hero, cards as the default component, generic testimonial section, left-text right-image hero, generic cta labels, hero metric template, identical card grids, glassmorphism, hand-drawn svg illustration, modal by default, monospace as costume, content stand-ins, mode picked by category, unthemed browser surfaces, missing states.
 
-Source: [OpenAI "Designing Delightful Frontends with GPT-5.4"](https://developers.openai.com/blog/designing-delightful-frontends-with-gpt-5-4) (Mar 2026) + gstack design methodology.
+出典: [OpenAI "Designing Delightful Frontends with GPT-5.4"](https://developers.openai.com/blog/designing-delightful-frontends-with-gpt-5-4)(2026 年 3 月)+ gstack のデザインメソドロジー。
 
-FIX TO 10: Rewrite vague UI descriptions with specific alternatives:
-- "Cards with icons" → what differentiates these from every SaaS template?
-- "Hero section" → what makes this hero feel like THIS product?
-- "Clean, modern UI" → meaningless. Replace with actual design decisions.
-- "Dashboard with widgets" → what makes this NOT every other dashboard?
-If visual mockups were generated in Step 0.5, evaluate them against the AI slop blacklist above. Read each mockup image using the Read tool. Does the mockup fall into generic patterns (3-column grid, centered hero, stock-photo feel)? If so, flag it and offer to regenerate with more specific direction via `$D iterate --feedback "$(cat "$FEEDBACK_FILE")"` (the feedback in a private file, never inline); use its printed `outputPath` for any later view, check or board.
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY.
+FIX TO 10: 曖昧な UI の記述を、具体的な代替案に書き換える:
+- 「アイコン付きのカード」 → 何が、どのSaaSテンプレートとも違うのか?
+- 「ヒーローセクション」 → 何がこのヒーローを、この製品ならではのものにしているのか?
+- 「すっきりしたモダンな UI」 → 意味がない。実際のデザイン上の決定に置き換える。
+- 「ウィジェット付きのダッシュボード」 → 何が、ほかのダッシュボードと違うのか?
+Step 0.5 で視覚的なモックアップを生成した場合は、上記の AI スロップのブラックリストに照らして評価してください。Read ツールで各モックアップ画像を読みます。汎用的なパターン(3列グリッド、中央寄せのヒーロー、ストックフォトのような印象)に当てはまるか? 当てはまる場合は指摘し、より具体的な指示で再生成するか尋ねてください。その際は `$D iterate --feedback "$(cat "$FEEDBACK_FILE")"` を使います(フィードバックはインラインではなく非公開のファイルに置く)。以降の表示、確認、ボードには、表示される `outputPath` を使ってください。
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。
 
-### Pass 5: Design System Alignment
-Rate 0-10: Does the plan align with DESIGN.md?
-If DESIGN.md is absent, rate the plan's explicit token and component specifications. Missing specifications remain findings; do not skip the score or assume alignment.
-FIX TO 10: If DESIGN.md exists, annotate with specific tokens/components; when it has YAML front matter (the open DESIGN.md format), cite tokens by path (`{colors.primary}`, `{rounded.md}`) so the plan and the file share one vocabulary. If no DESIGN.md, flag the gap and recommend `/design-consultation`.
-Flag any new component — does it fit the existing vocabulary?
-Before offering a token-alignment fix, check whether an earlier pass already approved that outcome. If so, apply the established tokens and update every stale gap/reference under that decision; changing the plan location or spelling out the same fix is not a new issue. Ask again only if new evidence exposes an unresolved requirement or tradeoff, and name it. An unapproved violation still needs its first individual decision.
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY.
+### パス 5: デザインシステムとの整合
+評価 0〜10: プランは DESIGN.md と整合しているか?
+DESIGN.md がない場合は、プランに明示されたトークンとコンポーネントの指定を評価してください。指定がないものは指摘事項として残し、採点を省略したり整合していると仮定したりしないでください。
+FIX TO 10: DESIGN.md がある場合は、具体的なトークンやコンポーネントを注記する。YAML のフロントマターがある場合(オープンな DESIGN.md 形式)は、パスでトークンを引用する(`{colors.primary}`、`{rounded.md}`)。これにより、プランとファイルが同じ語彙を共有します。DESIGN.md がない場合は、そのギャップを指摘し、`/design-consultation` を推奨する。
+新しいコンポーネントにはフラグを立て、既存の語彙に合うかどうかを確認する。
+トークンの整合性に関する修正を提案する前に、以前のパスで同じ結果が既に承認されていないか確認してください。承認されている場合は、確立されたトークンを適用し、そのすべてのギャップ/参照を更新してください。プランの場所を変えたり、同じ修正を言い換えたりしても、新しい指摘にはなりません。新しい証拠によって未解決の要件やトレードオフが明らかになった場合にのみ、再度質問し、その内容を明示してください。承認されていない違反には、最初の個別の決定が必要です。
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。
 
-### Pass 6: Responsive & Accessibility
-Rate 0-10: Does the plan specify mobile/tablet, keyboard nav, screen readers?
-FIX TO 10: Add responsive specs per viewport — not "stacked on mobile" but intentional layout changes. Add a11y: keyboard nav patterns, ARIA landmarks, touch target sizes (44px min), color contrast requirements.
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY.
+### パス 6: レスポンシブとアクセシビリティ
+評価 0〜10: プランは、モバイル/タブレット、キーボード操作、スクリーンリーダーを指定しているか?
+FIX TO 10: ビューポートごとのレスポンシブ仕様を追加する。「モバイルでは縦に積む」ではなく、意図的なレイアウト変更を書く。アクセシビリティとして、キーボード操作のパターン、ARIA ランドマーク、タッチターゲットのサイズ(最小 44px)、コントラストの要件を追加する。
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。
 
-### Pass 7: Unresolved Design Decisions
-Start from unresolved choices recorded in earlier passes. For each new item, cite an actual in-scope element and the missing decision in the plan, source, DESIGN.md, or approved mockup. Page/section names and outside-review suggestions do not establish that a control exists. Check the available artifacts first; if its existence is unknown, keep the item conditional and state what must be verified. Do not invent controls or reopen accepted treatments for a hypothetical element. Surface real missing decisions and concrete conflicts; approval of one treatment does not settle a different known element.
+### パス 7: 未解決のデザイン上の決定
+以前のパスで記録された未解決の選択肢から始める。新しい項目ごとに、プラン、ソース、DESIGN.md、または承認されたモックアップの中から、実際に範囲内にある要素と、欠けている決定を示すこと。ページ名やセクション名、外部レビューの提案では、コントロールが存在する根拠にはなりません。まず利用可能な成果物を確認すること。存在が不明な場合は、その項目を条件付きとして扱い、何を検証すべきかを明示してください。仮定の要素のために、コントロールを作り出したり、承認済みの扱いを見直したりしないこと。実際の欠けている決定と具体的な矛盾だけを提示し、ある扱いを承認しても、それが別の既知の要素を決めることにはならない。
 
-Preserve accepted user-facing outcomes. Choosing implementation mechanics does not
-reopen them; ask only if a concrete constraint exposes a new design requirement
-or tradeoff. Surface the remaining ambiguities that will haunt implementation:
+承認済みのユーザーに見える成果を保持すること。実装の仕組みを選ぶことで、それらを見直すことにはならない。具体的な制約によって新しいデザイン上の要件やトレードオフが明らかになった場合にのみ質問する。実装時に問題となる残りの曖昧さを提示する:
 ```
   DECISION NEEDED              | IF DEFERRED, WHAT HAPPENS
   -----------------------------|---------------------------
@@ -246,68 +233,62 @@ or tradeoff. Surface the remaining ambiguities that will haunt implementation:
   Mobile nav pattern?          | Desktop nav hides behind hamburger
   ...
 ```
-If visual mockups were generated in Step 0.5, reference them as evidence when surfacing unresolved decisions. A mockup makes decisions concrete — e.g., "Your approved mockup shows a sidebar nav, but the plan doesn't specify mobile behavior. What happens to this sidebar on 375px?"
-Each decision = one AskUserQuestion with recommendation + WHY + alternatives. Edit the plan with each decision as it's made.
-**STOP.** Wait for each answer before editing or advancing. Record unanswered decisions as unresolved.
+Step 0.5 で視覚的なモックアップを生成した場合は、未解決の決定事項を提示するときに、それを証拠として参照してください。モックアップは決定を具体的にします。たとえば「承認済みのモックアップにはサイドバーのナビゲーションが示されているが、プランではモバイルでの挙動が指定されていない。375px でこのサイドバーはどうなるか?」のように示します。
+決定ごとに AskUserQuestion を1回行い、推奨案、理由、代替案を示す。決定がなされるたびにプランを編集する。
+**STOP.** 各回答を待ってから、編集や次に進むことをしないこと。未回答の決定は未解決として記録する。
 
-### Post-Pass: Update Mockups (if generated)
+### パス後: モックアップの更新(生成された場合)
 
-After Pass 7: offer the mockup update below when applicable, resolve deferred TODO proposals, reconcile approvals, then synthesize tasks and the Completion Summary.
+パス7の後、該当する場合はモックアップの更新を以下のとおり提案し、保留中の TODO 提案を解決し、承認内容を照合し、そのうえでタスクと完了サマリーをまとめてください。
 
-If mockups were generated in Step 0.5 and review passes changed significant design decisions (information architecture restructure, new states, layout changes), offer to regenerate (one-shot, not a loop):
+Step 0.5 でモックアップを生成し、レビューのパスによって重要なデザイン上の決定(情報アーキテクチャの再構成、新しい状態、レイアウトの変更)が変わった場合は、モックアップの再生成を提案してください(1回限りで、ループはしない):
 
-AskUserQuestion: "The review passes changed [list major design changes]. Want me to regenerate mockups to reflect the updated plan? This ensures the visual reference matches what we're actually building."
+AskUserQuestion: 「レビューのパスで[主要なデザイン変更の一覧]が変わりました。更新されたプランを反映するためにモックアップを再生成しますか? これにより、視覚的な参照が実際に作ろうとしているものと一致します。」
 
-If yes, use `$D iterate` with feedback summarizing the changes, or `$D variants` with an updated brief; either text goes in a brief or feedback file, never inline. Save to the same `$_DESIGN_DIR` directory; nothing is overwritten, so do round accounting and carry the printed paths into any new board (rebuild it with the board block, which rewrites `board-images.json`) or check.
+はいの場合は、変更内容をまとめたフィードバックとともに `$D iterate` を使うか、更新されたブリーフとともに `$D variants` を使ってください。どちらのテキストも、ブリーフまたはフィードバックのファイルに入れ、インラインに書かないこと。`$_DESIGN_DIR` の同じディレクトリに保存してください。何も上書きされないので、ラウンドの管理を行い、表示されたパスを新しいボード(ボードのブロックで再構築し、`board-images.json` を書き直す)や確認に引き継いでください。
 
-## How to ask questions
-Follow the AskUserQuestion format from the Preamble above. Additional rules for plan design reviews:
-* **One issue = one AskUserQuestion call.** Never combine multiple issues into one question. Each call contains exactly one question; multiple question tabs in one call are also batching. If a user could choose either remedy without choosing the other, ask separately, even when both affect the same component or token file. Shared implementation work does not make independent design choices inseparable.
-* Describe the design gap concretely — what's missing, what the user will experience if it's not specified.
-* Present 2-3 options. For each: effort to specify now, risk if deferred.
-* **Map to Design Principles above.** One sentence connecting your recommendation to a specific principle.
-* Label with issue NUMBER + option LETTER (e.g., "3A", "3B").
-* **Zero findings:** if a section has zero findings, state "No issues, moving on" and proceed. Otherwise, use AskUserQuestion for each gap — a gap with an "obvious fix" is still a gap and still needs user approval before any change lands in the plan.
-* **NEVER use AskUserQuestion to ask which variant the user prefers.** Always create a comparison board first (`$D compare --serve`) and open it in the browser. The board has rating controls, comments, remix/regenerate buttons, and structured feedback output. Use AskUserQuestion ONLY to notify the user the board is open and wait for them to finish — not to present variants inline and ask "which do you prefer?" That is a degraded experience.
+## 質問の仕方
+上記のプリアンブルにある AskUserQuestion の形式に従ってください。プランのデザインレビュー向けの追加ルールは以下のとおりです:
+* **指摘1件 = AskUserQuestion 1回。** 1回の質問で複数の指摘をまとめないこと。各呼び出しには必ず1つの質問だけを含めます。1回の呼び出しで複数の質問タブを使うことも、まとめて聞くことになります。ユーザーが一方の修正を選んでも他方を選ぶ必要がない場合は、同じコンポーネントやトークンファイルに影響していても、別々に質問してください。実装の作業を共有していても、独立したデザイン上の選択が切り離せなくなるわけではありません。
+* デザイン上のギャップを具体的に説明する。何が欠けていて、それが指定されないとユーザーがどんな体験をするのかを示す。
+* 2〜3個の選択肢を提示する。各選択肢について、今指定する場合の工数と、先送りした場合のリスクを示す。
+* **上記のデザイン原則に対応づける。** 推奨案を、特定の原則に結びつける文を1つ添える。
+* 指摘の番号と選択肢の文字でラベルを付ける(例: 「3A」「3B」)。
+* **指摘事項ゼロ:** あるセクションに指摘事項がなければ、「指摘なし、次に進みます」と述べてから進む。そうでなければ、ギャップごとに AskUserQuestion を使う。「明らかな修正」があるギャップでも、それはギャップであり、変更をプランに反映する前にユーザーの承認が必要です。
+* **AskUserQuestion を使って、ユーザーがどのバリアントを好むかを尋ねないこと。** 必ず先に比較ボードを作成し(`$D compare --serve`)、ブラウザで開いてください。ボードには評価のコントロール、コメント、リミックス/再生成ボタン、構造化されたフィードバック出力があります。AskUserQuestion は、ボードが開いていることを伝え、ユーザーの完了を待つためだけに使ってください。バリアントをインラインで提示して「どちらがお好みですか?」と尋ねるために使わないこと。それは体験の劣化です。
 
-## Required Outputs
+## 必須の成果物
 
-### "NOT in scope" section
-Design decisions considered and explicitly deferred, with one-line rationale each.
+### 「スコープ外」セクション
+検討したうえで明示的に先送りしたデザイン上の決定。それぞれ一行の理由を付ける。
 
-### "What already exists" section
-Existing DESIGN.md, UI patterns, and components that the plan should reuse.
+### 「既存のもの」セクション
+プランが再利用すべき既存の DESIGN.md、UI パターン、コンポーネント。
 
-### TODOS.md updates
-Put implementation and verification of approved fixes in the plan tasks. Do not
-make in-scope verification an optional follow-up. Reserve deferred TODO proposals
-for unresolved/out-of-scope debt or a new scope decision or tradeoff. After the
-passes, ask about each such TODO individually; never batch. Honor explicit user
-deferrals. If none remain, say so.
+### TODOS.md の更新
+承認された修正の実装と検証は、プランのタスクに入れてください。スコープ内の検証をオプションの後続作業にしないこと。先送りする TODO の提案は、未解決やスコープ外の負債、または新しいスコープの決定やトレードオフのためだけに残してください。パスが終わったら、そのような TODO のそれぞれについて個別に質問し、まとめて聞かないこと。ユーザーが明示的に先送りした内容は尊重する。残っていなければ、その旨を伝えてください。
 
-For design debt: missing a11y, unresolved responsive behavior, deferred empty states. Each TODO gets:
-* **What:** One-line description of the work.
-* **Why:** The concrete problem it solves or value it unlocks.
-* **Pros:** What you gain by doing this work.
-* **Cons:** Cost, complexity, or risks of doing it.
-* **Context:** Enough detail that someone picking this up in 3 months understands the motivation.
-* **Depends on / blocked by:** Any prerequisites.
+デザインの負債の場合は、a11y の欠落、未解決のレスポンシブ挙動、先送りされた空の状態などです。各 TODO には以下を付ける:
+* **What:** 作業内容を一行で説明する。
+* **Why:** 解決する具体的な問題、または得られる価値。
+* **Pros:** この作業をすることで得られるもの。
+* **Cons:** この作業のコスト、複雑さ、リスク。
+* **Context:** 3か月後にこれを引き継いだ人が動機を理解できるだけの詳細。
+* **Depends on / blocked by:** 前提条件があれば記載する。
 
-Then present options: **A)** Add to TODOS.md **B)** Skip — not valuable enough **C)** Build it now in this PR instead of deferring.
+そのうえで選択肢を提示する: **A)** TODOS.md に追加 **B)** スキップ — それほど価値がない **C)** 先送りせず、この PR で今すぐ作る
 
-Before synthesizing tasks or the completion summary, perform the approval
-reconciliation from the Section self-check in `~/.claude/skills/gstack/plan-design-review/SKILL.md` (Read it if no longer in context). Export only agreed implementation work; retain unapproved remedies as pending findings.
-Count only individually approved new decisions in "Decisions made" and the
-review log; a proposed remedy or next-step answer contributes zero.
+タスクや完了サマリーをまとめる前に、`~/.claude/skills/gstack/plan-design-review/SKILL.md` の「セクションの自己チェック」にある承認の照合を行ってください(文脈にない場合は Read する)。合意された実装作業だけを書き出し、承認されていない修正は未解決の指摘として保留してください。
+「決定事項」とレビューログに数えるのは、個別に承認された新しい決定だけです。提案された修正や次のステップへの回答は0件として数えます。
 
-## Implementation Tasks
+## Implementation Tasks(実装タスク)
 
-Before closing this review, synthesize the findings above into a flat list of
-build-actionable tasks. Each task derives from a specific finding — no padding.
-Emit the markdown section AND write a JSONL artifact that `/autoplan` can
-aggregate across phases.
+このレビューを終える前に、上記の発見事項を、構築に着手できるタスクのフラットなリストにまとめます。
+各タスクは特定の発見事項から導きます。水増しはしません。
+markdown セクションを出力し、さらに `/autoplan` がフェーズをまたいで
+集約できる JSONL アーティファクトを書き込みます。
 
-### Markdown section (always emit)
+### markdown セクション(常に出力)
 
 ```markdown
 ## Implementation Tasks
@@ -321,17 +302,17 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
 - [ ] **T2 (P2, human: ~30min / CC: ~5min)** — ...
 ```
 
-Rules:
-- P1 blocks ship; P2 should land same branch; P3 is a follow-up TODO.
-- If a finding produced no actionable task, do not invent one.
-- If a section had zero findings, emit `_No new tasks from <section>._`
-- Show human-team and CC+gstack effort estimates. Default task-type ratios (human ÷ CC time): scaffolding ~100x, tests ~50x, features ~30x, bug fix with regression ~20x, architecture ~5x, research ~3x. Adjust to the actual work and state the assumption.
+ルール:
+- P1 は出荷をブロックします。P2 は同じブランチで取り込むべきです。P3 はフォローアップの TODO です。
+- 発見事項から実行可能なタスクが生まれなかった場合は、でっち上げないでください。
+- セクションの発見事項がゼロだった場合は、次を出力します: `_No new tasks from <section>._`
+- 人間チームと CC+gstack の工数見積もりの両方を示します。タスク種別ごとの既定の比率(人間 ÷ CC の時間): スキャフォールディング ~100x、テスト ~50x、機能 ~30x、リグレッションテスト付きバグ修正 ~20x、アーキテクチャ ~5x、リサーチ ~3x。実際の作業に合わせて調整し、前提を明記してください。
 
-### JSONL artifact (always write, even if zero tasks)
+### JSONL の成果物(タスクがゼロでも常に書き込む)
 
-`/autoplan` reads this file to aggregate across phases. Build each line with
-`jq -nc` so titles and source findings containing quotes, newlines, or
-backslashes serialize cleanly — never use hand-rolled `echo` / `printf`.
+`/autoplan` はこのファイルを読んでフェーズをまたいで集約します。各行は
+`jq -nc` で組み立て、引用符・改行・バックスラッシュを含むタイトルや元の発見事項も
+正しくシリアライズされるようにします。手書きの `echo` / `printf` は決して使わないでください。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -344,8 +325,8 @@ COMMIT=$(git rev-parse HEAD 2>/dev/null || echo unknown)
 GIT_BRANCH=$(git branch --show-current 2>/dev/null || echo unknown)
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 
-# Repeat ONE jq invocation per task identified during this review.
-# Substitute the placeholders inline with shell variables you set per task:
+# このレビューで特定したタスク 1 件につき jq 呼び出しを 1 回繰り返します。
+# プレースホルダーは、タスクごとに設定するシェル変数で置き換えます:
 #   TASK_ID (T1, T2, ...), PRIORITY (P1/P2/P3), COMPONENT, TITLE,
 #   SOURCE_FINDING, EFFORT_HUMAN, EFFORT_CC, FILES_JSON (a JSON array literal
 #   like '["browse/src/sanitize.ts","browse/src/server.ts"]').
@@ -366,25 +347,19 @@ jq -nc \
   >> "$TASKS_FILE"
 ```
 
-If `jq` is not installed, fall back to skipping the JSONL write and warn
-the user to install jq for autoplan aggregation. Never hand-roll JSONL.
+`jq` がインストールされていない場合は、JSONL の書き込みをスキップし、
+autoplan の集約のために jq をインストールするようユーザーに警告します。JSONL を手書きしてはいけません。
 
-If zero tasks were identified in this review, still touch the JSONL file
-(`: > "$TASKS_FILE"`) so the aggregator sees that the phase produced output
-this run (an empty file means "ran, no findings" — distinct from "didn't run").
+このレビューでタスクが 1 件も特定されなかった場合でも、JSONL ファイルを touch します
+(`: > "$TASKS_FILE"`)。これにより、集約処理はこのフェーズが今回の実行で出力を生成したことを認識できます
+(空のファイルは「実行したが発見事項なし」を意味し、「未実行」とは区別されます)。
 
 
-### Completion Summary
-Prepare this for the saved review; announce completion after the Read-back gate below.
-In the plan file, write it as its own `## Design Review Completion Summary` section
-(the box, the deferred list and the Unresolved Decisions below) above the terminal
-`## GSTACK REVIEW REPORT`, replacing this review's earlier one. Never write it inside
-the report: the next plan review deletes and regenerates everything under that heading.
+### 完了サマリー
+これを保存されるレビューのために準備してください。完了の宣言は、以下の読み返しゲートの後に行います。
+プランファイルでは、これを独立した `## Design Review Completion Summary` セクションとして書いてください(ボックス、先送りの一覧、以下の未解決の決定事項を含む)。終端の `## GSTACK REVIEW REPORT` の上に置き、このレビューで以前に書いたものは置き換えます。レポートの中には決して書かないこと。次のプランレビューがその見出しの下にあるすべてを削除して再生成するためです。
 
-**Overall design score:** use the lowest of the six rated pass scores (1-6),
-separately before and after approved fixes. Pass 7 is unscored. Keep Step 0's
-initial impression in its own row. An overall 8+ therefore means every rated
-pass is 8+; unresolved findings still prevent a clean review log.
+**総合デザインスコア:** 承認された修正の前後それぞれについて、評価したパス(1〜6)の6つのスコアのうち最も低いものを使う。パス7は採点しない。Step 0 の初期印象は、独自の行に残す。総合スコアが 8 以上というのは、評価したすべてのパスが 8 以上であることを意味します。未解決の指摘がある限り、クリーンなレビューログにはできません。
 
 ```
   +====================================================================+
@@ -410,15 +385,15 @@ pass is 8+; unresolved findings still prevent a clean review log.
   +====================================================================+
 ```
 
-After Read-back, if all passes 8+: "Plan is design-complete. Run /design-review after implementation for visual QA."
-If any below 8: note what's unresolved and why (user chose to defer).
+読み返しの後、すべてのパスが 8 以上であれば: 「プランはデザインとして完成しています。実装後に /design-review を実行してビジュアル QA を行ってください。」
+8 未満のパスがあれば: 何が未解決で、なぜかを記載する(ユーザーが先送りを選んだ場合)。
 
-### Unresolved Decisions
-List every unresolved finding here, including a finding not yet asked or an unanswered AskUserQuestion. Never silently default to an option.
+### 未解決の決定事項
+未解決の指摘をすべてここに記載する。まだ質問していない指摘や、未回答の AskUserQuestion も含める。選択肢を黙ってデフォルトにしないこと。
 
-### Approved Mockups
+### 承認済みモックアップ
 
-If visual mockups were generated during this review, add to the plan file:
+このレビューで視覚的なモックアップを生成した場合は、プランファイルに以下を追加する:
 
 ```
 ## Approved Mockups
@@ -428,45 +403,45 @@ If visual mockups were generated during this review, add to the plan file:
 | [screen name]  | [absolute $_DESIGN_DIR]/[filename].png | [brief description] | [constraints from review] |
 ```
 
-Include the full path to each approved mockup (the variant the user chose), a one-line description of the direction, and any constraints. The implementer reads this to know exactly which visual to build from. These persist across conversations and workspaces. If no mockups were generated, omit this section.
+承認された各モックアップ(ユーザーが選んだバリアント)の完全なパス、方向性の一行説明、制約を含めてください。実装者はこれを読んで、どの視覚資料を基に作ればよいかを正確に把握します。これらは会話やワークスペースをまたいで保持されます。モックアップを生成していない場合は、このセクションを省略してください。
 
-## Plan File Review Report
+## Plan File Review Report(プランファイルのレビューレポート)
 
-Save the accepted plan changes and full review output, including the report below, before logging or announcing completion.
+ログの記録や完了の通知の前に、承認済みのプラン変更と、下のレポートを含むレビュー出力の全体を保存してください。
 
-### Detect the plan file
+### プランファイルを検出する
 
-Use an explicitly requested output/report file first. Otherwise use the reviewed plan named by the user, then the host active plan. If no file is in scope, skip this section; ordinary no-file review logging still applies.
+明示的に指定された出力/レポートファイルを最優先で使います。なければ、ユーザーが示したレビュー対象のプラン、次にホストのアクティブなプランを使います。対象のファイルがなければ、このセクションはスキップします。ファイルのない通常のレビューのログ記録は、そのまま適用されます。
 
-### Generate the report
+### レポートを生成する
 
-Run `~/.claude/skills/gstack/bin/gstack-review-read` for prior review entries.
-Use the current Completion Summary or DX Scorecard for this review's status and findings;
-apply the Review Log field rules below and add exactly one to its prior run count.
-Do not pre-log this run to populate the report.
-Use prior entries for other reviews, retaining their status, attribution and freshness.
+`~/.claude/skills/gstack/bin/gstack-review-read` を実行して、過去のレビューのエントリを取得します。
+このレビューのステータスと指摘には、現在の Completion Summary or DX Scorecard を使います。
+下のレビューログのフィールド規則を適用し、過去の実行回数にちょうど 1 を加えてください。
+レポートを埋めるために、この実行を事前にログへ記録してはいけません。
+ほかのレビューには過去のエントリを使い、そのステータス、出典、鮮度を保持します。
 
-Parse each JSONL entry using recorded provenance. Historical source "claude" is a native Claude subagent; "claude-code" is the external CLI. Keep historical codex identifiers and never relabel old records from the current harness. Unknown model identity remains unknown. For new records, show host, outside_provider, outside_status, and phase. Only completed external records establish outside coverage; native fallbacks do not.
+各 JSONL エントリは、記録された来歴に従って解釈します。過去の source "claude" はネイティブの Claude サブエージェント、"claude-code" は外部 CLI です。過去の codex の識別子はそのまま保持し、古いレコードを現在のハーネスで付け替えてはいけません。モデルの識別が不明なものは不明のままにします。新しいレコードでは、host、outside_provider、outside_status、phase を表示します。外部カバレッジを成立させるのは、完了した外部レコードだけです。ネイティブへのフォールバックは成立させません。
 
-Each skill logs different fields:
+スキルごとに記録されるフィールドは異なります:
 
 - **plan-ceo-review**: \`status\`, \`unresolved\`, \`critical_gaps\`, \`mode\`, \`scope_proposed\`, \`scope_accepted\`, \`scope_deferred\`, \`commit\`
-  → Findings: "{scope_proposed} proposals, {scope_accepted} accepted, {scope_deferred} deferred"
-  → If scope fields are 0 or missing (HOLD/REDUCTION mode): "mode: {mode}, {critical_gaps} critical gaps"
+  → Findings 列: "{scope_proposed} proposals, {scope_accepted} accepted, {scope_deferred} deferred"
+  → scope 系のフィールドが 0 または欠けている場合(HOLD/REDUCTION モード): "mode: {mode}, {critical_gaps} critical gaps"
 - **plan-eng-review**: \`status\`, \`unresolved\`, \`critical_gaps\`, \`issues_found\`, \`mode\`, \`commit\`
-  → Findings: "{issues_found} issues, {critical_gaps} critical gaps"
+  → Findings 列: "{issues_found} issues, {critical_gaps} critical gaps"
 - **plan-design-review**: \`status\`, \`initial_score\`, \`overall_score\`, \`unresolved\`, \`decisions_made\`, \`commit\`
-  → Findings: "score: {initial_score}/10 → {overall_score}/10, {decisions_made} decisions"
+  → Findings 列: "score: {initial_score}/10 → {overall_score}/10, {decisions_made} decisions"
 - **plan-devex-review**: \`status\`, \`initial_score\`, \`overall_score\`, \`product_type\`, \`tthw_current\`, \`tthw_target\`, \`mode\`, \`persona\`, \`competitive_tier\`, \`unresolved\`, \`commit\`
-  → Findings: "score: {initial_score}/10 → {overall_score}/10, TTHW: {tthw_current} → {tthw_target}"
+  → Findings 列: "score: {initial_score}/10 → {overall_score}/10, TTHW: {tthw_current} → {tthw_target}"
 - **devex-review**: \`status\`, \`overall_score\`, \`product_type\`, \`tthw_measured\`, \`dimensions_tested\`, \`dimensions_inferred\`, \`boomerang\`, \`commit\`
-  → Findings: "score: {overall_score}/10, TTHW: {tthw_measured}, {dimensions_tested} tested/{dimensions_inferred} inferred"
+  → Findings 列: "score: {overall_score}/10, TTHW: {tthw_measured}, {dimensions_tested} tested/{dimensions_inferred} inferred"
 - **codex-review**: \`status\`, \`gate\`, \`findings\`, \`findings_fixed\`
-  → Findings: "{findings} findings, {findings_fixed}/{findings} fixed"
+  → Findings 列: "{findings} findings, {findings_fixed}/{findings} fixed"
 
-The current row and its later log must describe the same saved review.
+現在の行と、その後のログは、同じ保存済みレビューを表していなければなりません。
 
-Produce this markdown table:
+次の Markdown の表を作成します:
 
 \`\`\`markdown
 ## GSTACK REVIEW REPORT
@@ -480,86 +455,83 @@ Produce this markdown table:
 | DX Review | \`/plan-devex-review\` | Developer experience gaps | {runs} | {status} | {findings} |
 \`\`\`
 
-Below the table, add these lines. **OUTSIDE COVERAGE** and **CROSS-MODEL** are conditional:
-include them when the phase ran, was disabled/skipped/unavailable, or has findings;
-omit them only when no such phase applies. **VERDICT** is always present:
+表の下に、次の行を追加します。**OUTSIDE COVERAGE** と **CROSS-MODEL** は条件付きです。
+フェーズが実行された、無効化/スキップ/利用不可だった、または指摘がある場合は含めます。
+該当するフェーズがまったくない場合に限り省略します。**VERDICT** は常に含めます:
 
-- **OUTSIDE COVERAGE:** provider, phase, completion state, and findings. Include unavailable, disabled, and skipped phases; never infer completion from another phase.
-- **CROSS-MODEL:** only when native and completed external reviews exist — overlap analysis with recorded providers and known model identity. Do not infer distinct model families from harness names.
-- **VERDICT:** list reviews that are CLEAR (e.g., "CEO + ENG CLEARED — ready to implement").
-  If Eng Review is not CLEAR and not skipped globally, append "eng review required".
+- **OUTSIDE COVERAGE:** プロバイダー、フェーズ、完了状態、指摘。利用不可、無効化、スキップされたフェーズも含めます。別のフェーズから完了を推測してはいけません。
+- **CROSS-MODEL:** ネイティブと、完了した外部レビューの両方がある場合のみ。記録されたプロバイダーと、判明しているモデルの識別に基づく重複の分析です。ハーネス名から別々のモデルファミリーだと推測してはいけません。
+- **VERDICT:** CLEAR のレビューを列挙します(例: "CEO + ENG CLEARED — ready to implement")。
+  Eng Review が CLEAR ではなく、グローバルにスキップもされていない場合は、"eng review required" を付け加えます。
 
-**Unresolved-decisions status (MANDATORY — never omitted; the report's final non-whitespace
-line).** After VERDICT, end the report (content under the \`## GSTACK REVIEW REPORT\`
-heading — a bold label, never a new \`## \` heading; exempt from the "omit when empty"
-rule) with exactly one: the exact unbolded line \`NO UNRESOLVED DECISIONS\` (a bolded one
-does NOT count), OR a \`**UNRESOLVED DECISIONS:**\` header + one bullet per open item
-(last bullet = final line; add \`+ N unresolved from prior reviews\` only when N > 0).
-This avoids double-counting: list THIS review's open items from context; for prior reviews
-sum \`unresolved\` over the latest fresh row per skill (dashboard 7-day window) after you
-DROP the current skill's row; emit the sentinel only when both are zero.
+**未解決の決定事項のステータス(必須 — 省略不可。レポートの空白を除く最後の行)。**
+VERDICT の後で、レポート(\`## GSTACK REVIEW REPORT\` 見出しの下の内容。
+太字のラベルであり、新しい \`## \` 見出しにはしません。「空なら省略」の規則の対象外)を、
+次のどちらか 1 つだけで終えます。太字にしない \`NO UNRESOLVED DECISIONS\` の 1 行そのもの
+(太字にしたものは認められません)、または \`**UNRESOLVED DECISIONS:**\` のヘッダーと、未解決項目ごとに 1 つの箇条書きです
+(最後の箇条書きが最終行。\`+ N unresolved from prior reviews\` を足すのは N > 0 のときだけ)。
+二重に数えないための手順です。このレビューの未解決項目は文脈から列挙し、過去のレビューについては
+現在のスキルの行を除外したうえで、スキルごとの最新で有効な行(ダッシュボードの 7 日間のウィンドウ)の
+\`unresolved\` を合計します。両方が 0 のときだけ、定型の行を出力します。
 
-### Write to the plan file
+### プランファイルに書き込む
 
-**PLAN MODE EXCEPTION — ALWAYS RUN:** Save the complete reviewed plan/report with only accepted changes applied; keep unresolved choices pending.
+**PLAN MODE EXCEPTION — ALWAYS RUN:** 承認済みの変更だけを適用した、レビュー済みの完全なプランとレポートを保存します。未解決の選択肢は保留のままにします。
 
-The report must always be the LAST section of the plan file — never mid-file.
-Use a single delete-then-append flow:
+レポートは常にプランファイルの最後のセクションでなければなりません。途中に置いてはいけません。
+削除してから追記する、単一の手順を使います:
 
-1. Read the existing plan/report, if present. Preserve its content and apply only
-   accepted changes; include the full review output. Locate any existing
-   `## GSTACK REVIEW REPORT` section.
-2. If found, use the Edit tool to DELETE the entire existing section. Match from
-   \`## GSTACK REVIEW REPORT\` through either the next \`## \` heading or end of
-   file, whichever comes first. Replace with the empty string. This applies
-   regardless of where the section currently lives — mid-file deletion is
-   intentional, not a special case. If the Edit fails (e.g., concurrent edit
-   changed the content), re-read the plan file and retry once.
-3. If a report was deleted, Read the updated file. Append the new
-   \`## GSTACK REVIEW REPORT\` at EOF. Use Edit to match the suffix
-   confirmed by the latest Read, or Write the full file with the report last. Append whether or not a prior report existed.
-   "Unresolved Decisions" is not an EOF anchor when other sections follow it.
-4. **Read-back gate:** Read the saved file. Verify the accepted changes, full review
-   output, current review row, verdict and final unresolved-decisions status, with
-   `## GSTACK REVIEW REPORT` as the last section. If writing or verification fails,
-   report the error and stop before Review Log or decision logging.
+1. 既存のプラン/レポートがあれば Read します。その内容を保持し、
+   承認済みの変更だけを適用して、レビュー出力の全体を含めます。既存の
+   `## GSTACK REVIEW REPORT` セクションを探します。
+2. 見つかった場合は、Edit ツールで既存のセクション全体を削除します。\`## GSTACK REVIEW REPORT\` から、
+   次の \`## \` 見出しまたはファイル末尾のうち先に来るほうまでを対象にし、
+   空文字列に置き換えます。セクションが今どこにあっても同じです。途中にあるセクションの削除は
+   特別な例外ではなく、意図した動作です。Edit が失敗した場合(たとえば同時編集で
+   内容が変わった場合)は、プランファイルを読み直して 1 回だけ再試行します。
+3. レポートを削除した場合は、更新後のファイルを Read します。新しい
+   \`## GSTACK REVIEW REPORT\` をファイル末尾に追記します。直近の Read で確認した末尾に
+   合わせて Edit するか、レポートを最後に置いた完全なファイルを Write します。 以前のレポートがあったかどうかにかかわらず、追記します。
+   後ろにほかのセクションが続く場合、"Unresolved Decisions" はファイル末尾の目印ではありません。
+4. **Read-back gate:** 保存したファイルを Read します。承認済みの変更、レビュー出力の全体、現在のレビューの行、
+   判定、最後の未解決の決定事項のステータスを確認し、
+   `## GSTACK REVIEW REPORT` が最後のセクションであることを検証します。書き込みまたは検証に失敗した場合は、
+   エラーを報告し、レビューログや決定事項のログ記録の前に停止します。
 
-Do NOT replace the section in place; delete it and append the new report at EOF,
-so the review report is always the plan's last section.
+セクションをその場で置き換えてはいけません。削除してから、新しいレポートをファイル末尾に追記します。
+そうすれば、レビューレポートが常にプランの最後のセクションになります。
 
-## Review Log
+## レビューログ
 
-When a plan/report file is in scope, persist only after its successful write and Read-back
-above. On failure, report the error and stop; do not log completion or an accepted decision.
-**PLAN MODE EXCEPTION — ALWAYS RUN after verification:** these commands write review
-metadata to `~/.gstack/`; the following dashboard reads the saved result.
+プラン/レポートのファイルがスコープに入っている場合は、上記の正常な書き込みと読み返しの後にのみ保存してください。失敗した場合はエラーを報告して停止し、完了や承認された決定を記録しないでください。
+**PLAN MODE EXCEPTION — 検証後に必ず実行:** これらのコマンドはレビューのメタデータを `~/.gstack/` に書き込みます。後続のダッシュボードは、保存された結果を読み取ります。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-design-review","timestamp":"TIMESTAMP","status":"STATUS","initial_score":N,"overall_score":N,"unresolved":N,"decisions_made":N,"commit":"COMMIT"}'
 ```
 
-Substitute values from the Completion Summary:
-- **TIMESTAMP**: current ISO 8601 datetime
-- **STATUS**: "clean" if overall score 8+ AND 0 unresolved; otherwise "issues_open"
-- **initial_score**: initial overall design score before fixes (0-10)
-- **overall_score**: final overall design score after fixes (0-10)
-- **unresolved**: number of unresolved design decisions
-- **decisions_made**: number of design decisions added to the plan
-- **COMMIT**: output of `git rev-parse --short HEAD`
+完了サマリーの値で置き換えてください:
+- **TIMESTAMP**: 現在の ISO 8601 形式の日時
+- **STATUS**: 総合スコアが 8 以上かつ未解決が 0 件なら "clean"、それ以外は "issues_open"
+- **initial_score**: 修正前の総合デザインスコア(0〜10)
+- **overall_score**: 修正後の最終的な総合デザインスコア(0〜10)
+- **unresolved**: 未解決のデザイン上の決定の件数
+- **decisions_made**: プランに追加されたデザイン上の決定の件数
+- **COMMIT**: `git rev-parse --short HEAD` の出力
 
-## Review Readiness Dashboard
+## Review Readiness Dashboard(レビュー準備状況のダッシュボード)
 
-After completing the review, read the review log and config to display the dashboard.
+レビューの完了後に、レビューログと設定を読み、ダッシュボードを表示します。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-read
 ```
 
-**1. Choose the records to display.** Use the latest record for each row below.
-Do not use a record older than 7 days to clear a row, and never substitute an older
-success for a newer failure. Ship metrics are not review records.
+**1. 表示するレコードを選びます。** 下の各行について、最新のレコードを使います。
+7 日より古いレコードで行を CLEAR にしてはいけません。また、新しい失敗を古い成功で
+置き換えてもいけません。Ship のメトリクスはレビューレコードではありません。
 
-| Row | Choose the latest of | Status suffix |
+| 行 | 最新を選ぶ対象 | ステータスの接尾辞 |
 |---|---|---|
 | Eng Review | `review` or `plan-eng-review` | (DIFF) or (PLAN) |
 | CEO Review | `plan-ceo-review` | — |
@@ -567,54 +539,54 @@ success for a newer failure. Ship metrics are not review records.
 | Adversarial | `adversarial-review` or legacy `codex-review` | — |
 | Outside Voice | `codex-plan-review` from CEO or Eng review | — |
 
-Keep each record's host, source, outside_provider, outside_status and phase.
-Historical source "claude" is a native subagent; "claude-code" is the external CLI.
-Do not infer old providers or unknown models from today's harness. A native result
-does not fill missing, disabled or skipped outside coverage.
+各レコードの host、source、outside_provider、outside_status、phase を保持してください。
+過去の source "claude" はネイティブのサブエージェント、"claude-code" は外部 CLI です。
+古いプロバイダーや不明なモデルを、現在のハーネスから推測してはいけません。ネイティブの結果で、
+欠落している、無効化された、またはスキップされた外部カバレッジを埋めることはできません。
 
-**Source attribution:** Append a recorded `via` to the suffix ("CLEAR (PLAN via
-/autoplan)"); without one, keep "CLEAR (PLAN)" or "CLEAR (DIFF)". Below the dashboard, group `autoplan-voices`
-and `design-outside-voices` by workflow run and phase. Show each phase's provider
-and outside_status; retain partial coverage. These details do not clear Eng Review.
+**出典の明示:** 記録された `via` を接尾辞に付けます("CLEAR (PLAN via
+/autoplan)")。`via` がなければ "CLEAR (PLAN)" または "CLEAR (DIFF)" のままにします。ダッシュボードの下に、`autoplan-voices`
+と `design-outside-voices` をワークフロー実行とフェーズごとにまとめます。各フェーズの
+プロバイダーと outside_status を表示し、部分的なカバレッジも残してください。これらの詳細で Eng Review が CLEAR になることはありません。
 
-**2. Check freshness before choosing a verdict.**
+**2. 判定を選ぶ前に、鮮度を確認します。**
 
-- **Content-first rule:** For `review`, `adversarial-review`, `codex-review`,
-  ship-stage reviews and `design-review-lite`, use `review_freshness.status`
-  and show its `reason`. CURRENT means a completed clean review whose start and
-  end content fingerprints equal the current `---WTREE---` fingerprint.
-  STALE or UNVERIFIED cannot clear Eng Review. Missing `review_freshness`,
-  including legacy log-only records, means UNVERIFIED. Never fall back to HEAD
-  equality or commit distance for diff evidence, even at zero commits.
-  Show recorded cycles, completed/converged fields and missing source/phase
-  coverage. Unknown coverage is not a pass.
-- **Plan records** (plan-ceo-review, plan-eng-review, plan-design-review and
-  codex-plan-review) use the 7-day window, not the working-tree fingerprint.
-  If `plan_sha256` is present, you may compare the plan file and report a mismatch.
-  Compare the recorded commit with `---HEAD---`; if different, run
-  `git rev-list --count STORED_COMMIT..HEAD` and report
-  "Note: {skill} review from {date} may be stale — {N} commits since review".
-  A failed command means UNKNOWN, treated as stale; without commit tracking,
-  suggest a re-run. Omit notes when all reviews are current.
+- **内容優先のルール:** `review`、`adversarial-review`、`codex-review`、
+  ship 段階のレビュー、`design-review-lite` では、`review_freshness.status`
+  を使い、その `reason` を表示します。CURRENT とは、開始時と終了時の内容フィンガープリントが
+  現在の `---WTREE---` フィンガープリントと一致する、完了したクリーンなレビューのことです。
+  STALE または UNVERIFIED では Eng Review を CLEAR にできません。`review_freshness` がない場合は
+  (ログのみの旧レコードを含む)UNVERIFIED です。差分の証拠について、HEAD の一致や
+  コミット距離にフォールバックしてはいけません(コミット数が 0 でも同じです)。
+  記録されたサイクル、completed/converged フィールド、欠落している source/phase の
+  カバレッジを表示してください。カバレッジが不明な場合は合格ではありません。
+- **プランレコード**(plan-ceo-review、plan-eng-review、plan-design-review、
+  codex-plan-review)は、作業ツリーのフィンガープリントではなく 7 日間のウィンドウを使います。
+  `plan_sha256` があれば、プランファイルと比較して不一致を報告してかまいません。
+  記録されたコミットを `---HEAD---` と比較し、異なる場合は
+  `git rev-list --count STORED_COMMIT..HEAD` を実行して、
+  "Note: {skill} review from {date} may be stale — {N} commits since review" と報告します。
+  コマンドが失敗した場合は UNKNOWN として、古いものとして扱います。コミットを追跡していない場合は、
+  再実行を提案してください。すべてのレビューが最新なら、注記は省略します。
 
-**3. Choose the historical verdict.** CLEARED requires the selected Eng Review
-to be `clean`, within 7 days and fresh under step 2. Otherwise report NOT CLEARED
-and its missing, stale or open-issue reason. If `skip_eng_review` is true, show
-"SKIPPED (global)" for Eng Review and CLEARED for this dashboard.
-Eng Review is required by default; `gstack-config set skip_eng_review true` disables that requirement.
+**3. 履歴上の判定を選びます。** CLEARED になるのは、選んだ Eng Review が
+`clean` で、7 日以内で、ステップ 2 の鮮度を満たす場合だけです。それ以外は NOT CLEARED と報告し、
+欠落、古さ、または未解決の課題という理由を添えます。 `skip_eng_review` が true の場合は、
+Eng Review に "SKIPPED (global)" を、このダッシュボードに CLEARED を表示します。
+Eng Review はデフォルトで必須です。`gstack-config set skip_eng_review true` でこの要件を無効にできます。
 
-Other rows provide context, not a substitute for Eng Review:
-- Recommend CEO Review for product/business or scope decisions, not routine fixes or cleanup.
-- Recommend Design Review for UI/UX work, not backend, infrastructure or prompt-only work.
-- Adversarial review always includes a native pass. Available, enabled outside
-  challenges supplement it; diffs of 200+ lines also get the structured P1 gate.
-- Outside Voice is the default-on plan review after CEO/Eng review. `codex_reviews`
-  disables that extra step. Provider failure uses native fallback and records
-  missing outside coverage; this dashboard row never gates shipping.
+ほかの行は文脈を示すもので、Eng Review の代わりにはなりません:
+- CEO Review を勧めるのは、プロダクトやビジネス、スコープに関する判断のときです。定型的な修正やクリーンアップでは勧めません。
+- Design Review を勧めるのは、UI/UX の作業のときです。バックエンド、インフラ、プロンプトのみの作業では勧めません。
+- Adversarial レビューには、必ずネイティブのパスが含まれます。利用可能で有効な外部の
+  チャレンジはそれを補います。200 行以上の差分には、構造化された P1 ゲートも適用されます。
+- Outside Voice は、CEO/Eng レビューの後にデフォルトで有効になるプランレビューです。`codex_reviews`
+  でその追加ステップを無効にできます。プロバイダーが失敗した場合はネイティブにフォールバックし、
+  外部カバレッジの欠落を記録します。このダッシュボードの行が出荷をブロックすることはありません。
 
-**4. Display the dashboard.** Show missing, stale, disabled or unavailable results
-explicitly, never as CLEAR. Display a fresh `clean` result as CLEAR and
-`issues_open` as ISSUES OPEN without changing the stored status.
+**4. ダッシュボードを表示します。** 欠落、古い、無効化された、利用できない結果は、
+CLEAR としてではなく、そのとおりに明示してください。最新の `clean` は CLEAR、
+`issues_open` は ISSUES OPEN と表示し、保存されているステータスは変更しません。
 
 ```
 +====================================================================+
@@ -632,42 +604,42 @@ explicitly, never as CLEAR. Display a fresh `clean` result as CLEAR and
 +====================================================================+
 ```
 
-## Capture Learnings
+## Capture Learnings(学びの記録)
 
-If you discovered a non-obvious pattern, pitfall, or architectural insight during
-this session, log it for future sessions:
+このセッション中に、自明ではないパターン、落とし穴、アーキテクチャ上の知見を発見した場合は、
+今後のセッションのために記録します:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-learnings-log '{"skill":"plan-design-review","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}'
 ```
 
-**Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`
-(user stated), `architecture` (structural decision), `tool` (library/framework insight),
-`operational` (project environment/CLI/workflow knowledge).
+**Types:** `pattern`(再利用できるアプローチ)、`pitfall`(やってはいけないこと)、`preference`
+(ユーザーが述べたもの)、`architecture`(構造上の決定)、`tool`(ライブラリ/フレームワークの知見)、
+`operational`(プロジェクト環境/CLI/ワークフローの知識)。
 
-**Sources:** `observed` (you found this in the code), `user-stated` (user told you),
-`inferred` (AI deduction), `cross-model` (both Claude and Codex agree).
+**Sources:** `observed`(コード内で見つけた)、`user-stated`(ユーザーが伝えた)、
+`inferred`(AI の推論)、`cross-model`(Claude と Codex の両方が一致)。
 
-**Confidence:** 1-10. Be honest. An observed pattern you verified in the code is 8-9.
-An inference you're not sure about is 4-5. A user preference they explicitly stated is 10.
+**Confidence:** 1〜10。正直に付けます。コードで検証した観察済みのパターンは 8〜9 です。
+確信のない推論は 4〜5 です。ユーザーが明示的に述べた好みは 10 です。
 
-**files:** Include the specific file paths this learning references. This enables
-staleness detection: if those files are later deleted, the learning can be flagged.
+**files:** この学びが参照している具体的なファイルパスを含めます。これにより
+陳腐化の検出が可能になります。それらのファイルが後で削除された場合、その学びにフラグを立てられます。
 
-**Only log genuine discoveries.** Don't log obvious things. Don't log things the user
-already knows. A good test: would this insight save time in a future session? If yes, log it.
+**本当の発見だけを記録します。** 自明なことは記録しません。ユーザーがすでに知っていることも
+記録しません。良い判断基準は、この知見が今後のセッションで時間の節約になるかどうかです。なるなら記録します。
 
 
 
-## Brain Calibration Write-Back (gated)
+## Brain Calibration Write-Back (gated)(brain キャリブレーションの書き戻し、ゲート付き)
 
-Skip unless `BRAIN_CALIBRATION_WRITEBACK` is set and the preamble/brain-health
-output or gstack config shows `brain_trust_policy@<endpoint-hash>=personal`.
-If unknown, skip. If both gates pass, record one durable
-typed prediction with `mcp__gbrain__takes_add`; if unavailable, use
-`mcp__gbrain__put_page` with a gstack:takes fence block.
+`BRAIN_CALIBRATION_WRITEBACK` が設定され、かつプリアンブル/brain-health の
+出力または gstack の設定に `brain_trust_policy@<endpoint-hash>=personal` が示されている場合を除き、スキップします。
+不明な場合はスキップします。両方のゲートを通過した場合は、永続的な
+型付きの予測を 1 つ `mcp__gbrain__takes_add` で記録します。利用できない場合は、
+gstack:takes フェンスブロックを付けて `mcp__gbrain__put_page` を使います。
 
-Take frontmatter:
+Take の frontmatter:
 ```yaml
 kind: bet
 holder: <user identity from whoami>
@@ -678,19 +650,19 @@ expected_resolution: <date in 1-3 months depending on skill>
 source_skill: plan-design-review
 ```
 
-After write, invalidate affected digests:
+書き込み後、影響を受けるダイジェストを無効化します:
 
 ```bash
 SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null) || true
   ~/.claude/skills/gstack/bin/gstack-brain-cache invalidate brand --project "$SLUG" 2>/dev/null || true
 ```
 
-## Brain Cache Background Refresh
+## Brain Cache Background Refresh(brain キャッシュのバックグラウンド更新)
 
-After the skill's work completes (and telemetry has logged), kick a
-background refresh of any cache digest that's getting close to its TTL.
-This is non-blocking — the user doesn't wait. Next invocation benefits
-from the warm cache.
+スキルの作業が完了し(テレメトリが記録された後)、TTL に近づいているキャッシュダイジェストの
+バックグラウンド更新を起動します。
+これはノンブロッキングで、ユーザーは待ちません。次回の呼び出しでは、
+ウォームなキャッシュの恩恵を受けられます。
 
 ```bash
 SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null) || true
@@ -698,34 +670,28 @@ SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null) || true
 ```
 
 
-## Next Steps — Review Chaining
+## 次のステップ — レビューの連鎖
 
-After displaying the Review Readiness Dashboard, recommend the next review(s) based on what this design review discovered. Read the dashboard output to see which reviews have already been run and whether they are stale.
+レビューの準備状況ダッシュボードを表示した後、このデザインレビューで判明したことに基づいて、次に行うべきレビューを推奨してください。ダッシュボードの出力を読み、どのレビューが既に実行されていて、どれが古くなっているかを確認します。
 
-**Recommend /plan-eng-review if eng review is not skipped globally** — check the dashboard output for `skip_eng_review`. If it is `true`, eng review is opted out — do not recommend it. Otherwise, eng review is the required shipping gate. If this design review added significant interaction specifications, new user flows, or changed the information architecture, emphasize that eng review needs to validate the architectural implications. If an eng review already exists but the commit hash shows it predates this design review, note that it may be stale and should be re-run.
+**全体で eng レビューがスキップされていなければ /plan-eng-review を推奨する。** ダッシュボードの出力で `skip_eng_review` を確認してください。`true` の場合は eng レビューがオプトアウトされているので、推奨しないこと。それ以外の場合、eng レビューは必須の出荷ゲートです。このデザインレビューで重要な操作仕様、新しいユーザーフローが追加されたり、情報アーキテクチャが変わったりした場合は、eng レビューがアーキテクチャ上の影響を検証する必要があることを強調してください。eng レビューが既にあるが、そのコミットハッシュがこのデザインレビューより前のものを示している場合は、古くなっている可能性があり、再実行すべきだと伝えてください。
 
-**Consider recommending /plan-ceo-review** — but only if this design review revealed fundamental product direction gaps. Specifically: if the overall design score started below 4/10, if the information architecture had major structural problems, or if the review surfaced questions about whether the right problem is being solved. AND no CEO review exists in the dashboard. This is a selective recommendation — most design reviews should NOT trigger a CEO review.
+**/plan-ceo-review を推奨することを検討する** — ただし、このデザインレビューで製品の方向性に関する根本的なギャップが明らかになった場合に限ります。具体的には、総合デザインスコアが 4/10 を下回って始まった場合、情報アーキテクチャに大きな構造上の問題があった場合、またはレビューによって正しい課題を解決しているのかという疑問が浮上した場合です。かつ、ダッシュボードに CEO レビューが存在しないこと。これは選択的な推奨です。ほとんどのデザインレビューでは CEO レビューを推奨すべきではありません。
 
-**If both are needed, recommend eng review first** (required gate).
+**両方が必要な場合は、eng レビューを先に推奨してください**(必須のゲート)。
 
-**Recommend design exploration skills when appropriate** — /design-shotgun and /design-html
-produce design artifacts (mockups, HTML previews), not application code. They belong in
-plan mode alongside reviews. If this design review found visual issues that would benefit
-from exploring new directions, recommend /design-shotgun. If approved mockups exist and
-need to be turned into working HTML, recommend /design-html.
+**デザイン探索スキルが適切な場合は推奨する** — /design-shotgun と /design-html は、アプリケーションのコードではなく、デザインの成果物(モックアップ、HTML プレビュー)を生成します。プランモードでレビューと並べて使うものです。このデザインレビューで、新しい方向性を探ると役立つ視覚的な問題が見つかった場合は /design-shotgun を推奨してください。承認済みのモックアップがあり、それを動作する HTML にする必要がある場合は /design-html を推奨してください。
 
-Use AskUserQuestion to present the next step. Always include the manual/stop
-option E; offer only applicable follow-on skills. If the user chooses manual,
-finish without starting another skill:
-- **A)** Run /plan-eng-review next (required gate)
-- **B)** Run /plan-ceo-review (only if fundamental product gaps found)
-- **C)** Run /design-shotgun — explore visual design variants for issues found
-- **D)** Run /design-html — generate Pretext-native HTML from approved mockups
-- **E)** Skip — I'll handle next steps manually
+次のステップを提示するには AskUserQuestion を使ってください。常に手動/停止の選択肢 E を含め、該当するフォローアップのスキルだけを提示します。ユーザーが手動を選んだ場合は、別のスキルを開始せずに終了してください:
+- **A)** 次に /plan-eng-review を実行する(必須のゲート)
+- **B)** /plan-ceo-review を実行する(製品の根本的なギャップが見つかった場合のみ)
+- **C)** /design-shotgun を実行する — 見つかった問題に対するビジュアルデザインのバリアントを探索する
+- **D)** /design-html を実行する — 承認済みのモックアップから Pretext ネイティブの HTML を生成する
+- **E)** スキップ — 次のステップは自分で対応します
 
-## Formatting Rules
-* NUMBER issues (1, 2, 3...) and LETTERS for options (A, B, C...).
-* Label with NUMBER + LETTER (e.g., "3A", "3B").
-* One sentence max per option.
-* Pause for each unresolved issue. If a pass has none, say so and continue; do not manufacture a question.
-* Rate before and after each pass for scannability.
+## フォーマットのルール
+* 指摘は番号(1, 2, 3...)、選択肢は文字(A, B, C...)で示す。
+* 番号と文字でラベルを付ける(例: 「3A」「3B」)。
+* 選択肢の説明は最大1文。
+* 未解決の指摘ごとに一時停止する。パスに指摘がなければその旨を伝えて続行し、質問を作り出さないこと。
+* 比較しやすいよう、各パスの前後でスコアを評価する。

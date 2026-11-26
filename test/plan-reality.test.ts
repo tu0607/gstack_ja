@@ -13,6 +13,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { EXIT } from '../lib/headless-artifacts';
+import { expectMentions } from './helpers/prompt-structure';
 import { PLAN_REALITY_CHECKER, REALITY_ROWS, REALITY_SCOPES, TIER1_ROW_IDS, checkPlanReality, checkRealityRows, parseRealityLines, parseScopes, renderIncidentTable, renderRows, requiredRows, vaguePlanTerms } from '../lib/plan-reality';
 import { extractHeading } from '../lib/autoplan-prompts';
 import { RESULT_CODES } from '../lib/result-codes';
@@ -81,12 +82,25 @@ describe('checkRealityRows', () => {
     expect(r.metrics).toEqual({ unverified: '3' });
     expect(r.line).toBe('PLAN_REALITY: phase=ceo rows=7/7 missing=none unverified=3 verdict=complete');
   });
+  // The review-record docs are translated, so each receipt's English excerpt is located by a Japanese anchor
+  // (the translation shifted some line numbers, hence the tolerance); the fixture itself stays English.
+  const RECORD_ANCHORS: Record<string, string> = {
+    'premise-table': '| # | 計画からの前提 | 証拠 | 判定 |',
+    'already-done': '**既に存在するもの(検証済み)。**',
+    'surface-check': '**F11 — 中。A2 は `bun upgrade --version <pin>` に依存している',
+    'binding-decisions': '拘束力があるものとして扱った前のフェーズの決定',
+    'numbers': '`[estimated]`。CEO のレビューは最初の表を信用できない',
+    'deferred-asks': '### 対象外(このウェーブでは行わないもの)',
+    'pr-count': '**リポジトリ自身の制約に対する PR 数。**',
+  };
   test('each positive receipt points into the review record at the stated lines', () => {
     for (const [id, row] of Object.entries(FIXTURE.rows)) {
       const text = fs.readFileSync(path.join(ROOT, row.source.file), 'utf8').split('\n');
       const [from, to] = row.source.lines;
-      const excerpt = text.slice(from - 1, to).join('\n');
-      expect(excerpt, `${id}: ${row.source.file}:${from}-${to}`).toContain(row.source.contains);
+      expect(text.length, `${id}: ${row.source.file} is shorter than the stated range`).toBeGreaterThanOrEqual(to);
+      const anchorLine = text.findIndex(line => line.includes(RECORD_ANCHORS[id]!)) + 1;
+      expect(anchorLine, `${id}: ${row.source.file} lacks its anchor`).toBeGreaterThan(0);
+      expect(Math.abs(anchorLine - from), `${id}: anchor line ${anchorLine} vs stated ${from}`).toBeLessThanOrEqual(20);
       const parsed = parseRealityLines(row.positive)[0]!;
       expect(parsed.id).toBe(id);
       expect(parsed.receipt, `${id} carries a receipt`).not.toBeNull();
@@ -195,12 +209,17 @@ describe('captured tier 1 n/a (plan-mode-no-op, paid run 39004466422)', () => {
     expect(rejected.err).toContain('(REALITY_ROW_MISSING)');
     const repaired = run(['check', '--phase', 'eng', '-'], `${others}\n${captured.replace(' n/a ', ' pass ')}\n`);
     expect(repaired.out).toMatch(/^PLAN_REALITY: phase=eng rows=7\/7 missing=none .*verdict=complete$/m);
-    const rule = 'tier 1 always, never `n/a`: premise-table, already-done, surface-check, binding-decisions, numbers, deferred-asks, pr-count; tier 2 by detected scope, `--scope <csv>`). Every row cites a file:line receipt (with no linked issue, deferred-asks is `pass`)';
+    const ruleToken = 'tier 1 は常に対象で `n/a` 不可: premise-table, already-done, surface-check, binding-decisions, numbers, deferred-asks, pr-count';
+    const ruleGroups = [['file:line の証跡を引用', 'リンクされた issue がない場合', 'deferred-asks', '`pass`']];
     for (const phase of ['plan-eng-review', 'plan-ceo-review', 'plan-devex-review']) {
-      expect(generatePlanRealityRows({ skillName: phase, host: 'claude', paths: {} } as unknown as TemplateContext).replace(/\s+/g, ' ')).toContain(rule);
+      const text = generatePlanRealityRows({ skillName: phase, host: 'claude', paths: {} } as unknown as TemplateContext).replace(/\s+/g, ' ');
+      expect(text).toContain(ruleToken);
+      expectMentions(text, ruleGroups, phase);
     }
     for (const rel of ['plan-eng-review/sections/review-sections.md', 'plan-ceo-review/SKILL.md']) {
-      expect(fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\s+/g, ' ')).toContain(rule);
+      const text = fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\s+/g, ' ');
+      expect(text).toContain(ruleToken);
+      expectMentions(text, ruleGroups, rel);
     }
   });
 });
@@ -228,26 +247,26 @@ describe('rendered templates carry the contract', () => {
   test('plan-eng-review: Scope Challenge block, deep incident table and Completion summary line', () => {
     const sections = read('plan-eng-review/sections/review-sections.md');
     expect(sections).toContain('gstack-plan-reality rows --phase eng');
-    expect(sections).toContain('### Reality rows (why each exists)');
+    expect(sections).toContain('### Reality rows(各行が存在する理由)');
     expect(sections).toContain('| `pr-count` | 1 | always |');
-    expect(sections).toContain('- Reality rows: ___/___ applicable rows emitted (`PLAN_REALITY` line), ___ unverified premises');
-    expect(read('plan-eng-review/sections/checklist.md')).toContain('| Reality rows (`REALITY:` lines, `PLAN_REALITY` check) | Reality rows (why each exists) | always |');
+    expect(sections).toContain('- Reality rows: ___/___ 件の該当行を出力済み(`PLAN_REALITY` 行)');
+    expect(read('plan-eng-review/sections/checklist.md')).toContain('| 現実の確認行(`REALITY:` 行、`PLAN_REALITY` チェック) | Reality rows(各行が存在する理由) | 常に |');
   });
   test('plan-ceo-review: 0A/0B block in the skeleton, Completion Summary row and checklist row', () => {
     const skeleton = read('plan-ceo-review/SKILL.md');
     const at = skeleton.indexOf('gstack-plan-reality rows --phase ceo');
-    expect(at).toBeGreaterThan(skeleton.indexOf('### 0B. Existing Code Leverage'));
-    expect(at).toBeLessThan(skeleton.indexOf('### 0C. Dream State Mapping'));
+    expect(at).toBeGreaterThan(skeleton.indexOf('### 0B. 既存コードの活用'));
+    expect(at).toBeLessThan(skeleton.indexOf('### 0C. 夢の状態のマッピング'));
     expect(read('plan-ceo-review/sections/review-sections.md')).toContain('| Reality rows         | ___/___ rows (PLAN_REALITY), ___ unverified |');
-    expect(read('plan-ceo-review/sections/review-sections.md')).toContain('### Reality rows\n');
-    expect(read('plan-ceo-review/sections/checklist.md')).toContain('| Reality rows (`REALITY:` lines, `PLAN_REALITY` check) | Reality rows | always |');
+    expect(read('plan-ceo-review/sections/review-sections.md')).toContain('### 現実の確認行\n');
+    expect(read('plan-ceo-review/sections/checklist.md')).toContain('| 現実の確認行(`REALITY:` の行、`PLAN_REALITY` のチェック) | 現実の確認行 | 常に |');
   });
   test('autoplan: CEO and Eng phase files run the check; the Pre-Gate names incomplete for unattended misses', () => {
     expect(read('autoplan/sections/ceo-phase.md')).toContain('gstack-plan-reality check --phase ceo');
     expect(read('autoplan/sections/eng-phase.md')).toContain('gstack-plan-reality check --phase eng');
     const skeleton = read('autoplan/SKILL.md');
-    const pregate = skeleton.slice(skeleton.indexOf('## Pre-Gate Verification'), skeleton.indexOf('## Phase 4: Final Approval Gate'));
-    expect(pregate).toContain('`REALITY:` lines');
+    const pregate = skeleton.slice(skeleton.indexOf('## ゲート前の検証'), skeleton.indexOf('## フェーズ 4: 最終承認ゲート'));
+    expect(pregate).toContain('`REALITY:` の行');
     expect(pregate).toContain('verdict=complete');
     expect(pregate).toContain('`incomplete`');
   });
@@ -327,7 +346,7 @@ describe('field wave item 12: a receipt per measured number, the rule text for a
 
   test('false-positive bound: the field-wave plan itself raises only a small, pinned count', () => {
     const text = fs.readFileSync(path.join(ROOT, 'docs', 'designs', 'GSTACK_FIELD_WAVE_2026_10_12.md'), 'utf8');
-    const r = checkPlanReality(extractHeading(text, 'Implementation plan')!);
+    const r = checkPlanReality(extractHeading(text, '実装計画')!);
     expect(r.unquoted).toEqual([]);
     expect(r.unreceipted_numbers.length).toBeGreaterThan(0);
     expect(r.unreceipted_numbers.length).toBeLessThanOrEqual(6);

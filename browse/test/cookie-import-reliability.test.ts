@@ -640,12 +640,12 @@ describe('cookie import reliability', () => {
     };
     const lists = {
       'commands.ts': line('browse/src/commands.ts', "'cookie-import-browser':"),
-      'README row': line('README.md', '| `/setup-browser-cookies` |'),
-      'BROWSER.md sessions row': line('BROWSER.md', '| Your sessions are already there |'),
-      'BROWSER.md picker': line('BROWSER.md', 'The picker recognizes'),
+      // README.md is now a two-line pointer without the skills table, so it no longer carries a browser list.
+      'BROWSER.md sessions row': line('BROWSER.md', '| セッションはすでにそこにある |'),
+      'BROWSER.md picker': line('BROWSER.md', 'ピッカーは Chrome、Chromium'),
       'docs/skills.md row': line('docs/skills.md', '| [`/setup-browser-cookies`]'),
-      'docs/skills.md picker': line('docs/skills.md', 'The picker detects'),
-      'ARCHITECTURE.md registry': line('ARCHITECTURE.md', 'The browser registry ('),
+      'docs/skills.md picker': line('docs/skills.md', 'ピッカーは、Chrome、Chromium'),
+      'ARCHITECTURE.md registry': line('ARCHITECTURE.md', 'ブラウザのレジストリ('),
     };
     const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     for (const name of names) {

@@ -1,19 +1,12 @@
-# Testing Specialist Review Checklist
+# テスト・スペシャリストのレビューチェックリスト
 
-Scope: Always-on (every review)
-Output: JSON objects, one finding per line. Schema:
+適用範囲: 常時(すべてのレビュー)
+出力: JSON オブジェクト。1 行に 1 件の指摘。スキーマ:
 {"severity":"CRITICAL|INFORMATIONAL","confidence":N,"path":"file","line":N,"category":"testing","summary":"...","fix":"...","fingerprint":"path:line:testing","specialist":"testing"}
-Optional: line, fix, fingerprint, evidence, test_stub.
-If no findings: output `NO FINDINGS` and nothing else.
+任意: line, fix, fingerprint, evidence, test_stub。
+指摘がない場合: `NO FINDINGS` とだけ出力する。
 
-If the caller explicitly asks for an ASCII coverage diagram, first read the
-named source and test files directly in a dedicated tool call. Keep that tool
-call limited to those two file reads, using either native Read calls or a simple
-shell display such as `cat -n src/file && echo ---- && cat -n test/file`. Read
-diffs, package files, configs, or other context in separate tool calls. Then
-output the diagram before any JSON findings. Use one function root per public or
-changed function, put the `[OK]` or `[GAP]` marker on the same branch row as the
-tested or missing path, and keep the legend inside the same diagram block:
+呼び出し元が ASCII のカバレッジ図を明示的に求めた場合は、まず専用のツール呼び出しで、指定されたソースファイルとテストファイルを直接読んでください。そのツール呼び出しは、その 2 つのファイルの読み込みだけに限定し、ネイティブの Read 呼び出し、または `cat -n src/file && echo ---- && cat -n test/file` のような単純なシェルの表示のいずれかを使ってください。差分、パッケージファイル、設定、その他の文脈は、別のツール呼び出しで読みます。その後、JSON の指摘より前に図を出力します。公開関数または変更された関数ごとに 1 つの関数のルートを使い、`[OK]` または `[GAP]` のマーカーを、テストされている、または欠けているパスと同じ分岐の行に置きます。凡例は同じ図のブロックの中に含めてください。
 
 ```text
 src/billing.ts
@@ -25,136 +18,90 @@ refundPayment(paymentId, reason)
 Legend: [OK] tested [GAP] no test
 ```
 
-Do not rely on a summary table, prose paragraph, or distant nested marker as the
-only coverage evidence. Covered happy-path rows must name the successful, valid,
-or concrete tested input path; gap rows must stay under the function that owns
-the missing path.
+要約の表、散文の段落、または離れた場所にあるネストしたマーカーだけを、カバレッジの唯一の証拠にしてはいけません。テストされている正常系の行には、成功した、有効な、または具体的にテストされた入力のパスを明記してください。ギャップの行は、欠けているパスを持つ関数の下に置きます。
 
 ---
 
-## Categories
+## カテゴリ
 
-### Exploratory hypotheses
+### 探索的な仮説
 
-The parent runs one shared exploratory QA pass before Fix-First, including small diffs
-that skip specialists. Supply high-risk changed contracts, adverse scenarios and native
-test candidates to that pass; do not launch another explorer, edit product/tests or
-commit. A test proposal uses `test_stub` and keeps the caller's approval requirements.
-Check real request/queue/storage effects, retries, duplicates and interrupted recovery
-where applicable. A diagram or test count is not executed proof. For discoveries promoted
-to regressions, require failure for the reproduced bug before repair and green plus
-original/adjacent probes afterward; never accept buggy-output goldens or discarded valid
-red tests. Unit tests suit logic; real integration/E2E tests protect boundaries mocks hide.
+親は、Fix-First の前に 1 回の共有の探索的 QA のパスを実行します。スペシャリストをスキップする小さな差分の場合も同様です。高リスクの変更されたコントラクト、悪い状況のシナリオ、ネイティブのテスト候補を、そのパスに提供してください。別の探索者を起動したり、製品やテストを編集したり、コミットしたりしてはいけません。テストの提案は `test_stub` を使い、呼び出し元の承認の要件を維持します。該当する場合は、実際のリクエスト、キュー、ストレージへの影響、リトライ、重複、中断からの復旧を確認してください。図やテストの件数は、実行された証明ではありません。回帰テストに昇格させた発見については、修正の前に再現されたバグで失敗することを必須とし、修正の後には緑、かつ元のプローブと隣接するプローブの両方が通ることを必須とします。バグのある出力に合わせたゴールデン、または捨てられた正しい赤いテストを受け入れてはいけません。ユニットテストはロジックに適しています。モックが隠すような境界には、実際の統合テストや E2E テストが必要です。
 
-### Missing Negative-Path Tests
-- New code paths that handle errors, rejections, or invalid input with NO corresponding test
-- Guard clauses and early returns that are untested
-- Error branches in try/catch, rescue, or error boundaries with no failure-path test
-- Permission/auth checks that are asserted in code but never tested for the "denied" case
+### 否定的なパスのテストの欠如
+- エラー、拒否、不正な入力を扱うが、対応するテストがない新しいコードパス
+- テストされていないガード句や早期 return
+- try/catch、rescue、エラーバウンダリーのエラー分岐で、失敗パスのテストがない
+- コードでアサートされているが、「拒否」のケースをテストしていない権限・認証のチェック
 
-### Missing Edge-Case Coverage
-- Boundary values: zero, negative, max-int, empty string, empty array, nil/null/undefined
-- Single-element collections (off-by-one on loops)
-- Unicode and special characters in user-facing inputs
-- Concurrent access patterns with no race-condition test
+### エッジケースのカバレッジの欠如
+- 境界値: ゼロ、負の数、最大の整数、空文字列、空の配列、nil/null/undefined
+- 要素が 1 つだけのコレクション(ループのオフバイワン)
+- ユーザー向けの入力に含まれる Unicode と特殊文字
+- 競合状態のテストがない並行アクセスのパターン
 
-### Negative Assertions
-- A new assertion that something is absent (`not.toContain`, `not in`, `assertNotIn`,
-  `pytest.raises` on a call that used to succeed) records a behavior removal, not coverage.
-  Cite the spec line, plan item or PR text that authorizes the removal; with none, report it
-  as a product decision shipped as a test.
-- A rename or removal in this diff can empty a standing negative assertion: a test asserting
-  the old token is absent now passes forever and guards nothing. For each identifier, flag,
-  heading or string the diff renames or deletes, grep the test suite for negative assertions
-  naming the old value, including inside tests that assert something else, and report each
-  as a coverage gap whose fix names the new value.
+### 否定のアサーション
+- 何かが存在しないことを新たにアサートする(`not.toContain`、`not in`、`assertNotIn`、以前は成功していた呼び出しに対する `pytest.raises`)場合、それはカバレッジではなく、動作の削除を記録しています。その削除を認める仕様の行、プランの項目、または PR のテキストを引用してください。引用できない場合は、製品の決定がテストとして出荷されたものと報告してください。
+- この差分での名前変更や削除によって、既存の否定のアサーションが空になることがあります。古いトークンが存在しないことをアサートしているテストは、永遠に合格し続け、何も守らなくなります。差分が名前変更または削除する識別子、フラグ、見出し、文字列ごとに、テストスイートを検索して、古い値を名指しする否定のアサーションを探してください。他のことをアサートしているテストの中も含めます。見つかったものは、その修正で新しい値を名指しするカバレッジの隙間として報告してください。
 
-### Test Isolation Violations
-- Tests sharing mutable state (class variables, global singletons, DB records not cleaned up)
-- Order-dependent tests (pass in sequence, fail when randomized)
-- Tests that depend on system clock, timezone, or locale
-- Tests that make real network calls instead of using stubs/mocks
+### テストの隔離違反
+- 可変の状態を共有するテスト(クラス変数、グローバルなシングルトン、後片付けされていない DB のレコード)
+- 順序に依存するテスト(順番に実行すると合格するが、ランダム化すると失敗する)
+- システムの時計、タイムゾーン、ロケールに依存するテスト
+- スタブやモックを使わず、実際のネットワーク呼び出しを行うテスト
 
-### Flaky Test Patterns
-- Timing-dependent assertions (sleep, setTimeout, waitFor with tight timeouts)
-- Assertions on ordering of unordered results (hash keys, Set iteration, async resolution order)
-- Tests that depend on external services (APIs, databases) without fallback
-- Randomized test data without seed control
+### 不安定なテストのパターン
+- タイミングに依存するアサーション(sleep、setTimeout、タイトなタイムアウトの waitFor)
+- 順序のない結果の順序に対するアサーション(ハッシュのキー、Set の反復、非同期の解決順序)
+- フォールバックなしで外部サービス(API、データベース)に依存するテスト
+- シードを制御していないランダムなテストデータ
 
-### Security Enforcement Tests Missing
-- Auth/authz checks in controllers with no test for the "unauthorized" case
-- Rate limiting logic with no test proving it actually blocks
-- Input sanitization with no test for malicious input
-- CSRF/CORS configuration with no integration test
+### セキュリティの強制テストの欠如
+- コントローラーの認証・認可のチェックに、「権限なし」のケースのテストがない
+- レート制限のロジックに、実際にブロックすることを証明するテストがない
+- 悪意のある入力に対するテストのない入力のサニタイズ
+- 統合テストのない CSRF/CORS の設定
 
-### Coverage Gaps
-- New public methods/functions with zero test coverage
-- Changed methods where existing tests only cover the old behavior, not the new branch
-- Utility functions called from multiple places but tested only indirectly
-- A path whose only tests are weak (★ smoke/existence/trivial, or a new test failing the
-  authoring gate below) stays a coverage gap at its existing severity; a low-value test
-  never closes a gap
+### カバレッジのギャップ
+- テストが 1 つもない新しい公開のメソッドや関数
+- 変更されたメソッドで、既存のテストが古い動作しか扱っておらず、新しい分岐を扱っていない
+- 複数の場所から呼ばれるユーティリティ関数で、間接的にしかテストされていない
+- テストが弱いだけのパス(★ スモーク、存在の確認、自明なテスト。または下の作成ゲートに失敗する新しいテスト)は、既存の重大度でカバレッジのギャップのままにする。価値の低いテストがギャップを埋めることはない
 
-### Low-value or implementation-coupled tests
-Scope: tests and test-only production seams added or changed in the diff. Findings are
-INFORMATIONAL, never CRITICAL, and never an auto-delete: recommend rewrite at the owning
-boundary, extend an existing test, or retire with a complete retirement card
-(`test, detects, non_test_callers, search_command, stronger_proof, history, unlocks,
-validation`). End each finding's `fix` with `Repo-wide sweep: run /test-audit.`
+### 価値の低い、または実装に結びついたテスト
+適用範囲: 差分で追加または変更されたテスト、およびテスト専用の本番コードのための継ぎ目。指摘は INFORMATIONAL であり、CRITICAL にはしない。自動削除は決してしない。推奨するのは、所有する境界での書き直し、既存のテストの拡張、または完全な退役カード(`test, detects, non_test_callers, search_command, stronger_proof, history, unlocks, validation`)による退役のいずれか。各指摘の `fix` の末尾に「リポジトリ全体の一掃: /test-audit を実行する。」と書く。
 
-A new or changed test passes the authoring gate only when all four answers exist (read
-its `Value: protects=...; fails_when=...; why_new=...; seam=...` header comment when the
-diff has one; an optional `no_claim=...` names what green does not prove and which
-fixtures or mocks stand in for what, and never waives a required live check):
-1. What observable behavior, invariant or independent contract does it protect?
-2. What credible regression makes it fail?
-3. Why does existing coverage not already catch that? Prefer adding a row to an existing table-driven test or shared fixture over a near-duplicate.
-4. Does it need a production seam (export, flag, wrapper, injection hook) that no production caller needs? If yes, test at the real boundary instead.
+差分の中の新規または変更されたテストは、次の 4 つの答えがすべて揃った場合にのみ作成ゲートを通過する(差分にある場合は、テストの冒頭コメントの `Value: protects=...; fails_when=...; why_new=...; seam=...` のヘッダーを読む。任意の `no_claim=...` は、緑でも証明されないことと、どのフィクスチャやモックが何を代替しているかを示す。必須のライブチェックを免除するものではない)。
+1. どんな観測可能な振る舞い、不変条件、独立した契約を守るか。
+2. どんな確かなリグレッションで失敗するか。
+3. 既存のカバレッジがそれをまだ捕まえていないのはなぜか。ほぼ重複するテストを作るより、既存のテーブル駆動テストや共有フィクスチャに行を足すことを優先する。
+4. 本番の呼び出し元が誰も必要としない本番の継ぎ目(export、フラグ、ラッパー、注入フック)を必要とするか。必要とするなら、代わりに本物の境界でテストする。
 
-Patterns:
-- assertion-free coverage probes
-- self-comparisons and identity copies
-- copied fixtures, inventories or export lists
-- exact source, import or string greps that are not a declared contract
-- private predicate or call-shape tests duplicated at a real boundary
-- duplicate invocations of the same contract
-- per-caller replays of a shared helper's tests
-- tests whose only purpose is keeping a test-only export, global or wrapper alive
-- production code whose only callers are tests
+パターン:
+- assert のないカバレッジ探り
+- 自己比較と同一コピー
+- コピーしたフィクスチャ、一覧、export リスト
+- 宣言された契約ではない、ソース、import、文字列の厳密な grep
+- 本物の境界でも重複している、private な述語や呼び出し形状のテスト
+- 同じ契約の重複した呼び出し
+- 共有ヘルパーのテストを呼び出し元ごとに再生したもの
+- テスト専用の export、グローバル、ラッパーを生かしておくことだけが目的のテスト
+- 呼び出し元がテストだけの本番コード
 
-Retention bar (never flag): a test that independently enforces a public API, protocol,
-config, migration, storage, security, platform, default, prompt-byte, generated-output
-(SKILL.md golden), package, release or architecture contract; call order when order is
-observable; source inspection when it is the cheapest independent guard; anything
-reachable from the package entrypoint (`package.json` exports/main, index re-exports).
-Static or slow is not a reason to delete.
+保持の基準(決して指摘しない): パブリック API、プロトコル、設定、マイグレーション、ストレージ、セキュリティ、プラットフォーム、デフォルト値、プロンプトのバイト列、生成された出力(SKILL.md のゴールデン)、パッケージ、リリース、アーキテクチャのコントラクトを、独立して強制するテスト。呼び出しの順序が観察可能な場合の呼び出し順序。最も安価な独立したガードとしてのソースの検査。パッケージのエントリーポイント(`package.json` の exports/main、index の再エクスポート)から到達可能なもの。遅い、または静的であることは削除の理由にはならない。
 
-Evidence for each finding goes in `evidence` with the fields `detects` (what failure the
-test can actually detect), `non_test_callers`, `search_command` and `stronger_proof`.
-For the last two patterns, run the caller check for each symbol the diff adds or exports,
-only when the symbol matches `^[A-Za-z_][A-Za-z0-9_]*$` (otherwise record "caller check
-unavailable: unsupported symbol"), with the symbol quoted, never interpolated unquoted:
+各指摘の証拠は `evidence` に、フィールド `detects`(テストが実際に検出できる失敗)、`non_test_callers`、`search_command`、`stronger_proof` を入れて記録する。最後の 2 つのパターンについては、差分が追加またはエクスポートするシンボルごとに呼び出し元の確認を実行する。ただし、シンボルが `^[A-Za-z_][A-Za-z0-9_]*$` に一致する場合に限る(一致しない場合は「caller check unavailable: unsupported symbol」と記録する)。シンボルは引用符で囲み、決して引用なしで埋め込まないこと:
 
 ```bash
 git grep -n -F -w -e '<symbol>' -- . ':!test/' ':!tests/' ':!spec/' ':!**/__tests__/**' ':!**/*.test.*' ':!**/*.spec.*' ':!**/*_test.*' ':!**/test_*.py'
 ```
 
-Record the command, exclusions and hit count, and mark the evidence "grep-only" (it cannot
-see re-exports, dynamic dispatch or generated code). If the search fails, record: caller
-check unavailable: <command>. The finding stays INFORMATIONAL and nothing is proposed for
-deletion; run the search by hand to complete the evidence. (see
-~/.claude/skills/gstack/docs/test-value-bar.md#caller-check-unavailable)
+コマンド、除外の条件、ヒット件数を記録し、証拠を「grep-only」とマークする(これは再エクスポート、動的ディスパッチ、生成されたコードを見ることができない)。検索が失敗した場合は、次のように記録する: caller check unavailable: <command>。その指摘は INFORMATIONAL のままとし、削除の提案は一切しない。証拠を完成させるには、手作業で検索を実行する。(~/.claude/skills/gstack/docs/test-value-bar.md#caller-check-unavailable を参照)
 
-Skip a test carrying `gstack:test-value keep reason="<why>"` (any comment syntax). If any
-were skipped, report their count and reasons as one INFORMATIONAL line. Emit no finding
-for a test you reviewed and kept.
+`gstack:test-value keep reason="<why>"` を持つテストはスキップする(コメントの構文は任意)。スキップしたものがあれば、その件数と理由を 1 行の INFORMATIONAL にまとめて報告する。レビューして保持したテストについては、指摘を出さない。
 
-Rejection vocabulary, when a finding names why a new test fails the gate:
-`duplicate_protects`, `needs_seam`, `incomplete_card`, `no_credible_regression`,
-`covered_elsewhere`, `implementation_coupled`.
+作成ゲートで新しいテストが不合格になった理由を指摘が挙げる場合の、却下の語彙:
+`duplicate_protects`、`needs_seam`、`incomplete_card`、`no_credible_regression`、`covered_elsewhere`、`implementation_coupled`。
 
-### Regression test without red proof
-- The diff adds a test named or commented as a regression, and neither the commit history
-  nor the PR body shows it failing before the fix. A regression test that never
-  demonstrably failed proves the mock, not the fix. INFORMATIONAL; ask for the
-  fails-at-HEAD / passes-after-fix record.
+### 赤い証明のない回帰テスト
+- この差分が、名前やコメントで回帰テストとされたテストを追加しているが、コミット履歴にも PR の本文にも、修正の前に失敗したことが示されていない。修正の前に実際に失敗したことのない回帰テストは、モックを証明しているのであって、修正を証明しているのではない。INFORMATIONAL。修正前は失敗し、修正後は通るという記録を求める。

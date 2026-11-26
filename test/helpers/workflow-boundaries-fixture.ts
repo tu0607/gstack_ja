@@ -52,7 +52,7 @@ export function createBoundaryFixture(id: BoundaryCase, root = fs.mkdtempSync(pa
     PATH: `${path.join(root, 'bin')}:${path.dirname(process.execPath)}:${process.env.PATH ?? '/usr/bin:/bin'}`,
   };
   const generated = read(path.join(ROOT, 'investigate/SKILL.md'));
-  const scope = generated.match(/^## Scope Lock\n[\s\S]*?(?=^## )/m)?.[0];
+  const scope = generated.match(/^## (?:Scope Lock|スコープのロック)\n[\s\S]*?(?=^## )/m)?.[0];
   if (!scope) throw new Error('generated /investigate Scope Lock missing');
   write(path.join(repo, 'workflow.md'), scope);
   const blocks = [...scope.matchAll(/```bash\n([\s\S]*?)```/g)].map(match => match[1].trim());

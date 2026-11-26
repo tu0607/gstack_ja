@@ -1,67 +1,67 @@
 ---
 name: gstack-contrib-add-host
 description: |
-  Contributor-only skill: create a new host config for gstack's multi-host system.
-  NOT installed for end users. Only usable from the gstack source repo.
+  コントリビューター専用のスキルです。gstack のマルチホスト方式に新しいホストの設定を追加します。
+  エンドユーザー向けにはインストールされません。gstack のソースリポジトリからのみ使用できます。
 triggers:
   - add new host
   - create host config
   - contribute new agent host
 ---
 
-# /gstack-contrib-add-host — Add a New Host
+# /gstack-contrib-add-host — 新しいホストを追加する
 
-This skill helps contributors add support for a new AI coding agent to gstack.
+このスキルは、新しい AI コーディングエージェントを gstack でサポートするためのコントリビューションを支援します。
 
-## What you'll create
+## 作成するもの
 
-A single TypeScript file in `hosts/<name>.ts` that defines:
-- CLI binary name for detection
-- Skill directory paths (global + local)
-- Frontmatter transformation rules
-- Path and tool rewrites
-- Runtime root symlink manifest
+`hosts/<name>.ts` に、次の内容を定義する 1 つの TypeScript ファイルを作成します。
+- 検出に使う CLI のバイナリ名
+- スキルのディレクトリパス(グローバルとローカルの両方)
+- フロントマターの変換ルール
+- パスとツールの書き換え
+- ランタイムのルートにあるシンボリックリンクのマニフェスト
 
-## Steps
+## 手順
 
-### 1. Gather host info
+### 1. ホストの情報を集める
 
-Ask the contributor:
-- What's the agent's name? (e.g., "OpenCode")
-- What's the CLI binary? (e.g., "opencode")
-- Where does it store skills globally? (e.g., "~/.config/opencode/skills/")
-- Where does it store skills locally in a project? (e.g., ".opencode/skills/")
-- What frontmatter fields does it support? (name + description is the minimum)
-- Does it have its own tool names? (e.g., "exec" instead of "Bash")
+コントリビューターに次のことを尋ねます。
+- エージェントの名前は何ですか?(例: 「OpenCode」)
+- CLI のバイナリ名は何ですか?(例: 「opencode」)
+- スキルをグローバルにどこへ保存しますか?(例: 「~/.config/opencode/skills/」)
+- プロジェクト内でスキルをローカルにどこへ保存しますか?(例: 「.opencode/skills/」)
+- どのフロントマターのフィールドをサポートしていますか?(name と description が最低限です)
+- 独自のツール名がありますか?(例: 「Bash」の代わりに「exec」)
 
-### 2. Create the config file
+### 2. 設定ファイルを作成する
 
-Use `hosts/opencode.ts` as a reference. Create `hosts/<name>.ts` with the
-gathered info. Follow the HostConfig interface in `scripts/host-config.ts`.
+リファレンスとして `hosts/opencode.ts` を使います。集めた情報をもとに `hosts/<name>.ts` を作成します。
+`scripts/host-config.ts` の HostConfig インターフェースに従ってください。
 
-### 3. Register in index
+### 3. インデックスに登録する
 
-Add the import and re-export in `hosts/index.ts`.
+`hosts/index.ts` に import と re-export を追加します。
 
-### 4. Add to .gitignore
+### 4. .gitignore に追加する
 
-Add `.<name>/` to `.gitignore`.
+`.gitignore` に `.<name>/` を追加します。
 
-### 5. Generate and verify
+### 5. 生成して検証する
 
 ```bash
 bun run gen:skill-docs --host <name>
 ```
 
-Check:
-- Output exists at `.<name>/skills/gstack-*/SKILL.md`
-- No `.claude/skills` path leakage
-- Frontmatter matches expected format
+次の点を確認します。
+- `.<name>/skills/gstack-*/SKILL.md` に出力があること
+- `.claude/skills` のパスが混入していないこと
+- フロントマターが想定どおりの形式になっていること
 
-### 6. Run tests
+### 6. テストを実行する
 
 ```bash
 bun test test/gen-skill-docs.test.ts
 ```
 
-All parameterized tests auto-include the new host.
+パラメータ化されたテストはすべて、新しいホストを自動的に含みます。

@@ -24,6 +24,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { expectMentions } from "./helpers/prompt-structure";
 
 const ROOT = path.resolve(import.meta.dir, "..");
 const RETRO_TMPL = path.join(ROOT, "retro", "SKILL.md.tmpl");
@@ -41,7 +42,7 @@ describe("#1624 retro stale-base guard — pre-flight ordered before analysis", 
   test("Step 0.5 fetch pre-flight is present and precedes Step 1", () => {
     const body = readTmpl();
     const step05 = body.indexOf("### Step 0.5:");
-    const step1 = body.indexOf("### Step 1: Gather");
+    const step1 = body.indexOf("### Step 1:");
     expect(step05).toBeGreaterThan(-1);
     expect(step1).toBeGreaterThan(-1);
     expect(step05).toBeLessThan(step1);
@@ -49,8 +50,8 @@ describe("#1624 retro stale-base guard — pre-flight ordered before analysis", 
 
   test("guard evaluation prose sits in Step 1 before the metric interpretation steps", () => {
     const body = readTmpl();
-    const guard = body.indexOf("Stale-base + bad-today-anchor guard");
-    const step2 = body.indexOf("### Step 2: Compute Metrics");
+    const guard = body.indexOf("古いベース + 不正な今日の基準のガード");
+    const step2 = body.indexOf("### Step 2:");
     expect(guard).toBeGreaterThan(-1);
     expect(step2).toBeGreaterThan(-1);
     expect(guard).toBeLessThan(step2);
@@ -98,12 +99,12 @@ describe("#1624 retro guard — branch C: fetch-fail warn", () => {
     const body = readTmpl();
     // Rule 1 (skip paths incl. fetch-fail) must be evaluated before rule 2
     // (BLOCK), and BLOCK must be conditioned on the fetch having succeeded.
-    const skipRule = body.indexOf("the Step 0.5 fetch failed");
-    const blockRule = body.indexOf("Retro window is stale");
+    const skipRule = body.indexOf("Step 0.5 の fetch が失敗していた場合");
+    const blockRule = body.indexOf("振り返りの時間枠が古くなっています");
     expect(skipRule).toBeGreaterThan(-1);
     expect(blockRule).toBeGreaterThan(-1);
     expect(skipRule).toBeLessThan(blockRule);
-    expect(body).toMatch(/fetch succeeded AND/);
+    expect(body).toMatch(/Step 0\.5 の fetch が成功しており、かつ/);
   });
 });
 
@@ -116,15 +117,14 @@ describe("#1624 retro guard — branch D: stale-base BLOCK", () => {
 
   test("BLOCK prose names latest-commit date and instructs user remediation", () => {
     const body = readTmpl();
-    expect(body).toMatch(/Retro window is stale/);
+    expect(body).toMatch(/振り返りの時間枠が古くなっています/);
     expect(body).toMatch(/git fetch origin <default>/);
-    expect(body).toMatch(/Confirm today's date/);
+    expect(body).toMatch(/セッションのリマインダーで今日の日付を確認してください/);
   });
 
   test("today comes from the session reminder, never the system clock", () => {
     const body = readTmpl();
-    expect(body).toMatch(/session reminder/);
-    expect(body).toMatch(/never from `date`/i);
+    expectMentions(body, [["`<today>`", "セッションのリマインダーの日付"], ["時計を読み直さないでください"]], "retro template");
   });
 });
 
@@ -132,7 +132,7 @@ describe("#1624 retro guard — disclosure must reach the narrative", () => {
   test("skip paths carry a disclosure line into the retro output", () => {
     const body = readTmpl();
     // The retro output is never silently confidently-wrong on offline/local-only runs.
-    expect(body).toMatch(/offline run, window not freshness-verified/);
+    expect(body).toMatch(/オフラインでの実行、時間枠の鮮度は未検証/);
   });
 
   test("non-default analyzed ref is disclosed (RETRO_REF)", () => {

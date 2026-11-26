@@ -3,13 +3,12 @@ name: investigate
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Systematic debugging with root cause investigation. Four phases: investigate,
-  analyze, hypothesize, implement. Iron Law: no fixes without root cause.
-  Use when asked to "debug this", "fix this bug", "why is this broken",
-  "investigate this error", or "root cause analysis".
-  Proactively invoke this skill (do NOT debug directly) when the user reports
-  errors, 500 errors, stack traces, unexpected behavior, "it was working
-  yesterday", or is troubleshooting why something stopped working. (gstack)
+  根本原因の調査を伴う体系的なデバッグ。4 つのフェーズ: 調査、分析、仮説、実装。
+  鉄則: 根本原因がわかるまで修正しない。「debug this」「fix this bug」「why is this broken」
+  「investigate this error」「root cause analysis」と依頼されたときに使います。
+  ユーザーがエラー、500 エラー、スタックトレース、想定外の振る舞い、「昨日は動いていた」と報告したとき、
+  または何かが動かなくなった理由をトラブルシュートしているときは、
+  積極的にこのスキルを呼び出します(自分で直接デバッグしないこと)。(gstack)
 allowed-tools:
   - Bash
   - Read
@@ -68,20 +67,20 @@ gbrain:
 
 {{PREAMBLE}}
 
-# Systematic Debugging
+# 体系的なデバッグ
 
-## Iron Law
+## 鉄則
 
-**NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST.**
+**根本原因の調査なしに、修正してはいけません。**
 
-Fixing symptoms creates whack-a-mole debugging. Every fix that doesn't address root cause makes the next bug harder to find. Find the root cause, then fix it.
+症状を直すと、もぐら叩きのようなデバッグになります。根本原因に触れない修正はすべて、次のバグをより見つけにくくします。根本原因を見つけ、それから直します。
 
-## Arguments
+## 引数
 
-| Invocation | Contract |
+| 呼び出し方 | 契約 |
 |---|---|
-| `/investigate <symptom>` | Phases 1–5 below; the recipes in the Section index when the pattern matches. |
-| `/investigate --backlog [<issue numbers or gh query>]` | Read-only triage of open issues against HEAD: read the backlog section and produce its table. No Phases 1–5, no fixes, no issue closing. |
+| `/investigate <symptom>` | 下のフェーズ 1〜5。パターンが一致する場合は、セクション索引のレシピも使う。 |
+| `/investigate --backlog [<issue numbers or gh query>]` | 未解決の issue を HEAD に照らして読み取り専用で仕分けます。バックログのセクションを読み、その表を作成します。フェーズ 1〜5 はなし、修正なし、issue のクローズなし。 |
 
 ---
 {{SECTION_INDEX:investigate}}
@@ -89,48 +88,49 @@ Fixing symptoms creates whack-a-mole debugging. Every fix that doesn't address r
 
 {{GBRAIN_CONTEXT_LOAD}}
 
-## Phase 1: Root Cause Investigation
+## フェーズ 1: 根本原因の調査
 
-Gather context before forming any hypothesis.
+仮説を立てる前に、文脈を集めます。
 
-1. **Collect symptoms:** Read the error messages, stack traces, and reproduction steps. If the user hasn't provided enough context, ask ONE question at a time via AskUserQuestion.
+1. **症状を集める:** エラーメッセージ、スタックトレース、再現手順を読みます。ユーザーが十分な文脈を提供していない場合は、AskUserQuestion で一度に 1 つだけ質問します。
 
-2. **Read the code:** Trace the code path from the symptom back to potential causes. Use Grep to find all references, Read to understand the logic. Before calling two queries, helpers or code paths duplicates, read their call sites: what looks identical usually differs in a caller's guard, transaction or scope, and the "duplicate" is the one that is right.
+2. **コードを読む:** 症状から、考えられる原因へとコードのパスをさかのぼってたどります。Grep ですべての参照を探し、Read でロジックを理解します。2 つのクエリ、ヘルパー、またはコードパスが重複しているように見える場合は、呼び出し箇所を読んでからにします。見た目が同じものは、呼び出し側のガード、トランザクション、スコープが違うことが多く、「重複」と見えるもののほうが正しいことがあります。
 
-3. **Check recent changes:**
+3. **最近の変更を確認する:**
    ```bash
    git log --oneline -20 -- <affected-files>
    ```
-   Was this working before? What changed? A regression means the root cause is in the diff.
+   以前は動いていたか? 何が変わったか? 回帰であれば、根本原因は差分の中にあります。
 
-4. **Reproduce:** Can you trigger the bug deterministically? If not, gather more evidence before proceeding. Before timing anything that spawns git in a benchmark or bisect worktree, run `git update-index --refresh` there: a stale index makes the first `git status`/`git diff` pay a full refresh and the measurement lies.
+4. **再現する:** バグを確実に引き起こせますか? できない場合は、先へ進む前にさらに証拠を集めます。ベンチマークや bisect の worktree で git を起動するものを計測する前に、そこで `git update-index --refresh` を実行します。インデックスが古いと、最初の `git status`/`git diff` が完全な更新に時間を使い、計測結果が嘘になります。
 
-5. **Check investigation history:** Search prior learnings for investigations on the same files. Recurring bugs in the same area are an architectural smell. If prior investigations exist, note patterns and check if the root cause was structural.
+5. **調査の履歴を確認する:** 同じファイルに関する過去の調査を、保存された学びから探します。同じ領域での繰り返しのバグは、アーキテクチャ上のにおいです。過去の調査があれば、パターンを記録し、根本原因が構造的なものだったかを確認します。
 
 {{LEARNINGS_SEARCH:query=debug investigation root cause hypothesis bug fix}}
 
-Output: **"Root cause hypothesis: ..."** — a specific, testable claim about what is wrong and why.
+出力: **「Root cause hypothesis: ...」** — 何が間違っていて、なぜなのかについての、具体的でテスト可能な主張。
 
-### Refresh learnings for the hypothesis you just named
+### 立てた仮説に合わせて学びを再検索する
 
-The top-of-skill learnings pull above is keyed to "debug investigation" broadly. Now that you have a specific hypothesis, re-pull learnings keyed to that hypothesis so prior fixes for the same problem-shape surface.
+スキル冒頭の学びの取得は、「debug investigation」という広い語で行っています。具体的な仮説が立ったので、その仮説に合わせて学びを取り直し、同じ種類の問題に対する過去の修正を表示させます。
 
-Pick ONE keyword from the hypothesis. The keyword should be a noun: the failing component name, the basename of the file you suspect (without extension), or the bug noun. The keyword MUST be alphanumeric or hyphen only — no quotes, slashes, dots, colons, or whitespace. If your candidate has any of those, simplify to just the alphanumeric stem.
+仮説から、キーワードを 1 つ選びます。キーワードは名詞にします: 失敗したコンポーネント名、疑っているファイルのベース名(拡張子を除く)、またはバグを表す名詞です。
+キーワードは英数字かハイフンだけでなければなりません。引用符、スラッシュ、ドット、コロン、空白は使えません。候補にそれらがある場合は、英数字の語幹だけに単純化します。
 
-Worked examples (investigate-specific): good keywords are `auth-cookie`, `session-expiry`, `redirect-loop`. Bad: `auth.ts:47`, `fix the auth bug`, `<hypothesis-keyword>`.
+調査に特化した例: 良いキーワードは `auth-cookie`、`session-expiry`、`redirect-loop`。悪い例: `auth.ts:47`、`fix the auth bug`、`<hypothesis-keyword>`。
 
 ```bash
 { _LE=$(~/.claude/skills/gstack/bin/gstack-learnings-search --query "<your-keyword>" --limit 5 2>&1 >&3 3>&-); _LR=$?; } 3>&1
 [ "$_LR" = 0 ] || { _LE=${_LE%%$'\n'*}; echo "LEARNINGS: unavailable (${_LE:-exit $_LR})"; }
 ```
 
-If any learnings come back, name which one applies to your investigation in one sentence. If none come back, continue without reference — the absence of a matching prior learning is itself useful information.
+関係する学びが返ってきた場合は、どれが今回の調査に当てはまるかを 1 文で示します。何も返ってこない場合は、参照せずに続けます。一致する過去の学びがないこと自体が、有用な情報です。
 
 ---
 
-## Scope Lock
+## スコープのロック
 
-After forming your root cause hypothesis, lock edits to the affected module to prevent scope creep.
+根本原因の仮説を立てた後、影響するモジュールへの編集をロックして、スコープの広がりを防ぎます。
 
 ```bash
 # $HOME-anchored like the careful/freeze frontmatter hooks: early skill bash runs
@@ -139,54 +139,59 @@ _FREEZE_SCRIPT="{{RUNTIME_ROOT}}/freeze/bin/check-freeze.sh"
 [ -x "$_FREEZE_SCRIPT" ] && echo "FREEZE_AVAILABLE" || echo "FREEZE_UNAVAILABLE"
 ```
 
-**If FREEZE_AVAILABLE:** Identify the narrowest directory containing the affected files. Acquire a run-owned boundary; the helper resolves its physical absolute path and leaves any pre-existing user or other-run boundary untouched:
+**FREEZE_AVAILABLE の場合:** 影響するファイルを含む、最も狭いディレクトリを特定します。実行者専用の境界を取得します。ヘルパーは物理的な絶対パスを解決し、
+既存のユーザーや他の実行の境界には手を付けません:
 
 ```bash
 bash "{{RUNTIME_ROOT}}/freeze/bin/freeze-state.sh" acquire "<detected-directory>"
 ```
 
-Substitute `<detected-directory>` with the actual path (e.g., `src/auth/`). Retain the exact returned `FREEZE_OWNER` token in this run's context (including any checkpoint); never reconstruct it from the current state file. Only a returned token means this run owns a new lock. `FREEZE_PRESERVED` means keep the existing boundary and do not clean it up. On acquisition error, pause before edits and report it; never claim a lock was acquired. Relative legacy state is ambiguous: ask the user to re-establish an absolute boundary via `/freeze`, rather than guessing its original cwd.
+`<detected-directory>` は実際のパス(例: `src/auth/`)に置き換えます。返された正確な `FREEZE_OWNER` のトークンを、この実行のコンテキスト(チェックポイントを含む)に保持します。
+状態ファイルから再構成してはいけません。返されたトークンがある場合にのみ、この実行が新しいロックを所有しています。`FREEZE_PRESERVED` は、既存の境界を維持し、クリーンアップしないことを意味します。
+取得でエラーが出た場合は、編集の前に一時停止して報告します。ロックを取得したと主張してはいけません。相対パスのレガシーな状態は曖昧です。元の cwd を推測せず、
+ユーザーに `/freeze` で絶対パスの境界を再設定してもらいます。
 
-Tell the user the boundary and its owner disposition. Hooks enforce Edit/Write/NotebookEdit restrictions only on hosts supporting those callbacks; on Capy they are advisory. Bash remains outside hook enforcement.
+ユーザーに境界と、その所有者の処理の状態を伝えます。フックが Edit/Write/NotebookEdit の制限を強制するのは、その呼び出しをサポートするホストのみです。Capy 上では助言的な扱いになります。Bash はフックによる強制の対象外です。
 
-**Terminal cleanup:** On completion, explicit abort, or any known error that ends this investigation, run the following with this run's retained token, before the final response. Skip it when this run acquired no token:
+**ターミナルのクリーンアップ:** 完了時、明示的な中止時、またはこの調査を終わらせる既知のエラー時には、保持しているこの実行のトークンを使い、最終応答の前に次を実行します。この実行がトークンを取得していない場合は省略します:
 
 ```bash
 bash "{{RUNTIME_ROOT}}/freeze/bin/freeze-state.sh" release "<retained-owner-token>"
 ```
 
-The helper compares ownership and removes state under the same mutation lock used by `/freeze`, `/guard`, and `/unfreeze`; a replacement boundary is preserved, even at the same path. Report cleanup errors or `FREEZE_PRESERVED`, never retry by deleting state directly. A hard-killed session cannot run this cleanup: recovery is explicit `/unfreeze` (user-requested removal) or `/freeze` (user-selected replacement). If a mutation lock was abandoned, inspect it with the user after confirming no writer is active; never automatically delete an ambiguous lock.
+このヘルパーは所有者を比較し、`/freeze`、`/guard`、`/unfreeze` と同じ変更ロックのもとで状態を削除します。同じパスであっても、置き換えられた境界は保持されます。
+クリーンアップのエラーや `FREEZE_PRESERVED` は報告し、状態ファイルを直接削除して再試行してはいけません。強制終了されたセッションではこのクリーンアップは実行できません。その場合の回復は、
+明示的な `/unfreeze`(ユーザーによる削除の要求)か、`/freeze`(ユーザーが選んだ置き換え)です。変更ロックが放棄されている場合は、書き込み側がアクティブでないことを確認したうえで、ユーザーと一緒に調べます。曖昧なロックを自動で削除することは決してありません。
 
-If the bug spans the entire repo or the scope is genuinely unclear, skip the lock and note why.
+バグがリポジトリ全体にまたがる場合や、スコープが本当に不明確な場合は、ロックをスキップし、その理由を記録します。
 
-**If FREEZE_UNAVAILABLE:** Skip scope lock. Edits are unrestricted.
+**FREEZE_UNAVAILABLE の場合:** スコープのロックをスキップします。編集は制限されません。
 
 ---
 
 {{ASIDE_RESEARCH}}
 
-## Phase 2: Pattern Analysis
+## フェーズ 2: パターン分析
 
-Check if this bug matches a known pattern:
+このバグが既知のパターンに当てはまるかを確認します:
 
-| Pattern | Signature | Where to look |
+| パターン | 兆候 | 調べる場所 |
 |---------|-----------|---------------|
-| Race condition | Intermittent, timing-dependent | Concurrent access to shared state |
-| Nil/null propagation | NoMethodError, TypeError | Missing guards on optional values |
-| State corruption | Inconsistent data, partial updates | Transactions, callbacks, hooks |
-| Integration failure | Timeout, unexpected response | External API calls, service boundaries |
-| Configuration drift | Works locally, fails in staging/prod | Env vars, feature flags, DB state |
-| Stale cache | Shows old data, fixes on cache clear | Redis, CDN, browser cache, Turbo |
+| 競合状態 | 断続的、タイミングに依存 | 共有状態への同時アクセス |
+| nil/null の伝播 | NoMethodError、TypeError | 任意の値に対するガードの欠如 |
+| 状態の破損 | 一貫しないデータ、部分的な更新 | トランザクション、コールバック、フック |
+| 統合の失敗 | タイムアウト、想定外のレスポンス | 外部 API の呼び出し、サービスの境界 |
+| 設定のずれ | ローカルでは動くが、staging/本番で失敗する | 環境変数、フィーチャーフラグ、DB の状態 |
+| 古いキャッシュ | 古いデータを表示し、キャッシュをクリアすると直る | Redis、CDN、ブラウザのキャッシュ、Turbo |
 
-Also check:
-- `TODOS.md` for related known issues
-- `git log` for prior fixes in the same area — **recurring bugs in the same files are an architectural smell**, not a coincidence
+次も確認します:
+- 関連する既知の問題がないか、`TODOS.md` を確認する
+- 同じ領域での過去の修正がないか、`git log` を確認する — **同じファイルでの繰り返しのバグは、偶然ではなくアーキテクチャ上のにおい**です
 
-### Recipes
+### レシピ
 
-Intermittent or CI-only failures, order-dependent failures, races and regressed
-judged metrics each have a recipe. Read the matching one before Phase 3; a rerun,
-a wider timeout or a skip is never a hypothesis.
+断続的、または CI でだけ起きる失敗、実行順序に依存する失敗、競合、回帰した判定指標には、それぞれレシピがあります。
+フェーズ 3 の前に、該当するものを読みます。再実行、タイムアウトの延長、スキップは、仮説ではありません。
 
 {{SECTION:flake}}
 
@@ -196,29 +201,30 @@ a wider timeout or a skip is never a hypothesis.
 
 {{SECTION:eval-bisect}}
 
-`--backlog` runs none of the phases:
+`--backlog` は、どのフェーズも実行しません:
 
 {{SECTION:backlog}}
 
-**External pattern search:** If the bug doesn't match a known pattern above, research through Aside (Web research runs in Aside, above). **Sanitize first:** strip hostnames, IPs, file paths, SQL, customer data. Search the error category, not the raw message:
-- "{framework} {generic error type}"
-- "{library} {component} known issues"
+**外部のパターン検索:** バグが上の既知のパターンに当てはまらない場合は、Aside で調べます(Web 検索は上の Aside のセクションで実行されます)。**先にサニタイズします:** ホスト名、IP、ファイルパス、SQL、顧客データを取り除きます。生のメッセージではなく、エラーのカテゴリを検索します:
+- 「{framework} {generic error type}」
+- 「{library} {component} known issues」
 
-Prompt file text (create, write and send it with the Web research runs in Aside blocks above): `{framework} {generic error type} and {library} {component} known issues. Reply with up to 6 bullets, each with its source URL.`
+プロンプトのファイルのテキスト(上の Aside による Web 検索のブロックで、作成、書き込み、送信します): `{framework} {generic error type} and {library} {component} known issues. Reply with up to 6 bullets, each with its source URL.`
 
-If the Aside check did not print `READY`, run the same searches with the WebSearch tool when the host provides it; with neither, skip this search and proceed with hypothesis testing. If a documented solution or known dependency bug surfaces, present it as a candidate hypothesis in Phase 3.
+Aside のチェックが `READY` を出力しなかった場合は、ホストが提供していれば、同じ検索を WebSearch ツールで実行します。どちらもない場合は、この検索をスキップして仮説の検証に進みます。
+文書化された解決策や既知の依存関係のバグが見つかった場合は、フェーズ 3 で候補の仮説として提示します。
 
 ---
 
-## Phase 3: Hypothesis Testing
+## フェーズ 3: 仮説の検証
 
-Before writing ANY fix, verify your hypothesis.
+修正を書く前に、必ず仮説を検証します。
 
-1. **Confirm the hypothesis:** Add a temporary log statement, assertion, or debug output at the suspected root cause. Run the reproduction. Does the evidence match?
+1. **仮説を確認する:** 疑わしい根本原因に、一時的なログ文、アサーション、またはデバッグ出力を追加します。再現を実行します。証拠は仮説と一致しますか?
 
-2. **If the hypothesis is wrong:** Before forming the next hypothesis, consider searching for the error through Aside, as in Phase 2. **Sanitize first** — strip hostnames, IPs, file paths, SQL fragments, customer identifiers, and any internal/proprietary data from the error message. Search only the generic error type and framework context: "{component} {sanitized error type} {framework version}". If the error message is too specific to sanitize safely, skip the search. If the Aside check did not print `READY`, use the WebSearch tool when the host provides it; with neither, skip and proceed. Then return to Phase 1. Gather more evidence. Do not guess.
+2. **仮説が誤っていた場合:** 次の仮説を立てる前に、フェーズ 2 と同じように、Aside でエラーを検索することを検討します。**先にサニタイズします** — エラーメッセージからホスト名、IP、SQL の断片、顧客の識別子、内部の独自データを取り除きます。検索するのは一般的なエラーの種類とフレームワークの文脈だけにします: 「{component} {sanitized error type} {framework version}」。エラーメッセージが安全にサニタイズできないほど特定的な場合は、検索をスキップします。Aside のチェックが `READY` を出力しなかった場合は、ホストが提供していれば WebSearch ツールを使います。どちらもない場合はスキップして進みます。その後、フェーズ 1 に戻ります。さらに証拠を集めます。推測してはいけません。
 
-3. **3-strike rule:** If 3 hypotheses fail, **STOP**. Use AskUserQuestion:
+3. **3 回失敗のルール:** 3 つの仮説がすべて失敗したら、**停止**します。AskUserQuestion を使います:
    ```
    3 hypotheses tested, none match. This may be an architectural issue
    rather than a simple bug.
@@ -228,28 +234,28 @@ Before writing ANY fix, verify your hypothesis.
    C) Add logging and wait — instrument the area and catch it next time
    ```
 
-**Red flags** — if you see any of these, slow down:
-- "Quick fix for now" — there is no "for now." Fix it right or escalate.
-- Proposing a fix before tracing data flow — you're guessing.
-- Each fix reveals a new problem elsewhere — wrong layer, not wrong code.
+**レッドフラグ** — これらのどれかが見えたら、速度を落とします:
+- 「とりあえずの簡単な修正」 — 「とりあえず」はありません。正しく直すか、エスカレーションします。
+- データの流れを追う前に修正を提案する — それは推測です。
+- 修正するたびに、別の場所で新しい問題が出る — コードが間違っているのではなく、レイヤーが間違っています。
 
 ---
 
-## Phase 4: Implementation
+## フェーズ 4: 実装
 
-Once root cause is confirmed:
+根本原因が確定したら:
 
-1. **Fix the root cause, not the symptom.** The smallest change that eliminates the actual problem.
+1. **症状ではなく、根本原因を直す。** 実際の問題を取り除く、最小の変更にします。
 
-2. **Minimal diff:** Fewest files touched, fewest lines changed. Resist the urge to refactor adjacent code.
+2. **最小の差分:** 触るファイルは最小限、変更する行も最小限にします。隣接するコードのリファクタリングの誘惑には抵抗します。
 
-3. **Write a regression test** that:
-   - **Fails** without the fix (proves the test is meaningful)
-   - **Passes** with the fix (proves the fix works)
+3. **回帰テストを書く。** 次の条件を満たすもの:
+   - 修正なしでは**失敗する**(テストが意味のあるものだと証明する)
+   - 修正ありでは**成功する**(修正が機能することを証明する)
 
-4. **Run the full test suite.** Paste the output. No regressions allowed.
+4. **テストスイート全体を実行する。** 出力を貼り付けます。回帰は許されません。
 
-5. **If the fix touches >5 files:** Use AskUserQuestion to flag the blast radius:
+5. **修正が 5 つを超えるファイルに触れる場合:** AskUserQuestion で影響範囲を知らせます:
    ```
    This fix touches N files. That's a large blast radius for a bug fix.
    A) Proceed — the root cause genuinely spans these files
@@ -259,15 +265,15 @@ Once root cause is confirmed:
 
 ---
 
-## Phase 5: Verification & Report
+## フェーズ 5: 検証と報告
 
-**Fresh verification:** Reproduce the original bug scenario and confirm it's fixed. This is not optional.
+**新たな検証:** 元のバグの状況を再現し、修正されたことを確認します。これは任意ではありません。
 
-Run the test suite and paste the output.
+テストスイートを実行し、出力を貼り付けます。
 
-Run the Scope Lock terminal cleanup before reporting completion or an ending error; only use this investigation's retained owner token.
+完了を報告する前、または終了するエラーの前に、スコープのロックのターミナルのクリーンアップを実行します。この調査が保持している所有者トークンのみを使います。
 
-Output a structured debug report:
+構造化されたデバッグレポートを出力します:
 ```
 DEBUG REPORT
 ════════════════════════════════════════
@@ -281,7 +287,7 @@ Status:          DONE | DONE_WITH_CONCERNS | BLOCKED
 ════════════════════════════════════════
 ```
 
-Log the investigation as a learning for future sessions. Use `type: "investigation"` and include the affected files so future investigations on the same area can find this:
+この調査を、将来のセッションのための学びとして記録します。`type: "investigation"` を使い、影響したファイルを含めます。そうすれば、同じ領域の将来の調査で見つけられます:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-learnings-log '{"skill":"investigate","type":"investigation","key":"ROOT_CAUSE_KEY","insight":"ROOT_CAUSE_SUMMARY","confidence":9,"source":"observed","files":["affected/file1.ts","affected/file2.ts"]}'
@@ -293,13 +299,13 @@ Log the investigation as a learning for future sessions. Use `type: "investigati
 
 ---
 
-## Important Rules
+## 重要なルール
 
-- **3+ failed fix attempts → STOP and question the architecture.** Wrong architecture, not failed hypothesis.
-- **Never apply a fix you cannot verify.** If you can't reproduce and confirm, don't ship it.
-- **Never say "this should fix it."** Verify and prove it. Run the tests.
-- **If fix touches >5 files → AskUserQuestion** about blast radius before proceeding.
-- **Completion status:**
-  - DONE — root cause found, fix applied, regression test written, all tests pass
-  - DONE_WITH_CONCERNS — fixed but cannot fully verify (e.g., intermittent bug, requires staging)
-  - BLOCKED — root cause unclear after investigation, escalated
+- **3 回以上修正に失敗したら → 停止し、アーキテクチャを疑う。** 仮説が外れたのではなく、アーキテクチャが間違っています。
+- **検証できない修正は決して適用しない。** 再現して確認できないなら、出荷しないでください。
+- **「これで直るはず」と言わない。** 検証して、証明します。テストを実行します。
+- **修正が 5 つを超えるファイルに触れる → 影響範囲について AskUserQuestion する**(先へ進む前に)。
+- **完了ステータス:**
+  - DONE — 根本原因が見つかり、修正が適用され、回帰テストが書かれ、すべてのテストが通った
+  - DONE_WITH_CONCERNS — 修正したが、完全には検証できない(例: 断続的なバグ、staging が必要)
+  - BLOCKED — 調査の後も根本原因が不明で、エスカレーションした

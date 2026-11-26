@@ -9,16 +9,17 @@
  * paraphrase: test/coordinator-contract.test.ts pins that the three outputs
  * are byte-identical.
  */
-export const COORDINATOR_CONTRACT_HEADING = '## Coordinator contract (inherited by every lane)';
+export const COORDINATOR_CONTRACT_HEADING = '## Coordinator contract(すべてのレーンが継承するコーディネーター契約)';
 
 export const COORDINATOR_CONTRACT = `${COORDINATOR_CONTRACT_HEADING}
 
-Merge conditions. A lane's PR merges only when: the required gate lanes are green on the stamped tree or the tree receipt says \`gate-reuse: eligible\`; \`gstack-lane-check\` reports \`clear\` for its planned files against every other open lane; the PR body opens with the \`gstack-ship-receipt\` block; and the coordinator, not the lane, says merge. A lane never merges, rebases another lane, or force-pushes.
+マージ条件。レーンの PR がマージされるのは、次がすべて満たされたときだけです: 必須のゲートレーンがスタンプ済みのツリーで green であるか、ツリーの受領記録が \`gate-reuse: eligible\` と言っていること。\`gstack-lane-check\` が、計画されたファイルについて他のすべての open なレーンに対して \`clear\` を報告していること。PR 本文が \`gstack-ship-receipt\` ブロックで始まっていること。そして、マージすると言うのがレーンではなくコーディネーターであること。レーンは決して自分でマージせず、他のレーンをリベースせず、いかなるブランチも force-push しません。
 
-Behavior-change notices. Every user-visible behavior change outside the plan's own items is listed in the PR body under \`## Behavior changes\` with the file, the old behavior and the new one, before the review starts. An omitted change found in review is a CRITICAL finding, whatever its size.
+挙動変更の通知。プラン自体の項目の外にある、ユーザーに見える挙動の変更はすべて、レビューが始まる前に、PR 本文の \`## Behavior changes\` の下に、ファイル、以前の挙動、新しい挙動を添えて列挙します。レビューで見つかった記載漏れの変更は、その大きさにかかわらず CRITICAL の指摘です。
 
-Spend caps. Each lane runs under the \`--spend-cap\` the coordinator names; a lane that reaches it stops \`incomplete\` (\`STOP: reason=budget_exhausted\`) and reports spent, reserved and unknown charges. Paid evals are never retried to change a verdict; a rerun needs a named repair. Host-subagent spend is reported as \`unknown\`, never zero.
+支出上限。各レーンは、コーディネーターが指定した \`--spend-cap\` のもとで動きます。上限に達したレーンは \`incomplete\` で停止し(\`STOP: reason=budget_exhausted\`)、支出済み・予約済み・不明の各金額を報告します。有料 eval を判定を変えるために再試行することはありません。再実行には、名前の付いた修復が必要です。ホストのサブエージェントの支出は \`unknown\` として報告し、決してゼロにはしません。
 
-Before done. A lane pushes a WIP commit to its branch after each step and gates a pushed SHA. It is done only when \`gstack-pregate run --allow-repo-commands\` passes; \`requires-remote\` needs \`--stage tests --remote --spend-cap <cap>\`. Where \`.gstack/pregate.json\` has a \`sealed\` key, it runs \`gstack-pregate sealed\` before any push or PR creation; a refusal stops the push.
+完了の前に。レーンは各ステップの後に WIP コミットを自分のブランチへ push し、push 済みの SHA をゲートにかけます。完了と言えるのは \`gstack-pregate run --allow-repo-commands\` が通ったときだけです。\`requires-remote\` には \`--stage tests --remote --spend-cap <cap>\` が必要です。\`.gstack/pregate.json\` に \`sealed\` キーがある場合は、push や PR 作成の前に \`gstack-pregate sealed\` を実行し、拒否されたら push を止めます。
 
-Handoff format. A lane reports in this order, identifiers first: PR URL (or \`no PR\` with branch and SHA), \`GSTACK_RESULT\` line, the \`gstack: ok|fail <rev>\` line, the \`PREGATE:\` line, gate summary (lanes passed/failed/skipped), behavior changes (or \`none\`), spend (spent/reserved/unknown), then what it could not verify. Full thread ids (\`jam_…\`), never short codes, in every cross-thread message. Prose after the identifiers may be truncated; nothing before them may be.`;
+引き継ぎの書式。レーンは次の順で、識別子を先に報告します: PR の URL(または \`no PR\` とブランチと SHA)、\`GSTACK_RESULT\` 行、\`gstack: ok|fail <rev>\` 行、\`PREGATE:\` 行、ゲートの要約(通過・失敗・スキップしたレーン数)、挙動変更(または \`none\`)、支出(支出済み/予約済み/不明)、そして検証できなかったこと。スレッド間の参照には、短いコードではなく常に完全なスレッド id(\`jam_…\`)を使います。識別子より後の散文は切り詰めてもよいですが、識別子より前は切り詰めてはなりません。
+`;

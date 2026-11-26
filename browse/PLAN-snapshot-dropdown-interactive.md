@@ -1,33 +1,33 @@
-# Plan: Snapshot Dropdown/Autocomplete Interactive Element Detection
+# 計画: スナップショットのドロップダウン/オートコンプリートのインタラクティブ要素検出
 
-## Problem
+## 問題
 
-`snapshot -i` misses dropdown/autocomplete items on modern web apps. These elements:
-1. Are often `<div>`/`<li>` with click handlers but no semantic ARIA roles
-2. Live inside dynamically-created portals/popovers (floating containers)
-3. Don't appear in Playwright's accessibility tree (`ariaSnapshot()`)
+`snapshot -i` は、最近のWebアプリでドロップダウンやオートコンプリートの項目を取りこぼします。これらの要素には次の特徴があります。
+1. 多くの場合 `<div>`/`<li>` にクリックハンドラーはあるが、セマンティックな ARIA ロールがない
+2. 動的に作られるポータルやポップオーバー(フローティングコンテナ)の中にある
+3. Playwright のアクセシビリティツリー(`ariaSnapshot()`)に現れない
 
-The `-C` flag (cursor-interactive scan) was designed for this but:
-- Requires separate flag — agents using `-i` don't get it automatically
-- Skips elements that HAVE an ARIA role (even if the ARIA tree missed them)
-- Doesn't prioritize popover/portal containers where dropdown items live
+`-C` フラグ(カーソル操作可能な要素のスキャン)はこの問題のために設計されましたが、次の点で不十分です:
+- 別のフラグが必要で、`-i` を使うエージェントには自動的に適用されない
+- ARIA ロールを持つ要素をスキップする(ARIA ツリーに載っていなくても)
+- ドロップダウンの項目が入るポップオーバーやポータルのコンテナを優先しない
 
-## Root Cause
+## 原因
 
-Playwright's `ariaSnapshot()` builds from the browser's accessibility tree. Dynamically-rendered popovers (React portals, Radix Popover, etc.) may not be in the accessibility tree if:
-- The component doesn't set ARIA roles
-- The portal renders outside the scoped `body` locator's subtree timing
-- The browser hasn't updated the accessibility tree yet after DOM mutation
+`ariaSnapshot()` は、ブラウザのアクセシビリティツリーから作られます。動的に描画されるポップオーバー(React portal、Radix Popover など)は、次の場合にアクセシビリティツリーに載らないことがあります。
+- コンポーネントが ARIA ロールを設定していない
+- ポータルが、スコープ指定された `body` のロケーターのサブツリーの外に描画され、タイミングがずれる
+- DOM の変化の後、ブラウザがまだアクセシビリティツリーを更新していない
 
-## Changes
+## 変更内容
 
-### 1. Auto-enable cursor-interactive scan with `-i` flag
+### 1. `-i` フラグでカーソル判定スキャンを自動有効化
 
-**File:** `browse/src/snapshot.ts`
+**ファイル:** `browse/src/snapshot.ts`
 
-When `-i` (interactive) is passed, automatically include the cursor-interactive scan. This means agents always see clickable non-ARIA elements when they ask for interactive elements.
+`-i`(interactive)を渡したとき、カーソル判定のスキャンを自動的に含めます。これにより、インタラクティブな要素を求めたエージェントは、ARIA ロールのない、クリック可能な要素も必ず見られるようになります。
 
-The `-C` flag remains as a standalone option for non-interactive snapshots.
+`-C` フラグは、非インタラクティブなスナップショット用の単独オプションとして残します。
 
 ```
 if (opts.interactive) {
@@ -35,68 +35,68 @@ if (opts.interactive) {
 }
 ```
 
-### 2. Add popover/portal priority scanning
+### 2. ポップオーバー/ポータルの優先スキャンを追加
 
-**File:** `browse/src/snapshot.ts` (inside cursor-interactive evaluate block)
+**ファイル:** `browse/src/snapshot.ts`(cursor-interactive の evaluate ブロックの内部)
 
-Before the general cursor:pointer scan, specifically scan for visible floating containers (popovers, dropdowns, menus) and include ALL their direct children as interactive:
+一般的な cursor:pointer のスキャンの前に、表示中のフローティングコンテナ(ポップオーバー、ドロップダウン、メニュー)を個別にスキャンし、その直下の子要素をすべてインタラクティブとして含めます。
 
-Detection heuristics for floating containers:
-- `position: fixed` or `position: absolute` with `z-index >= 10`
-- Has `role="listbox"`, `role="menu"`, `role="dialog"`, `role="tooltip"`, `[data-radix-popper-content-wrapper]`, `[data-floating-ui-portal]`, etc.
-- Appeared recently in the DOM (not in initial page load)
-- Is visible (`offsetParent !== null` or `position: fixed`)
+フローティングコンテナの検出ヒューリスティック:
+- `position: fixed` または `position: absolute` で `z-index >= 10`
+- `role="listbox"`、`role="menu"`、`role="dialog"`、`role="tooltip"`、`[data-radix-popper-content-wrapper]`、`[data-floating-ui-portal]` などを持つ
+- 最初のページ読み込みのあとで DOM に現れた(初期読み込みには含まれない)
+- 表示されている(`offsetParent !== null` または `position: fixed`)
 
-For each floating container, include child elements that:
-- Have text content
-- Are visible
-- Have cursor:pointer OR onclick OR role="option" OR role="menuitem"
-- Tag with reason `popover-child` for clarity
+各フローティングコンテナについて、次の条件を満たす子要素を含めます。
+- テキストがある
+- 表示されている
+- cursor:pointer、onclick、role="option"、role="menuitem" のいずれかを持つ
+- 分かりやすいように、理由 `popover-child` を付ける
 
-### 3. Remove the `hasRole` skip in cursor-interactive scan
+### 3. カーソル判定スキャンの `hasRole` スキップを削除
 
-**File:** `browse/src/snapshot.ts`
+**ファイル:** `browse/src/snapshot.ts`
 
-Currently: `if (hasRole) continue;` — skips any element with an ARIA role, assuming the ARIA tree already captured it.
+現状: `if (hasRole) continue;` により、ARIA ロールを持つ要素はすべてスキップされます。ARIA ツリーがすでに取得済みだと仮定しているためです。
 
-Problem: if the ARIA tree MISSED the element (timing, portal, bad DOM structure), it falls through both systems.
+問題: ARIA ツリーが要素を取りこぼしていた場合(タイミング、ポータル、DOM 構造の不具合)、その要素はどちらの仕組みにも拾われません。
 
-Fix: Only skip if the element's role is in `INTERACTIVE_ROLES` AND it was actually captured in the main refMap. Otherwise include it.
+修正: `INTERACTIVE_ROLES` にロールがあり、かつメインの refMap で実際に取得されている場合にのみスキップします。それ以外は含めます。
 
-Since we can't easily check the refMap from inside `page.evaluate()`, the simpler fix: remove the `hasRole` skip entirely for elements inside detected floating containers. For elements outside floating containers, keep the `hasRole` skip as-is (to avoid duplicates in normal page content).
+`page.evaluate()` の内側から refMap を簡単に確認することはできないため、より単純な修正を採ります。フローティングコンテナの内側の要素については `hasRole` のスキップを完全に削除します。フローティングコンテナの外側の要素では、通常のページ内容との重複を避けるため、`hasRole` のスキップをそのまま残します。
 
-### 4. Add dropdown test fixture and tests
+### 4. ドロップダウンのテストフィクスチャとテストを追加
 
-**File:** `browse/test/fixtures/dropdown.html`
+**ファイル:** `browse/test/fixtures/dropdown.html`
 
-HTML page with:
-- A combobox input that shows a dropdown on focus/type
-- Dropdown items as `<div>` with click handlers (no ARIA roles)
-- Dropdown items as `<li>` with `role="option"`
-- A React-portal-style container (`position: fixed`, high z-index)
+次の内容を含む HTML ページ:
+- フォーカスや入力時にドロップダウンを表示するコンボボックスの入力欄
+- クリックハンドラーを持つ `<div>` のドロップダウン項目(ARIA ロールなし)
+- `role="option"` を持つ `<li>` のドロップダウン項目
+- React ポータル風のコンテナ(`position: fixed`、高い z-index)
 
-**File:** `browse/test/snapshot.test.ts`
+**ファイル:** `browse/test/snapshot.test.ts`
 
-New test cases:
-- `snapshot -i` on dropdown page finds dropdown items via cursor scan
-- `snapshot -i` on dropdown page includes popover-child elements
-- `@c` refs from dropdown scan are clickable
-- Elements inside floating containers with ARIA roles are captured even when ARIA tree misses them
+新しいテストケース:
+- ドロップダウンのページで `snapshot -i` を実行すると、カーソル判定スキャンでドロップダウン項目が見つかる
+- ドロップダウンのページで `snapshot -i` を実行すると、popover-child の要素が含まれる
+- ドロップダウンのスキャンで得た `@c` の ref がクリック可能である
+- フローティングコンテナ内の、ARIA ロールを持つ要素は、ARIA ツリーが取りこぼしていても取得される
 
-## Rollout Risk
+## ロールアウトのリスク
 
-**Low.** The `-C` scan is additive — it only adds `@c` refs, never removes `@e` refs. The change to auto-enable it with `-i` increases output size but agents already handle mixed ref types.
+**低い。** `-C` のスキャンは追加的なものです。`@c` の ref を追加するだけで、`@e` の ref を削除することはありません。`-i` で自動的に有効にする変更により出力サイズは増えますが、エージェントはすでに混在した ref の種類を扱えています。
 
-**One concern:** The `-C` scan queries ALL elements (`document.querySelectorAll('*')`) which can be slow on heavy pages. For the popover-specific scan, we limit to elements inside detected floating containers, which is fast (small subtree).
+**一つ懸念があります。** `-C` のスキャンはすべての要素(`document.querySelectorAll('*')`)を対象にするため、重いページでは遅くなることがあります。ポップオーバー専用のスキャンは、検出したフローティングコンテナの内側の要素だけに絞るため、小さなサブツリーで済み、高速です。
 
-## Testing
+## テスト
 
 ```bash
 cd /data/gstack/browse && bun test snapshot
 ```
 
-## Files Changed
+## 変更されるファイル
 
-1. `browse/src/snapshot.ts` — auto-enable -C with -i, popover scanning, remove hasRole skip in floating containers
-2. `browse/test/fixtures/dropdown.html` — new test fixture
-3. `browse/test/snapshot.test.ts` — new dropdown/popover test cases
+1. `browse/src/snapshot.ts` — `-i` で -C を自動有効化、ポップオーバーのスキャン、フローティングコンテナ内の hasRole スキップを削除
+2. `browse/test/fixtures/dropdown.html` — 新しいテストフィクスチャ
+3. `browse/test/snapshot.test.ts` — ドロップダウン/ポップオーバーの新しいテストケース

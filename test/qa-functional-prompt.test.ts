@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { expectMentions } from './helpers/prompt-structure';
 import { qaFunctionalPrompt, qaFunctionalRequiredProbes, QA_FUNCTIONAL_CASES, QA_WEBHOOK_FIX_CAPTURE_LIMIT, QA_WEBHOOK_POST_REPAIR_SCENARIOS } from './helpers/qa-functional-eval';
 import { qaCommandAllowed } from './helpers/qa-functional-observer';
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
@@ -306,16 +307,17 @@ test('exploratory sections state one stop rule tied to per-rule input probes, an
   // probed the amount's digits-only rule with an otherwise valid value, so it missed the seeded non-digit defect. A worked
   // example naming the signed amount (0fe616e) was misread as 'a signed amount breaks only the digits-only rule' (local
   // run fw3b-cli1), so the rule states the principle instead: break one rule, satisfy every other.
-  const stop = "Stop when scoped contracts are tested or blocked: each field's documented input rule needs a probe that breaks only it and satisfies every other rule; rules uncovered at a probe/time cap go in limits.";
-  const fix = 'After a fix, every earlier capture is superseded, even from a client that prints no snapshot: rerun each one your verdict relies on, or report it as an open remainder.';
+  const stopLine = /^スコープ内の契約がテスト済みまたはブロック済みになった時点で停止します.*$/gm;
   for (const rel of ['qa/sections/exploratory.md', 'qa-only/sections/exploratory.md']) {
     const section = readFileSync(join(import.meta.dir, '..', rel), 'utf8');
-    expect(section.split(stop)).toHaveLength(2);
-    expect(section.match(/^Stop when\b.*$/gm)).toEqual([stop]);
-    expect(section.match(/input rule/g)).toHaveLength(1);
-    expect(section.includes(fix)).toBe(rel.startsWith('qa/'));
+    const stops = section.match(stopLine) ?? [];
+    expect(stops).toHaveLength(1);
+    expectMentions(stops[0]!, [['入力ルール', '破り', '他のすべてのルール'], ['limits']], rel);
+    expect(section.match(/入力ルール/g)).toHaveLength(1);
+    const fixRule = /修正後は.*superseded.*再実行する/.test(section.replace(/\s+/g, ' '));
+    expect(fixRule).toBe(rel.startsWith('qa/'));
   }
-  expect(readFileSync(join(import.meta.dir, '../qa/sections/system-functional.md'), 'utf8')).toContain('One probe per documented input rule of each field (allowed characters, format, sign, range, arity) breaking only it:');
+  expect(readFileSync(join(import.meta.dir, '../qa/sections/system-functional.md'), 'utf8')).toMatch(/入力ルール\(使用可能な文字、形式、符号、範囲、個数\)ごとに 1 プローブ。そのルールだけを破り/);
 });
 
 test('fix-stage checkpoint provenance survives intervening native regression tests', () => {
@@ -417,20 +419,20 @@ test.each(JSON.parse(readFileSync(join(import.meta.dir, 'fixtures/qa-webhook-r85
 test('report-only exploration requires a completed written checkpoint before the next probe', () => {
   const section = readFileSync(join(import.meta.dir, '../qa-only/sections/exploratory.md'), 'utf8');
   expect(section).toContain('exploration-NNN.json');
-  expect(section).toContain('Reuse resolved REPORT_DIR');
-  expect(section).toMatch(/owned probe directory/i);
+  expect(section).toContain('解決済みの REPORT_DIR を再利用します');
+  expect(section).toMatch(/プローブ用ディレクトリ/);
   for (const field of ['observationCommand', 'observed', 'hypothesis', 'nextCommand']) expect(section).toContain(`${field}:`);
-  expect(section).toMatch(/wait for successful checkpoint publication/i);
-  expect(section).toMatch(/never backfill or overwrite notes/i);
+  expect(section).toMatch(/チェックポイントの公開が成功するのを待ちます/);
+  expect(section).toMatch(/メモを後から埋めたり、上書きしたりしてはいけません/);
   expect(section).not.toContain('a separate assistant text message');
 });
 
 test('surface evidence checks defer to one exploratory execution sequence', () => {
   const shared = generateQAExploratory({ host: 'claude', skillName: 'qa', tmplPath: '', paths: HOST_PATHS.claude });
-  expect(shared).toMatch(/each probe is one native command\/interaction/i);
-  expect(shared).toMatch(/never batch probes/i);
+  expect(shared).toMatch(/各プローブは、ネイティブなコマンド\/操作 1 つとチェックです/);
+  expect(shared).toMatch(/プローブをまとめて実行してはいけません/);
   const functional = readFileSync(join(import.meta.dir, '../qa/sections/system-functional.md'), 'utf8');
-  expect(functional).toMatch(/follow the shared exploratory loop/i);
+  expect(functional).toMatch(/共有の探索ループの順序/);
 });
 
 test('all public callers directly require the functional method before exploration', () => {
@@ -438,17 +440,17 @@ test('all public callers directly require the functional method before explorati
     const file = skill === 'ship' ? 'ship/sections/review-army.md' : `${skill}/SKILL.md`;
     const source = readFileSync(join(import.meta.dir, '..', file), 'utf8');
     expect(source).toContain(['review', 'ship'].includes(skill) ? '../qa/sections/exploratory.md' : 'sections/exploratory.md');
-    expect(source).not.toMatch(/Functional surfaces[^\n]*\n[^\n]*Read[^\n]*system-functional\.md/);
+    expect(source).not.toMatch(/Functional の面[^\n]*\n[^\n]*system-functional\.md/);
     const explorer = readFileSync(join(import.meta.dir, '..', skill === 'qa-only' ? 'qa-only' : 'qa', 'sections/exploratory.md'), 'utf8');
-    expect(explorer).toMatch(/Functional surfaces[^\n]*\n[^\n]*Read[^\n]*system-functional\.md/);
-    expect(explorer).toContain('Browser surfaces only');
-    const stages = ['Read `sections/scope.md`', 'Read `sections/system-functional.md`',
-      '## 1. Charter and preflight', '1. First demonstrate success'];
+    expect(explorer).toMatch(/Functional の面[^\n]*\n[^\n]*system-functional\.md[^\n]*Read/);
+    expect(explorer).toContain('Browser の面のみ');
+    const stages = ['`sections/scope.md`', '`sections/system-functional.md`',
+      '## 1. Charter and preflight', '1. まず成功を実証します'];
     const positions = stages.map(stage => explorer.indexOf(stage));
     expect(positions.every(position => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
     const functional = readFileSync(join(import.meta.dir, '../qa/sections/system-functional.md'), 'utf8');
     expect(functional).toContain('## Contract map');
-    expect(functional).toMatch(/follow the shared exploratory loop/i);
+    expect(functional).toMatch(/共有の探索ループ/);
   }
 });

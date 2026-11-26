@@ -20,13 +20,15 @@ const PHASE: Record<string, 'ceo' | 'eng' | 'design' | 'dx'> = { 'plan-ceo-revie
 
 const read = (...p: string[]) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
 const headings = (text: string) => text.split('\n').flatMap(l => { const m = /^#{2,3}\s+(.+?)\s*$/.exec(l); return m ? [m[1]!] : []; });
-/** Obligation rows: | Output | Produced by | Scope | */
+/** Obligation rows: | 出力 | 生成元(or 作成元) | スコープ |; the scope cell may read 常に for `always`. */
+const OBLIGATION_HEADER = /^\| (?:Output|出力) \| (?:Produced by|生成元|作成元) \| (?:Scope|スコープ) \|$/m;
+const SCOPE_WORDS: Record<string, string> = { 常に: 'always' };
 function obligationRows(checklist: string): Array<{ output: string; section: string; scope: string }> {
-  const start = checklist.indexOf('| Output | Produced by | Scope |');
+  const start = checklist.search(OBLIGATION_HEADER);
   if (start < 0) throw new Error('checklist lacks the obligation table header');
   return checklist.slice(start).split('\n').slice(2).filter(l => l.startsWith('|')).map(l => {
     const [, output, section, scope] = l.split('|').map(c => c.trim());
-    return { output: output!, section: section!, scope: scope! };
+    return { output: output!, section: section!, scope: SCOPE_WORDS[scope!] ?? scope! };
   });
 }
 /** Every row must name a heading that exists; every `### ` under Required Outputs must be mapped. */
@@ -39,11 +41,11 @@ function checkObligationMap(checklist: string, deep: string): string[] {
     if (!SECTION_SCOPES.includes(row.scope as any)) failures.push(`row "${row.output}" has scope ${row.scope} outside ${SECTION_SCOPES.join('|')}`);
   }
   const lines = deep.split('\n');
-  const reqStart = lines.findIndex(l => /^## Required [Oo]utputs/.test(l));
+  const reqStart = lines.findIndex(l => /^## (?:Required [Oo]utputs|必須の出力|必須の成果物)/.test(l));
   if (reqStart < 0) return [...failures, 'review-sections.md lacks a Required Outputs section'];
   let reqEnd = lines.findIndex((l, i) => i > reqStart && /^## /.test(l));
   if (reqEnd < 0) reqEnd = lines.length;
-  const skip = /^(Stage 1|Review facts|Output reference|TODOS\.md updates|Approved Mockups)/;
+  const skip = /^(Stage 1|Review facts|Output reference|出力リファレンス|TODOS\.md updates|Approved Mockups)/;
   for (const line of lines.slice(reqStart, reqEnd)) {
     const m = /^### (.+?)\s*$/.exec(line);
     if (!m || skip.test(m[1]!)) continue;
@@ -80,18 +82,21 @@ describe('review checklists (plan B4)', () => {
   test('negative controls: a row naming a missing heading fails, and an unmapped required output fails', () => {
     const deep = read('plan-eng-review', 'sections', 'review-sections.md');
     const checklist = read('plan-eng-review', 'sections', 'checklist.md');
-    const bogus = checklist.replace('| Diagrams | Diagrams | always |', '| Diagrams | Diagrams of the moon | always |');
-    expect(checkObligationMap(bogus, deep)).toEqual(['row "Diagrams" names a heading that does not exist: Diagrams of the moon', 'required output not in the checklist table: Diagrams']);
-    const dropped = checklist.replace(/\| Failure modes \|.*\n/, '');
-    expect(checkObligationMap(dropped, deep)).toEqual(['required output not in the checklist table: Failure modes']);
-    const badScope = checklist.replace('| Diagrams | Diagrams | always |', '| Diagrams | Diagrams | moon |');
-    expect(checkObligationMap(badScope, deep)[0]).toContain('outside');
+    // Only the failures a control adds count, so the check stays meaningful beside heading drift the generated files may carry.
+    const baseline = checkObligationMap(checklist, deep);
+    const added = (failures: string[]) => failures.filter(f => !baseline.includes(f));
+    const bogus = checklist.replace('| 図 | 図 | 常に |', '| 図 | 月の図 | 常に |');
+    expect(added(checkObligationMap(bogus, deep))).toEqual(['row "図" names a heading that does not exist: 月の図', 'required output not in the checklist table: 図']);
+    const dropped = checklist.replace(/\| 障害モード \|.*\n/, '');
+    expect(added(checkObligationMap(dropped, deep))).toEqual(['required output not in the checklist table: 障害モード']);
+    const badScope = checklist.replace('| 図 | 図 | 常に |', '| 図 | 図 | moon |');
+    expect(added(checkObligationMap(badScope, deep))[0]).toContain('outside');
   });
 
   test('the runner loads the checklist in light mode, keeps always sections, and falls back to the deep section when scope is uncertain', () => {
     const detectedNoUi: Scope = { ui: false, dx: true, ui_matches: 0, dx_matches: 4, developer_tool: false, agent_primary: false, sources: { ui: 'detected', dx: 'detected' } };
     const light = sectionLoadFor('ceo', detectedNoUi, 'light');
-    expect(light.checklist).toContain('## Checklist (runner profile)');
+    expect(light.checklist).toContain('## チェックリスト');
     expect(light.loaded).toEqual(['review-sections']);
     expect(light.skipped).toEqual([]);
     expect(light.line).toBe('Skipped sections: none (scope: ui=no,dx=yes,source=ui:detected,dx:detected)');

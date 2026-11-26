@@ -1,119 +1,119 @@
-# How to bring up your first production deploy
+# 初めての本番デプロイを立ち上げる方法
 
-Use this when `/setup-deploy` stops with "Nothing is deployed yet". It walks through a first production deploy, so you finish with a live URL that `/setup-deploy` can record and `/land-and-deploy` can verify. It names no hosting provider or deploy tool; use whichever fits your project.
+`/setup-deploy` が「Nothing is deployed yet」で止まったときに使ってください。初めての本番デプロイを順に進めるガイドです。最後には、`/setup-deploy` が記録でき、`/land-and-deploy` が検証できる稼働中の URL が手に入ります。特定のホスティングサービスやデプロイツールは指定しません。プロジェクトに合うものを使ってください。
 
-`/setup-deploy` writes nothing at that stop. It configures how `/land-and-deploy` checks a deploy, so it needs a production deploy that already exists.
+`/setup-deploy` は、その停止地点では何も書き込みません。`/land-and-deploy` がデプロイをチェックする方法を設定するものなので、既に存在する本番デプロイが必要です。
 
-## Prerequisites
+## 前提条件
 
-- The app builds and starts locally with the commands production will run.
-- The code is in its GitHub repository. `/setup-deploy` and `/land-and-deploy` read it through the GitHub CLI, so `gh auth status` should pass.
-- An account with the hosting provider you choose, with billing set up if it needs it.
-- Optional: a domain you control, if users won't use the host's default address.
+- アプリが、本番で使うのと同じコマンドでローカルでビルドでき、起動できること。
+- コードが GitHub リポジトリにあること。`/setup-deploy` と `/land-and-deploy` は GitHub CLI を通じてコードを読むため、`gh auth status` が成功する必要があります。
+- 選んだホスティングサービスのアカウントがあり、必要であれば課金も設定済みであること。
+- 任意: 自分で管理するドメイン。ユーザーがホストのデフォルトのアドレスを使わない場合に必要です。
 
-## Steps
+## 手順
 
-### 1. Choose where the app runs
+### 1. アプリをどこで動かすか選ぶ
 
-Pick a host for the kind of app you have: static files, a long-running server or container, or functions. List what the app needs at runtime: the language runtime and its version, a database or other services, background jobs, and any disk that has to survive a restart.
+アプリの種類に合わせてホストを選びます。静的ファイル、長時間動くサーバーやコンテナ、または関数のどれかです。実行時に必要なものを書き出してください。言語ランタイムとそのバージョン、データベースやその他のサービス、バックグラウンドジョブ、再起動後も残す必要があるディスクなどです。
 
-Then choose how production deploys start. `/land-and-deploy` only watches a trigger that already exists; it never creates one. When `/setup-deploy` asks how deploys are triggered, the choices are:
+次に、本番デプロイをどう開始するかを選びます。`/land-and-deploy` は既に存在するトリガーを監視するだけで、トリガーを作ることはありません。`/setup-deploy` がデプロイのトリガーを尋ねたときの選択肢は次のとおりです。
 
-- automatically on push to the default branch
-- a CI workflow in the repository
-- a deploy script or CLI command
-- manually
+- デフォルトブランチへの push で自動的に
+- リポジトリ内の CI ワークフロー
+- デプロイ用のスクリプトまたは CLI コマンド
+- 手動
 
-A trigger that runs on merge to the default branch keeps `/land-and-deploy` hands-off. With a command trigger, nothing deploys until the command runs: `/land-and-deploy` asks you to run it after the merge, or runs it only with your explicit approval.
+デフォルトブランチへのマージで実行されるトリガーなら、`/land-and-deploy` は手を出さずに済みます。コマンドのトリガーの場合は、コマンドを実行するまで何もデプロイされません。`/land-and-deploy` はマージ後にあなたにコマンドの実行を求めるか、あなたが明示的に承認した場合にのみ実行します。
 
-### 2. Create the services the app depends on
+### 2. アプリが依存するサービスを作る
 
-Create production instances of every service the app uses, such as its database, cache, file storage, email or payments, separate from your development ones. Run the database schema setup or migrations against production before the app serves traffic.
+アプリが使うサービスごとに、本番用のインスタンスを作ってください。データベース、キャッシュ、ファイルストレージ、メール、決済などです。開発用のものとは分けてください。アプリがトラフィックを受ける前に、本番に対してデータベースのスキーマ設定やマイグレーションを実行してください。
 
-### 3. Set environment variables and secrets
+### 3. 環境変数とシークレットを設定する
 
-1. List every variable the app reads, at build time and at runtime.
-2. Set each one in the host's environment or secrets settings.
-3. Keep secret values out of the repository. Commit only an example file with placeholder values, such as `.env.example`.
-4. Enter secret values yourself. Don't paste them into a chat with your agent.
+1. アプリが読み込むすべての変数を、ビルド時と実行時の両方で書き出す。
+2. 各変数を、ホストの環境設定またはシークレット設定に登録する。
+3. シークレットの値はリポジトリに入れない。`.env.example` のように、プレースホルダーの値を入れた例のファイルだけをコミットする。
+4. シークレットの値は自分で入力する。エージェントとのチャットに貼り付けないこと。
 
-Some hosts inject variables only at runtime. A value the build needs, such as a public client-side key, has to be available when the build runs.
+ホストによっては、実行時にだけ変数が注入されるものがあります。公開のクライアント側キーのように、ビルドが必要とする値は、ビルドの実行時に利用可能にしておく必要があります。
 
-### 4. Run the first deploy
+### 4. 最初のデプロイを実行する
 
-Start a deploy with the trigger you chose: push to the default branch, run the workflow, or run the command. Watch the build and release logs until they finish, and note the address the host assigns. If the build fails, fix it and deploy again before you go on.
+選んだトリガーでデプロイを開始します。デフォルトブランチへ push する、ワークフローを実行する、またはコマンドを実行する、のいずれかです。ビルドとリリースのログが終わるまで見守り、ホストが割り当てたアドレスを控えてください。ビルドが失敗したら、直してから再デプロイしてから次に進んでください。
 
-### 5. Point your domain at it (optional)
+### 5. ドメインを向ける(任意)
 
-1. At your DNS provider, add the records the host asks for: usually a CNAME record for a subdomain, or A and AAAA records for the root domain.
-2. Wait until the name resolves:
+1. DNS プロバイダで、ホストが指定するレコードを追加する。通常はサブドメイン用の CNAME レコード、またはルートドメイン用の A レコードと AAAA レコードです。
+2. 名前が解決されるまで待つ。
 
    ```bash
    dig +short app.example.com
    ```
 
-3. Check that HTTPS works for the domain with a valid certificate:
+3. 有効な証明書で、そのドメインの HTTPS が動作していることを確認する。
 
    ```bash
    curl -sI https://app.example.com | head -1
    ```
 
-Decide which address is the production URL, your domain or the host's default address. That is the URL you give `/setup-deploy`.
+本番の URL として、ドメインとホストのデフォルトのアドレスのどちらを使うかを決めてください。それが `/setup-deploy` に渡す URL になります。
 
-### 6. Check that it works
+### 6. 動作を確認する
 
-1. Open the production URL in a browser and walk through one real flow, such as signing in or loading data.
-2. If the app has a health endpoint, check that it returns a 2xx status:
+1. 本番の URL をブラウザで開き、サインインやデータの読み込みなど、実際のフローを1つ通してみる。
+2. アプリにヘルスチェックのエンドポイントがあれば、2xx のステータスを返すか確認する。
 
    ```bash
    curl -s -o /dev/null -w "%{http_code}\n" https://app.example.com/health
    ```
 
-   A useful health endpoint exercises the app, for example by reaching its database, instead of returning a fixed page.
-3. Make sure you can tell which revision is live: a status command that prints the deployed commit, or a page or endpoint that shows it. `/land-and-deploy` treats a page that loads as site health, not as proof that the merged commit is live.
-4. Check the host's logs for errors after your first requests.
+   役に立つヘルスチェックのエンドポイントは、固定のページを返すのではなく、アプリを動かします。たとえばデータベースに接続します。
+3. どのリビジョンが稼働しているか分かるようにしておく。デプロイされたコミットを表示するステータスコマンド、またはそれを表示するページやエンドポイントです。`/land-and-deploy` は、ページが読み込めることを、マージされたコミットが稼働している証拠ではなく、サイトの健全性として扱います。
+4. 最初のリクエストの後に、ホストのログでエラーがないか確認する。
 
-### 7. Hand the deploy back to gstack
+### 7. gstack にデプロイを引き継ぐ
 
-Run `/setup-deploy` again. If the project now has a config file for a platform it recognizes, it starts from that platform's settings; otherwise it asks. Either way, have these answers ready:
+`/setup-deploy` をもう一度実行してください。プロジェクトに、認識されたプラットフォームの設定ファイルがあれば、そのプラットフォームの設定から始まります。なければ尋ねられます。どちらの場合も、次の回答を用意しておいてください。
 
-- how deploys are triggered (step 1)
-- the production URL (step 5)
-- how to check that a deploy succeeded: a health check URL, a status command, the CI workflow's status, or just checking that the URL loads
-- the merge method your repository allows (squash, merge or rebase), and any command to run before merging
+- デプロイがどのようにトリガーされるか(手順1)
+- 本番の URL(手順5)
+- デプロイが成功したことをどう確認するか: ヘルスチェックの URL、ステータスコマンド、CI ワークフローのステータス、または URL が読み込めることの確認のみ
+- リポジトリで許可されているマージ方法(squash、merge、rebase のいずれか)と、マージ前に実行するコマンドがあればそれ
 
-It writes the answers to the `## Deploy Configuration` section of the project's CLAUDE.md, then tries the health check and the status command once. From then on, `/land-and-deploy` uses that section to merge your PR, watch the deploy and check production. Its first run walks you through a dry run of the pipeline before anything irreversible happens.
+回答は、プロジェクトの CLAUDE.md の `## Deploy Configuration` セクションに書き込まれ、その後、ヘルスチェックとステータスコマンドが一度だけ試されます。それ以降、`/land-and-deploy` はそのセクションを使って PR をマージし、デプロイを見守り、本番を確認します。初回の実行では、取り返しのつかないことが起きる前に、パイプラインのドライランを案内します。
 
-## Verification
+## 検証
 
-- `/setup-deploy` ends with `DEPLOY CONFIGURATION — COMPLETE`.
-- The project's CLAUDE.md has the section, with your production URL:
+- `/setup-deploy` が `DEPLOY CONFIGURATION — COMPLETE` で終わる。
+- プロジェクトの CLAUDE.md に、本番の URL を含むセクションがある。
 
   ```bash
   grep -A 20 "## Deploy Configuration" CLAUDE.md
   ```
 
-- Its health check did not print `UNREACHABLE`, and its status command did not print `COMMAND_FAILED`.
+- そのヘルスチェックが `UNREACHABLE` を表示せず、ステータスコマンドが `COMMAND_FAILED` を表示しない。
 
-## Troubleshooting
+## トラブルシューティング
 
-**`/setup-deploy` stops at "Nothing is deployed yet" again.**
-That answer means there is no production deploy to record. Once the app is live, pick the answer that says how it deploys: on push, through a CI workflow, with a script or command, or by hand.
+**`/setup-deploy` がまた「Nothing is deployed yet」で止まる。**
+この回答は、記録すべき本番デプロイがないという意味です。アプリが稼働したら、デプロイ方法を示す回答を選んでください。push 時、CI ワークフロー経由、スクリプトまたはコマンド、または手動のいずれかです。
 
-**The health check fails or prints `UNREACHABLE`.**
-Open the URL yourself. A 404 means the health path doesn't exist, so give `/setup-deploy` a path that returns 2xx, or the plain production URL. `/setup-deploy` keeps the configuration even when this check fails, so you can fix the URL later by running it again or by editing the section in CLAUDE.md.
+**ヘルスチェックが失敗するか、`UNREACHABLE` を表示する。**
+URL を自分で開いてみてください。404 はヘルスのパスが存在しないことを意味します。2xx を返すパスか、単なる本番の URL を `/setup-deploy` に渡してください。このチェックが失敗しても `/setup-deploy` は設定を保持するので、後で再実行するか、CLAUDE.md のセクションを編集して URL を直せます。
 
-**The app works on the host's address but not on your domain.**
-Check the DNS records (`dig +short <domain>`) and the certificate (`curl -sI https://<domain>`). New records can take a while to resolve everywhere.
+**アプリはホストのアドレスでは動くが、自分のドメインでは動かない。**
+DNS レコード(`dig +short <domain>`)と証明書(`curl -sI https://<domain>`)を確認してください。新しいレコードは、どこでも解決されるまでに時間がかかることがあります。
 
-**The build works locally but fails on the host.**
-Compare the host's build environment with yours. A missing build-time variable or a different runtime version is the usual cause.
+**ローカルではビルドできるが、ホストでは失敗する。**
+ホストのビルド環境と自分の環境を比べてください。ビルド時の変数が足りない、またはランタイムのバージョンが違う、というのが典型的な原因です。
 
-**You deploy by running a command by hand.**
-Record it as the deploy trigger. After each merge, `/land-and-deploy` tells you production hasn't moved yet and asks you to run it.
+**コマンドを手で実行してデプロイしている。**
+そのコマンドを、デプロイのトリガーとして記録してください。マージのたびに、`/land-and-deploy` は本番がまだ動いていないことを伝え、コマンドの実行を求めます。
 
-## Related
+## 関連
 
-- [`/setup-deploy`](./skills.md#setup-deploy) and [`/land-and-deploy`](./skills.md#land-and-deploy): what each skill does
-- [`/canary`](./skills.md#canary): post-deploy monitoring once production is live
-- Reference: [`setup-deploy/SKILL.md`](../setup-deploy/SKILL.md), [`land-and-deploy/SKILL.md`](../land-and-deploy/SKILL.md)
+- [`/setup-deploy`](./skills.md#setup-deploy) と [`/land-and-deploy`](./skills.md#land-and-deploy): 各スキルの役割
+- [`/canary`](./skills.md#canary): 本番が稼働した後のデプロイ後の監視
+- リファレンス: [`setup-deploy/SKILL.md`](../setup-deploy/SKILL.md)、[`land-and-deploy/SKILL.md`](../land-and-deploy/SKILL.md)

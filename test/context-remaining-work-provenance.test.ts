@@ -32,13 +32,14 @@ function between(text: string, start: string, end: string): string {
 describe('Remaining Work provenance contract', () => {
   test('context-save marks every item Open. and defines all five markers, writing steps first', () => {
     const save = read('context-save/SKILL.md');
-    const table = between(save, '**Remaining Work provenance.**', 'If the user provided a title');
+    const table = between(save, '**残りの作業の由来。**', 'ユーザーがタイトルを指定していれば');
     for (const marker of MARKERS) expect(table).toContain(`\`${marker}\``);
     expect(table).toContain('`Open.`');
     expect(table).toContain('`[done]`');
-    expect(table.indexOf('a writing step')).toBeLessThan(table.indexOf('names a concrete path'));
-    expect(table).toContain('**Markers stay English literals.**');
-    expect(table).toContain('**Decisions Made and file claims.**');
+    // Rule 1 (writing steps) is checked before rule 2 (concrete paths).
+    expect(table.indexOf('書き込みを伴う作業')).toBeLessThan(table.indexOf('具体的なパスを指している'));
+    expect(table).toContain('**マーカーは英語のリテラルのまま使います。**');
+    expect(table).toContain('**判断内容とファイルに関する主張。**');
     const format = between(save, '### Remaining Work', '### Notes');
     expect(format).toContain('`Open.`');
   });
@@ -46,22 +47,20 @@ describe('Remaining Work provenance contract', () => {
   test('context-restore sorts into Next steps and Verify first and option A walks saved order', () => {
     const restore = read('context-restore/SKILL.md');
     expect(restore).not.toContain('{remaining work items}');
-    const rules = between(restore, '**Sort Remaining Work by provenance.**', 'Read the chosen file');
-    const verifyFirst = between(rules, 'Put an item under **Verify first**', 'Every other item');
+    const rules = between(restore, '**残りの作業を由来で分類してください。**', '選んだファイルを読み込み');
+    const verifyFirst = between(rules, '**Verify first** に入れます', 'それ以外の項目はすべて');
     for (const marker of ['(path assumed)', '(code read)']) expect(verifyFirst).toContain(`\`${marker}\``);
-    expect(verifyFirst).toContain('reports a failure');
-    expect(verifyFirst).toContain('has no marker');
-    expect(verifyFirst).toContain('translated or unknown marker');
-    expect(restore).toContain('**No useful branch discriminator.**');
-    const nextSteps = between(rules, 'Every other item goes under **Next steps**', 'Verifying means');
+    expect(verifyFirst).toContain('失敗を報告');
+    expect(verifyFirst).toContain('マーカーがなく');
+    expect(verifyFirst).toContain('翻訳済みまたは未知のマーカー');
+    expect(restore).toContain('**ブランチで判別できない場合。**');
+    const nextSteps = between(rules, '**Next steps** に入れます', '検証とは');
     for (const marker of ['(path run)', '(path read)', '(target state checked)']) expect(nextSteps).toContain(`\`${marker}\``);
-    expect(rules).toContain(
-      '`This checkpoint predates provenance markers; items naming commands, paths or writes are listed under Verify first.`',
-    );
+    expect(rules).toMatch(/`[^`\n]*由来マーカー[^`\n]*Verify first[^`\n]*`/);
     const summary = between(restore, '### Remaining Work', '### Notes');
     expect(summary.indexOf('Next steps')).toBeLessThan(summary.indexOf('Verify first'));
-    const optionA = between(restore, 'If A,', '## If no saved contexts exist');
-    expect(optionA).toContain('first Remaining Work item in saved order');
-    expect(optionA).toContain('under Verify first, suggest verifying it');
+    const optionA = between(restore, 'A の場合は、', '## 保存済みコンテキストが存在しない場合');
+    expect(optionA).toContain('保存時の順序で最初の Remaining Work の項目');
+    expect(optionA).toContain('Verify first の項目であれば');
   });
 });

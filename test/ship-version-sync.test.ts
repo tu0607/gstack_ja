@@ -11,7 +11,7 @@ import { execSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expectMentions } from './helpers/prompt-structure';
+import { expectMentions, expectOrdered, expectTokens } from './helpers/prompt-structure';
 
 let dir: string;
 beforeEach(() => {
@@ -118,30 +118,30 @@ const pkgVersion = () =>
 test("rendered drift repair rejoins the existing-version queue check", () => {
   const ship = readFileSync(join(import.meta.dir, '../ship/SKILL.md'), 'utf8');
   const version = ship.slice(ship.indexOf('## Step 12:'), ship.indexOf('## Step 14:')).replace(/\s+/g, ' ');
-  expect(version).toMatch(/DRIFT_STALE_PKG[^\n]+repair[^\n]+reclassify[^\n]+ALREADY_BUMPED[^\n]+queue/);
+  expectOrdered(version.slice(version.indexOf('**DRIFT_STALE_PKG**')), ['DRIFT_STALE_PKG', 'repair', 'ALREADY_BUMPED', 'キュー'], 'Step 12 drift repair');
   expect(version).toContain('--current-version "$BASE_VERSION"');
   expect(version).toContain('CANDIDATE_VERSION');
-  expect(version).toMatch(/keep[^\n]+NEW_VERSION[^\n]+currentVersion/);
+  expectMentions(version, [['NEW_VERSION', 'currentVersion', '保持']], 'Step 12 ALREADY_BUMPED');
 });
 
 test("rendered queue dispatch preserves offline git candidates without empty fallback fallthrough", () => {
   const ship = readFileSync(join(import.meta.dir, '../ship/SKILL.md'), 'utf8');
-  const qualifyAt = ship.indexOf('**Qualify first:**');
-  const usableAt = ship.indexOf('**Usable candidate:**');
-  const missingAt = ship.indexOf('**No usable candidate:**');
+  const qualifyAt = ship.indexOf('**最初に適格性を確認します:**');
+  const usableAt = ship.indexOf('**利用可能な候補あり:**');
+  const missingAt = ship.indexOf('**利用可能な候補なし:**');
   expect(qualifyAt).toBeGreaterThanOrEqual(0);
   expect(usableAt).toBeGreaterThan(qualifyAt);
   expect(usableAt).toBeGreaterThanOrEqual(0);
   expect(missingAt).toBeGreaterThan(usableAt);
   const qualify = ship.slice(qualifyAt, usableAt).replace(/\s+/g, ' ');
   const usable = ship.slice(usableAt, missingAt).replace(/\s+/g, ' ');
-  const missing = ship.slice(missingAt, ship.indexOf('4. **Write the bump**', missingAt)).replace(/\s+/g, ' ');
-  expect(qualify).toContain('`offline:false` qualifies; `offline:true` qualifies only with `fallback:"git"`');
-  expectMentions(qualify, [['without', 'malformed', 'fallback']], 'qualify');
-  expect(usable).toContain('warnings and claimed queue');
-  expect(usable).toContain('CANDIDATE_VERSION');
-  expect(missing).toContain('local `BUMP_LEVEL` arithmetic');
-  expect(missing).toContain('ALREADY_BUMPED keeps `currentVersion`');
+  const missing = ship.slice(missingAt, ship.indexOf('4. **バージョンの書き込み**', missingAt)).replace(/\s+/g, ' ');
+  expectTokens(qualify, ['`offline:false`', '`offline:true`', '`fallback:"git"`'], 'qualify');
+  expectMentions(qualify, [['offline:true', 'fallback:"git"', '適格'], ['fallback', '不正な形式', '使えません']], 'qualify');
+  expectMentions(usable, [['警告', 'キュー']], 'usable');
+  expectTokens(usable, ['CANDIDATE_VERSION'], 'usable');
+  expectTokens(missing, ['`BUMP_LEVEL`'], 'missing');
+  expectMentions(missing, [['ALREADY_BUMPED', 'currentVersion', '維持']], 'missing');
   expect(missing).not.toContain('CANDIDATE_VERSION');
 });
 
@@ -263,7 +263,7 @@ test("rendered /ship handles every version-source outcome the classifier emits",
   const changelog = readFileSync(join(import.meta.dir, "../ship/sections/changelog.md"), "utf8");
   const step12 = ship.slice(ship.indexOf("## Step 12:"), ship.indexOf("## Step 14:")).replace(/\s+/g, " ");
   const prBody = readFileSync(join(import.meta.dir, "../ship/sections/pr-body.md"), "utf8");
-  const step18 = prBody.slice(prBody.indexOf("### Prepare the title (Step 18)"), prBody.indexOf("## Step 19:")).replace(/\s+/g, " ");
+  const step18 = prBody.slice(prBody.indexOf("### タイトルを用意する (Step 18)"), prBody.indexOf("## Step 19:")).replace(/\s+/g, " ");
   expect(step18.length).toBeGreaterThan(0);
   const classifyCmd = step12.match(/bun --no-env-file --config=\/dev\/null run \S+gstack-version-bump classify --base <base>/);
   expect(classifyCmd).not.toBeNull();
@@ -291,8 +291,8 @@ test("rendered /ship handles every version-source outcome the classifier emits",
       }
       if (name === "brokenPin") {
         expect(code).toBe(2);
-        expect(step12).toMatch(/\*\*Exit 2\*\* → STOP[^.]*stderr/);
-        expect(step12).toContain("Never substitute `0.0.0.0`");
+        expect(step12).toMatch(/\*\*終了コード 2\*\* → STOP[^。]*stderr/);
+        expectMentions(step12, [["0.0.0.0", "代用", "いけません"]], "Step 12 exit 2");
       } else {
         expect(state).toBe("NO_VERSION");
         expect(step12).toContain(`**${state}** →`);
@@ -301,10 +301,9 @@ test("rendered /ship handles every version-source outcome the classifier emits",
       rmSync(repo, { recursive: true, force: true });
     }
   }
-  const arm = step12.slice(step12.indexOf("**NO_VERSION** →"), step12.indexOf("**Exit 2** →"));
+  const arm = step12.slice(step12.indexOf("**NO_VERSION** →"), step12.indexOf("**終了コード 2** →"));
   expect(arm).toContain("`notice`");
-  expect(arm).toContain("never create VERSION");
-  expect(changelog).toMatch(/NO_VERSION[^\n]*skip this step/);
-  expect(step18).toMatch(/NO_VERSION[^.]*replaces items 1-3/);
-  expect(step18).toContain("no version prefix");
+  expectMentions(arm, [["VERSION", "作成せず"]], "NO_VERSION arm");
+  expectMentions(changelog, [["NO_VERSION", "スキップ"]], "changelog NO_VERSION");
+  expectMentions(step18, [["NO_VERSION", "項目 1-3"], ["バージョン接頭辞"]], "Step 18 NO_VERSION");
 });

@@ -13,6 +13,7 @@
  */
 
 import { describe, test, expect } from 'bun:test';
+import { expectMentions } from './helpers/prompt-structure';
 import {
   QUESTIONS,
   getQuestion,
@@ -487,7 +488,7 @@ describe('preamble — QUESTION_TUNING injection', () => {
     expect(out).toContain('## Question Tuning');
     expect(out).toContain('gstack-question-preference --check');
     expect(out).toContain('gstack-question-log');
-    expect(out).toContain('profile-poisoning defense');
+    expectMentions(out, [['ユーザー', 'tune:', '書き込'], ['終了コード 2', '拒否']]);
     expect(out).toContain('inline-user');
   });
 

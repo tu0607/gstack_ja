@@ -43,6 +43,21 @@ export const SECTION_ALIASES: Record<string, CanonicalSection> = {
   "do's and don'ts": "Do's and Don'ts",
   'dos and donts': "Do's and Don'ts",
   "do’s and don’ts": "Do's and Don'ts",
+  // Japanese fork: translated DESIGN.md headings resolve to the same canonical sections.
+  '概要': 'Overview',
+  'ブランドとスタイル': 'Overview',
+  'カラー': 'Colors',
+  '色': 'Colors',
+  'タイポグラフィ': 'Typography',
+  'レイアウト': 'Layout',
+  'レイアウトと余白': 'Layout',
+  'レイアウトとスペーシング': 'Layout',
+  'エレベーションと奥行き': 'Elevation & Depth',
+  'エレベーション': 'Elevation & Depth',
+  'シェイプ': 'Shapes',
+  '形状': 'Shapes',
+  'コンポーネント': 'Components',
+  'やるべきこととやってはいけないこと': "Do's and Don'ts",
 };
 
 export const TOKEN_GROUPS = ['colors', 'typography', 'rounded', 'spacing', 'components'] as const;

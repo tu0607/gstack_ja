@@ -46,7 +46,12 @@ describe('guard reason inventory', () => {
 
   test('the troubleshooting page has one anchor per code (removed codes keep theirs) and keeps the no-override line', () => {
     for (const code of [...Object.keys(REASONS), ...REMOVED_CODES]) expect({ code, anchored: guide.includes(`<a id="${anchor(code)}"></a>`) }).toEqual({ code, anchored: true });
-    expect(guide).toContain('There is no environment variable that turns the guard off.');
-    expect(guide).toContain('## Unverified allows');
+    // The no-override line: one sentence naming the environment variable and turning the guard off.
+    expect(guide.split(/[。\n]/).some(l => /環境変数/.test(l) && /ガード/.test(l) && /無効/.test(l) && /ありません/.test(l))).toBe(true);
+    // The unverified-allows section keeps its own H2 heading, ahead of the fallback and corrective sections.
+    const h2 = [...guide.matchAll(/^## (.+)$/gm)].map(m => m[1]!);
+    expect(h2.length).toBeGreaterThanOrEqual(4);
+    expect(guide.indexOf('<a id="unrecognized-shape"></a>')).toBeGreaterThan(guide.indexOf(`## ${h2[1]}`));
+    expect(guide.indexOf('<a id="competing-root"></a>')).toBeGreaterThan(guide.indexOf('<a id="unseen-version"></a>'));
   });
 });

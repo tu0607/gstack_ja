@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { runGeneration } from '../scripts/gen-skill-docs';
+import { expectMentions } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-router-disabled-'));
@@ -26,12 +27,14 @@ describe('C8: disabled skills leave the rendered router', () => {
   for (const host of ['claude', 'codex'] as const) {
     test(`${host}: routing rules drop disabled skills and keep the other side of an "A or B" rule`, async () => {
       const text = await router(host, ['retro', 'gstack-cso', '/careful', 'gstack-upgrade']);
-      expect(text).toContain('Disabled on this install (never invoke or suggest them): `/retro`, `/cso`, `/careful`.');
-      expect(text).not.toMatch(/→ invoke `\/retro`/);
-      expect(text).not.toMatch(/→ invoke `\/cso`/);
-      expect(text).toContain('careful mode → invoke `/guard`');
-      expect(text).toContain('→ invoke `/gstack-upgrade`');
-      expect(text).toContain('→ invoke `/ship`');
+      expectMentions(text, [['無効', '`/retro`', '`/cso`', '`/careful`']], 'router');
+      // The routing rules read "→ `/skill` を呼び出す"; a disabled skill's rule is dropped.
+      expect(text).not.toMatch(/→ `\/retro` を呼び出す/);
+      expect(text).not.toMatch(/→ `\/cso` を呼び出す/);
+      expect(text).toMatch(/→ `\/guard` を呼び出す/);
+      expect(text).not.toMatch(/`\/careful` または/);
+      expect(text).toContain('→ `/gstack-upgrade` を呼び出す');
+      expect(text).toContain('→ `/ship` を呼び出す');
     });
 
     test(`${host}: no disabled skills renders the canonical router byte for byte`, async () => {

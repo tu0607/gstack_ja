@@ -101,8 +101,8 @@ describe('extractSkillSections (synthetic)', () => {
   });
 
   test('a carved step ends the preceding H2 without changing its content', () => {
-    const pointer = '> **STOP.** Before the next step, Read `~/review/sections/next.md` and execute it\n'
-      + '> in full. Do not work from memory — that section is the source of truth for this step.';
+    const pointer = '> **STOP.** 次のステップの前に、Read `~/review/sections/next.md` を全文読んで実行してください。\n'
+      + '> 記憶から作業しないこと。このステップの正はそのセクションです。';
     const file = path.join(tmpDir, 'carved.md');
     const original = path.join(tmpDir, 'before-carve.md');
     const source = SYNTHETIC_SKILL.replace('\n## Step 2 — Other', '\n---\n\n## Step 2 — Other');
@@ -118,12 +118,12 @@ describe('extractSkillSections (synthetic)', () => {
   });
 
   test('nested pointers and ordinary STOP quotes remain part of the requested H2', () => {
-    const pointer = '> **STOP.** Before the next step, Read `~/review/sections/next.md` and execute it\n'
-      + '> in full. Do not work from memory — that section is the source of truth for this step.';
+    const pointer = '> **STOP.** 次のステップの前に、Read `~/review/sections/next.md` を全文読んで実行してください。\n'
+      + '> 記憶から作業しないこと。このステップの正はそのセクションです。';
     for (const prose of [
       `\`\`\`md\n---\n\n${pointer}\n\n---\n\`\`\``,
       `### Nested step\n\nInstructions for this step.\n\n${pointer}\nContinue this step.`,
-      `---\n\n${pointer.replace('> in full.', '> First,')}\n\n---`,
+      `---\n\n${pointer.replace('> 記憶から作業しないこと。', '> まず、')}\n\n---`,
     ]) {
       const file = path.join(tmpDir, 'quoted.md');
       fs.writeFileSync(file, SYNTHETIC_SKILL.replace('step one body', `step one body\n${prose}`));
@@ -293,14 +293,14 @@ describe('error polarity', () => {
 describe('real-skill pins: section lists used by E2E fixtures', () => {
   test('REVIEW_E2E_SECTIONS extracts from review/SKILL.md', () => {
     const out = extractSkillSections(path.join(ROOT, 'review'), REVIEW_E2E_SECTIONS);
-    expect(out).toContain('## Step 4: Critical pass (core review)');
-    expect(out).toContain('## Important Rules');
+    expect(out).toContain('## Step 4: 重大な問題のパス');
+    expect(out).toContain('## 重要なルール');
     // Drops the shared preamble and the untested workflow tail.
     expect(out).not.toContain('## Telemetry (run last)');
-    expect(out).not.toContain('## Step 5: Fix-First Review');
+    expect(out).not.toContain('## Step 5: Fix-First');
     expect(out).not.toContain('review/sections/review-army.md');
     // Step 4's sideways-sweep paragraph (plan D2 replaced the enum-only one) survives the extraction.
-    expect(out).toContain('Sideways sweep (every finding; reads code OUTSIDE the diff).');
+    expect(out).toContain('**Sideways sweep(');
     // Meaningfully smaller than the source.
     const full = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
     expect(out.length).toBeLessThan(full.length * 0.5);
@@ -337,28 +337,28 @@ describe('real-skill pins: section lists used by E2E fixtures', () => {
     // format lives in retro/sections/report-format.md; the E2E fixture builds
     // skeleton sections + the section file (see skill-e2e-retro.test.ts).
     const skeletonSections = RETRO_E2E_SECTIONS.filter(
-      (s) => s !== 'Engineering Retro: [date range]',
+      (s) => s !== 'エンジニアリング振り返り: [日付範囲]',
     );
     const out = extractSkillSections(path.join(ROOT, 'retro'), skeletonSections);
     // Steps 0.5-14 live under Prior Learnings / Capture Learnings.
-    expect(out).toContain('### Step 1: Gather');
-    expect(out).toContain('### Step 14: Write the Narrative');
+    expect(out).toContain('### Step 1: メトリクスの収集');
+    expect(out).toContain('### Step 14: 物語を書く');
     expect(out).not.toContain('## Global Retrospective Mode');
-    expect(out).toContain('Read `~/.claude/skills/gstack/retro/sections/report-format.md` and execute it');
-    expectMentions(out, [['stop', 'repo-scoped', 'result-save']], 'out');
+    expect(out).toMatch(/^> \*\*STOP\.\*\* .*Read `~\/\.claude\/skills\/gstack\/retro\/sections\/report-format\.md`/m);
+    expectMentions(out, [['停止', 'リポジトリ単位', '結果の保存']], 'out');
     expect(out).not.toContain('## Telemetry (run last)');
 
     const reportFormat = fs.readFileSync(
       path.join(ROOT, 'retro', 'sections', 'report-format.md'), 'utf-8');
-    expect(reportFormat).toContain('## Engineering Retro: [date range]');
-    expect(reportFormat).toContain('### Team Breakdown');
+    expect(reportFormat).toContain('## エンジニアリング振り返り: [日付範囲]');
+    expect(reportFormat).toContain('### チームの内訳');
   });
 
   test('CODEX_REVIEW_E2E_SECTIONS extracts from the Codex host variant when present', () => {
     const codexReview = path.join(ROOT, '.agents', 'skills', 'gstack-review');
     if (!fs.existsSync(path.join(codexReview, 'SKILL.md'))) return; // gitignored artifact, absent in fresh checkouts
     const out = extractSkillSections(codexReview, CODEX_REVIEW_E2E_SECTIONS);
-    expect(out).toContain('## Step 4: Critical pass (core review)');
+    expect(out).toContain('## Step 4: 重大な問題のパス');
     expect(out).not.toContain('## Telemetry (run last)');
   });
 });
@@ -396,16 +396,16 @@ describe('real-skill pins: body/head extraction used by E2E fixtures', () => {
   }
 
   test('body extraction keeps the sections the skillify/context E2E tests assert on', () => {
-    expect(extractSkillBody(path.join(ROOT, 'skillify'))).toContain('## Step 1 — Provenance guard (D1)');
-    expect(extractSkillBody(path.join(ROOT, 'scrape'))).toContain('## Step 2 — Refuse mutating intents');
-    expect(extractSkillBody(path.join(ROOT, 'context-save'))).toContain('## List flow');
-    expect(extractSkillBody(path.join(ROOT, 'context-restore'))).toContain('## If no saved contexts exist');
+    expect(extractSkillBody(path.join(ROOT, 'skillify'))).toContain('## Step 1 — 出所の確認 (D1)');
+    expect(extractSkillBody(path.join(ROOT, 'scrape'))).toContain('## Step 2 — 変更を伴う意図を拒否する');
+    expect(extractSkillBody(path.join(ROOT, 'context-save'))).toContain('## 一覧の流れ');
+    expect(extractSkillBody(path.join(ROOT, 'context-restore'))).toContain('## 保存済みコンテキストが存在しない場合');
   });
 
   test('the scoped Eng render retains its original scope gate before the workflow', () => {
     const file = path.join(ROOT, 'plan-eng-review', 'SKILL.md');
     const full = fs.readFileSync(file, 'utf-8');
-    const scopeStart = full.indexOf('## Scope gate');
+    const scopeStart = full.indexOf('## スコープゲート');
     const preamble = full.indexOf('## Preamble (after scope gate)');
     expect(scopeStart).toBeGreaterThan(0); expect(preamble).toBeGreaterThan(scopeStart);
     expect(extractSkillBody(file)).toContain(full.slice(scopeStart, preamble).trimEnd());

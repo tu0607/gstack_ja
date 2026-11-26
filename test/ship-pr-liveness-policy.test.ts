@@ -11,13 +11,15 @@ const template = fs.readFileSync(
 describe('gstack PR liveness policy', () => {
   test('remembers the authenticated repository-owner exemption', () => {
     expect(template).toContain('gh api user --jq .login');
-    expectMentions(template, [['not', 'sufficient', 'metadata']], 'template');
+    expectMentions(template, [['@garrytan', '適用除外'], ['git', 'author', 'メタデータ', '不十分']], 'template');
   });
 
   test('retains live GSTACK PR proof for every other contributor', () => {
-    expect(template).toContain('required for external contributors');
-    expect(template).toContain('All other contributors');
-    expect(template).toContain('`GSTACK PR` typed LIVE');
-    expectMentions(template, [['not', 'overlaid', 'edited']], 'template');
+    expectMentions(template, [
+      ['生存証明', '外部コントリビューター', '必須'],
+      ['その他のコントリビューター', 'スクリーンショット', '添付'],
+      ['`GSTACK PR`', 'ライブ', '入力'],
+      ['画像', '描き込', '編集', '認められません'],
+    ], 'template');
   });
 });

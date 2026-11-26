@@ -22,6 +22,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { expectMentions } from "./helpers/prompt-structure";
 
 import { generateConfidenceCalibration } from "../scripts/resolvers/confidence";
 
@@ -36,7 +37,7 @@ describe("#1539 confidence resolver — pre-emit verification gate present", () 
   test("gate requires quoted code snippet (file:line + verbatim text)", () => {
     const out = generateConfidenceCalibration({} as never);
     expect(out).toMatch(/file:line/);
-    expect(out).toMatch(/verbatim text/);
+    expectMentions(out, [["file:line", "原文"]], "gate");
   });
 
   test("unverified findings auto-suppressed via existing confidence rule", () => {
@@ -44,13 +45,13 @@ describe("#1539 confidence resolver — pre-emit verification gate present", () 
     // The gate must hook the existing "<7 -> suppress" rule rather than
     // invent new mechanism. Look for both forcing-to-4-5 AND a reference
     // to suppression.
-    expect(out).toMatch(/Force its confidence to 4-5/);
-    expect(out).toMatch(/suppress/i);
+    expect(out).toMatch(/confidence を 4〜5 に固定します/);
+    expect(out).toMatch(/本文から除外|付録/);
   });
 
   test("framework-meta nudge present for Django/Rails/SQLAlchemy/TypeORM/Sequelize/Prisma", () => {
     const out = generateConfidenceCalibration({} as never);
-    expect(out).toMatch(/Framework-meta nudge/);
+    expect(out).toContain("**フレームワークのメタ構造への注意:**");
     expect(out).toMatch(/Django/);
     expect(out).toMatch(/Rails/);
     expect(out).toMatch(/SQLAlchemy/);
@@ -66,8 +67,8 @@ describe("#1539 confidence resolver — pre-emit verification gate present", () 
 
   test("enumerates the four FP classes the gate kills (#1539 named cases)", () => {
     const out = generateConfidenceCalibration({} as never);
-    expect(out).toMatch(/save\(\) might lose fields/);
-    expect(out).toMatch(/update_fields might miss/);
+    expect(out).toMatch(/save\(\) でフィールドが失われうる/);
+    expect(out).toMatch(/update_fields が X を漏らしうる/);
   });
 });
 
@@ -102,13 +103,13 @@ describe("#1539 generated SKILL.md files — gate propagated to all consumers", 
 });
 
 describe("#1539 confidence suppression rule unchanged (regression on existing behavior)", () => {
-  test("confidence 3-4 row still says 'Suppress from main report'", () => {
+  test("confidence 3-4 row still excludes the finding from the main report", () => {
     const out = generateConfidenceCalibration({} as never);
-    expect(out).toMatch(/3-4[\s\S]{0,200}Suppress from main report/);
+    expect(out).toMatch(/3-4[\s\S]{0,200}本文からは除外/);
   });
 
-  test("confidence 9-10 row preserves 'Show normally' behavior", () => {
+  test("confidence 9-10 row preserves the normal-display behavior", () => {
     const out = generateConfidenceCalibration({} as never);
-    expect(out).toMatch(/9-10[\s\S]{0,200}Show normally/);
+    expect(out).toMatch(/9-10[\s\S]{0,200}通常どおり表示/);
   });
 });

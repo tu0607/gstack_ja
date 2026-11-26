@@ -1,42 +1,42 @@
-# Field list 2: round-2 review findings (build obligations)
+# field list 2: ラウンド 2 のレビュー指摘(構築上の義務)
 
-Approved by Garry 2026-10-16 ("all", gate_rev=2, relayed by GStack Minder GSTA-36). Autoplan run run-20261016222410. Every lane treats the findings for its items as requirements; verify each against code first (a finding that is wrong gets a written reason in the lane report).
+2026-10-16 に Garry が承認(「all」、gate_rev=2。GStack Minder GSTA-36 経由で伝達)。Autoplan の実行 run-20261016222410。すべてのレーンは、自分の項目に対する指摘を要件として扱う。まずコードに照らして検証すること。誤っている指摘は、レーンの報告に理由を書く。
 
-## ceo / native
+## ceo / ネイティブ
 
-- **High: F2 and the still-open #3215 edit the registries PR A now owns, so A's lane-check cannot be clear** (docs/troubleshooting.md:1207). Fix: Have GStack Minder merge #3215 on its own first (or close it as superseded with credit once B carries its commits); rebase F2 after #3190 or move its troubleshooting.md edit into A; record both on the gate.
-- **Medium: Stacking B on A delays W1/W2 (P1, P2) behind six autoplan items and a draft dependency (#3226)**. Fix: Let readiness order the stack: whichever of A or B has its external dependencies merged first is built first and owns the registries; today that is likely B (W1/W2) since #3226 is a draft.
-- **Low: Release promise P4 still says 'caught before merge' while W4 now says 'flagged unless measured'**. Fix: Reword P4 to 'flagged before merge (blocking if the five-flake measurement supports it)'.
-- **Low: F1 f315806: the session's behind line still prints the rerun fix when the trailer's fix is gstack-upgrade; non-default branches are treated as fast-forwardable** (bin/gstack-capy-session). Fix: Print $GSTACK_CAPY_BEHIND_FIX on the behind line and classify a non-default branch like detached (gstack-upgrade refuses it).
+- **高: F2 と、まだ開いている #3215 が、A が所有するようになったレジストリを編集している。そのため A の lane-check がクリアにならない**(docs/troubleshooting.md:1207)。修正: GStack Minder に、#3215 を先に単独でマージしてもらう(または、B がその作者のコミットを引き継いだ時点で、クレジット付きの superseded としてクローズする)。F2 は #3190 の後にリベースするか、troubleshooting.md の編集を A に移す。両方をゲートに記録する。
+- **中: B を A の上に積むと、W1/W2(P1、P2)が、6 件の autoplan の項目と、ドラフトの依存(#3226)の背後で遅れる**。修正: 準備の状況がスタックの順序を決めるようにする。A と B のうち、外部の依存がマージ済みの方を先に構築し、そのレジストリを所有する。#3226 がドラフトのため、今は B(W1/W2)が先になる可能性が高い。
+- **低: 約束 P4 はまだ「マージ前に検出される」と書いているが、W4 は「計測されない限り警告」になっている**。修正: P4 を「マージ前に検出される(5 件の flake の計測が支持する場合はブロック)」に言い換える。
+- **低: F1 f315806: セッションの behind の行が、トレーラーの修正が gstack-upgrade のときも、再実行の修正を表示している。デフォルトでないブランチが早送り可能として扱われている**(bin/gstack-capy-session)。修正: behind の行に $GSTACK_CAPY_BEHIND_FIX を表示する。デフォルトでないブランチは detached と同じに分類する(gstack-upgrade はそれを拒否する)。
 
-## ceo / outside
+## ceo / 外部
 
-- **High: Resolved approval citations still lack binding to the effects being shipped**. Fix: Bind approval classes and approved effects to the current plan/scope digest, invalidate reuse after effect changes, and require explicit applicability attestation for unresolved evidence; test unrelated authentic approvals and post-approval effect additions.
-- **High: Deferred close must not release reservations for already dispatched reviews** (lib/spend-ledger.ts:149). Fix: Settle dispatched or execution-unknown attempts as known or unknown while retaining their reservation amount; release only proven never-dispatched work, distinguish review deferral from host cancellation, and test close/resume without recovered spend headroom.
-- **High: Warning on every unknown ship-policy key weakens safety without fixing old-client compatibility** (lib/ship-policy.ts:195). Fix: Keep unknown safety-policy keys fail-closed and require a compatible minimum revision before enabling new policy fields; explicitly bound any optional extension mechanism and test an old client plus a misspelled gate-reuse restriction.
+- **高: 解決済みの承認の引用が、出荷される効果に結び付いていない**。修正: 承認のクラスと承認された効果を、現在のプラン/スコープのダイジェストに結び付ける。効果が変わったら再利用を無効にする。解決されていない証拠には、明示的な適用可能性の証明を要求する。無関係な本物の承認、および承認後に効果が追加されたケースをテストする。
+- **高: 延期した close は、すでにディスパッチされたレビューの予約を解放してはならない**(lib/spend-ledger.ts:149)。修正: ディスパッチ済みまたは実行結果が不明な試行は、既知または不明として確定し、その予約額は保持する。ディスパッチされていないことが証明された作業だけを解放する。レビューの延期と、ホストによるキャンセルを区別する。回収された支出の余力がない状態での close/resume をテストする。
+- **高: ship-policy の未知のキーすべてに警告を出すと、古いクライアントの互換性を解決しないまま安全性が弱まる**(lib/ship-policy.ts:195)。修正: 未知の安全ポリシーのキーは fail-closed のままにする。新しいポリシーの項目を有効にする前に、互換性のある最低リビジョンを要求する。任意の拡張の仕組みには明確な上限を設け、古いクライアントと、gate-reuse の制限のスペルミスをテストする。
 
 ## dx / native
 
-- **Medium: WARN-on-unknown keys helps only future gstacks; lanes on 1.91.106 and earlier still fail POLICY_INVALID once gbrain commits gate_command/full_e2e** (lib/ship-policy.ts:201). Fix: The gbrain handoff and docs/ship-policy.md add gate_command/full_e2e only after the crew's GSTACK_MIN_REVISION reaches B's version; gstack-ship-policy validate prints each key's introducing version.
-- **Medium: W8 adds check-prereg beside the existing gstack-eval-plan prereg --check** (bin/gstack-eval-plan:5). Fix: Extend prereg --check: with a declared synthetic fixture it requires --allow-repo-commands (else lists commands and exits 3, like gstack-restamp) and fails PREREG_DIAGNOSTIC_UNTESTED on mismatch; no second verb.
-- **Medium: budget_exhausted recovery names an owner-authorized cap raise, but spend cap and max rounds are set only at run creation** (lib/autoplan-run.ts:113). Fix: Add gstack-autoplan budget --out <dir> [--spend-cap <usd>] [--max-rounds <n>] --by <owner> that journals the change; print it with close --deferred in the budget_exhausted recovery lines.
-- **Low: W11 fallback clone command elides its target directory and bypasses the wrapper's floor check**. Fix: Spell out the full command with the root the wrapper resolves, and print the installer's cloned <root> line so the trailer and the clone agree.
+- **中: 未知のキーへの WARN は、将来の gstack にしか効かない。1.91.106 以前のレーンは、gbrain が gate_command/full_e2e をコミットすると、依然として POLICY_INVALID で失敗する**(lib/ship-policy.ts:201)。修正: gbrain への引き継ぎと docs/ship-policy.md は、crew の GSTACK_MIN_REVISION が B のバージョンに達してから gate_command/full_e2e を追加する。gstack-ship-policy validate は、各キーが導入されたバージョンを表示する。
+- **中: W8 は、既存の gstack-eval-plan prereg --check の隣に check-prereg を追加する**(bin/gstack-eval-plan:5)。修正: prereg --check を拡張する。宣言された合成フィクスチャがある場合は --allow-repo-commands を要求する(なければコマンドを列挙して終了コード 3 で終わる。gstack-restamp と同じ)。不一致の場合は PREREG_DIAGNOSTIC_UNTESTED で失敗する。2 つ目の動詞は作らない。
+- **中: budget_exhausted の回復では、オーナーが許可した上限の引き上げを挙げているが、支出の上限とラウンドの最大数は実行の作成時にしか設定されない**(lib/autoplan-run.ts:113)。修正: `gstack-autoplan budget --out <dir> [--spend-cap <usd>] [--max-rounds <n>] --by <owner>` を追加する。これは変更をジャーナルに記録する。budget_exhausted の回復行では、close --deferred と一緒にこれを表示する。
+- **低: W11 のフォールバックのクローンコマンドは、ターゲットのディレクトリを省略しており、ラッパーのフロアチェックを迂回している**。修正: ラッパーが解決するルートを使い、コマンドを完全な形で書く。インストーラーが出力したクローンの `<root>` の行を表示し、トレーラーとクローンが一致するようにする。
 
 ## dx / outside
 
-- **Medium: The new no-Drive bootstrap does not locate the cloned installer or preserve project context** (bin/gstack-capy-install:36). Fix: Publish a fallback with an explicit dedicated install root and absolute installer invocation, preserve caller project identity and working directory, handle an existing install, and execute the exact cold and repeat-session brief through a real helper invocation in a non-gstack fixture project.
+- **中: 新しい Drive なしのブートストラップは、クローンされたインストーラーを見つけず、プロジェクトの文脈も保持しない**(bin/gstack-capy-install:36)。修正: 明示的な専用のインストールルートと、絶対パスのインストーラーの呼び出しを持つフォールバックを公開する。呼び出し元のプロジェクトの同一性と作業ディレクトリを保持する。既存のインストールを扱う。コールドおよび繰り返しのセッションの正確なブリーフを、gstack ではない fixture プロジェクトで、実際のヘルパーの呼び出しを通じて実行する。
 
-## eng / native
+## eng / ネイティブ
 
-- **High: verify cannot fetch the gate-ahead merge commit, which exists only in the lane's throwaway worktree** (lib/restamp.ts:588). Fix: verify --gated-tree recomputes the merge with git merge-tree --write-tree <predecessor_head> <branch_head> and compares it to the recorded gated_tree before tree-receipt (or gate-ahead --record pushes the gated commit to refs/gstack/gated/<pr>); test gate-ahead then verify from a separate clone.
-- **Medium: budget_exhausted as a resumable run status is neither in the status enum nor terminal, so old validators and export both fail** (lib/headless-artifacts.ts:91). Fix: Use the existing terminal 'incomplete' with a stop object {reason:'budget_exhausted', cap_usd, rounds, spent, reserved, unknown}; resume from incomplete only with that reason after a budget raise.
-- **Medium: validate --public cannot fail on recorded machine roots because the public package carries none**. Fix: validate --public <dir> --private <run.json> on the exporting machine fails on recorded roots and runs inside export before writing; standalone validation checks provenance digests and WARNs on generic patterns.
-- **Medium: MODEL_CATALOG holds one current model per provider x tier, so W9's newest-generation-per-family rule cannot resolve through it (corrects round-1 F7)** (lib/model-catalog.ts:24). Fix: eval-models.json states allow/deny ids or globs, per-tier allow lists and an optional ordered families map (newest first); MODEL_CATALOG only checks frontier/smart currency; unknown ids fail closed.
-- **Low: F2 cites ~7.5k gbrain files; the tracked tree has 11,570 blobs**. Fix: Correct the number (about 3.9 MiB of manifest at the cap's density, still within limits) and size F2's capacity fixture from the real count.
+- **高: verify が、gate-ahead のマージコミットを取得できない。そのコミットは、レーンの使い捨てワークツリーにしか存在しない**(lib/restamp.ts:588)。修正: verify --gated-tree は、`git merge-tree --write-tree <predecessor_head> <branch_head>` でマージを再計算し、tree-receipt の前に記録された gated_tree と比較する(または gate-ahead --record が、ゲートされたコミットを refs/gstack/gated/<pr> に push する)。gate-ahead の後に、別のクローンから verify することをテストする。
+- **中: budget_exhausted は、再開可能な実行の状態として、状態の列挙にも終端にもない。そのため、古いバリデーターも export も失敗する**(lib/headless-artifacts.ts:91)。修正: 既存の終端の 'incomplete' を使い、stop オブジェクト `{reason:'budget_exhausted', cap_usd, rounds, spent, reserved, unknown}` を持たせる。incomplete から再開できるのは、予算の引き上げの後で、その理由がある場合だけ。
+- **中: validate --public は、公開パッケージが記録されたマシンのルートを持たないため、それで失敗させられない**。修正: `validate --public <dir> --private <run.json>` を、書き出しを行うマシン上で実行する。記録されたルートがあれば失敗させ、書き出しの中で、ファイルを書く前に実行する。単独の検証は、来歴のダイジェストを確認し、一般的なパターンには WARN を出す。
+- **中: MODEL_CATALOG は、プロバイダー × ティアごとに現行のモデルを 1 つだけ保持する。そのため W9 の「ファミリーごとに最新の世代」というルールを解決できない(ラウンド 1 の F7 を訂正)**(lib/model-catalog.ts:24)。修正: eval-models.json に、許可/拒否のための ID またはグロブ、ティアごとの許可リスト、任意の順序付きのファミリーのマップ(新しいものが先)を記述する。MODEL_CATALOG は frontier/smart の鮮度だけを確認する。不明な ID は fail closed にする。
+- **低: F2 は gbrain の約 7.5k ファイルを挙げているが、追跡されているツリーには 11,570 個の blob がある**。修正: 数字を訂正する(上限の密度で約 3.9 MiB のマニフェストで、なお上限内に収まる)。F2 の容量のフィクスチャは、実際の数に合わせて作る。
 
-## eng / outside
+## eng / 外部
 
-- **High: Asynchronous gate-ahead needs attempt-owned worktrees, records and cleanup** (lib/restamp.ts:553). Fix: Isolate each preparation by an immutable attempt handle and worktree; bind completion to its gated/predecessor/command identities, protect live attempts, retain evidence before owned cleanup, and test concurrent preparations with out-of-order completion.
-- **Medium: Equal-version update comparisons cannot reuse the version-only cache** (bin/gstack-update-check:195). Fix: Bind cached comparison validity to local HEAD and upstream identity, store the compared remote SHA, invalidate legacy entries without identities, and test same-version fast-forward and divergent branch changes after a cached upgrade.
-- **Medium: The four-entry reviewer model catalog cannot resolve general eval-model rules** (lib/model-catalog.ts:24). Fix: Apply literal allow/deny independently of catalog membership, separate eval scope from review tier, and require explicit supported latest-series mappings or report unresolved newest-generation rules; test uncatalogued allowed/denied models and smoke-only rules.
+- **高: 非同期の gate-ahead には、試行ごとに所有されるワークツリー、記録、クリーンアップが必要**(lib/restamp.ts:553)。修正: 各準備を、不変の試行ハンドルと専用のワークツリーで隔離する。完了を、そのゲートされたもの/先行するもの/コマンドの同一性に結び付ける。生きている試行を保護する。所有されるクリーンアップの前に証拠を保持する。完了が順不同で届く、同時の準備をテストする。
+- **中: 同じバージョンの更新の比較は、バージョンだけのキャッシュを再利用できない**(bin/gstack-update-check:195)。修正: キャッシュされた比較の有効性を、ローカルの HEAD と上流の同一性に結び付ける。比較した remote SHA を保存する。同一性のない古いエントリは無効にする。キャッシュ済みのアップグレードの後の、同じバージョンの早送りと、分岐したブランチの変更をテストする。
+- **中: 4 件のレビュアーのモデルカタログでは、一般的な評価モデルのルールを解決できない**(lib/model-catalog.ts:24)。修正: 許可/拒否のリテラルを、カタログのメンバーシップとは独立に適用する。評価のスコープをレビューのティアから分離する。明示的にサポートされた最新シリーズのマッピングを要求するか、解決できない最新世代のルールを報告する。カタログにないが許可/拒否されたモデルと、スモークのみのルールをテストする。
 

@@ -41,7 +41,7 @@ describe('/open-gstack-browser daemon liveness', () => {
   });
 
   test('--force-restart appears only in the explicit-yes branch', () => {
-    const live = section('`DAEMON: live`', '## Step 2');
+    const live = section('`DAEMON: live`', '## ステップ 2');
     const ask = live.indexOf('AskUserQuestion');
     expect(ask).toBeGreaterThanOrEqual(0);
     const occurrences = [...TMPL.matchAll(/--force-restart/g)].map((m) => m.index!);
@@ -49,20 +49,20 @@ describe('/open-gstack-browser daemon liveness', () => {
     const liveStart = TMPL.indexOf('`DAEMON: live`');
     const askAbs = liveStart + ask;
     for (const at of occurrences) expect(at).toBeGreaterThan(askAbs);
-    expect(live).toMatch(/only an explicit a runs[^\n]*--force-restart/i);
-    expect(TMPL).toMatch(/after an explicit a[^\n]*\n+```bash\n\$B connect --force-restart\n```/i);
+    expectMentions(live, [['明示的', 'A', '--force-restart']], 'live');
+    expect(TMPL).toMatch(/明示的に A が選ばれた場合のみ[^\n]*\n+```bash\n\$B connect --force-restart\n```/);
   });
 
   test('the no-daemon branch runs plain connect and keeps the Chromium profile-lock cleanup', () => {
     const none = section('`DAEMON: none`', '`DAEMON: headed`');
-    expect(none).toContain('plain `$B connect`');
+    expect(none).toContain('通常の `$B connect`');
     expect(none).toContain('SingletonLock SingletonSocket SingletonCookie');
     expect(none).not.toContain('--force-restart');
   });
 
   test('spawned or headless sessions leave the daemon running and print the resolved-binary stop line', () => {
-    const live = section('`DAEMON: live`', '## Step 1');
-    expectMentions(live, [['do not', 'headless', 'spawned']], 'live');
+    const live = section('`DAEMON: live`', '## ステップ 1');
+    expectMentions(live, [['spawned', 'headless', '質問せず']], 'live');
     expect(live).toContain(`printf '${STOP_LINE}\\n' "$B"`);
     expect(live.indexOf(STOP_LINE)).toBeLessThan(live.indexOf('AskUserQuestion'));
   });

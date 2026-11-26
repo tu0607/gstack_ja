@@ -1,171 +1,58 @@
-# Contributor reference
+# コントリビューター向けリファレンス
 
-Contributor-only detail moved verbatim from CLAUDE.md, which Claude Code
-loads into every session and caps at 40,000 characters (#2096,
-`test/claude-md-size.test.ts`). CLAUDE.md keeps a one-line pointer to each
-section here.
+CLAUDE.md の内容から、コントリビューター専用の詳細を原文のまま移したものです。CLAUDE.md は Claude Code が毎セッション読み込み、40,000 文字で上限が設けられています(#2096、`test/claude-md-size.test.ts`)。CLAUDE.md には、この文書の各セクションへの一行ポインタだけを残しています。
 
-## Skill size budgets
+<a id="skill-size-budgets"></a>
+## スキルのサイズ予算
 
-**Token ceiling:** Generated SKILL.md files trip a warning above 160KB (~40K tokens).
-This is a "watch for feature bloat" guardrail, not a hard gate. Modern flagship
-models have 200K-1M context windows, so 40K is 4-20% of window, and prompt caching
-makes the marginal cost of larger skills small. The ceiling exists to catch runaway
-preamble/resolver growth, not to force compression on carefully-tuned big skills
-(`ship`, `plan-ceo-review`, `office-hours` legitimately pack 25-35K tokens of
-behavior). If you blow past 40K, the right fix is usually: (1) look at WHAT grew,
-(2) if one resolver added 10K+ in a single PR, question whether it belongs inline
-or as a reference doc, (3) only compress carefully-tuned prose as a last resort —
-cuts to the coverage audit, review army, or voice directive have real quality cost.
+**トークン上限:** 生成された SKILL.md は、160KB(約 40K トークン)を超えると警告が出ます。これは「機能の肥大化に注意する」ためのガードレールであり、ハードなゲートではありません。最新のフラッグシップモデルは 200K〜1M のコンテキストウィンドウを持つため、40K は 4〜20% にあたります。また、プロンプトキャッシュがあるので、サイズが大きくなる際の追加コストは小さくなります。この上限の目的は、リゾルバーやプリアンブルが暴走的に増えることを検知することであり、慎重に調整された大きなスキルを無理に圧縮することではありません(`ship`、`plan-ceo-review`、`office-hours` は、正当な理由で 25〜35K トークン分の振る舞いを詰め込んでいます)。40K を超えた場合、まず適切な対処は通常次のとおりです。(1) 何が増えたのかを確認する、(2) 1 つのリゾルバーが 1 PR で 10K 以上増やしたなら、インラインに置くべきか参照ドキュメントに分けるべきかを検討する、(3) 調整済みの文章を圧縮するのは最後の手段にする。カバレッジ監査、レビュー部隊、ボイスの指示を削ると、品質面で実際の代償があります。
 
-A second, harder ceiling guards the DISCOVERY surface: `test/catalog-budget.test.ts`
-caps the aggregate frontmatter `name` + `description` across all skills at
-`CATALOG_BUDGET_TOKEN_EQUIVALENTS` (1,194 today; each new skill ratchets it)
-token-equivalents (260-byte per-skill sub-cap), counted through the shared census
-in `test/helpers/skill-census.ts`. This one is enforced, not a warning — every
-host loads the full catalog every session, so growth here taxes every
-conversation. The failure message carries the re-measure + ratchet protocol.
-`bin/gstack-context-bill` shows the full token bill-of-materials for a skills
-tree (always-on vs per-invocation, `--diff`, `--budget`; `--exact` opts into the
-real tokenizer and POSTs file text to api.anthropic.com with an egress receipt).
+もう一段厳しい上限として、検出(ディスカバリー)のための面を守る仕組みがあります。`test/catalog-budget.test.ts` は、全スキルの frontmatter の `name` と `description` を合計した値を `CATALOG_BUDGET_TOKEN_EQUIVALENTS`(現在 1,194、新しいスキルを追加するたびに引き上げる)トークン相当以内に抑えます(スキルごとに 260 バイトのサブ上限があり、test/helpers/skill-census.ts の共通集計で数えます)。これは警告ではなく強制されるルールです。すべてのホストがセッションごとに全カタログを読み込むため、ここが増えると会話のたびにコストがかかります。失敗時のメッセージには、再計測と上限引き上げの手順が含まれています。`bin/gstack-context-bill` は、スキルツリーのトークン内訳(常時読み込みか呼び出しごとか、`--diff`、`--budget`)を表示します。`--exact` を付けると実際のトークナイザを使いますが、その場合はファイルの本文が api.anthropic.com に POST され、egress レシートが残ります。
 
-The context-budget ratchet (`test/context-budget-ratchet.test.ts`, free, runs
-in `bun run test`) pins ABSOLUTE ceilings on two more ledgers: the always-on
-FULL-frontmatter aggregate (catalog-budget counts only name+description) and
-each skill's per-invocation eager tokens (SKILL.md + forced-read references —
-size floors and parity ratios guard these relatively, not absolutely), graded
-against `test/fixtures/context-budget.json`. A skill that grows past its
-ceiling fails; a new skill fails until it's consciously budgeted. For
-legitimate growth or a landed reduction, re-run
-`bun test/helpers/capture-context-budget.ts` and commit the refreshed fixture
-in the same commit, so ceilings ratchet down and every win is locked.
+コンテキスト予算のラチェット(`test/context-budget-ratchet.test.ts`、無料で `bun run test` の中で実行)は、さらに 2 つの台帳について絶対上限を固定します。1 つは常時読み込まれる full frontmatter の合計(catalog-budget は name と description だけを数えます)、もう 1 つは各スキルの呼び出しごとの即時トークン(SKILL.md と強制読み込みされる参照ファイルの合計)です。後者はサイズの下限や同等比率のガードで相対的に守られ、絶対値では守られていません。これらは `test/fixtures/context-budget.json` に照らして判定されます。スキルが上限を超えると失敗し、新しいスキルは予算を意識的に設定するまで失敗します。正当な増加や削減を反映する場合は、`bun test/helpers/capture-context-budget.ts` を再実行し、更新したフィクスチャを同じコミットに含めてください。こうすることで、上限が段階的に下がり、削減の成果が固定されます。
 
-## Egress receipts
+<a id="egress-receipts"></a>
+## Egress レシート
 
-**Egress receipts at every off-machine sink** (v1.63.0.0+). Every gstack-initiated
-send off the machine MUST write a hash-chained receipt to
-`~/.gstack/security/egress.jsonl` BEFORE the send: TypeScript callers use
-`writeReceipt` from `lib/egress-receipt.ts`; shell scripts source
-`bin/gstack-egress-lib.sh` and use `_receipted_curl` / `_receipted_git`. Failure
-polarity is per-class: fail-closed for sensitive sinks (brain-sync, memory-ingest,
-gbrain-sync, telemetry, ngrok tunnels, mcp-verify, supabase-provision, and the
-Memorable bridge's per-prompt memorable-recall hand-off), fail-open
-+ stderr warning for user-facing ones (design OpenAI calls, update-check,
-dashboards, git-class ops). The new-sink scanner in
-`test/egress-receipt-wiring.test.ts` fails CI on an unreceipted `curl` /
-`git push` / `fetch` to a non-loopback host unless the file carries a reasoned
-entry in its `SCANNER_EXEMPT` list (user-directed page fetches, reachability
-probes, instruction strings, skill prose) — if you add a new off-machine sink,
-wire it through the helpers and add it to the enumerated sink list. `aside exec`
-(a gstack-composed prompt sent to Aside's agent) is a fail-open user-facing
-sink: skills call it through the `_aside_exec` wrapper that
-`scripts/resolvers/aside.ts` renders, never bare. Inspect with
-`bin/gstack-egress` (`list` | `verify`, exit 3 on tamper | `grants`). Threat
-model: forensic observability of ATTEMPTED egress, not an exfiltration control.
+**外部送信先への egress レシート**(v1.63.0.0 以降)。gstack が開始する、マシン外への送信はすべて、送信の前に `~/.gstack/security/egress.jsonl` へハッシュチェーン付きのレシートを書かなければなりません。TypeScript の呼び出し元は `lib/egress-receipt.ts` の `writeReceipt` を使います。シェルスクリプトは `bin/gstack-egress-lib.sh` を source して、`_receipted_curl` / `_receipted_git` を使います。失敗時の扱いはクラスごとに異なります。機密性の高い送信先(brain-sync、memory-ingest、gbrain-sync、telemetry、ngrok トンネル、mcp-verify、supabase-provision、Memorable ブリッジのプロンプトごとの memorable-recall の受け渡し)は fail-closed です。ユーザーに見える送信先(デザイン機能での OpenAI 呼び出し、update-check、ダッシュボード、git 系の操作)は fail-open で、stderr に警告を出します。`test/egress-receipt-wiring.test.ts` の新しい送信先スキャナーは、非ループバックのホストへの未記録の `curl`、`git push`、`fetch` を検出すると CI を失敗させます。ただし、そのファイルの `SCANNER_EXEMPT` リストに理由付きの項目がある場合は除きます(ユーザーが指定したページ取得、到達性の確認、指示文字列、スキルの文章など)。マシン外への新しい送信先を追加する場合は、ヘルパー経由で配線し、列挙された送信先リストに加えてください。`aside exec`(gstack が組み立てたプロンプトを Aside のエージェントに送る処理)は、ユーザーに見える fail-open の送信先です。スキルは必ず `scripts/resolvers/aside.ts` が描画する `_aside_exec` ラッパーを通して呼び出し、直接呼び出してはいけません。確認には `bin/gstack-egress`(`list` | `verify`(改ざんがあれば終了コード 3) | `grants`)を使います。脅威モデルは、試みられた egress を事後に追跡するための観測性であり、情報持ち出しを防ぐ制御ではありません。
 
-## Skill linking and ownership
+<a id="skill-linking-and-ownership"></a>
+## スキルのリンクと所有権
 
-**Prefix setting:** Setup creates real directories (not symlinks) at the top level
-with a SKILL.md symlink inside (e.g., `qa/SKILL.md -> gstack/qa/SKILL.md`), plus
-links to each skill's runtime assets (sections/, templates, checklists — everything
-except SKILL.md, tests, build output, and `.tmpl` sources). Alias skills
-(`_gstack-command`, `connect-chrome`) install as rewritten copies, never symlinks.
-This ensures Claude discovers them as top-level skills, not nested under `gstack/`.
-Names are either short (`qa`) or namespaced (`gstack-qa`), controlled by
-`skill_prefix` in `~/.gstack/config.yaml`. Pass `--no-prefix` or `--prefix` to
-skip the interactive prompt.
+**プレフィックス設定:** セットアップは、トップレベルに実ディレクトリを作成します(シンボリックリンクではありません)。その中に SKILL.md へのシンボリックリンクを置きます(例: `qa/SKILL.md -> gstack/qa/SKILL.md`)。さらに、各スキルのランタイム資産(sections/、テンプレート、チェックリストなど。SKILL.md、テスト、ビルド出力、`.tmpl` のソース以外のすべて)へのリンクも作ります。エイリアススキル(`_gstack-command`、`connect-chrome`)は、シンボリックリンクではなく書き換え済みのコピーとしてインストールされます。これにより、Claude はこれらを `gstack/` の下のネストされたものとしてではなく、トップレベルのスキルとして検出できます。名前は、`~/.gstack/config.yaml` の `skill_prefix` で制御される短い形式(`qa`)または名前空間付きの形式(`gstack-qa`)のどちらかです。対話型のプロンプトを省略するには、`--no-prefix` または `--prefix` を渡します。
 
-**Ownership gate (#2119):** `setup` writes a `.gstack-owned` marker into every
-skill directory it creates, and `setup` (the linker, the alias installer, both
-prefix-flip cleanups, and the retired-skill prune) and `bin/gstack-relink` only
-delete or link over an entry they can prove is gstack's. Strong proof (a
-symlink resolving into gstack, or the marker) allows deleting or refreshing the
-whole directory. Weak proof (a
-real SKILL.md byte-identical to the source, or carrying gen-skill-docs' two-line
-banner) covers only that one file, and a weakly-proven file that differs is
-moved to `~/.gstack/backups/skills/<ts>/<skill>/SKILL.md` before gstack links
-over it. Anything else is a foreign skill: skipped, and named in setup's final
-summary. The rule lives in two copies (`setup` and `bin/gstack-relink`); keep
-them in sync until the shared helper filed in TODOS.md lands. The retired-skill
-prune (`_prune_stale_generated`) applies the same strong/weak split to renders
-of skills that no longer exist, through its own gate
-(`_owned_for_windows_refresh`: a real host directory is a candidate only when
-its SKILL.md carries the generated banner; the marker and byte identity are not
-consulted): it scans the render tree and every host skills dir,
-deletes a real render directory, removes a host symlink only when it resolves
-into gstack, cleans a bannered real directory through `_cleanup_weak_dir`,
-never follows a symlink inside the render tree, and recognizes a skill renamed
-through its frontmatter `name:`. Pinned by `test/setup-link-ownership.test.ts`,
-`test/setup-cleanup-orphans.test.ts`, `test/setup-prune-stale-generated.test.ts`,
-and `test/relink.test.ts`.
+**所有権のゲート(#2119):** `setup` は、作成するすべてのスキルディレクトリに `.gstack-owned` マーカーを書き込みます。そのうえで、`setup`(リンカー、エイリアスのインストーラー、プレフィックス切り替えの両方のクリーンアップ、廃止されたスキルの整理)と `bin/gstack-relink` は、gstack のものだと証明できるエントリにしか、削除やリンクの上書きを行いません。強い証明(gstack に解決されるシンボリックリンク、またはマーカー)があれば、ディレクトリ全体を削除または更新できます。弱い証明(バイト単位で元のソースと同一の実際の SKILL.md、または gen-skill-docs の 2 行のバナーを持つもの)は、そのファイル 1 つだけを対象にします。弱い証明しかないファイルの内容が異なる場合は、gstack がリンクを上書きする前に `~/.gstack/backups/skills/<ts>/<skill>/SKILL.md` に移動されます。それ以外は外部のスキルとみなされ、スキップされ、セットアップの最後の要約に名前が出ます。このルールは 2 つの箇所(`setup` と `bin/gstack-relink`)に重複して書かれています。共通ヘルパーが TODOS.md に登録されるまでは、両者を同期させておいてください。廃止されたスキルの整理(`_prune_stale_generated`)は、存在しないスキルの生成済みレンダリングに対して、同じ強い/弱いの区別を適用します。判定は専用のゲート(`_owned_for_windows_refresh`)を通します。実ホストディレクトリは、その SKILL.md が生成バナーを持つ場合にのみ候補になり、マーカーとバイト一致は参照しません。このゲートはレンダーツリーとすべてのホストのスキルディレクトリを走査し、実際のレンダーディレクトリは削除し、gstack に解決されるホストのシンボリックリンクだけを削除し、バナー付きの実ディレクトリは `_cleanup_weak_dir` で掃除し、レンダーツリー内のシンボリックリンクは決してたどらず、フロントマターの `name:` で改名されたスキルも認識します。これらは `test/setup-link-ownership.test.ts`、`test/setup-cleanup-orphans.test.ts`、`test/setup-prune-stale-generated.test.ts`、`test/relink.test.ts` で検証されています。
 
-## Redaction guard
+<a id="redaction-guard"></a>
+## 秘匿化ガード
 
-Shared redaction engine catches credentials, PII, and legal/damaging content
-before it reaches an external sink (codex dispatch, GitHub issue/PR body, pushed
-commit). It is a **guardrail, not airtight enforcement** — `git push --no-verify`,
-direct `gh issue create`, and `GSTACK_REDACT_PREPUSH=skip` all bypass it. It
-catches accidents and carelessness, the 99% case. Do not claim it stops a
-determined leaker (a CHANGELOG line that does would fail a hostile screenshotter).
+共有の秘匿化エンジンは、外部の送信先(codex への投入、GitHub の issue/PR 本文、push されるコミット)に届く前に、認証情報、個人情報(PII)、法的・不利益になる内容を検出します。これは**ガードレールであり、完全な強制ではありません**。`git push --no-verify`、直接の `gh issue create`、`GSTACK_REDACT_PREPUSH=skip` はいずれもこれを迂回します。このガードが防ぐのは、うっかりや不注意による事故で、全体の 99% のケースです。意図的に漏らそうとする者を止められるとは主張しないでください(CHANGELOG の 1 行でそれができてしまうなら、悪意のあるスクリーンショットを撮る人に対しては失敗するはずです)。
 
-- **Engine + taxonomy:** `lib/redact-patterns.ts` (the single source of truth —
-  3 tiers; HIGH = genuinely-secret credentials that block, MEDIUM = PII/legal/
-  internal + high-FP credential shapes that confirm via AskUserQuestion, LOW =
-  FYI) and `lib/redact-engine.ts` (pure `scan()` + `applyRedactions()`).
-  Calibration matters: a gate that cries wolf gets ignored, so context-variable
-  shapes (Stripe `pk_live_`, Google `AIza`, JWT, env `*_KEY=`) sit at MEDIUM.
-- **CLI:** `bin/gstack-redact` (exit 0 clean / 2 MEDIUM / 3 HIGH; `--json`,
-  `--auto-redact`, `--repo-visibility`, `--from-file`). `bin/gstack-redact-prepush`
-  is the opt-in git hook.
-- **Skill docs are generated** from `scripts/resolvers/redact-doc.ts`
-  (`{{REDACT_INVOCATION_BLOCK:<sink>}}`) so /spec,
-  /cso, /ship, /document-release, /document-generate never drift from the engine.
-- **Scan-at-sink:** always scan the EXACT bytes that will be sent — write to a
-  temp file, scan that file, pass the SAME file to `gh`/`git`. Never scan a string
-  then re-render (that reopens a scan-vs-send gap).
-- **Visibility (no tier promotion):** resolve once per run, order = local config
-  (`gstack-config get redact_repo_visibility`, ~/.gstack so never committed) → gh
-  → glab → unknown(=public-strict). Public repos get STERNER per-finding
-  confirmation (no batch-acknowledge, no silent-proceed); MEDIUM is never
-  auto-promoted to HIGH.
-- **Tool-attributed fences:** wrap Codex/Greptile/eval output in ` ```codex-review `
-  / ` ```greptile ` fences so example credentials those tools quote WARN-degrade
-  instead of blocking. A live-format credential inside the fence still blocks.
-- **Config keys:** `redact_repo_visibility` (public|private|unknown, local-only
-  override for repos gh/glab can't read), `redact_prepush_hook` (true|false).
-  There is intentionally NO key to disable HIGH blocking.
-- **Committed allowlist:** `.gstack-redact-allowlist` at the root of the pushed commit lists
-  exact matched spans reviewed as benign; the pre-push hook suppresses only a
-  finding whose span equals an entry and lists every suppression on each push.
-- **Audit:** the /spec semantic pass appends a content-free record (categories +
-  body sha256, no spec text) to `~/.gstack/security/semantic-reviews.jsonl` (0600).
+- **エンジンと分類:** `lib/redact-patterns.ts`(唯一の情報源。3 段階の階層です。HIGH は本物の機密情報である認証情報で、ブロックされます。MEDIUM は PII、法的情報、社内情報、および誤検知の多い認証情報の形で、AskUserQuestion による確認を経ます。LOW は参考情報です)と `lib/redact-engine.ts`(副作用のない `scan()` と `applyRedactions()`)。調整は重要です。誤検知が多いゲートは無視されてしまうため、文脈に依存する形式(Stripe の `pk_live_`、Google の `AIza`、JWT、環境変数の `*_KEY=`)は MEDIUM に置いています。
+- **CLI:** `bin/gstack-redact`(終了コード 0 はクリーン、2 は MEDIUM、3 は HIGH。`--json`、`--auto-redact`、`--repo-visibility`、`--from-file` を指定できます)。`bin/gstack-redact-prepush` は、任意で有効にできる git フックです。
+- **スキル文書は生成されます。** 生成元は `scripts/resolvers/redact-doc.ts`(`{{REDACT_INVOCATION_BLOCK:<sink>}}`)です。これにより、/spec、/cso、/ship、/document-release、/document-generate がエンジンからずれることを防ぎます。
+- **送信地点でのスキャン:** 送信されるバイト列そのものを必ずスキャンしてください。一時ファイルに書き出し、そのファイルをスキャンし、同じファイルを `gh` や `git` に渡します。文字列をスキャンしてから再レンダリングしてはいけません(スキャン時と送信時のずれが生じます)。
+- **可視性(階層の昇格はなし):** 実行ごとに一度だけ解決します。順序は、ローカル設定(`gstack-config get redact_repo_visibility`。~/.gstack に保存されるのでコミットされません)→ gh → glab → unknown(=public-strict)の順です。公開リポジトリでは、より厳しい指摘ごとの確認を行います(一括承認も、黙って進めることもありません)。MEDIUM が自動的に HIGH に昇格されることはありません。
+- **ツール由来のフェンス:** Codex、Greptile、eval の出力は ` ```codex-review ` や ` ```greptile ` のフェンスで囲みます。こうすると、これらのツールが引用したサンプルの認証情報は、ブロックではなく警告に格下げされます。フェンスの中にも、有効な形式の認証情報があれば、それはブロックされます。
+- **設定キー:** `redact_repo_visibility`(public|private|unknown。gh や glab で読めないリポジトリ向けの、ローカル専用の上書き)、`redact_prepush_hook`(true|false)。HIGH のブロックを無効にするキーは、意図的に存在しません。
+- **コミット済みの許可リスト:** push されるコミットのルートにある `.gstack-redact-allowlist` には、良性と確認済みの、一致した正確な範囲を列挙します。pre-push フックが抑制するのは、検出範囲がエントリと一致する指摘だけで、各 push ごとにすべての抑制を一覧表示します。
+- **監査:** /spec の意味的レビューは、内容を含まない記録(カテゴリと本文の sha256。spec の本文は含みません)を `~/.gstack/security/semantic-reviews.jsonl`(0600)に追記します。
 
-## Checking out PRs from garrytan-agents
+<a id="checking-out-prs-from-garrytan-agents"></a>
+## garrytan-agents からの PR のチェックアウト
 
-When the user says "check out <PR link>" and the PR is from `garrytan-agents/gstack`
-(or any other fork that is NOT a collaborator on `garrytan/gstack`), do NOT just
-`gh pr checkout`. Fork PRs don't receive base-repo secrets (`ANTHROPIC_API_KEY`,
-`OPENAI_API_KEY`, etc.), so the eval/E2E CI jobs fail with empty-env auth errors
-regardless of what's set on the base repo.
+「<PR のリンク> をチェックアウトして」とユーザーが言い、その PR が `garrytan-agents/gstack`(または `garrytan/gstack` のコラボレーターではない、他のフォーク)からのものである場合は、単に `gh pr checkout` してはいけません。フォークの PR はベースリポジトリのシークレット(`ANTHROPIC_API_KEY`、`OPENAI_API_KEY` など)を受け取れないため、eval や E2E の CI ジョブは、ベースリポジトリに何を設定してあっても、空の環境による認証エラーで失敗します。
 
-**Workflow:** push the branch to `garrytan/gstack` (the base repo) and re-target
-the PR from there.
+**手順:** ブランチを `garrytan/gstack`(ベースリポジトリ)に push し、PR をそこから付け直します。
 
-Concretely, after `gh pr checkout <N>`:
+具体的には、`gh pr checkout <N>` の後に、次のとおり行います。
 
-1. Note the original PR number and head branch name.
-2. Push the same branch to the base repo: `git push origin HEAD:<branch-name>`
-   (origin = `garrytan/gstack`, since the worktree is set up with that remote).
-3. Close the fork PR (`gh pr close <N> --comment "moving to base-repo branch for secret access"`).
-4. Open a new PR from the base-repo branch: `gh pr create --base main --head <branch-name>`.
-5. New PR's workflows will get secrets automatically.
+1. 元の PR 番号とヘッドのブランチ名を控える。
+2. 同じブランチをベースリポジトリに push する: `git push origin HEAD:<branch-name>`(origin は `garrytan/gstack`。ワークツリーはそのリモートで設定されています)。
+3. フォーク側の PR を閉じる: `gh pr close <N> --comment "moving to base-repo branch for secret access"`。
+4. ベースリポジトリのブランチから新しい PR を開く: `gh pr create --base main --head <branch-name>`。
+5. 新しい PR のワークフローは、自動的にシークレットを受け取ります。
 
-Why not fix it on the fork side? `garrytan-agents` isn't a collaborator on
-`garrytan/gstack`. Adding it as a collaborator (option A) or flipping the
-repo-wide "send secrets to fork PRs" toggle (option B) would let secrets reach
-fork PRs from anyone — broader blast radius than just moving this one branch.
-Option C (this section) keeps secret-distribution scope tight.
+なぜフォーク側で直さないのか。`garrytan-agents` は `garrytan/gstack` のコラボレーターではありません。コラボレーターとして追加する(案 A)か、リポジトリ全体の「フォークの PR にシークレットを送る」設定を切り替える(案 B)と、誰からのフォーク PR にもシークレットが届いてしまい、この 1 つのブランチを移すよりも影響範囲が広くなります。案 C(このセクション)なら、シークレットの配布範囲を狭く保てます。
 
-If the user asks you to skip the move (e.g., "just leave it as a fork PR"),
-respect that — eval CI will fail with empty-env auth, but check-freshness,
-workflow-lint, and windows-tests will still pass on the fork PR.
+ユーザーが移動を省略するよう求めた場合(例: 「フォークの PR のままでいい」)は、その意向に従ってください。その場合、eval の CI は空の環境による認証で失敗しますが、check-freshness、workflow-lint、windows-tests はフォークの PR でも通ります。

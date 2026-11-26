@@ -22,17 +22,17 @@ export const generateTasksSectionEmit: ResolverFn = (_ctx: TemplateContext, args
   const conditionalWrites = ceo || _ctx.skillName === 'plan-eng-review';
   const storagePolicy = ceo ? 'Step 0 storage policy' : 'Review record and write policy';
 
-  return `## Implementation Tasks
+  return `## Implementation Tasks(実装タスク)
 
-${ceo ? `Turn findings into tasks within the approved review depth. Implementation-ready
-tasks describe the build. Strategy-only tasks name the next research, design or
-verification action and its owner; they do not choose implementation contracts.
-List known files only. For unknown files, write "to be determined" and use an
-empty JSONL files array. Each task needs a concrete verification step.` : `Before closing this review, synthesize the findings above into a flat list of
-build-actionable tasks. Each task derives from a specific finding — no padding.`}
-${conditionalWrites ? `Always emit the markdown section. Write its JSONL artifact for \`/autoplan\` only when the ${storagePolicy} permits it; otherwise label the complete task output not persisted and do not claim an aggregation artifact exists.` : 'Emit the markdown section AND write a JSONL artifact that `/autoplan` can\naggregate across phases.'}
+${ceo ? `承認されたレビューの深さの範囲で、発見事項をタスクに変換します。実装可能なタスクは
+構築内容を記述します。戦略のみのタスクは、次のリサーチ・設計・検証のアクションとその担当者を
+明示し、実装上の契約は決めません。
+ファイルは判明しているものだけを列挙します。不明なファイルは "to be determined" と書き、
+JSONL の files 配列は空にします。各タスクには具体的な検証ステップが必要です。` : `このレビューを終える前に、上記の発見事項を、構築に着手できるタスクのフラットなリストにまとめます。
+各タスクは特定の発見事項から導きます。水増しはしません。`}
+${conditionalWrites ? `markdown セクションは必ず出力します。\`/autoplan\` 用の JSONL アーティファクトは、${storagePolicy} が許可する場合にのみ書き込みます。許可されない場合は、完全なタスク出力に「未永続化」と明記し、集約アーティファクトが存在するとは主張しないでください。` : 'markdown セクションを出力し、さらに `/autoplan` がフェーズをまたいで\n集約できる JSONL アーティファクトを書き込みます。'}
 
-### Markdown section (always emit)
+### markdown セクション(常に出力)
 
 \`\`\`markdown
 ## Implementation Tasks
@@ -46,17 +46,17 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
 - [ ] **T2 (P2, human: ~30min / CC: ~5min)** — ...
 \`\`\`
 
-Rules:
-- P1 blocks ship; P2 should land same branch; P3 is a follow-up TODO.
-- If a finding produced no actionable task, do not invent one.
-- If a section had zero findings, emit \`_No new tasks from <section>._\`
-- Show human-team and CC+gstack effort estimates. Default task-type ratios (human ÷ CC time): scaffolding ~100x, tests ~50x, features ~30x, bug fix with regression ~20x, architecture ~5x, research ~3x. Adjust to the actual work and state the assumption.
+ルール:
+- P1 は出荷をブロックします。P2 は同じブランチで取り込むべきです。P3 はフォローアップの TODO です。
+- 発見事項から実行可能なタスクが生まれなかった場合は、でっち上げないでください。
+- セクションの発見事項がゼロだった場合は、次を出力します: \`_No new tasks from <section>._\`
+- 人間チームと CC+gstack の工数見積もりの両方を示します。タスク種別ごとの既定の比率(人間 ÷ CC の時間): スキャフォールディング ~100x、テスト ~50x、機能 ~30x、リグレッションテスト付きバグ修正 ~20x、アーキテクチャ ~5x、リサーチ ~3x。実際の作業に合わせて調整し、前提を明記してください。
 
-### JSONL artifact (${conditionalWrites ? 'write when permitted, including zero tasks' : 'always write, even if zero tasks'})
+### JSONL の成果物(${conditionalWrites ? '許可されている場合に書き込む(タスクがゼロでも)' : 'タスクがゼロでも常に書き込む'})
 
-\`/autoplan\` reads this file to aggregate across phases. Build each line with
-\`jq -nc\` so titles and source findings containing quotes, newlines, or
-backslashes serialize cleanly — never use hand-rolled \`echo\` / \`printf\`.
+\`/autoplan\` はこのファイルを読んでフェーズをまたいで集約します。各行は
+\`jq -nc\` で組み立て、引用符・改行・バックスラッシュを含むタイトルや元の発見事項も
+正しくシリアライズされるようにします。手書きの \`echo\` / \`printf\` は決して使わないでください。
 
 \`\`\`bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "\${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -69,8 +69,8 @@ COMMIT=$(git rev-parse HEAD 2>/dev/null || echo unknown)
 GIT_BRANCH=$(git branch --show-current 2>/dev/null || echo unknown)
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 
-# Repeat ONE jq invocation per task identified during this review.
-# Substitute the placeholders inline with shell variables you set per task:
+# このレビューで特定したタスク 1 件につき jq 呼び出しを 1 回繰り返します。
+# プレースホルダーは、タスクごとに設定するシェル変数で置き換えます:
 #   TASK_ID (T1, T2, ...), PRIORITY (P1/P2/P3), COMPONENT, TITLE,
 #   SOURCE_FINDING, EFFORT_HUMAN, EFFORT_CC, FILES_JSON (a JSON array literal
 #   like '["browse/src/sanitize.ts","browse/src/server.ts"]').
@@ -91,20 +91,20 @@ jq -nc \\
   >> "$TASKS_FILE"
 \`\`\`
 
-If \`jq\` is not installed, fall back to skipping the JSONL write and warn
-the user to install jq for autoplan aggregation. Never hand-roll JSONL.
+\`jq\` がインストールされていない場合は、JSONL の書き込みをスキップし、
+autoplan の集約のために jq をインストールするようユーザーに警告します。JSONL を手書きしてはいけません。
 
-${conditionalWrites ? 'When writes are permitted and zero tasks were identified, touch the JSONL file' : 'If zero tasks were identified in this review, still touch the JSONL file'}
-(\`: > "$TASKS_FILE"\`) so the aggregator sees that the phase produced output
-this run (an empty file means "ran, no findings" — distinct from "didn't run").
+${conditionalWrites ? '書き込みが許可されていてタスクが 1 件も特定されなかった場合は、JSONL ファイルを touch します' : 'このレビューでタスクが 1 件も特定されなかった場合でも、JSONL ファイルを touch します'}
+(\`: > "$TASKS_FILE"\`)。これにより、集約処理はこのフェーズが今回の実行で出力を生成したことを認識できます
+(空のファイルは「実行したが発見事項なし」を意味し、「未実行」とは区別されます)。
 `;
 };
 
 export const generateTasksSectionAggregate: ResolverFn = (_ctx: TemplateContext) => {
-  return `## Implementation Tasks aggregator
+  return `## Implementation Tasks aggregator(実装タスクの集約)
 
-Before rendering the Final Approval Gate output block below, aggregate the
-per-phase task lists each review skill wrote.
+以下の Final Approval Gate の出力ブロックを描画する前に、各レビュースキルが書き込んだ
+フェーズごとのタスクリストを集約します。
 
 \`\`\`bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "\${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -158,16 +158,15 @@ else
 fi
 \`\`\`
 
-In the Final Approval Gate output template below, render the aggregated markdown
-in the \`### Implementation Tasks (aggregated across phases)\` section: substitute
-\`$AGGREGATED_TASKS\` (the bash variable above) at runtime before printing the
-message; it is not a gen-skill-docs placeholder.
+以下の Final Approval Gate の出力テンプレートでは、集約した markdown を
+\`### Implementation Tasks (aggregated across phases)\` セクションに描画します。
+メッセージを表示する前に、実行時に \`$AGGREGATED_TASKS\`(上記の bash 変数)を代入してください。
+これは gen-skill-docs のプレースホルダーではありません。
 
-If \`$AGGREGATED_TASKS\` is empty (no JSONL files found — none of the review
-skills ran in this session), render:
+\`$AGGREGATED_TASKS\` が空の場合(JSONL ファイルが見つからない、つまりこのセッションでレビュースキルが 1 つも実行されていない場合)は、次を描画します:
 
-\`_No per-phase task lists found in $TASKS_DIR for branch $BRANCH. Each review
-skill writes its own; if you ran one of them but no list appears here, check
-that jq is installed and the tasks-<phase>-*.jsonl files exist._\`
+\`_ブランチ $BRANCH のフェーズ別タスクリストが $TASKS_DIR に見つかりません。各レビュー
+スキルが自分のリストを書き出します。実行したのにここにリストが出ない場合は、
+jq がインストールされているか、tasks-<phase>-*.jsonl ファイルがあるかを確認してください。_\`
 `;
 };

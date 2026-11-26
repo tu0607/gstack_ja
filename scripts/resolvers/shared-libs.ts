@@ -5,31 +5,30 @@ import { getHostConfig } from '../../hosts/index';
 export const generateSafeGitPath: ResolverFn = (ctx) => `~/${getHostConfig(ctx.host).globalRoot}/bin/gstack-safe-git`;
 
 /** Shared criteria only: the caller owns scope, output, and permission to act. */
-export const generateSharedLibsRubric: ResolverFn = () => `### Shared-code evaluation rubric
+export const generateSharedLibsRubric: ResolverFn = () => `### 共有コードの評価ルーブリック
 
-- **Prove the callers.** Require at least two verified, first-party authored source
-  locations, with functions and lines. Actual added or uncommitted source qualifies.
-  Only an engineering-plan review may use proposed callers; label those assumptions
-  and distinguish them from existing source. Similar names or formatting alone do
-  not establish equivalent behavior. Generated and third-party copies cannot qualify
-  as callers or contribute savings. Follow generated copies back to authored
-  templates/resolvers. Existing dependencies remain valid reuse targets.
-- **Reuse before extracting.** Inspect existing libraries and helpers first. Compare
-  behavior, inputs, outputs, error handling, side effects, security requirements,
-  dependencies, and deployment/runtime boundaries. Preserve differences callers need;
-  do not bridge languages or isolated deployments without a practical shared contract.
-- **Keep the helper small.** Name its destination and contract, the callers to migrate,
-  and the smallest adoption sequence. Avoid option-heavy helpers and coupling unrelated
-  components. Point to existing tests or established use, specify shared-contract and
-  caller-integration coverage, and describe the blast radius of a shared failure.
-- **Account for the whole change.** Name removed blocks and their replacements. Show
-  estimated implementation lines removed, added, and saved separately from total lines
-  removed, added, and saved including tests and integration. Savings = removed - added.
-  Count moved code on both sides, exclude generated/vendor lines, use ranges when
-  uncertain, and do not count overlapping removals twice across opportunities. State
-  when tests or integration may make the total change grow.
-- **Rank useful changes.** Favor reliability gains and total net savings, then low
-  adoption and testing risk. Prefer proven code used by several callers. Use recent
-  activity to break ties between comparable benefits, not as evidence by itself.
-  Explain choices centered on older code. Reject similarities with incompatible
-  contracts and opportunities whose benefits do not justify the abstraction.`;
+- **呼び出し元を証明する。** 検証済みで一次的に書かれたソースの位置を、関数名と行番号付きで
+  少なくとも 2 箇所示すこと。実際に追加された、または未コミットのソースは対象になります。
+  提案段階の呼び出し元を使ってよいのはエンジニアリングプランのレビューだけで、その場合は
+  仮定であることを明記し、既存のソースと区別します。名前や整形が似ているだけでは、同等の
+  振る舞いの根拠になりません。生成物やサードパーティのコピーは、呼び出し元にも削減量にも
+  数えられません。生成されたコピーは、元になったテンプレートやリゾルバーまでたどります。
+  既存の依存関係は、引き続き有効な再利用先です。
+- **抽出する前に再利用する。** まず既存のライブラリとヘルパーを調べます。振る舞い、入力、
+  出力、エラー処理、副作用、セキュリティ要件、依存関係、デプロイ/実行時の境界を比較します。
+  呼び出し元が必要とする差異は保ち、実用的な共有契約なしに言語や分離されたデプロイを
+  またいで橋渡ししてはいけません。
+- **ヘルパーは小さく保つ。** 配置先と契約、移行する呼び出し元、最小の導入手順を示します。
+  オプションだらけのヘルパーや、無関係なコンポーネント同士の結合は避けます。既存のテストや
+  確立した利用実績を指し示し、共有契約と呼び出し元の統合のカバレッジを明記し、共有部分が
+  壊れたときの影響範囲を説明します。
+- **変更全体を計上する。** 削除するブロックとその置き換え先を名指しします。実装行の削除、
+  追加、節約の見積もりを、テストと統合を含めた総行数の削除、追加、節約とは分けて示します。
+  節約 = 削除 - 追加。移動したコードは両側で数え、生成物やベンダーの行は除外し、不確かな
+  ときは範囲で示し、機会をまたいで重複する削除を二重に数えません。テストや統合によって
+  総変更量が増えうる場合はそう述べます。
+- **有用な変更を順位付けする。** 信頼性の向上と正味の総節約量を優先し、次に導入とテストの
+  リスクの低さを見ます。複数の呼び出し元で使われている実績あるコードを優先します。最近の
+  活動は、同程度の利益の間で優劣を決めるためだけに使い、それ自体を根拠にはしません。古い
+  コードを中心にした選択には説明を付けます。契約の互換性がない類似や、抽象化に見合う利益の
+  ない機会は却下します。`;

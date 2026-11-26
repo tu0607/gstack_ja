@@ -23,123 +23,121 @@ const ordered = (text: string, anchors: Array<string | RegExp>) => {
 };
 const expectAll = (text: string, rules: RegExp[]) => { for (const rule of rules) expect(text).toMatch(rule); };
 
+const mentions = (text: string, groups: string[][], where = 'text') => expectMentions(compactProse(text), groups, where);
+
 describe('CI workflow clarity regressions', () => {
   test('CEO defines narrow depth and sends settled initial choices directly to mode selection', () => {
     const source = compactProse(readFileSync('plan-ceo-review/SKILL.md.tmpl', 'utf8'));
-    const route = source.split("**Choose the question's route first:**")[1]!.split('**1. Check sources')[0]!;
-    ordered(route, ['**Admin question:**', '**Plan decision:**']);
-    expectAll(route, [/wait and record the answer/i, /this approves no plan changes/i,
-      /run steps 2–4 only when a new answer is needed/i, /admin answer requests a plan change, use the Plan decision route/i]);
-    ordered(source, ["**Choose the question's route first:**", '**1. Check sources', '**Pre-question checkpoint:**', '**Post-answer checkpoint:**']);
+    const routeMarker = '**まず、その質問のルートを選んでください:**';
+    const route = source.split(routeMarker)[1]!.split('**1. 情報源')[0]!;
+    ordered(route, ['**管理上の質問:**', '**プランの判断:**']);
+    expectMentions(route, [['回答を待って記録'], ['プランの変更', '承認しません'], ['手順 2〜4', '新しい回答'],
+      ['管理上の回答', 'プランの変更', 'プランの判断のルート']], 'route');
+    ordered(source, [routeMarker, '**1. 情報源', '**質問前のチェックポイント:**', '**回答後のチェックポイント:**']);
   });
 
   test('Eng defines evidence paths and gives its setup selector short labels with complete descriptions', () => {
     const source = compactProse(readFileSync('plan-eng-review/sections/review-sections.md.tmpl', 'utf8'));
-    for (const field of ['Plan: named existing paths', 'Branch diff: changed files', 'File/directory: selected path']) expect(source).toContain(field);
-    expectAll(source, [/named future paths `not available`/i, /never invent paths/i, /both retain the same approved feature list/i]);
+    for (const field of ['プラン: 指定された既存のパス', 'ブランチの差分: 変更されたファイル', 'ファイル/ディレクトリ: 選択されたパス']) expect(source).toContain(field);
+    expectMentions(source, [['`not available`', '将来のパス'], ['パスを作り出さない'], ['同じ承認済みの機能リスト']], 'source');
     for (const token of ['`Original arrangement`', '`Smaller arrangement`', '`Pending remedies not decided here: <ids>`']) expect(source).toContain(token);
     expect(source).not.toContain('`A) Original arrangement: <files/classes>; fixed features: <approved list>`');
   });
 
   test('Eng initializes a report before its first record without findings or a premature terminal report', () => {
     const source = readFileSync('plan-eng-review/sections/review-sections.md.tmpl', 'utf8');
-    const requirements = [
-      /name the fixed target in the report header/i,
-      /read an existing destination and preserve its content/i,
-      /findings and fixes first enter through Scope Challenge C's ledger saves, never earlier/i,
-      /before an existing `## GSTACK REVIEW REPORT`, or at EOF/i,
-      /create that terminal report only at Plan File Review Report/i,
-    ];
+    const FIRST = '**最初のレポート保存:**';
+    const requirements = [['ヘッダー', '固定されたターゲット'], ['既存の保存先', '読み込み', '保持'],
+      ['指摘事項と修正', 'Scope Challenge C', '台帳の保存'], ['`## GSTACK REVIEW REPORT`', 'EOF'],
+      ['最終レポート', 'Plan File Review Report']];
     const check = (text: string) => {
       const policy = compactProse(text.split('## Review record and write policy')[1]!.split('{{LEARNINGS_SEARCH}}')[0]!);
-      const initialization = policy.split('**First report save:**')[1]?.split('**Read-only review:**')[0] ?? '';
+      const initialization = policy.split(FIRST)[1]?.split('**書き込みの経路。**')[0] ?? '';
       expect(initialization.length).toBeGreaterThan(0);
-      const permission = at(policy, /check each artifact and parent directory's permission before writing/i);
+      const permission = policy.indexOf('各成果物と親ディレクトリの権限を確認してください');
       expect(permission).toBeGreaterThanOrEqual(0);
-      expect(permission).toBeLessThan(policy.indexOf('**First report save:**'));
-      expectAll(initialization, requirements);
-      const save = compactProse(text.split('**Pending-record checkpoint.**')[1]!.split('### Send once and wait')[0]!);
-      expectAll(save, [/report placement above/i, /use Read to fetch the entire saved record/i]);
+      expect(permission).toBeLessThan(policy.indexOf(FIRST));
+      expectMentions(initialization, requirements, 'initialization');
+      const save = compactProse(text.split('**保留中の記録のチェックポイント。**')[1]!.split('### 一度送信して待つ')[0]!);
+      expectMentions(save, [['レポートの配置'], ['Read', '保存された記録全体']], 'save');
     };
     check(source);
-    const compact = compactProse(source);
-    for (const requirement of requirements) expect(() => check(compact.replace(requirement, ''))).toThrow();
-    expect(() => check(source.replace(/\*\*First report save:\*\*[\s\S]*?(?=\*\*Read-only review:\*\*)/, ''))).toThrow();
+    expect(() => check(source.replace(/\*\*最初のレポート保存:\*\*[^\n]*/, ''))).toThrow();
   });
 
   test('Eng separates setup selectors from remedy execution and names the exact resume points', () => {
     const source = readFileSync('plan-eng-review/sections/review-sections.md.tmpl', 'utf8');
-    const setup = compactProse(source.split('## Decision procedure')[1]!.split('### Prepare an unanswered choice')[0]!);
-    expectAll(setup, [/without a pre-answer ledger/i, /Scope Challenge B also uses its own selectors/i, /these selections approve no engineering remedy/i]);
-    const procedure = compactProse(source.split('## Decision procedure')[1]!.split('## Scope Challenge')[0]!);
-    expect(procedure.slice(procedure.indexOf('### Prepare an unanswered choice'))).not.toContain('Context Recovery/prerequisites');
+    const setup = compactProse(source.split('## Decision procedure(決定の手順)')[1]!.split('### 未回答の選択を準備する')[0]!);
+    expectMentions(setup, [['回答前の台帳は使いません'], ['Scope Challenge B', 'セレクター'], ['エンジニアリング上の是正を承認しません']], 'setup');
+    const procedure = compactProse(source.split('## Decision procedure(決定の手順)')[1]!.split('## Scope Challenge')[0]!);
+    expect(procedure.slice(procedure.indexOf('### 未回答の選択を準備する'))).not.toContain('Context Recovery/前提条件');
     expect(source).not.toContain('**Setup selectors stop at B.**');
     const entry = compactProse(readFileSync('plan-eng-review/SKILL.md.tmpl', 'utf8'));
-    expectAll(entry, [/handle a remedy answer under \*\*Record the answer\*\*/i, /may have seen is still pending; do not resend it/i]);
+    expectMentions(entry, [['是正措置の回答', '**Record the answer**'], ['ユーザーが見た可能性がある', 'まだ保留中'], ['再送しないでください']], 'entry');
   });
 
   test('Eng exposes each existing performance concern without a second approval procedure', () => {
     const source = readFileSync('plan-eng-review/sections/review-sections.md.tmpl', 'utf8');
-    const performance = source.split('### 4. Performance review')[1]!.split('{{CODEX_PLAN_REVIEW}}')[0]!;
+    const performance = source.split('### 4. パフォーマンスのレビュー')[1]!.split('{{CODEX_PLAN_REVIEW}}')[0]!;
     const concerns = performance.match(/^\* .+$/gm)!.join('\n');
-    expectAll(concerns, [/N\+1 queries/i, /memory/i, /caching/i, /slow or complex paths/i]);
+    expectAll(concerns, [/N\+1 クエリ/, /メモリ/, /キャッシュ/, /遅い、または複雑なパス/]);
     expect(performance).not.toContain('AskUserQuestion');
   });
 
   test('Eng binds unchanged complexity thresholds and MODE to selected work and actual scope changes', () => {
     const source = compactProse(readFileSync('plan-eng-review/sections/review-sections.md.tmpl', 'utf8'));
     const scope = source.split('## Scope Challenge')[1]!.split('## Review Sections')[0]!;
-    expectMentions(scope, [['not', 'selected', 'evidence']], 'scope');
-    expectMentions(scope, [['stop', 'classes/services', 'section']], 'scope');
-    const result = scope.slice(scope.indexOf('Record the Scope Challenge result'));
+    expectMentions(scope, [['根拠としてのみ読んだファイルではなく', '選択された作業を数えます']], 'scope');
+    expectMentions(scope, [['STOP', 'クラス/サービス', 'セクション 1']], 'scope');
+    const result = scope.slice(scope.indexOf('Scope Challenge の結果は'));
     for (const token of ['`scope reduced per recommendation`', '`scope accepted as-is`']) expect(result).toContain(token);
-    expectAll(result, [/smaller arrangement that preserves scope is not a scope reduction/i, /approves no pending remedy/i]);
-    expect(source).toContain('FULL_REVIEW for the Scope Challenge result "scope accepted as-is"; SCOPE_REDUCED for "scope reduced per recommendation"');
-    expect(source).toContain('**issues_found**: four-section count only');
+    expectMentions(result, [['より小さい配置', 'スコープの削減にはなりません'], ['MODE', '保留中の是正', '承認するものではありません']], 'result');
+    expectMentions(source, [['MODE', 'FULL_REVIEW', 'scope accepted as-is'], ['SCOPE_REDUCED', 'scope reduced per recommendation'],
+      ['issues_found', '4 つのセクションの件数のみ']], 'source');
   });
 
   test('Eng three-stage transaction rejects missing save, comparison, wait or answer checkpoints', () => {
     const source = readFileSync('plan-eng-review/sections/review-sections.md.tmpl', 'utf8');
-    const markers: Array<string | RegExp> = ['### Prepare an unanswered choice', '**Pending-record checkpoint.**',
-      /use Read to fetch the entire saved record/i, /compare every native field with `currentDecision`/i,
-      '### Send once and wait', /copy the verified question, header, labels and descriptions literally/i,
-      /stop until the actual answer arrives/i, '### Record the answer',
-      /read the selected saved label, full description and grid column/i, /use a scoped Edit to save this record/i,
-      /read the entire resolution block/i, /accepted scope match the complete selected option/i, 'For the next choice'];
-    const check = (text: string) => ordered(compactProse(text.split('## Decision procedure')[1]!.split('## Scope Challenge')[0]!), markers);
+    const markers: string[] = ['### 未回答の選択を準備する', '**保留中の記録のチェックポイント。**',
+      'Read で保存された記録全体を取得してください', '各ネイティブのフィールドを `currentDecision` と比べ',
+      '### 一度送信して待つ', '検証済みの質問、ヘッダー、ラベル、説明を一字一句そのままコピーしてください',
+      '実際の回答が届くまで STOP', '### 回答を記録する',
+      '選択された保存済みのラベル、完全な説明、グリッドの列を一緒に読みます', 'スコープされた Edit を使って',
+      '解決ブロック全体を Read してください', '選択された選択肢の全体とグリッドの列に一致する', '次の選択については'];
+    const check = (text: string) => ordered(compactProse(text.split('## Decision procedure(決定の手順)')[1]!.split('## Scope Challenge')[0]!), markers);
     check(source);
     for (const marker of markers) expect(() => check(compactProse(source).replace(marker, ''))).toThrow();
     expect(source).not.toMatch(/return to step|repeat steps|after step [1-6]/i);
-    expectMentions(compactProse(source), [['no', 'continue', 'calling']], 'compactProse(source)');
+    expectMentions(compactProse(source), [['回答が保留中でない', '次のセクションを開始']], 'compactProse(source)');
   });
 
   test('Eng finalization refreshes the existing Test Plan without repeating its producer', () => {
     const source = readFileSync('plan-eng-review/sections/review-sections.md.tmpl', 'utf8');
     const closing = source.split('## Required outputs')[1]!;
     expect(source.match(/\{\{TEST_COVERAGE_AUDIT_PLAN\}\}/g)).toHaveLength(1);
-    expect(source.indexOf('{{TEST_COVERAGE_AUDIT_PLAN}}')).toBeLessThan(source.indexOf('### 4. Performance review'));
-    expect(closing.match(/1\. \*\*Prepare the review body\.\*\*/g)).toHaveLength(1);
-    const prepare = compactProse(closing.slice(closing.indexOf('1. **Prepare the review body.**'), closing.indexOf('2. **Save and Read back.**')));
-    expectMentions(closing, [['do not', 'unchanged', 'recreate']], 'closing');
+    expect(source.indexOf('{{TEST_COVERAGE_AUDIT_PLAN}}')).toBeLessThan(source.indexOf('### 4. パフォーマンスのレビュー'));
+    expect(closing.match(/1\. \*\*レビュー本文を準備する。\*\*/g)).toHaveLength(1);
+    expect(closing.indexOf('1. **レビュー本文を準備する。**')).toBeLessThan(closing.indexOf('2. **保存と読み戻し。**'));
+    mentions(closing, [['変更のない出力', '作り直さ']], 'closing');
   });
 
   test('plan coverage definitions precede the uninterrupted trace sequence', () => {
     const source = generateTestCoverageAuditPlan({ skillName: 'plan-eng-review', host: 'claude', paths: HOST_PATHS.claude } as TemplateContext);
-    ordered(source, ['Definition: a **targeted audit**', '**Step 1. Trace every codepath in the plan:**']);
-    const trace = source.indexOf('**Step 1. Trace every codepath in the plan:**');
-    const first = source.slice(source.indexOf('1. **Read the plan.**', trace), source.indexOf('2. **Trace data flow.**', trace));
-    expectMentions(first, [['before', 'dedicated', 'drawing']], 'first');
-    expect(first).not.toContain('Definition:');
-    expect(first).not.toContain('before Step 2');
-    expectAll(compactProse(source), [/five Test steps inside Section 3, after Scope Challenge/i,
-      /read concrete source\/tests before tracing or diagramming/i, /future paths remain proposals/i]);
+    ordered(source, ['定義: **targeted audit**', '**Step 1. プラン内のすべてのコードパスをトレースします:**']);
+    const trace = source.indexOf('**Step 1. プラン内のすべてのコードパスをトレースします:**');
+    const first = source.slice(source.indexOf('1. **プランを読みます。**', trace), source.indexOf('2. **データフローをトレースします。**', trace));
+    mentions(first, [['diagram を描く前', '専用のツール呼び出し']], 'first');
+    expect(first).not.toContain('定義:');
+    expect(first).not.toContain('Step 2 の前');
+    mentions(source, [['5 つの Test ステップ', 'Section 3', 'Scope'], ['トレースや diagram の前', '具体的なソース/テストを読みます'],
+      ['将来のパス', '提案']], 'source');
   });
 
   test('CEO fallback names the current host mode and needs completed findings before the later report exists', () => {
     for (const host of ALL_HOST_CONFIGS) {
       const source = generateCodexPlanReview({ skillName: 'plan-ceo-review', host: host.name, paths: HOST_PATHS[host.name] } as TemplateContext);
       expect([...new Set(source.match(/under_codex|under_current_harness/g))]).toEqual(['under_current_harness']);
-      expect(source).toMatch(/SOURCE=in-host, OUTSIDE_STATUS=unavailable, and STATUS=clean or issues_found/);
+      mentions(source, [['SOURCE=in-host', 'OUTSIDE_STATUS=unavailable', 'clean', 'issues_found'], ['Sections 1-10/11', '台帳'], ['最終レポート', '後の']], 'source');
       expect(source).not.toContain('Sections 1-10/11 and current report');
     }
   });
@@ -151,9 +149,9 @@ const menu = (labels: string[], header = 'Next review', question = "D12 — What
 
 // Generated instruction ordering only; native completion remains a paid check.
 describe('plan report persistence precedes completion logging', () => {
-  test('Eng required Review Log failure stops before best-effort decision logging', () => {
+  test('Eng required レビューログ failure stops before best-effort decision logging', () => {
     const template = readFileSync('plan-eng-review/sections/review-sections.md.tmpl', 'utf8');
-    const logSection = template.split('## Review Log')[1]!.split('{{REVIEW_DASHBOARD}}')[0]!;
+    const logSection = template.split('## レビューログ')[1]!.split('{{REVIEW_DASHBOARD}}')[0]!;
     const block = logSection.match(/```bash\n([\s\S]*?)\n```/)?.[1];
     expect(block).toBeDefined();
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'eng-required-log-')));
@@ -183,11 +181,15 @@ describe('plan report persistence precedes completion logging', () => {
     } finally { rmSync(root, {recursive: true, force: true}); }
   });
   const plans = ['plan-ceo-review', 'plan-eng-review', 'plan-design-review', 'plan-devex-review'];
+  // The Japanese templates translate these headings; plan-eng-review keeps its English ones.
+  const logHeadingOf = (skill: string) => skill === 'plan-eng-review' ? '## レビューログ'
+    : skill === 'plan-devex-review' ? '## レビューログ' : '## レビューログ';
+  const logHeadingOfPath = (relativePath: string) => logHeadingOf(plans.find(skill => relativePath.includes(`${skill}/`)) ?? '');
   for (const skill of plans) {
     test(`${skill}: save/readback gate precedes its log and dashboard`, () => {
       const template = readFileSync(`${skill}/sections/review-sections.md.tmpl`, 'utf8');
       const report = template.indexOf('{{PLAN_FILE_REVIEW_REPORT}}');
-      const log = template.indexOf('## Review Log');
+      const log = template.indexOf(logHeadingOf(skill));
       const dashboard = template.indexOf('{{REVIEW_DASHBOARD}}');
       expect(report).toBeGreaterThan(0);
       expect(report).toBeLessThan(log);
@@ -195,13 +197,13 @@ describe('plan report persistence precedes completion logging', () => {
       expect(template.match(/\{\{PLAN_FILE_REVIEW_REPORT\}\}/g)).toHaveLength(1);
       const logPolicy = compactProse(template.slice(log, dashboard));
       if (skill === 'plan-eng-review') {
-        expectAll(compactProse(template), [/at Review Log, use \*\*Report-back outcome\*\* instead of publishing a saved review/i,
-          /only a successful required log permits publication as a saved review/i]);
+        expectMentions(compactProse(template), [['レビューログ', '**Report-back outcome**', '代わりに'],
+          ['必須のログ', '成功した場合にのみ', '保存されたレビューとして公開']], 'template');
       } else if (skill === 'plan-ceo-review') {
-        expectAll(logPolicy, [/successful write and Read-back/i, /failed plan\/report save or verification stops before this block/i,
-          /both history commands below are best-effort/i, /do not claim that entry was recorded/i]);
+        expectMentions(logPolicy, [['書き込みと読み戻しが成功した後にのみ'], ['保存または検証が失敗した場合', 'このブロックの前で停止'],
+          ['両方の履歴コマンド', 'ベストエフォート'], ['記録されたと主張しないでください']], 'logPolicy');
       } else {
-        expectAll(logPolicy, [/successful write and Read-back/i, /report the error and stop/i]);
+        expectMentions(logPolicy, [['書き込み', '後にのみ保存'], ['失敗した場合', 'エラーを報告して停止']], 'logPolicy');
       }
     });
   }
@@ -211,41 +213,40 @@ describe('plan report persistence precedes completion logging', () => {
         const report = generatePlanFileReviewReport({ skillName, host: host.name, paths: HOST_PATHS[host.name]! } as TemplateContext);
         // PLAN.md may be the review input while REPORT.md is the requested output.
         const target = report.slice(report.indexOf(skillName === 'plan-eng-review'
-          ? '### Use the selected report file' : '### Detect the plan file'), report.indexOf('### Generate the report'));
+          ? '### 選択済みのレポートファイルを使う' : '### プランファイルを検出する'), report.indexOf('### レポートを生成する'));
+        expect(target.length).toBeGreaterThan(0);
         if (skillName === 'plan-eng-review') {
-          expectAll(target, [/use the report file already selected under \*\*Review record and write policy\*\*/i, /do not choose another destination here/i]);
-          expect(target).not.toContain('host active plan');
-          const writer = report.slice(report.indexOf('### Write to the report file'));
+          expectMentions(target, [['Review record and write policy', '選択された'], ['別の保存先を選んではいけません']], 'target');
+          expect(target).not.toContain('ホストのアクティブなプラン');
+          const writer = report.slice(report.indexOf('### レポートファイルに書き込む'));
           expect(writer).not.toContain('PLAN MODE EXCEPTION — ALWAYS RUN');
-          expectAll(writer, [/destination is absent or writing is forbidden/i, /not persisted/i, /do not run the file-writing steps below/i,
-            /re-read the report file and retry once/i, /do not replace the section in place/i, /append the new report at EOF/i]);
+          expectMentions(writer, [['保存先がない', '書き込みが禁止', 'not persisted'], ['ファイル書き込みのステップは実行せず'],
+            ['読み直して', '再試行'], ['その場で置き換えてはいけません'], ['新しいレポートをファイル末尾に追記']], 'writer');
         } else {
-          ordered(target, [/explicitly requested output\/report file/i, /reviewed plan named by the user/i, /host active plan/i]);
+          ordered(target, ['明示的に指定された出力/レポートファイル', 'ユーザーが示したレビュー対象のプラン', 'ホストのアクティブなプラン']);
         }
         if (skillName === 'plan-ceo-review') {
-          expectMentions(target, [['without', 'permitted', 'complete']], 'target');
-          expect(target).not.toContain('skip this section');
+          expectMentions(target, [['書き込みが許可されたファイルがない', '完全なプラン'], ['レポートの生成を省略してはいけません']], 'target');
         } else if (skillName !== 'plan-eng-review') {
-          expectMentions(target, [['no', 'section', 'scope']], 'target');
+          expectMentions(target, [['対象のファイルがなければ', 'スキップ']], 'target');
         }
-        expect(report).toMatch(/prior review entries/i);
-        expect(report).toContain('current Completion Summary');
+        expect(report).toContain('過去のレビューのエントリ');
         if (['plan-ceo-review', 'plan-eng-review'].includes(skillName)) {
+          expect(report).toContain('現在の Completion Summary を使います');
           expect(report).not.toContain('DX Scorecard');
-          expect(report).toContain('`clean` as CLEAR and `issues_open` as ISSUES OPEN');
-          expect(report).toMatch(/not-persisted labels/i);
-        } else expect(report).toContain('current Completion Summary or DX Scorecard');
-        expectAll(report, [/add exactly one to its prior run count/i, /do not pre-log this run/i]);
+          expectMentions(report, [['`clean`', 'CLEAR', '`issues_open`', 'ISSUES OPEN'], ['not-persisted']], 'report');
+        } else expect(report).toContain('現在の Completion Summary or DX Scorecard');
+        expectMentions(report, [['過去の実行回数', 'ちょうど 1'], ['事前にログへ記録してはいけません']], 'report');
         if (skillName === 'plan-ceo-review') {
-          const writer = compactProse(report.slice(report.indexOf('### Write to the plan file')));
-          expectMentions(writer, [['no', 'completed-review', 'blocked']], 'writer');
-          ordered(writer, [/if no destination is selected or writing is forbidden/i, 'new `## GSTACK REVIEW REPORT` at EOF',
-            /if the destination file exists, Read it now/i, /if the destination file does not exist, use Write/i, /keep the report last/i, '4. **Read-back gate:**']);
-        } else expectMentions(report, [['not', 'whether', 'existed']], 'report');
-        expect(report).toMatch(skillName === 'plan-eng-review'
-          ? /follow \*\*Blocked outcome\*\* before Review Log or decision logging/i
-          : /stop before Review Log or decision logging/i);
-        expect(report.indexOf('Read-back gate')).toBeGreaterThan(report.indexOf(skillName === 'plan-eng-review' ? '### Write to the report file' : '### Write to the plan file'));
+          const writer = compactProse(report.slice(report.indexOf('### プランファイルに書き込む')));
+          expectMentions(writer, [['完了済みレビューのログとハンドオフはありません']], 'writer');
+          ordered(writer, ['保存先が選択されていない場合、または書き込みが禁止されている場合', '`## GSTACK REVIEW REPORT` をファイル末尾に置いて',
+            '保存先のファイルが存在する場合は', '今ここで Read します', '保存先のファイルが存在しない場合は、Write', 'レポートを最後に置いたまま', '4. **Read-back gate:**']);
+        } else expectMentions(report, [['以前のレポートがあったかどうか', '追記']], 'report');
+        expectMentions(report, skillName === 'plan-eng-review'
+          ? [['レビューログ', '決定事項のログ記録の前に', '**Blocked outcome**']]
+          : [['レビューログ', '決定事項のログ記録の前に', '停止']], 'report');
+        expect(report.indexOf('Read-back gate')).toBeGreaterThan(report.indexOf(skillName === 'plan-eng-review' ? '### レポートファイルに書き込む' : '### プランファイルに書き込む'));
         expect(report).not.toContain('review log output you already have');
       }
       for (const skillName of ['codex', 'devex-review']) {
@@ -271,18 +272,18 @@ describe('plan report persistence precedes completion logging', () => {
       for (const carrier of carriers) {
         const content = readFileSync(join(outputRoot, carrier.relativePath), 'utf8');
         if (carrier.relativePath.includes('plan-eng-review/')) {
-          const dispatch = compactProse(content.slice(content.indexOf('**Pending-record checkpoint.**'), content.indexOf('## Scope Challenge')));
-          ordered(dispatch, ['AskUserQuestion({ questions: [currentDecision] })', /stop until the actual answer arrives/i, '### Record the answer', 'For the next choice']);
+          const dispatch = compactProse(content.slice(content.indexOf('**保留中の記録のチェックポイント。**'), content.indexOf('## Scope Challenge')));
+          ordered(dispatch, ['AskUserQuestion({ questions: [currentDecision] })', '実際の回答が届くまで STOP', '### 回答を記録する', '次の選択については']);
         }
-        const report = content.indexOf('\n## Plan File Review Report\n');
+        const report = content.indexOf('\n## Plan File Review Report(プランファイルのレビューレポート)\n');
         const readback = content.indexOf('**Read-back gate:**', report);
-        const log = content.indexOf('\n## Review Log\n');
-        const dashboard = content.indexOf('\n## Review Readiness Dashboard\n');
+        const log = content.indexOf(`\n${logHeadingOfPath(carrier.relativePath)}\n`);
+        const dashboard = content.indexOf('\n## Review Readiness Dashboard(レビュー準備状況のダッシュボード)\n');
         expect({ carrier: carrier.relativePath, ordered: 0 < report && report < readback && readback < log && log < dashboard }).toMatchObject({ ordered: true });
-        expect(content.slice(report, readback)).toContain('current Completion Summary');
-        expect(content.slice(readback, log)).toMatch(carrier.relativePath.includes('plan-eng-review/')
-          ? /follow \*\*Blocked outcome\*\* before Review Log or decision logging/i
-          : /stop before Review Log or decision logging/i);
+        expect(content.slice(report, readback)).toContain('現在の Completion Summary');
+        expectMentions(content.slice(readback, log), carrier.relativePath.includes('plan-eng-review/')
+          ? [['レビューログ', '決定事項のログ記録の前に', '**Blocked outcome**']]
+          : [['レビューログ', '決定事項のログ記録の前に', '停止']], 'readback to log');
       }
     } finally { rmSync(outputRoot, { recursive: true, force: true }); }
   }, 30_000);
@@ -302,74 +303,73 @@ test('Eng loads its one remedy procedure before Scope Challenge findings and ret
   for (const suffix of ['.tmpl', '']) {
     const skeleton = suffix ? readFileSync(`plan-eng-review/SKILL.md${suffix}`, 'utf8') : rendered.skeleton;
     const sections = suffix ? readFileSync(`plan-eng-review/sections/review-sections.md${suffix}`, 'utf8') : rendered.sections;
-    ordered(skeleton, ['# Plan Review Mode', /do not build features, acceptance suites or benchmarks unless explicitly authorized/i, '## Scope gate']);
-    const rule = sections.indexOf('## Decision procedure');
+    ordered(skeleton, ['# プランレビューモード', '明示的に許可しない限り、機能、受け入れスイート、ベンチマークを構築しないでください', '## スコープゲート']);
+    const rule = sections.indexOf('## Decision procedure(決定の手順)');
     expect(rule).toBeGreaterThan(0);
-    expect(sections.match(/^## Decision procedure$/gm)).toHaveLength(1);
+    expect(sections.match(/^## Decision procedure\(決定の手順\)$/gm)).toHaveLength(1);
     const procedureBody = compactProse(sections.slice(rule, sections.indexOf('## Scope Challenge')));
-    const dispatch = procedureBody.slice(procedureBody.indexOf('**Pending-record checkpoint.**'));
-    ordered(dispatch, ['### Send once and wait', 'AskUserQuestion({ questions: [currentDecision] })',
-      /stop until the actual answer arrives/i, '### Record the answer', 'For the next choice']);
-    expectAll(dispatch, [/one question object for one choice; other IDs wait/i,
-      /do not apply a remedy, make another call, start the next section or call ExitPlanMode/i,
-      /\/autoplan uses its authorized decisions/i]);
+    const dispatch = procedureBody.slice(procedureBody.indexOf('**保留中の記録のチェックポイント。**'));
+    ordered(dispatch, ['### 一度送信して待つ', 'AskUserQuestion({ questions: [currentDecision] })',
+      '実際の回答が届くまで STOP', '### 回答を記録する', '次の選択については']);
+    expectMentions(dispatch, [['質問オブジェクトを一つ送ります'], ['ほかの ID は待機します'],
+      ['是正を適用したり', '別の呼び出し', 'ExitPlanMode'], ['/autoplan', '承認された決定']], 'dispatch');
     expect(procedureBody).not.toContain('Setup gates');
     expect(skeleton).not.toContain('**Decisions (including Step 0):**');
     expect(skeleton).not.toContain('For every issue or recommendation');
     const scope = compactProse(sections.slice(sections.indexOf('## Scope Challenge'), sections.indexOf('## Review Sections')));
-    expectAll(scope, [/decision-brief format for this complexity gate/i,
-      /ask each proposed feature cut\/deferral separately; wait before changing scope/i,
-      /unapproved fixes stay pending/i, /always resolve the structure question when this gate trips/i,
-      /offer confirmation of the original arrangement or a pause to investigate a smaller one\. wait for the answer/i,
-      /apply only accepted scope changes/i, /"No issues found" for an empty list/i, /findings and scope answers approve no remedies/i]);
-    const complexityRule = at(scope, /initial scope selectors need no grid or \*\*pre-answer\*\* ledger write/i);
+    expectMentions(scope, [['複雑さのゲート', '決定ブリーフ'], ['機能の削減/延期', '別々に質問'], ['スコープを変更する前に待ちます'],
+      ['承認されていない修正', '保留のまま'], ['削減がなくても', '構造の質問を解決'],
+      ['元の配置の確認', '一時停止を提案'], ['回答を待ちます'], ['承認されたスコープの変更だけを適用します'],
+      ['指摘やスコープの回答は', '承認しません']], 'scope');
+    expect(scope).toContain('No issues found');
+    const complexityRule = scope.indexOf('最初のスコープのセレクターには、グリッドも **回答前** の台帳への書き込みも必要ありません');
     expect(complexityRule).toBeGreaterThan(0);
-    expect(complexityRule).toBeLessThan(scope.indexOf('1. Explain the complexity'));
-    expectAll(scope.slice(complexityRule), [/ask and wait before changes/i, /one scope record/i,
-      /read it back against the actual answers/i, /do not invent a pre-answer record afterward/i]);
+    expect(complexityRule).toBeLessThan(scope.indexOf('1. 複雑さを説明します'));
+    expectMentions(scope.slice(complexityRule), [['質問して待ってください'], ['一つのスコープ記録'],
+      ['実際の回答と照らして読み戻して'], ['回答前の記録を作り直さないでください']], 'scope after complexityRule');
     expect(scope).not.toContain('proceed as-is');
-    const stop = skeleton.indexOf('**Complexity gate:**');
-    const sectionMarker = suffix ? /\{\{SECTION:review-sections\}\}/g : /> \*\*STOP\.\*\* Before starting the Scope Challenge/gi;
+    const stop = skeleton.indexOf('**複雑さのゲート:**');
+    const sectionMarker = suffix ? /\{\{SECTION:review-sections\}\}/g : /> \*\*STOP\.\*\* Scope Challenge と完全なレビューの開始/g;
     const sectionRead = at(skeleton, new RegExp(sectionMarker.source, sectionMarker.flags.replace('g', '')));
     expect(stop).toBeGreaterThan(0);
     expect(sectionRead).toBeGreaterThan(stop);
     expect(skeleton.slice(skeleton.indexOf('### Step 0: Scope Challenge'), sectionRead)).not.toContain('**STOP');
-    expectMentions(compactProse(skeleton.slice(stop, sectionRead)), [['do not', 'exitplanmode', 'findings']], 'section');
-    expectMentions(skeleton, [['before', 'challenge', 'mandatory']], 'skeleton');
+    expectMentions(compactProse(skeleton.slice(stop, sectionRead)), [['セクション 1', 'ExitPlanMode', '指摘や修正を書いたりしないでください']], 'section');
+    expectMentions(skeleton, [['Scope Challenge', 'セクション 1', '必ず行います']], 'skeleton');
     expect(skeleton.match(sectionMarker)).toHaveLength(1);
-    expectAll(compactProse(sections), [/follow the blocks below in order after startup/i, /reference rules, not additional review passes/i]);
+    expectMentions(compactProse(sections), [['以下のブロックを順番に従ってください'], ['参照ルール', '追加のレビュー工程ではありません']], 'sections');
     expect(sections).not.toContain('After startup, prepare in this order:');
     ordered(sections, ['## Review record and write policy',
-      suffix ? '{{LEARNINGS_SEARCH}}' : '## Prior Learnings', '## Retrospective learning',
+      suffix ? '{{LEARNINGS_SEARCH}}' : '## Prior Learnings', suffix ? '## 振り返りによる学習' : '## 振り返りによる学習',
       suffix ? '{{CONFIDENCE_CALIBRATION}}' : '## Confidence Calibration',
-      '## Decision procedure', '## Scope Challenge', '### 1. Architecture review']);
+      '## Decision procedure(決定の手順)', '## Scope Challenge', '### 1. アーキテクチャのレビュー']);
     expect(sections).not.toContain('{{ANTI_SHORTCUT_CLAUSE}}');
     expect(sections).not.toContain('**Anti-shortcut clause:**');
     expect(skeleton).not.toContain('STOP while a Step 0 question');
-    expect(sections.match(/^## Scope Challenge$/gm)).toHaveLength(1);
+    expect(sections.match(/^## Scope Challenge\(スコープチャレンジ\)$/gm)).toHaveLength(1);
     expect(sections).not.toContain('## Step 0 findings');
-    ordered(scope, [/fewer than 8 files AND fewer than 2 new classes\/services, skip B's questions/i, '### C. Resolve findings',
-      '1. Present numbered Scope Challenge findings', '2. Resolve each remedy through Decision procedure',
-      '3. Report accepted/rejected/deferred/pending', /continue to Section 1 only when no answer is pending/i]);
-    const selfCheck = compactProse(skeleton.slice(skeleton.indexOf('## Section self-check'), skeleton.indexOf(suffix ? '{{EXIT_PLAN_MODE_GATE}}' : '## EXIT PLAN MODE GATE')));
-    expectAll(selfCheck, [/completed Scope Challenge, Sections 1–4, Outside Voice and outputs/i, /preserve verified work/i]);
+    ordered(scope, ['8 ファイル未満かつ新しいクラス/サービスが 2 個未満であれば、B の質問は飛ばして', '### C. 指摘を解決する',
+      '1. 番号付きの Scope Challenge の指摘を', '2. Decision procedure を通して各是正を解決し', '3. それらの回答から、受け入れ/却下/延期/保留の処理を報告します',
+      '回答が保留中でない場合にのみ、セクション 1 に進みます']);
+    const selfCheckEnd = skeleton.indexOf(suffix ? '{{EXIT_PLAN_MODE_GATE}}' : '## EXIT PLAN MODE GATE');
+    const selfCheck = compactProse(skeleton.slice(skeleton.indexOf('## セクションの自己チェック'), selfCheckEnd));
+    expectMentions(selfCheck, [['Scope Challenge', 'セクション 1〜4', 'Outside Voice', '出力を完了した'], ['検証済みの作業は保持してください']], 'selfCheck');
     expect(selfCheck).toContain('`~/.claude/skills/gstack/plan-eng-review/sections/review-sections.md`');
     expect(selfCheck).not.toContain('Redo memory-only work');
-    const stages = at(skeleton, /after target selection, use/i);
-    const prerequisite = skeleton.indexOf(suffix ? '{{BENEFITS_FROM}}' : '## Prerequisite Skill Offer');
-    ordered(skeleton, [/after target selection, use/i, suffix ? '{{BENEFITS_FROM}}' : '## Prerequisite Skill Offer', '## Engineering review', '### Step 0: Scope Challenge']);
-    expectAll(skeleton.slice(stages, prerequisite), [/full decision brief, transport and continuous D-numbering/i, /setup questions approve no engineering remedies/i]);
+    const stages = skeleton.indexOf('ターゲットの選択後は、プリアンブルの完全な決定ブリーフ');
+    const prerequisite = skeleton.indexOf(suffix ? '{{BENEFITS_FROM}}' : '## 前提スキルの提案');
+    ordered(skeleton, ['ターゲットの選択後は、プリアンブルの完全な決定ブリーフ', suffix ? '{{BENEFITS_FROM}}' : '## 前提スキルの提案', '## エンジニアリングレビュー', '### Step 0: Scope Challenge']);
+    expectMentions(skeleton.slice(stages, prerequisite), [['完全な決定ブリーフ', 'トランスポート', '連続した D 番号'], ['セットアップの質問', '承認されません']], 'stages');
     expect(skeleton).not.toContain('**Later question stages:**');
-    if (!suffix) expect(skeleton.slice(prerequisite)).toMatch(/build the next full decision brief from these facts and options/i);
-    const boundary = compactProse(sections.slice(rule, sections.indexOf('### 1. Architecture review')));
-    expectAll(boundary, [/read the request, source and actual answers/i, /finish one choice before the next/i,
-      /they are separate choices even in the same finding, function or patch/i, /give each bound a measure and unit/i,
-      /every column repeats each other approved value unchanged/i, /keep one behavior with its necessary code, tests and documentation/i,
-      /coverage choices vary implementation or proof depth/i, /never cut an established contract or its required proof/i,
-      /if an exact prior approval covers the work, cite its answer and disposition/i,
-      /later-discovered required proof forward without asking again/i,
-      /separate it and rebuild this comparison before saving or sending the question/i, /their tests wait for approval/i,
-      /for a factual correction that changes no behavior, record the correction and evidence/i]);
+    if (!suffix) expectMentions(skeleton.slice(prerequisite), [['完全な意思決定ブリーフ', '事実と選択肢']], 'prerequisite');
+    const boundary = compactProse(sections.slice(rule, sections.indexOf('### 1. アーキテクチャのレビュー')));
+    expectMentions(boundary, [['リクエスト、ソース、実際の回答を読みます'], ['一つの選択を終えてから、次に進みます'],
+      ['別々の選択です', '同じ指摘、関数、パッチ'], ['各上限には', '測定方法と単位'],
+      ['すべての列で', '承認済みの値は変えずに繰り返し'], ['一つの振る舞いは', '必要なコード、テスト、ドキュメント'],
+      ['カバレッジの選択肢は実装や証明の深さを変えます'], ['確立された契約や', '必要な証明を削らないでください'],
+      ['正確な過去の承認', '回答と処理を引用'], ['後から判明した必須の証明', '再度質問せずに引き継ぎます'],
+      ['それを分け', 'この比較を作り直して', '保存または送信する前に'], ['そのテストは承認を待ちます'],
+      ['振る舞いを変えない事実の訂正', '訂正と根拠を記録します']], 'boundary');
   }
 }, 30_000);
 
@@ -378,15 +378,15 @@ test('Eng loads its one remedy procedure before Scope Challenge findings and ret
 // old generated carrier to hide a contradictory unconditional approval gate.
 describe('Eng approved-work decision gate', () => {
   const template = readFileSync('plan-eng-review/sections/review-sections.md.tmpl', 'utf8');
-  const rawGate = template.split("## Decision procedure")[1]?.split('### 1. Architecture review')[0] ?? '';
+  const rawGate = template.split("## Decision procedure(決定の手順)")[1]?.split('### 1. アーキテクチャのレビュー')[0] ?? '';
   const gate = compactProse(rawGate);
   const ledger = rawGate.match(/```markdown\n([\s\S]*?)\n```/)?.[1] ?? '';
-  const prepare = gate.indexOf('### Prepare an unanswered choice');
-  const identify = at(gate, /before drafting options/i);
-  const compare = gate.indexOf('**Compare one choice.**');
-  const save = gate.indexOf('**Pending-record checkpoint.**');
-  const send = gate.indexOf('### Send once and wait');
-  const record = gate.indexOf('### Record the answer');
+  const prepare = gate.indexOf('### 未回答の選択を準備する');
+  const identify = gate.indexOf('選択肢を作る前に');
+  const compare = gate.indexOf('**一つの選択を比較する。**');
+  const save = gate.indexOf('**保留中の記録のチェックポイント。**');
+  const send = gate.indexOf('### 一度送信して待つ');
+  const record = gate.indexOf('### 回答を記録する');
 
   test('the ledger template keeps one record with its fields, selectors and single State block', () => {
     const lines = ledger.split('\n');
@@ -400,18 +400,18 @@ describe('Eng approved-work decision gate', () => {
     expect(ledger).toContain('Question D2:\n<currentDecision.question in full');
     expect(ledger).toContain('Header: <currentDecision.header>');
     for (const selector of ['A', 'B']) expect(ledger).toContain(`with one ${selector}) record selector>`);
-    expect(rawGate.indexOf(ledger)).toBeGreaterThan(rawGate.indexOf('**Pending-record checkpoint.**'));
-    expect(rawGate.indexOf(ledger)).toBeLessThan(rawGate.indexOf('### Send once and wait'));
+    expect(rawGate.indexOf(ledger)).toBeGreaterThan(rawGate.indexOf('**保留中の記録のチェックポイント。**'));
+    expect(rawGate.indexOf(ledger)).toBeLessThan(rawGate.indexOf('### 一度送信して待つ'));
   });
 
   test('preserves the full selected scope and reopens contradictory options before applying them', () => {
     const options = gate.slice(compare, save);
-    expectAll(options, [/full label and description with every row in its grid column/i,
-      /same commitments and retain the same conditions/i, /approves no implementation, including a conditional fix/i]);
+    expectMentions(options, [['完全なラベルと説明', 'グリッドの列のすべての行'], ['同じコミットメントを示し', '同じ条件を保持'],
+      ['条件付きの修正を含め', '実装は一切承認しません']], 'options');
     const apply = gate.slice(record, gate.indexOf('## Scope Challenge'));
-    ordered(apply, [/read the selected saved label, full description and grid column together/i,
-      /preserve the actual answer, explain the conflict and return to \*\*Prepare an unanswered choice\*\*/i, /replace the whole adjacent/i]);
-    expectMentions(apply, [['do not', 'reinterpret', 'conflicting']], 'apply');
+    ordered(apply, ['選択された保存済みのラベル、完全な説明、グリッドの列を一緒に読みます', '**未回答の選択を準備する** に戻って',
+      '隣接する `State` / `Actual answer` / `Accepted scope` のブロック全体を置き換えてください']);
+    expectMentions(apply, [['解釈し直したり', '矛盾する承認']], 'apply');
     // a689 D3's conditional fix was selected, then silently replaced with a
     // probe-only scope. Native behavior remains a paid gate; this guards the
     // producer's prepare/apply/recovery instructions, not that run's outcome.
@@ -419,89 +419,85 @@ describe('Eng approved-work decision gate', () => {
 
   test('reconciles operative decision State before approval readiness and unresolved counts', () => {
     const apply = gate.slice(record, gate.indexOf('## Scope Challenge'));
-    expect(apply).toMatch(/set State to `approved` for accepted scope/i);
-    expect(apply).toContain('`pending` for an unresolved remedy');
-    expectAll(apply, [/move superseded states to History/i, /each field must occur once outside History/i,
-      /never update only the answer\/scope tail/i, /cannot replace Read/i, /preserve the options/i]);
+    expectMentions(apply, [['State を `approved` に', '`pending`'], ['置き換えられた状態は', 'History に移します'],
+      ['各フィールドは History の外に一度だけ'], ['回答とスコープの末尾だけを更新しないでください'], ['Read の代わりになりません'], ['選択肢は保持し']], 'apply');
     // c6fc retained both pending and approved fields after an acknowledged answer.
-    ordered(apply, [/replace the whole adjacent `State` \/ `Actual answer` \/ `Accepted scope` block/i,
-      /use a scoped Edit to save this record/i, /its unique state, actual answer and accepted scope match/i, /correct any discrepancy before advancing/i]);
-    expect(apply.indexOf('For the next choice')).toBeGreaterThan(at(apply, /its unique state, actual answer and accepted scope match/i));
-    const outputs = compactProse(template.split('## Required outputs')[1]!.split('### "NOT in scope"')[0]!);
-    expectAll(outputs, [/leave choices pending according to each record's current State/i,
-      /use the entrypoint's \*\*Recovery routing\*\*/i, /changed outputs must pass steps 1–4 again/i]);
+    ordered(apply, ['隣接する `State` / `Actual answer` / `Accepted scope` のブロック全体を置き換えてください',
+      'スコープされた Edit を使って', 'その一意の状態、実際の回答、承認されたスコープが', '先へ進む前に差異を修正し']);
+    expect(apply.indexOf('次の選択については')).toBeGreaterThan(apply.indexOf('その一意の状態、実際の回答、承認されたスコープが'));
+    const outputs = compactProse(template.split('## Required outputs')[1]!.split('### 「スコープ外」セクション')[0]!);
+    expectMentions(outputs, [['各記録の現在の State', '選択は保留のままにします'], ['エントリポイントの **Recovery routing**'],
+      ['変更された出力は', '手順 1〜4']], 'outputs');
   });
 
   test('current contracts and completed comparisons precede saved questions without approving a fix', () => {
     expect(0 <= prepare && prepare < identify && identify < compare && compare < save && save < send && send < record).toBe(true);
     const headings = [...rawGate.split('## Scope Challenge')[0]!.replace(/```markdown[\s\S]*?```/g, '').matchAll(/^### ([^\n]+)$/gm)].map(match => match[1]);
-    expect(headings).toEqual(['Prepare an unanswered choice', 'Send once and wait', 'Record the answer']);
+    expect(headings).toEqual(['未回答の選択を準備する', '一度送信して待つ', '回答を記録する']);
     // A reopened row must use its latest accepted plan, not the seed/runtime
     // value, and rebuild all option states before the existing save/ask gate.
-    expectAll(gate.slice(prepare, identify), [/observed behavior does not grant approval/i, /mark unverified behavior unknown/i,
-      /retain earlier values, complete briefs and answers in History/i]);
-    expectAll(gate.slice(identify, compare), [/optional depths of one verification form one choice/i,
-      /alternative mechanisms for that fixed behavior belong in one question/i, /a reopened choice keeps its ID/i,
-      /receives the next continuous `D<N>`/i]);
-    expectMentions(gate.slice(prepare, save), [['not', 'existing/proposed', 'scores']], 'gate.slice(prepare, save)');
+    expectMentions(gate.slice(prepare, identify), [['観測された振る舞い', '承認を与えません'], ['検証されていない振る舞い', '不明とマーク'],
+      ['以前の値', 'History に残してください']], 'prepare');
+    expectMentions(gate.slice(identify, compare), [['一つの検証方法の任意の深さは', '一つの選択とみなします'],
+      ['代替の仕組みは一つの質問にまとめます'], ['再度開かれた選択は ID を維持し', '`D<N>`']], 'identify');
+    expectMentions(gate.slice(prepare, save), [['既存/提案されたテスト', 'スコア']], 'gate.slice(prepare, save)');
     const options = gate.slice(compare, save);
-    expectAll(options, [/concrete current value, each option's value and work, and any approval citation/i,
-      /include shared, fixed and pending choices/i, /an Investigate\/Defer option must bound the investigation/i,
-      /treat necessary implementation and proof of an approved contract as common work/i,
-      /still needs approval if it is new/i, /give every selectable behavior, approach, guarantee or bound a row/i]);
-    expectMentions(gate.slice(save, send), [['cannot', 'verification', 'substitute']], 'gate.slice(save, send)');
-    expectMentions(gate, [['only', 'contradictory', 'assumption']], 'gate');
+    expectMentions(options, [['具体的な現在の値', '各選択肢の値と作業量', '承認の引用'], ['共有された、固定された、保留中の選択をすべて含めます'],
+      ['Investigate/Defer', '調査の範囲を限定'], ['必要な実装と証明は共通の作業として扱います'], ['新しいものであれば承認が必要です'],
+      ['選択可能なすべての振る舞い', '行を一つ割り当てます']], 'options');
+    expectMentions(gate.slice(save, send), [['Grep', '記録を検証しません']], 'gate.slice(save, send)');
+    expectMentions(gate, [['再度開くのは', '矛盾する根拠', '変わった前提']], 'gate');
   });
 
   test('assigns independent row IDs before constructing the final question', () => {
-    ordered(gate.slice(identify, compare), [/list each current value and proposed change/i,
-      /give independently selectable changes separate IDs/i, /if the user can accept one/i]);
+    ordered(gate.slice(identify, compare), ['現在の各値と提案された変更を列挙してください',
+      '独立して選択できる変更には、別々の ID を付けます', 'ユーザーが一方を承認し']);
   });
 
   test('finishes native fields before save and dispatches the literal final read-back', () => {
     const options = gate.slice(compare, save);
-    ordered(options, [/select one pending ID/i, /build a separate \*\*comparison grid\*\*/i, '**Reconcile before saving.**']);
-    expect(options).toContain('build `currentDecision`');
-    expect(options).toContain('`options`: every exact label and full description');
-    expect(options).toMatch(/`question`: the complete D-numbered preamble brief, including Project, ELI10, Stakes, Recommendation/);
-    expectAll(options, [/file:line in the native fields/i, /human\/CC effort, risk and maintenance/i,
-      /make the header and every label final before saving/i, /under 5 words each/i,
-      /saved-only Pros\/cons block cannot supply missing decision context/i]);
+    ordered(options, ['保留中の ID を一つ選びます', '別の **comparison grid** を作成します', '**保存前に整合させる。**']);
+    expect(options).toContain('`currentDecision` を構築します');
+    expect(options).toContain('`options`: すべての正確なラベルと完全な説明');
+    expect(options).toContain('`question`: プロジェクト、ELI10、Stakes、Recommendation');
+    expectMentions(options, [['file:line', 'ネイティブのフィールドに入れてください'], ['人間/CC の作業量', 'リスク', '保守'],
+      ['保存する前に', 'ヘッダーとすべてのラベルを確定'], ['各 5 語未満'],
+      ['保存された Pros/cons ブロックだけでは', '不足している決定の文脈を補えません']], 'options');
     const checkpoint = gate.slice(save, send);
-    expect(checkpoint).toMatch(/save the record, complete grid and exact `currentDecision`/i);
-    expectAll(checkpoint, [/a failed save blocks the question/i, /include every native field, the recommendation and all options/i,
-      /A–D record selectors are ledger notation only/i, /read after the final edit/i, /do not verify the record/i,
-      /repeat the complete Read before asking/i, /do not leave duplicate Question, Header or Options fields/i,
-      /unreadable or unverifiable records use \*\*Recovery routing\*\*/i, /if any payload field changes[^.]*Read it again/i]);
+    expectMentions(checkpoint, [['記録、完全なグリッド、正確な `currentDecision` を保存します'], ['保存に失敗した場合は質問をブロックします'],
+      ['すべてのネイティブのフィールド、推奨案、すべての選択肢を含めてください'], ['A〜D の記録用セレクターは台帳の表記にすぎません'],
+      ['最後の編集の後に読み込んでください'], ['Grep', '記録を検証しません'], ['質問する前に完全な Read を繰り返してください'],
+      ['Question、Header、Options のフィールドを重複させないでください'], ['読めない、または検証できない記録は', '**Recovery routing**'],
+      ['ペイロードのフィールドが一つでも変わった場合', 'もう一度読み込んでください']], 'checkpoint');
     const readOnly = compactProse(template.split('**Read-only review:**')[1]!.split('{{LEARNINGS_SEARCH}}')[0]!);
-    expectAll(readOnly, [/authorized amendments as \*\*not persisted\*\*/i, /perform the same comparisons on that presentation/i]);
+    expectMentions(readOnly, [['許可された修正', '**not persisted**'], ['同じ比較を行います']], 'readOnly');
     const recovery = compactProse(readFileSync('plan-eng-review/SKILL.md.tmpl', 'utf8'));
-    expectAll(recovery, [/repeat its full Read-back verification/i, /if no recovery is specified or it fails, follow \*\*Blocked outcome\*\*/i]);
+    expectMentions(recovery, [['完全な読み戻し検証を繰り返します'], ['回復手順が指定されていない', '**Blocked outcome**']], 'recovery');
     const dispatch = gate.slice(send, record);
     expect(dispatch).toContain('`AskUserQuestion({ questions: [currentDecision] })`');
-    expectAll(dispatch, [/only after the pending-record checkpoint passes/i, /do not add or strip brief paragraphs or rebuild options/i,
-      /authorized prose and auto-decisions use this same verified brief/i]);
+    expectMentions(dispatch, [['保留中の記録のチェックポイントを通過した後にのみ'], ['ブリーフの段落を追加または削除したり', '選択肢を作り直したりしないでください'],
+      ['承認された文章と自動判断も', '検証済みのブリーフを使います']], 'dispatch');
   });
 
   test('all four section gates and outside voice distinguish pending choices from findings', () => {
-    const reviewSections = template.split('## Review Sections (after scope is agreed)')[1]!;
-    const sectionRule = compactProse(reviewSections.split('### 1. Architecture review')[0]!);
+    const reviewSections = template.split('## Review Sections(レビューのセクション。スコープが合意された後)')[1]!;
+    const sectionRule = compactProse(reviewSections.split('### 1. アーキテクチャのレビュー')[0]!);
     expect(sectionRule).toContain('Architecture → Code Quality → Tests → Performance');
     const sections = [...reviewSections.matchAll(/^### ([1-4])\.([^]*?)(?=^### [1-4]\.|^\{\{CODEX_PLAN_REVIEW\}\})/gm)];
     expect(sections.map(section => Number(section[1]))).toEqual([1, 2, 3, 4]);
     const tests = sections[2]![2]!.replace('{{TEST_COVERAGE_AUDIT_PLAN}}', () => generateTestCoverageAuditPlan({} as TemplateContext));
-    const stop = at(tests, /stop for each pending decision/i);
-    const artifact = tests.indexOf('\n#### Test Plan Artifact\n');
-    const report = at(tests, /after \*\*Add missing tests to the plan\*\* resolves/i);
+    const stop = tests.indexOf('**保留中の各判断について STOP します。**');
+    const artifact = tests.indexOf('\n#### Test Plan Artifact');
+    const report = tests.indexOf('**Add missing tests to the plan** がテストと評価の決定を解決し');
     expect(0 <= stop && stop < artifact && artifact < report).toBe(true);
-    expect(tests.slice(report)).toMatch(/continue to Performance review/i);
+    expectMentions(tests.slice(report), [['パフォーマンスのレビューに進みます']], 'tests.slice(report)');
     expect(tests.slice(stop, artifact)).not.toContain('and continue');
-    expectMentions(gate.slice(send), [['before', 'readiness', 'resolve']], 'gate.slice(send)');
-    expectAll(gate, [/record remaining unknowns and uncertain risks/i, /keep unresolved risks and verification visible/i,
-      /drafts, recommendations and reviewer agreement grant neither/i]);
+    expectMentions(gate.slice(send), [['準備完了の前に', '解決']], 'gate.slice(send)');
+    expectMentions(gate, [['残っている未知の点と不確かなリスクを記録します'], ['未解決のリスクと検証は見える状態に保ち'],
+      ['ドラフト、推奨案、レビュー担当者の同意も', '承認を与えません']], 'gate');
     expect(template).toContain('{{CODEX_PLAN_REVIEW}}');
     expect(template).toContain('{{PLAN_FILE_REVIEW_REPORT}}');
-    expectMentions(compactProse(template), [['never', 'abbreviate', 'condense']], 'compactProse(template)');
+    expectMentions(compactProse(template), [['要約、省略', '飛ばさないでください']], 'compactProse(template)');
     for (const stale of ['For each issue found in this section',
       'Otherwise, use AskUserQuestion for each finding',
       'Outside voice findings are INFORMATIONAL until the user explicitly approves each one']) {
@@ -511,7 +507,8 @@ describe('Eng approved-work decision gate', () => {
 
   test('every option is recorded against one decision before sending or scoring coverage', () => {
     expect(gate).not.toContain('`label: changes; preserves; pending`');
-    const format = gate.split('**Compare one choice.**')[1]!.split('**Pending-record checkpoint.**')[0]!;
+    const format = gate.split('**一つの選択を比較する。**')[1]!.split('**保留中の記録のチェックポイント。**')[0]!;
+    expect(format.length).toBeGreaterThan(0);
     expect(format).not.toContain('per-issue AskUserQuestion');
     expect(template).not.toContain('## CRITICAL RULE — How to ask questions');
     expect(template).not.toContain('issue NUMBER + option LETTER');
@@ -520,18 +517,19 @@ describe('Eng approved-work decision gate', () => {
 
   test('scope bootstrap resolves a target without depending on later session routing or decision briefs', () => {
     const skeleton = readFileSync('plan-eng-review/SKILL.md.tmpl', 'utf8');
-    const bootstrap = compactProse(skeleton.split('## Scope gate')[1]!.split('{{PREAMBLE}}')[0]!);
-    expectAll(bootstrap, [/before discovery tools or preamble/i, /do not probe for session state/i, /no decision brief, D-number/i,
-      /enabled MCP AskUserQuestion, otherwise listed native/i, /first tool call = AskUserQuestion \(tool_use\)\. send this exact menu and wait/i,
-      /may have seen it, wait; do not resend it/i, /send the menu as plain prose and stop/i, /options start at column 0/i,
-      /never guess a target/i, /keep the reviewed target fixed/i]);
-    for (const token of ['`--disallowedTools`', 'Startup sequence', 'Context Recovery']) expect(bootstrap).toContain(token);
-    ordered(bootstrap, ['**User-named target (outside plan mode):**', '**Initial selector algorithm']);
+    const bootstrap = compactProse(skeleton.split('## スコープゲート')[1]!.split('{{PREAMBLE}}')[0]!);
+    expectMentions(bootstrap, [['検出ツールやプリアンブルを実行する前に'], ['セッション状態を調べようとしないでください'],
+      ['決定ブリーフ、D 番号、完全性、Question Tuning、台帳は使いません'], ['有効化されている MCP の AskUserQuestion', 'ネイティブ'],
+      ['最初のツール呼び出しは AskUserQuestion'], ['正確なメニューを送信し、回答を待ちます'],
+      ['ユーザーがそれを見た可能性がある', '待ちます'], ['再送はしないでください'], ['メニューをプレーンテキストで送って STOP'],
+      ['選択肢は列 0 から始め'], ['ターゲットを推測しないでください'], ['レビュー対象のターゲットは', '変えないでください']], 'bootstrap');
+    for (const token of ['`--disallowedTools`', '起動シーケンス', 'Context Recovery']) expect(bootstrap).toContain(token);
+    ordered(bootstrap, ['**ユーザー指定のターゲット(プランモード以外):**', '**初期セレクターのアルゴリズム']);
     // A missing or disallowed tool led models to infer a headless session and
     // end the turn with a separate pending report instead of the menu
     // (988e985 slice 5 and three earlier captures). The menu is the one
     // no-transport outcome, whatever the session type.
-    expectMentions(bootstrap, [['never', 'whatever', 'approves']], 'bootstrap');
+    expectMentions(bootstrap, [['セッションの種類にかかわらず', '承認することもありません']], 'bootstrap');
     expect(bootstrap).not.toContain('Headless or spawned session');
     expect(bootstrap).not.toContain('Scope pending');
   });
@@ -543,98 +541,95 @@ describe('Eng approved-work decision gate', () => {
     expect(policyEnd).toBeGreaterThan(policyStart);
     const policy = template.slice(policyStart, policyEnd);
     const prose = compactProse(policy);
-    expect(policyStart).toBeLessThan(template.indexOf('## Decision procedure'));
-    for (const target of ['| Plan or design document |', '| Branch diff |', '| Specific file or directory |']) expect(policy).toContain(target);
-    expect(prose).toContain('**Report file:**');
-    expectAll(prose, [/not permission to edit implementation or create another file/i,
-      /use the current working plan and this target evidence/i,
-      /one destination for the working plan, findings, decision ledger and final structured report/i,
-      /choose the \*\*report file\*\* before any ledger write/i, /suffix on collision/i,
-      /never substitute an unrelated active plan or silently replace a requested destination/i, /active-plan-only/i,
-      /permission for one path authorizes no other/i, /implementation edits require explicit authority/i,
-      /ask for a permitted destination/i, /an unrecovered failed write blocks the review/i]);
+    expect(policyStart).toBeLessThan(template.indexOf('## Decision procedure(決定の手順)'));
+    for (const target of ['| プランまたは設計ドキュメント |', '| ブランチの差分 |', '| 特定のファイルまたはディレクトリ |']) expect(policy).toContain(target);
+    expect(prose).toContain('**レポートファイル:**');
+    expectMentions(prose, [['実装の編集や別のファイルの作成を許可するものではありません'], ['現在の作業プランとこのターゲットの根拠を使ってください'],
+      ['作業プラン、指摘事項、決定台帳、最終的な構造化レポートの保存先'], ['台帳への書き込みの前に', '**レポートファイル**を選んでください'],
+      ['衝突した場合はサフィックスを付ける'], ['無関係な有効プランに置き換えたり', '黙って差し替えたりしないでください'],
+      ['アクティブなプランのみに限定する制限'], ['1 つのパスの許可は、ほかのパスを許可するものではありません'],
+      ['実装の編集には明示的な権限が必要です'], ['保存先を求める'], ['回復されなかった書き込みの失敗は、レビューをブロックします']], 'prose');
     for (const command of ['$GSTACK_STATE_ROOT/projects/$SLUG/$BRANCH-eng-review-{YYYYMMDD-HHMMSS}.md', 'gstack-paths', 'gstack-slug']) expect(prose).toContain(command);
     // Discovery paths follow the writers' state root (testing.ts, tasks-section.ts), never a hardcoded home.
-    expect(prose).toMatch(/discovery paths `\$GSTACK_STATE_ROOT\/projects\/\{slug\}\/`/);
+    expect(prose).toContain('検出パス `$GSTACK_STATE_ROOT/projects/{slug}/`');
     expect(prose).not.toContain('~/.gstack/projects/{slug}/');
-    expect(prose).toContain('**Failed permitted save** (error or failed Read-back): use **Recovery routing → Repairable write/read failure**');
+    expect(prose).toContain('**許可された保存の失敗**');
+    expect(prose).toContain('**Recovery routing → Repairable write/read failure**');
     const routes = Object.fromEntries(policy.split('\n').filter(line => line.startsWith('| '))
-      .map(line => line.split('|').slice(1, -1).map(cell => cell.trim())).map(cells => [cells[0], cells[2]]));
-    expect(routes["Working plan, ledger and complete review report"]).toContain('wait without completion telemetry');
-    expect(routes["Working plan, ledger and complete review report"]).toContain('then **Report-back outcome**');
-    for (const auxiliary of ['QA Test Plan and task JSONL', 'TODOS.md']) {
+      .map(line => line.split('|').slice(1, -1).map(cells => cells.trim())).map(cells => [cells[0], cells[2]]));
+    expect(routes["作業プラン、台帳、完全なレビューレポート"]).toContain('完了テレメトリを出さずに待つ');
+    expect(routes["作業プラン、台帳、完全なレビューレポート"]).toContain('**Report-back outcome**');
+    for (const auxiliary of ['QA テスト計画とタスク JSONL', 'TODOS.md']) {
       expect(routes[auxiliary]).toContain('**not persisted**');
-      expect(routes[auxiliary]).toContain('continue');
+      expect(routes[auxiliary]).toContain('続行');
     }
-    expect(routes['Required Review Log']).toContain('The final gate cannot pass without this log');
-    expect(routes['Required Review Log']).toContain('Present its fields as **not persisted**');
-    expect(routes['Required Review Log']).toContain('at Review Log, use **Report-back outcome** instead of publishing a saved review');
-    const log = template.split('## Review Log')[1]!.split('{{REVIEW_DASHBOARD}}')[0]!;
-    expect(log).toMatch(/finish step 3, after successful Read-back/i);
+    expect(routes['必須のレビューログ']).toContain('このログがなければ最終ゲートは通過できない');
+    expect(routes['必須のレビューログ']).toContain('**not persisted** として提示する');
+    expect(routes['必須のレビューログ']).toContain('**Report-back outcome** を使う');
+    const log = template.split('## レビューログ')[1]!.split('{{REVIEW_DASHBOARD}}')[0]!;
+    expectMentions(log, [['読み戻しに成功した後', '完了の手順 3']], 'log');
     expect(log).not.toContain('PLAN MODE EXCEPTION — ALWAYS RUN');
   });
 
   test('approval readiness follows TODO decisions and finalization returns forward exactly once', () => {
-    const closing = template.split('## Required outputs')[1]!.split('### "NOT in scope" section')[0]!;
+    const closing = template.split('## Required outputs')[1]!.split('### 「スコープ外」セクション')[0]!;
     const finish = [...closing.matchAll(/^([1-6])\. \*\*([^*]+)\*\*/gm)].map(match => [match[1], match[2]]);
-    expect(finish).toEqual([['1', 'Prepare the review body.'], ['2', 'Save and Read back.'], ['3', 'Log the saved review.'],
-      ['4', 'Publish.'], ['5', 'Choose navigation.'], ['6', 'Finish.']]);
-    expectAll(compactProse(closing), [/display the Review Readiness Dashboard, then present the saved Completion summary/i,
-      /read-only EXIT PLAN MODE GATE in every host mode/i, /ExitPlanMode only in host plan mode/i,
-      /\*\*Recovery routing → Late change or missing work\*\* before navigation resumes/i,
-      /only after both pass, run success telemetry/i, /an unrecovered save requires \*\*Blocked outcome\*\*, not logging/i,
-      /forbidden persistence uses \*\*Report-back outcome\*\*/i]);
-    const publication = compactProse(closing.slice(closing.indexOf('3. **Log the saved review.**'), closing.indexOf('5. **Choose navigation.**')));
-    expectAll(publication, [/if the required log is forbidden, show fields as not persisted and take \*\*Report-back outcome\*\*/i,
-      /failures use the write policy's recovery/i]);
-    ordered(template, ['### TODOS.md updates', '{{PLAN_REVIEW_APPROVAL_CHECK}}', '## Required outputs',
-      '{{PLAN_FILE_REVIEW_REPORT}}', '## Review Log', '{{REVIEW_DASHBOARD}}', '## Next Steps — Review Chaining',
+    expect(finish).toEqual([['1', 'レビュー本文を準備する。'], ['2', '保存と読み戻し。'], ['3', '保存されたレビューを記録する。'],
+      ['4', '公開する。'], ['5', '次の手順(ナビゲーション)を選ぶ。'], ['6', '完了する。']]);
+    expectMentions(compactProse(closing), [['Review Readiness Dashboard を表示し', '保存された Completion summary'],
+      ['読み取り専用の EXIT PLAN MODE GATE', 'すべてのホストモード'], ['ExitPlanMode はホストがプランモードの場合にのみ'],
+      ['**Recovery routing → Late change or missing work**', '次の手順(ナビゲーション)を再開する前に'], ['両方を通過した後にのみ', '成功のテレメトリ'],
+      ['回復されなかった保存には', '**Blocked outcome**'], ['保存が禁止されている場合は', '**Report-back outcome**']], 'closing');
+    const publication = compactProse(closing.slice(closing.indexOf('3. **保存されたレビューを記録する。**'), closing.indexOf('5. **画面遷移を選ぶ。**')));
+    expectMentions(publication, [['必須のログが禁止されている場合は', 'not persisted', '**Report-back outcome**'], ['失敗した場合は、書き込みポリシーの回復に従います']], 'publication');
+    ordered(template, ['### TODOS.md の更新', '{{PLAN_REVIEW_APPROVAL_CHECK}}', '## Required outputs',
+      '{{PLAN_FILE_REVIEW_REPORT}}', '## レビューログ', '{{REVIEW_DASHBOARD}}', '## 次のステップ — レビューの連鎖',
       '## Learning hooks', '{{BRAIN_WRITE_BACK}}']);
     expect(template.split('{{PLAN_REVIEW_APPROVAL_CHECK}}')).toHaveLength(2);
     expect(template).not.toContain('{{BRAIN_CACHE_REFRESH}}');
     expect(template).not.toContain('Run the preamble\'s **Telemetry');
-    expect(closing.match(/return to the entrypoint/g)).toHaveLength(1);
+    expect(closing.match(/エントリポイントのセクションの自己チェック/g)).toHaveLength(1);
     const navigation = compactProse(template.slice(template.indexOf('{{REVIEW_DASHBOARD}}')).split('## Learning hooks')[0]!);
-    expectAll(navigation, [/a next-step answer approves no implementation change/i, /without adding or strengthening them/i,
-      /does not make every independent lane wait/i]);
+    expectMentions(navigation, [['次のステップの回答は、実装の変更を承認するものではありません'], ['追加したり強めたりせずにコピー'],
+      ['独立したすべてのレーンを待たせるわけではありません']], 'navigation');
     const skeleton = readFileSync('plan-eng-review/SKILL.md.tmpl', 'utf8');
-    ordered(skeleton, ['{{SECTION:review-sections}}', '## Recovery routing', '**Paused question:**', '**Blocked outcome:**', '## Section self-check', '{{EXIT_PLAN_MODE_GATE}}',
-      /after the gate passes: \*\*Telemetry/i, '{{BRAIN_CACHE_REFRESH}}', /call ExitPlanMode for the selected next step only when the host is in plan mode/i]);
+    ordered(skeleton, ['{{SECTION:review-sections}}', '## 回復ルーティング', '**保留中の質問:**', '**Blocked outcome:**', '## セクションの自己チェック', '{{EXIT_PLAN_MODE_GATE}}',
+      'ゲートを通過した後:', '{{BRAIN_CACHE_REFRESH}}', 'ホストがプランモードにある場合のみ、選択された次のステップのために ExitPlanMode を呼び出します']);
     expect(skeleton).not.toContain('run approval check 0 below');
-    const pause = compactProse(skeleton.split('**Paused question:**')[1]!.split('**Blocked outcome:**')[0]!);
-    expectMentions(pause, [['without', 'exitplanmode', 'completion']], 'pause');
+    const pause = compactProse(skeleton.split('**保留中の質問:**')[1]!.split('**Blocked outcome:**')[0]!);
+    expectMentions(pause, [['完了のテレメトリや ExitPlanMode を出さずに']], 'pause');
     const blocked = compactProse(skeleton.split('**Blocked outcome:**')[1]!.split('{{EXIT_PLAN_MODE_GATE}}')[0]!);
-    expect(blocked).toContain('`OUTCOME=error` and the actual `ERROR_MESSAGE`/`FAILED_STEP`');
-    expectAll(blocked, [/report `BLOCKED`, the missing path\/work/i, /supplies no saved-review or completion credit/i,
-      /stop the review/i, /do not call ExitPlanMode/i, /resume at the failed step using Recovery routing/i]);
-    const lateChange = compactProse(skeleton.split('**Late change or missing work:**')[1]!.split('**Blocked outcome:**')[0]!);
-    expectAll(lateChange, [/new or reopened choices use Decision procedure/i, /repeat Approval readiness, then Required outputs steps 1–4/i,
-      /unchanged saved outputs may reuse their successful Review Log/i]);
-    expect(skeleton.slice(skeleton.indexOf('After the gate passes:'))).toContain('once with `OUTCOME=success`, then cache refresh');
-    expectMentions(skeleton, [['no', 'working-plan', 'verification']], 'skeleton');
+    expect(blocked).toContain('`OUTCOME=error` と実際の `ERROR_MESSAGE`/`FAILED_STEP`');
+    expectMentions(blocked, [['`BLOCKED`', '不足しているパスや作業'], ['保存されたレビューや完了のクレジットにはなりません'], ['レビューを止め'],
+      ['ExitPlanMode は呼び出さないでください'], ['回復ルーティングを使い', '失敗したステップから再開します']], 'blocked');
+    const lateChange = compactProse(skeleton.split('**後からの変更や作業の欠落:**')[1]!.split('**Blocked outcome:**')[0]!);
+    expectMentions(lateChange, [['新しいまたは再開された選択肢は Decision procedure を使います'], ['Approval readiness を繰り返し', 'Required outputs の手順 1〜4'],
+      ['変更されていない保存済みの出力は', '成功したレビューログを再利用']], 'lateChange');
+    expectMentions(skeleton.slice(skeleton.indexOf('ゲートを通過した後:')), [['`OUTCOME=success`', '一度実行', 'キャッシュを更新']], 'after gate');
+    expectMentions(skeleton, [['検証と終了の間', '作業中のプラン']], 'skeleton');
   });
 
   // This parses the actual worked example, not model output or a test-only
   // decision oracle. It proves the instructions expose the observed two-axis
   // option pattern; only native evaluation can prove the model follows them.
   test('worked comparison exposes two independently selectable option values', () => {
-    const example = rawGate.split('**Compare one choice.**')[1]?.split('**Pending-record checkpoint.**')[0] ?? '';
-    expectMentions(example, [['only', 'omitting', 'bundles']], 'example');
-    const split = example.split('Ask about jitter first:')[1] ?? '';
+    const example = rawGate.split('**一つの選択を比較する。**')[1]?.split('**保留中の記録のチェックポイント。**')[0] ?? '';
+    expectMentions(example, [['ジッターのみ', '省く', 'まとめて']], 'example');
+    const split = example.split('まずジッターについて質問してください:')[1] ?? '';
     const separated = [...split.matchAll(/^\| (R[12] [^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$/gm)]
       .map(([, commitment, current, A, B]) => ({ commitment, current, A, B }));
     expect(separated).toEqual([
-      { commitment: 'R1 jitter', current: 'unspecified, pending', A: 'on', B: 'off' },
-      { commitment: 'R2 delay cap', current: 'unspecified, pending', A: 'unspecified, pending', B: 'unspecified, pending' },
+      { commitment: 'R1 ジッター', current: '未指定、保留中', A: 'on', B: 'off' },
+      { commitment: 'R2 遅延の上限', current: '未指定、保留中', A: '未指定、保留中', B: '未指定、保留中' },
     ]);
-    expectAll(gate.slice(record), [/keep chosen values fixed in later questions/i, /rather than asking it again/i]);
+    expectMentions(gate.slice(record), [['確定した値は固定したまま'], ['再度質問せずに']], 'gate.slice(record)');
   });
 
   test('every host resolves the Eng gate without the conflicting generic shortcut clause', () => {
     for (const host of ALL_HOST_CONFIGS) {
       const clause = generateAntiShortcutClause({ skillName: 'plan-eng-review', host: host.name } as TemplateContext);
-      expectAll(clause, [/decision gate for all four sections and outside voice/i, /retain findings and evidence/i,
-        /ask only for new or reopened choices/i, /never prewrite unapproved remedies or skip sections or the terminal report/i]);
+      expectMentions(clause, [['4 つのセクションすべてと outside voice', '決定ゲート'], ['指摘と証拠は残します'],
+        ['質問は新規または再開された選択についてのみ'], ['未承認の改善策を先に書き込んだり', 'セクションや最終レポートを省略したりしてはいけません']], 'clause');
       expect(clause).not.toContain('ANY non-trivial finding');
     }
   });
@@ -648,18 +643,18 @@ describe('outside-voice commitment queue', () => {
       const provider = host.name === 'codex' ? 'Claude Code' : 'Codex';
       const mismatch = 'under_current_harness';
       // B1: the heading also admits `unverified`.
-      expect(eng).toContain('**If `CODEX_MODE: ready`');
-      expect(eng).toContain(`— run ${provider}:**`);
+      expect(eng).toContain('**`CODEX_MODE: ready`(または `unverified`)の場合');
+      expect(eng).toContain(`— ${provider} を実行します:**`);
       const fallback = compactProse(eng.slice(eng.indexOf('**Native fallback —'), eng.indexOf('**Bounded outside-voice wait')));
-      const routing = eng.slice(eng.indexOf('**Outcome routing:**'), eng.indexOf('**Disabled is a terminal branch'));
+      const routing = eng.slice(eng.indexOf('**Outcome routing:**'), eng.indexOf('**disabled は、このセクションの終端の分岐です'));
       const preflight = eng.match(/```bash\n([\s\S]*?)\n```/)![1];
       expect(preflight).toContain(mismatch);
-      expectAll(routing, [/other preflight mode, including harness mismatch/i, /outside execution or output validation fails/i, /then use Native fallback/i]);
-      const bounded = eng.slice(eng.indexOf('**Bounded outside-voice wait'), eng.indexOf('**Cross-model tension:**'));
-      expectMentions(bounded, [['never', 'supplies', 'coverage']], 'bounded');
-      expect(eng).toMatch(/SOURCE=in-host, OUTSIDE_STATUS=unavailable, and STATUS=clean or issues_found/);
-      expect(eng).toMatch(/findings are the reviewer's/i);
-      expect(fallback).toMatch(/disabled means no replacement/i);
+      expectMentions(routing, [['ほかのプリフライトのモード', 'ハーネスの不一致', 'Native fallback を使います'],
+        ['外部の実行または出力の検証が失敗', 'Native fallback を使います']], 'routing');
+      const bounded = eng.slice(eng.indexOf('**Bounded outside-voice wait'), eng.indexOf('**Cross-model tension(モデル間の緊張関係):**'));
+      expectMentions(bounded, [['ネイティブの結果が外部カバレッジを補うことはありません']], 'bounded');
+      expectMentions(eng, [['SOURCE=in-host', 'OUTSIDE_STATUS=unavailable', 'clean', 'issues_found'], ['これらの所見は', 'レビュアーのものです']], 'eng');
+      expectMentions(fallback, [['disabled', '代替は行いません']], 'fallback');
       if (host.name === 'codex') {
         expect(eng).toContain('gstack-claude-code');
         expect(eng).not.toContain('codex exec');
@@ -678,55 +673,55 @@ describe('outside-voice commitment queue', () => {
         expect(readFileSync(tmplPath, 'utf8')).toContain('{{CODEX_PLAN_REVIEW}}');
         const generated = generateCodexPlanReview({ skillName, tmplPath, host: host.name, paths: HOST_PATHS[host.name]! });
         const start = generated.indexOf(skillName === 'plan-ceo-review'
-          ? '**Integrate reviewer findings:**' : '**Cross-model tension:**');
-        const end = generated.indexOf('**Persist the result:**', start);
+          ? '**Integrate reviewer findings(レビュアーの指摘の統合):**' : '**Cross-model tension(モデル間の緊張関係):**');
+        const end = generated.indexOf('**Persist the result(結果の保存):**', start);
         expect(start).toBeGreaterThan(0);
         expect(end).toBeGreaterThan(start);
         const queue = generated.slice(start, end);
         // Each review reuses its own gate; none falls back to a generic commitment table.
         expect(queue).not.toContain('reference | commitment | current value');
-        expect(queue).toContain('**Whole-candidate scope:** A) Include; B) Defer; C) Cut; D) Hold');
-        expectAll(compactProse(queue), [/revising two candidates takes two rows/i, /hold stops for discussion without changing the prior disposition/i,
-          /assembled set's capacity and dependencies/i, /returns? to the affected candidate's Include\/Defer\/Cut\/Hold row/i,
-          /report unresolved conflicts/i, /never silently trim or replace another candidate/i]);
+        expect(queue).toContain('**Whole-candidate scope:** A) Include、B) Defer、C) Cut、D) Hold');
+        expectMentions(compactProse(queue), [['2 つの候補を見直す場合は 2 行'], ['Hold', '以前の扱いを変えずに議論のために止めます'],
+          ['組み上がった集合の容量と依存関係'], ['影響を受ける候補の Include/Defer/Cut/Hold の行に戻ります'],
+          ['未解決の矛盾を報告'], ['ほかの候補を黙って削ったり置き換えたりしてはいけません']], 'queue');
         if (skillName !== 'plan-devex-review') {
-          expect(queue).toContain("A) Apply this change; B) Keep this row's current value; C) Investigate before choosing; D) Defer this proposed change only");
-          expectAll(queue, [/D leaves this proposal row unresolved/i, /ask separately before changing them/i]);
+          expect(queue).toContain('A) この変更を適用する、B) この行の現在の値を維持する、C) 選ぶ前に調査する、D) この提案された変更だけを先送りする');
+          expectMentions(queue, [['D は、この提案の行を未解決のままにします'], ['それらを変える前には別途質問します']], 'queue');
         }
         if (skillName === 'plan-ceo-review') {
-          expectAll(queue, [/same six-column ledger/i, /use 0D for new or reopened choices/i, /do not start a second procedure/i,
-            /original input, inspected source and exact approvals/i, /correct false premises without changing accepted behavior/i,
-            /keep uncertainty with its owner/i, /credible material risk can require action before confirmation/i,
-            /use 0D's rules for independent choices/i, /investigation and deferral do not authorize implementation/i,
-            /challenges wait for the final gate/i, /one answer does not resolve other pending rows/i,
-            /findings that needed only factual correction/i]);
+          expectMentions(queue, [['同じ 6 列の台帳'], ['新規または再オープンされた選択には 0D を使い'], ['2 つ目の手順を始めてはいけません'],
+            ['元の入力、確認したソース、正確な承認'], ['承認された振る舞いを変えずに、誤った前提を訂正します'],
+            ['不確実性は、その担当者と必要な検証とともに保持します'], ['信頼できる重大なリスクは、確認の前に対応が必要になることがあります'],
+            ['独立した選択', '0D のルール'], ['調査と先送りは、実装を認可するものではありません'],
+            ['チャレンジは最終ゲートまで待ちます'], ['1 つの回答が、他の保留中の行を解決することはありません'],
+            ['事実の訂正だけで済んだ所見']], 'queue');
           const skeleton = compactProse(readFileSync('plan-ceo-review/SKILL.md.tmpl', 'utf8'));
           // Delegation must resolve to the complete procedure, including the
           // saved comparison and separate actual answer, without duplicating it.
-          ordered(skeleton, ['**1. Check sources and prior answers.**', '**2. Record the pending choice.**',
-            /record pending rows before comparisons/i, "**3. Compare and save that row's options.**",
-            '**Pre-question checkpoint:**', '**4. Ask, record the answer, and amend.**']);
-          expect(skeleton).toContain('`D<N> — <ROW-ID>: <one-line question>`');
-          expectAll(skeleton, [/ask one row per call/i, /literally with the verified fields/i, /ROW-ID identifies the pending choice/i,
-            /save the answer reference and scope/i, /amend only authorized work/i]);
+          ordered(skeleton, ['**1. 情報源と過去の回答を確認する。**', '**2. 保留中の選択を記録する。**',
+            '比較の前に保留中の行を記録してください', '**3. その行の選択肢を比較して保存する。**',
+            '**質問前のチェックポイント:**', '**4. 質問し、回答を記録し、修正する。**']);
+          expect(skeleton).toContain('`D<N> — <ROW-ID>: <一行の質問>`');
+          expectMentions(skeleton, [['1 回の呼び出しで 1 行だけ尋ね'], ['検証済みのフィールドと文字通り比較'], ['ROW-ID は保留中の選択を特定します'],
+            ['回答への参照とスコープ', '保存し'], ['許可された作業だけを修正してください']], 'skeleton');
           continue;
         }
         if (skillName === 'plan-eng-review') {
-          expectAll(queue, [/run every outside finding through the same Decision procedure/i, /record the reviewer and evidence/i,
-            /agreement between reviewers is evidence, not approval/i, /new or reopened choices still need their own answers/i,
-            /four-option menus instead of the ordinary 2-3 options/i,
-            /identify one independently answerable change before building its alternatives/i,
-            /keep necessary code, tests and docs for one approved behavior together/i,
-            /does not resolve the finding's other pending rows/i, /challenges wait for its final gate/i]);
+          expectMentions(queue, [['外部の所見はすべて', '同じ Decision procedure'], ['レビュアーと証拠を記録します'],
+            ['レビュアー間の一致は証拠であって承認ではありません'], ['新規または再オープンされた選択には', 'それぞれ独自の回答が必要です'],
+            ['4 択のメニュー', '通常の 2〜3 個'], ['独立して回答できる変更を 1 つ特定してから', '代替案を組み立て'],
+            ['必要なコード、テスト、ドキュメント', 'まとめて扱います'],
+            ['ある行への回答が', '他の保留中の行を解決することはありません'], ['チャレンジは、その最終ゲートまで待ちます']], 'queue');
           continue;
         }
-        ordered(queue, ['1. **Ground the evidence.**', '2. **Classify the finding.**',
-          '3. **Check the scope.**', '4. **Draft and answer one decision.**',
-          'Use AskUserQuestion', /wait for the actual answer/i, /then use a scoped Edit for those amendments before taking the next row/i]);
-        expect(queue).toContain('Defer this proposed change only');
-        expectAll(queue, [/hold every other value fixed or pending in every option/i, /split independently selectable changes/i,
-          /does not defer its entire candidate or approve a new schedule gate/i, /record its answer reference and exact accepted scope/i,
-          /does not resolve the finding's other pending rows/i, /challenges stay pending for the final gate/i]);
+        ordered(queue, ['1. **証拠を裏付ける。**', '2. **所見を分類する。**',
+          '3. **スコープを確認する。**', '4. **1 つの判断を起案して回答を得る。**',
+          'AskUserQuestion を使い', '実際の回答を待ちます', '限定的な Edit で反映します']);
+        expect(queue).toContain('この提案された変更だけを先送りする');
+        expectMentions(queue, [['ほかのすべての値は、すべての選択肢で固定または保留'], ['独立して選べる変更は分割します'],
+          ['その候補全体を先送りしたことにも', '新しいスケジュールのゲートを承認したことにもなりません'],
+          ['回答の参照', '受け入れられた正確なスコープを記録し'],
+          ['ある行への回答が', '他の保留中の行を解決することはありません'], ['チャレンジは最終ゲートまで保留のままです']], 'queue');
       }
     });
   }
@@ -827,10 +822,19 @@ describe('plan-review manual handoff selection', () => {
     ['ceo', 3], ['design', 5], ['devex', 4], ['eng', 3],
   ] as const)('supports every current %s review source handoff option', (skill, selected) => {
     const source = readFileSync(`plan-${skill}-review/sections/review-sections.md.tmpl`, 'utf8');
-    const handoff = source.split('## Next Steps — Review Chaining')[1]?.split('\n## ')[0] ?? '';
-    const labels = [...handoff.matchAll(/^- \*\*([A-E]\))(?:\*\* (.+)| ([^*]+)\*\*)/gm)]
-      .map(match => `${match[1]} ${(match[2] ?? match[3]!).replace(/:$/, '')}`);
-    expect(labels).toHaveLength(selected);
+    // The Japanese sources translate these headings (the devex one uses a different final word).
+    const heading = skill === 'eng' ? '## 次のステップ — レビューの連鎖'
+      : skill === 'devex' ? '## 次のステップ — レビューの連鎖' : '## 次のステップ — レビューの連鎖';
+    const handoff = source.split(heading)[1]?.split('\n## ')[0] ?? '';
+    const sourceLabels = [...handoff.matchAll(/^- \*\*([A-E]\))(?:\*\* (.+)| ([^*]+)\*\*)/gm)]
+      .map(match => ({ letter: match[1]!, text: (match[2] ?? match[3]!).replace(/:$/, '') }));
+    expect(sourceLabels).toHaveLength(selected);
+    // pickPlanReviewQuestion recognises the English labels a native question carries; map each
+    // Japanese source option onto the label of the same kind (run / ready to implement / skip).
+    const kind = (text: string) => /スキップ/.test(text) ? 'Skip — handle reviews manually'
+      : /実装の準備完了/.test(text) ? (/devex-review/.test(text) ? 'Ready to implement, run /devex-review after shipping' : 'Ready to implement — run /ship when done')
+      : `Run ${text.match(/\/(?:plan-(?:ceo|eng|design|devex)-review|design-shotgun|design-html)/)?.[0] ?? text}`;
+    const labels = sourceLabels.map(({ letter, text }) => `${letter} ${kind(text)}`);
     expect(pickPlanReviewQuestion(menu(labels, 'Next steps'))).toBe(selected);
     // Native dialogs allow at most four choices. Each applicable source subset
     // keeps its explicit non-running handoff; no absent choice is fabricated.
@@ -1318,10 +1322,10 @@ describe('Design native handoff formatting', () => {
 // accepted treatment. This guards the instructions, not model compliance.
 test('Design decision register grounds new items before offering design choices', () => {
   const template = readFileSync('plan-design-review/sections/review-sections.md.tmpl', 'utf8');
-  const register = compactProse(template.split('### Pass 7: Unresolved Design Decisions')[1]!.split('### Post-Pass:')[0]!);
-  ordered(register, [/cite an actual in-scope element/i, /each decision = one AskUserQuestion/i]);
-  expectAll(register, [/do not establish that a control exists/i, /keep the item conditional/i,
-    /do not invent controls or reopen accepted treatments/i]);
+  const register = compactProse(template.split('### パス 7: 未解決のデザイン上の決定')[1]!.split('### パス後:')[0]!);
+  ordered(register, ['実際に範囲内にある要素', '決定ごとに AskUserQuestion を1回行い']);
+  expectMentions(register, [['ページ名やセクション名', '根拠にはなりません'], ['存在が不明な場合は', '条件付き'],
+    ['コントロールを作り出したり', '承認済みの扱いを見直したりしない']], 'register');
 });
 
 

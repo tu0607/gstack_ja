@@ -18,14 +18,13 @@ import { expectMentions } from './helpers/prompt-structure';
 const ROOT = join(import.meta.dir, "..");
 const SKELETON = readFileSync(join(ROOT, "ship", "SKILL.md"), "utf-8");
 
-const GATE_TEXT =
-  'If on the base branch or the repo\'s default branch, **abort**: "You\'re on the base branch. Ship from a feature branch."';
+const GATE_TEXT = "「You're on the base branch. Ship from a feature branch.」";
 
 describe("ship Apple gate ordering (R2)", () => {
   test("the section index requires a store-distribution request, not merely an Apple repository", () => {
     const manifest = JSON.parse(readFileSync(join(ROOT, "ship", "sections", "manifest.json"), "utf-8"));
     const apple = manifest.sections.find((section: { id: string }) => section.id === "apple-release");
-    expect(SKELETON).toContain("is App Store/TestFlight distribution");
+    expect(SKELETON).toContain("App Store/TestFlight 配布の依頼");
   });
 
   test("the Apple adapter read directive precedes the branch gate", () => {
@@ -37,8 +36,8 @@ describe("ship Apple gate ordering (R2)", () => {
   });
 
   test("store distribution explicitly bypasses the branch/PR ceremony", () => {
-    expect(SKELETON).toContain("Store distribution proceeds");
-    expectMentions(SKELETON, [['only', 'repository-landing', 'pipeline']], 'SKELETON');
+    expectMentions(SKELETON, [['App Store', '現在のブランチ', 'ベースブランチ']], 'SKELETON');
+    expectMentions(SKELETON, [['ブランチゲート', 'リポジトリへの取り込み', 'のみ']], 'SKELETON');
   });
 
   test("the non-Apple branch gate is byte-unchanged and appears exactly once", () => {
@@ -49,22 +48,21 @@ describe("ship Apple gate ordering (R2)", () => {
 
   test("the adapter section exists in the union with its battle-tested spine", () => {
     const section = readFileSync(join(ROOT, "ship", "sections", "apple-release.md"), "utf-8");
-    for (const anchor of ["one authorization moment", "fastlane spaceauth", "iris/v1/apiKeys", "appPriceSchedules"]) {
+    for (const anchor of ["承認の機会", "fastlane spaceauth", "iris/v1/apiKeys", "appPriceSchedules"]) {
       expect(section).toContain(anchor);
     }
-    expectMentions(section, [['before', 'credentials', 'classify']], 'section');
-    expectMentions(section, [['never', 'topology', 'release']], 'section');
+    expectMentions(section, [['前に', '認証情報', '分類']], 'section');
+    expectMentions(section, [['ストア配布', 'リポジトリへの取り込みではありません']], 'section');
   });
 
   test("routine interaction limits cannot waive blocking documentation or safety decisions", () => {
     for (const name of ["apple-release.md.tmpl", "apple-release.md"]) {
       const section = readFileSync(join(ROOT, "ship", "sections", name), "utf-8").replace(/\s+/g, " ");
-      expect(section).toMatch(/two routine interactions/i);
-      expectMentions(section, [['stop', 'authorization', 'decision']], 'section');
-      expect(section).not.toContain("two permitted interactions");
-      expect(section.indexOf("**Documentation preflight:**")).toBeLessThan(section.indexOf("## The one authorization moment"));
-      expect(section).toContain("`read-only` mode");
-      expectMentions(section, [['before', 'documentation-risk', 'distribution']], 'section');
+      expect(section).toContain("2 回の通常のやり取り");
+      expectMentions(section, [['STOP', '承認', '判断']], 'section');
+      expect(section.indexOf("**ドキュメントの事前確認:**")).toBeLessThan(section.indexOf("## 承認の機会は 1 回だけ"));
+      expect(section).toContain("`read-only` モード");
+      expectMentions(section, [['配布の前に', 'ドキュメントリスク']], 'section');
     }
   });
 });

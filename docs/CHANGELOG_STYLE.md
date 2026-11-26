@@ -1,191 +1,138 @@
-# CHANGELOG + VERSION style
+# CHANGELOG + VERSION のスタイル
 
-Moved verbatim from CLAUDE.md (token-load reduction). Read this BEFORE
-writing any `## [X.Y.Z]` CHANGELOG entry.
+CLAUDE.md から、トークン量を減らすためにそのまま移しました。`## [X.Y.Z]` の CHANGELOG エントリを書く前に、必ずこれを読んでください。
 
-## Versioning and branch-scoped entries
+## バージョニングとブランチ単位のエントリ
 
-Moved verbatim from CLAUDE.md (#2096 size limit). The autonomous version
-policy (choose versions without asking; default to PATCH) stays in CLAUDE.md
-as the single source.
+CLAUDE.md から、そのまま移しました (#2096 のサイズ制限)。自律的なバージョンのポリシー (確認せずにバージョンを選ぶ。デフォルトは PATCH) は、
+唯一の正本として CLAUDE.md に残ります。
 
-**Versioning invariant (workspace-aware ship).** VERSION is a monotonic ordered
-release identifier, not a strict semver commitment. The bump level
-(major/minor/patch/micro) expresses intent at ship time. Queue-advancing past a
-claimed version within the same bump level is explicitly permitted — if branch A
-claims v1.7.0.0 as a MINOR and branch B is also a MINOR, B lands at v1.8.0.0
-(still a MINOR relative to main). Downstream consumers must NOT rely on
-"MINOR = feature-only, PATCH = fix-only" as a strict contract. This is why
-`bin/gstack-next-version` advances within the chosen bump level rather than
-repicking the level when collisions happen.
+**バージョニングの不変条件 (ワークスペースを考慮した ship)。** VERSION は単調増加する順序付きのリリース識別子であり、厳密な semver の約束ではありません。
+バンプの水準 (major/minor/patch/micro) は、ship の時点での意図を表します。同じバンプ水準の中で、すでに確保されたバージョンを越えて進めることは明示的に許可されています。
+ブランチ A が v1.7.0.0 を MINOR として確保し、ブランチ B も MINOR である場合、B は v1.8.0.0 として着地します
+(それでも main に対しては MINOR です)。下流の利用者は「MINOR = 機能のみ、PATCH = 修正のみ」を厳密な契約として当てにしてはなりません。
+これが、衝突が起きたときに `bin/gstack-next-version` が、バンプの水準を選び直すのではなく、同じバンプ水準の中で進める理由です。
 
-**package.json carries the npm-valid translation, not VERSION verbatim.**
-VERSION stays the 4-digit source of truth (e.g. `1.67.0.0`); package.json and
-any subdirectory manifests with a `version` field get the 3-digit npm-valid
-translation (`1.67.0`), and lockfile `version` fields sync only when the
-lockfile already exists. `bin/gstack-version-bump` (via `lib/version-source.ts`)
-owns the translation and judges drift on translated forms — do NOT "fix" the
-apparent mismatch by hand, and do not write a 4-digit version into
-package.json (npm rejects it). Rationale and translation rules live in the
-`lib/version-source.ts` header; `test/gstack-version-bump.test.ts` pins the
-contract.
+**package.json には、VERSION をそのまま入れるのではなく、npm に有効な変換後の値を入れます。**
+VERSION は 4 桁のソースの正本のままです (例: `1.67.0.0`)。package.json と、`version` フィールドを持つ任意のサブディレクトリのマニフェストには、
+3 桁の npm に有効な変換値 (`1.67.0`) が入ります。ロックファイルの `version` フィールドは、ロックファイルがすでに存在する場合にのみ同期されます。
+`bin/gstack-version-bump` (`lib/version-source.ts` 経由) がこの変換を担い、変換後の形でずれを判定します。
+見かけの不一致を手作業で「直す」ことはしないでください。また、package.json に 4 桁のバージョンを書いてはいけません (npm が拒否します)。
+理由と変換規則は `lib/version-source.ts` のヘッダーにあり、`test/gstack-version-bump.test.ts` がこの契約を検証します。
 
-**VERSION and CHANGELOG are branch-scoped.** Every feature branch that ships gets its
-own version bump and CHANGELOG entry. The entry describes what THIS branch adds —
-not what was already on main.
+**VERSION と CHANGELOG はブランチ単位です。** 出荷されるすべての機能ブランチは、それぞれ独自のバージョンのバンプと CHANGELOG のエントリを持ちます。
+エントリに書くのは、このブランチが追加するもの、つまり main にすでにあったものではありません。
 
-**The CHANGELOG entry is the diff between main and the shipping branch — what users
-get when they upgrade. NOT how the branch got there.** A reader landing on the entry
-should learn what they can do now that they couldn't before; they should not learn
-about the branch's internal version bumps, the bugs we caught and fixed mid-branch,
-the plan reviews we ran, or the commits we squashed. That is branch development
-narrative. It belongs in PR descriptions and commit messages, not CHANGELOG.
+**CHANGELOG のエントリは、main と出荷するブランチの差分です。利用者がアップグレードしたときに得るものであり、ブランチがどうやってそこに至ったかではありません。**
+エントリを読む人は、以前はできなかったことで今できるようになったことを知るべきです。ブランチの内部のバージョンのバンプ、途中で見つけて直したバグ、
+行ったプランレビュー、まとめたコミットについては、知る必要はありません。それはブランチ開発の経緯であり、PR の説明やコミットメッセージに書くものであって、
+CHANGELOG に書くものではありません。
 
-**Never reference branch-internal versions in a CHANGELOG entry.** If your branch
-bumped VERSION from v1.5.0.0 → v1.5.1.0 → v1.6.0.0 during development and only the
-final v1.6.0.0 ships to main, the entry must read as if v1.5.1.0 never existed.
-Concretely, NEVER write:
-- "v1.5.1.0 had a bug that v1.6.0.0 fixes" — readers don't know about v1.5.1.0; it's
-  a branch-internal artifact.
-- "The shipping headline of v1.5.1.0 was broken because..." — same reason. From main's
-  perspective, v1.5.1.0 was never released.
-- "Pre-fix tests encoded the broken behavior" — that's a contributor's victory lap,
-  not a user benefit.
-- "Two surgical edits, both in the dispatch path" — micro-narrative of the patch.
+**CHANGELOG のエントリで、ブランチ内部のバージョンを決して参照しないでください。** ブランチの開発中に VERSION が v1.5.0.0 → v1.5.1.0 → v1.6.0.0 とバンプされ、
+最終の v1.6.0.0 だけが main に出荷される場合、エントリは v1.5.1.0 が存在しなかったかのように読めなければなりません。
+具体的には、次のように書いてはいけません:
+- 「v1.5.1.0 にはバグがあり、v1.6.0.0 がそれを修正する」 — 読者は v1.5.1.0 を知りません。それはブランチ内部の成果物です。
+- 「v1.5.1.0 の出荷の目玉は、…のために壊れていた」 — 同じ理由です。main の視点では、v1.5.1.0 はそもそもリリースされていません。
+- 「修正前のテストは、壊れた動作をエンコードしていた」 — それは貢献者の自慢であり、利用者の利益ではありません。
+- 「2 回の外科的な編集、どちらもディスパッチの経路にある」 — パッチの細かい経緯です。
 
-Instead, describe the released system: "Browser-skills run end-to-end with the
-expected tab-access semantics." If a property of the shipped system is worth calling
-out (e.g., "skill spawns get permissive tab access; pair-agent tunnel tokens require
-ownership"), document it as a property, not as a fix. The shipped system is what
-the user gets; the path to that system is invisible to them.
+代わりに、リリースされたシステムとして書いてください: 「ブラウザスキルは、想定どおりのタブへのアクセスの意味論で、端から端まで動作する。」
+出荷されたシステムの性質で強調する価値があるもの (例: 「スキルの起動はタブへのアクセスを広く許可する。pair-agent のトンネルのトークンは所有権を必要とする」) は、
+修正としてではなく、性質として文書化してください。利用者が得るのは出荷されたシステムであり、そこに至る経路は利用者からは見えません。
 
-**When to write the CHANGELOG entry:**
-- At `/ship` time (Step 13), not during development or mid-branch.
-- The entry covers ALL commits on this branch vs the base branch.
-- Never fold new work into an existing CHANGELOG entry from a prior version that
-  already landed on main. If main has v0.10.0.0 and your branch adds features,
-  bump to v0.10.1.0 with a new entry — don't edit the v0.10.0.0 entry.
+**CHANGELOG のエントリを書くタイミング:**
+- 開発中やブランチの途中ではなく、`/ship` の時点 (Step 13) で書く。
+- エントリは、このブランチの、基準ブランチに対するすべてのコミットを対象にする。
+- すでに main に着地した以前のバージョンのエントリに、新しい作業を追記してはいけない。main に v0.10.0.0 があり、ブランチが機能を追加する場合は、v0.10.1.0 にバンプして新しいエントリを作る。v0.10.0.0 のエントリは編集しない。
 
-**Key questions before writing:**
-1. What branch am I on? What did THIS branch change?
-2. Is the base branch version already released? (If yes, bump and create new entry.)
-3. Does an existing entry on this branch already cover earlier work? (If yes, replace
-   it with one unified entry for the final version.)
+**書く前に確認する重要な質問:**
+1. どのブランチにいるか。このブランチは何を変えたか。
+2. 基準ブランチのバージョンはすでにリリースされているか。(はいなら、バンプして新しいエントリを作る。)
+3. このブランチにすでにあるエントリが、以前の作業をすでに含んでいないか。(はいなら、それを最終バージョンの 1 つの統合エントリで置き換える。)
 
-**Merging main does NOT mean adopting main's version.** When you merge origin/main into
-a feature branch, main may bring new CHANGELOG entries and a higher VERSION. Your branch
-still needs its OWN version bump on top. If main is at v0.13.8.0 and your branch adds
-features, bump to v0.13.9.0 with a new entry. Never jam your changes into an entry that
-already landed on main. Your entry goes on top because your branch lands next.
+**main をマージしても、main のバージョンを採用することにはなりません。** origin/main を機能ブランチにマージすると、main は新しい CHANGELOG のエントリと、より高い VERSION を持ち込むかもしれません。
+それでもあなたのブランチには、その上に独自のバージョンのバンプが必要です。main が v0.13.8.0 で、ブランチが機能を追加する場合は、v0.13.9.0 にバンプして新しいエントリを作ります。
+main に着地済みのエントリに、自分の変更を詰め込んではいけません。あなたのエントリは、あなたのブランチが次に着地するため、一番上に置かれます。
 
-**After merging main, always check:**
-- Does CHANGELOG have your branch's own entry separate from main's entries?
-- Is VERSION higher than main's VERSION?
-- Is your entry the topmost entry in CHANGELOG (above main's latest)?
-If any answer is no, fix it before continuing.
+**main をマージした後は、必ず確認してください:**
+- CHANGELOG に、main のエントリとは別に、このブランチ自身のエントリがあるか。
+- VERSION が main の VERSION より高いか。
+- あなたのエントリが CHANGELOG の一番上にあるか (main の最新のエントリより上か)。
+どれかが「いいえ」なら、作業を続ける前に直してください。
 
-**After any CHANGELOG edit that moves, adds, or removes entries,** immediately run
-`grep "^## \[" CHANGELOG.md` to verify no duplicates and a sensible reverse-chronological
-order. Gaps between version numbers are fine. A branch that ships at v1.6.4.0 without
-a prior v1.5.2.0 or v1.5.3.0 entry on main is correct — those were branch-internal
-version numbers that never landed. Do not back-fill gaps with placeholder entries.
+**エントリを移動、追加、削除する CHANGELOG の編集の後は、** 直ちに `grep "^## \[" CHANGELOG.md` を実行し、重複がないこと、そして降順の時系列順が妥当であることを確認してください。
+バージョン番号の間の欠番は問題ありません。main に以前の v1.5.2.0 や v1.5.3.0 のエントリがないまま、ブランチが v1.6.4.0 として出荷されるのは正しいことです。それらはブランチ内部のバージョン番号で、main には着地しなかったものです。欠番をプレースホルダーのエントリで埋めてはいけません。
 
-**Never orphan branch-internal versions.** If your branch bumped VERSION several times
-during development (v1.5.1.0 → v1.5.2.0 → v1.6.4.0, say) and those earlier entries were
-never released to main, the final ship consolidates ALL of them into a single entry at
-the final version (v1.6.4.0). Collapse them — delete the old entries and move their
-content into the final entry, re-version table columns accordingly. Readers see one
-release, not a branch diary. Gaps are fine (v1.6.3.0 → v1.6.4.0 with no v1.5.x
-in between on main is correct).
+**ブランチ内部のバージョンを孤立させないでください。** 開発中にブランチの VERSION が何度かバンプされ (例: v1.5.1.0 → v1.5.2.0 → v1.6.4.0)、それら以前のエントリが main にリリースされなかった場合、
+最終の出荷では、すべてを最終バージョン (v1.6.4.0) の 1 つのエントリにまとめます。古いエントリは削除し、その内容を最終のエントリに移し、表の列も
+それに合わせて付け替えます。読者が見るのは、ブランチの日記ではなく、1 つのリリースです。main で v1.5.x の
+エントリがないまま v1.6.3.0 から v1.6.4.0 へ進むのは、欠番であり正しいことです。
 
-CHANGELOG.md is **for users**, not contributors. Write it like product release notes:
+CHANGELOG.md は、貢献者ではなく**利用者のためのもの**です。製品のリリースノートのように書いてください:
 
-- Lead with what the user can now **do** that they couldn't before. Sell the feature.
-- Use plain language, not implementation details. "You can now..." not "Refactored the..."
-- **Never mention TODOS.md, internal tracking, eval infrastructure, or contributor-facing
-  details.** These are invisible to users and meaningless to them.
-- Put contributor/internal changes in a separate "For contributors" section at the bottom.
-- Every entry should make someone think "oh nice, I want to try that."
-- No jargon: say "every question now tells you which project and branch you're in" not
-  "AskUserQuestion format standardized across skill templates via preamble resolver."
+- 以前はできなかったことで、利用者が今**できる**ことから書く。機能を売り込む。
+- 平易な言葉を使い、実装の詳細は避ける。「できるようになりました…」であり、「…をリファクタリングしました」ではない。
+- **TODOS.md、内部の追跡、eval の基盤、貢献者向けの詳細には決して触れない。** これらは利用者には見えず、利用者にとって意味がありません。
+- 貢献者向けや内部の変更は、末尾の別の「For contributors」セクションに入れる。
+- すべてのエントリは、「お、それ試してみたい」と読者に思わせるものであるべきです。
+- 専門用語を使わない: 「AskUserQuestion の形式がプリアンブルのリゾルバーを通じてスキルのテンプレート全体で標準化された」ではなく、「どの質問でも、今どのプロジェクトとブランチにいるかがわかるようになりました」と書く。
 
-**Only document what shipped between main and this change.** Readers do not care how
-we got here. Keep out of the CHANGELOG, always:
+**CHANGELOG に載せるのは、main とこの変更の間に出荷されたものだけにしてください。** 読者は、ここまでの経緯には関心がありません。以下は常に CHANGELOG から除外します:
 
-- Branch resyncs, merge commits with main, rebase activity.
-- Plan approvals, review outcomes (CEO / eng / design / outside-voice / codex findings),
-  AskUserQuestion decisions, scope negotiations.
-- "Work queued," "plan approved," "in-progress," "will ship later" — the CHANGELOG
-  documents what DID ship, not what MIGHT ship.
-- Version-bump housekeeping when no user-facing work actually landed.
+- ブランチの再同期、main とのマージのコミット、rebase の作業。
+- プランの承認、レビューの結果 (CEO / eng / design / outside-voice / codex の指摘)、AskUserQuestion の決定、スコープの交渉。
+- 「作業のキュー」「プラン承認済み」「進行中」「後で出荷予定」。CHANGELOG に書くのは出荷されたもので、出荷されるかもしれないものではありません。
+- 利用者に見える作業が実際には何も着地していない場合のバージョンのバンプの雑務。
 
-If the diff between the base branch version and this version has no user-facing change
-(only merges, only CHANGELOG edits, only placeholder work), the honest entry is one
-sentence: "Version bump for branch-ahead discipline. No user-facing changes yet." Stop
-there. Do not pad. Do not explain the plan that will ship eventually. Do not narrate
-the branch's history. When real work lands, the entry will replace this at /ship time.
+基準ブランチのバージョンとこのバージョンの差分に、利用者に見える変更がない場合 (マージだけ、CHANGELOG の編集だけ、プレースホルダーの作業だけ) は、正直なエントリは 1 文です: 「ブランチ先行の運用のためのバージョンバンプ。利用者に見える変更はまだありません。」
+そこで止めてください。水増ししないこと。いずれ出荷されるプランを説明しないこと。ブランチの経緯を語らないこと。実際の作業が着地したら、そのエントリは /ship の時点で置き換えられます。
 
-### Raising the supported minimum (`capy/support.env`)
+### 最小サポートバージョンの引き上げ (`capy/support.env`)
 
-Release stamping can also raise `GSTACK_MIN_REVISION` in `capy/support.env`.
-Every Capy machine below it is fast-forwarded at its next session start, so
-raise it only for install-honesty or security fixes, and set it at stamp time
-to the VERSION being released. It never exceeds VERSION
-(test/capy-skill-wrapper.test.ts pins this). Details:
-[capy-install.md](capy-install.md#raising-the-supported-minimum).
+リリースのスタンプ処理では、`capy/support.env` の `GSTACK_MIN_REVISION` を引き上げることもできます。
+それより古い Capy のマシンはすべて、次のセッション開始時に早送りされます。そのため、引き上げるのは、インストールの正直さやセキュリティの修正のためだけにしてください。また、スタンプの時点で、
+リリースする VERSION に設定してください。VERSION を超えることは決してありません (test/capy-skill-wrapper.test.ts がこれを検証します)。詳細は
+[capy-install.md](capy-install.md#raising-the-supported-minimum) にあります。
 
-## Entry format
+## エントリの形式
 
-### Release-summary format (every `## [X.Y.Z]` entry)
+### リリース要約の形式 (すべての `## [X.Y.Z]` エントリ)
 
-Every version entry in `CHANGELOG.md` MUST start with a release-summary section in
-the GStack/Garry voice, one viewport's worth of prose + tables that lands like a
-verdict, not marketing. The itemized changelog (subsections, bullets, files) goes
-BELOW that summary, separated by a `### Itemized changes` header.
+`CHANGELOG.md` のすべてのバージョンのエントリは、必ず GStack/Garry の声によるリリース要約のセクションから始めなければなりません。これは、
+画面 1 枚分の散文と表で、マーケティングではなく、判定のように読めるものです。項目ごとの詳細な変更履歴 (小見出し、箇条書き、ファイル) は、
+`### Itemized changes` という見出しで区切り、その要約の下に置きます。
 
-The release-summary section gets read by humans, by the auto-update agent, and by
-anyone deciding whether to upgrade. The itemized list is for agents that need to
-know exactly what changed.
+リリース要約は、人間、自動アップデートのエージェント、そしてアップグレードするかどうかを判断する誰もが読みます。項目ごとの一覧は、何がどう変わったかを正確に知る必要のあるエージェントのためのものです。
 
-Structure for the top of every `## [X.Y.Z]` entry:
+すべての `## [X.Y.Z]` エントリの先頭の構成:
 
-1. **Two-line bold headline** (10-14 words total). Should land like a verdict, not
-   marketing. Sound like someone who shipped today and cares whether it works.
-2. **Lead paragraph** (3-5 sentences). What shipped, what changed for the user.
-   Specific, concrete, no AI vocabulary, no em dashes, no hype.
-3. **A "The X numbers that matter" section** with:
-   - One short setup paragraph naming the source of the numbers (real production
-     deployment OR a reproducible benchmark, name the file/command to run).
-   - A table of 3-6 key metrics with BEFORE / AFTER / Δ columns.
-   - A second optional table for per-category breakdown if relevant.
-   - 1-2 sentences interpreting the most striking number in concrete user terms.
-4. **A "What this means for [audience]" closing paragraph** (2-4 sentences) tying
-   the metrics to a real workflow shift. End with what to do.
+1. **太字の 2 行の見出し** (合計 10〜14 語)。宣伝文句ではなく、判定のように響くこと。今日出荷して、それが動くかどうかを気にかけている人のように話すこと。
+2. **導入の段落** (3〜5 文)。何が出荷されたか、利用者にとって何が変わったか。具体的で、明確で、AI 特有の語彙がなく、ダッシュ (em dash) を使わず、誇大な表現をしないこと。
+3. **「X の数字で重要なもの」というセクション** には次のものを含める:
+   - 数字の出所 (実際の本番環境のデプロイか、再現可能なベンチマークか。その数字を得るためのファイルかコマンドの名前) を示す、短い準備の段落を 1 つ。
+   - BEFORE / AFTER / Δ の列を持つ、主要な指標 3〜6 個の表。
+   - 関連する場合の、カテゴリごとの内訳を示す任意の 2 つ目の表。
+   - 最も印象的な数字を、利用者にとっての具体的な意味で解釈する 1〜2 文。
+4. **「[対象者] にとっての意味」という締めの段落** (2〜4 文)。指標を実際のワークフローの変化に結びつけ、何をすべきかで終えること。
 
-Voice rules for the release summary:
-- No em dashes (use commas, periods, "...").
-- No AI vocabulary (delve, robust, comprehensive, nuanced, fundamental, etc.) or
-  banned phrases ("here's the kicker", "the bottom line", etc.).
-- Real numbers, real file names, real commands. Not "fast" but "~30s on 30K pages."
-- Short paragraphs, mix one-sentence punches with 2-3 sentence runs.
-- Connect to user outcomes: "the agent does ~3x less reading" beats "improved precision."
-- Be direct about quality. "Well-designed" or "this is a mess." No dancing.
+リリース要約の声の規則:
+- ダッシュ (em dash) は使わない (カンマ、ピリオド、「…」を使う)。
+- AI 特有の語彙 (delve、robust、comprehensive、nuanced、fundamental など) や、定型の言い回し ("here's the kicker"、"the bottom line" など) を使わない。
+- 実際の数字、実際のファイル名、実際のコマンド。「速い」ではなく「30K ページで約 30 秒」。
+- 短い段落。1 文の鋭い一言と、2〜3 文の文章を混ぜる。
+- 利用者の成果と結びつける: 「エージェントが読む量が約 3 分の 1 になる」は、「精度が向上」よりも良い。
+- 品質については率直に。「よく設計されている」や「これはひどい」。遠回しな言い方はしない。
 
-Source material:
-- CHANGELOG previous entry for prior context.
-- Benchmark files or `/retro` output for headline numbers.
-- Recent commits (`git log <prev-version>..HEAD --oneline`) for what shipped.
-- Don't make up numbers. If a metric isn't in a benchmark or production data,
-  don't include it. Say "no measurement yet" if asked.
+出典:
+- 前のバージョンのエントリ (以前の文脈として)。
+- 主要な数字のためのベンチマークのファイルや `/retro` の出力。
+- 何が出荷されたかを示す最近のコミット (`git log <prev-version>..HEAD --oneline`)。
+- 数字を作ってはいけません。指標がベンチマークや本番データにない場合は、含めないでください。尋ねられたら「まだ測定していません」と言ってください。
 
-Target length: ~250-350 words for the summary. Should render as one viewport.
+目標の長さ: 要約で約 250〜350 語。画面 1 枚に収まるように。
 
-### Itemized changes (below the release summary)
+### 項目ごとの変更 (リリース要約の下)
 
-Write `### Itemized changes` and continue with the detailed subsections (Added,
-Changed, Fixed, For contributors). Same rules as the user-facing voice guidance
-above, plus:
+`### Itemized changes` と書き、詳細な小見出し (Added、Changed、Fixed、For contributors) を続けてください。上記の利用者向けの声のガイダンスと同じ規則に加えて、次の点があります:
 
-- **Always credit community contributions.** When an entry includes work from a
-  community PR, name the contributor with `Contributed by @username`. Contributors
-  did real work. Thank them publicly every time, no exceptions.
+- **コミュニティによる貢献は必ずクレジットする。** エントリにコミュニティの PR による作業が含まれる場合は、`Contributed by @username` で貢献者の名前を挙げてください。貢献者は実際に仕事をしてくれました。例外なく、毎回公に感謝を伝えてください。

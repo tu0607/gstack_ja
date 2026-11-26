@@ -28,9 +28,12 @@ function walk(dir: string): string[] {
 }
 
 test('every TESTING_INTERNALS.md anchor named in code matches a heading', () => {
-  const anchors = new Set(
-    [...fs.readFileSync(path.join(ROOT, DOC), 'utf8').matchAll(/^#{1,6} (.+)$/gm)].map(match => githubSlug(match[1]!)),
-  );
+  const doc = fs.readFileSync(path.join(ROOT, DOC), 'utf8');
+  // Headings are Japanese; code links use stable English slugs, declared as explicit <a id> anchors.
+  const anchors = new Set([
+    ...[...doc.matchAll(/^#{1,6} (.+)$/gm)].map(match => githubSlug(match[1]!)),
+    ...[...doc.matchAll(/<a id="([a-z0-9-]+)"><\/a>/g)].map(match => match[1]!),
+  ]);
   const references = SCAN.flatMap(walk).flatMap(file =>
     [...fs.readFileSync(path.join(ROOT, file), 'utf8').matchAll(/TESTING_INTERNALS\.md#([a-z0-9-]+)/g)]
       .map(match => ({ file, anchor: match[1]! })));

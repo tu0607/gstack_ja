@@ -9,7 +9,7 @@ import { autoplanPhaseCompletions } from './helpers/autoplan-phase-observer';
 import { auditAutoplanMethodReads, loadAutoplanMethodologyBinding } from './helpers/autoplan-method-read-audit';
 import { readPlanCountTranscript, type NativePublicToolEvent } from './helpers/plan-count-transcript';
 import captured from './fixtures/autoplan-phase-handoff-6714.json';
-import { expectMentions, expectTokens } from './helpers/prompt-structure';
+import { expectMentions, expectOrdered, expectTokens } from './helpers/prompt-structure';
 
 const ROOT = resolve(import.meta.dir, '..');
 const source = (file: string) => readFileSync(join(ROOT, file), 'utf8');
@@ -103,30 +103,28 @@ test('compaction restores the exact dispatch field from the existing immutable m
 });
 
 test('the working-plan destination rule leaves conversation messages in the conversation', () => {
-  const intake = source('autoplan/SKILL.md.tmpl').split('### Step 1: Capture restore point')[1]!.split('### Step 2:')[0]!;
-  expect(intake).not.toContain('Write all amendments/outputs to ACTIVE_PLAN');
-  expect(intake).toContain('Save plan amendments and review artifacts to ACTIVE_PLAN');
-  expectMentions(intake, [['approval', 'announcements', 'conversation']], 'intake');
+  const intake = source('autoplan/SKILL.md.tmpl').split('### 手順 1: 復元ポイントを取得する')[1]!.split('### 手順 2:')[0]!;
+  expectMentions(intake, [['ACTIVE_PLAN', '修正', '成果物', '保存']], 'intake');
+  expectMentions(intake, [['アナウンス', '承認', '会話']], 'intake');
 });
 
 test('CEO applies Step 0 decisions before each spec dispatch and refreshes the native input afterward', () => {
   const section = source('autoplan/sections/ceo-phase.md.tmpl');
-  const preliminary = section.slice(section.indexOf('**At 0H'), section.indexOf('Step 0.5 (Dual Voices)'));
-  expect(preliminary).toContain('`snapshotPath` as `<CEO_STEP0_CHECKPOINT>`');
-  expectMentions(preliminary, [['before', 'including', 'dispatch']], 'preliminary');
+  const preliminary = section.slice(section.indexOf('**0H'), section.indexOf('手順 0.5'));
+  expectMentions(preliminary, [['`snapshotPath`', '`<CEO_STEP0_CHECKPOINT>`']], 'preliminary');
+  expectMentions(preliminary, [['ディスパッチ', '前', '承認']], 'preliminary');
   expect(preliminary).toContain('amend-input ceo "<ACTIVE_PLAN>" "<CEO_STEP0_CHECKPOINT>" "<RESTORE_PATH>" "<methodologyPath>"');
-  expect(preliminary).toContain('use returned `reviewInputPath` as `<CEO_SPEC_INPUT>`');
-  expect(preliminary).toContain('returned `readRanges` offset/limit through EOF');
+  expectMentions(preliminary, [['`reviewInputPath`', '`<CEO_SPEC_INPUT>`']], 'preliminary');
+  expectMentions(preliminary, [['`readRanges`', 'offset', 'limit', 'EOF']], 'preliminary');
   expectTokens(preliminary, ['`<CEO_SPEC_INPUT>`'], 'preliminary');
-  expect(preliminary).toContain('three-launch cap');
+  expectMentions(preliminary, [['3 回', '上限']], 'preliminary');
 });
 
 test('compaction recovery separates saved artifacts, sent messages and pending reviewer state', () => {
-  const contract = source('autoplan/SKILL.md.tmpl').split('## Sequential Execution')[1]!.split('---')[0]!;
-  expectMentions(contract, [['before', 'announcement', 'procedure']], 'contract');
-  expectMentions(contract, [['wait', 'reviewer', 'pending']], 'contract');
-  expect(contract).toContain('Read `snapshot.json` beside that final `<PHASE_INPUT>`');
-  expect(contract).toContain('use its `nativeDispatchPrompt` unchanged');
+  const contract = source('autoplan/SKILL.md.tmpl').split('## 逐次実行 — 必須')[1]!.split('---')[0]!;
+  expectMentions(contract, [['アナウンス', '手順', '公開']], 'contract');
+  expectMentions(contract, [['レビュアー', '保留中', '待']], 'contract');
+  expectMentions(contract, [['`snapshot.json`', '`<PHASE_INPUT>`', '`nativeDispatchPrompt`', '変更せず']], 'contract');
 });
 
 test('a same-phase draft checkpoint cannot substitute for the post-Step-0 voice input', () => {
@@ -139,19 +137,19 @@ test('a same-phase draft checkpoint cannot substitute for the post-Step-0 voice 
   expect(loadAutoplanMethodologyBinding(final.nativeDispatchPrompt, [f.root]).phase).toBe('ceo');
   expect(draft.sha256).toBe(captured.originalImplementationSha256);
   expect(final.sha256).not.toBe(draft.sha256);
-  const contract = source('autoplan/SKILL.md.tmpl').split('## Sequential Execution')[1]!.split('---')[0]!;
-  expectMentions(contract, [['before', 'preliminary', 'incomplete']], 'contract');
-  expect(contract).toContain('Never dispatch `<CEO_STEP0_CHECKPOINT>`');
-  expectMentions(contract, [['does not', 'preliminary', 'create']], 'contract');
+  const contract = source('autoplan/SKILL.md.tmpl').split('## 逐次実行 — 必須')[1]!.split('---')[0]!;
+  expectMentions(contract, [['前', '未完了', '準備']], 'contract');
+  expectMentions(contract, [['`<CEO_STEP0_CHECKPOINT>`', 'ディスパッチ', '決して']], 'contract');
+  expectMentions(contract, [['最後', '存在しない', '作成']], 'contract');
 });
 
 test('taste overrides follow the existing affected-phase and final Eng rerun rule', () => {
   const skill = source('autoplan/SKILL.md.tmpl');
   const override = skill.split('- B:')[1]!.split('- B2:')[0]!;
-  expect(override).toContain('before re-presenting the gate');
-  expect(override).toContain('same 3-cycle cap as D');
-  expect(skill).toContain('scope→1, design→2, dx→2.5, test plan→3, arch→3');
-  expect(skill).not.toContain('scope→1B');
+  expectMentions(override, [['ゲート', '再提示', '前']], 'override');
+  expectMentions(override, [['D', '3 回', '上限']], 'override');
+  expect(skill).toContain('スコープ→1、デザイン→2、DX→2.5、テスト計画→3、アーキテクチャ→3');
+  expect(skill).not.toContain('スコープ→1B');
 });
 
 
@@ -202,23 +200,17 @@ test('captured parent text and a following tool can share a response without end
 });
 
 test('phase progress text permits immediate tool continuation in the same turn', () => {
-  const contract = source('autoplan/SKILL.md.tmpl').split('## Sequential Execution')[1]!.split('---')[0]!;
-  expect(contract.replace(/\s+/g, ' ')).toContain("load its `phase-close` section afresh");
-  expect(contract).toContain('in the same turn');
-  const shared = source('autoplan/sections/phase-close.md.tmpl').replace(/\s+/g, ' ');
-  const operations = ["3. **Prepare this phase's close packet.**", '4. **Read the complete current packet.**',
-    '5. **Verify the current implementation.**', '6. **Publish the parent report.**', '7. **Return to the driver.**'];
-  const positions = operations.map(operation => shared.indexOf(operation));
-  expect(positions.every(position => position >= 0)).toBe(true);
-  expect(positions).toEqual([...positions].sort((a, b) => a - b));
-  expect(shared).toContain('SEND the filled report below now as visible parent assistant text');
-  expectMentions(shared, [['before', 'next-phase', 'operation']], 'shared');
-  expect(shared).not.toContain('The packet owns the close continuation');
+  const contract = source('autoplan/SKILL.md.tmpl').split('## 逐次実行 — 必須')[1]!.split('---')[0]!;
+  expectMentions(contract, [['`phase-close`', '改めて', '読み込']], 'contract');
+  expectMentions(contract, [['同じターン', 'ツール呼び出し']], 'contract');
+  const shared = source('autoplan/sections/phase-close.md.tmpl');
+  expectOrdered(shared, ['\n3. **', '\n4. **', '\n5. **', '\n6. **', '\n7. **'], 'shared');
+  expectMentions(shared, [['親', 'アシスタント', '送信']], 'shared');
+  expectMentions(shared, [['次のフェーズ', 'ツール呼び出し', '前', '操作']], 'shared');
   for (const phase of ['ceo', 'design', 'dx', 'eng']) {
-    const close = source(`autoplan/sections/${phase}-phase.md.tmpl`).split('**Close this phase:**')[1]!;
+    const close = source(`autoplan/sections/${phase}-phase.md.tmpl`).split('**このフェーズを閉じる:**')[1]!;
     expect(close).toContain('{{SECTION:phase-close}}');
     expect(close.trim().endsWith('{{SECTION:phase-close}}')).toBe(true);
-    expect(close).not.toContain('**Phase ');
   }
 });
 

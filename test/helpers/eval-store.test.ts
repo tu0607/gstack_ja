@@ -95,7 +95,7 @@ async function captureStderr(fn: () => Promise<void>): Promise<string> {
 
 describe('EvalCollector', () => {
   test('manual provider refusal stays unscored and executed; malformed claims stay failed', async () => {
-    const manual = manualReviewFixture();
+    const manual = manualReviewFixture(undefined, { synthetic: true });
     const invalidPass = { ...manual, passed: true };
     const invalidScore = { ...manual, judge_scores: { clarity: 5 } };
     expect(evalEntryOutcome(manual)).toBe('manual-review');
@@ -638,7 +638,7 @@ describe('findLatestFinalizedRun', () => {
 
 describe('compareEvalResults', () => {
   test('manual acceptance is neither a score regression nor a recovery', () => {
-    const manual = manualReviewFixture();
+    const manual = manualReviewFixture(undefined, { synthetic: true });
     const prior = makeResult({ tests: [makeEntry({ name: manual.name, passed: true })] });
     const accepted = makeResult({ tests: [manual], passed: 0, failed: 0, manual_accepted_tests: 1 });
     const toManual = compareEvalResults(prior, accepted, 'prior.json', 'accepted.json');
@@ -655,7 +655,7 @@ describe('compareEvalResults', () => {
   });
 
   test('manual acceptance followed by a real or malformed failure is a blocking regression', () => {
-    const manual = manualReviewFixture();
+    const manual = manualReviewFixture(undefined, { synthetic: true });
     const accepted = makeResult({ tests: [manual], passed: 0, failed: 0, manual_accepted_tests: 1 });
     const { manual_review: _receipt, ...ordinary } = manual;
     for (const after of [

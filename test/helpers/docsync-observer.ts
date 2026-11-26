@@ -150,8 +150,8 @@ export function docsPreambleCommands(fixture: ReturnType<typeof fixtureDocs>): s
   const generated = fs.readFileSync(path.join(process.env.DOCSYNC_GENERATED_ROOT || path.resolve(import.meta.dir, '../..'),
     'document-release/SKILL.md'), 'utf8');
   const [command, expected] = [source, generated].map(text => {
-    if ((text.match(/^## Preamble \(run first\)[ \t]*\r?$/gm) ?? []).length !== 1) return undefined;
-    return /^## Preamble \(run first\)[ \t]*\r?\n(?:[ \t]*\r?\n)*```bash[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/m.exec(text)?.[1];
+    if ((text.match(/^## Preamble \(run first\)(?:\(プリアンブル。最初に実行\))?[ \t]*\r?$/gm) ?? []).length !== 1) return undefined;
+    return /^## Preamble \(run first\)(?:\(プリアンブル。最初に実行\))?[ \t]*\r?\n(?:[ \t]*\r?\n)*```bash[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/m.exec(text)?.[1];
   });
   if (!command || command !== expected) return [];
   return [command, command.replace(/(^|\n)("\$_SS" --skill|[^\s"]*\/gstack-skill-start --skill)/, '$1GSTACK_SESSION_KIND=spawned $2')];
@@ -159,7 +159,7 @@ export function docsPreambleCommands(fixture: ReturnType<typeof fixtureDocs>): s
 
 export function docsShipPhase(skeleton: string, prBody: string, scenario: DocsScenario, storePointer: string): string {
   if (scenario === 'store') return storePointer;
-  return `${sliceBetween(skeleton, '## Step 14.5: Documentation audit (every ship)', '## Step 15: Commit')}\n\n${sliceBetween(prBody, '## Documentation', '## Test plan')}`;
+  return `${sliceBetween(skeleton, '## Step 14.5:', '## Step 15:')}\n\n${sliceBetween(prBody, '## Documentation', '## Test plan')}`;
 }
 
 type DocsSessionOptionsInput = {

@@ -124,9 +124,9 @@ describe('interactive parity: one detector', () => {
   });
 
   test('autoplan Step 2 takes UI scope from the returned uiRequired instead of a prose grep', () => {
-    const step2 = fs.readFileSync(path.join(ROOT, 'autoplan', 'SKILL.md.tmpl'), 'utf8').split('### Step 2: Read context')[1]!.split('### Step 3:')[0]!;
+    const step2 = fs.readFileSync(path.join(ROOT, 'autoplan', 'SKILL.md.tmpl'), 'utf8').split('### 手順 2: 文脈を読む')[1]!.split('### 手順 3:')[0]!;
     expect(step2).toContain('`uiRequired`');
-    expect(step2).not.toMatch(/grep the plan/i);
+    expect(step2).not.toMatch(/grep the plan|(?:プラン|計画)を\s*grep/i);
     expect(fs.readFileSync(path.join(ROOT, 'autoplan', 'SKILL.md'), 'utf8')).toContain('`uiRequired`');
   });
 });

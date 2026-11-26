@@ -8,7 +8,7 @@
       "id": "command-list",
       "file": "command-list.md",
       "title": "Full command list + snapshot flags (generated reference)",
-      "trigger": "using any command or snapshot flag beyond the Browser fallback translation table — the full generated reference for every browse command, its argument shape, and every snapshot flag"
+      "trigger": "Browser fallback の変換表にないコマンドやスナップショットフラグの使用(すべての browse コマンド、引数の形、スナップショットフラグを網羅した生成リファレンス)"
     }
   ]
 }

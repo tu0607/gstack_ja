@@ -1,4 +1,4 @@
-import { defineHost, CROSS_MODEL_RESOLVERS, preambleToolGlossary } from './define-host';
+import { defineHost, CROSS_MODEL_RESOLVERS, preambleToolGlossary, japaneseToolRewrites } from './define-host';
 
 const hermes = defineHost({
   name: 'hermes',
@@ -18,6 +18,7 @@ const hermes = defineHost({
     { from: 'CLAUDE.md', to: 'AGENTS.md' },
   ],
   toolRewrites: {
+    ...japaneseToolRewrites({ bash: 'terminal ツール', write: 'patch ツール', read: 'read_file ツール', edit: 'patch ツール', agent: 'delegate_task ツール' }),
     'use the Bash tool': 'use the terminal tool',
     'use the Write tool': 'use the patch tool',
     'use the Read tool': 'use the read_file tool',
@@ -33,7 +34,7 @@ const hermes = defineHost({
     'the Write tool': 'the patch tool',
     'the Edit tool': 'the patch tool',
     // #2015: Hermes asks through clarify.
-    ...preambleToolGlossary('**Hermes tool names:** `AskUserQuestion` means your `clarify` tool (one question per call, options as choices); there is no `mcp__*__AskUserQuestion` variant.'),
+    ...preambleToolGlossary('**Hermes のツール名:** `AskUserQuestion` は `clarify` ツールを指します(1 回の呼び出しにつき質問は 1 つ、選択肢は choices として渡す)。`mcp__*__AskUserQuestion` の変種はありません。'),
   },
 
   suppressedResolvers: [

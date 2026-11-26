@@ -54,9 +54,9 @@ describe('question-tuning registry path is absolute (#2489)', () => {
   test('question identity covers prose and ad hoc IDs without enabling disabled tuning', () => {
     for (const host of ['claude', 'codex'] as const) {
       const out = generateQuestionTuning(makeCtx(host));
-      expect(out).toContain('skip entirely if `QUESTION_TUNING: false`');
-      expectMentions(out, [['before', 'conductor/fallback', 'askuserquestion']], 'out');
-      expect(out).toContain('`<gstack-qid:{question_id}>` once in the question text itself');
+      expect(out).toContain('`QUESTION_TUNING: false` の場合は丸ごとスキップ');
+      expectMentions(out, [['判断ブリーフ', 'AskUserQuestion', 'Conductor/フォールバック', '前に']], 'out');
+      expect(out).toContain('`<gstack-qid:{question_id}>` は、コマンドやログだけでなく質問文そのものに 1 回含めます');
     }
   });
 

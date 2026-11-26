@@ -341,12 +341,12 @@ describe('derivations shared with the review log and the final report', () => {
 
   test('autoplan Phase 4 places the URGENT block before the summary in the final report and in the plan file (B12)', () => {
     const tmpl = fs.readFileSync(path.join(import.meta.dir, '..', 'autoplan', 'SKILL.md.tmpl'), 'utf8');
-    const phase4 = tmpl.split('## Phase 4: Final Approval Gate')[1]?.split('**Option handling:**')[0] ?? '';
+    const phase4 = tmpl.split('## フェーズ 4: 最終承認ゲート')[1]?.split('**選択肢の処理:**')[0] ?? '';
     expect(urgentBlockPrecedes(phase4)).toBe(true);
     expect(phase4.indexOf('## URGENT, outside this plan')).toBeGreaterThan(phase4.indexOf('## /autoplan Review Complete'));
     expect(phase4).toContain('gstack-artifact urgent $_AP/findings.jsonl');
     expect(phase4).toContain('also written above `## Implementation plan` in ACTIVE_PLAN');
     const rendered = fs.readFileSync(path.join(import.meta.dir, '..', 'autoplan', 'SKILL.md'), 'utf8');
-    expect(urgentBlockPrecedes(rendered.split('## Phase 4: Final Approval Gate')[1] ?? '')).toBe(true);
+    expect(urgentBlockPrecedes(rendered.split('## フェーズ 4: 最終承認ゲート')[1] ?? '')).toBe(true);
   });
 });

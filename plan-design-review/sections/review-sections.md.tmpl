@@ -1,106 +1,93 @@
-## Review Sections (7 passes, after scope is agreed)
+## Review Sections(レビューのセクション。7つのパス、スコープ合意後)
 
-**Anti-skip rule:** Never condense, abbreviate, or skip any review pass (1-7) regardless of plan type (strategy, spec, code, infra). Every pass in this skill exists for a reason. "This is a strategy doc so design passes don't apply" is always wrong — design gaps are where implementation breaks down. If a pass genuinely has zero findings, say "No issues found" and move on — but you must evaluate it.
+**誤スキップ防止ルール:** プランの種類(戦略、仕様、コード、インフラ)にかかわらず、レビューパス(1〜7)を圧縮、省略、スキップしないでください。このスキルのすべてのパスには理由があります。「これは戦略ドキュメントなので設計パスは適用されない」という判断は常に誤りです。設計上のギャップこそ実装が破綻する箇所だからです。パスに本当に指摘事項がない場合は「指摘事項なし」と述べて次に進んでかまいませんが、そのパスを必ず評価しなければなりません。
 
-**Context:** This section continues `plan-design-review/SKILL.md`. If its setup
-is no longer in context, Read `~/.claude/skills/gstack/plan-design-review/SKILL.md`
-for the System Audit, Design Philosophy, Step 0, Step 0.5 mockup setup (`$D`),
-and Section self-check. Use their existing results; do not restart the review.
+**文脈:** このセクションは `plan-design-review/SKILL.md` の続きです。そのセットアップがもう文脈にない場合は、`~/.claude/skills/gstack/plan-design-review/SKILL.md` を Read して、システム監査、デザイン哲学、Step 0、Step 0.5 のモックアップセットアップ(`$D`)、セクションの自己チェックを確認してください。既存の結果を使い、レビューを最初からやり直さないでください。
 
-**Anti-shortcut clause:** Complete one decision cycle per unresolved finding:
-explain the gap, recommend options, obtain its individual decision, then apply
-the selected fix. Scope, focus, setup, and next-step choices approve no remedies.
-Never use the final next-step AskUserQuestion to satisfy the issue-approval loop.
-With no unresolved findings, no issue question is required.
+**誤った先送り防止条項:** 未解決の指摘事項ごとに、意思決定サイクルを1回完了させてください。ギャップを説明し、選択肢を推奨し、ユーザーから個別の決定を得てから、選ばれた修正を適用します。スコープ、フォーカス、セットアップ、次のステップの選択は、いかなる修正も承認しません。最後の次のステップの AskUserQuestion を、指摘事項の承認ループの代わりに使わないでください。未解決の指摘事項がなければ、指摘事項に関する質問は不要です。
 
-**Carry decisions across passes.** An issue is one unresolved design requirement
-or tradeoff, even when it appears in several plan locations. Before each pass,
-compare the plan, DESIGN.md, and the decisions already made:
+**パス間で決定を引き継ぐ。** 指摘事項とは、プランの複数箇所に現れても、1つの未解決のデザイン要件またはトレードオフのことです。各パスの前に、プラン、DESIGN.md、既に行われた決定を比較してください:
 
-| Situation | Required action |
+| 状況 | 必要な対応 |
 |-----------|-----------------|
-| The exact fix already has an individual user decision or a preamble-authorized per-issue auto-decision. | Reuse that decision. Apply it to all affected references and matching tokens; do not ask again. |
-| An accepted requirement needs to be copied unchanged into a required artifact, such as the journey storyboard. | Create the artifact without a separate format question. This records the requirement; it approves no new remedy. |
-| The plan violates DESIGN.md or has a gap, and no individual decision has approved its fix. | Ask about that issue and wait before fixing it, even if the input names the gap or DESIGN.md prescribes the exact token. Keep the proposed remedy pending meanwhile. |
-| New evidence introduces a missing requirement, a conflict, or a new tradeoff. | Name the new issue, offer alternatives, and obtain its individual decision before changing the plan. |
+| 修正案に、ユーザーの個別の決定、またはプリアンブルで承認された指摘ごとの自動決定が既にある。 | その決定を再利用し、影響するすべての参照と一致するトークンに適用する。再度質問しない。 |
+| 承認済みの要件を、ジャーニーのストーリーボードなど必須の成果物にそのまま写す必要がある。 | 別途フォーマットを尋ねずに成果物を作成する。これは要件を記録するだけで、新たな修正は承認しない。 |
+| プランが DESIGN.md に違反している、またはギャップがあり、その修正を承認する個別の決定がまだない。 | 入力がそのギャップを指摘していても、また DESIGN.md が正確なトークンを指定していても、その指摘について質問し、修正する前に回答を待つ。提案された修正は保留のままにする。 |
+| 新しい証拠により、不足している要件、矛盾、または新たなトレードオフが生じた。 | 新しい指摘を明示し、代替案を提示し、プランを変更する前にその指摘の個別の決定を得る。 |
 
-Writing a report, mapping a token, creating a mockup, or listing a task does not
-approve a remedy. If findings exist but only navigation was answered, the review
-is still waiting for its first issue decision.
+レポートの作成、トークンのマッピング、モックアップの作成、タスクの一覧化は、いずれも修正を承認しません。指摘事項はあるがナビゲーションにしか回答がない場合、レビューはまだ最初の指摘事項の決定を待っている状態です。
 
 {{LEARNINGS_SEARCH}}
 
-Evaluate every pass using the plan and referenced existing contracts. An explicitly excluded artifact is not a missing requirement: assess the same dimension with permitted evidence. Reopen that exclusion only for a concrete design gap, and ask before changing it.
+すべてのパスは、プランと参照されている既存の契約を使って評価してください。明示的に除外された成果物は、不足している要件ではありません。許可された証拠を使って同じ観点を評価してください。除外を見直すのは、具体的なデザイン上のギャップがある場合だけで、変更する前に質問してください。
 
-**Pass protocol (1-6):** Record the initial 0-10 score. Every `FIX TO 10` below is a proposal: ask about each issue, wait for approval, then edit the plan and re-rate that pass with the reason for the score change. Never edit first and ask afterward.
+**パスのプロトコル(1〜6):** 初期の 0〜10 のスコアを記録してください。以下の `FIX TO 10` はすべて提案です。各指摘について質問し、承認を待ち、そのうえでプランを編集し、スコアが変わった理由とともにそのパスを再評価してください。先に編集して後で質問することは決してしないでください。
 
-A declined fix remains documented: the unresolved gap keeps the rating below 10. Carry each pass's before/after scores and remaining gaps into the Completion Summary below. Compute the overall score as specified in the Completion Summary; do not treat litmus answers or Pass 7's decision counts as numeric ratings. Pass 7 is the unscored decision register, not a seventh rating.
+却下された修正は記録として残します。解消されていないギャップがあるパスのスコアは 10 未満のままです。各パスの修正前後のスコアと残りのギャップは、以下の完了サマリーに引き継いでください。総合スコアは完了サマリーの規定どおりに計算し、リトマス質問の回答やパス7の決定件数を数値評価として扱わないでください。パス7は採点しない決定事項の登録簿であり、7つ目の評価ではありません。
 
-A faithful restatement of an existing or already approved contract, such as a wireframe of the unchanged layout, is review evidence rather than a new design choice. Record it directly; ask if producing it would introduce or change a design decision. Finish with the Required Outputs and terminal Plan File Review Report below, including any unanswered decisions.
+既存の、または既に承認された契約の忠実な再記述(たとえば変更のないレイアウトのワイヤーフレーム)は、新しいデザイン上の選択ではなくレビューの証拠です。それを直接記録してください。作成することで設計上の決定が新たに導入されたり変更されたりする場合は質問してください。最後に、以下の必須成果物と最終的なプラン ファイルのレビューレポートで締めくくります。未回答の決定もそこに含めてください。
 
-### Pass 1: Information Architecture
-Rate 0-10: Does the plan define what the user sees first, second, third?
-FIX TO 10: Add information hierarchy to the plan. Include ASCII diagram of screen/page structure and navigation flow. Apply "constraint worship" — if you can only show 3 things, which 3?
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY. If no issues, say so and move on. Do NOT proceed until user responds.
+### パス 1: 情報アーキテクチャ
+評価 0〜10: プランは、ユーザーが最初、2番目、3番目に何を見るかを定義しているか?
+FIX TO 10: 情報階層をプランに追加する。画面/ページ構造とナビゲーションの流れを示す ASCII 図を含める。「制約への執着」を適用する。3つしか表示できないなら、どの3つか?
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。指摘がなければ、その旨を伝えて次に進む。ユーザーが応答するまで先に進まないこと。
 
-### Pass 2: Interaction State Coverage
-Rate 0-10: Does the plan specify loading, empty, error, success, partial states?
-FIX TO 10: Add interaction state table to the plan:
+### パス 2: インタラクション状態の網羅
+評価 0〜10: プランは、読み込み中、空、エラー、成功、一部成功の状態を定義しているか?
+FIX TO 10: インタラクション状態の表をプランに追加する:
 ```
   FEATURE              | LOADING | EMPTY | ERROR | SUCCESS | PARTIAL
   ---------------------|---------|-------|-------|---------|--------
   [each UI feature]    | [spec]  | [spec]| [spec]| [spec]  | [spec]
 ```
-For each state: describe what the user SEES, not backend behavior.
-Empty states are features — specify warmth, primary action, context.
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY.
+各状態について、バックエンドの動作ではなく、ユーザーが実際に目にするものを記述する。
+空の状態は機能の一部として扱う。温かみ、主要なアクション、文脈を指定する。
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。
 
-### Pass 3: User Journey & Emotional Arc
-Rate 0-10: Does the plan consider the user's emotional experience?
-FIX TO 10: Render the accepted journey as the required storyboard; do not ask whether to create it:
+### パス 3: ユーザージャーニーと感情の流れ
+評価 0〜10: プランはユーザーの感情的な体験を考慮しているか?
+FIX TO 10: 承認されたジャーニーを、必須のストーリーボードとして描く。作成するかどうかは尋ねないこと:
 ```
   STEP | USER DOES        | USER FEELS      | PLAN SPECIFIES?
   -----|------------------|-----------------|----------------
   1    | Lands on page    | [what emotion?] | [what supports it?]
   ...
 ```
-Apply time-horizon design: 5-sec visceral, 5-min behavioral, 5-year reflective.
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY.
+時間軸の設計を適用する: 5秒の本能的反応、5分の行動、5年の内省。
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。
 
-### Pass 4: AI Slop Risk
+### パス 4: AI スロップのリスク
 
-**Pass 4 evaluation:** Rate 0-10: Does the plan describe specific, intentional UI, or generic patterns? Record each hard-rejection hit and litmus YES/NO with evidence. An unresolved hard rejection caps this pass below 8 (not design-complete); it does not automatically set the score to 0. Litmus answers support findings, not a separate numeric score.
-Use plan text and any available mockups as evidence for the rules below.
+**パス4の評価:** 評価 0〜10: プランは、具体的で意図のある UI を記述しているか、それとも汎用的なパターンか? 各ハードリジェクションの該当と、リトマス質問への YES/NO を、根拠とともに記録する。解消されていないハードリジェクションがあると、このパスの評価は 8 未満に抑えられます(デザインが完成していない扱い)。自動的に 0 点になるわけではありません。リトマス質問の回答は指摘を裏付けるためのもので、独立した数値評価ではありません。
+以下のルールの根拠として、プランのテキストと、利用可能な場合はモックアップを使ってください。
 
 {{DESIGN_HARD_RULES}}
 
-FIX TO 10: Rewrite vague UI descriptions with specific alternatives:
-- "Cards with icons" → what differentiates these from every SaaS template?
-- "Hero section" → what makes this hero feel like THIS product?
-- "Clean, modern UI" → meaningless. Replace with actual design decisions.
-- "Dashboard with widgets" → what makes this NOT every other dashboard?
-If visual mockups were generated in Step 0.5, evaluate them against the AI slop blacklist above. Read each mockup image using the Read tool. Does the mockup fall into generic patterns (3-column grid, centered hero, stock-photo feel)? If so, flag it and offer to regenerate with more specific direction via `$D iterate --feedback "$(cat "$FEEDBACK_FILE")"` (the feedback in a private file, never inline); use its printed `outputPath` for any later view, check or board.
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY.
+FIX TO 10: 曖昧な UI の記述を、具体的な代替案に書き換える:
+- 「アイコン付きのカード」 → 何が、どのSaaSテンプレートとも違うのか?
+- 「ヒーローセクション」 → 何がこのヒーローを、この製品ならではのものにしているのか?
+- 「すっきりしたモダンな UI」 → 意味がない。実際のデザイン上の決定に置き換える。
+- 「ウィジェット付きのダッシュボード」 → 何が、ほかのダッシュボードと違うのか?
+Step 0.5 で視覚的なモックアップを生成した場合は、上記の AI スロップのブラックリストに照らして評価してください。Read ツールで各モックアップ画像を読みます。汎用的なパターン(3列グリッド、中央寄せのヒーロー、ストックフォトのような印象)に当てはまるか? 当てはまる場合は指摘し、より具体的な指示で再生成するか尋ねてください。その際は `$D iterate --feedback "$(cat "$FEEDBACK_FILE")"` を使います(フィードバックはインラインではなく非公開のファイルに置く)。以降の表示、確認、ボードには、表示される `outputPath` を使ってください。
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。
 
-### Pass 5: Design System Alignment
-Rate 0-10: Does the plan align with DESIGN.md?
-If DESIGN.md is absent, rate the plan's explicit token and component specifications. Missing specifications remain findings; do not skip the score or assume alignment.
-FIX TO 10: If DESIGN.md exists, annotate with specific tokens/components; when it has YAML front matter (the open DESIGN.md format), cite tokens by path (`{colors.primary}`, `{rounded.md}`) so the plan and the file share one vocabulary. If no DESIGN.md, flag the gap and recommend `/design-consultation`.
-Flag any new component — does it fit the existing vocabulary?
-Before offering a token-alignment fix, check whether an earlier pass already approved that outcome. If so, apply the established tokens and update every stale gap/reference under that decision; changing the plan location or spelling out the same fix is not a new issue. Ask again only if new evidence exposes an unresolved requirement or tradeoff, and name it. An unapproved violation still needs its first individual decision.
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY.
+### パス 5: デザインシステムとの整合
+評価 0〜10: プランは DESIGN.md と整合しているか?
+DESIGN.md がない場合は、プランに明示されたトークンとコンポーネントの指定を評価してください。指定がないものは指摘事項として残し、採点を省略したり整合していると仮定したりしないでください。
+FIX TO 10: DESIGN.md がある場合は、具体的なトークンやコンポーネントを注記する。YAML のフロントマターがある場合(オープンな DESIGN.md 形式)は、パスでトークンを引用する(`{colors.primary}`、`{rounded.md}`)。これにより、プランとファイルが同じ語彙を共有します。DESIGN.md がない場合は、そのギャップを指摘し、`/design-consultation` を推奨する。
+新しいコンポーネントにはフラグを立て、既存の語彙に合うかどうかを確認する。
+トークンの整合性に関する修正を提案する前に、以前のパスで同じ結果が既に承認されていないか確認してください。承認されている場合は、確立されたトークンを適用し、そのすべてのギャップ/参照を更新してください。プランの場所を変えたり、同じ修正を言い換えたりしても、新しい指摘にはなりません。新しい証拠によって未解決の要件やトレードオフが明らかになった場合にのみ、再度質問し、その内容を明示してください。承認されていない違反には、最初の個別の決定が必要です。
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。
 
-### Pass 6: Responsive & Accessibility
-Rate 0-10: Does the plan specify mobile/tablet, keyboard nav, screen readers?
-FIX TO 10: Add responsive specs per viewport — not "stacked on mobile" but intentional layout changes. Add a11y: keyboard nav patterns, ARIA landmarks, touch target sizes (44px min), color contrast requirements.
-**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY.
+### パス 6: レスポンシブとアクセシビリティ
+評価 0〜10: プランは、モバイル/タブレット、キーボード操作、スクリーンリーダーを指定しているか?
+FIX TO 10: ビューポートごとのレスポンシブ仕様を追加する。「モバイルでは縦に積む」ではなく、意図的なレイアウト変更を書く。アクセシビリティとして、キーボード操作のパターン、ARIA ランドマーク、タッチターゲットのサイズ(最小 44px)、コントラストの要件を追加する。
+**STOP.** 指摘1件ごとに AskUserQuestion を1回行う。まとめて聞かないこと。推奨案と理由を示す。
 
-### Pass 7: Unresolved Design Decisions
-Start from unresolved choices recorded in earlier passes. For each new item, cite an actual in-scope element and the missing decision in the plan, source, DESIGN.md, or approved mockup. Page/section names and outside-review suggestions do not establish that a control exists. Check the available artifacts first; if its existence is unknown, keep the item conditional and state what must be verified. Do not invent controls or reopen accepted treatments for a hypothetical element. Surface real missing decisions and concrete conflicts; approval of one treatment does not settle a different known element.
+### パス 7: 未解決のデザイン上の決定
+以前のパスで記録された未解決の選択肢から始める。新しい項目ごとに、プラン、ソース、DESIGN.md、または承認されたモックアップの中から、実際に範囲内にある要素と、欠けている決定を示すこと。ページ名やセクション名、外部レビューの提案では、コントロールが存在する根拠にはなりません。まず利用可能な成果物を確認すること。存在が不明な場合は、その項目を条件付きとして扱い、何を検証すべきかを明示してください。仮定の要素のために、コントロールを作り出したり、承認済みの扱いを見直したりしないこと。実際の欠けている決定と具体的な矛盾だけを提示し、ある扱いを承認しても、それが別の既知の要素を決めることにはならない。
 
-Preserve accepted user-facing outcomes. Choosing implementation mechanics does not
-reopen them; ask only if a concrete constraint exposes a new design requirement
-or tradeoff. Surface the remaining ambiguities that will haunt implementation:
+承認済みのユーザーに見える成果を保持すること。実装の仕組みを選ぶことで、それらを見直すことにはならない。具体的な制約によって新しいデザイン上の要件やトレードオフが明らかになった場合にのみ質問する。実装時に問題となる残りの曖昧さを提示する:
 ```
   DECISION NEEDED              | IF DEFERRED, WHAT HAPPENS
   -----------------------------|---------------------------
@@ -108,73 +95,61 @@ or tradeoff. Surface the remaining ambiguities that will haunt implementation:
   Mobile nav pattern?          | Desktop nav hides behind hamburger
   ...
 ```
-If visual mockups were generated in Step 0.5, reference them as evidence when surfacing unresolved decisions. A mockup makes decisions concrete — e.g., "Your approved mockup shows a sidebar nav, but the plan doesn't specify mobile behavior. What happens to this sidebar on 375px?"
-Each decision = one AskUserQuestion with recommendation + WHY + alternatives. Edit the plan with each decision as it's made.
-**STOP.** Wait for each answer before editing or advancing. Record unanswered decisions as unresolved.
+Step 0.5 で視覚的なモックアップを生成した場合は、未解決の決定事項を提示するときに、それを証拠として参照してください。モックアップは決定を具体的にします。たとえば「承認済みのモックアップにはサイドバーのナビゲーションが示されているが、プランではモバイルでの挙動が指定されていない。375px でこのサイドバーはどうなるか?」のように示します。
+決定ごとに AskUserQuestion を1回行い、推奨案、理由、代替案を示す。決定がなされるたびにプランを編集する。
+**STOP.** 各回答を待ってから、編集や次に進むことをしないこと。未回答の決定は未解決として記録する。
 
-### Post-Pass: Update Mockups (if generated)
+### パス後: モックアップの更新(生成された場合)
 
-After Pass 7: offer the mockup update below when applicable, resolve deferred TODO proposals, reconcile approvals, then synthesize tasks and the Completion Summary.
+パス7の後、該当する場合はモックアップの更新を以下のとおり提案し、保留中の TODO 提案を解決し、承認内容を照合し、そのうえでタスクと完了サマリーをまとめてください。
 
-If mockups were generated in Step 0.5 and review passes changed significant design decisions (information architecture restructure, new states, layout changes), offer to regenerate (one-shot, not a loop):
+Step 0.5 でモックアップを生成し、レビューのパスによって重要なデザイン上の決定(情報アーキテクチャの再構成、新しい状態、レイアウトの変更)が変わった場合は、モックアップの再生成を提案してください(1回限りで、ループはしない):
 
-AskUserQuestion: "The review passes changed [list major design changes]. Want me to regenerate mockups to reflect the updated plan? This ensures the visual reference matches what we're actually building."
+AskUserQuestion: 「レビューのパスで[主要なデザイン変更の一覧]が変わりました。更新されたプランを反映するためにモックアップを再生成しますか? これにより、視覚的な参照が実際に作ろうとしているものと一致します。」
 
-If yes, use `$D iterate` with feedback summarizing the changes, or `$D variants` with an updated brief; either text goes in a brief or feedback file, never inline. Save to the same `$_DESIGN_DIR` directory; nothing is overwritten, so do round accounting and carry the printed paths into any new board (rebuild it with the board block, which rewrites `board-images.json`) or check.
+はいの場合は、変更内容をまとめたフィードバックとともに `$D iterate` を使うか、更新されたブリーフとともに `$D variants` を使ってください。どちらのテキストも、ブリーフまたはフィードバックのファイルに入れ、インラインに書かないこと。`$_DESIGN_DIR` の同じディレクトリに保存してください。何も上書きされないので、ラウンドの管理を行い、表示されたパスを新しいボード(ボードのブロックで再構築し、`board-images.json` を書き直す)や確認に引き継いでください。
 
-## How to ask questions
-Follow the AskUserQuestion format from the Preamble above. Additional rules for plan design reviews:
-* **One issue = one AskUserQuestion call.** Never combine multiple issues into one question. Each call contains exactly one question; multiple question tabs in one call are also batching. If a user could choose either remedy without choosing the other, ask separately, even when both affect the same component or token file. Shared implementation work does not make independent design choices inseparable.
-* Describe the design gap concretely — what's missing, what the user will experience if it's not specified.
-* Present 2-3 options. For each: effort to specify now, risk if deferred.
-* **Map to Design Principles above.** One sentence connecting your recommendation to a specific principle.
-* Label with issue NUMBER + option LETTER (e.g., "3A", "3B").
-* **Zero findings:** if a section has zero findings, state "No issues, moving on" and proceed. Otherwise, use AskUserQuestion for each gap — a gap with an "obvious fix" is still a gap and still needs user approval before any change lands in the plan.
-* **NEVER use AskUserQuestion to ask which variant the user prefers.** Always create a comparison board first (`$D compare --serve`) and open it in the browser. The board has rating controls, comments, remix/regenerate buttons, and structured feedback output. Use AskUserQuestion ONLY to notify the user the board is open and wait for them to finish — not to present variants inline and ask "which do you prefer?" That is a degraded experience.
+## 質問の仕方
+上記のプリアンブルにある AskUserQuestion の形式に従ってください。プランのデザインレビュー向けの追加ルールは以下のとおりです:
+* **指摘1件 = AskUserQuestion 1回。** 1回の質問で複数の指摘をまとめないこと。各呼び出しには必ず1つの質問だけを含めます。1回の呼び出しで複数の質問タブを使うことも、まとめて聞くことになります。ユーザーが一方の修正を選んでも他方を選ぶ必要がない場合は、同じコンポーネントやトークンファイルに影響していても、別々に質問してください。実装の作業を共有していても、独立したデザイン上の選択が切り離せなくなるわけではありません。
+* デザイン上のギャップを具体的に説明する。何が欠けていて、それが指定されないとユーザーがどんな体験をするのかを示す。
+* 2〜3個の選択肢を提示する。各選択肢について、今指定する場合の工数と、先送りした場合のリスクを示す。
+* **上記のデザイン原則に対応づける。** 推奨案を、特定の原則に結びつける文を1つ添える。
+* 指摘の番号と選択肢の文字でラベルを付ける(例: 「3A」「3B」)。
+* **指摘事項ゼロ:** あるセクションに指摘事項がなければ、「指摘なし、次に進みます」と述べてから進む。そうでなければ、ギャップごとに AskUserQuestion を使う。「明らかな修正」があるギャップでも、それはギャップであり、変更をプランに反映する前にユーザーの承認が必要です。
+* **AskUserQuestion を使って、ユーザーがどのバリアントを好むかを尋ねないこと。** 必ず先に比較ボードを作成し(`$D compare --serve`)、ブラウザで開いてください。ボードには評価のコントロール、コメント、リミックス/再生成ボタン、構造化されたフィードバック出力があります。AskUserQuestion は、ボードが開いていることを伝え、ユーザーの完了を待つためだけに使ってください。バリアントをインラインで提示して「どちらがお好みですか?」と尋ねるために使わないこと。それは体験の劣化です。
 
-## Required Outputs
+## 必須の成果物
 
-### "NOT in scope" section
-Design decisions considered and explicitly deferred, with one-line rationale each.
+### 「スコープ外」セクション
+検討したうえで明示的に先送りしたデザイン上の決定。それぞれ一行の理由を付ける。
 
-### "What already exists" section
-Existing DESIGN.md, UI patterns, and components that the plan should reuse.
+### 「既存のもの」セクション
+プランが再利用すべき既存の DESIGN.md、UI パターン、コンポーネント。
 
-### TODOS.md updates
-Put implementation and verification of approved fixes in the plan tasks. Do not
-make in-scope verification an optional follow-up. Reserve deferred TODO proposals
-for unresolved/out-of-scope debt or a new scope decision or tradeoff. After the
-passes, ask about each such TODO individually; never batch. Honor explicit user
-deferrals. If none remain, say so.
+### TODOS.md の更新
+承認された修正の実装と検証は、プランのタスクに入れてください。スコープ内の検証をオプションの後続作業にしないこと。先送りする TODO の提案は、未解決やスコープ外の負債、または新しいスコープの決定やトレードオフのためだけに残してください。パスが終わったら、そのような TODO のそれぞれについて個別に質問し、まとめて聞かないこと。ユーザーが明示的に先送りした内容は尊重する。残っていなければ、その旨を伝えてください。
 
-For design debt: missing a11y, unresolved responsive behavior, deferred empty states. Each TODO gets:
-* **What:** One-line description of the work.
-* **Why:** The concrete problem it solves or value it unlocks.
-* **Pros:** What you gain by doing this work.
-* **Cons:** Cost, complexity, or risks of doing it.
-* **Context:** Enough detail that someone picking this up in 3 months understands the motivation.
-* **Depends on / blocked by:** Any prerequisites.
+デザインの負債の場合は、a11y の欠落、未解決のレスポンシブ挙動、先送りされた空の状態などです。各 TODO には以下を付ける:
+* **What:** 作業内容を一行で説明する。
+* **Why:** 解決する具体的な問題、または得られる価値。
+* **Pros:** この作業をすることで得られるもの。
+* **Cons:** この作業のコスト、複雑さ、リスク。
+* **Context:** 3か月後にこれを引き継いだ人が動機を理解できるだけの詳細。
+* **Depends on / blocked by:** 前提条件があれば記載する。
 
-Then present options: **A)** Add to TODOS.md **B)** Skip — not valuable enough **C)** Build it now in this PR instead of deferring.
+そのうえで選択肢を提示する: **A)** TODOS.md に追加 **B)** スキップ — それほど価値がない **C)** 先送りせず、この PR で今すぐ作る
 
-Before synthesizing tasks or the completion summary, perform the approval
-reconciliation from the Section self-check in `~/.claude/skills/gstack/plan-design-review/SKILL.md` (Read it if no longer in context). Export only agreed implementation work; retain unapproved remedies as pending findings.
-Count only individually approved new decisions in "Decisions made" and the
-review log; a proposed remedy or next-step answer contributes zero.
+タスクや完了サマリーをまとめる前に、`~/.claude/skills/gstack/plan-design-review/SKILL.md` の「セクションの自己チェック」にある承認の照合を行ってください(文脈にない場合は Read する)。合意された実装作業だけを書き出し、承認されていない修正は未解決の指摘として保留してください。
+「決定事項」とレビューログに数えるのは、個別に承認された新しい決定だけです。提案された修正や次のステップへの回答は0件として数えます。
 
 {{TASKS_SECTION_EMIT:design-review}}
 
-### Completion Summary
-Prepare this for the saved review; announce completion after the Read-back gate below.
-In the plan file, write it as its own `## Design Review Completion Summary` section
-(the box, the deferred list and the Unresolved Decisions below) above the terminal
-`## GSTACK REVIEW REPORT`, replacing this review's earlier one. Never write it inside
-the report: the next plan review deletes and regenerates everything under that heading.
+### 完了サマリー
+これを保存されるレビューのために準備してください。完了の宣言は、以下の読み返しゲートの後に行います。
+プランファイルでは、これを独立した `## Design Review Completion Summary` セクションとして書いてください(ボックス、先送りの一覧、以下の未解決の決定事項を含む)。終端の `## GSTACK REVIEW REPORT` の上に置き、このレビューで以前に書いたものは置き換えます。レポートの中には決して書かないこと。次のプランレビューがその見出しの下にあるすべてを削除して再生成するためです。
 
-**Overall design score:** use the lowest of the six rated pass scores (1-6),
-separately before and after approved fixes. Pass 7 is unscored. Keep Step 0's
-initial impression in its own row. An overall 8+ therefore means every rated
-pass is 8+; unresolved findings still prevent a clean review log.
+**総合デザインスコア:** 承認された修正の前後それぞれについて、評価したパス(1〜6)の6つのスコアのうち最も低いものを使う。パス7は採点しない。Step 0 の初期印象は、独自の行に残す。総合スコアが 8 以上というのは、評価したすべてのパスが 8 以上であることを意味します。未解決の指摘がある限り、クリーンなレビューログにはできません。
 
 ```
   +====================================================================+
@@ -200,15 +175,15 @@ pass is 8+; unresolved findings still prevent a clean review log.
   +====================================================================+
 ```
 
-After Read-back, if all passes 8+: "Plan is design-complete. Run /design-review after implementation for visual QA."
-If any below 8: note what's unresolved and why (user chose to defer).
+読み返しの後、すべてのパスが 8 以上であれば: 「プランはデザインとして完成しています。実装後に /design-review を実行してビジュアル QA を行ってください。」
+8 未満のパスがあれば: 何が未解決で、なぜかを記載する(ユーザーが先送りを選んだ場合)。
 
-### Unresolved Decisions
-List every unresolved finding here, including a finding not yet asked or an unanswered AskUserQuestion. Never silently default to an option.
+### 未解決の決定事項
+未解決の指摘をすべてここに記載する。まだ質問していない指摘や、未回答の AskUserQuestion も含める。選択肢を黙ってデフォルトにしないこと。
 
-### Approved Mockups
+### 承認済みモックアップ
 
-If visual mockups were generated during this review, add to the plan file:
+このレビューで視覚的なモックアップを生成した場合は、プランファイルに以下を追加する:
 
 ```
 ## Approved Mockups
@@ -218,29 +193,27 @@ If visual mockups were generated during this review, add to the plan file:
 | [screen name]  | [absolute $_DESIGN_DIR]/[filename].png | [brief description] | [constraints from review] |
 ```
 
-Include the full path to each approved mockup (the variant the user chose), a one-line description of the direction, and any constraints. The implementer reads this to know exactly which visual to build from. These persist across conversations and workspaces. If no mockups were generated, omit this section.
+承認された各モックアップ(ユーザーが選んだバリアント)の完全なパス、方向性の一行説明、制約を含めてください。実装者はこれを読んで、どの視覚資料を基に作ればよいかを正確に把握します。これらは会話やワークスペースをまたいで保持されます。モックアップを生成していない場合は、このセクションを省略してください。
 
 {{PLAN_FILE_REVIEW_REPORT}}
 
-## Review Log
+## レビューログ
 
-When a plan/report file is in scope, persist only after its successful write and Read-back
-above. On failure, report the error and stop; do not log completion or an accepted decision.
-**PLAN MODE EXCEPTION — ALWAYS RUN after verification:** these commands write review
-metadata to `~/.gstack/`; the following dashboard reads the saved result.
+プラン/レポートのファイルがスコープに入っている場合は、上記の正常な書き込みと読み返しの後にのみ保存してください。失敗した場合はエラーを報告して停止し、完了や承認された決定を記録しないでください。
+**PLAN MODE EXCEPTION — 検証後に必ず実行:** これらのコマンドはレビューのメタデータを `~/.gstack/` に書き込みます。後続のダッシュボードは、保存された結果を読み取ります。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-design-review","timestamp":"TIMESTAMP","status":"STATUS","initial_score":N,"overall_score":N,"unresolved":N,"decisions_made":N,"commit":"COMMIT"}'
 ```
 
-Substitute values from the Completion Summary:
-- **TIMESTAMP**: current ISO 8601 datetime
-- **STATUS**: "clean" if overall score 8+ AND 0 unresolved; otherwise "issues_open"
-- **initial_score**: initial overall design score before fixes (0-10)
-- **overall_score**: final overall design score after fixes (0-10)
-- **unresolved**: number of unresolved design decisions
-- **decisions_made**: number of design decisions added to the plan
-- **COMMIT**: output of `git rev-parse --short HEAD`
+完了サマリーの値で置き換えてください:
+- **TIMESTAMP**: 現在の ISO 8601 形式の日時
+- **STATUS**: 総合スコアが 8 以上かつ未解決が 0 件なら "clean"、それ以外は "issues_open"
+- **initial_score**: 修正前の総合デザインスコア(0〜10)
+- **overall_score**: 修正後の最終的な総合デザインスコア(0〜10)
+- **unresolved**: 未解決のデザイン上の決定の件数
+- **decisions_made**: プランに追加されたデザイン上の決定の件数
+- **COMMIT**: `git rev-parse --short HEAD` の出力
 
 {{REVIEW_DASHBOARD}}
 
@@ -252,34 +225,28 @@ Substitute values from the Completion Summary:
 
 {{BRAIN_CACHE_REFRESH}}
 
-## Next Steps — Review Chaining
+## 次のステップ — レビューの連鎖
 
-After displaying the Review Readiness Dashboard, recommend the next review(s) based on what this design review discovered. Read the dashboard output to see which reviews have already been run and whether they are stale.
+レビューの準備状況ダッシュボードを表示した後、このデザインレビューで判明したことに基づいて、次に行うべきレビューを推奨してください。ダッシュボードの出力を読み、どのレビューが既に実行されていて、どれが古くなっているかを確認します。
 
-**Recommend /plan-eng-review if eng review is not skipped globally** — check the dashboard output for `skip_eng_review`. If it is `true`, eng review is opted out — do not recommend it. Otherwise, eng review is the required shipping gate. If this design review added significant interaction specifications, new user flows, or changed the information architecture, emphasize that eng review needs to validate the architectural implications. If an eng review already exists but the commit hash shows it predates this design review, note that it may be stale and should be re-run.
+**全体で eng レビューがスキップされていなければ /plan-eng-review を推奨する。** ダッシュボードの出力で `skip_eng_review` を確認してください。`true` の場合は eng レビューがオプトアウトされているので、推奨しないこと。それ以外の場合、eng レビューは必須の出荷ゲートです。このデザインレビューで重要な操作仕様、新しいユーザーフローが追加されたり、情報アーキテクチャが変わったりした場合は、eng レビューがアーキテクチャ上の影響を検証する必要があることを強調してください。eng レビューが既にあるが、そのコミットハッシュがこのデザインレビューより前のものを示している場合は、古くなっている可能性があり、再実行すべきだと伝えてください。
 
-**Consider recommending /plan-ceo-review** — but only if this design review revealed fundamental product direction gaps. Specifically: if the overall design score started below 4/10, if the information architecture had major structural problems, or if the review surfaced questions about whether the right problem is being solved. AND no CEO review exists in the dashboard. This is a selective recommendation — most design reviews should NOT trigger a CEO review.
+**/plan-ceo-review を推奨することを検討する** — ただし、このデザインレビューで製品の方向性に関する根本的なギャップが明らかになった場合に限ります。具体的には、総合デザインスコアが 4/10 を下回って始まった場合、情報アーキテクチャに大きな構造上の問題があった場合、またはレビューによって正しい課題を解決しているのかという疑問が浮上した場合です。かつ、ダッシュボードに CEO レビューが存在しないこと。これは選択的な推奨です。ほとんどのデザインレビューでは CEO レビューを推奨すべきではありません。
 
-**If both are needed, recommend eng review first** (required gate).
+**両方が必要な場合は、eng レビューを先に推奨してください**(必須のゲート)。
 
-**Recommend design exploration skills when appropriate** — /design-shotgun and /design-html
-produce design artifacts (mockups, HTML previews), not application code. They belong in
-plan mode alongside reviews. If this design review found visual issues that would benefit
-from exploring new directions, recommend /design-shotgun. If approved mockups exist and
-need to be turned into working HTML, recommend /design-html.
+**デザイン探索スキルが適切な場合は推奨する** — /design-shotgun と /design-html は、アプリケーションのコードではなく、デザインの成果物(モックアップ、HTML プレビュー)を生成します。プランモードでレビューと並べて使うものです。このデザインレビューで、新しい方向性を探ると役立つ視覚的な問題が見つかった場合は /design-shotgun を推奨してください。承認済みのモックアップがあり、それを動作する HTML にする必要がある場合は /design-html を推奨してください。
 
-Use AskUserQuestion to present the next step. Always include the manual/stop
-option E; offer only applicable follow-on skills. If the user chooses manual,
-finish without starting another skill:
-- **A)** Run /plan-eng-review next (required gate)
-- **B)** Run /plan-ceo-review (only if fundamental product gaps found)
-- **C)** Run /design-shotgun — explore visual design variants for issues found
-- **D)** Run /design-html — generate Pretext-native HTML from approved mockups
-- **E)** Skip — I'll handle next steps manually
+次のステップを提示するには AskUserQuestion を使ってください。常に手動/停止の選択肢 E を含め、該当するフォローアップのスキルだけを提示します。ユーザーが手動を選んだ場合は、別のスキルを開始せずに終了してください:
+- **A)** 次に /plan-eng-review を実行する(必須のゲート)
+- **B)** /plan-ceo-review を実行する(製品の根本的なギャップが見つかった場合のみ)
+- **C)** /design-shotgun を実行する — 見つかった問題に対するビジュアルデザインのバリアントを探索する
+- **D)** /design-html を実行する — 承認済みのモックアップから Pretext ネイティブの HTML を生成する
+- **E)** スキップ — 次のステップは自分で対応します
 
-## Formatting Rules
-* NUMBER issues (1, 2, 3...) and LETTERS for options (A, B, C...).
-* Label with NUMBER + LETTER (e.g., "3A", "3B").
-* One sentence max per option.
-* Pause for each unresolved issue. If a pass has none, say so and continue; do not manufacture a question.
-* Rate before and after each pass for scannability.
+## フォーマットのルール
+* 指摘は番号(1, 2, 3...)、選択肢は文字(A, B, C...)で示す。
+* 番号と文字でラベルを付ける(例: 「3A」「3B」)。
+* 選択肢の説明は最大1文。
+* 未解決の指摘ごとに一時停止する。パスに指摘がなければその旨を伝えて続行し、質問を作り出さないこと。
+* 比較しやすいよう、各パスの前後でスコアを評価する。

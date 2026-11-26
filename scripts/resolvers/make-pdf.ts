@@ -13,7 +13,7 @@ import { binaryAssignment } from './runtime-root';
  * which the prelude resolves repo-local first).
  */
 export function generateMakePdfSetup(ctx: TemplateContext): string {
-  return `## MAKE-PDF SETUP (run this check BEFORE any make-pdf command)
+  return `## MAKE-PDF SETUP(make-pdf コマンドを実行する前に、必ずこのチェックを実行)
 
 \`\`\`bash
 ${binaryAssignment(ctx, 'make-pdf')}
@@ -26,24 +26,22 @@ else
 fi
 \`\`\`
 
-If \`MAKE_PDF_NOT_AVAILABLE\` is printed: tell the user the binary is not
-built. Have them run \`./setup\` from the gstack repo, then retry.
+\`MAKE_PDF_NOT_AVAILABLE\` が出力された場合: バイナリがビルドされていないことをユーザーに伝えます。gstack リポジトリで \`./setup\` を実行してもらい、その後やり直します。
 
-If \`MAKE_PDF_READY\` is printed: \`$P\` is the binary path for the rest of
-the skill. Use \`$P\` (not an explicit path) so the skill body stays portable.
+\`MAKE_PDF_READY\` が出力された場合: \`$P\` がスキルの残りの部分で使うバイナリのパスです。スキル本文を可搬に保つため、明示的なパスではなく \`$P\` を使います。
 
-Core commands:
-- \`"$P" generate <input.md> [output.pdf]\` — render markdown to PDF (80% use case)
-- \`"$P" generate --cover --toc essay.md out.pdf\` — full publication layout
-- \`"$P" generate --watermark DRAFT memo.md draft.pdf\` — diagonal DRAFT watermark
-- \`"$P" preview <input.md>\` — render HTML and open in browser (fast iteration)
-- \`"$P" setup\` — verify the browser (Aside, or gstack's own headless fallback) + pdftotext and run a smoke test
-- \`"$P" --help\` — full flag reference
+主なコマンド:
+- \`"$P" generate <input.md> [output.pdf]\` — Markdown を PDF にレンダリング(用途の 8 割)
+- \`"$P" generate --cover --toc essay.md out.pdf\` — 出版向けのフルレイアウト
+- \`"$P" generate --watermark DRAFT memo.md draft.pdf\` — 斜めの DRAFT 透かし
+- \`"$P" preview <input.md>\` — HTML をレンダリングしてブラウザで開く(素早い反復用)
+- \`"$P" setup\` — ブラウザ(Aside、または gstack 独自のヘッドレスフォールバック)と pdftotext を確認し、スモークテストを実行
+- \`"$P" --help\` — フラグの完全なリファレンス
 
-Output contract:
-- \`stdout\`: ONLY the output path on success. One line.
-- \`stderr\`: progress (\`Rendering HTML... Generating PDF...\`) unless \`--quiet\`.
-- Exit 0 success / 1 bad args / 2 render error / 3 TOC page numbers failed / 4 no browser available (open the Aside app, or run \`./setup\` to build gstack's own browser).
+出力の取り決め:
+- \`stdout\`: 成功時は出力パスのみ。1 行。
+- \`stderr\`: 進捗(\`Rendering HTML... Generating PDF...\`)。\`--quiet\` の場合は出力しません。
+- 終了コード: 0 成功 / 1 引数エラー / 2 レンダリングエラー / 3 目次のページ番号の取得失敗 / 4 利用可能なブラウザなし(Aside アプリを開くか、\`./setup\` を実行して gstack 独自のブラウザをビルドしてください)。
 
-PDFs print through Aside when it is running and through gstack's own headless browser otherwise; the stderr progress line says which (\`Rendering PDF through Aside\` / \`through gstack's browser\`).`;
+PDF は Aside が起動していれば Aside で、そうでなければ gstack 独自のヘッドレスブラウザで出力されます。どちらかは stderr の進捗行に表示されます(\`Rendering PDF through Aside\` / \`through gstack's browser\`)。`;
 }

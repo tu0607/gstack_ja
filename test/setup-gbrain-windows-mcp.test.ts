@@ -18,7 +18,7 @@ const ROOT = path.resolve(import.meta.dir, '..');
 const SKILL = fs.readFileSync(path.join(ROOT, 'setup-gbrain', 'SKILL.md'), 'utf-8');
 
 function localStdioFence(): string {
-  const section = SKILL.indexOf('### Paths 1, 2a, 2b, 3 (Local stdio)\n\nRegister at **user scope**');
+  const section = SKILL.indexOf('### Path 1、2a、2b、3(ローカル stdio)\n\n');
   expect(section).toBeGreaterThan(-1);
   const start = SKILL.indexOf('```bash\n', section) + '```bash\n'.length;
   return SKILL.slice(start, SKILL.indexOf('\n```', start));

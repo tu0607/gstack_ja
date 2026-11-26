@@ -28,28 +28,28 @@ export function forcedCriticalPhrase(): string {
 
 export function generateSidewaysSweep(_ctx: TemplateContext, args?: string[]): string {
   if (args?.[0] === 'cso') {
-    return 'After supporting a finding, grep its pattern at every other in-scope ingress, command and call site; severity follows the worst sibling.';
+    return '指摘を裏付けたら、そのパターンを対象範囲内の他のすべての ingress・コマンド・呼び出し箇所で grep します。重大度は最悪の兄弟箇所に合わせます。';
   }
-  return `**Sideways sweep (every finding; reads code OUTSIDE the diff).** Grep the finding's pattern at every other ingress, command and call site, Read each match and rate severity on the worst sibling; a new enum value, status, tier or type constant is traced through every consumer the same way (checklist: Sideways sweep). ${forcedCriticalPhrase().replace(/^d/, 'D')} is forced CRITICAL: no lane, specialist, dedup or saved decision downgrades it. Keep findings anchored to changed code.`;
+  return `**Sideways sweep(すべての指摘が対象。diff の外のコードを読む):** 指摘のパターンを他のすべての ingress・コマンド・呼び出し箇所で grep し、一致箇所をそれぞれ Read して、最悪の兄弟箇所で重大度を評価します。新しい enum 値・ステータス・tier・型定数も、同じ方法ですべての利用箇所まで追跡します(checklist: Sideways sweep)。${forcedCriticalPhrase().replace(/^d/, 'D')} は強制的に CRITICAL です。どのレーン・スペシャリスト・重複排除・保存済みの判断でも格下げできません。指摘は変更されたコードに紐づけたままにします。`;
 }
 
 export function generateFlakeFixNumber(_ctx: TemplateContext, args?: string[]): string {
   if (args?.[0] === 'investigate') {
-    return `**The flake-fix number.** A fix that touches only the test (a wider timeout, a retry,
-a looser assertion, a skip) must state \`P(fail | regression)\`: the probability the test
-still fails when the behavior it guards regresses, before and after the change. Derive
-it from the forced probe (break the behavior on purpose, run the test N times, count
-failures) and write both numbers in \`## Flake evidence\`. A number that drops is a gate
-relaxation (review tag RH-15) and needs the owner's decision, not a merge.`;
+    return `**flake 修正の数値:** テストだけに触れる修正(タイムアウトの延長、リトライ、
+アサーションの緩和、skip)は、変更の前後で \`P(fail | regression)\`、つまり
+テストが守る挙動が退行したときにテストがなお失敗する確率を明記しなければなりません。
+強制プローブ(意図的に挙動を壊し、テストを N 回実行して失敗を数える)から求め、
+両方の数値を \`## Flake evidence\` に書きます。数値が下がる場合はゲートの
+緩和(レビュータグ RH-15)にあたり、マージではなくオーナーの判断が必要です。`;
   }
-  return `A test-only flake fix (timeout, retry, looser assertion, skip) states \`P(fail | regression)\` before and after, from a forced probe; without both numbers it is RH-15.`;
+  return `テストのみの flake 修正(タイムアウト、リトライ、アサーションの緩和、skip)は、強制プローブから得た修正前後の \`P(fail | regression)\` を明記します。両方の数値がなければ RH-15 です。`;
 }
 
 /** The Scope Check lines the review-mode plan-completion audit adds (D2). */
 export function undeclaredBehaviorLines(): { fields: string; rule: string } {
   return {
     fields: `Diff read: full (<n> files, <m> hunks) | partial (<unread paths>)
-Undeclared behavior changes: <behavior the diff changes that the PR body, commit messages and plan do not state> | none`,
-    rule: `\`Diff read\` records the full-diff read Step 3 required; \`Scope Check: CLEAN\`, and options B and C above, count as approved only with \`Diff read: full\` recorded. A partial read is \`DRIFT DETECTED\` naming the unread paths. \`Undeclared behavior changes\` lists every behavior the diff changes (a default, an exit code, a stored value, a route, a side effect) that the author's own summary omits; each is a Scope Check item for the reviewer, never silently CLEAN.`,
+Undeclared behavior changes: <PR 本文・コミットメッセージ・計画に記載のない、diff が変更する挙動> | none`,
+    rule: `\`Diff read\` は Step 3 が求めた diff 全体の読み込みを記録します。\`Scope Check: CLEAN\` と上記の選択肢 B・C は、\`Diff read: full\` が記録されている場合にのみ承認として扱います。部分的な読み込みは、未読のパスを挙げた \`DRIFT DETECTED\` です。\`Undeclared behavior changes\` には、diff が変更する挙動(デフォルト値、終了コード、保存値、ルート、副作用)のうち、作者自身の要約に含まれないものをすべて挙げます。それぞれがレビュアー向けの Scope Check 項目であり、黙って CLEAN にしてはいけません。`,
   };
 }

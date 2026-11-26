@@ -1,89 +1,82 @@
-# DX Hall of Fame Reference
+# DX 名声の殿堂(Hall of Fame)リファレンス
 
-Read ONLY the section for the current review pass. Do NOT load the entire file.
+現在のレビューのパスのセクションだけを読んでください。ファイル全体を読み込んではいけません。
 
-## Pass 1: Getting Started
+## Pass 1: はじめ方(Getting Started)
 
-**Gold standards:**
-- **Stripe**: 7 lines of code to charge a card. Docs pre-fill YOUR test API keys when logged in. Stripe Shell runs CLI inside docs page. No local install needed.
-- **Vercel**: `git push` = live site on global CDN with HTTPS. Every PR gets preview URL. One CLI command: `vercel`.
-- **Clerk**: `<SignIn />`, `<SignUp />`, `<UserButton />`. 3 JSX components, working auth with email, social, MFA out of the box.
-- **Supabase**: Create a Postgres table, auto-generates REST API + Realtime + self-documenting docs instantly.
-- **Firebase**: `onSnapshot()`. 3 lines for real-time sync across all clients with offline persistence built-in.
-- **Twilio**: Virtual Phone in console. Send/receive SMS without buying a number, no credit card. Result: 62% improvement in activation.
+**ゴールドスタンダード:**
+- **Stripe**: カードに請求するのに 7 行のコード。ログインすると、ドキュメントが自分のテスト用 API キーを事前に入力してくれる。Stripe Shell はドキュメントページの中で CLI を動かせる。ローカルへのインストールは不要。
+- **Vercel**: `git push` で、HTTPS 付きのグローバル CDN 上にサイトが公開される。すべての PR にプレビュー URL が付く。CLI のコマンドは一つ: `vercel`。
+- **Clerk**: `<SignIn />`、`<SignUp />`、`<UserButton />`。JSX コンポーネント 3 つで、メール、ソーシャル、MFA を含む認証がそのまま動く。
+- **Supabase**: Postgres のテーブルを一つ作ると、REST API、Realtime、自己文書化されたドキュメントが即座に自動生成される。
+- **Firebase**: `onSnapshot()`。3 行で、オフライン永続化を備えたリアルタイム同期が全クライアントで動く。
+- **Twilio**: コンソールの仮想電話。番号を買わず、クレジットカードもなしで SMS を送受信できる。結果として、アクティベーションが 62% 改善した。
 
-**Anti-patterns:**
-- Email verification before any value (breaks flow)
-- Credit card required before sandbox
-- "Choose your own adventure" with multiple paths (decision fatigue; one golden path wins)
-- API keys hidden in settings (Stripe pre-fills them into code examples)
-- Static code examples without language switching
-- Separate docs site from dashboard (context switching)
+**アンチパターン:**
+- 価値を得る前にメール認証を求める(流れを壊す)
+- サンドボックスの前にクレジットカードを求める
+- 複数の経路がある「自分で選ぶ冒険(Choose your own adventure)」(決断疲れ。黄金の経路を一つに決めるべき)
+- API キーが設定の奥に隠れている(Stripe はコード例に事前入力する)
+- 言語を切り替えられない静的なコード例
+- ドキュメントサイトとダッシュボードが別々(文脈の切り替え)
 
-## Pass 2: API/CLI/SDK Design
+## Pass 2: API/CLI/SDK の設計
 
-**Gold standards:**
-- **Stripe prefixed IDs**: `ch_` for charges, `cus_` for customers. Self-documenting. Impossible to pass wrong ID type.
-- **Stripe expandable objects**: Default returns ID strings. `expand[]` gets full objects inline. Nested expansion up to 4 levels.
-- **Stripe idempotency keys**: Pass `Idempotency-Key` header on mutations. Safe retries. No "did I double-charge?" anxiety.
-- **Stripe API versioning**: First call pins account to that day's version. Test new versions per-request via `Stripe-Version` header.
-- **GitHub CLI**: Auto-detects terminal vs pipe. Human-readable in terminal, tab-delimited when piped. `gh pr <tab>` shows all PR actions.
-- **SwiftUI progressive disclosure**: `Button("Save") { save() }` to full customization, same API at every level.
-- **htmx**: HTML attributes replace JS. 14KB total. `hx-get="/search" hx-trigger="keyup changed delay:300ms"`. Zero build step.
-- **shadcn/ui**: Copy source code into your project. You own every line. No dependency, no version conflicts.
+**ゴールドスタンダード:**
+- **Stripe のプレフィックス付き ID**: 課金は `ch_`、顧客は `cus_`。それ自体で意味が分かる。間違ったタイプの ID を渡すことが不可能。
+- **Stripe の展開可能なオブジェクト**: デフォルトでは ID の文字列を返す。`expand[]` を使うと、完全なオブジェクトをインラインで取得できる。最大 4 階層までネスト可能。
+- **Stripe の冪等キー**: 変更を伴うリクエストに `Idempotency-Key` ヘッダーを付ける。安全に再試行できる。「二重に課金していないか?」という不安がない。
+- **Stripe の API バージョニング**: 最初の呼び出しで、アカウントをその日のバージョンに固定する。新しいバージョンは、リクエストごとに `Stripe-Version` ヘッダーで試せる。
+- **GitHub CLI**: ターミナルかパイプかを自動判別する。ターミナルでは人が読める形式、パイプ時はタブ区切り。`gh pr <tab>` で、すべての PR 操作が表示される。
+- **SwiftUI の段階的な開示**: `Button("Save") { save() }` から完全なカスタマイズまで、どのレベルでも同じ API。
+- **htmx**: HTML の属性が JS の代わりになる。合計 14KB。`hx-get="/search" hx-trigger="keyup changed delay:300ms"`。ビルドステップは不要。
+- **shadcn/ui**: ソースコードをプロジェクトにコピーする。すべての行を自分が所有する。依存関係がなく、バージョンの衝突もない。
 
-**Anti-patterns:**
-- Chatty API: requiring 5 calls for one user-visible action
-- Inconsistent naming: `/users` (plural) vs `/user/123` (singular) vs `/create-order` (verb in URL)
-- Implicit failure: 200 OK with error nested in response body
-- God endpoint: 47 parameter combinations with different behavior per subset
-- Documentation-required API: 3 pages of docs before first call = too much ceremony
+**アンチパターン:**
+- 煩雑な API: ユーザーに見える一つの操作に 5 回の呼び出しが必要
+- 命名の不統一: `/users`(複数形)と `/user/123`(単数形)と `/create-order`(URL に動詞)が混在
+- 暗黙の失敗: エラーがレスポンス本文の中に入ったまま 200 OK が返る
+- 神エンドポイント: 47 のパラメータの組み合わせがあり、部分集合ごとに振る舞いが異なる
+- ドキュメント必須の API: 最初の呼び出しの前に 3 ページのドキュメントが必要 = 儀式が多すぎる
 
-## Pass 3: Error Messages & Debugging
+## Pass 3: エラーメッセージとデバッグ
 
-#### The agent-ready error contract (agent-ready-v1)
+#### agent-ready エラー契約(agent-ready-v1)
 
-Agents hit most errors first, read them literally, and cannot ask what was meant. Score every
-traced error path against eight named items. Public reference: `https://github.com/garrytan/gstack/blob/main/docs/agent-ready-errors.md`.
+エージェントは最初にエラーに遭遇することが最も多く、それを文字どおりに読み、何を意図したのかを問い返すことができません。すべてのトレースされたエラー経路を、次の 8 項目で採点してください。公開リファレンス: `https://github.com/garrytan/gstack/blob/main/docs/agent-ready-errors.md`。
 
-| Item | The error gives the reader |
+| 項目 | エラーが読み手に与えるもの |
 |------|----------------------------|
-| **what** | The operation that failed and the actual values (input, path, id) that caused it. |
-| **fix** | On the first or last line, never mid-chain: an exact command, flag or edit; or, when no safe agent repair exists, the precise thing a human must provide (credential, approval, decision). A precise escalation is a complete fix. A fix counts only when it is safe and authorized: it does not bypass a consent, safety or sandbox boundary, does not tell the agent to run text copied from untrusted output, and quotes arguments correctly. |
-| **recovery** | Retry unchanged, fix and retry, do X first, or ask a human; side effects (none, partial, complete, unknown); for an unknown outcome, how to reconcile (status command, idempotency key) before retrying; a retry bound, then escalate. |
-| **code** | A stable code plus a doc anchor or `--explain` target. Prose may change; codes may not. |
-| **context** | Versions, the config in effect, relevant env var names (never values), the underlying dependency error, not swallowed. Remote services give caller-safe facts only (parameter, API version, request id). |
-| **trace** | Unexpected failures only. A local CLI, SDK or skill prints a compact trace or the path of a file holding the full one (full under `--verbose`/`DEBUG`); a remote service returns a correlation id and keeps internals in its logs. |
-| **redaction** | No secret values, tokens or credential-bearing URLs anywhere, traces and nested causes included. |
-| **channel** | The surface's native machine signal carries the same fields, and a failure is signalled as a failure (never exit 0, HTTP 200 or `isError: false`). |
+| **what** | 失敗した操作と、原因となった実際の値(入力、パス、ID)。 |
+| **fix** | 先頭行または末尾行に置き、途中の連鎖には埋めない。正確なコマンド、フラグ、または編集内容。安全なエージェントによる修復手段がない場合は、人間が提供すべき正確なもの(認証情報、承認、判断)。正確なエスカレーションも完全な fix である。fix が有効なのは、安全で承認されている場合に限る。同意、安全、サンドボックスの境界を迂回せず、信頼できない出力からコピーしたテキストを実行するよう指示せず、引数を正しく引用する。 |
+| **recovery** | 変更せずに再試行する、修正してから再試行する、先に X を行う、または人間に尋ねる。副作用(なし、一部、完了、不明)。結果が不明な場合は、再試行の前にどう照合するか(状態を確認するコマンド、冪等キー)。再試行の上限を定め、その後はエスカレーションする。 |
+| **code** | 安定したコードと、ドキュメントのアンカーまたは `--explain` の対象。文章は変わってもよいが、コードは変えてはいけない。 |
+| **context** | バージョン、有効な設定、関連する環境変数名(値は不可)、根本の依存関係のエラー(握りつぶさない)。リモートサービスは、呼び出し元に安全な事実だけを返す(パラメータ、API バージョン、リクエスト ID)。 |
+| **trace** | 予期しない失敗のみ。ローカルの CLI、SDK、スキルは、コンパクトなトレース、または完全なトレースを保存したファイルのパスを表示する(完全版は `--verbose`/`DEBUG` の下で表示)。リモートサービスは、相関 ID を返し、内部情報はそのログに残す。 |
+| **redaction** | トレースや入れ子になった原因も含め、秘密の値、トークン、認証情報を含む URL は一切出さない。 |
+| **channel** | そのサーフェスがネイティブに持つ機械向けのシグナルが、同じフィールドを運ぶ。失敗は失敗として通知する(exit 0、HTTP 200、`isError: false` にはしない)。 |
 
-**Failure class.** A usage or validation error rejected before any work began needs what, fix,
-code, redaction and channel; its recovery is implied (fix and retry, no side effects), and
-context, reconcile and retry bounds do not apply. Environment, dependency, partial-work and
-unexpected failures need every applicable item. Trace applies to unexpected failures only.
+**失敗のクラス。** 作業を始める前に拒否された、利用・検証エラーは、what、fix、code、redaction、channel が必要です。その recovery は暗黙のもの(修正して再試行、副作用なし)とみなし、context、reconcile、再試行の上限は適用しません。環境、依存関係、一部完了、予期しない失敗では、該当するすべての項目が必要です。trace は予期しない失敗にだけ適用します。
 
-**Surface.** Keyed to the product types from the Applicability Gate:
-- **CLI Tool:** channel is stderr plus a distinct non-zero exit, and a `--json` form when the tool offers structured output.
-- **API/Service:** channel is HTTP status plus an RFC 9457 problem-details body; context is caller-safe; trace is a correlation id.
-- **Library/SDK:** channel is a typed error class carrying the code and fields; no exit code.
-- **Platform:** the CLI or API rule for whichever interface the error reaches.
-- **Documentation:** what, fix, code and redaction only.
-- **Claude Code Skill:** channel is the skill's printed result line and code. An MCP tool (a sub-case) returns `isError: true` with the fields in text or structured content.
+**サーフェス。** 適用性ゲートのプロダクトタイプに対応させます:
+- **CLI Tool:** channel は stderr と、ゼロ以外の明確な終了コード。構造化された出力を持つ場合は `--json` の形式。
+- **API/Service:** channel は HTTP ステータスと RFC 9457 の problem-details 本文。context は呼び出し元に安全なもの。trace は相関 ID。
+- **Library/SDK:** channel はコードとフィールドを持つ型付きのエラークラス。終了コードはない。
+- **Platform:** エラーが届くインターフェースに応じて、CLI または API のルールに従う。
+- **Documentation:** what、fix、code、redaction のみ。
+- **Claude Code Skill:** channel は、スキルが表示する結果の行とコード。MCP ツール(その一種)は、フィールドを text または structured content に入れて `isError: true` を返す。
 
-**Evidence.** Each item on each path is pass, fail, N/A (with a reason) or unknown. In a plan
-review, an applicable item the plan never specifies for a path it introduces is a gap (fail);
-unknown is reserved for existing behavior you could not inspect. In a live audit, error classes
-you never triggered are unknown, not extrapolated.
+**証拠。** 各経路の各項目は、pass、fail、N/A(理由付き)、unknown のいずれかです。プランのレビューでは、プランが導入する経路について、該当する項目をプランが指定していなければ、ギャップ(fail)です。unknown は、検査できなかった既存の動作にだけ使います。ライブの監査では、一度もトリガーしなかったエラーの種類は unknown であり、推定してはいけません。
 
-**Caps.** Name the path and item behind every cap and show the corrected error line.
-- **4/10 (Critical finding, title `CAP4:<path>:<item>`):** a path leaks a secret, signals failure as success, gives an unsafe fix, or blocks waiting for a terminal (hangs, or fails for lack of a terminal without naming a non-interactive alternative such as `--yes`).
-- **6/10 (High finding, title `CAP6:<path>:<item>`):** a path lacks an applicable fix, recovery, context or trace item.
+**上限。** 上限の原因となった経路と項目を名指しし、修正後のエラー行を示してください。
+- **4/10(重大な指摘、タイトル `CAP4:<path>:<item>`):** 経路が秘密を漏らす、失敗を成功として通知する、安全でない fix を出す、または端末を待ってブロックする(ハングする、または `--yes` のような非対話の代替手段を示さずに端末がないことで失敗する)。
+- **6/10(重要な指摘、タイトル `CAP6:<path>:<item>`):** 経路に該当する fix、recovery、context、trace のいずれかがない。
 
-Every mode, DX TRIAGE included, reports every CAP4 finding.
+DX TRIAGE を含むすべてのモードで、すべての CAP4 の指摘を報告します。
 
-**Calibration.** The first three examples show single items done well; none of them alone meets every item.
+**キャリブレーション。** 最初の 3 つの例は、それぞれ単一の項目がうまくできている例です。どれも単独ではすべての項目を満たしていません。
 
-**Elm (what, fix, readable first line):**
+**Elm(what、fix、読める先頭行):**
 ```
 -- TYPE MISMATCH ---- src/Main.elm
 I cannot do addition with String values like this one:
@@ -91,9 +84,9 @@ I cannot do addition with String values like this one:
      ^^^^^^^
 Hint: To put strings together, use the (++) operator instead.
 ```
-First person, complete sentences, exact location, suggested fix.
+一人称、完全な文、正確な位置、修正の提案。
 
-**Rust (code, fix, `--explain`):**
+**Rust(code、fix、`--explain`):**
 ```
 error[E0308]: mismatched types
  --> src/main.rs:4:20
@@ -102,15 +95,14 @@ help: consider borrowing here
 4 |     let name: &str = &get_name();
   |                       +
 ```
-A stable code with `rustc --explain E0308`, primary and secondary labels, and a help line
-that shows the exact edit.
+安定したコードと `rustc --explain E0308`、一次と二次のラベル、正確な編集を示す help の行。
 
-**Stripe API (code, doc anchor, structured channel):**
+**Stripe API(code、ドキュメントのアンカー、構造化された channel):**
 ```json
 {"error":{"type":"invalid_request_error","code":"resource_missing","message":"No such customer: 'cus_nonexistent'","param":"customer","doc_url":"https://stripe.com/docs/error-codes/resource-missing"}}
 ```
 
-**Agent-ready CLI error (every applicable item).** stderr, exit 3:
+**エージェントに対応した CLI エラー(該当するすべての項目)。** stderr、終了コード 3:
 ```
 deploy: push to registry.example.com/acme/api:1.4.2 failed: 401 unauthorized (REGISTRY_AUTH)
   cause: docker login token in ~/.docker/config.json expired; nothing was pushed (side effects: none)
@@ -118,7 +110,7 @@ deploy: push to registry.example.com/acme/api:1.4.2 failed: 401 unauthorized (RE
   fix: run `deploy login --registry registry.example.com`, then rerun the same command (safe to retry once)
   docs: https://deploy.example.com/errors#REGISTRY_AUTH
 ```
-and with `--json`, the same fields as an RFC 9457 problem-details object with extension members:
+`--json` の場合は、同じフィールドを、拡張メンバーを持つ RFC 9457 の problem-details オブジェクトで表します:
 ```json
 {"type":"https://deploy.example.com/errors#REGISTRY_AUTH","title":"Registry push unauthorized",
  "detail":"push to registry.example.com/acme/api:1.4.2 failed: 401","instance":"req_7f3a",
@@ -126,79 +118,68 @@ and with `--json`, the same fields as an RFC 9457 problem-details object with ex
  "recovery":{"action":"fix_and_retry","side_effects":"none","max_retries":1},
  "context":{"version":"2.8.0","config":"./deploy.toml","env":["DEPLOY_REGISTRY"]}}
 ```
-An unexpected crash adds `trace: ~/.deploy/logs/crash-2026-10-16T18-02.log (rerun with
---verbose to print it)`. A remote API returns `instance` as its correlation id and keeps the
-trace in its own logs. `recovery.action` is retry | fix_and_retry | do_first | ask_human;
-`side_effects` is none | partial | complete | unknown, with `reconcile` (a status command)
-whenever it is unknown. These member names are illustrative; score the meaning, not the spelling.
+予期しないクラッシュでは、`trace: ~/.deploy/logs/crash-2026-10-16T18-02.log (rerun with
+--verbose to print it)` が加わります。リモート API は `instance` を相関 ID として返し、トレースは自身のログに残します。`recovery.action` は retry | fix_and_retry | do_first | ask_human のいずれか。`side_effects` は none | partial | complete | unknown のいずれかで、unknown の場合は必ず `reconcile`(状態を確認するコマンド)を付けます。これらのメンバー名は例示です。綴りではなく、意味を採点してください。
 
-**A partial example, gstack's own workflow errors:**
+**部分的な例。gstack 自身のワークフローのエラー:**
 ```
 findings.jsonl:12: severity must be one of Critical, High, Medium, Low, Informational (ARTIFACT_SCHEMA)
 ```
-It covers what (file, line, the constraint), code (with a `docs/troubleshooting.md` anchor
-that carries the `fix:`) and channel (exit 1). It lacks a fix on the line itself, a recovery
-class and context. It would score CAP6:fix.
+what(ファイル、行、制約)、code(`docs/troubleshooting.md` のアンカーに `fix:` がある)、channel(終了コード 1)は揃っています。しかし、行そのものに fix がなく、recovery の分類と context が欠けています。CAP6:fix と採点されます。
 
-**Standards mapping.** CLI Agent Spec (cli-agent-spec.github.io): per-exit-code `retryable`
-and `side_effects` → recovery. RFC 9457: `type` → code + doc anchor, `detail` → what,
-`instance` → trace for remote services. Stripe: `code` + `doc_url` → code. MCP tools:
-`isError: true` results the model can read → channel. clig.dev "Errors": the actionable line
-where the reader looks, debug info for unexpected errors → fix, trace.
+**標準との対応。** CLI Agent Spec(cli-agent-spec.github.io): 終了コードごとの `retryable` と `side_effects` → recovery。RFC 9457: `type` → code とドキュメントのアンカー、`detail` → what、`instance` → リモートサービスの trace。Stripe: `code` + `doc_url` → code。MCP ツール: モデルが読める `isError: true` の結果 → channel。clig.dev「Errors」: 読み手が見る場所にある実行可能な行 → fix、予期しない失敗のデバッグ情報 → trace。
 
-**Anti-patterns:** TypeScript buries "Did you mean?" mid-chain; put the fix on the first or
-last line. `Error: operation failed` with exit 0. A prompt that hangs when no terminal is
-attached. A stack trace that prints an API token.
+**アンチパターン:** TypeScript は「Did you mean?」を連鎖の途中に埋めてしまう。修正は先頭行か末尾行に置く。`Error: operation failed` が exit 0 で返る。端末が接続されていないとハングするプロンプト。API トークンを表示するスタックトレース。
 
-## Pass 4: Documentation & Learning
+## Pass 4: ドキュメントと学習(Documentation & Learning)
 
-**Gold standards:**
-- **Stripe docs**: Three-column layout (nav / content / live code). API keys injected when logged in. Language switcher persists across ALL pages. Hover-to-highlight. Stripe Shell for in-browser API calls. Built and open-sourced Markdoc. Features don't ship until docs are finalized. Docs contributions affect performance reviews.
-- 52% of developers blocked by lack of documentation (Postman 2023)
-- Companies with world-class docs see 2.5x increase in adoption
-- "Docs as product": ships with the feature or the feature doesn't ship
+**ゴールドスタンダード:**
+- **Stripe のドキュメント**: 3 カラムのレイアウト(ナビ / 本文 / ライブコード)。ログイン時には API キーが埋め込まれる。言語の切り替えはすべてのページで保持される。マウスオーバーでハイライト。ブラウザ内で API を呼び出せる Stripe Shell。Markdoc を開発してオープンソース化。ドキュメントが確定するまで機能をリリースしない。ドキュメントへの貢献は人事評価に影響する。
+- 開発者の 52% が、ドキュメント不足で作業を止められている(Postman 2023)
+- 世界最高水準のドキュメントを持つ企業は、採用が 2.5 倍に増えている
+- 「製品としてのドキュメント」: 機能と一緒に出荷される。ドキュメントができなければ、機能も出荷しない
 
-## Pass 5: Upgrade & Migration Path
+## Pass 5: アップグレードと移行の経路(Credible)
 
-**Gold standards:**
-- **Next.js**: `npx @next/codemod upgrade major`. One command upgrades Next.js, React, React DOM, runs all relevant codemods.
-- **AG Grid**: Every release from v31+ includes a codemod.
-- **Stripe API versioning**: One codebase internally. Version pinning per account. Breaking changes never surprise you.
-- **Martin Fowler's pipeline pattern**: Compose small, testable transformations rather than one monolithic codemod.
-- 21.9% of breaking changes in Maven Central were undocumented (Ochoa et al., 2021)
+**ゴールドスタンダード:**
+- **Next.js**: `npx @next/codemod upgrade major`。一つのコマンドで Next.js、React、React DOM をアップグレードし、関連するすべてのコードモッドを実行する。
+- **AG Grid**: v31 以降のすべてのリリースにコードモッドが付く。
+- **Stripe API のバージョニング**: 内部は一つのコードベース。アカウントごとにバージョンを固定する。破壊的変更で驚かされることはない。
+- **Martin Fowler のパイプラインパターン**: 一つの大きなコードモッドではなく、小さくテスト可能な変換を組み合わせる。
+- Maven Central の破壊的変更の 21.9% は、文書化されていなかった(Ochoa et al., 2021)
 
-## Pass 6: Developer Environment & Tooling
+## Pass 6: 開発者環境とツール(Valuable + Accessible)
 
-**Gold standards:**
-- **Bun**: 100x faster than npm install, 4x faster than Node.js runtime. Speed IS DX.
-- 87 interruptions per day average; 25 minutes to recover from each. Devs code only 2-4 hours/day.
-- Each 1-point DXI improvement = 13 minutes saved per developer per week.
-- **GitHub Copilot**: 55.8% faster task completion. PR time from 9.6 days to 2.4 days.
+**ゴールドスタンダード:**
+- **Bun**: npm install より 100 倍速く、Node.js ランタイムより 4 倍速い。速さそのものが DX。
+- 開発者は 1 日平均 87 回中断され、そのたびに回復に 25 分かかる。実際にコードを書いているのは 1 日 2〜4 時間だけ。
+- DXI が 1 ポイント改善するごとに、開発者一人あたり週 13 分の節約になる。
+- **GitHub Copilot**: タスク完了が 55.8% 速くなった。PR にかかる時間は 9.6 日から 2.4 日に。
 
-## Pass 7: Community & Ecosystem
+## Pass 7: コミュニティとエコシステム(Findable + Desirable)
 
-- Dev tools require ~14 exposures before purchase (Matt Biilmann, Netlify). Incompatible with quarterly OKR cycles.
-- 4-5x performance multiplier for teams with strong developer experience (DevEx framework).
+- 開発者ツールは、購入までに約 14 回の接触が必要(Matt Biilmann, Netlify)。これは四半期ごとの OKR サイクルとは合わない。
+- 開発者体験が強いチームでは、生産性が 4〜5 倍になる(DevEx フレームワーク)。
 
-## Pass 8: DX Measurement
+## Pass 8: DX の計測(DX Measurement)
 
-**Three academic frameworks:**
-1. **SPACE** (Microsoft Research, 2021): Satisfaction, Performance, Activity, Communication, Efficiency. Measure at least 3 dimensions.
-2. **DevEx** (ACM Queue, 2023): Feedback Loops, Cognitive Load, Flow State. Combine perceptual + workflow data.
-3. **Fagerholm & Munch** (IEEE, 2012): Cognition, Affect, Conation. The psychological "trilogy of mind."
+**3 つの学術的フレームワーク:**
+1. **SPACE**(Microsoft Research, 2021): Satisfaction、Performance、Activity、Communication、Efficiency。最低 3 つの次元で計測する。
+2. **DevEx**(ACM Queue, 2023): Feedback Loops、Cognitive Load、Flow State。主観的なデータとワークフローのデータを組み合わせる。
+3. **Fagerholm & Munch**(IEEE, 2012): Cognition、Affect、Conation。心の「三位一体(trilogy of mind)」。
 
-## Claude Code Skill DX Checklist
+## Claude Code スキルの DX チェックリスト
 
-Use when reviewing plans for Claude Code skills, MCP servers, or AI agent tools.
+Claude Code のスキル、MCP サーバー、AI エージェントのツールのプランをレビューするときに使います。
 
-- [ ] **AskUserQuestion design**: One issue per call. Re-ground context (project, branch, task). Browser handoff for visual feedback.
-- [ ] **State storage**: Global (~/.tool/) vs per-project ($SLUG/) vs per-session. Append-only JSONL for audit trails.
-- [ ] **Progressive consent**: One-time prompts with marker files. Never re-ask. Reversible.
-- [ ] **Auto-upgrade**: Version check with cache + snooze backoff. Migration scripts. Inline offer.
-- [ ] **Skill composition**: Benefits-from chains. Review chaining. Inline invocation with section skipping.
-- [ ] **Error recovery**: Resume from failure. Partial results preserved. Checkpoint-safe.
-- [ ] **Agent-readable errors**: Every error meets the agent-ready error contract (Pass 3): a safe fix, recovery class, code, context, and a result line with a code.
-- [ ] **Session continuity**: Timeline events. Compaction recovery. Cross-session learnings.
-- [ ] **Bounded autonomy**: Clear operational limits. Mandatory escalation for destructive actions. Audit trails.
+- [ ] **AskUserQuestion の設計**: 一呼び出しにつき一つの問題。文脈(プロジェクト、ブランチ、タスク)を再確認する。視覚的なフィードバックのためのブラウザへの引き継ぎ。
+- [ ] **状態の保存**: グローバル(~/.tool/) vs プロジェクトごと($SLUG/) vs セッションごと。監査証跡には追記専用の JSONL。
+- [ ] **段階的な同意**: マーカーファイルによる一度きりの確認。二度と聞かない。元に戻せる。
+- [ ] **自動アップグレード**: キャッシュとスヌーズのバックオフ付きのバージョン確認。移行スクリプト。インラインでの提案。
+- [ ] **スキルの組み合わせ**: 「benefits-from」の連鎖。レビューの連鎖。セクションをスキップするインラインの呼び出し。
+- [ ] **エラーからの回復**: 失敗した箇所から再開する。部分的な結果を保持する。チェックポイントで安全。
+- [ ] **エージェントが読めるエラー**: すべてのエラーが agent-ready エラー契約(Pass 3)を満たす。安全な fix、recovery の分類、code、context、コード付きの結果行がある。
+- [ ] **セッションの継続性**: タイムラインのイベント。コンパクション後の回復。セッションをまたぐ学習。
+- [ ] **有界の自律性**: 明確な運用上の限界。破壊的な操作には必須のエスカレーション。監査証跡。
 
-Reference implementations: gstack's design-shotgun loop, auto-upgrade flow, progressive consent, hierarchical storage.
+参照実装: gstack の design-shotgun ループ、自動アップグレードのフロー、段階的な同意、階層的な保存。

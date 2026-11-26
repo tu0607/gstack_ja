@@ -1,115 +1,51 @@
-# Overlay benchmark behavior contract v4
+# オーバーレイ・ベンチマークの振る舞い契約 v4
 
-The paid overlay fixtures verify supported behavior, with comparative efficacy
-reported separately as research evidence. A passing case does **not** establish
-marginal overlay benefit or resource non-regression. This replaces the previous
-blocking efficacy contract; historical failures retain their original verdicts.
+有償のオーバーレイのフィクスチャは、サポートされている振る舞いを検証します。比較した効果は、研究の証拠として別に報告します。合格したケースは、オーバーレイの限界的な利益や、リソースの非劣化を**確立するものではありません**。これは、以前のブロッキング型の効果契約を置き換えるものです。過去の失敗は、元の判定を保持します。
 
-The contract is defined by `OVERLAY_CONTRACT` in
-`test/helpers/overlay-case-policy.ts`. Every new measurement and aggregate record
-identifies version 4. Eval entry names include `contract-v4` so automated result
-matching cannot silently compare the old and new contracts by the same name.
-Selection IDs for the six retained paid cases stay unchanged.
+契約は `test/helpers/overlay-case-policy.ts` の `OVERLAY_CONTRACT` で定義されています。新しい測定値と集計レコードはすべて、バージョン 4 であることを記録します。eval のエントリ名には `contract-v4` を含め、古い契約と新しい契約が同じ名前で自動的に照合されて比較されることを防ぎます。保持する 6 つの有償ケースの選択 ID は変更しません。
 
-## Blocking checks
+## ブロッキングのチェック
 
-Both arms use the real Claude Code preset; ON appends the resolved overlay and
-OFF does not. Each retained fixture runs ten samples per arm on its pinned
-model: `claude-opus-5-5`, plus `claude-sonnet-5-5` for the dedicated-tools `-sonnet` case.
-Each model keeps its own results. The `opus-4-7-*` cases keep their overlay
-(`model-overlays/opus-4-7.md`) but run on Opus 5.5 since GSTA-49.
+両方のアームは、実際の Claude Code のプリセットを使います。ON では解決されたオーバーレイを追加し、OFF では追加しません。保持する各フィクスチャは、固定されたモデルごとに 10 サンプルを実行します。モデルは `claude-opus-5-5` で、専用ツールの `-sonnet` ケースだけ `claude-sonnet-5-5` です。各モデルは、それぞれ独自の結果を保持します。`opus-4-7-*` のケースは、オーバーレイ(`model-overlays/opus-4-7.md`)を引き続き使いますが、GSTA-49 以降は Opus 5.5 で実行します。
 
-Every planned sample in both arms must execute successfully, produce exactly
-one successful native terminal result without an error flag, preserve workspace
-scope, and yield a finite metric within the fixture's bounds. Missing reasoning
-metadata, oracle process errors, partial sampling, deadlines, cleanup failures,
-or recording failures keep the case failed. Missing observations are never
-replaced with zero or discarded to obtain a passing arm.
+両方のアームで計画されたすべてのサンプルは、正常に実行され、エラーフラグなしで、ネイティブの終了結果をちょうど 1 つ生成し、ワークスペースの範囲を維持し、フィクスチャの上下限の範囲内に収まる有限の指標を生成しなければなりません。推論のメタデータの欠落、オラクルのプロセスエラー、部分的なサンプリング、期限切れ、クリーンアップの失敗、記録の失敗があれば、そのケースは失敗のままです。欠けた観測値をゼロで置き換えたり、合格したアームを得るために捨てたりすることは決してありません。
 
-A completed answer that fails the fixture's output check is a measured
-correctness result, not an invalid measurement, in either arm: its record has
-`measurementPassed: true`, `taskCorrect: false` and the check's message in
-`answerError`. Only ON correctness gates the case, so an OFF wrong answer stays
-in the comparison and an ON wrong answer fails the case. Version 3 counted an
-OFF wrong answer as an invalid measurement (census 37198445662); v3 verdicts
-are not reinterpreted.
+完了した回答がフィクスチャの出力チェックに失敗した場合、それは両方のアームで、測定された正しさの結果であり、無効な測定ではありません。そのレコードは `measurementPassed: true`、`taskCorrect: false` になり、チェックのメッセージは `answerError` に入ります。ケースを左右するのは ON の正しさだけです。そのため、OFF の誤答は比較に残り、ON の誤答はケースを失敗させます。バージョン 3 では、OFF の誤答を無効な測定として数えていました(census 37198445662)。v3 の判定は再解釈しません。
 
-| Fixture family | Exact task and scope contract | Additional ON requirement | Measurement |
+| フィクスチャのファミリー | 正確なタスクとスコープの契約 | ON の追加要件 | 測定 |
 | --- | --- | --- | --- |
-| `claude-dedicated-tools-vs-bash` | Read-only workspace; native final JSON maps all five `src/` paths to their exact exported symbol names | Correct output in every ON sample, and at least 20% fewer Bash calls than OFF (when the OFF median is 0, zero Bash in every ON sample) | Total Bash tool calls |
-| `opus-4-7-effort-match-trivial` | Read-only workspace; native final JSON contains the exact version string | Correct answer in every ON sample | Native `usage.output_tokens_details.thinking_tokens` |
-| `opus-4-7-literal-interpretation` | Only `src/auth.ts`, `src/billing.ts`, and `src/notifications.ts` may change; public tests stay frozen; independent behavior checks run outside the writable fixture | All three target behaviors pass in every ON sample | Correct target behaviors, 0..3 |
+| `claude-dedicated-tools-vs-bash` | 読み取り専用のワークスペース。ネイティブの最終 JSON は、`src/` の 5 つのパスすべてを、その正確にエクスポートされたシンボル名に対応づける | すべての ON サンプルで正しい出力。かつ、OFF の Bash 呼び出し数より少なくとも 20% 少ない(OFF の中央値が 0 の場合は、すべての ON サンプルで Bash がゼロ) | Bash のツール呼び出しの合計 |
+| `opus-4-7-effort-match-trivial` | 読み取り専用のワークスペース。ネイティブの最終 JSON に、正確なバージョン文字列を含める | すべての ON サンプルで正しい回答 | ネイティブの `usage.output_tokens_details.thinking_tokens` |
+| `opus-4-7-literal-interpretation` | 変更できるのは `src/auth.ts`、`src/billing.ts`、`src/notifications.ts` だけ。公開テストは凍結したまま。独立した振る舞いチェックは、書き込み可能なフィクスチャの外で実行する | すべての ON サンプルで、3 つの対象の振る舞いがすべて合格 | 正しい対象の振る舞い、0〜3 |
 
-The dedicated-tools family also has `-sonnet` and `-opus-5-5` cases. Output validation checks the native final
-answer, so a correct word mentioned earlier cannot conceal a wrong final answer.
-The read-only prompts explicitly request the JSON shape. These exact-answer
-prompts are new in v2: compare ON/OFF within the same contract and fixture, not
-across versions. In particular, never compare the current literal correctness
-metric to historical counts of edited files.
+専用ツールのファミリーには `-sonnet` と `-opus-5-5` のケースもあります。出力の検証は、ネイティブの最終回答をチェックするので、途中で言及された正しい単語が、誤った最終回答を隠すことはできません。
+読み取り専用のプロンプトは、JSON の形を明示的に要求します。これらの正確な回答を求めるプロンプトは v2 で新しく追加されたものです。ON と OFF の比較は、同じ契約とフィクスチャの中で行ってください。特に、現在の正しさの指標を、編集したファイル数という過去の件数と比較してはいけません。
 
-OFF literal samples can validly complete 0..3 behaviors; that is the measured
-control variable. OFF dedicated-tool samples can validly use Bash. ON must meet
-the exact requirements above even when its comparison shows a large improvement;
-for the dedicated-tools case the 20% Bash comparison itself is part of the gate.
-Scope is checked again after the implementation oracle because importing a
-repaired module can itself change files. Each oracle must emit its unique
-completion marker after its assertions; an implementation exiting zero during
-import cannot masquerade as a passing behavior.
+OFF のリテラルのサンプルは、0〜3 個の振る舞いを有効に完了できます。それが測定される制御変数です。OFF の専用ツールのサンプルは、有効に Bash を使えます。ON は、比較で大きな改善が見られても、上記の正確な要件を満たさなければなりません。専用ツールのケースでは、20% の Bash 比較そのものがゲートの一部です。スコープは、実装のオラクルの後にも再度チェックします。修復したモジュールを import すると、それ自体でファイルが変わることがあるからです。各オラクルは、アサーションの後に、固有の完了マーカーを出力しなければなりません。import の段階で終了コード 0 で終わった実装が、合格した振る舞いのふりをすることはできません。
 
-## Comparative research results
+## 比較の研究結果
 
-The original numeric comparators remain unchanged: at least 20% fewer Bash calls
-or reported reasoning tokens, and at least 20% more correct literal targets.
-Their `criterionMet` values, means, and raw per-arm metrics remain in aggregate
-artifacts. They do not decide the v2 behavior verdict.
+元の数値の比較基準は変更しません。Bash の呼び出しを少なくとも 20% 減らすか、報告された推論トークンを少なくとも 20% 減らすこと。そして、正しい対象の数を少なくとも 20% 増やすこと。これらの `criterionMet` の値、平均、アームごとの生の指標は、集計の成果物に残します。ただし、これらは v2 の振る舞いの判定を決めるものではありません。
 
-| Comparison status | Meaning |
+| 比較のステータス | 意味 |
 | --- | --- |
-| `improved` | The original numeric criterion was met |
-| `baseline_saturated` | Every OFF sample reached the metric's optimum; no demonstrated marginal benefit |
-| `no_measured_improvement` | Complete measurements did not meet the original criterion |
-| `regressed` | ON's mean was worse in the metric's declared direction |
-| `unsupported_hypothesis` | The resolved overlay does not contain the claimed intervention |
-| `incomplete` | Missing or invalid measurements; the behavior case also fails |
+| `improved` | 元の数値の基準を満たした |
+| `baseline_saturated` | すべての OFF サンプルが、その指標の最適値に到達した。限界的な利益は示されていない |
+| `no_measured_improvement` | 完全な測定が、元の基準を満たさなかった |
+| `regressed` | 指標の宣言された方向で、ON の平均が悪化した |
+| `unsupported_hypothesis` | 解決されたオーバーレイに、主張された介入が含まれていない |
+| `incomplete` | 測定が欠けている、または無効。振る舞いのケースも失敗する |
 
-Equality at the optimum is behavior success with `criterionMet: false`, never a
-percentage improvement. An effort case can pass correctness while its measured
-reasoning-token comparison is `regressed`; that regression remains visible.
-The product asks models to match effort to complexity and does not promise a
-universal 20% token reduction. There is no calibrated resource ceiling,
-non-inferiority margin, or powered sampling scheme in this contract. Any future
-resource regression gate needs a separately agreed practical margin, baseline
-distribution, sampling design, and decision rule before collecting new results.
+最適値での同等は、振る舞いの成功であり、`criterionMet: false` となります。パーセントの改善として扱うことはありません。効果のケースでは、正しさには合格しても、測定された推論トークンの比較が `regressed` になることがあります。その悪化は見える状態のまま残ります。このプロダクトは、モデルに複雑さに合わせて労力を調整するよう求めるもので、一律に 20% のトークン削減を約束するものではありません。この契約には、較正済みのリソース上限、非劣性のマージン、検出力のあるサンプリング設計は存在しません。将来のリソース回帰のゲートには、新しい結果を集める前に、別途合意された実務上のマージン、ベースラインの分布、サンプリングの設計、判定ルールが必要です。
 
-## Retired fanout cases
+## 廃止されたファンアウトのケース
 
-The current resolved `model-overlays/opus-4-7.md` and its inherited `claude.md`
-contain no fanout instruction. The paid cases `opus-4-7-fanout-toy`,
-`opus-4-7-fanout-realistic`, and their `-sonnet` variants are retired, including
-their paid wrappers and selection entries. They are not renamed successes.
-Reintroducing a paid batching efficacy experiment requires an actual product
-claim and a discriminating experiment.
+現在解決されている `model-overlays/opus-4-7.md` と、それが継承する `claude.md` には、ファンアウトの指示は含まれていません。`opus-4-7-fanout-toy`、`opus-4-7-fanout-realistic`、およびその `-sonnet` の変種は廃止されました。有償のラッパーと選択のエントリも含めて廃止されています。これらは名前を変えた成功例ではありません。有償のバッチ処理の効果の実験を再び導入するには、実際のプロダクトの主張と、判別力のある実験が必要です。
 
-Free regressions retain native first-message fragment grouping, tool-ID
-deduplication, and the original fanout comparator. This metric measures message
-batching and cannot establish wall-clock execution concurrency.
+無料の回帰テストでは、ネイティブの最初のメッセージのフラグメントのグループ化、ツール ID の重複排除、元のファンアウトの比較器を保持します。この指標はメッセージのバッチ処理を測るもので、壁時計での実行の並行性は確立できません。
 
-## Evidence and execution
+## 証拠と実行
 
-Run directories and Bun/native attempt identities remain unique. Artifact files
-use exclusive creation; retry attempts cannot overwrite earlier raw streams,
-measurement records, workspace snapshots, or aggregate verdicts. Native events
-are saved before yielding them, including streams that later throw. A validated
-measurement records once; a separate aggregate records the case verdict with
-zero additive cost and time. Failed writes retain partial evidence and fail the
-case. Versioning never rewrites historical artifacts.
+実行ディレクトリと Bun/ネイティブの試行の ID は一意のままです。成果物のファイルは排他的な作成を使います。再試行では、以前の生のストリーム、測定のレコード、ワークスペースのスナップショット、集計の判定を上書きできません。ネイティブのイベントは、それを yield する前に保存されます。例外を投げるストリームも含みます。検証済みの測定は一度だけ記録されます。別途の集計が、ケースの判定を、追加のコストと時間をゼロとして記録します。書き込みに失敗した場合は、部分的な証拠を残し、そのケースを失敗させます。バージョン管理によって、過去の成果物が書き換えられることはありません。
 
-The paid runner executes one overlay wrapper per shard and one wrapper at a
-time, disables Bun retries, and preserves native rate-limit retry evidence. At
-finalization, workers must settle before workspace cleanup begins. Both share
-the existing five-second grace; expiry fails the case and prevents late workers
-from starting cleanup. Each fixture keeps its original turn cap, concurrency,
-30-minute work budget, and recording grace. The six
-wrappers remain periodic-tier cases; free tests exercise deterministic outcomes
-without making model calls. A free pass validates the instrument, not live model
-behavior or a positive efficacy claim.
+有償のランナーは、シャードごとに 1 つのオーバーレイのラッパーを実行し、一度に 1 つのラッパーだけを動かします。Bun の再試行は無効化し、ネイティブのレート制限の再試行の証拠は保持します。最終処理では、ワークスペースのクリーンアップを始める前に、ワーカーの処理がすべて終わっていなければなりません。両方とも既存の 5 秒の猶予を共有します。期限が切れた場合はそのケースを失敗させ、遅れて来たワーカーがクリーンアップを開始することを防ぎます。各フィクスチャは、元のターン上限、並行性、30 分の作業予算、記録の猶予を維持します。6 つのラッパーは、定期実行の階層のケースのままです。無料のテストは、モデルを呼び出さずに、決定論的な結果を検証します。無料のテストに合格しても、それは計測器の検証であり、ライブのモデルの振る舞いや、効果の肯定的な主張の証明にはなりません。

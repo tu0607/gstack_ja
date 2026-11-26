@@ -1,68 +1,56 @@
 <!-- AUTO-GENERATED from consult-mode.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Step 2C: Consult Mode
+## ステップ 2C: 相談モード
 
-Ask Codex anything about the codebase. Supports session continuity for follow-ups.
+コードベースについて何でも Codex に質問できます。フォローアップのためのセッションの継続性に対応しています。
 
-1. **Check for existing session:**
+1. **既存のセッションを確認する:**
 ```bash
 cat .context/codex-session-id 2>/dev/null || echo "NO_SESSION"
 ```
 
-If a session file exists (not `NO_SESSION`), use AskUserQuestion:
+セッションファイルが存在する場合(`NO_SESSION` ではない場合)は、AskUserQuestion を使います:
 ```
 You have an active Codex conversation from earlier. Continue it or start fresh?
 A) Continue the conversation (Codex remembers the prior context)
 B) Start a new conversation
 ```
 
-2. Create temp files:
+2. 一時ファイルを作成します:
 ```bash
 TMPRESP=$(mktemp "$TMP_ROOT/codex-resp-XXXXXX") || { echo "ERROR: mktemp failed in TMP_ROOT=$TMP_ROOT; not running codex without its temp file" >&2; exit 1; }
 TMPERR=$(mktemp "$TMP_ROOT/codex-err-XXXXXX") || { echo "ERROR: mktemp failed in TMP_ROOT=$TMP_ROOT; not running codex without its temp file" >&2; exit 1; }
 ```
 
-3. **Plan review auto-detection:** If the user's prompt is about reviewing a plan,
-or if plan files exist and the user said `/codex` with no arguments:
+3. **プランレビューの自動検出:** ユーザーのプロンプトがプランのレビューに関するものである場合、または、プランファイルが存在し、ユーザーが引数なしで `/codex` と入力した場合:
 ```bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
 ls -t "$PLAN_ROOT"/*.md 2>/dev/null | xargs grep -l "$(basename $(pwd))" 2>/dev/null | head -1
 ```
-If no project-scoped match, fall back to `ls -t "$PLAN_ROOT"/*.md 2>/dev/null | head -1`
-but warn: "Note: this plan may be from a different project — verify before sending to Codex."
+プロジェクトに紐づくものが見つからなければ、`ls -t "$PLAN_ROOT"/*.md 2>/dev/null | head -1` にフォールバックします。
+ただし、次のように警告します: 「注意: このプランは別のプロジェクトのものかもしれません。Codex に送る前に確認してください。」
 
-**IMPORTANT — embed content, don't reference path:** Codex runs sandboxed to the repo
-root and cannot access `~/.claude/plans/` or any files outside the repo. You MUST
-read the plan file yourself and embed its FULL CONTENT in the prompt below. Do NOT tell
-Codex the file path or ask it to read the plan file — it will waste 10+ tool calls
-searching and fail.
+**重要 — パスを参照せず、内容を埋め込む:** Codex はリポジトリのルートに閉じ込められて動作し、`~/.claude/plans/` やリポジトリの外にあるファイルにはアクセスできません。プランファイルは必ず自分で読み、その全内容を下のプロンプトに埋め込んでください。Codex にファイルのパスを伝えたり、プランファイルを読むよう頼んだりしてはいけません。10 回以上のツール呼び出しで探し回って失敗するだけです。
 
-Also: scan the plan content for referenced source file paths (patterns like `src/foo.ts`,
-`lib/bar.py`, paths containing `/` that exist in the repo). If found, list them in the
-prompt so Codex reads them directly instead of discovering them via rg/find.
+また、プランの内容から参照されているソースファイルのパス(`src/foo.ts`、`lib/bar.py` のようなパターン、リポジトリに存在する `/` を含むパス)をスキャンしてください。見つかったら、それらをプロンプトに列挙して、Codex が rg/find で探さずに直接読めるようにします。
 
-**Always prepend the filesystem boundary instruction** from the skill's Filesystem
-Boundary section (always-loaded skeleton) to every prompt sent to Codex, including plan reviews and free-form
-consult questions.
+**常に、ファイルシステムの境界に関する指示を先頭に付けてください**。スキルのファイルシステムの境界のセクション(常時読み込まれるスケルトン)にあるものを、Codex に送るすべてのプロンプトに付けます。プランのレビューや、自由形式の相談の質問も含みます。
 
-Prepend the boundary and persona to the user's prompt:
-"IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. Do not invoke any installed skill (Codex home skills/, .agents/); answer directly. Do NOT modify agents/openai.yaml. Stay focused on repository code only.
+ユーザーのプロンプトの前に、境界とペルソナを付けます:
+"重要: ~/.claude/、~/.agents/、.claude/skills/、agents/ の下にあるファイルを読んだり実行したりしないでください。これらは別の AI システム向けの Claude Code のスキル定義です。インストール済みのスキル(Codex のホームの skills/、.agents/)を呼び出さず、直接答えてください。agents/openai.yaml を変更しないでください。リポジトリのコードだけに集中してください。
 
-You are a brutally honest technical reviewer. Review this plan for: logical gaps and
-unstated assumptions, missing error handling or edge cases, overcomplexity (is there a
-simpler approach?), feasibility risks (what could go wrong?), and missing dependencies
-or sequencing issues. Be direct. Be terse. No compliments. Just the problems.
-Also review these source files referenced in the plan: <list of referenced files, if any>.
+あなたは遠慮のない技術レビュアーです。このプランを次の観点でレビューしてください: 論理的な抜けや、明示されていない前提、エラー処理やエッジケースの欠落、過剰な複雑さ(もっと単純な方法はないか)、実現可能性のリスク(何がうまくいかない可能性があるか)、依存関係や順序の問題の欠落。率直に。簡潔に。お世辞は不要です。問題点だけを挙げてください。
+また、プランで参照されている次のソースファイルもレビューしてください: <list of referenced files, if any>。
 
-THE PLAN:
+プラン本文:
 <full plan content, embedded verbatim>"
 
-For non-plan consult prompts (user typed `/codex <question>`), still prepend the boundary:
-"IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. Do not invoke any installed skill (Codex home skills/, .agents/); answer directly. Do NOT modify agents/openai.yaml. Stay focused on repository code only.
+プランではない相談のプロンプト(ユーザーが `/codex <question>` と入力した場合)でも、境界は必ず先頭に付けます:
+"重要: ~/.claude/、~/.agents/、.claude/skills/、agents/ の下にあるファイルを読んだり実行したりしないでください。これらは別の AI システム向けの Claude Code のスキル定義です。インストール済みのスキル(Codex のホームの skills/、.agents/)を呼び出さず、直接答えてください。agents/openai.yaml を変更しないでください。リポジトリのコードだけに集中してください。
 
 <user's question>"
 
-4. Create the prompt file and write the full prompt from step 3 into it. Codex reads it on stdin.
+4. プロンプトファイルを作成し、ステップ 3 の完全なプロンプトを書き込みます。Codex はそれを標準入力から読みます。
 
 ```bash
 _GT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gstack/tmp"
@@ -71,22 +59,13 @@ _EX=$(git rev-parse --git-path info/exclude 2>/dev/null) && mkdir -p "$(dirname 
 PROMPT_FILE=$(mktemp "${_GT:?}/codex-prompt.XXXXXX") || { echo "Not sent: mktemp failed in $_GT." >&2; exit 1; }; echo "PROMPT_FILE: $PROMPT_FILE (name: ${PROMPT_FILE##*/})"
 ```
 
-Write the text into each printed file with your file-write tool (Claude Code's Write tool needs a Read of the empty file first), exactly as it should appear. The text never goes into a shell command, heredoc or quoted argument. If a write fails or is refused, do not send: print the cause, the file path and the command below for sending by hand.
+出力された各ファイルに、ファイル書き込みツール(Claude Code の Write ツールは、先に空ファイルを Read する必要があります)で、そのまま表示されるべき内容を書き込みます。テキストをシェルコマンド、ヒアドキュメント、引用符付き引数に入れてはいけません。書き込みが失敗または拒否された場合は送信せず、原因、ファイルパス、手動送信用の下記コマンドを表示します。
 
-**Session-cost reality (measured):** every `codex exec` call — resumed
-or fresh — pays Codex's ~21K-token session prelude (its skill catalogue +
-instructions); `resume` does NOT amortize it (a measured resume came in
-slightly ABOVE a fresh call). Resume buys conversational continuity, never
-token savings. So: prefer ONE codex call per skill where the workflow allows,
-batch questions into that call, and reach for resume only when the follow-up
-genuinely needs the prior session's context.
+**セッションのコストの実態(実測):** `codex exec` の呼び出しは、再開されたものでも新規でも、Codex の約 21K トークンのセッションの前置き(スキルの一覧と指示)を必ず支払います。`resume` でもこのコストは償却されません(実測では、再開の呼び出しは新規の呼び出しよりわずかに多くなりました)。再開が得るのは会話の継続性であり、トークンの節約にはなりません。そのため、ワークフローが許す限り、スキルごとに Codex の呼び出しは 1 回にまとめ、質問をその呼び出しにまとめてください。再開は、フォローアップが本当に前のセッションのコンテキストを必要とする場合にだけ使ってください。
 
-5. Run codex exec with **JSONL output** to capture reasoning traces. Set `_CODEX_MODE`
-to `resume` if the user chose "Continue" in step 1, else `new`; a resumed run reads the
-session id from `.context/codex-session-id`. Substitute the printed name for
-`<prompt-file-name>` (letters, digits, `.`, `_` and `-` only). Use `timeout: 600000` on
-the Bash call (the tool's maximum) — the gate sits ABOVE the 540s wrapper so the wrapper
-fires first, ends Codex, and prints its explicit stall message:
+5. **JSONL の出力**を使って codex exec を実行し、推論の過程を取得します。ステップ 1 でユーザーが「Continue」を選んだ場合は `_CODEX_MODE` を `resume` に、そうでなければ `new` に設定します。再開された実行は、セッション ID を `.context/codex-session-id` から読みます。
+表示された名前を `<prompt-file-name>` の代わりに使います(英字、数字、`.`、`_`、`-` のみ)。
+Bash の呼び出しには `timeout: 600000` を使います(ツールの最大値)。ゲートは 540 秒のラッパーより上にあるため、ラッパーが先に発動し、Codex を終了させて、明示的な停止のメッセージを出力します:
 
 
 ```bash
@@ -176,19 +155,15 @@ bun --no-env-file --config=/dev/null ~/.claude/skills/gstack/lib/outside-review-
 rm -f "$PROMPT_FILE"
 ```
 
-`VERDICT: unavailable` means Codex did not answer from a working
-environment (its line names why, such as a sandbox that could not start): relay that
-line and do not present the output as Codex's answer.
+`VERDICT: unavailable` は、Codex が正常に動作する環境から回答しなかったことを意味します(その行に、サンドボックスが起動できなかったなどの理由が示されています)。その行を伝え、出力を Codex の回答として提示しないでください。
 
-6. Capture session ID from the streamed output. The parser prints `SESSION_ID:<id>`
-   from the `thread.started` event. Save it for follow-ups:
+6. ストリーミングされた出力からセッション ID を取得します。パーサーは `thread.started` イベントから `SESSION_ID:<id>` を出力します。フォローアップのために保存してください:
 ```bash
 mkdir -p .context
 ```
-Save the session ID printed by the parser (the line starting with `SESSION_ID:`)
-to `.context/codex-session-id`.
+パーサーが出力した `SESSION_ID:` で始まる行のセッション ID を、`.context/codex-session-id` に保存します。
 
-7. Present the full streamed output:
+7. ストリーミングされた出力の全文を提示します:
 
 ```
 CODEX SAYS (consult):
@@ -199,23 +174,20 @@ Tokens: N | Est. cost: ~$X.XX
 Session saved — run /codex again to continue this conversation.
 ```
 
-8. After presenting, note any points where Codex's analysis differs from your own
-   understanding. If there is a disagreement, flag it:
-   "Note: Claude Code disagrees on X because Y."
+8. 提示した後、Codex の分析が自分の理解と異なる点があれば記載してください。意見が食い違う場合は、それを明示します:
+   「注意: Claude Code は X について、Y という理由で同意しません。」
 
-9. **Synthesis recommendation (REQUIRED).** Emit ONE recommendation line
-summarizing what the user should do based on Codex's consult output, in this
-format:
+9. **総合的な推奨(必須)。** Codex の相談の出力に基づいて、ユーザーが何をすべきかを要約した推奨の行を 1 つ、次の形式で出します:
 
 ```
 Recommendation: <action> because <one-line reason that names the most actionable insight from Codex>
 ```
 
-Examples (the strongest reasons compare Codex's insight against an alternative — different recommendation, status-quo, or another Codex point):
-- `Recommendation: Adopt Codex's sharding suggestion because it eliminates the head-of-line blocking the current writer-pool has, while the cache-layer alternative Codex also floated still has a single-writer hot path.`
-- `Recommendation: Reject Codex's "use SQLite instead" suggestion because the team's Postgres operational experience outweighs the simplicity gain at the projected scale, and Codex's secondary suggestion (read replicas) handles the read-load concern that motivated the SQLite pivot.`
-- `Recommendation: Investigate Codex's flagged migration ordering before D3 lands because it surfaces a real foreign-key cycle that the in-house schema review missed, while the styling concern Codex also raised can wait for a follow-up.`
+例(最も強い理由は、Codex の洞察を代替案と比べたものです。代替案は、別の推奨、現状維持、または Codex の別の指摘です):
+- `Recommendation: Codex のシャーディング案を採用する because 現在のライタープールにある先頭ブロッキングを解消でき、Codex が併せて挙げたキャッシュ層の代替案は単一ライターのホットパスが残る`
+- `Recommendation: Codex の「代わりに SQLite を使う」案を退ける because 想定規模ではチームの Postgres 運用経験が単純さの利点を上回り、Codex の二次案(リードレプリカ)で SQLite への転換の動機だった読み取り負荷の懸念にも対処できる`
+- `Recommendation: D3 を入れる前に Codex が指摘したマイグレーションの順序を調査する because 社内のスキーマレビューが見逃した実際の外部キーの循環が表面化しており、Codex が併せて挙げたスタイルの懸念はフォローアップまで待てる`
 
-The reason must engage with a specific Codex insight and compare against an alternative (a different recommendation, status-quo, or another Codex point). Generic synthesis ("because Codex raised good points") fails the format. **Never silently auto-decide; always emit the line.**
+理由は、Codex の具体的な洞察を指し、代替案(別の推奨、現状維持、または Codex の別の指摘)と比較しなければなりません。「Codex が良い点を挙げたから」のような一般的な総括は、この形式を満たしません。**黙って自分で決めてはいけません。必ずこの行を出してください。**
 
 ---

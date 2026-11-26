@@ -17,7 +17,7 @@ import {
   WEAK_REASONS, clampCardField, generateTestValueBar, renderValueCard, type TestValueBarMode,
 } from '../scripts/resolvers/test-value';
 import { recordsNonTestCallerSearch } from './helpers/test-value-fixture';
-import { expectMentions } from './helpers/prompt-structure';
+import { expectMentions, expectTokens } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const FIX = 'Fix: bun run gen:skill-docs && bun test test/test-value-bar.test.ts';
@@ -30,75 +30,95 @@ const NO_CLAIM_EXAMPLE_TOKENS = NO_CLAIM_EXAMPLES.map(example => `no_claim=${exa
 const shipSection = read('ship/sections/test-coverage.md');
 const shipGate = generateTestCoverageAuditInner(ctx, 'ship', 'gate');
 
-const CONTRACT: Record<TestValueBarMode, { render: string; required: string[]; absent?: string[] }> = {
+// required = 機械が読むトークン(構造、フィールド名、コード、コマンド、JSON の形)。
+// mentions = 1 文の中で同時に現れるべき語(大文字小文字を区別しない)。日本語の文は丸ごとピン留めしない。
+type Contract = { render: string; required: string[]; mentions?: string[][]; absent?: string[] };
+const CARD_MENTIONS = [[String(CARD_FIELD_MAX_BYTES), 'UTF-8', '157'], ['JSON', '完全な値'], ['上流', 'カード', '止めない']];
+const CONTRACT: Record<TestValueBarMode, Contract> = {
   plan: {
     render: generateTestCoverageAuditInner(ctx, 'plan'),
     required: [
-      ...QUESTIONS, CARD_FORMAT, `at most ${CARD_FIELD_MAX_BYTES} UTF-8 bytes`, 'A missing upstream card never blocks',
-      'Coverage goal: every changed behavior is protected by a test that would catch a real regression. Test count is not a goal.',
-      'X = paths with a ★★/★★★ test / total paths', 'Y = paths with any test / total paths', RETENTION_ONE_LINER,
-      'unless exact output is the declared contract (goldens, prompt bytes, wire formats)',
-      'Its value card', 'Tests made obsolete by this plan', '## Tests to Retire',
-      'Value: protects={...}; fails_when={...}; why_new={...}; seam=none; no_claim={...}', ...NO_CLAIM_EXAMPLE_TOKENS,
+      ...QUESTIONS, CARD_FORMAT, 'X = ★★/★★★', 'Y = ', RETENTION_ONE_LINER,
+      '## Tests to Retire', 'Value: protects={...}; fails_when={...}; why_new={...}; seam=none; no_claim={...}', ...NO_CLAIM_EXAMPLE_TOKENS,
+    ],
+    mentions: [
+      ...CARD_MENTIONS,
+      ['カバレッジの目標'], ['テストの数', '目標'],
+      ['X =', '★★/★★★', '全パス'], ['Y =', '全パス'],
+      ['ゴールデン', 'プロンプトのバイト列', 'ワイヤーフォーマット'],
+      ['Edge Case', 'Critical Path', 'バリューカード'],
+      ['不要になるテスト', '列挙'],
     ],
     absent: ['100% coverage is the goal', 'Step 4.75'],
   },
   ship: {
     render: shipSection,
     required: [
-      ...QUESTIONS, CARD_FORMAT, 'Coverage goal: every changed behavior is protected by a test that would catch a real regression.',
-      `\`weak_gaps\` (reason \`${WEAK_REASONS.join('|')}\`), not \`gaps\``, 'zero skips the gate', RETENTION_ONE_LINER,
-      '5 tests per generation pass', 'an extension uses one slot and a rejection uses none', '30-path/5-tests-per-pass/2-minute per-test caps',
-      'precedence extended > added > rejected', REASON_CODES.join(', '),
+      ...QUESTIONS, CARD_FORMAT,
+      `\`weak_gaps\`(理由 \`${WEAK_REASONS.join('|')}\`)`, RETENTION_ONE_LINER,
+      'extended > added > rejected', REASON_CODES.join(', '),
       '"coverage_pct":N,"gaps":N,"diagram":"<full markdown coverage diagram for PR body>","tests_added":["path",...],"coverage_pct_value":N,"weak_gaps":[',
-      'the four required fields non-empty plus\n   an optional `no_claim`', 'an older four-field card stays valid', '`incomplete_card`', 'a later duplicate is `duplicate_protects`', 'is `needs_seam`',
+      '`incomplete_card`', '`duplicate_protects`', '`needs_seam`',
       ...NO_CLAIM_EXAMPLE_TOKENS,
-      'No `tests_rejected` path may remain on disk as a new file', 'dispatch one read-only Agent', 'it uses no generation\n   pass',
       'Regression proof — fails at HEAD: yes · passes at base: yes | unavailable (<reason>) | manual · passes after fix: yes | pending',
       'base control unavailable: collection error', 'N of M regression tests got base control', 'worktree add --quiet --detach',
-      'trap cleanup EXIT INT TERM', 'timeout 30 git -C "$ROOT" fetch', 'within a 3-minute total per /ship run',
+      'trap cleanup EXIT INT TERM', 'timeout 30 git -C "$ROOT" fetch',
       "find \"${TMPDIR:-/tmp}\" -maxdepth 1 -name 'gstack-base-control.*'",
       'K = `tests_added.length`', 'R = `tests_rejected.length`', 'E = `tests_extended.length`', 'W = `weak_gaps.length`',
-      'The gate only asks; it never hard-fails.', `C) These paths don't need tests — mark as intentionally uncovered. ${SWEEP_POINTER}`,
-      'generation slots remaining)', 'A) List the remaining gaps as proposed tests in the PR body',
-      'Take A restricted to true `gaps` within the remaining slots; never edit tests for weak paths there.',
+      'C) これらのパスにテストは不要', SWEEP_POINTER,
+    ],
+    mentions: [
+      ...CARD_MENTIONS,
+      ['カバレッジの目標'], ['テストの数', '目標'],
+      ['0 件', 'ゲートをスキップ'],
+      ['5 テスト', '生成パス'], ['拡張', '1 スロット', '却下'], ['30 個'], ['2 分', '上限'],
+      ['4 つのフィールド', 'no_claim', '空でない'], ['4 フィールド', '有効'],
+      ['tests_rejected', '新規ファイル', '残してはいけません'],
+      ['読み取り専用', 'Agent', 'ディスパッチ'], ['生成のパス', '消費しません'],
+      ['3 分以内', '/ship'],
+      ['ゲート', '尋ねるだけ', 'ハードフェイル'],
+      ['生成スロットの残り'], ['A)', '残りのギャップ', '提案テスト', 'PR 本文'],
+      ['真の `gaps`', '限定'], ['弱いパス', '編集してはいけません'],
     ],
     absent: ['100% coverage is the goal', '20 tests generated max', '30-path/20-test'],
   },
   qa: {
     render: bar('qa'),
-    required: [QUESTIONS[2], QUESTIONS[3], CARD_FORMAT, 'A missing upstream card never blocks'],
+    required: [QUESTIONS[2], QUESTIONS[3], CARD_FORMAT],
+    mentions: [['上流', 'カード', '止めない']],
     absent: [QUESTIONS[0], QUESTIONS[1]],
   },
   audit: {
     render: bar('audit'),
     required: [...QUESTIONS, ...CATALOG, RETIREMENT_FIELDS.map(field => `\`${field}\``).join(', '), CALLER_SEARCH_COMMAND, CALLER_SYMBOL_PATTERN,
-      'caller check unavailable: unsupported symbol', 'grep-only', 'typecheck/build or dead-code tool', PRAGMA, 'Never retire anything reachable from the package entrypoint'],
+      'caller check unavailable: unsupported symbol', PRAGMA],
+    mentions: [['grep のみ'], ['typecheck/build', 'デッドコード'], ['エントリポイント', '決して引退させない']],
   },
 };
 
 describe('test value bar render contract', () => {
   for (const mode of TEST_VALUE_BAR_MODES) test(`${mode}: required contract strings and byte ceiling`, () => {
-    const { render, required, absent = [] } = CONTRACT[mode];
+    const { render, required, mentions = [], absent = [] } = CONTRACT[mode];
     const missing = required.filter(text => !render.includes(text));
     expect(missing, `${mode} render lacks contract text. ${FIX}`).toEqual([]);
+    expectMentions(render, mentions, `${mode} render`);
     expect(absent.filter(text => render.includes(text)), `${mode} render keeps retired text. ${FIX}`).toEqual([]);
     const rendered = bar(mode);
-    expect(rendered.includes('Example: Value: protects=') && rendered.includes('Rejected (covered_elsewhere)'), `${mode} needs one good card and one rejected proposal`).toBe(true);
+    expect(rendered.includes('例: Value: protects=') && rendered.includes('Rejected (covered_elsewhere)'), `${mode} needs one good card and one rejected proposal`).toBe(true);
     expect(Buffer.byteLength(rendered, 'utf8')).toBeLessThanOrEqual(TEST_VALUE_BAR_MAX_BYTES[mode]);
   });
 
   test('the card clamp applies to card lines only; written JSON keeps full values (C2)', () => {
     for (const mode of TEST_VALUE_BAR_MODES) {
-      expect(bar(mode)).toContain(`each field at most ${CARD_FIELD_MAX_BYTES} UTF-8 bytes here (clamp to 157 plus \`...\`; written JSON keeps full values)`);
+      expectMentions(bar(mode), [[String(CARD_FIELD_MAX_BYTES), 'UTF-8', '157', '`...`'], ['JSON', '完全な値']], `${mode} bar`);
     }
   });
 
   test('qa mode names only the invoking skill\'s card location (/qa-only has no 8e.5 record)', () => {
     const forSkill = (skillName: string) => generateTestValueBar({ ...ctx, skillName }, ['qa']);
-    expect(forSkill('qa')).toContain('Put it in the 8e.5 record.');
-    expect(forSkill('qa')).not.toContain('proposed test');
-    expect(forSkill('qa-only')).toContain('Put it under each proposed test.');
+    expect(forSkill('qa')).toContain('8e.5');
+    expect(forSkill('qa')).not.toContain('提案する各テスト');
+    expect(forSkill('qa-only')).toContain('提案する各テスト');
     expect(forSkill('qa-only')).not.toContain('8e.5');
   });
 
@@ -140,7 +160,7 @@ describe('test value bar render contract', () => {
       const rendered = bar(mode);
       expect(rendered, `${mode} lacks both no_claim examples`).toContain(`no_claim=${NO_CLAIM_EXAMPLES[0]}`);
       expect(rendered).toContain(`no_claim=${NO_CLAIM_EXAMPLES[1]}`);
-      expectMentions(rendered, [['no_claim', 'never waives']], `${mode} bar`);
+      expectMentions(rendered, [['ライブ確認', '免除'], ['no_claim', '1 文']], `${mode} bar`);
     }
   });
 });
@@ -149,12 +169,12 @@ describe('ship parent decision rules', () => {
   const rows = Object.fromEntries(shipGate.split('\n').filter(line => line.startsWith('| ') && !line.startsWith('| Step 7') && !line.startsWith('|---'))
     .map(line => line.split(' | ')).map(cells => [cells[0]!.slice(2), cells.slice(1).join(' | ')]));
   for (const [condition, uses, message] of [
-    ['Rating dispatch failed or timed out', 'skip the gate', MESSAGES.ratingUnavailable.message],
-    ['Zero paths, test-only diff', 'skip the gate', 'could not determine percentage'],
+    ['評価のディスパッチが失敗またはタイムアウト', 'ゲートをスキップ', MESSAGES.ratingUnavailable.message],
+    ['パスがゼロ、テストのみの diff', 'ゲートをスキップ', 'could not determine percentage'],
     ['`Star rating: off`', '`coverage_pct`', 'weak paths still listed'],
-    ['`coverage_pct_value` missing, not a number, or outside 0..100', '`coverage_pct`', MESSAGES.valueCoverageUnavailable.message],
-    ['`coverage_pct_value` > `coverage_pct`', '`coverage_pct` (clamped)', MESSAGES.inconsistentCoverage.message],
-    ['Otherwise', '`coverage_pct_value`', ''],
+    ['`coverage_pct_value` が欠落', '`coverage_pct`', MESSAGES.valueCoverageUnavailable.message],
+    ['`coverage_pct_value` > `coverage_pct`', '`coverage_pct`(上限に丸める)', MESSAGES.inconsistentCoverage.message],
+    ['それ以外', '`coverage_pct_value`', ''],
   ] as const) test(`${condition} -> ${uses}`, () => {
     const row = Object.entries(rows).find(([key]) => key.startsWith(condition));
     expect(row, `gate table lacks the row "${condition}"`).toBeDefined();
@@ -163,8 +183,8 @@ describe('ship parent decision rules', () => {
   });
 
   test('gate never substitutes 0 and parent processing tolerates old or malformed output', () => {
-    expect(shipGate).toContain('never substitute 0');
-    expect(shipSection).toContain('A missing new key counts\n   as empty');
+    expectMentions(shipGate, [['0', '代用']], 'ship gate');
+    expectMentions(shipSection, [['新しいキー', '空として']], 'ship parent processing');
     expect(shipSection).toContain(MESSAGES.malformedKey.message);
     expect(shipSection).toContain(MESSAGES.allRejected.message);
   });
@@ -217,11 +237,11 @@ describe('static review specialist stays in sync', () => {
   test('questions, catalog, evidence fields, codes, pragma and caller search', () => {
     const expected = [...QUESTIONS, ...CATALOG, ...REVIEW_EVIDENCE_FIELDS.map(field => `\`${field}\``), RETIREMENT_FIELDS.join(', '),
       ...REASON_CODES.map(code => `\`${code}\``), `${PRAGMA} reason="<why>"`, CALLER_SEARCH_COMMAND, CALLER_SYMBOL_PATTERN, SWEEP_POINTER,
-      'never an auto-delete', 'stays a coverage gap at its existing severity', 'one INFORMATIONAL line', 'Regression test without red proof',
       '`no_claim=...`',
       `test-value-bar.md#${MESSAGES.callerCheckUnavailable.anchor}`];
     const flat = specialist.replace(/\n/g, ' ').replace(/ +/g, ' ');
     expect(expected.filter(text => !flat.includes(text.replace(/\n/g, ' '))), `review/specialists/testing.md is out of sync with scripts/resolvers/test-value.ts`).toEqual([]);
+    expectMentions(specialist, [['自動削除', '決してしない'], ['既存の重大度', 'カバレッジのギャップ'], ['INFORMATIONAL', '1 行'], ['赤い証明', '回帰テスト']], 'review/specialists/testing.md');
   });
 });
 
@@ -234,15 +254,14 @@ describe('template contracts', () => {
     expect(read('test-audit/SKILL.md')).toContain(bar('audit'));
     const templates = spawnSync('git', ['ls-files', '*.tmpl'], { cwd: ROOT, encoding: 'utf8', timeout: 10_000 }).stdout.split('\n').filter(Boolean);
     expect(templates.filter(file => read(file).includes('prefer too many to too few'))).toEqual([]);
-    expect(read('plan-ceo-review/SKILL.md.tmpl')).toContain('* Tests are required: every behavior tested; no test without a regression it would catch.');
-    expect(read('plan-eng-review/SKILL.md.tmpl')).toContain('* **Tests:** every behavior tested; no test without a regression it would catch.');
+    expectMentions(read('plan-ceo-review/SKILL.md.tmpl'), [['すべての振る舞い'], ['回帰', 'テスト', '書']], 'plan-ceo-review tests rule');
+    expectMentions(read('plan-eng-review/SKILL.md.tmpl'), [['すべての振る舞い'], ['回帰', 'テスト', '書']], 'plan-eng-review tests rule');
   });
 
   test('/test-audit is hard report-only when spawned', () => {
     const audit = read('test-audit/SKILL.md.tmpl').replace(/\s+/g, ' ');
-    expect(audit).toContain('`SESSION_KIND: spawned` or `headless`, this run is hard report-only');
-    expect(audit).toContain('treat every batch as C) stop');
-    expect(audit).toContain('A) approve this batch B) skip it C) stop');
+    expectTokens(audit, ['`SESSION_KIND: spawned`', '`headless`', 'C) 停止', 'A) このバッチを承認 B) スキップ C) 停止']);
+    expectMentions(audit, [['spawned', 'headless', '報告のみ'], ['質問', '編集'], ['すべてのバッチ', 'C) 停止']], 'test-audit spawned rule');
   });
 
   test('the caller search keeps production resolvers and excludes tests', () => {
@@ -269,11 +288,10 @@ describe('docs and registration', () => {
   test('/test-audit appears in every registration list', () => {
     const lists: [string, string][] = [
       ['AGENTS.md', '| `/test-audit` |'],
-      ['README.md', '| `/test-audit` | **Test Auditor** |'],
       ['docs/skills.md', '| [`/test-audit`](#test-audit) |'],
       ['docs/skills.md', '## `/test-audit`'],
       ['gstack/llms.txt', '[/test-audit](test-audit/SKILL.md)'],
-      ['SKILL.md.tmpl', 'invoke `/test-audit`'],
+      ['SKILL.md.tmpl', '`/test-audit` を呼び出す'],
       ['docs/PROJECT_STRUCTURE.md', 'test-audit/'],
       ['test/fixtures/context-budget.json', '"test-audit":'],
       ['test/helpers/touchfiles-data.ts', "'test-audit-report-only': ['test-audit/**'"],

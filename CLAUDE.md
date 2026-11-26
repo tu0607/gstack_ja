@@ -1,6 +1,6 @@
-# gstack development
+# gstack 開発
 
-## Commands
+## コマンド
 
 ```bash
 bun install          # install dependencies
@@ -16,474 +16,230 @@ bun run slop:diff     # slop findings in files changed on this branch only
 bun run audit:manifest  # file slices for /claude-api prompt-audit; rerun it at each frontier-model release (CONTRIBUTING.md)
 ```
 
-Test and eval commands, their cost and what each needs live in one table:
-[Which command do I run?](CONTRIBUTING.md#which-command-do-i-run). The two you
-need most are `bun run test` (free acceptance) and `bun run eval:bg:pr` (paid,
-changed coverage). Retired names such as `test:evals` and `test:e2e` print their
-replacement and exit 1.
+テストと eval のコマンド、そのコスト、必要な条件は、1 つの表にまとめられています:
+[Which command do I run?](CONTRIBUTING.md#which-command-do-i-run)。最もよく使うのは `bun run test`(無料の受け入れテスト)と `bun run eval:bg:pr`(有料、変更箇所のカバレッジ)の 2 つです。`test:evals` や `test:e2e` などの廃止された名前は、置き換え先を表示して終了コード 1 で終わります。
 
-Paid evals require `ANTHROPIC_API_KEY`. Codex E2E tests (`test/codex-e2e.test.ts`,
-`test/codex-e2e-sol-scope.test.ts`) use Codex's own auth — the hermetic runner copies
-only `auth.json` from `${CODEX_HOME:-~/.codex}` and pins `CODEX_HOME` in the child
-env — no `OPENAI_API_KEY` env var needed.
+有料の eval には `ANTHROPIC_API_KEY` が必要です。Codex の E2E テスト(`test/codex-e2e.test.ts`、`test/codex-e2e-sol-scope.test.ts`)は Codex 自身の認証を使います。hermetic なランナーは `${CODEX_HOME:-~/.codex}` から `auth.json` だけをコピーし、子プロセスの環境で `CODEX_HOME` を固定します。`OPENAI_API_KEY` 環境変数は不要です。
 
-**Hermetic E2E + env keys:** every E2E runner spawns children through
-`test/helpers/hermetic-env.ts` (allowlist-scrubbed env, fresh seeded
-`CLAUDE_CONFIG_DIR`, temp `GSTACK_HOME`, `--strict-mcp-config`); per-test
-`env:` overrides merge last onto a COMPLETE hermetic env, so they're safe.
-A PTY test that types a `/skill` command must pass `seedSkills: true`.
-Debug against real operator state with `EVALS_HERMETIC=0`. Full detail
-(env-shim, seeding tripwires, wiring tests):
-[docs/TESTING_INTERNALS.md](docs/TESTING_INTERNALS.md).
+**Hermetic な E2E と環境変数のキー:** すべての E2E ランナーは、子プロセスを `test/helpers/hermetic-env.ts` 経由で起動します(許可リストで環境変数を絞り込み、新たにシードされた `CLAUDE_CONFIG_DIR`、一時的な `GSTACK_HOME`、`--strict-mcp-config`)。テストごとの `env:` の上書きは、完全な hermetic 環境の最後にマージされるため、安全に使えます。`/skill` コマンドを入力する PTY テストは、`seedSkills: true` を指定する必要があります。実際のオペレーターの状態に対してデバッグするには `EVALS_HERMETIC=0` を使います。詳細(env-shim、シードの番兵、配線のテスト):
+[docs/TESTING_INTERNALS.md](docs/TESTING_INTERNALS.md)。
 
-**Test selection and tiers:** the sharded paid runner (`test:pr`,
-`eval:bg:pr`, `test:gate:sharded`) selects tests from `git diff` through the
-dependency lists in `test/helpers/touchfiles.ts` (`EVALS_ALL=1` forces
-everything; `eval:select` previews the PR profile, `--profile full` the plain
-touchfile selection). Classify every new E2E test in `E2E_TIERS`: safety guardrail or
-deterministic functional test -> `gate`; quality benchmark, Opus model test,
-non-deterministic, or external service (Codex, Gemini) -> `periodic`.
-`test/e2e-tier-alignment.test.ts` enforces the tiers. CI lanes and periodic
-exclusions: [docs/TESTING_INTERNALS.md](docs/TESTING_INTERNALS.md#test-selection-and-tiers).
+**テストの選択とティア:** 有料のシャード化されたランナー(`test:pr`、`eval:bg:pr`、`test:gate:sharded`)は、`test/helpers/touchfiles.ts` の依存リストを通じて `git diff` からテストを選びます(`EVALS_ALL=1` で全件を強制、`eval:select` で PR プロファイルを確認、`--profile full` で素のタッチファイル選択を確認できます)。新しい E2E テストは、必ず `E2E_TIERS` で分類してください。安全上のガードレールや決定的な機能テストは `gate`、品質のベンチマーク、Opus モデルのテスト、非決定的なテスト、外部サービス(Codex、Gemini)は `periodic` です。`test/e2e-tier-alignment.test.ts` がティアを強制します。CI のレーンと periodic からの除外:
+[docs/TESTING_INTERNALS.md](docs/TESTING_INTERNALS.md#test-selection-and-tiers)。
 
-## Testing
+## テスト
 
 ```bash
 bun run test         # final full free acceptance after focused repairs and source freeze
 bun run eval:bg:pr   # required changed PR coverage, with explicit deferrals
 ```
 
-Follow [Validation discipline in AGENTS.md](AGENTS.md#validation-discipline):
-prove repairs with focused checks first, complete required selected evaluations,
-then run the full free suite once on the final integrated code. During repairs,
-focused checks replace a full-suite run before every commit.
+[AGENTS.md の検証の規律](AGENTS.md#validation-discipline)に従ってください。まず集中したチェックで修正を証明し、必要な選択的な評価を完了させ、最終的に統合したコードに対して無料の全件テストを 1 回実行します。修正の作業中は、コミットのたびに全件テストを回すのではなく、集中したチェックで代えてください。
 
-`bun run test` routes through `scripts/test-free-shards.ts`, whose strict
-per-shard classification fails a shard that lacks bun's summary line.
-`TREE_MUTATING` lists the files that still run in their own trailing serial
-shard (today only `test/bootstrap-retention.test.ts`). Never type
-bare `bun test` for the suite: it walks the whole repo, loading paid eval files
-and missing the strict classifier. `bun run test:pr` runs the selected short
-live behaviors and quality judges and reports deferred broad coverage. Full free
-acceptance and required PR checks must pass before publishing. See
-[testing policy](CONTRIBUTING.md#test-tiers) for commands and measured targets.
-Tests that need Aside itself self-skip unless a Mac has the Aside app open.
-Shard packing, judge reuse and engine skips:
-[docs/TESTING_INTERNALS.md](docs/TESTING_INTERNALS.md#free-suite-runner-judge-reuse-and-engine-skips).
+`bun run test` は `scripts/test-free-shards.ts` を経由します。このスクリプトは、シャードごとに厳密な判定を行い、bun の要約行がないシャードを失敗扱いにします。`TREE_MUTATING` には、独立した末尾の直列シャードで実行されるファイルが列挙されています(現在は `test/bootstrap-retention.test.ts` のみ)。スイート全体に素の `bun test` を使わないでください。リポジトリ全体を走査し、有料の eval ファイルを読み込み、厳密な判定をすり抜けてしまいます。`bun run test:pr` は、選択された短いライブの動作テストと品質の審査員を実行し、広範なカバレッジの延期を報告します。無料の全件テストと必須の PR チェックは、公開前にすべて通っている必要があります。コマンドと測定の目標は[テスト方針](CONTRIBUTING.md#test-tiers)を参照してください。Aside 自体が必要なテストは、Mac で Aside アプリが開いていない限り自動的にスキップされます。シャードのパッキング、審査員の再利用、エンジンのスキップ:
+[docs/TESTING_INTERNALS.md](docs/TESTING_INTERNALS.md#free-suite-runner-judge-reuse-and-engine-skips)。
 
-New or changed tests follow the [test value bar](docs/test-value-bar.md): each one
-protects behavior a real regression would break, and contract tests (SKILL.md
-goldens, and prompt bytes that are a contract as defined below) stay. The bar's
-source is `scripts/resolvers/test-value.ts`.
+新規または変更したテストは、[テストの価値の基準](docs/test-value-bar.md)に従ってください。各テストは、実際の回帰で壊れうる振る舞いを守るものでなければなりません。契約テスト(SKILL.md のゴールデンファイル、および下で定義する「プロンプトのバイト列の契約」)は残します。この基準の定義元は `scripts/resolvers/test-value.ts` です。
 
-In this repo, prompt bytes are a contract only when software reads them (a
-parser, hook, grader or another skill consumes the exact text) or a recorded
-eval shows the wording matters. Tests on skill templates and generated SKILL.md
-pin structure, step order, routing tables, machine-read markers and
-safety-critical lines; check safety lines case-insensitively, on meaning rather
-than capitals. Leave behavior to E2E cases and judges. Don't pin emphasis,
-capitalization, issue numbers, or a sentence a behavioral check already covers,
-and when a rewrite changes a pinned sentence, replace the pin with a structural
-or meaning-level check instead of pinning the new sentence. The terms are defined
-in [docs/test-value-bar.md](docs/test-value-bar.md) ("Prompt-byte contract",
-"Sentence pin"). Use `test/helpers/prompt-structure.ts` (`between`,
-`expectTokens`, `expectAbsent`, `expectOrdered`, `expectMentions`) for
-template/SKILL.md checks: tokens and order exactly, safety rules as
-case-insensitive keyword co-occurrence in one sentence.
-Projects tune `/ship`'s coverage gate with optional CLAUDE.md `## Test Coverage`
-keys, all absent by default: `Minimum:`, `Target:`, `Generation cap:` (default 5),
-`Base control:` (`auto` or `off`), `Base control budget:` (seconds, default 90) and
-`Star rating:` (`auto` or `off`).
+このリポジトリでは、プロンプトのバイト列が契約になるのは、ソフトウェアがそれを読む場合(パーサー、フック、審査員、または別のスキルが正確なテキストを消費する場合)か、記録された eval によって言い回しが結果に影響することが示されている場合だけです。スキルのテンプレートと生成された SKILL.md に対するテストでは、構造、ステップの順序、ルーティングの表、機械が読むマーカー、安全に関わる行を固定します。安全に関わる行は、大文字と小文字を区別せず、表記ではなく意味で確認します。振る舞いは E2E のケースと審査員に任せてください。強調、大文字小文字、Issue の番号、振る舞いの確認ですでにカバーされている文を固定しないでください。書き換えで固定した文が変わる場合は、新しい文を固定するのではなく、構造的または意味レベルのチェックに置き換えてください。用語の定義は [docs/test-value-bar.md](docs/test-value-bar.md)(「Prompt-byte contract」「Sentence pin」)にあります。テンプレートや SKILL.md のチェックには `test/helpers/prompt-structure.ts`(`between`、`expectTokens`、`expectAbsent`、`expectOrdered`、`expectMentions`)を使ってください。トークンと順序は完全一致、安全に関するルールは、1 つの文の中での大文字小文字を区別しないキーワードの同時出現で確認します。
+プロジェクトは、`/ship` のカバレッジゲートを、任意の CLAUDE.md の `## Test Coverage` キーで調整できます。既定ではすべて未設定です: `Minimum:`、`Target:`、`Generation cap:`(既定 5)、`Base control:`(`auto` または `off`)、`Base control budget:`(秒単位、既定 90)、`Star rating:`(`auto` または `off`)。
 
-## Project structure
+## プロジェクト構成
 
-Full annotated tree: [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md).
-Quick map: `browse/` gstack's own headless-browser CLI (the fallback
-engine) plus the `/browse` skill, `design/` design binary, `make-pdf/` PDF
-binary, `hosts/` typed host configs, `scripts/` build+DX tooling
-(gen-skill-docs, resolvers — `resolvers/aside.ts` is the Aside contract),
-`test/` validation+evals, `lib/` shared libraries (`aside-render.ts` renders
-local HTML through Aside, falling back to the engine; `design-catalog.ts` is
-the typed design anti-pattern catalog every design skill renders from), `bin/`
-CLI utilities (`gstack-render.ts` is the render CLI skills call;
-`gstack-design-detect.ts` and `gstack-design-md.ts` are the design detector
-and open-DESIGN.md tools), `extension/` Chrome
-extension, one directory per skill (`ship/`, `review/`, `qa/`, ...),
-`.github/` CI, `contrib/` contributor tools, `docs/designs/` design documents.
+完全な注釈付きのツリーは [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) にあります。
+概要: `browse/` は gstack 独自のヘッドレスブラウザ CLI(フォールバックのエンジン)で、`/browse` スキルを含みます。`design/` はデザインのバイナリ、`make-pdf/` は PDF のバイナリ、`hosts/` は型付きのホスト設定です。`scripts/` はビルドと開発者体験のツールです(gen-skill-docs、リゾルバー。`resolvers/aside.ts` が Aside の契約です)。`test/` は検証と eval、`lib/` は共有ライブラリです(`aside-render.ts` はローカルの HTML を Aside で描画し、失敗時はエンジンにフォールバックします。`design-catalog.ts` は、すべてのデザインスキルが描画に使う型付きのデザインのアンチパターンのカタログです)。`bin/` は CLI ユーティリティです(`gstack-render.ts` はスキルが呼び出す描画 CLI、`gstack-design-detect.ts` と `gstack-design-md.ts` はデザインの検出ツールと open-DESIGN.md のツールです)。`extension/` は Chrome 拡張機能、スキルごとに 1 つのディレクトリ(`ship/`、`review/`、`qa/` など)、`.github/` は CI、`contrib/` は貢献者向けのツール、`docs/designs/` は設計ドキュメントです。
 
-## SKILL.md workflow
+## SKILL.md のワークフロー
 
-SKILL.md files are **generated** from `.tmpl` templates. To update docs:
+SKILL.md ファイルは `.tmpl` テンプレートから**生成**されます。ドキュメントを更新するには:
 
-1. Edit the `.tmpl` file (e.g. `SKILL.md.tmpl` or `browse/SKILL.md.tmpl`)
-2. Run `bun run gen:skill-docs` (or `bun run build` which does it automatically)
-3. Commit both the `.tmpl` and generated `.md` files
+1. `.tmpl` ファイルを編集します(例: `SKILL.md.tmpl` や `browse/SKILL.md.tmpl`)
+2. `bun run gen:skill-docs` を実行します(`bun run build` を実行すると自動的に行われます)
+3. `.tmpl` と生成された `.md` ファイルの両方をコミットします
 
-The same `gen:skill-docs` run writes two more generated files from `lib/`:
-`review/design-checklist.md` (from `lib/design-catalog.ts`, through
-`scripts/resolvers/design-checklist.ts`) and `lib/dom-dump.js` (from
-`lib/dom-dump-script.ts`). Edit the catalog or the script source, regenerate,
-and commit both; never edit the generated file
-(`test/design-checklist-sync.test.ts` fails on drift).
+同じ `gen:skill-docs` の実行で、`lib/` から 2 つの生成ファイルも書き出されます。`review/design-checklist.md`(`lib/design-catalog.ts` から、`scripts/resolvers/design-checklist.ts` を経由して生成)と `lib/dom-dump.js`(`lib/dom-dump-script.ts` から生成)です。カタログまたはスクリプトのソースを編集し、再生成して、両方をコミットしてください。生成されたファイルを直接編集してはいけません(`test/design-checklist-sync.test.ts` がずれを検出して失敗します)。
 
-Generation uses each host's `defaultModel` (`claude` for most hosts, `gpt`
-for Codex, `gemini` for Antigravity's `agy`) unless `--model` is explicit. Codex installs additionally read the
-top-level model from `${CODEX_HOME:-~/.codex}/config.toml`; rerun
-`./setup --host codex` after changing that model. Note: `bun run build` and a
-bare `gen:skill-docs --host codex` render the host default (gpt) — if your
-Codex config.toml pins a different model, rerun `./setup --host codex`
-afterwards to restore your profile (single-owner persistence is filed in
-TODOS.md).
+生成では、`--model` が明示されていない限り、各ホストの `defaultModel` を使います(ほとんどのホストは `claude`、Codex は `gpt`、Antigravity の `agy` は `gemini`)。Codex のインストールでは、`${CODEX_HOME:-~/.codex}/config.toml` のトップレベルのモデルも読み込みます。このモデルを変更したら `./setup --host codex` を再実行してください。注意: `bun run build` と、素の `gen:skill-docs --host codex` は、ホストの既定(gpt)で描画します。Codex の config.toml で別のモデルを指定している場合は、プロファイルを復元するために `./setup --host codex` を再実行してください(単一の所有者による永続化は TODOS.md に登録されています)。
 
-Browser steps in skills are `aside repl` scripts per
-`scripts/resolvers/aside.ts`, each with its `$B` equivalent for the fallback
-engine. To add a new browse command: add it to `browse/src/commands.ts` and
-rebuild. To add a snapshot flag: add it to `SNAPSHOT_FLAGS` in
-`browse/src/snapshot.ts` and rebuild. Local-HTML rendering in a skill template
-is a `bun run ~/.claude/skills/gstack/bin/gstack-render.ts` call; new render
-options go into `lib/aside-render.ts` (which handles the fallback), never into
-a skill's own bash.
+スキル内のブラウザ操作は、`scripts/resolvers/aside.ts` に従う `aside repl` スクリプトです。それぞれにフォールバックのエンジン用の `$B` による同等の処理が付きます。ブラウザコマンドを追加するには、`browse/src/commands.ts` に追加して再ビルドします。スナップショットのフラグを追加するには、`browse/src/snapshot.ts` の `SNAPSHOT_FLAGS` に追加して再ビルドします。スキルのテンプレートでのローカル HTML の描画は、`bun run ~/.claude/skills/gstack/bin/gstack-render.ts` の呼び出しで行います。新しい描画オプションは、(フォールバックを処理する) `lib/aside-render.ts` に追加してください。スキル独自の bash に書いてはいけません。
 
-**Size budgets:** generated SKILL.md files warn above 160KB (~40K tokens);
-`test/catalog-budget.test.ts` caps the always-loaded skill catalog at
-`CATALOG_BUDGET_TOKEN_EQUIVALENTS` (1,197 today; each new skill ratchets it); and
-`test/context-budget-ratchet.test.ts` pins per-skill token ceilings against
-`test/fixtures/context-budget.json` (for legitimate growth or a landed
-reduction, re-run `bun test/helpers/capture-context-budget.ts` and commit the
-refreshed fixture in the same commit). Rationale and protocol:
-[docs/CONTRIBUTOR_REFERENCE.md](docs/CONTRIBUTOR_REFERENCE.md#skill-size-budgets).
+**サイズの予算:** 生成された SKILL.md は 160KB(約 40K トークン)を超えると警告を出します。`test/catalog-budget.test.ts` は、常に読み込まれるスキルのカタログを `CATALOG_BUDGET_TOKEN_EQUIVALENTS`(現在 1,475、スキルを追加するたびに引き上げる)で上限設定します。`test/context-budget-ratchet.test.ts` は、スキルごとのトークン上限を `test/fixtures/context-budget.json` に対して固定します(正当な増加や削減を反映するには、`bun test/helpers/capture-context-budget.ts` を再実行し、更新したフィクスチャを同じコミットでコミットしてください)。理由と手順:
+[docs/CONTRIBUTOR_REFERENCE.md](docs/CONTRIBUTOR_REFERENCE.md#skill-size-budgets)。
 
-**Merge conflicts on SKILL.md files:** NEVER resolve conflicts on generated SKILL.md
-files by accepting either side. Instead: (1) resolve conflicts on the `.tmpl` templates
-and `scripts/gen-skill-docs.ts` (the sources of truth), (2) run `bun run gen:skill-docs`
-to regenerate all SKILL.md files, (3) stage the regenerated files. Accepting one side's
-generated output silently drops the other side's template changes.
+**SKILL.md ファイルのマージコンフリクト:** 生成された SKILL.md ファイルのコンフリクトを、どちらか一方を採用して解決してはいけません。代わりに、(1) `.tmpl` テンプレートと `scripts/gen-skill-docs.ts`(真の情報源)のコンフリクトを解決し、(2) `bun run gen:skill-docs` を実行してすべての SKILL.md を再生成し、(3) 再生成したファイルをステージしてください。片方の生成結果を採用すると、もう一方のテンプレートの変更が黙って失われます。
 
-## Platform-agnostic design
+## プラットフォームに依存しない設計
 
-Skills must NEVER hardcode framework-specific commands, file patterns, or directory
-structures. Instead:
+スキルは、フレームワーク固有のコマンド、ファイルのパターン、ディレクトリ構造を**決してハードコードしてはいけません**。代わりに次のようにします:
 
-1. **Read CLAUDE.md** for project-specific config (test commands, eval commands, etc.)
-2. **If missing, AskUserQuestion** — let the user tell you or let gstack search the repo
-3. **Persist the answer to CLAUDE.md** so we never have to ask again
+1. プロジェクト固有の設定(テストコマンド、eval コマンドなど)は **CLAUDE.md を読みます**
+2. 無ければ **AskUserQuestion** で尋ねます。ユーザーに教えてもらうか、gstack にリポジトリを探索させます
+3. 答えを **CLAUDE.md に保存**して、二度と尋ねなくて済むようにします
 
-This applies to test commands, eval commands, deploy commands, and any other
-project-specific behavior. The project owns its config; gstack reads it.
+これはテストコマンド、eval コマンド、デプロイコマンド、その他のプロジェクト固有の振る舞いすべてに当てはまります。設定はプロジェクトが持ち、gstack がそれを読みます。
 
-## Writing SKILL templates
+## SKILL テンプレートの書き方
 
-SKILL.md.tmpl files are **prompt templates read by Claude**, not bash scripts.
-Each bash code block runs in a separate shell — variables do not persist between blocks.
+SKILL.md.tmpl ファイルは、Claude が読む**プロンプトのテンプレート**であり、シェルスクリプトではありません。bash のコードブロックはそれぞれ別のシェルで実行されるため、変数はブロック間で引き継がれません。
 
-Rules:
-- **Use natural language for logic and state.** Don't use shell variables to pass
-  state between code blocks. Instead, tell Claude what to remember and reference
-  it in prose (e.g., "the base branch detected in Step 0").
-- **Don't hardcode branch names.** Detect `main`/`master`/etc dynamically via
-  `gh pr view` or `gh repo view`. Use `{{BASE_BRANCH_DETECT}}` for PR-targeting
-  skills. Use "the base branch" in prose, `<base>` in code block placeholders.
-- **Keep bash blocks self-contained.** Each code block should work independently.
-  If a block needs context from a previous step, restate it in the prose above.
-- **Express conditionals as English.** Instead of nested `if/elif/else` in bash,
-  write numbered decision steps: "1. If X, do Y. 2. Otherwise, do Z."
+ルール:
+- **ロジックと状態は自然言語で扱います。** シェル変数を使ってコードブロック間で状態を受け渡してはいけません。代わりに、Claude に覚えておくべき内容を伝え、それを散文の中で参照します(例: 「ステップ 0 で検出したベースブランチ」)。
+- **ブランチ名をハードコードしないでください。** `main`/`master` などは `gh pr view` や `gh repo view` で動的に検出します。PR を対象とするスキルでは `{{BASE_BRANCH_DETECT}}` を使います。散文では「ベースブランチ」と書き、コードブロックのプレースホルダーでは `<base>` を使います。
+- **bash のコードブロックは自己完結させます。** 各コードブロックは単独で動くべきです。ブロックが前のステップの文脈を必要とする場合は、その直前の散文で改めて書いてください。
+- **条件分岐は英語で表現します。** bash で入れ子の `if/elif/else` を書く代わりに、番号付きの判断ステップとして書きます: 「1. X なら Y を行う。 2. そうでなければ Z を行う。」
 
-## Writing style (V1)
+## 文章スタイル(V1)
 
-Default output from every tier-≥2 skill follows the Writing Style section in
-`scripts/resolvers/preamble/generate-writing-style.ts`: jargon glossed on first
-use (curated list in `scripts/jargon-list.json`, which the skill Reads at runtime
-on the first jargon term), questions framed in
-outcome terms ("what breaks for your users if...") not implementation terms,
-short sentences, decisions close with user impact. Power users who want the
-tighter V0 prose set `gstack-config set explain_level terse` (binary switch,
-no middle mode). See `docs/designs/PLAN_TUNING_V1.md` for the full design
-rationale. The review pacing overhaul that originally tried to ride alongside
-writing-style was extracted to V1.1 — see `docs/designs/PACING_UPDATES_V0.md`.
+tier 2 以上のすべてのスキルの既定の出力は、`scripts/resolvers/preamble/generate-writing-style.ts` の文章スタイルのセクションに従います。初めて出てくる専門用語には注釈を付けます(厳選されたリストは `scripts/jargon-list.json` にあり、スキルは最初の専門用語に出会った時点で実行時にそれを読みます)。質問は、実装の用語ではなく、結果の観点で組み立てます(例: 「これが間違っていた場合、ユーザーに何が起きますか」)。文は短くし、判断はユーザーへの影響で締めくくります。より簡潔な V0 の文体を求めるパワーユーザーは `gstack-config set explain_level terse` を設定できます(中間のモードはない二択のスイッチです)。設計の背景は `docs/designs/PLAN_TUNING_V1.md` を参照してください。writing-style と同時に進める予定だったレビューのペース配分の改修は V1.1 に切り出されました。`docs/designs/PACING_UPDATES_V0.md` を参照してください。
 
-## Browser interaction
+## ブラウザの操作
 
-gstack drives the Aside AI browser (macOS 15+) first and falls back to its own
-browser engine when Aside is absent. When you need to interact with a browser
-(QA, dogfooding, inspecting a page), use the `/browse` skill: it probes Aside
-and, on `READY`, drives it — the user's real browser with their real sessions —
-through `aside repl` scripts that follow the contract in
-`scripts/resolvers/aside.ts` (`{{ASIDE_SETUP}}`). Every browser skill (`/qa`,
-`/qa-only`, `/design-review`, `/canary`, `/benchmark`, `/scrape`) does the same,
-and web research in skills runs through Aside's agent (`{{ASIDE_RESEARCH}}`)
-before the WebSearch tool. When the probe says `NEEDS_ASIDE` or
-`ASIDE_NOT_RUNNING` (Linux, Windows, a closed Aside app), the skill resolves
-`$B` per `{{BROWSE_FALLBACK}}` and runs the browse binary instead — `$B <command>`
-is a legitimate tool in that context, and cookie import, GStack Browser headed
-mode, `/pair-agent`, and browser-skills/`/skillify` belong to it. Local HTML a
-skill generated itself (make-pdf, diagram, design previews) renders through
-`bin/gstack-render.ts` / `lib/aside-render.ts`, which serve the file on
-loopback and print or screenshot it in Aside, or in the engine when Aside is
-absent — never point the renderer at a site. NEVER use
-`mcp__claude-in-chrome__*` tools — they are slow, unreliable, and not what this
-project uses.
+gstack は、まず Aside AI ブラウザ(macOS 15 以降)を使い、Aside がない場合は独自のブラウザエンジンにフォールバックします。ブラウザを操作する必要がある場合(QA、ドッグフーディング、ページの確認)は、`/browse` スキルを使ってください。このスキルは Aside の有無を確認し、`READY` であれば Aside を駆動します。Aside はユーザーの実際のブラウザで、実際のセッションを使います。操作は `scripts/resolvers/aside.ts`(`{{ASIDE_SETUP}}`)の契約に従う `aside repl` スクリプトで行います。すべてのブラウザ系スキル(`/qa`、`/qa-only`、`/design-review`、`/canary`、`/benchmark`、`/scrape`)も同じ方法で動きます。スキル内の Web 調査は、WebSearch ツールより先に Aside のエージェント(`{{ASIDE_RESEARCH}}`)を通します。プローブが `NEEDS_ASIDE` または `ASIDE_NOT_RUNNING`(Linux、Windows、Aside アプリが閉じている場合)を返すと、スキルは `{{BROWSE_FALLBACK}}` に従って `$B` を解決し、代わりに browse バイナリを実行します。この文脈では `$B <command>` は正当なツールです。Cookie のインポート、GStack Browser のヘッドモード、`/pair-agent`、browser-skills/`/skillify` はこの場面に属します。スキル自身が生成したローカルの HTML(make-pdf、diagram、デザインのプレビュー)は、`bin/gstack-render.ts` / `lib/aside-render.ts` を通して描画されます。これらはループバック上でファイルを配信し、Aside で印刷またはスクリーンショットを撮ります。Aside がない場合はエンジンで処理します。描画ツールをサイトに向けてはいけません。`mcp__claude-in-chrome__*` ツールは決して使わないでください。遅く、信頼性が低く、このプロジェクトで使うものではありません。
 
-**Server / sidebar / extension internals:** before editing `browse/src/server.ts`,
-`extension/`, the sidebar PTY, any SSE endpoint, or CDP session code, read
-[docs/BROWSER_INTERNALS.md](docs/BROWSER_INTERNALS.md) — sidebar message flow,
-WebSocket auth, tunnel dual-listener rules, Unicode sanitization at egress,
-SSE/CDP helpers, setup symlink hardening, and the sidebar security stack all
-live there, each pinned by a CI tripwire.
+**サーバー / サイドバー / 拡張機能の内部:** `browse/src/server.ts`、`extension/`、サイドバーの PTY、SSE エンドポイント、CDP セッションのコードを編集する前に、[docs/BROWSER_INTERNALS.md](docs/BROWSER_INTERNALS.md) を読んでください。サイドバーのメッセージの流れ、WebSocket の認証、トンネルのデュアルリスナーのルール、出力時の Unicode のサニタイズ、SSE/CDP のヘルパー、セットアップのシンボリックリンクの強化、サイドバーのセキュリティ構成がすべて書かれており、それぞれ CI の番兵テストで固定されています。
 
-**Egress receipts at every off-machine sink** (v1.63.0.0+). Every gstack-initiated
-send off the machine MUST write a receipt BEFORE the send: TypeScript callers use
-`writeReceipt` from `lib/egress-receipt.ts`; shell scripts source
-`bin/gstack-egress-lib.sh` and use `_receipted_curl` / `_receipted_git`.
-`test/egress-receipt-wiring.test.ts` fails CI on an unreceipted new sink.
-Failure polarity, scanner exemptions and the `_aside_exec` wrapper:
-[docs/CONTRIBUTOR_REFERENCE.md](docs/CONTRIBUTOR_REFERENCE.md#egress-receipts).
+**マシン外へのすべての送信先での送信記録(egress receipts)**(v1.63.0.0 以降)。gstack が起動するマシン外への送信はすべて、送信の**前に**記録を書かなければなりません。TypeScript の呼び出し元は `lib/egress-receipt.ts` の `writeReceipt` を使います。シェルスクリプトは `bin/gstack-egress-lib.sh` を読み込み、`_receipted_curl` / `_receipted_git` を使います。`test/egress-receipt-wiring.test.ts` は、記録のない新しい送信先があると CI を失敗させます。失敗時の扱い、スキャナーの除外、`_aside_exec` ラッパーについては、[docs/CONTRIBUTOR_REFERENCE.md](docs/CONTRIBUTOR_REFERENCE.md#egress-receipts) を参照してください。
 
-## Dev symlink awareness
+## 開発時のシンボリックリンクに関する注意
 
-When developing gstack, `.claude/skills/gstack` may be a symlink back to this
-working directory (gitignored). This means skill changes are **live immediately**,
-great for rapid iteration, risky during big refactors where half-written skills
-could break other Claude Code sessions using gstack concurrently.
+gstack を開発する際、`.claude/skills/gstack` はこの作業ディレクトリへのシンボリックリンクになっている場合があります(gitignore 済み)。その場合、スキルの変更は**即座に反映されます**。素早く反復する場合には便利ですが、大規模なリファクタリングでは、書きかけのスキルが同時に動いている他の Claude Code セッションを壊すおそれがあり危険です。
 
-**Check once per session:** Run `ls -la .claude/skills/gstack` to see if it's a
-symlink or a real copy. If it's a symlink to your working directory, be aware that:
-- Template changes + `bun run gen:skill-docs` immediately affect all gstack invocations
-- Breaking changes to SKILL.md.tmpl files can break concurrent gstack sessions
-- During large refactors, remove the symlink (`rm .claude/skills/gstack`) so the
-  global install at `~/.claude/skills/gstack/` is used instead
+**セッションごとに一度確認してください:** `ls -la .claude/skills/gstack` を実行して、シンボリックリンクか実体のコピーかを確認します。作業ディレクトリへのシンボリックリンクである場合は、次の点に注意してください:
+- テンプレートの変更と `bun run gen:skill-docs` は、gstack のすべての呼び出しに即座に影響します
+- SKILL.md.tmpl ファイルを壊す変更は、同時に動いている gstack のセッションを壊すおそれがあります
+- 大規模なリファクタリングでは、シンボリックリンクを削除して(`rm .claude/skills/gstack`)、代わりに `~/.claude/skills/gstack/` のグローバルインストールを使うようにしてください
 
-**Skill linking and ownership (#2119):** setup installs each skill as a
-top-level directory (short `qa` or namespaced `gstack-qa`, per `skill_prefix`),
-and `setup` and `bin/gstack-relink` only delete or link over an entry they can
-prove is gstack's; keep those two copies of the rule in sync. Proof rules,
-prune behavior and pinning tests:
-[docs/CONTRIBUTOR_REFERENCE.md](docs/CONTRIBUTOR_REFERENCE.md#skill-linking-and-ownership).
+**スキルのリンクと所有権(#2119):** setup は各スキルを、トップレベルのディレクトリとしてインストールします(`skill_prefix` に従って、短い名前の `qa` または名前空間付きの `gstack-qa`)。`setup` と `bin/gstack-relink` は、gstack のものだと証明できるエントリだけを削除したり、そこへリンクしたりします。この 2 箇所のルールは同期させておいてください。証明のルール、削除の振る舞い、固定するテスト:
+[docs/CONTRIBUTOR_REFERENCE.md](docs/CONTRIBUTOR_REFERENCE.md#skill-linking-and-ownership)。
 
-**Note:** Vendoring gstack into a project's repo is deprecated. Use global install
-+ `./setup --team` instead. See README.md for team mode instructions.
+**注意:** gstack をプロジェクトのリポジトリにベンダリング(取り込み)することは非推奨です。代わりにグローバルインストールと `./setup --team` を使ってください。チームモードの手順は README.md を参照してください。
 
-**For plan reviews:** When reviewing plans that modify skill templates or the
-gen-skill-docs pipeline, consider whether the changes should be tested in isolation
-before going live (especially if the user is actively using gstack in other windows).
+**プランのレビューについて:** スキルのテンプレートや gen-skill-docs のパイプラインを変更するプランをレビューする場合は、本番に出す前に分離して検証すべきかどうかを検討してください(特に、ユーザーが他のウィンドウで gstack を使っている場合)。
 
-**Upgrade migrations:** When a change modifies on-disk state (directory structure,
-config format, stale files) in ways that could break existing user installs, add a
-migration script to `gstack-upgrade/migrations/`. Read CONTRIBUTING.md's "Upgrade
-migrations" section for the format and testing requirements. The upgrade skill runs
-these automatically after `./setup` during `/gstack-upgrade`.
+**アップグレードの移行:** 既存のユーザーのインストールを壊しうる形でディスク上の状態(ディレクトリ構造、設定の形式、古いファイル)を変更する場合は、`gstack-upgrade/migrations/` に移行スクリプトを追加してください。形式とテストの要件は CONTRIBUTING.md の「Upgrade migrations」を参照してください。アップグレードのスキルは、`/gstack-upgrade` の中で `./setup` の後にこれらを自動的に実行します。
 
-## Compiled binaries — never commit browse/dist/, design/dist/, or make-pdf/dist/
+## コンパイル済みバイナリ: browse/dist/、design/dist/、make-pdf/dist/ は決してコミットしない
 
-The `browse/dist/`, `design/dist/`, and `make-pdf/dist/` directories contain
-compiled Bun binaries (`browse`, `find-browse`, `design`, ~62MB each). These are
-Mach-O arm64 only — they do NOT work on Linux, Windows, or Intel Macs. The
-`./setup` script builds from source for every platform.
+`browse/dist/`、`design/dist/`、`make-pdf/dist/` のディレクトリには、コンパイル済みの Bun バイナリ(`browse`、`find-browse`、`design`、各約 62MB)が入っています。これらは Mach-O arm64 専用で、Linux、Windows、Intel Mac では動作しません。`./setup` スクリプトは、すべてのプラットフォームでソースからビルドします。
 
-These directories are **untracked and gitignored** (`.gitignore:3-6`; the
-`browse/dist/` binaries were untracked in `64d5a3e4`, v0.11.16.0; the others were
-never tracked). They will NOT appear in `git status`. If a dist binary ever does
-show up in `git status`, something force-added it (`git add -f`) — do not commit
-it; unstage it and find out how it got there.
+これらのディレクトリは**追跡されず、gitignore されています**(`.gitignore:3-6`。`browse/dist/` のバイナリは `64d5a3e4`(v0.11.16.0)で追跡対象から外れました。その他は一度も追跡されていません)。そのため `git status` には現れません。もし dist のバイナリが `git status` に現れたら、誰かが強制的に追加(`git add -f`)したということです。コミットしないでください。ステージを取り消し、どうして入ったのかを調べてください。
 
-When staging files, always use specific filenames (`git add file1 file2`) — never
-`git add .` or `git add -A`, which can sweep in build outputs and junk.
+ファイルをステージするときは、常に具体的なファイル名を指定してください(`git add file1 file2`)。`git add .` や `git add -A` は使わないでください。ビルドの出力やごみを巻き込むおそれがあります。
 
-## Redaction guard (PII / secrets / legal content)
+## 編集ガード(個人情報・機密情報・法的内容)
 
-`lib/redact-patterns.ts` + `lib/redact-engine.ts` (CLI `bin/gstack-redact`,
-opt-in hook `bin/gstack-redact-prepush`) catch credentials, PII and legal content
-before an external sink. It is a **guardrail, not airtight enforcement**; never
-claim it stops a determined leaker. Always scan the EXACT bytes that will be
-sent, and render skill docs from `scripts/resolvers/redact-doc.ts`. Tiers,
-visibility, fences and config keys:
-[docs/CONTRIBUTOR_REFERENCE.md](docs/CONTRIBUTOR_REFERENCE.md#redaction-guard).
+`lib/redact-patterns.ts` と `lib/redact-engine.ts`(CLI は `bin/gstack-redact`、オプトインのフックは `bin/gstack-redact-prepush`)は、外部への送信先に出る前に、認証情報、個人情報、法的内容を検出します。これは**ガードレールであり、完全な強制ではありません**。決意を持った情報漏えい者を止められると主張してはいけません。送信される**正確なバイト列**を必ず検査してください。スキルのドキュメントは `scripts/resolvers/redact-doc.ts` から描画してください。ティア、公開範囲、フェンス、設定キーについては:
+[docs/CONTRIBUTOR_REFERENCE.md](docs/CONTRIBUTOR_REFERENCE.md#redaction-guard)。
 
-## Commit style
+## コミットのスタイル
 
-**Always bisect commits.** Every commit should be a single logical change. When
-you've made multiple changes (e.g., a rename + a rewrite + new tests), split them
-into separate commits before pushing. Each commit should be independently
-understandable and revertable.
+**コミットは必ず分割してください。** すべてのコミットは、1 つの論理的な変更でなければなりません。複数の変更(例: 名前変更 + 書き直し + 新しいテスト)を行ったら、push する前に別々のコミットに分けてください。各コミットは、単独で理解でき、取り消せるものである必要があります。
 
-Examples of good bisection:
-- Rename/move separate from behavior changes
-- Test infrastructure (touchfiles, helpers) separate from test implementations
-- Template changes separate from generated file regeneration
-- Mechanical refactors separate from new features
+良い分割の例:
+- 名前変更・移動と、振る舞いの変更を分ける
+- テストの基盤(タッチファイル、ヘルパー)と、テストの実装を分ける
+- テンプレートの変更と、生成ファイルの再生成を分ける
+- 機械的なリファクタリングと、新機能を分ける
 
-When the user says "bisect commit" or "bisect and push," split staged/unstaged
-changes into logical commits and push.
+「bisect commit」または「bisect and push」とユーザーが言った場合は、ステージ済みと未ステージの変更を論理的なコミットに分割し、push してください。
 
-## Slop-scan: AI code quality, not AI code hiding
+## Slop-scan: AI によるコード品質の検査であり、AI によるコードの隠蔽ではありません
 
-We use [slop-scan](https://github.com/benvinegar/slop-scan) to catch patterns where
-AI-generated code is genuinely worse than what a human would write. We are NOT trying
-to pass as human code. We are AI-coded and proud of it. The goal is code quality.
+[slop-scan](https://github.com/benvinegar/slop-scan) を使って、AI が生成したコードが、人間が書くものより明らかに劣っているパターンを検出します。私たちは人間のコードに見せかけようとしているわけではありません。AI によるコーディングを行っており、それを誇りに思っています。目標はコードの品質です。
 
 ```bash
 npx slop-scan scan .          # human-readable report
 npx slop-scan scan . --json   # machine-readable for diffing
 ```
 
-Config: `slop-scan.config.json` at repo root (currently excludes `**/vendor/**`).
+設定: リポジトリ直下の `slop-scan.config.json`(現在 `**/vendor/**` を除外しています)。
 
-Before fixing any finding, read [docs/SLOP_SCAN.md](docs/SLOP_SCAN.md):
-it separates genuine quality fixes (empty catches around file ops → 
-`safeUnlink()`, process kills → `safeKill()`) from linter gaming we
-reject (string-matching error messages, tightening best-effort cleanup).
-Utilities live in `lib/error-handling.ts`. Don't chase the score.
+検出結果を修正する前に、[docs/SLOP_SCAN.md](docs/SLOP_SCAN.md) を読んでください。この文書は、実質的な品質の修正(ファイル操作の周りの空の catch → `safeUnlink()`、プロセスの kill → `safeKill()`)と、受け入れないもの(エラーメッセージの文字列マッチ、ベストエフォートのクリーンアップを厳しくすること)とを区別しています。ユーティリティは `lib/error-handling.ts` にあります。スコアを追いかけないでください。
 
-## Community PR guardrails
+## コミュニティ PR のガードレール
 
-When reviewing or merging community PRs, **always AskUserQuestion** before accepting
-any commit that:
+コミュニティの PR をレビュー・マージする際は、次のいずれかに当たるコミットを受け入れる前に、**必ず AskUserQuestion で確認してください**:
 
-1. **Touches ETHOS.md** — this file is Garry's personal builder philosophy. No edits
-   from external contributors or AI agents, period.
-2. **Removes or softens promotional material** — YC references, founder perspective,
-   and product voice are intentional. PRs that frame these as "unnecessary" or
-   "too promotional" must be rejected.
-3. **Changes Garry's voice** — the tone, humor, directness, and perspective in skill
-   templates, CHANGELOG, and docs are not generic. PRs that rewrite voice to be
-   more "neutral" or "professional" must be rejected.
+1. **ETHOS.md に触れる変更** ― このファイルは Garry の個人的なビルダーの哲学です。外部の貢献者や AI エージェントによる編集は、いかなる場合も認められません。
+2. **宣伝的な内容を削除または弱める変更** ― YC への言及、創業者の視点、プロダクトの声は意図的なものです。これらを「不要」「宣伝的すぎる」と位置づける PR は却下してください。
+3. **Garry の文章の調子を変える変更** ― スキルのテンプレート、CHANGELOG、ドキュメントにおける口調、ユーモア、率直さ、視点は、一般的なものではありません。より「中立的」または「専門的」にするために書き換える PR は却下してください。
 
-Even if the agent strongly believes a change improves the project, these three
-categories require explicit user approval via AskUserQuestion. No exceptions.
-No auto-merging. No "I'll just clean this up."
+エージェントがその変更は改善になると強く確信していても、これら 3 つの分類には、ユーザーの明示的な承認が AskUserQuestion で必要です。例外はありません。自動マージはしません。「ちょっと整えておきます」もありません。
 
-## Checking out PRs from garrytan-agents
 
-Fork PRs (for example from `garrytan-agents/gstack`) get no base-repo secrets,
-so eval CI fails with empty-env auth. Unless the user says to leave it as a fork
-PR, push the branch to `garrytan/gstack` and re-target the PR from there:
-[docs/CONTRIBUTOR_REFERENCE.md](docs/CONTRIBUTOR_REFERENCE.md#checking-out-prs-from-garrytan-agents).
+## garrytan-agents からの PR のチェックアウト
 
-## CHANGELOG + VERSION style
+フォークからの PR(例: `garrytan-agents/gstack`)は、ベースリポジトリのシークレットを受け取れないため、eval の CI は空の環境による認証で失敗します。ユーザーがフォークのままにするよう指示しない限り、ブランチを `garrytan/gstack` に push し、そこから PR の向き先を付け替えてください:
+[docs/CONTRIBUTOR_REFERENCE.md](docs/CONTRIBUTOR_REFERENCE.md#checking-out-prs-from-garrytan-agents)。
 
-**Choose versions autonomously; default to PATCH.** Garry delegates release
-version decisions to the agent. Do not ask him to choose or approve a version,
-including when an already-approved version collides with another PR. This policy
-overrides generic version-approval prompts in `/ship` and `/document-release`.
+## CHANGELOG と VERSION のスタイル
 
-Prefer **PATCH (X.Y.Z+1.0)** for ordinary releases, including fixes, additions,
-refactors, test infrastructure and coordinated multi-file work. Diff size alone
-is not a reason to choose MINOR. Choose **MINOR (X.Y+1.0.0)** or **MAJOR
-(X+1.0.0.0)** only when calling the release a patch would be plainly misleading
-("ridiculous"), such as an incompatible public-interface change or a genuinely
-new product-scale release. Make that judgment without another approval question.
+**バージョンは自律的に選び、既定では PATCH にします。** Garry はリリースのバージョンの判断をエージェントに任せています。バージョンの承認や選択を彼に尋ねてはいけません。承認済みのバージョンが別の PR と衝突した場合も同様です。この方針は、`/ship` と `/document-release` における一般的なバージョン承認のプロンプトより優先されます。
 
-Use `bin/gstack-next-version` to check the live release queue before publishing.
-If a slot is claimed, advance to the next available version at the chosen bump
-level and use `bin/gstack-version-bump` to synchronize release metadata. A higher
-base version does not itself require a MINOR bump. Keep the PR ready for Garry to
-merge; autonomous version decisions do not authorize merging, deploying or
-skipping required validation.
+通常のリリースには **PATCH(X.Y.Z+1.0)** を選んでください。修正、追加、リファクタリング、テスト基盤、複数ファイルにまたがる一連の作業を含みます。差分の大きさだけでは MINOR を選ぶ理由になりません。**MINOR(X.Y+1.0.0)** や **MAJOR(X+1.0.0.0)** を選ぶのは、パッチとして扱うと明らかに誤解を招く(「ばかげている」)場合に限ります。例えば、互換性のない公開インターフェースの変更や、製品規模の本当の新リリースなどです。その判断は、改めて承認を求めることなく行ってください。
 
-**VERSION and CHANGELOG are branch-scoped.** Each shipping branch gets its own
-bump and one entry, written at `/ship` time, that describes what THIS branch
-adds versus main, for users, with no branch-internal versions or development
-narrative. VERSION stays 4-digit; package.json carries the 3-digit npm
-translation owned by `bin/gstack-version-bump`, so never hand-edit it. Read
-[docs/CHANGELOG_STYLE.md](docs/CHANGELOG_STYLE.md) BEFORE writing an entry: it
-holds the versioning invariant, the merge-main checks, what stays out and the
-entry format. Always credit community contributions with
-`Contributed by @username`.
+公開前に `bin/gstack-next-version` を使って、現在のリリースのキューを確認してください。枠がすでに取られていれば、選んだバージョンの種類のまま次の空いているバージョンに進め、`bin/gstack-version-bump` でリリースのメタデータを同期させます。ベースのバージョンが高いからといって、MINOR のバンプが必要になるわけではありません。PR は Garry がマージできる状態にしておいてください。自律的なバージョンの判断は、マージ、デプロイ、必須の検証の省略を許可するものではありません。
 
-## AI effort compression
+**VERSION と CHANGELOG はブランチ単位です。** 各リリースブランチは、独自のバンプと 1 つのエントリを持ちます。エントリは `/ship` の実行時に書きます。内容は、このブランチが main に対して追加するものを、ユーザー向けに説明するものです。ブランチ内部のバージョンや開発の経緯は含めません。VERSION は 4 桁のままにします。package.json には 3 桁の npm 向けの値が入り、それは `bin/gstack-version-bump` が管理します。手で編集してはいけません。エントリを書く前に、[docs/CHANGELOG_STYLE.md](docs/CHANGELOG_STYLE.md) を必ず読んでください。このファイルには、バージョニングの不変条件、main をマージする際の確認事項、含めないものとエントリの形式が書かれています。コミュニティの貢献は、必ず `Contributed by @username` でクレジットしてください。
 
-When estimating or discussing effort, always show both human-team and CC+gstack time:
+## AI による作業量の圧縮
 
-| Task type | Human team | CC+gstack | Compression |
+作業量を見積もったり議論したりする際は、常に人間のチームの時間と CC+gstack の時間の両方を示してください:
+
+| 作業の種類 | 人間のチーム | CC+gstack | 圧縮率 |
 |-----------|-----------|-----------|-------------|
-| Boilerplate / scaffolding | 2 days | 15 min | ~100x |
-| Test writing | 1 day | 15 min | ~50x |
-| Feature implementation | 1 week | 30 min | ~30x |
-| Bug fix + regression test | 4 hours | 15 min | ~20x |
-| Architecture / design | 2 days | 4 hours | ~5x |
-| Research / exploration | 1 day | 3 hours | ~3x |
+| 定型作業・足場作り | 2 日 | 15 分 | 約 100 倍 |
+| テストの作成 | 1 日 | 15 分 | 約 50 倍 |
+| 機能の実装 | 1 週間 | 30 分 | 約 30 倍 |
+| バグ修正 + 回帰テスト | 4 時間 | 15 分 | 約 20 倍 |
+| アーキテクチャ・設計 | 2 日 | 4 時間 | 約 5 倍 |
+| 調査・探索 | 1 日 | 3 時間 | 約 3 倍 |
 
-Completeness is cheap. Don't recommend shortcuts when the complete implementation
-is achievable. Boil the ocean — the complete thing is the goal; only genuinely
-unrelated multi-quarter migrations are separate scope, never an excuse for a
-shortcut. See the Completeness Principle in the skill preamble for the full
-philosophy.
+完全であることは安上がりです。完全な実装が可能なら、近道を勧めないでください。完成したものこそが目標です。複数四半期にわたる、本当に無関係な移行だけを別のスコープとし、近道の言い訳にはしないでください。詳しい考え方は、スキルのプリアンブルにある「完全性の原則(Completeness Principle)」を参照してください。
 
-## Search before building
+## 作る前に検索する
 
-Before designing any solution that involves concurrency, unfamiliar patterns,
-infrastructure, or anything where the runtime/framework might have a built-in:
+並行処理、馴染みのないパターン、インフラ、またはランタイムやフレームワークに組み込み機能がありそうなものを含む解決策を設計する前には:
 
-1. Search for "{runtime} {thing} built-in"
-2. Search for "{thing} best practice {current year}"
-3. Check official runtime/framework docs
+1. 「{runtime} {thing} built-in」を検索する
+2. 「{thing} best practice {current year}」を検索する
+3. 公式のランタイム・フレームワークのドキュメントを確認する
 
-Three layers of knowledge: tried-and-true (Layer 1), new-and-popular (Layer 2),
-first-principles (Layer 3). Prize Layer 3 above all. See ETHOS.md for the full
-builder philosophy.
+知識には 3 つの層があります: 定番で確立したもの(第 1 層)、新しく人気のもの(第 2 層)、第一原理から考えたもの(第 3 層)。第 3 層を最も重視してください。詳しいビルダーの哲学は ETHOS.md を参照してください。
 
-## Local plans
+## ローカルのプラン
 
-Contributors can store long-range vision docs and design documents in `~/.gstack-dev/plans/`.
-These are local-only (not checked in). When reviewing TODOS.md, check `plans/` for candidates
-that may be ready to promote to TODOs or implement.
+コントリビューターは、長期的なビジョンのドキュメントや設計ドキュメントを `~/.gstack-dev/plans/` に保存できます。これらはローカルだけのもので、リポジトリにはチェックインされません。TODOS.md をレビューするときは、`plans/` の中から、TODO に昇格させるか実装する準備ができているものを探してください。
 
-## E2E eval failure blame protocol
+## E2E eval の失敗に対する責任の扱い
 
-When an E2E eval fails during `/ship` or any other workflow, **never claim "not
-related to our changes" without proving it.** These systems have invisible couplings —
-a preamble text change affects agent behavior, a new helper changes timing, a
-regenerated SKILL.md shifts prompt context.
+`/ship` などのワークフローで E2E eval が失敗したとき、**証明なしに「今回の変更とは無関係」と主張してはいけません。** これらのシステムには目に見えない結びつきがあります。プリアンブルのテキストを変えると、エージェントの振る舞いが変わります。新しいヘルパーはタイミングを変えます。再生成した SKILL.md はプロンプトの文脈をずらします。
 
-**Required before attributing a failure to "pre-existing":**
-1. Run the same eval on main (or base branch) and show it fails there too
-2. If it passes on main but fails on the branch — it IS your change. Trace the blame.
-3. If you can't run on main, say "unverified — may or may not be related" and flag it
-   as a risk in the PR body
+**失敗を「既存の問題」と帰属させる前に、次を必ず行ってください:**
+1. 同じ eval を main(またはベースブランチ)で実行し、そこでも失敗することを示す
+2. main では通るのにブランチでは失敗するなら、それは**あなたの変更が原因です**。原因を追跡してください
+3. main で実行できない場合は、「未検証 ― 関連している可能性も、していない可能性もある」と書き、PR 本文でリスクとして明記してください
 
-"Pre-existing" without receipts is a lazy claim. Prove it or don't say it.
+「既存の問題」と言うなら証拠を示してください。証拠のない「既存の問題」は、怠慢な主張です。証明するか、言わないでください。
 
-## Running evals as an agent: always detach (SIGTERM-proof)
+<a id="running-evals-as-an-agent-always-detach-sigterm-proof"></a>
+## エージェントとして評価を実行する: 必ずデタッチする(SIGTERM に耐える)
 
-Never run a long eval as a plain backgrounded Bash task: a turn-boundary SIGTERM
-kills it mid-flight. Run paid evals in the background with `bun run eval:bg:pr`
-(diff-selected PR gate) or `bun run eval:bg:release` (full gate + periodic);
-`eval:bg:gate` and `eval:bg:periodic` run one tier. All four run
-`scripts/eval-bg.ts`, which prints `[eval-bg] backend=<dispatch|local> …` and
-`gstack-detach LOG <path>`, then returns immediately.
+長時間の eval を、単純なバックグラウンドの Bash タスクとして実行してはいけません。ターンの境界での SIGTERM によって、途中で強制終了されます。有料の eval は、`bun run eval:bg:pr`(差分で選択される PR ゲート)か、`bun run eval:bg:release`(フルゲート + periodic)でバックグラウンド実行してください。`eval:bg:gate` と `eval:bg:periodic` はそれぞれ 1 つのティアを実行します。4 つすべてが `scripts/eval-bg.ts` を実行し、`[eval-bg] backend=<dispatch|local> …` と `gstack-detach LOG <path>` を出力して、すぐに戻ります。
 
-- **Dispatch backend** (default when HEAD is clean and pushed to garrytan/gstack
-  and `gh` can dispatch): CI runs the lane on the pushed revision (`evals.yml`
-  and/or `evals-periodic.yml`, verified by `expected_sha`); the local log follows
-  the run and names its URL. Dispatched runs are validation runs: fresh, never
-  writing PR receipts. Commit and push first; uncommitted files or unpushed
-  commits fall back to local and the log says why.
-- **Local backend** (dirty tree, unpushed commits, a fork, no `gh`, or `--local`):
-  the sharded runner on this machine, capped at ceil(1.5 × planned serial seconds
-  / EVALS_JOBS) + 20 min, at most 4 h (`--timeout SECS` overrides). Export
-  `ANTHROPIC_API_KEY` first (never pass keys in argv).
-- **Forcing**: `--dispatch` refuses with the fix ("commit and push, or rerun with
-  --local") instead of falling back; `--local` or `GSTACK_EVAL_BG_MODE=local`
-  always runs here.
-- **Waiting**: poll the log until `### gstack-detach EXIT=<code> ###` (0 passed,
-  1 failed, 130 cancelled, 2 other); silence is not success. Keep checking until
-  it appears or the user tells you to stop, and report progress at each check.
-  `bun run scripts/eval-bg.ts status <log-or-run-id>` prints running, passed,
-  failed, cancelled or incomplete (died without a sentinel).
-- Both backends hold the machine-wide `gstack-evals` lock, so concurrent
-  worktrees queue instead of saturating the API; logs live under
-  `~/.gstack-dev/eval-runs/`. A second `eval:bg:<lane>` for the same revision and
-  base follows the queued, running or green dispatch instead of dispatching again.
+- **dispatch バックエンド**(HEAD がクリーンで garrytan/gstack に push 済みであり、`gh` でディスパッチできる場合の既定): CI が push 済みのリビジョン上でレーンを実行します(`evals.yml` と/または `evals-periodic.yml`。`expected_sha` で検証されます)。ローカルのログは実行を追跡し、その URL を示します。ディスパッチされた実行は検証目的のものであり、新鮮な結果です。PR の記録は書きません。まずコミットして push してください。未追跡のファイルや push されていないコミットがあると、ローカルにフォールバックし、ログがその理由を示します。
+- **local バックエンド**(作業ツリーが汚れている、コミットが push されていない、フォークである、`gh` がない、または `--local` を指定した場合): このマシン上でシャード化された有料のランナーを実行します。上限は ceil(1.5 × 計画された直列の秒数 / EVALS_JOBS) + 20 分で、最大 4 時間です(`--timeout SECS` で上書きできます)。実行前に `ANTHROPIC_API_KEY` をエクスポートしてください(キーを引数に渡してはいけません)。
+- **強制する場合**: `--dispatch` は、フォールバックせずに修正方法(「コミットして push するか、--local を付けて再実行する」)を示して終了します。`--local` または `GSTACK_EVAL_BG_MODE=local` を指定すると、常にここで実行します。
+- **待機**: `### gstack-detach EXIT=<code> ###` が現れるまでログをポーリングしてください(0 は成功、1 は失敗、130 はキャンセル、2 はその他)。沈黙は成功ではありません。このセンチネルが現れるか、ユーザーが止めるよう指示するまで確認を続け、確認するたびに進捗を報告してください。`bun run scripts/eval-bg.ts status <log-or-run-id>` は、実行中、成功、失敗、キャンセル、または不完全(センチネルなしで終了)を表示します。
+- どちらのバックエンドも、マシン全体の `gstack-evals` ロックを保持します。そのため、複数の作業ツリーが同時に API を飽和させず、順番に待ちます。ログは `~/.gstack-dev/eval-runs/` にあります。同じリビジョンと同じベースに対して 2 回目の `eval:bg:<lane>` を実行すると、新たにディスパッチせず、待機中、実行中、または成功したディスパッチに従います。
 
-Humans running evals in their own terminal don't need this. Backends, caps and
-knobs: [docs/TESTING_INTERNALS.md](docs/TESTING_INTERNALS.md#running-evals-as-an-agent-detach).
+人間が自分のターミナルで eval を実行する場合は、これは不要です。バックエンド、上限、設定項目: [docs/TESTING_INTERNALS.md](docs/TESTING_INTERNALS.md#running-evals-as-an-agent-detach)。
 
-## E2E test fixtures: extract, don't copy
+## E2E テストのフィクスチャ: コピーせず抽出する
 
-**NEVER copy a full SKILL.md file into an E2E test fixture.** SKILL.md files are
-1500-2000 lines. When `claude -p` reads a file that large, context bloat causes
-timeouts, flaky turn limits, and tests that take 5-10x longer than necessary.
+**SKILL.md ファイル全体を E2E テストのフィクスチャにコピーしては決してなりません。** SKILL.md ファイルは 1500〜2000 行あります。`claude -p` がそれほど大きなファイルを読むと、文脈が膨らんでタイムアウトや不安定なターン上限を招き、テストが必要以上に 5〜10 倍遅くなります。
 
-Instead, extract only the section the test actually needs:
+代わりに、テストが実際に必要とするセクションだけを抽出してください:
 
 ```typescript
 // BAD — agent reads 1900 lines, burns tokens on irrelevant sections
@@ -496,126 +252,92 @@ const end = full.indexOf('\n---\n', start);
 fs.writeFileSync(path.join(dir, 'ship-SKILL.md'), full.slice(start, end > start ? end : undefined));
 ```
 
-Also when running targeted E2E tests to debug failures:
-- Run in **foreground** (`bun test ...`), not background with `&` and `tee`
-- Never `pkill` running eval processes and restart — you lose results and waste money
-- One clean run beats three killed-and-restarted runs
+失敗を調べるために E2E テストを個別に実行する場合も、次の点に注意してください:
+- **フォアグラウンド**で実行してください(`bun test ...`)。`&` と `tee` を使ったバックグラウンド実行はしないでください
+- eval のプロセスを `pkill` で止めてやり直さないでください。結果が失われ、費用も無駄になります
+- 途中で殺して再開を 3 回繰り返すより、きれいに 1 回実行するほうが良い結果になります
 
-## Publishing native OpenClaw skills to ClawHub
+## native OpenClaw スキルの ClawHub への公開
 
-Native OpenClaw skills live in `openclaw/skills/gstack-openclaw-*/SKILL.md`.
-The command is `clawhub publish` (NOT `clawhub skill publish`) — full
-workflow, auth, and verification:
-[docs/OPENCLAW_PUBLISHING.md](docs/OPENCLAW_PUBLISHING.md).
+native OpenClaw スキルは `openclaw/skills/gstack-openclaw-*/SKILL.md` にあります。コマンドは `clawhub publish` です(`clawhub skill publish` ではありません)。ワークフロー、認証、検証の全体は、[docs/OPENCLAW_PUBLISHING.md](docs/OPENCLAW_PUBLISHING.md) を参照してください。
 
-## Deploying to the active skill
+## アクティブなスキルへのデプロイ
 
-The active skill lives at `~/.claude/skills/gstack/`. After making changes:
+アクティブなスキルは `~/.claude/skills/gstack/` にあります。変更後は次の手順で行います:
 
-1. Push your branch
-2. Fetch and reset in the skill directory: `cd ~/.claude/skills/gstack && git fetch origin && git reset --hard origin/main`
-3. Rebuild: `cd ~/.claude/skills/gstack && bun run build`
+1. ブランチを push する
+2. スキルのディレクトリで fetch して reset する: `cd ~/.claude/skills/gstack && git fetch origin && git reset --hard origin/main`
+3. 再ビルドする: `cd ~/.claude/skills/gstack && bun run build`
 
-`bun run build` renders every host in a checkout setup never ran in. In an
-install (any checkout with `.gstack-installed-hosts`, including one set up with
-`bin/dev-setup`, which records Claude and Codex) it renders only the recorded
-hosts and prints them (#1694); `GSTACK_RENDER_HOSTS=all bun run build` renders
-every host there, and the next `./setup` prunes the extra renders to
-`$GSTACK_STATE_ROOT/backups/host-renders/` again.
+`bun run build` は、セットアップを一度も実行していないチェックアウトでは、すべてのホスト向けに描画します。インストール環境(`.gstack-installed-hosts` を含むチェックアウト。`bin/dev-setup` で設定したもの(Claude と Codex を記録する)を含みます)では、記録されたホストだけを描画し、その一覧を表示します(#1694)。`GSTACK_RENDER_HOSTS=all bun run build` を使うと、そこにあるすべてのホスト向けに描画します。次の `./setup` で、余分な描画は `$GSTACK_STATE_ROOT/backups/host-renders/` に整理されます。
 
-**If you use gbrain:** the `git reset --hard` in step 2 reverts the brain-aware
-(`GBRAIN_CONTEXT_LOAD` / `GBRAIN_SAVE_RESULTS`) blocks that `gstack-config
-gbrain-refresh` renders into the install (those generated blocks differ from
-`main` by design). After deploying, re-run `gstack-config gbrain-refresh` to
-restore them across all your projects' Claude sessions. It's idempotent.
+**gbrain を使っている場合:** 手順 2 の `git reset --hard` は、`gstack-config gbrain-refresh` がインストール先に描画した、brain を意識したブロック(`GBRAIN_CONTEXT_LOAD` / `GBRAIN_SAVE_RESULTS`)を元に戻します。これらの生成されたブロックは、設計上 `main` と異なります。デプロイ後に `gstack-config gbrain-refresh` を再実行すると、すべてのプロジェクトの Claude セッションでこれらが復元されます。この操作は冪等です。
 
-Or copy the binaries directly:
+あるいは、バイナリを直接コピーします:
 - `cp browse/dist/browse ~/.claude/skills/gstack/browse/dist/browse`
 - `cp design/dist/design ~/.claude/skills/gstack/design/dist/design`
 - `cp make-pdf/dist/pdf ~/.claude/skills/gstack/make-pdf/dist/pdf`
 
-## Skill routing
+## Skill routing(スキルのルーティング)
 
-When the user's request matches an available skill, invoke it via the Skill tool. Route only to skills in the session's available-skills list; answer directly for quick questions or small scoped edits.
+ユーザーの依頼が利用可能なスキルに当てはまる場合は、Skill ツール経由でそのスキルを呼び出してください。ルーティングはセッションで利用可能なスキルの一覧にあるものに限ります。簡単な質問や小さく範囲の限られた編集には、直接答えてください。
 
-Key routing rules:
-- Product ideas/brainstorming → invoke /office-hours
-- Strategy/scope → invoke /plan-ceo-review
-- Architecture → invoke /plan-eng-review
-- Design system/plan review → invoke /design-consultation or /plan-design-review
-- Full review pipeline → invoke /autoplan
-- Bugs/errors → invoke /investigate
-- QA/testing site behavior → invoke /qa or /qa-only
-- Code review/diff check → invoke /review
-- Visual polish → invoke /design-review
-- Ship/deploy/PR → invoke /ship or /land-and-deploy
-- Save progress → invoke /context-save
-- Resume context → invoke /context-restore
+主なルーティングのルール:
+- プロダクトのアイデア・ブレインストーミング → /office-hours を呼び出す
+- 戦略・スコープ → /plan-ceo-review を呼び出す
+- アーキテクチャ → /plan-eng-review を呼び出す
+- デザインシステム・プランのレビュー → /design-consultation または /plan-design-review を呼び出す
+- レビューのパイプライン全体 → /autoplan を呼び出す
+- バグ・エラー → /investigate を呼び出す
+- サイトの動作の QA・テスト → /qa または /qa-only を呼び出す
+- コードレビュー・差分の確認 → /review を呼び出す
+- 見た目の仕上げ → /design-review を呼び出す
+- 出荷・デプロイ・PR → /ship または /land-and-deploy を呼び出す
+- 進捗の保存 → /context-save を呼び出す
+- 文脈の再開 → /context-restore を呼び出す
 
-## Cross-session decision memory
+## セッションをまたぐ決定の記録
 
-Durable decisions and their rationale are captured in an append-only, event-sourced
-store at `~/.gstack/projects/<slug>/decisions.jsonl` so neither you nor the user
-re-litigates a settled call or loses the "why" across sessions. This is the reliable,
-file-only path: it works with gbrain OFF. (gbrain semantic recall is an optional
-enhancement layered on top, never a dependency.)
+耐久性のある決定とその根拠は、追記専用でイベントソースの形式の記録として `~/.gstack/projects/<slug>/decisions.jsonl` に保存されます。これにより、あなたもユーザーも、決着済みの判断を再び蒸し返さず、セッションをまたいで「なぜそうしたか」を失わずに済みます。これは確実で、ファイルだけで完結する経路です。gbrain が OFF でも動作します。(gbrain による意味的な想起は、任意の強化であり、前提ではありません。)
 
-- **Resurface** active decisions before re-deciding: `bin/gstack-decision-search`
-  (`--recent N`, `--scope repo|branch|issue`, `--query KW`, `--all`, `--json`).
-  Add `--semantic` (with `--query`) to append related hits from gbrain memory when
-  it's up; it degrades silently to the reliable file results when gbrain is off.
-  Session start already surfaces scope-relevant active decisions via Context Recovery.
-  If a decision is listed, treat it as settled with its rationale; if you're about to
-  reverse it, say so explicitly.
-- **Capture** a DURABLE decision when you or the user make one:
-  `bin/gstack-decision-log '{"decision":"...","rationale":"...","scope":"repo|branch|issue","source":"user|skill|agent","confidence":1-10}'`.
-  Reverse a prior call with `--supersede <id>`; expunge an accidental secret with
-  `--redact <id>`; rewrite the log to the active set with `--compact`. Non-interactive
-  (never prompts), injection-sanitized, and HIGH-secret-blocking on write.
-- **Durable means:** architecture choice, scope cut, tool/vendor choice, or a reversal
-  of a prior call. NOT a turn-level edit, a phrasing tweak, or anything trivially
-  re-derivable. Capture is curated at the source — log durable decisions only, or the
-  store becomes noise.
+- **再表示**: 再度判断する前に、有効な決定を `bin/gstack-decision-search`(`--recent N`、`--scope repo|branch|issue`、`--query KW`、`--all`、`--json`)で確認してください。`--semantic`(`--query` と併用)を付けると、gbrain の記憶が稼働している場合に関連するヒットを追加します。gbrain が OFF のときは、確実なファイルの結果に静かにフォールバックします。セッションの開始時には、文脈の回復の仕組みによって、対象範囲に関係する有効な決定がすでに表示されます。一覧に決定がある場合は、その根拠とともに決着済みとして扱ってください。それを覆すつもりなら、その旨を明示してください。
+- **記録**: あなたまたはユーザーが耐久性のある決定をしたら、`bin/gstack-decision-log '{"decision":"...","rationale":"...","scope":"repo|branch|issue","source":"user|skill|agent","confidence":1-10}'` で記録してください。以前の決定を覆すには `--supersede <id>` を使います。誤って入った秘密情報を消すには `--redact <id>` を使います。有効な集合にログを書き直すには `--compact` を使います。この操作は対話せず(決して確認を求めません)、入力はサニタイズされ、書き込み時に重大度の高い秘密情報をブロックします。
+- **耐久性のある決定とは**: アーキテクチャの選択、スコープの削減、ツールやベンダーの選択、または以前の決定の覆しです。ターン単位の編集、言い回しの調整、容易に再導出できるものは**含みません**。記録は発生元で厳選してください。耐久性のある決定だけをログに残してください。さもないと、ストアはノイズだらけになります。
 
-## GBrain Search Guidance (configured by /sync-gbrain)
+## GBrain Search Guidance(GBrain の検索ガイダンス。/sync-gbrain により設定)
 <!-- gstack-gbrain-search-guidance:start -->
 
-GBrain is set up and synced on this machine. The agent should prefer gbrain
-over Grep when the question is semantic or when you don't know the exact
-identifier yet.
+このマシンでは GBrain が設定され、同期されています。質問が意味的なものである場合や、まだ正確な識別子がわからない場合は、Grep より gbrain を優先してください。
 
-**This worktree is pinned to a worktree-scoped code source** via the
-`.gbrain-source` file in the repo root (kubectl-style context). Any
-`gbrain code-def`, `code-refs`, `code-callers`, `code-callees`, or `query`
-call from anywhere under this worktree routes to that source by default —
-no `--source` flag needed. Conductor sibling worktrees of the same repo
-each have their own pin and their own indexed pages, so semantic results
-match the actual code on disk in this worktree.
+**この作業ツリーは、作業ツリー単位のコードソースに固定されています。** リポジトリ直下の `.gbrain-source` ファイル(kubectl 方式のコンテキスト)によります。この作業ツリーの配下のどこからでも、`gbrain code-def`、`code-refs`、`code-callers`、`code-callees`、`query` の呼び出しは、既定でそのソースに向かいます。`--source` フラグは不要です。同じリポジトリの Conductor の兄弟ワークツリーは、それぞれ独自の固定先と独自のインデックス済みページを持ちます。そのため、意味的な結果はこの作業ツリーのディスク上の実際のコードと一致します。
 
-Two indexed corpora available via the `gbrain` CLI:
-- This worktree's code (auto-pinned via `.gbrain-source`).
-- `~/.gstack/` curated memory (registered as `gstack-brain-<user>` source via
-  the existing federation pipeline).
+gbrain CLI で利用できる、インデックス済みのコーパスは 2 つあります:
+- この作業ツリーのコード(`.gbrain-source` により自動的に固定)。
+- `~/.gstack/` のキュレーションされたメモリ(既存のフェデレーションの仕組みを通じて `gstack-brain-<user>` ソースとして登録)。
 
-Prefer gbrain when:
-- "Where is X handled?" / semantic intent, no exact string yet:
-    `gbrain search "<terms>"` or `gbrain query "<question>"`
-- "Where is symbol Y defined?" / symbol-based code questions:
-    `gbrain code-def <symbol>` or `gbrain code-refs <symbol>`
-- "What calls Y?" / "What does Y depend on?":
+次の場合は gbrain を優先してください:
+- 「X はどこで扱われているか」/ 意味的な意図で、まだ正確な文字列がない場合:
+    `gbrain search "<terms>"` または `gbrain query "<question>"`
+- 「シンボル Y はどこで定義されているか」/ シンボルに基づくコードの質問:
+    `gbrain code-def <symbol>` または `gbrain code-refs <symbol>`
+- 「Y を呼び出しているものは何か」/「Y は何に依存しているか」:
     `gbrain code-callers <symbol>` / `gbrain code-callees <symbol>`
-- "What did we decide last time?" / past plans, retros, learnings:
+- 「前回は何を決めたか」/ 過去のプラン、振り返り、学んだこと:
     `gbrain search "<terms>" --source gstack-brain-<user>`
 
-Grep is still right for known exact strings, regex, multiline patterns, and
-file globs. Run `/sync-gbrain` after meaningful code changes; for ongoing
-auto-sync across all worktrees, run `gbrain autopilot --install` once per
-machine — gbrain's daemon handles incremental refresh on a schedule.
+正確な文字列、正規表現、複数行のパターン、ファイルの glob には、依然として Grep が適しています。重要なコードの変更の後は `/sync-gbrain` を実行してください。すべての作業ツリーで自動的な同期を続けるには、マシンごとに一度 `gbrain autopilot --install` を実行してください。gbrain のデーモンが、スケジュールに従って増分の更新を処理します。
 
-Safety: don't run `/sync-gbrain` while `gbrain autopilot` is active — the
-orchestrator refuses destructive source ops when it detects a running autopilot
-to avoid racing it (#1734). Prefer registering user repos with `gbrain sources
-add --path <dir>` (no `--url`): URL-managed sources can auto-reclone, and the
-sync code walk for them requires an explicit `--allow-reclone` opt-in.
+安全上の注意: `gbrain autopilot` が稼働中に `/sync-gbrain` を実行しないでください。オーケストレーターは、稼働中の autopilot を検出すると、破壊的なソース操作を拒否します(競合を避けるためです、#1734)。ユーザーのリポジトリは、`gbrain sources add --path <dir>`(`--url` なし)で登録してください。URL で管理されるソースは自動的に再クローンされることがあり、そのソースのシンクのコード走査には、明示的な `--allow-reclone` の指定が必要です。
 
 <!-- gstack-gbrain-search-guidance:end -->
+
+## 翻訳の運用(upstream 差分)
+
+このフォークは upstream(garrytan/gstack)の日本語版です。翻訳した位置は `translation/ledger.json` に記録されています。詳細: [docs/TRANSLATION.md](docs/TRANSLATION.md)。
+
+1. `git fetch upstream`(CLI は fetch しません)
+2. `bun run translation:status --diff`(CHANGED/ADDED/REMOVED/UNTRACKED と `translation/pending/` の差分)
+3. 差分ファイルだけを翻訳する(英語 diff と現在の日本語版を渡し、該当箇所だけ訳す。新規は全文)。コマンド・コード・fixtures と、機械が読むマーカー(英語トークン)は訳さない
+4. `bun run gen:skill-docs --host all` → `bun run translation:mark` → `bun run typecheck && bun run test`
+
+定型作業は `/translate-upstream` スキル(`.claude/skills/translate-upstream/SKILL.md`)にまとまっています。翻訳対象の判定は `lib/translation-ledger.ts` の `isTranslationSource` の 1 か所です。`bun run translation:check` は台帳にない翻訳対象があると失敗します。

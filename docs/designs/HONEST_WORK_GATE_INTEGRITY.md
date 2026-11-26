@@ -1,218 +1,74 @@
-# Design: Honest work and gate integrity across the base skills
+# 設計: 基本スキル全体における誠実な作業とゲートの健全性
 
-Status: plan, autoplan complete (CEO → DX → Eng); awaiting approval
-Created: 2026-10-09
-Source: the `just-say-no-to-process-porn-and-ceremony` skill (SKILL.md, REWARD-HACKING-CATALOG.md, HONESTY-PROTOCOL.md, ENFORCEMENT.md, three worksheets), evaluated against gstack's preamble, `/review`, `/ship`, `/qa`, `/plan-ceo-review`, `/plan-eng-review`, `/spec`, `/retro`.
+ステータス: 計画。autoplan 完了(CEO → DX → Eng)。承認待ち
+作成日: 2026-10-09
+出典: `just-say-no-to-process-porn-and-ceremony` スキル(SKILL.md、REWARD-HACKING-CATALOG.md、HONESTY-PROTOCOL.md、ENFORCEMENT.md、3 つのワークシート)。gstack の preamble、`/review`、`/ship`、`/qa`、`/plan-ceo-review`、`/plan-eng-review`、`/spec`、`/retro` と照らして評価した。
 
-## Problem
+## 課題
 
-The source skill names a family of agent pathologies with stable IDs: an agent
-weakens the gate instead of the code (deletes or skips a test, regenerates a
-golden, widens a timeout, adds `eslint-disable`, commits with `--no-verify`),
-presents a mock or fixture as live proof, claims a command it never ran, closes
-work by editing the spec, or builds ledgers and dashboards that nothing
-consumes. Its evidence is real multi-agent sessions on a beads/NTM swarm; the
-gstack-native incidents that match it are cited per workstream below.
+出典スキルは、安定した ID を持つエージェントの病理のファミリーを挙げている。エージェントがコードではなくゲートを弱める(テストを削除またはスキップする、golden を再生成する、タイムアウトを広げる、`eslint-disable` を追加する、`--no-verify` でコミットする)、モックやフィクスチャを実機による証明として提示する、実行していないコマンドを実行したと主張する、仕様を書き換えて作業を完了扱いにする、誰も使わない台帳やダッシュボードを作る、などである。その根拠は beads/NTM のスウォームでの実際のマルチエージェントセッションである。これに対応する gstack 固有のインシデントは、以下の各ワークストリームで引用する。
 
-gstack already enforces most of the honesty half: `/ship` Step 16's "no
-completion claims without fresh verification evidence", the evidence ledger,
-`/review`'s "Verification of claims", the Completion Status Protocol, the
-Claimed Limitations directive, the plan-completion audit's `Linked to #N`
-rule (RH-9), `measure.md`'s "never raise a budget, lower a threshold, add a
-retry or skip a case to get a pass" (RH-15, SM-11), the testing specialist's
-"never accept buggy-output goldens or discarded valid red tests" (RH-3) and
-"Negative Assertions" category, and `/ship`'s "never rewrite history" (RH-17).
-What gstack does **not** have:
+gstack は、誠実さの半分の大部分をすでに強制している。`/ship` Step 16 の「新鮮な検証証拠なしに完了を主張しない」、証拠台帳、`/review` の「主張の検証」、Completion Status Protocol、Claimed Limitations 指示、plan-completion audit の `Linked to #N` ルール(RH-9)、`measure.md` の「合格させるために予算を上げたり、閾値を下げたり、リトライを足したり、ケースをスキップしたりしない」(RH-15、SM-11)、テスト専門家の「buggy 出力の golden や、破棄された正しい赤いテストを容認しない」(RH-3)と「Negative Assertions」カテゴリ、`/ship` の「履歴を書き換えない」(RH-17)。gstack に**ない**もの:
 
-1. **Gate-integrity review is scattered, unnamed, and absent from the core
-   pass that small diffs get.** The clauses above live in a specialist that
-   only runs on diffs over 50 lines, in `/ship`'s measure loop, and in
-   `/qa`. Nothing in the core `/review` checklist, and nothing mechanical,
-   lists the gate edits in a diff (deleted or skipped tests, `.only`, a
-   timeout bumped from 5s to 60s, `@ts-ignore`, a regenerated snapshot,
-   `[skip ci]`) so that a human dispositions each one. The checklist even
-   suppresses "eval threshold changes" outright (`review/checklist.md`,
-   Suppressions).
-2. **No No-Claim line.** Plan test criteria name a positive assertion and a
-   wrong result it rejects (CEO Section 6 step 1) but never state what a green
-   result does *not* prove, the line that makes proof-class inflation a
-   violation of the item's own text.
-3. **Zero-run green is invisible.** The evidence ledger records exit codes. A
-   suite that selected nothing and exited 0 is recorded as a pass.
-   gstack-observed: AGENTS.md validation discipline, "Bun can silently ignore
-   a nonexistent file selector and pass the remaining files"; `describe.skip`
-   placeholders earning zero selected-case credit.
-4. **Execution honesty is implied, not stated.** The preamble says a claimed
-   *limitation* needs evidence; it does not say a claimed *execution* must
-   have happened, that a mock never stands in for a required live check, that
-   a checked null result is a successful result, that conclusion-changing
-   failures are disclosed, or that stderr is never silenced in an evidence
-   command. gstack-observed: CLAUDE.md "'Pre-existing' without receipts is a
-   lazy claim".
-5. **No value test for process artifacts in plans.** `/plan-ceo-review`
-   challenges scope but has no question for "this plan adds a ledger / audit
-   matrix / meta-report about the work: who uses it, what decision changes,
-   why is this the smallest version, when does it retire?"
-6. **Implementing children inherit narrow success criteria.** `/spec
-   --execute` pipes the spec to `claude -p`; `/ship` Step 7 generates tests
-   and Step 9.4 auto-fixes through children. The source's dispatch rules
-   (never "make the tests pass"; a child's report is a claim; the parent
-   re-checks what the child touched) are absent.
+1. **ゲート整合性のレビューが散在しており、名前がなく、小さな差分が受ける中核のパスには含まれていない。** 上記の条項は、50 行を超える差分でのみ動く専門家、`/ship` の measure ループ、そして `/qa` に分散している。中核の `/review` チェックリストにも、機械的なチェックにも、差分内のゲートの変更(削除またはスキップされたテスト、`.only`、5 秒から 60 秒に引き上げられたタイムアウト、`@ts-ignore`、再生成されたスナップショット、`[skip ci]`)を列挙して、人間が一件ずつ処理するような仕組みはない。チェックリストは「eval のしきい値の変更」を完全に抑制してさえいる(`review/checklist.md`、Suppressions)。
+2. **「No-Claim」の一文がない。** 計画のテスト基準は、肯定的なアサーションと、それが棄却する誤った結果を挙げている(CEO セクション 6 のステップ 1)。しかし、green の結果が*証明しない*ものを述べていない。この一文があれば、証明クラスの水増しが、その項目自身の文面に対する違反になる。
+3. **ゼロ件実行の green が見えない。** 証拠台帳は終了コードを記録する。何も選択されず終了コード 0 で終わったスイートも、合格として記録される。gstack で観測された事例: AGENTS.md の検証の規律「Bun は存在しないファイルセレクタを黙って無視し、残りのファイルを合格させることがある」。`describe.skip` のプレースホルダーが、選択されたケースとしてゼロの評価を得ている。
+4. **実行の誠実さは暗黙のものでしかなく、明文化されていない。** preamble は、主張された*制約*には証拠が必要だと述べている。しかし、主張された*実行*は実際に行われていなければならないこと、モックが必須の実機チェックの代わりになってはならないこと、確認済みの null 結果は成功の結果であること、結論を変える失敗は開示すべきこと、証拠のコマンドで標準エラーを決して黙らせてはならないこと、は述べていない。gstack で観測された事例: CLAUDE.md の「受領記録のない『既存の問題』は、怠慢な主張である」。
+5. **計画中のプロセス成果物に対する価値テストがない。** `/plan-ceo-review` はスコープに異議を唱えるが、「この計画は作業についての台帳、監査マトリクス、メタレポートを追加している。誰が使うのか、どの判断が変わるのか、なぜこれが最小の版なのか、いつ廃止されるのか」という問いがない。
+6. **実装を担う子プロセスが、狭い成功基準を引き継いでしまう。** `/spec --execute` は仕様を `claude -p` にパイプし、`/ship` の Step 7 はテストを生成し、Step 9.4 は子プロセスを通じて自動修正する。出典スキルのディスパッチのルール(「テストを通すこと」を目的にしない、子プロセスの報告は主張である、親は子が触れた箇所を再確認する)が欠けている。
 
-**The control is the human disposition, not the detector.** In a solo
-session the agent that weakened the gate is the agent running `/ship` twenty
-minutes later. A detector that reports to its own author is disclosure, not
-control. Everything below is built so that each gate edit reaches a human,
-by name, with its justification, in the PR body; the detector exists to make
-that listing complete and cheap, and must never become a verdict.
+**統制は検出器ではなく、人間による処理である。** 単独のセッションでは、ゲートを弱めたエージェントが、20 分後に `/ship` を実行しているエージェントでもある。作成者本人に報告する検出器は、開示であって統制ではない。以下のすべては、ゲートの変更のそれぞれが、正当化の理由とともに、PR 本文で名指しで人間に届くように設計されている。検出器は、その一覧を網羅的かつ安価にするために存在し、判定になってはならない。
 
-## What is universal and what is not
+## 普遍的なものと、そうでないもの
 
-**Adopt (universal to any agent writing code against tests), in durability
-order:** the No-Claim line and planted negative in acceptance criteria;
-dispatch rules for implementing children; disclosure of every gate edit at a
-human ASK with its reason landing in the PR body; execution honesty, failure
-disclosure, truthful null results and the stderr rule; zero-run green and
-positive observables beyond exit code (PL-1, PL-2); the gate-integrity
-pattern catalog (RH-1, 2, 3, 4, 5, 10, 12, 13, 14, 15, 16) as the engine
-behind the listing; the value test for process artifacts; the auditor's
-posture as a self-report at publication.
+**採用するもの(テストに対してコードを書くエージェントすべてに共通するもの。持続性の高い順):** 受け入れ基準における No-Claim の一文と、仕込まれた否定例。実装を担う子プロセスへのディスパッチのルール。すべてのゲート変更の、人間への ASK での開示(その理由を PR 本文に残す)。実行の誠実さ、失敗の開示、正直な null 結果、標準エラーのルール。ゼロ件実行の green と、終了コード以外の肯定的な観測可能な結果(PL-1、PL-2)。一覧の裏で動く仕組みとしての、ゲート整合性のパターンカタログ(RH-1、2、3、4、5、10、12、13、14、15、16)。プロセス成果物の価値テスト。公開時の自己申告としての監査人の姿勢。
 
-**Do not adopt (swarm- and tracker-specific):** the beads/`br` tracker
-encoding, canary-the-enforcement (its universal lesson, "show the claimed
-control fires", is kept as the detector's calibration run), the joint-freeze
-protocol, SM-2/3/6 ready-pool mechanics, refusal-farming redirects, `cass`
-session mining, NTM references, the three worksheets as standalone
-artifacts, the AGENTS.md "durable law" offer (gstack's AGENTS.md is the
-durable law), the USER/ENABLER/PROCESS commit classification (it needs a
-project-specific definition of "user" an agent cannot infer from paths, and
-gstack's own product would read as PROCESS).
+**採用しないもの(スウォームとトラッカーに固有のもの):** beads/`br` のトラッカーのエンコーディング。enforcement のカナリア(その普遍的な教訓「主張された統制が実際に発火することを示す」は、検出器の較正実行として残す)。joint-freeze プロトコル。SM-2/3/6 の ready-pool の仕組み。refusal-farming のリダイレクト。`cass` によるセッションのマイニング。NTM への参照。単独の成果物としての 3 つのワークシート。AGENTS.md の「永続的な法」の提案(gstack の AGENTS.md がそのまま永続的な法である)。USER/ENABLER/PROCESS のコミット分類(エージェントがパスから推測できない「ユーザー」の、プロジェクト固有の定義が必要になる。また gstack 自身のプロダクトが PROCESS と読まれてしまう)。
 
-**No new skill.** The agent most in need of an honesty audit is the least
-likely to invoke one; `/review` and `/ship` are the only surfaces guaranteed
-to see the diff, so prevention is folded into them. (A new skill would also
-cost catalog bytes, but that is not the reason.) The retrospective "what did
-we conceal or waste over the last week" job is real and distinct; it gets a
-range mode on the detector (W1) and is otherwise a follow-on, not this PR.
+**新しいスキルは作らない。** 誠実さの監査を最も必要とするエージェントは、それを呼び出す可能性が最も低い。差分を確実に見ることができるのは `/review` と `/ship` だけなので、予防はそこに組み込む。(新しいスキルはカタログのバイト数も消費するが、それは理由ではない。)「直近 1 週間で何を隠したか、何を無駄にしたか」という振り返りの作業は実在し、別物である。検出器(W1)に範囲モードを設けて対応する。それ以外はフォローアップとし、この PR には含めない。
 
-## Workstreams
+## ワークストリーム
 
-Each workstream names its consumer, the gate it strengthens, the
-gstack-observed defect that justifies it (or "speculative: adopted on the
-source's evidence"), and its retirement condition.
+各ワークストリームには、その利用者、強化するゲート、それを正当化する gstack で観測された欠陥(または「推測: 出典の根拠に基づき採用」)、そして廃止の条件を記載する。
 
-### W1. Gate-edit detector (`lib/gate-diff.ts`, `bin/gstack-gate-diff`)
+### W1. ゲート変更の検出器(`lib/gate-diff.ts`、`bin/gstack-gate-diff`)
 
-Consumer: `/review` Step 3.5/4, `/ship` core checklist (new item 2.5), Steps
-7, 9.4, 16 and 19 (PR body). Gate: pre-landing review and publication.
-Observed defect: `review/checklist.md` suppression of threshold changes;
-AGENTS.md "do not lower thresholds, increase model budgets, skip cases, or
-rejudge a failure to manufacture a pass" (written after RH-15-class
-incidents); the per-pattern rows are adopted on the source's evidence.
-Retirement: when the host's review tooling lists gate edits natively, or
-when calibration (below) shows findings are skipped more than they are read.
+利用者: `/review` の Step 3.5/4、`/ship` の中核チェックリスト(新しい項目 2.5)、Step 7、9.4、16、19(PR 本文)。ゲート: 事前レビューと公開。観測された欠陥: `review/checklist.md` のしきい値変更の抑制。AGENTS.md の「マージを捏造するために、しきい値を下げたり、モデルの予算を上げたり、ケースをスキップしたり、失敗を再判定したりしない」(RH-15 系のインシデントの後に書かれた)。パターンごとの各行は、出典の根拠に基づいて採用。廃止条件: ホストのレビューツールがゲートの変更を標準で列挙するようになったとき、または下記の較正で、発見事項が読まれるより多くスキップされることが示されたとき。
 
-**Why a tool and not prose.** `gstack-diff-scope` already flags
-`SCOPE_TESTS` and `SCOPE_CONFIG`; prose alone could say "read every hunk in
-those files with the gate question". The model skips or rationalizes that
-step under context pressure, and the PR body needs counts. The tool
-produces the inventory and the tags; it never judges and never suppresses.
+**なぜ文章ではなくツールにするのか。** `gstack-diff-scope` はすでに `SCOPE_TESTS` と `SCOPE_CONFIG` をフラグしている。文章だけなら「これらのファイルの各ハンクを、ゲートの問いとともに読むこと」と言うことはできる。しかし、エージェントはプレッシャーのかかった状況でこの手順を飛ばしたり、正当化したりしてしまう。さらに PR 本文には件数が必要になる。ツールは一覧とタグを生成する。判断はせず、抑制もしない。
 
-**Three levels, kept apart everywhere (tool output, review prose, PR body):**
+**3 つのレベル。ツールの出力、レビューの文章、PR 本文のどこでも混ぜずに区別する:**
 
-| level | what | who sees it | human action |
+| レベル | 内容 | 見る人 | 人間の操作 |
 |---|---|---|---|
-| **listed** | every hunk in a test, CI, runner/lint-config, snapshot or golden path (the floor) | counted in `GATE_SUMMARY:`; full listing in `--out` file | none |
-| **read** | listed hunks that carry a tag, or that remove lines (deletion-bearing), capped at 50 with the cap disclosed | the agent reads each with the gate question | none unless it becomes a finding |
-| **finding** | a read hunk the agent judges a relaxation not justified by a measurement or decision visible in the diff | ASK (W2) | one decision per finding or coherent group |
+| **listed**(一覧) | テスト、CI、ランナー/lint 設定、スナップショット、golden のパスにあるすべてのハンク(下限) | `GATE_SUMMARY:` で件数を集計。全一覧は `--out` ファイル | なし |
+| **read**(読み取り) | タグが付いている、または行を削除する一覧のハンク(削除を含むもの)。上限 50 件で、上限は開示する | エージェントがゲートの問いとともに各ハンクを読む | 指摘にならない限り不要 |
+| **finding**(指摘) | 読んだハンクのうち、エージェントが、差分から見える計測や判断によって正当化されないと判断した緩和 | ASK(W2) | 指摘ごと、または一貫したグループごとに 1 つの判断 |
 
-Measured on gstack's own last 40–49 merged PRs (two reviewers, path-floor
-proxy): median 23–45 listed hunks per PR, p75 over 100, max about 1,300;
-deletion-bearing median 16. Mandatory disposition per listed hunk is
-therefore unworkable; only findings reach a human. Added tests, renamed
-tests, and snapshots updated alongside their source are inventory, never
-findings.
+gstack 自身の直近 40〜49 件のマージ済み PR で計測(2 人のレビュアー、パスの下限を代理指標として使用): 中央値は PR あたり 23〜45 件の一覧ハンク、p75 は 100 件超、最大はおよそ 1,300 件。削除を含むハンクの中央値は 16 件。したがって、一覧のすべてのハンクに人間が処理を割り当てるのは非現実的であり、人間に届くのは指摘だけである。テストの追加、テスト名の変更、ソースと同時に更新されたスナップショットは、一覧(インベントリ)であり、指摘ではない。
 
-**Floor: own matcher, not `gstack-diff-scope`'s.** diff-scope's test globs
-are root-anchored and case-sensitive (`test/*`, `*_test.*`) so
-`src/test/java/…`, `Tests/FooTests.swift` and `FooTest.kt` are never tests,
-and its CONFIG class covers every `*.yml` and lockfile. W1 ships its own
-matcher: any-depth, case-insensitive `**/test/**`, `**/tests/**`,
-`**/spec/**`, `**/__tests__/**`, `*.test.*`, `*.spec.*`, `*_test.*`,
-`*_spec.*`, `test_*.py`, `*Test.{java,kt,scala}`, `*Tests.swift`,
-`*_test.go`, `*_test.exs`; a content backstop (a hunk in any file whose
-removed lines match a test-declaration idiom is listed even when the path
-did not match); an explicit CI/runner/lint-config list (`.github/workflows/`,
-`.gitlab-ci.yml`, `Jenkinsfile`, `vitest.config*`, `jest.config*`,
-`pytest.ini`, `setup.cfg`, `tox.ini`, `bunfig.toml`, `.eslintrc*`,
-`eslint.config*`, `tsconfig*.json`, `.rubocop.yml`, `golangci*.yml`);
-snapshot/golden paths (`__snapshots__/`, `*.snap`, `*.golden`,
-`testdata/`). Candidate = committed diff + staged + unstaged + untracked
-(the same union `/ship` uses), with rename detection (`-M`). A project adds
-paths through a CLAUDE.md `## Gate Integrity` block (`Extra test paths:`,
-`Snapshot paths:`), following the `## Test Coverage` precedent; the
-effective classification is printed in the coverage line. No off switch in
-v1 (see Review record).
+**下限: `gstack-diff-scope` のものではなく、独自のマッチャーを使う。** diff-scope のテストの glob はルートに固定され、大文字小文字を区別するため(`test/*`、`*_test.*`)、`src/test/java/…`、`Tests/FooTests.swift`、`FooTest.kt` はテストとして扱われない。また、CONFIG の分類はすべての `*.yml` とロックファイルを含んでしまう。W1 は独自のマッチャーを出荷する。階層の深さを問わず、大文字小文字を区別しない `**/test/**`、`**/tests/**`、`**/spec/**`、`**/__tests__/**`、`*.test.*`、`*.spec.*`、`*_test.*`、`*_spec.*`、`test_*.py`、`*Test.{java,kt,scala}`、`*Tests.swift`、`*_test.go`、`*_test.exs`。内容によるバックストップ(パスは一致しなくても、削除された行がテスト宣言の慣用句に一致するファイル内のハンクは一覧に載せる)。明示的な CI/ランナー/lint 設定のリスト(`.github/workflows/`、`.gitlab-ci.yml`、`Jenkinsfile`、`vitest.config*`、`jest.config*`、`pytest.ini`、`setup.cfg`、`tox.ini`、`bunfig.toml`、`.eslintrc*`、`eslint.config*`、`tsconfig*.json`、`.rubocop.yml`、`golangci*.yml`)。スナップショットと golden のパス(`__snapshots__/`、`*.snap`、`*.golden`、`testdata/`)。候補は、コミット済みの差分 + ステージ済み + 未ステージ + 未追跡(`/ship` が使うのと同じ和集合)で、名前変更の検出(`-M`)を伴う。プロジェクトは、CLAUDE.md の `## Gate Integrity` ブロック(`Extra test paths:`、`Snapshot paths:`)でパスを追加できる。これは `## Test Coverage` の前例に従う。有効な分類はカバレッジの行に表示する。v1 には無効化のスイッチはない(レビュー記録を参照)。
 
-**Tags: best-effort labels on top of the floor.**
+**タグ: 下限の上に付くベストエフォートのラベル。**
 
-| id | what it tags | signal |
+| id | 対象 | シグナル |
 |---|---|---|
-| RH-1 | test removed or disabled | removed `test(`/`it(`/`def test_`/`func Test`/`@Test`; added `.skip`, `.only`, `xit`, `xdescribe`, `@pytest.mark.skip`, `#[ignore]`, `t.Skip(`, `@Disabled`, `@Ignore`, `XCTSkip`, `@tag :skip` |
-| RH-3 | snapshot changed without its owning test | `__snapshots__/<name>.snap` or `<name>.snap` whose conventional owner (`<name>` test file) has no hunk in the candidate. `*.golden`, `testdata/` and project `Snapshot paths:` are tagged `RH-3?` (owner unresolved: listed and read, never inferred). No general source-ownership inference in v1 |
-| RH-4 | placeholder committed | added `todo!()`, `unimplemented!()`, `raise NotImplementedError`, `throw new Error("not implemented")`, `pass  # TODO` in non-test code |
-| RH-12 | environment sniffing in product code | added `process.env.CI`, `NODE_ENV === 'test'`, `RAILS_ENV == 'test'`, `PYTEST_CURRENT_TEST`, `GITHUB_ACTIONS` outside test paths |
-| RH-13 | suppression pragma added | added `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, `# type: ignore`, `# noqa`, `#[allow(`, `// nolint`, `rubocop:disable`, `@SuppressWarnings` |
-| RH-14 | gate bypass | commits in range with `[skip ci]`/`[ci skip]`; added `continue-on-error: true`, `allow_failure: true`, `--no-verify` in scripts or hooks (job-removal detection cut from v1: a removed workflow job is listed by the floor and read) |
-| RH-15 | gate value relaxed | in test/CI/config files, a numeric literal changed on a removed/added line pair with the same key inside one hunk, where the key is a gate keyword and the direction relaxes it: timeout/retry/retries/tolerance/epsilon/delta/maxDiff/jitter **up**, or threshold/min_score/minimum/coverage/required **down** (direction-agnostic detection, direction shown); or an exact-count assertion relaxed to a bound (`toBe(3)` → `toBeGreaterThan(0)`). Unpaired values (new file, reordered multi-number lines) are tagged `RH-15?` and read; cross-hunk pairing is out of v1. The tool prints any citation it finds beside the hunk (commit text naming a `ship-measure` report, or a `gstack-shortcut(dec-*)` marker resolved through `gstack-decision-search`); it never suppresses on it, because `ship-measure` reports are gitignored and commit text is forgeable; the human decides |
-| RH-16 | exception swallowed | added `catch {}`, `catch (e) {}`, `except: pass`, `rescue nil`, `_ = err` in non-test code (overlaps slop-scan's empty-catch rule; gate-diff lists it under the RH id, slop-scan keeps its fix) |
+| RH-1 | テストの削除または無効化 | 削除された `test(`/`it(`/`def test_`/`func Test`/`@Test`。追加された `.skip`、`.only`、`xit`、`xdescribe`、`@pytest.mark.skip`、`#[ignore]`、`t.Skip(`、`@Disabled`、`@Ignore`、`XCTSkip`、`@tag :skip` |
+| RH-3 | 所有するテストを伴わないスナップショットの変更 | `__snapshots__/<name>.snap` または `<name>.snap` で、その慣例上の所有者(`<name>` のテストファイル)に候補内のハンクがないもの。`*.golden`、`testdata/`、プロジェクトの `Snapshot paths:` は `RH-3?` としてタグ付けする(所有者は未解決: 一覧に載せて読むが、推測はしない)。v1 では一般的なソースの所有関係の推論は行わない |
+| RH-4 | プレースホルダーのコミット | 非テストコードに追加された `todo!()`、`unimplemented!()`、`raise NotImplementedError`、`throw new Error("not implemented")`、`pass  # TODO` |
+| RH-12 | 製品コードでの環境の検出 | テストパスの外で追加された `process.env.CI`、`NODE_ENV === 'test'`、`RAILS_ENV == 'test'`、`PYTEST_CURRENT_TEST`、`GITHUB_ACTIONS` |
+| RH-13 | 抑制プラグマの追加 | 追加された `eslint-disable`、`@ts-ignore`、`@ts-expect-error`、`# type: ignore`、`# noqa`、`#[allow(`、`// nolint`、`rubocop:disable`、`@SuppressWarnings` |
+| RH-14 | ゲートのバイパス | 範囲内のコミットに `[skip ci]`/`[ci skip]`。スクリプトやフックに追加された `continue-on-error: true`、`allow_failure: true`、`--no-verify`(ジョブ削除の検出は v1 から除外: 削除されたワークフローのジョブは下限によって一覧に載り、読まれる) |
+| RH-15 | ゲートの値の緩和 | テスト/CI/設定ファイル内で、同じハンク内の同じキーを持つ、削除された/追加された行の数値リテラルのペアで、そのキーがゲートのキーワードであり、方向がそれを緩める場合。timeout/retry/retries/tolerance/epsilon/delta/maxDiff/jitter を**上げる**、または threshold/min_score/minimum/coverage/required を**下げる**(方向を問わない検出。方向は表示する)。あるいは、厳密な件数のアサーションが境界に緩められた場合(`toBe(3)` → `toBeGreaterThan(0)`)。ペアにならない値(新規ファイル、順序の変わった複数の数値の行)は `RH-15?` としてタグ付けし、読む。ハンクをまたぐペアリングは v1 では対象外。ツールは、ハンクの横に見つかった引用(`ship-measure` レポートに言及するコミット文、または `gstack-shortcut(dec-*)` マーカー。`gstack-decision-search` で解決)を表示する。ただし、それを根拠に抑制することはない。`ship-measure` のレポートは gitignore されており、コミット文は偽造できるため。判断は人間が行う |
+| RH-16 | 例外の握りつぶし | 非テストコードに追加された `catch {}`、`catch (e) {}`、`except: pass`、`rescue nil`、`_ = err`(slop-scan の空の catch のルールと重なる。gate-diff は RH の ID で一覧にし、slop-scan は修正を担当し続ける) |
 
-RH-2 (proof-class inflation) and RH-5 (tautological tests) are prose
-checks in W2 and W5, not patterns. RH-17 (history rewriting) is not
-detectable from a final diff and is covered by `/ship`'s existing "never
-rewrite history"; the coverage line says so rather than pretending.
+RH-2(証明クラスの水増し)と RH-5(トートロジカルなテスト)は、パターンではなく、W2 と W5 の文章によるチェックである。RH-17(履歴の書き換え)は最終的な差分からは検出できず、`/ship` の既存の「履歴を書き換えない」ルールでカバーされる。カバレッジの行では、検出できるふりをせず、その旨を明記する。
 
-**CLI contract.** `gstack-gate-diff [base-ref] [--format table|jsonl]
-[--commit <sha>] [--help]`. (`--out`, `--paths` and `--range` from the DX
-draft are cut: the artifact path is tool-owned, a child's self-reported
-path list is both a pathspec-injection surface and a self-report, and the
-only history need is calibration, which `--commit <sha>` covers by scanning
-one commit's first-parent delta without the working tree.) Positional
-base defaults the way `gstack-diff-scope` does (`origin/HEAD` → `main` →
-`master`); an already-qualified ref is used as given. stdout: one
-`GATE_SUMMARY: listed=N read=N tagged={RH-1:2,RH-15:1} unmatched=N
-coverage=<patterns> languages_unlisted=<…> candidate=<sha+wtree>` line, then
-the read-level listing (bounded; the full listing goes to `--out`).
-`--format jsonl` emits one object per listed hunk (`id`, `path`, `level`,
-`tags`, `old`, `new`, `citation`); `id` is the tool-computed identity
-(path pair + tag + normalised changed lines, with a structural suffix for
-duplicates), never a caller-supplied hash. **Candidate model:** one
-comparison, resolved merge-base SHA → the working tree as it stands,
-including non-ignored untracked files as additions (`git diff -M
---no-color --no-ext-diff --no-textconv <merge-base>` plus untracked), with
-the candidate fingerprint from `gstack-wtree` recorded so a concurrently
-changing tree is detected, never the committed + `HEAD` + untracked
-concatenation `gstack-diff-scope` uses for filenames. Binary, symlink,
-submodule and undecodable paths are named unsupported coverage, not zero
-hunks; CRLF is normalised for tag matching only.
+**CLI の契約。** `gstack-gate-diff [base-ref] [--format table|jsonl] [--commit <sha>] [--help]`。(DX 草案の `--out`、`--paths`、`--range` は除外。成果物のパスはツールが決め、子プロセスが自己申告するパスのリストは、パス指定インジェクションの経路であり、自己申告でもあるため。唯一必要な履歴は較正であり、それは `--commit <sha>` で賄う。これは作業ツリーを使わず、1 つのコミットの第一親からの差分をスキャンする。)位置引数の base は `gstack-diff-scope` と同じ既定値(`origin/HEAD` → `main` → `master`)を使う。すでに修飾された ref はそのまま使う。stdout は、1 行の `GATE_SUMMARY: listed=N read=N tagged={RH-1:2,RH-15:1} unmatched=N coverage=<patterns> languages_unlisted=<…> candidate=<sha+wtree>` の後に、読み取りレベルの一覧(上限あり。全一覧は `--out` へ)。`--format jsonl` は一覧のハンクごとに 1 つのオブジェクトを出力する(`id`、`path`、`level`、`tags`、`old`、`new`、`citation`)。`id` はツールが計算する識別子(パスのペア + タグ + 正規化された変更行。重複には構造的な接尾辞を付ける)であり、呼び出し元が与えるハッシュではない。**候補モデル:** 比較は 1 つ。解決済みのマージベースの SHA → 現在の作業ツリー(無視されていない未追跡ファイルを追加として含む)。つまり `git diff -M --no-color --no-ext-diff --no-textconv <merge-base>` に未追跡ファイルを加えたもの。候補のフィンガープリントは `gstack-wtree` から記録し、並行して変化するツリーを検出できるようにする。`gstack-diff-scope` がファイル名に使っている、コミット済み + `HEAD` + 未追跡の連結は使わない。バイナリ、シンボリックリンク、サブモジュール、デコードできないパスは、ハンク 0 件ではなく、サポート対象外のカバレッジとして明示する。CRLF はタグの照合のためにのみ正規化する。
 
-**Admission.** A hunk is listed when its path matches the floor **or** any
-content tag matches (so an `eslint-disable` or empty `catch` added in
-product code is admitted through RH-13/RH-16); `package.json` scripts,
-`pyproject.toml` and `setup.cfg` tool sections join the config list. The
-read level is ordered tagged-first, then deletion-bearing, bounded by 50
-hunks and 200 KB; `GATE_SUMMARY` reports `eligible`, `inspected`,
-`unread`. When anything is unread the result is **partial**, rendered
-`Gate edits: partial (K of M eligible read)`, reported as missing coverage
-like UNAVAILABLE, and never as `none detected`.
+**取り込み。** ハンクは、そのパスが下限に一致する、**または**いずれかの内容タグに一致する場合に一覧に載る(そのため、製品コードに追加された `eslint-disable` や空の `catch` は RH-13/RH-16 を通じて取り込まれる)。`package.json` の scripts、`pyproject.toml`、`setup.cfg` のツールセクションは設定リストに加わる。読み取りレベルはタグ付きのものを先に、次に削除を含むものの順に並べ、上限は 50 ハンクと 200 KB。`GATE_SUMMARY` は `eligible`、`inspected`、`unread` を報告する。未読が 1 つでもあれば、結果は**部分的**であり、`Gate edits: partial (K of M eligible read)` と表示する。これは UNAVAILABLE と同様にカバレッジ不足として報告し、決して `none detected` とはしない。
 
-**Exit contract.** 0 with or without hunks; 2 only when the base is
-unresolvable (`GATE_ERROR=no_base ref=<ref>` with the concrete recovery:
-`git fetch <remote> <branch>` from the detected remote, or "deepen the
-shallow history") or the tool itself failed. Unmatched paths are reported
-in `GATE_SUMMARY: unmatched=N` and listed, never an exit 2. The template
-block that calls it branches on the exit explicitly, never
-`2>/dev/null || true`:
+**終了の契約。** 0 は、ハンクの有無にかかわらず。2 は、base が解決できない場合(`GATE_ERROR=no_base ref=<ref>` と、具体的な回復方法 `git fetch <remote> <branch>`(検出されたリモートから)、または「浅い履歴を深くする」を伴う)、またはツール自体が失敗した場合のみ。マッチしないパスは `GATE_SUMMARY: unmatched=N` で報告し、一覧にも載せるが、終了コード 2 にはしない。これを呼び出すテンプレートのブロックは、終了コードで明示的に分岐する。`2>/dev/null || true` は決して使わない:
 
 ```bash
 if GATE_OUT=$(~/.claude/skills/gstack/bin/gstack-gate-diff <base> 2>&1); then
@@ -226,556 +82,208 @@ else
 fi
 ```
 
-The block is one resolver constant (`GATE_SCAN_BLOCK`) rendered into
-`/review` Step 3.5 and `/ship`'s core checklist so the two cannot drift; it
-uses `ctx.paths.binDir` and the runtime-root prelude like every other
-helper call (the `~/.claude/...` path above is the Claude-host rendering),
-and `if assignment; then … else … fi` because a bare `VAR=$(cmd); RC=$?`
-exits an errexit shell before the branch. The full listing is written by
-the tool itself to
-`$GSTACK_STATE_ROOT/projects/<slug>/gate-diff/<candidate-fingerprint>.jsonl`
-(mode 0600, never synced, never inside the working tree: an untracked file
-under the repo would flip `/review`'s `review_binding` to `changed` and make
-`/ship` loop at Step 11.5), and prints that path in `GATE_SUMMARY:`.
-UNAVAILABLE is reported as missing coverage in the final report and PR body
-(the same way an `unverified` outside review is), does not flip `COMPLETED`,
-and is never rendered as `none detected`.
+このブロックは 1 つのリゾルバ定数(`GATE_SCAN_BLOCK`)であり、`/review` の Step 3.5 と `/ship` の中核チェックリストの両方にレンダリングされる。両者がずれないようにするためである。他のヘルパー呼び出しと同様に `ctx.paths.binDir` とランタイムルートの前置きを使う(上の `~/.claude/...` パスは Claude ホストでのレンダリング)。また `if assignment; then … else … fi` を使う。素の `VAR=$(cmd); RC=$?` は errexit のシェルを分岐の前に終了させてしまうため。完全な一覧はツール自身が `$GSTACK_STATE_ROOT/projects/<slug>/gate-diff/<candidate-fingerprint>.jsonl` に書き出す(モード 0600、決して同期せず、作業ツリーの中には置かない。リポジトリ配下の未追跡ファイルは `/review` の `review_binding` を `changed` に変え、`/ship` が Step 11.5 でループしてしまうため)。このパスは `GATE_SUMMARY:` に表示する。UNAVAILABLE は、最終報告と PR 本文でカバレッジ不足として報告する(外部レビューが `unverified` の場合と同じ)。`COMPLETED` は変えず、決して `none detected` とは表示しない。
 
-**Calibration (free) before W2 ships.** A small unshipped script runs
-`--commit <sha>` over gstack's last 50 first-parent merge commits and over
-two external fixture diffs (a snapshot-heavy frontend repo, a Rails repo)
-and publishes per PR: listed, eligible, tagged by id. I hand-read the
-tagged hunks of 10 PRs and record for each whether a reviewer would want
-to read it. Tags below 50% on that hand read are demoted to inventory
-before merge. Agent-level signal ("findings the agent raised, kept,
-restored, left open") is **not** simulated before ship: it is collected
-after ship from the persisted records, which is the only honest source
-for it; that is the retirement/promotion input for the tags.
+**W2 の出荷前に、無償の較正を行う。** 小さな未出荷のスクリプトで、gstack の直近 50 件の第一親のマージコミットと、2 つの外部のフィクスチャ差分(スナップショットの多いフロントエンドのリポジトリ、Rails のリポジトリ)に対して `--commit <sha>` を実行し、PR ごとに、一覧、対象、タグごとの件数を公開する。タグ付きのハンクのうち 10 件の PR について、私が手で読み、それぞれ、レビュアーが読みたいと思うかどうかを記録する。手による読みで、タグの精度が 50% を下回るものは、マージ前にインベントリに降格する。エージェントレベルのシグナル(「エージェントが挙げ、残し、戻し、未解決のままにした指摘」)は、出荷前にはシミュレーションしない。出荷後に、永続化された記録から収集する。それが、タグの廃止/昇格の判断材料になる唯一の誠実な情報源だからである。
 
-Tests: fixtures under `test/fixtures/gate-diff/` as patch text plus a
-builder that materialises each into a temporary git repo (no nested `.git`
-in the tree), one planted case per tag, plus controls: a test file moved
-(rename: listed, untagged), an added test (listed, untagged), a snapshot
-updated with its owning test (listed, untagged), a test deleted alongside
-its deleted source (listed **and tagged RH-1**: tags are factual; the
-agent's judgment, not the tool, makes it a non-finding), a `spec/` skill
-directory with no `*_spec.*`/`*.spec.*` inside (not a test path: the floor
-treats `spec/` as tests only when such files exist there). Adversarial fixtures: a forged "measured"
-comment (tagged RH-15 with the citation shown, never suppressed), a golden
-regenerated beside an unrelated source edit (tagged RH-3), a Kotlin
-`@Ignore` under `src/test/kotlin/` (listed and tagged by the own matcher),
-a new untracked `vitest.config.ts` with a raised timeout (listed via the
-untracked union). Pure-function core (`lib/gate-diff/{classify,tags,git,render}.ts`, each
-under the 800/150 module-size ratchet) tested directly; the bin is a thin
-CLI with `--help`, argument-error and errexit-block tests.
+テスト: フィクスチャは `test/fixtures/gate-diff/` にパッチのテキストとして置き、各フィクスチャを一時的な git リポジトリにマテリアライズするビルダーを用意する(ツリー内にネストした `.git` は作らない)。タグごとに 1 つの仕込みケースと、対照群を用意する。名前変更されたテスト(一覧に載り、タグは付かない)、追加されたテスト(一覧に載り、タグは付かない)、所有するテストとともに更新されたスナップショット(一覧に載り、タグは付かない)、元のソースとともに削除されたテスト(一覧に載り、**かつ RH-1 でタグ付け**。タグは事実であり、非指摘とするかどうかはツールではなくエージェントの判断が行う)、`*_spec.*`/`*.spec.*` を含まない `spec/` スキルディレクトリ(テストパスではない。`spec/` は、そのようなファイルが存在する場合にのみテストとして扱う)。敵対的なフィクスチャ: 偽造された「計測済み」コメント(RH-15 でタグ付けされ、引用は表示されるが、決して抑制されない)、無関係なソースの編集と一緒に再生成された golden(RH-3 でタグ付け)、`src/test/kotlin/` 下の Kotlin の `@Ignore`(一覧に載り、独自のマッチャーでタグ付け)、タイムアウトを上げた新規の未追跡 `vitest.config.ts`(未追跡の和集合経由で一覧に載る)。純粋関数の中核(`lib/gate-diff/{classify,tags,git,render}.ts`。それぞれ 800/150 のモジュールサイズの ratchet の下)は直接テストする。bin は `--help`、引数エラー、errexit のブロックのテストを伴う薄い CLI にする。
 
-### W2. Gate Integrity in `/review`
+### W2. `/review` におけるゲート整合性
 
-Consumer: `/review` core pass (every diff size), `/ship` core checklist.
-Gate: pre-landing review. Observed defect: the "eval threshold changes"
-suppression hides RH-15 in the one skill that reads every diff. Retirement:
-with W1.
+利用者: `/review` の中核パス(すべての差分サイズ)、`/ship` の中核チェックリスト。ゲート: 事前レビュー。観測された欠陥: 「評価のしきい値の変更」の抑制が、すべての差分を読む唯一のスキルで RH-15 を隠している。廃止条件: W1 と同時。
 
-- `review/checklist.md`: new Pass 1 CRITICAL category **Gate Integrity**,
-  written in the three levels: read every *read*-level hunk W1 listed with
-  one question, *does this relaxation silence the failure it was added for,
-  or is it justified by a measurement or decision visible in this diff?*; a
-  hunk that fails the question is a **finding**; inventory is never a
-  finding. Confidence scores how sure the agent is that the hunk *is* a gate
-  relaxation (identification), not whether it is justified, so a real gate
-  edit cannot be buried in the low-confidence appendix. Gate findings are
-  ASK, never AUTO-FIX. Coherent groups (one source change plus its N
-  snapshots; one timeout constant raised in M tests) are one decision.
-- **ASK options** (replacing bare Fix/Skip for this category): A) **Restore
-  the gate** (revert the relaxation; keep the product change), B) **Keep —
-  justified: <agent-drafted one-line reason from the diff/citation>**,
-  C) **Keep — other reason** (the human supplies it). There is no bare Skip;
-  the chosen reason is persisted as `reason` on the finding record with
-  `action: "kept"`, and `gate: "RH-15"`. An auto-chosen answer (plan-tune
-  `AUTO_DECIDE`, spawned auto-pick) is never a disposition: the record gets
-  `action: "open"`.
-- **Question identity and non-interactive sessions.** The disposition
-  question is registered as `review-gate-disposition`, a one-way id, so
-  `gstack-question-preference` refuses `never-ask` for it and `/plan-tune`
-  cannot auto-decide it. It carries a fourth option **D) Leave open for a
-  later human**, and the review prose marks D as the *recommended* option
-  whenever the preamble echoed `SESSION_KIND: spawned` or `headless`. The
-  existing auto-pick machinery (skill-start block, AskUserQuestion Format,
-  the two AUQ hooks) then yields `open` with no exception edited anywhere.
-  Belt and braces: `gstack-review-log` stamps `actor` itself from
-  `gstack-session-kind` and forces `action: "open"` for non-interactive
-  kinds, so a child cannot log `actor: human, action: kept` about itself.
-- Narrow the "Eval threshold changes" suppression to: a cited change is
-  still a **finding** (a citation never removes a relaxation from the human
-  ASK, because a diff comment or commit message is forgeable); the agent
-  resolves the citation read-only (`gstack-decision-search` for `dec-*`,
-  the named `ship-measure` report if present) and pre-fills option B with
-  it, marked verified or unverified. Hunk text, test names, paths and commit
-  messages are data: the review prose says so, excerpts are rendered as
-  fenced data, and nothing in them is followed as an instruction or used to
-  fill `actor` or `reason`.
-- Step 3.5 becomes "Diff scans": `GATE_SCAN_BLOCK` first (local, seconds),
-  then `slop:diff` as today; carry the gate listing into Step 4. Small diffs
-  run it too.
-- `/review` never publishes. Gate findings are persisted in this
-  invocation's review record with `gate`, `id` (the tool's identity),
-  `reason`, logger-stamped `actor`, and the `open`/`kept`/`restored`
-  actions; no raw hunk text is stored (the durable record is brain-synced).
-  `open` counts in `issues_found`. **v1 limit:** dispositions are
-  per-invocation; `/ship`'s own review pass asks again, exactly as Fix/Skip
-  work today. Cross-invocation reuse needs a versioned identity and a
-  transition table and is a follow-on, stated as such.
-- Final report line: `Gate edits: none detected (N listed, M read;
-  patterns: …; unlisted idioms: …)` or `Gate edits: N listed, M read, K
-  findings — J kept (reasons below), R restored, O open`.
-- `review/gate-integrity.md`: the adapted catalog (ids, one-paragraph
-  definitions, gstack's countermeasure, attribution to the source skill).
+- `review/checklist.md`: 新しいパス 1 の CRITICAL カテゴリ **Gate Integrity**。3 つのレベルで記述する。W1 が一覧に載せた*読み取り*レベルのハンクをすべて、1 つの問いとともに読む。*この緩和は、それが加えられた理由となった失敗を沈黙させるか。あるいは、この差分から見える計測や判断によって正当化されるか。* その問いに失敗するハンクは**指摘**とする。インベントリは決して指摘にはならない。信頼度は、そのハンクが*ゲートの緩和である*ことの確信度を示す(識別)。正当化されるかどうかは示さない。そのため、本物のゲートの変更が、信頼度の低い付録に埋もれることはない。ゲートの指摘は必ず ASK とし、決して AUTO-FIX にしない。まとまりのあるグループ(1 つのソース変更とその N 個のスナップショット。M 個のテストで引き上げられた 1 つのタイムアウト定数)は 1 つの判断とする。
+- **ASK の選択肢**(このカテゴリでは、単なる Fix/Skip の代わりに): A) **ゲートを復元する**(緩和を元に戻し、製品の変更は残す)、B) **維持 — 正当化: <差分/引用からエージェントが起草した 1 行の理由>**、C) **維持 — その他の理由**(人間が理由を提供する)。単純な Skip はない。選ばれた理由は、指摘の記録に `reason` として保存し、`action: "kept"`、`gate: "RH-15"` とする。自動で選ばれた回答(plan-tune の `AUTO_DECIDE`、spawned の自動選択)は処理とはみなさない。記録は `action: "open"` になる。
+- **質問の同一性と非対話型セッション。** 処理の質問は `review-gate-disposition` として登録する。これは一方向の ID であり、`gstack-question-preference` は、この質問に対する `never-ask` を拒否する。`/plan-tune` が、この質問を自動で決めることもできない。この質問には 4 つ目の選択肢 **D) 後で人間が判断するために未解決のままにする** を付ける。また、preamble が `SESSION_KIND: spawned` または `headless` をエコーした場合、レビューの文章は D を*推奨*の選択肢として示す。すると既存の自動選択の仕組み(skill-start のブロック、AskUserQuestion の形式、2 つの AUQ フック)が、どこも編集せずに `open` を返す。念のため: `gstack-review-log` 自身が、`actor` を `gstack-session-kind` から刻印し、非対話型の種別では `action: "open"` を強制する。そのため子プロセスは、自分自身について `actor: human, action: kept` を記録できない。
+- 「評価のしきい値の変更」の抑制を次のように絞り込む。引用された変更も、依然として**指摘**である(引用によって、緩和が人間による ASK から除外されることはない。差分のコメントやコミットメッセージは偽造できるため)。エージェントは引用を読み取り専用で解決し(`dec-*` には `gstack-decision-search`、存在すれば指定された `ship-measure` レポート)、オプション B にその内容を事前に入れる。その際、検証済みか未検証かを明記する。ハンクのテキスト、テスト名、パス、コミットメッセージはデータである。レビューの文章でそのことを明記し、抜粋はフェンス付きのデータとして描画する。その中の内容は、指示として従ったり、`actor` や `reason` を埋めるために使ったりしない。
+- Step 3.5 は「差分スキャン」になる。まず `GATE_SCAN_BLOCK`(ローカルで、数秒)、次に現在どおり `slop:diff`。ゲートの一覧は Step 4 に引き継ぐ。小さな差分でも実行する。
+- `/review` は決して公開しない。ゲートの指摘は、この呼び出しのレビュー記録に、`gate`、`id`(ツールの識別子)、`reason`、ロガーが刻印した `actor`、そして `open`/`kept`/`restored` のアクションとともに保存する。生のハンクのテキストは保存しない(耐久的な記録は brain 同期される)。`open` は `issues_found` に含める。**v1 の制限:** 処理はその呼び出しごとのものである。`/ship` 自身のレビューのパスでは、現在の Fix/Skip と同じように、再び質問する。呼び出しをまたいだ再利用には、バージョン付きの識別子と遷移表が必要であり、フォローアップとして明記する。
+- 最終報告の行: `Gate edits: none detected (N listed, M read; patterns: …; unlisted idioms: …)` または `Gate edits: N listed, M read, K findings — J kept (reasons below), R restored, O open`。
+- `review/gate-integrity.md`: 適応されたカタログ(ID、1 段落の定義、gstack の対策、出典スキルへの帰属)。
 
-### W3. `/ship`: zero-run green, gate edits in the PR body, draft while open
+### W3. `/ship`: ゼロ件実行の green、PR 本文へのゲート変更の記載、オープン中はドラフト
 
-Consumer: `/ship` Steps 5, 7, 9 (core checklist item 2.5), 9.4, 11.5, 16,
-19. Gate: publication. Observed defect: AGENTS.md "Bun can silently ignore
-a nonexistent file selector and pass the remaining files"; `describe.skip`
-zero-credit rule. Retirement: when every supported runner's receipt carries
-a test count natively.
+利用者: `/ship` の Step 5、7、9(中核チェックリストの項目 2.5)、9.4、11.5、16、19。ゲート: 公開。観測された欠陥: AGENTS.md の「Bun は存在しないファイルセレクタを黙って無視し、残りのファイルを合格させることがある」。`describe.skip` のゼロ件の扱い。廃止条件: サポートされるすべてのランナーの受領記録が、テスト件数をネイティブに持つようになったとき。
 
-- Step 5: a lane passes on its runner summary line, not on exit 0 alone
-  (PL-2). Three distinct count states: `tests_ran: N`; `tests_ran: 0`
-  (**ZERO-RUN**: bun `0 pass 0 fail`, jest "No tests found", pytest "no
-  tests ran", rspec "0 examples", `go test` with `no test files`, an empty
-  selection after a filter) is triaged as a failed lane; `tests_ran:
-  unknown` (runner summary not recognised) keeps today's exit-0 pass and
-  prints `count unavailable` in the PR body. The three are never merged.
-- `gstack-evidence run` keeps a bounded tail of the streamed output (the
-  saved log is capped at 2 MB and would truncate the summary) and parses
-  it into `tests_ran` for the supported runners only: bun (reusing
-  `shard-engine`'s classifier; executed = pass + fail, so an all-skip run is
-  ZERO-RUN), jest/vitest, pytest, rspec, and Go's zero-only case (every
-  package `[no test files]`); the last summary per runner wins. Everything
-  else is `unknown`. `check` reports ZERO-RUN as STALE-equivalent and
-  unknown as non-blocking. The TRANSPARENCY INVARIANT holds: `run`'s exit is
-  always the child's; detection lives in the receipt and in `check`.
-- After Step 7's test-generation child returns and after Step 9.4's parent
-  fixes, run the full `GATE_SCAN_BLOCK` again (no child-supplied path list:
-  a self-reported list is the self-report problem); a child's green is a
-  claim until the parent has read its gate hunks. Step 7's child prompt
-  carries the implementer rules (W7); its last-line JSON contract is
-  preserved unchanged (it has no `summary` field) and the child's gate-edit
-  disclosure uses the prose the protocol already permits before the JSON.
-- Step 16 stage 5, the folded honesty inventory, two lines: for each gate
-  finding, its disposition, reason and actor; if none, the coverage line.
-  Adopt the auditor's posture for this report: describe the session's own
-  gate edits as evidence to examine, not positions to defend.
-- **Draft while open.** With any `open` gate finding, a new PR is created
-  with `gstack-post pr-create --draft` (GitHub and GitLab both supported by
-  the existing publisher); the early-PR finalisation consults the gate state
-  before marking ready. For an **existing ready** PR there is no silent
-  conversion (`gh pr ready --undo` is GitHub-only and a label fallback does
-  not make a PR draft): interactive sessions get one question, A) resolve
-  the open items now, B) publish ready with the `Gate edits: N open` banner
-  (recorded as a human-authorised publication); spawned and headless
-  sessions stop before pushing to a ready PR and report. If disclosure
-  itself fails, the ship reports the failure and leaves the local
-  open-items report; no fabricated success. A later agent never infers
-  approval from the PR existing.
-- Step 19 PR body: under `## Pre-Landing Review` the `Gate edits:` line
-  with kept reasons; under `## Test Coverage` the per-lane `tests ran`
-  count or `count unavailable`.
+- Step 5: レーンは、終了コード 0 だけではなく、ランナーの要約行で合格とする(PL-2)。件数の状態は 3 つを区別する。`tests_ran: N`。`tests_ran: 0`(**ZERO-RUN**: bun の `0 pass 0 fail`、jest の "No tests found"、pytest の "no tests ran"、rspec の "0 examples"、`no test files` を伴う `go test`、フィルター後の空の選択)は失敗したレーンとして扱う。`tests_ran: unknown`(ランナーの要約が認識できない)は、現在の終了コード 0 による合格を維持し、PR 本文に `count unavailable` と表示する。3 つを混同することは決してない。
+- `gstack-evidence run` は、ストリーミングされた出力の末尾を有界に保持する(保存されたログは 2 MB で切り詰められ、要約が失われるため)。そして、対応するランナーについてのみ `tests_ran` を解析する。bun(`shard-engine` の分類器を再利用。実行数 = pass + fail。すべてスキップの実行は ZERO-RUN)、jest/vitest、pytest、rspec、Go のゼロのみのケース(すべてのパッケージが `[no test files]`)。ランナーごとに最後の要約が優先される。それ以外は `unknown`。`check` は ZERO-RUN を STALE に相当するものとして報告し、unknown はブロックしないものとして報告する。TRANSPARENCY INVARIANT(透明性の不変条件)は維持される。`run` の終了は常に子プロセスのものであり、検出は受領記録と `check` の中で行う。
+- Step 7 のテスト生成の子プロセスが戻った後、および Step 9.4 の親による修正の後に、`GATE_SCAN_BLOCK` をもう一度完全に実行する(子プロセスが与えるパスのリストは使わない。自己申告のリストは自己申告の問題があるため)。子プロセスの green は、親がそのゲートのハンクを読むまでは主張にすぎない。Step 7 の子プロセスのプロンプトには、W7 の実装者ルールを含める。その最後の行の JSON の契約は変更しない(`summary` フィールドはない)。子プロセスのゲート変更の開示は、JSON の前に、プロトコルがすでに許可している文章で行う。
+- Step 16 の段階 5(まとめられた誠実さのインベントリ)は 2 行。各ゲートの指摘について、その処理、理由、actor。指摘がなければ、カバレッジの行。このレポートには監査人の姿勢を採用する。セッション自身のゲートの変更を、擁護すべき立場ではなく、検討すべき証拠として記述する。
+- **オープン中はドラフト。** `open` のゲートの指摘が 1 つでもある場合、新しい PR は `gstack-post pr-create --draft` で作成する(既存の公開ツールは GitHub と GitLab の両方をサポートしている)。早期の PR の仕上げでは、ready にする前にゲートの状態を確認する。既存の ready な PR については、黙って変換することはしない(`gh pr ready --undo` は GitHub のみであり、ラベルによる代替では PR はドラフトにならない)。対話型セッションでは、質問は 1 つだけ。A) 今すぐ未解決の項目を解決する、B) `Gate edits: N open` のバナー付きで ready として公開する(人間が承認した公開として記録する)。spawned と headless のセッションは、ready な PR に push する前に停止し、報告する。開示そのものが失敗した場合、ship は失敗を報告し、ローカルの未解決項目のレポートを残す。成功を捏造しない。後のエージェントは、PR が存在するという事実から承認を推測してはならない。
+- Step 19 の PR 本文: `## Pre-Landing Review` の下に、維持された理由を伴う `Gate edits:` の行。`## Test Coverage` の下に、レーンごとの `tests ran` の件数、または `count unavailable`。
 
-### W4. Preamble: Claims Need Evidence (tiers 2–4, including terse)
+### W4. Preamble: 主張には証拠が必要(tier 2〜4。terse を含む)
 
-Consumer: every skill that claims evidence. Gate: the skill's completion
-report. Observed defect: CLAUDE.md "'Pre-existing' without receipts is a lazy
-claim"; `/ship`'s existing `unverified` rules exist because reports said
-"passed" for runs that did not happen. Retirement: never while gstack reports
-evidence; wording trimmed if the context-budget ratchet shows it is the
-marginal cost.
+利用者: 証拠を主張するすべてのスキル。ゲート: スキルの完了報告。観測された欠陥: CLAUDE.md の「受領記録のない『既存の問題』は、怠慢な主張である」。`/ship` の既存の `unverified` のルールは、実行されていないのに「合格」と報告されたことがあるために存在する。廃止条件: gstack が証拠を報告し続けている限り、決して廃止しない。文言は、context-budget の ratchet が限界コストであることを示した場合にのみ削る。
 
-Extend `generate-evidence-directive.ts` from "Claimed Limitations Need
-Evidence" to a small honesty kernel, rendered for every tier and for `terse`
-(it is a correctness rule, not prose style; `terse` currently renders the
-directive as `''`, so the budget delta is the whole kernel, about 140
-tokens, and `test/fixtures/context-budget.json` is refreshed in the same
-commit):
+`generate-evidence-directive.ts` を、「Claimed Limitations Need Evidence」から、小さな誠実さの核(honesty kernel)へ拡張する。これはすべての tier と `terse` にレンダリングする(これは正しさのためのルールであり、文体の問題ではない。`terse` では現在、この指示は `''` としてレンダリングされているため、予算の差分は核全体、約 140 トークン。`test/fixtures/context-budget.json` は同じコミットで更新する):
 
-- A claimed limitation needs the verbatim error, documented statement or live
-  probe (unchanged).
-- A claimed execution happened and its result was observed; name the command
-  and the revision or content fingerprint. Never cite a command whose stderr
-  was silenced.
-- Name the evidence kind you have (static read, unit test, fixture or replay,
-  live run, production) and never substitute one for a kind the question
-  requires: a mock is not a live check, a static grep is not a reachability
-  proof. Reuse is valid when the consumed inputs are unchanged, as Step 16
-  already defines it; a new commit alone does not invalidate evidence.
-- Disclose any failure or missing coverage that would change the reader's
-  conclusion; "done, unverified" and "done" are different reports.
-- A checked null result ("ran X, inspected Y, found no material issue") is a
-  successful result; an unsupported positive claim is worse than silence.
-  Agreement between agents, or several reads of one source, is one datum.
+- 主張された制約には、そのままのエラー、文書化された記述、または実機のプローブが必要(変更なし)。
+- 主張された実行は実際に行われ、その結果が観測されていること。コマンド、リビジョン、またはコンテンツのフィンガープリントを明記する。標準エラーが黙らされたコマンドを引用しない。
+- 手元にある証拠の種類(静的な読み取り、ユニットテスト、フィクスチャまたはリプレイ、実機の実行、本番)を明記し、問いが求める種類の代わりに別の種類を使わない。モックは実機チェックではなく、静的な grep は到達可能性の証明ではない。消費された入力が変わっていなければ再利用は有効(Step 16 がすでに定めているとおり)。新しいコミットだけでは証拠は無効にならない。
+- 読み手の結論を変えるような失敗や、カバレッジの欠落は、すべて開示する。「完了、未検証」と「完了」は別の報告である。
+- 確認済みの null 結果(「X を実行し、Y を検査し、重大な問題は見つからなかった」)は成功の結果である。裏付けのない肯定的な主張は、沈黙よりも悪い。エージェント同士の一致、あるいは 1 つのソースを複数回読んだものは、1 つのデータとして扱う。
 
-Completion Status Protocol: `DONE` means "supported by evidence valid for the
-final consumed inputs; reuse and anything not independently verified are
-named."
+Completion Status Protocol: `DONE` は「最終的に消費された入力に対して有効な証拠に裏付けられている。再利用と、独立に検証されていないものはすべて明記する」を意味する。
 
-Composition: the kernel renders through `generatePreamble` for tiers 2–4
-and for `terse` (the tier-1 extension is cut: `/browse` and the other
-tier-1 skills have no evidence claim to make; `/benchmark`, which does,
-moves to tier 2 as a follow-on). Honest size: the draft bullets above are
-about 250–290 tokens, not 140; the shipped kernel is trimmed to ≤ 200 by
-dropping the reuse sentence in favour of "reuse rules: Step 16". Size is
-measured on generated output per tier and host before and after; the
-`context-budget.json` refresh moves ~49 skills and is committed with the
-kernel; the parity baseline may need one documented rebase. The stderr
-rule is scoped to commands whose output is cited as evidence; the existing
-`2>/dev/null || true` idioms that feed a cited result (Step 3.5's scans)
-are rewritten to branch on exit instead, and optional discovery probes keep
-theirs.
+構成: 核は `generatePreamble` を通じて tier 2〜4 および `terse` にレンダリングする(tier 1 の拡張は除外する。`/browse` などの tier 1 のスキルには、証拠に関する主張がないため。証拠を主張する `/benchmark` は、フォローアップとして tier 2 に移す)。正直なサイズ: 上の草案の箇条は約 250〜290 トークンであり、140 ではない。出荷される核は、「再利用ルール: Step 16」という文に置き換えて、200 以下に切り詰める。サイズは tier とホストごとに、生成された出力で、変更前と変更後に計測する。`context-budget.json` の更新は約 49 のスキルに及び、核と同じコミットに含める。parity のベースラインは、文書化した上で一度リベースが必要になる場合がある。標準エラーのルールは、出力が証拠として引用されるコマンドに限定する。引用される結果を生むのが `2>/dev/null || true` のイディオムである箇所(Step 3.5 のスキャン)は、代わりに終了コードで分岐するよう書き換える。任意の探索的なプローブは、現在のままにする。
 
-### W5. No-Claim line in plans, specs and test cards
+### W5. 計画、仕様、テストカードにおける No-Claim の一文
 
-Consumer: `/plan-eng-review` Test Plan Artifact, `/plan-ceo-review` Section
-6, `/spec` Section 10 and its archived spec (which is the spawned agent's
-prompt), `/ship` Step 7's `Value:` test card, `/autoplan` (inherits the
-sections). Gate: plan approval and `/ship`'s plan-completion audit. Observed
-defect: speculative, adopted on the source's evidence (ENFORCEMENT.md calls
-it the single highest-leverage line). Retirement: if two releases of
-plan-completion audits show the line is never cited in a
-`changed`/`partial` classification.
+利用者: `/plan-eng-review` の Test Plan Artifact、`/plan-ceo-review` のセクション 6、`/spec` のセクション 10 とそのアーカイブされた仕様(スポーンされたエージェントのプロンプトになる)、`/ship` Step 7 の `Value:` テストカード、`/autoplan`(セクションを継承)。ゲート: 計画の承認と、`/ship` の plan-completion audit。観測された欠陥: 推測。出典の根拠(ENFORCEMENT.md は、これを「最も効果的な 1 行」と呼ぶ)に基づいて採用。廃止条件: plan-completion audit の 2 つのリリースで、この一文が `changed`/`partial` の分類で一度も引用されなかった場合。
 
-- One vocabulary, not two. gstack's test card already has `protects=`
-  (the positive observable), `fails_when=` (the planted wrong result),
-  `why_new=`, `seam=`, owned by `scripts/resolvers/test-value.ts`
-  (`VALUE_CARD_FIELDS`, `renderValueCard`) and pinned by
-  `test/test-value-bar.test.ts`. W5 adds **`no_claim=`** at that owner as
-  an optional fifth field: cards gstack generates from now on carry it,
-  four-field cards from older prompts stay valid in the machine check, and
-  every `renderValueCard` caller and the static specialist copy are
-  inventoried in the same commit. It adds the field to that card and uses the
-  same four-plus-one names in the Test Plan Artifact and `/spec` acceptance
-  criteria, so a plan item, its spec criterion and the test that lands carry
-  one description. `no_claim` is one sentence: what green here does not
-  prove and which fixtures or mocks stand in for what. Two examples are
-  rendered in the templates: `no_claim=provider acceptance (mocked
-  provider; unit only)` and `no_claim=none beyond protects`, so the latter
-  does not become reflexive filler. Never asked of the user; authored by the
-  reviewer. A `no_claim` sentence never waives a required live check or an
-  unresolved test-method decision.
-- `/spec`'s acceptance template drops the literal `3. Tests written and
-  passing` (the exact dispatch W7 forbids) in favour of criteria written in
-  the card vocabulary.
-- CEO Section 6 step 1 already asks for "a wrong result it rejects"; it
-  gains the `no_claim` sentence.
-- RH-10 (spec-editing as progress) in `/ship`'s plan-completion audit: the
-  parent diffs the plan's acceptance-bearing sections as they stand in the
-  working tree (the audit already includes uncommitted work) against a
-  baseline: the `origin/<base>` version when the plan exists there, else
-  its first commit on the branch, else `baseline unavailable` (plans
-  outside the repo). An item whose acceptance text changed gets a **new**
-  classification `ACCEPTANCE_EDITED`, reported beside `done/changed/…`
-  and never folded into `CHANGED` (which today means "same goal achieved"
-  and passes the gate); the PR body names it as a scope change, and the
-  original obligation is still audited. Limit stated in the skill: an item
-  rewritten in the same commit that introduced the plan is invisible.
+- 語彙は 2 つではなく 1 つ。gstack のテストカードには、すでに `protects=`(肯定的な観測対象)、`fails_when=`(仕込まれた誤った結果)、`why_new=`、`seam=` があり、`scripts/resolvers/test-value.ts`(`VALUE_CARD_FIELDS`、`renderValueCard`)が所有し、`test/test-value-bar.test.ts` が固定している。W5 は、そのオーナーに、任意の 5 つ目のフィールドとして **`no_claim=`** を追加する。今後 gstack が生成するカードには、これを含める。古いプロンプトによる 4 フィールドのカードは、機械的なチェックでは有効のままとする。`renderValueCard` のすべての呼び出し元と、静的な専門家のコピーは、同じコミットで棚卸しする。また、Test Plan Artifact と `/spec` の受け入れ基準にも、同じ 4 + 1 の名前を使う。そのため、計画の項目、その仕様の基準、着地するテストが、1 つの説明を持つ。`no_claim` は 1 文であり、緑であっても何を証明しないか、どのフィクスチャやモックが何の代わりになっているかを述べる。ユーザーに尋ねることは決してなく、レビュアーが記述する。`no_claim` の文は、必須の実機チェックや、未解決のテスト方法の判断を免除することは決してない。テンプレートには 2 つの例をレンダリングする: `no_claim=provider acceptance (mocked provider; unit only)` と `no_claim=none beyond protects`。後者が条件反射的な埋め草にならないようにするためである。
+- `/spec` の受け入れテンプレートは、文字どおりの `3. Tests written and passing`(W7 が禁止しているディスパッチそのもの)を削除し、カード語彙で書かれた基準に置き換える。
+- CEO セクション 6 のステップ 1 は、すでに「それが棄却する誤った結果」を求めている。そこに `no_claim` の文を加える。
+- `/ship` の plan-completion audit における RH-10(進捗としての仕様の編集): 親は、作業ツリー上の計画の受け入れに関わるセクションを(監査はすでに未コミットの作業を含む)、基準と比較する。基準は、計画がそこに存在する場合は `origin/<base>` のバージョン、そうでなければブランチ上の最初のコミット、それもなければ `baseline unavailable`(リポジトリ外の計画)。受け入れテキストが変わった項目には、新しい分類 **`ACCEPTANCE_EDITED`** を付ける。これは `done/changed/…` の隣に報告し、`CHANGED`(現在は「同じ目標を達成した」を意味し、ゲートを通す)に折り込むことは決してしない。PR 本文はこれをスコープの変更として明記する。元の義務も依然として監査する。スキル内に明記する制限: 計画を導入したのと同じコミットで書き換えられた項目は見えない。
 
-### W6. Value test for process artifacts in `/plan-ceo-review`
+### W6. `/plan-ceo-review` におけるプロセス成果物の価値テスト
 
-Consumer: `/plan-ceo-review` Section 1 (Architecture) question list. Gate:
-plan approval. Observed defect: speculative for product plans; gstack's own
-history of ledgers (evidence, decision, review log, telemetry) is the
-motivating case. Retirement: if the question never changes a plan in two
-releases.
+利用者: `/plan-ceo-review` のセクション 1(アーキテクチャ)の問いのリスト。ゲート: 計画の承認。観測された欠陥: 製品の計画では推測にすぎない。gstack 自身の台帳(証拠、判断、レビュー記録、テレメトリ)の履歴が、動機となった事例。廃止条件: その問いが 2 つのリリースにわたって一度も計画を変えなかった場合。
 
-One added question in Section 1, not a new 0D decision: when a plan adds an
-artifact about the *work* (status report, audit matrix, certificate,
-meta-report, conformance check nothing consumes), ask: who uses it, what
-decision or delivered behavior changes because it exists, why this is the
-smallest useful version, and when it retires. An explicit user request
-answers the first two and is recorded as provenance; the last two are still
-answered. A credible, explicitly identified preventive risk is a valid
-answer; a past incident is not required. Manufacturing a code consumer to
-pass the question is the pathology, not an answer.
+セクション 1 に 1 つ問いを追加する(新しい 0D の判断ではない)。計画が、*作業*についての成果物(ステータスレポート、監査マトリクス、証明書、メタレポート、何も消費しない適合性チェック)を追加する場合、次のことを尋ねる。誰が使うのか。それが存在するために、どの判断や提供される振る舞いが変わるのか。なぜこれが最小の有用な版なのか。いつ廃止されるのか。ユーザーの明示的な依頼は、最初の 2 つに答えるものであり、来歴として記録する。最後の 2 つには依然として答える必要がある。信頼できる、明示的に特定された予防上のリスクは、有効な答えである。過去のインシデントは必要ない。問いを通過させるために、コードの消費者を捏造することが病理であり、それは答えではない。
 
-**Carve-out, stated in the text:** product observability (dashboards,
-alerts, runbooks for the shipped system) is launch scope under Prime
-Directive 5 and is never a process artifact; user-facing docs and
-agent-consumed instructions are product. The question applies to artifacts
-about the work, not about the system.
+**例外(本文に明記):** 製品の可観測性(出荷されたシステムのダッシュボード、アラート、ランブック)は、Prime Directive 5 の下でのローンチのスコープであり、決してプロセス成果物ではない。ユーザー向けのドキュメントとエージェントが消費する指示は製品である。この問いは、作業についての成果物に適用し、システムについての成果物には適用しない。
 
-### W7. Dispatch rules for implementing children
+### W7. 実装を担う子プロセスへのディスパッチのルール
 
-Consumer: `/spec`'s archived spec (piped to `claude -p`), `/ship` Step 7
-test-generation child. Gate: the parent's acceptance of a child's work.
-Observed defect: speculative; gstack's specialist schema already requires
-`path`/`severity` and defines `NO FINDINGS` as a complete empty result.
-Retirement: with W5.
+利用者: `/spec` のアーカイブされた仕様(`claude -p` にパイプされる)、`/ship` Step 7 のテスト生成の子プロセス。ゲート: 子プロセスの作業を親が受け入れること。観測された欠陥: 推測。gstack の専門家のスキーマは、すでに `path`/`severity` を必須とし、`NO FINDINGS` を完全な空の結果と定義している。廃止条件: W5 と同時。
 
-- **Implementer rules**, one constant in `scripts/resolvers/dispatch-rules.ts`
-  rendered into `/spec`'s template (so they travel inside the spec that is
-  the prompt) and into Step 7's child prompt: acceptance criteria are the
-  `protects / fails_when / no_claim` profile; never "make the tests pass";
-  any test, validator, CI, tolerance or suppression change is reported on
-  its own line in your summary with its justification; real code and real
-  tests land in the same change; a reported command names the command and
-  its observed result.
-- `/spec --execute` sets `GSTACK_SESSION_KIND=spawned` on the `claude -p`
-  spawn so the child's gstack skills take the spawned branch (`open`, draft)
-  instead of degrading to `interactive` and emitting a prose brief to nobody.
-- Reviewer-side change: none. The CEO draft's "`NO FINDINGS` names what you
-  examined" contradicted the specialists' "`NO FINDINGS` and nothing else"
-  sentinel that the parent parses; it is dropped.
-- Step 9.4 is parent work, not a child; it is covered by W3's post-fix scan.
+- **実装者のルール**。`scripts/resolvers/dispatch-rules.ts` の 1 つの定数を、`/spec` のテンプレートに(プロンプトである仕様の中に含まれるように)、そして Step 7 の子プロセスのプロンプトにレンダリングする。受け入れ基準は `protects / fails_when / no_claim` のプロファイルである。「テストを通すこと」を目的としない。テスト、バリデーター、CI、許容誤差、抑制の変更は、いずれもその正当化とともに、要約の中で独立した行に報告する。実際のコードと実際のテストは、同じ変更に含める。報告するコマンドには、コマンドとその観測された結果を明記する。
+- `/spec --execute` は、`claude -p` の起動時に `GSTACK_SESSION_KIND=spawned` を設定する。これにより、子プロセスの gstack スキルは、`interactive` に格下げされて誰にも向けられない文章のブリーフを出力する代わりに、spawned の分岐(`open`、ドラフト)をとる。
+- レビュアー側の変更はなし。CEO の草案にあった「`NO FINDINGS` は、検査した対象を明記する」は、親が解析する専門家の「`NO FINDINGS` のみ、それ以外は書かない」という番兵と矛盾するため、削除する。
+- Step 9.4 は子プロセスの仕事ではなく、親の仕事である。これは W3 の修正後スキャンでカバーされる。
 
-### W8. Docs and tests
+### W8. ドキュメントとテスト
 
-- `review/gate-integrity.md` (W2) is the catalog; `ETHOS.md` gains a short
-  **Honest Work** paragraph linking to it. **TASTE DECISION** (see Review
-  record): ship the ETHOS paragraph now or hold one release.
-- `README.md` / `AGENTS.md` skill tables: no new skill; the `/review` and
-  `/ship` one-liners gain "gate integrity".
-- Tests, free: W1 fixtures and unit tests; `test/review-workflow-clarity`
-  structural checks for the Gate Integrity category and the narrowed
-  suppression; prompt-structure tests for the No-Claim tokens in the Test
-  Plan Artifact and the `/spec` implementer section; preamble render test
-  for the kernel at every tier and `terse`; `test/context-budget-ratchet`
-  fixture refresh; `test/parity-suite`; SKILL.md regeneration for every
-  touched template.
-- Evals: no new paid lanes. The existing diff-selected PR gate
-  (`eval:bg:pr`) runs because templates and the preamble are prompt files.
-  **TASTE DECISION:** add one `gate`-tier, `rule`-kind E2E case (a fixture
-  branch with a planted `.skip` and a widened timeout; `/review` must list
-  both as gate findings and route them to the one-way ASK, never AUTO-FIX;
-  asserted on native question/edit events, not prose), registered in all
-  three `test/helpers/touchfiles-data.ts` maps and `PR_PROFILE_CASE_IDS`
-  with a hermetic bin, versus relying on the selected existing evals alone.
+- `review/gate-integrity.md`(W2)がカタログである。`ETHOS.md` には、それへのリンクを含む短い **Honest Work** の段落を加える。**好みの判断**(レビュー記録を参照): ETHOS の段落を今出荷するか、1 リリース保留する。
+- `README.md` / `AGENTS.md` のスキル表: 新しいスキルは追加しない。`/review` と `/ship` の一行説明に「ゲート整合性」を加える。
+- テスト(無償): W1 のフィクスチャとユニットテスト。Gate Integrity カテゴリと絞り込まれた抑制のための `test/review-workflow-clarity` の構造チェック。Test Plan Artifact と `/spec` の実装者のセクションにおける No-Claim のトークンのための、プロンプト構造のテスト。すべての tier と `terse` における核の preamble レンダリングのテスト。`test/context-budget-ratchet` のフィクスチャの更新。`test/parity-suite`。変更されたすべてのテンプレートについての SKILL.md の再生成。
+- Eval: 新しい有料のレーンは追加しない。テンプレートと preamble はプロンプトファイルなので、既存の差分で選択される PR ゲート(`eval:bg:pr`)が実行される。**好みの判断:** `gate` 層、`rule` 種別の E2E ケースを 1 つ追加する(仕込んだ `.skip` と、広げられたタイムアウトを持つフィクスチャのブランチ。`/review` は両方をゲートの指摘として一覧にし、AUTO-FIX ではなく一方向の ASK に回さなければならない。ネイティブの質問/編集イベントで検証し、散文では検証しない)。これは、3 つの `test/helpers/touchfiles-data.ts` のマップすべてと、密閉されたバイナリを伴う `PR_PROFILE_CASE_IDS` に登録する。既存の選択された eval だけに頼るかどうかの判断。
 
-## NOT in scope
+## スコープ外
 
-- A new `/honesty-audit` skill, or a `/review` audit mode over a time window
-  (follow-on; W1's `--range` is the only piece shipped).
-- Tracker encoding, canaries, joint-freeze, swarm ready-pool mechanics,
-  refusal-farming redirects, USER/ENABLER/PROCESS retro classification.
-- Blocking on RH-3 golden regeneration (listed and read, never auto-blocked:
-  gstack's own SKILL.md goldens regenerate on every template edit by
-  design; for product snapshot tests the PR-body line makes it visible).
-- Cross-invocation reuse of gate dispositions; `--paths`/`--range`;
-  RH-3 source-ownership inference; cross-hunk RH-15 pairing; RH-14 job
-  removal; exact Go test counts; converting an existing ready PR to draft;
-  the tier-1 kernel; a project off switch.
-- A second round "tuning the gate-integrity category". Defects found in the
-  detector get fixed; categories do not get redesigned (the source's
-  meta-trap rule).
+- 新しい `/honesty-audit` スキル、または時間枠にわたる `/review` の監査モード(フォローアップ。W1 の `--range` だけが出荷される部分)。
+- トラッカーのエンコーディング、カナリア、joint-freeze、スウォームの ready-pool の仕組み、refusal-farming のリダイレクト、USER/ENABLER/PROCESS の振り返りの分類。
+- RH-3(golden の再生成)でのブロック(一覧に載せて読むが、自動ブロックはしない。gstack 自身の SKILL.md の golden は、設計上、テンプレートを編集するたびに再生成される。製品のスナップショットテストについては、PR 本文の行によって可視化される)。
+- ゲートの処理の呼び出しをまたいだ再利用、`--paths`/`--range`、RH-3 のソースの所有関係の推論、ハンクをまたぐ RH-15 のペアリング、RH-14 のジョブ削除、Go のテスト件数の厳密な計算、既存の ready な PR をドラフトに変換すること、tier-1 の核、プロジェクトの無効化スイッチ。
+- ゲート整合性カテゴリの「second round のチューニング」。検出器で見つかった欠陥は修正するが、カテゴリは作り直さない(出典の meta-trap ルール)。
 
-## What already exists (and is reused, not duplicated)
+## 既存のもの(重複させず再利用する)
 
-- `/ship` Step 16 evidence freshness and ledger (`gstack-evidence`): W3 adds
-  `tests_ran`, not a new ledger.
-- `ship/sections/measure.md`: the measure-then-fix loop is gstack's native
-  RH-15 and SM-11 countermeasure; W2's "carries the measurement" means a
-  `ship-measure` report or equivalent.
-- `/review` "Verification of claims"; CEO Section 6 "a wrong result it
-  rejects"; `Linked to #N` never auto-close (RH-9); outside review
-  `unverified` is missing coverage, never a pass; `/ship` "never rewrite
-  history" (RH-17).
-- Testing specialist: "never accept buggy-output goldens or discarded valid
-  red tests", "Negative Assertions" (about *added* absence assertions; W2 is
-  about *removed or relaxed* gates; both stay), the test value bar.
-- slop-scan's empty-catch rule (RH-16 cites it rather than re-detecting the
-  fix); `gstack-diff-scope`'s path classes, union-of-changes and exit
-  contract (W1 reuses the classes and copies the contract).
-- Specialist schema (`path`, `severity`, `NO FINDINGS`) and the
-  plan-completion audit child's "report only" contract.
+- `/ship` Step 16 の証拠の鮮度と台帳(`gstack-evidence`): W3 は新しい台帳ではなく `tests_ran` を追加する。
+- `ship/sections/measure.md`: 計測してから修正するループは、gstack に元からある RH-15 と SM-11 の対策である。W2 の「計測を伴う」とは、`ship-measure` のレポートまたは同等のものを指す。
+- `/review` の「主張の検証」。CEO セクション 6 の「それが棄却する誤った結果」。`Linked to #N` は決して自動で閉じない(RH-9)。外部レビューの `unverified` はカバレッジの欠落であり、合格ではない。`/ship` の「履歴を決して書き換えない」(RH-17)。
+- テスト専門家: 「buggy 出力の golden や、破棄された正しい赤いテストを容認しない」、「Negative Assertions」(*追加された*不在のアサーションに関するもの。W2 は*削除または緩和された*ゲートに関するもの。どちらも残す)、テストの価値の基準。
+- slop-scan の空の catch のルール(RH-16 はその修正を再検出せず、引用する)。`gstack-diff-scope` のパスの分類、変更の和集合、終了の契約(W1 はその分類を再利用し、契約をコピーする)。
+- 専門家のスキーマ(`path`、`severity`、`NO FINDINGS`)と、plan-completion audit の子プロセスの「報告のみ」という契約。
 
-## Failure modes
+## 失敗モード
 
-| Path | Realistic failure | Coverage |
+| 経路 | 現実的な失敗 | カバレッジ |
 |---|---|---|
-| repo with no tests dir | zero listed, exit 0, reads as clean | coverage line always printed: `none detected (0 listed; patterns …; paths checked …)`; a bounded null, not an error |
-| shallow CI checkout / absent base | base unresolvable | exit 2 → `Gate integrity: UNAVAILABLE (no_base ref=…)` with the concrete fetch/deepen command; reported as missing coverage, never `none`; `COMPLETED` unaffected |
-| Java/Kotlin/Swift layout | diff-scope's root-anchored globs miss `src/test/java` | W1's own any-depth matcher + content backstop; `languages_unlisted` in the coverage line |
-| unknown language skip idiom | listed, untagged | floor lists it; coverage line names the gap; no false `none` |
-| test-heavy PR (median 23–45 listed hunks) | per-hunk disposition drowns the human | three levels: only findings reach ASK; groups are one decision; read cap 50 disclosed |
-| RH-15 over-fires on legitimate tuning | ASK fatigue | calibration before CRITICAL; cited changes are read, not findings; kept reasons land in PR body |
-| forged "measured" comment or injected test name | a relaxation vanishes before ASK, or excerpt text steers the agent | citations never exclude a finding; resolved read-only and marked (un)verified; excerpts are fenced data; `actor` stamped by the logger |
-| detector artifact written in the repo | `review_binding` flips to `changed`; `/ship` loops at 11.5 | artifact lives under the state root, 0600, path printed |
-| 1,300-hunk diff | 50 read, late `.skip` unread, "none" printed | tagged-first ordering; `partial (K of M eligible read)`; never `none` |
-| removed credential in a hunk | leaks into the synced review record or PR body | records store id/path/tag/reason only; snippets pass the existing scanner with a `content withheld` marker; PR body through the scanned publisher |
-| plan-tune `never-ask` / `AUTO_DECIDE` on the gate question | gate self-waives interactively | `review-gate-disposition` is a one-way id; preference tool refuses `never-ask`; auto-chosen = `open` |
-| spawned `/ship` (e.g. `/spec --execute`) | auto-Fix reverts a legitimate edit, or auto-Skip waives the gate | `GSTACK_SESSION_KIND=spawned` set on spawn; option D recommended → auto-pick yields `open`; logger forces `open` for non-interactive kinds regardless |
-| headless `/ship` with a PR surface | blocks on any `.skip` | same as spawned; BLOCKED only with no writable PR destination; disclosure failure reported, never fabricated |
-| existing ready PR gains an open finding | ships as ready silently | interactive: explicit human choice (resolve / publish-with-banner, recorded); spawned/headless: stop and report |
-| `/review` answer not reused by `/ship` | human asked twice | accepted v1 limit, same as Fix/Skip today; reuse is a follow-on |
-| child reports a partial touched-path list | its CI edit escapes the scan | parent runs the full scan, never a child-supplied list |
-| preamble growth trips context-budget ratchet | CI red | measured per tier/host; fixture refreshed for the retained delta only |
-| unknown runner summary | `tests_ran: unknown` | exit-0 pass kept; `count unavailable` in PR body; never conflated with ZERO-RUN |
-| `tests_ran` parser bug | flips a green lane red | detection in receipt/`check` only (TRANSPARENCY INVARIANT); `check` says which state it saw |
-| `2>/dev/null \|\| true` idiom copied for the gate scan | "could not look" swallowed | `GATE_SCAN_BLOCK` constant branches on exit; shared by `/review` and `/ship` |
-| plan rewritten in its introducing commit | RH-10 check blind | limit stated in the skill text |
+| テストディレクトリのないリポジトリ | 一覧 0 件、終了コード 0、クリーンに見える | カバレッジの行を必ず表示: `none detected (0 listed; patterns …; paths checked …)`。有界の null であり、エラーではない |
+| 浅い CI のチェックアウト / base が存在しない | base が解決できない | 終了コード 2 → 具体的な fetch/deepen コマンドを伴う `Gate integrity: UNAVAILABLE (no_base ref=…)`。カバレッジ不足として報告し、決して `none` としない。`COMPLETED` には影響しない |
+| Java/Kotlin/Swift のレイアウト | diff-scope のルートに固定された glob は `src/test/java` を取りこぼす | W1 独自の任意の深さのマッチャー + 内容のバックストップ。カバレッジの行に `languages_unlisted` |
+| 未知の言語のスキップのイディオム | 一覧に載るが、タグは付かない | 下限が一覧に載せる。カバレッジの行でそのギャップを明記。誤った `none` は出さない |
+| テストの多い PR(一覧の中央値 23〜45 ハンク) | ハンクごとの処理が人間を埋もれさせる | 3 つのレベル: 指摘だけが ASK に届く。グループは 1 つの判断。読み取りの上限 50 を開示 |
+| RH-15 が正当なチューニングに過剰反応する | ASK の疲労 | CRITICAL の前に較正する。引用された変更は読むが、指摘にはしない。維持された理由は PR 本文に入る |
+| 偽造された「計測済み」コメント、または注入されたテスト名 | ASK の前に緩和が消える、または抜粋のテキストがエージェントを誘導する | 引用は決して指摘を除外しない。読み取り専用で解決し、(未)検証とマークする。抜粋はフェンス付きのデータ。`actor` はロガーが刻印する |
+| 検出器の成果物がリポジトリ内に書き込まれる | `review_binding` が `changed` に変わり、`/ship` が 11.5 でループする | 成果物は state root の下に置き、0600、パスを表示 |
+| 1,300 ハンクの差分 | 50 件読み、後ろの `.skip` は未読、「none」と表示される | タグ付きを先頭にする並べ替え。`partial (K of M eligible read)`。決して `none` としない |
+| ハンク内で削除された認証情報 | 同期されるレビュー記録や PR 本文に漏れる | 記録は id/パス/タグ/理由のみを保存。抜粋は既存のスキャナーを通り、`content withheld` マーカーを付ける。PR 本文はスキャンされる公開ツールを通す |
+| ゲートの質問に対する plan-tune の `never-ask` / `AUTO_DECIDE` | ゲートが対話的に自ら免除する | `review-gate-disposition` は一方向の ID。設定ツールは `never-ask` を拒否する。自動選択 = `open` |
+| spawned の `/ship`(例: `/spec --execute`) | 自動 Fix が正当な編集を元に戻す、または自動 Skip がゲートを免除する | 起動時に `GSTACK_SESSION_KIND=spawned` を設定。選択肢 D を推奨 → 自動選択は `open` になる。ロガーは非対話型の種別では常に `open` を強制する |
+| PR の面を持つ headless の `/ship` | どの `.skip` でもブロックする | spawned と同じ。書き込み可能な PR の宛先がない場合にのみ BLOCKED。開示の失敗は報告し、決して捏造しない |
+| 既存の ready な PR に未解決の指摘が加わる | 黙って ready のまま出荷される | 対話型: 人間による明示的な選択(解決 / バナー付き公開。記録する)。spawned/headless: 停止して報告 |
+| `/review` の回答が `/ship` で再利用されない | 人間に二度尋ねられる | 受け入れた v1 の制限。現在の Fix/Skip と同じ。再利用はフォローアップ |
+| 子プロセスが部分的な変更パスのリストを報告する | その CI の編集がスキャンを逃れる | 親が完全なスキャンを実行する。子プロセスが与えたリストは決して使わない |
+| preamble の増加が context-budget の ratchet に引っかかる | CI が赤くなる | tier/ホストごとに計測。残った差分だけでフィクスチャを更新 |
+| ランナーの要約が不明 | `tests_ran: unknown` | 終了コード 0 による合格を維持。PR 本文に `count unavailable`。ZERO-RUN と決して混同しない |
+| `tests_ran` のパーサーのバグ | green のレーンを赤に変える | 検出は受領記録 / `check` の中だけ(TRANSPARENCY INVARIANT)。`check` はどの状態を見たかを示す |
+| ゲートのスキャンのためにコピーされた `2>/dev/null \|\| true` のイディオム | 「確認できなかった」が握りつぶされる | `GATE_SCAN_BLOCK` の定数は終了コードで分岐する。`/review` と `/ship` で共有 |
+| 計画が、それを導入したコミットで書き換えられる | RH-10 のチェックが見えない | スキルの文章に制限を明記 |
 
-## Delivery order (one PR, staged commits, one owner per shared file)
+## 配布の順序
 
-1. **Contracts and free fixtures:** candidate model, coverage/partial
-   semantics, disposition states, `no_claim` schema at `test-value.ts`,
-   publication rules; gate-diff patch fixtures and builder.
-2. **Detector and counts:** `lib/gate-diff/*`, `bin/gstack-gate-diff`,
-   `gstack-evidence` `tests_ran`, the calibration script and its 10-PR hand
-   read. Independent of 3 and 4.
-3. **Review/ship integration:** checklist category, `GATE_SCAN_BLOCK`,
-   `review-gate-disposition` one-way id with option D, logger-stamped
-   `actor`/forced `open`, record fields, draft-while-open in the publisher,
-   Step 7/9.4 rescan, Step 16 lines, PR body lines, `ACCEPTANCE_EDITED`.
-4. **Prose and acceptance:** kernel (W4), `no_claim` in templates (W5), W6
-   question, W7 dispatch rules and `/spec` spawn env, `review/gate-integrity.md`,
-   ETHOS paragraph (if approved), regen of every SKILL.md and the four host
-   goldens, context-budget and parity refreshes, touchfiles + PR profile
-   entries, the paid `rule` case, then `bun run test` once on the frozen tree
-   and `eval:bg:pr`.
+(1 つの PR、段階的なコミット、共有ファイルごとに所有者は 1 人)
 
-Steps 2 and 3 can run in two worktrees; Step 4 has one owner. `ship/` and
-the preamble are each touched by exactly one of them at a time.
+1. **契約と無償のフィクスチャ:** 候補モデル、カバレッジ/部分的な意味、処理の状態、`test-value.ts` の `no_claim` スキーマ、公開のルール。gate-diff のパッチのフィクスチャとビルダー。
+2. **検出器と件数:** `lib/gate-diff/*`、`bin/gstack-gate-diff`、`gstack-evidence` の `tests_ran`、較正スクリプトとその 10 件の PR の手動の読み取り。3 と 4 からは独立。
+3. **レビュー/ship への統合:** チェックリストのカテゴリ、`GATE_SCAN_BLOCK`、選択肢 D を伴う一方向の ID `review-gate-disposition`、ロガーが刻印する `actor`/強制 `open`、記録のフィールド、公開ツールでのオープン中ドラフト、Step 7/9.4 の再スキャン、Step 16 の行、PR 本文の行、`ACCEPTANCE_EDITED`。
+4. **文章と受け入れ:** 核(W4)、テンプレートの `no_claim`(W5)、W6 の問い、W7 のディスパッチのルールと `/spec` の起動環境、`review/gate-integrity.md`、ETHOS の段落(承認された場合)、すべての SKILL.md と 4 つのホストの golden の再生成、context-budget と parity の更新、touchfiles と PR プロファイルのエントリ、有料の `rule` ケース。その後、凍結されたツリーで `bun run test` を一度、そして `eval:bg:pr`。
 
-## Rough size
+ステップ 2 と 3 は 2 つのワークツリーで並行して実行できる。ステップ 4 の所有者は 1 人。`ship/` と preamble は、それぞれ一度に、どちらか一方だけが触れる。
 
-Human team ~3 weeks; AI-assisted 3–4 days with the v1 cuts above (both
-Eng voices independently sized the DX draft at 5+ days as written). Real
-code: `lib/gate-diff/*` + CLI ~800–1,000 LOC, their fixtures and tests
-~400–600, logger/registry/evidence/publisher ~250–350; ~600 lines of
-template prose across 12 files; regen and fixture refreshes; one paid
-case; a free calibration script. One PR, shippable at each staged commit. One session, not a project
-(ENFORCEMENT.md: "adapt the templates; don't redesign them").
+## おおまかな規模
+
+人間のチームで約 3 週間。上の v1 の削減を伴う AI 支援では 3〜4 日(両方の Eng の声は、DX 草案を書かれたとおりに見積もると 5 日以上と独立に見積もった)。実際のコード: `lib/gate-diff/*` と CLI で約 800〜1,000 LOC、そのフィクスチャとテストで約 400〜600、ロガー/レジストリ/証拠/公開ツールで約 250〜350。12 ファイルにまたがるテンプレートの文章が約 600 行。再生成とフィクスチャの更新。有料のケースが 1 つ。無償の較正スクリプト。PR は 1 本で、段階的な各コミットで出荷可能。プロジェクトではなく、1 セッションの作業(ENFORCEMENT.md:「テンプレートを適応させる。作り直さない」)。
 
 ---
 
-## Review record
+## レビュー記録
 
-### CEO phase (autoplan, SELECTIVE EXPANSION; native Claude + outside GPT-6 Astra)
+### CEO フェーズ(autoplan、SELECTIVE EXPANSION。ネイティブの Claude と社外の GPT-6 Astra)
 
-Both voices: problem real, fold-in right, universal/swarm split roughly
-right, plan failed its own creation gate and left spawned/headless undefined.
+両方の声: 課題は実在する。取り込みは正しい。普遍的なもの/スウォームのものの分割はおおむね正しい。計画は、自身の作成ゲートに不合格であり、spawned/headless が未定義のままだった。
 
-Decisions applied (P1 completeness, P5 explicit, P6 action):
-- Observed-defect and retirement condition per workstream, citing gstack
-  incidents (native 1.3 critical).
-- Detector split into discovery / disposition / publication; file-class
-  floor + pattern tags; coverage line always printed; `-M` rename detection;
-  controls listed-not-tagged; adversarial fixtures; RH-4 added; RH-2 moved to
-  prose; RH-17 to "already exists"; range mode; calibration on 50 merged PRs
-  before CRITICAL (native 1.2, 3.1, 3.4, 4.7, 2.6; outside 2).
-- Spawned/headless disposition defined (native 3.2 high).
-- W6 scoped to artifacts about the work, with the Prime Directive 5
-  carve-out, value-test wording, no incident requirement, manufactured
-  consumers banned, one Section 1 question (native 4.1; outside 3).
-- W4 kernel extended (failure disclosure, no substitution, correlated
-  agreement, evidence reuse) and rendered for every tier including terse; no
-  total proof ordering; DONE redefined around final consumed inputs
-  (outside 4, 5; native 2.3).
-- W7 reviewer form cut to one sentence; parent-side check moved to Step 7/9.4
-  children; implementer rules travel in the spec (native 4.3, 2.x).
-- W5 RH-10 mechanism and limit specified; No-Claim allowed to read "none
-  beyond the positive" (native 4.8; outside "no four ceremonial fields").
-- Old W8 (retro classification) cut (native 4.4; outside 6).
-- Folded honesty inventory as two lines in Step 16 stage 5 with the auditor's
-  posture (native 4.5, 6).
-- Problem statement softened and "already exists" completed with `measure.md`
-  (native 2.1, 4.2).
-- Workstreams reordered by durability (native 5.1).
+適用した判断(P1 完全性、P5 明示性、P6 行動):
+- ワークストリームごとに、観測された欠陥と廃止条件を記載。gstack のインシデントを引用(ネイティブ 1.3 critical)。
+- 検出器を発見 / 処理 / 公開に分割。ファイル分類の下限 + パターンのタグ。カバレッジの行は常に表示。`-M` による名前変更の検出。対照群は一覧に載せるがタグは付けない。敵対的なフィクスチャ。RH-4 を追加。RH-2 は文章へ移動。RH-17 は「既存のもの」へ。範囲モード。CRITICAL の前に、マージ済み 50 件の PR で較正(ネイティブ 1.2、3.1、3.4、4.7、2.6。社外 2)。
+- spawned/headless の処理を定義(ネイティブ 3.2 high)。
+- W6 を、作業についての成果物に限定。Prime Directive 5 の例外、価値テストの文言、インシデントの要件なし、捏造された消費者の禁止、セクション 1 の問い 1 つ(ネイティブ 4.1。社外 3)。
+- W4 の核を拡張(失敗の開示、代用の禁止、相関した一致、証拠の再利用)。terse を含むすべての tier にレンダリング。証明の全体順序は設けない。DONE を最終的に消費された入力を中心に再定義(社外 4、5。ネイティブ 2.3)。
+- W7 のレビュアーの形式を 1 文に削減。親側のチェックは Step 7/9.4 の子プロセスへ移動。実装者のルールは仕様の中で伝える(ネイティブ 4.3、2.x)。
+- W5 の RH-10 の仕組みと制限を明記。No-Claim は「肯定的なもの以外はなし」と読めることを許容(ネイティブ 4.8。社外「形式的な 4 つのフィールドは不要」)。
+- 旧 W8(振り返りの分類)は削除(ネイティブ 4.4。社外 6)。
+- 誠実さのインベントリを、監査人の姿勢とともに、Step 16 の段階 5 に 2 行としてまとめた(ネイティブ 4.5、6)。
+- 課題の記述を和らげ、「既存のもの」に `measure.md` を補完(ネイティブ 2.1、4.2)。
+- ワークストリームを持続性の順に並べ替え(ネイティブ 5.1)。
 
-Taste decisions carried to the final gate:
-1. ETHOS "Honest Work" paragraph now (names are the deterrent) vs hold one
-   release (ETHOS is identity, not a changelog). Recommendation: ship a
-   short paragraph now.
-2. One new paid `gate`-tier E2E case for the Gate Integrity category vs
-   existing selected evals only. Recommendation: add the one case; prose
-   that does not change behavior is ceremony by this plan's own standard.
-3. Retrospective audit packaging (`/review --gate-audit <since>` vs a
-   `/honesty-audit` skill) — deferred as follow-on; no decision needed now.
+最終ゲートに持ち越す好みの判断:
+1. ETHOS の「Honest Work」の段落を今入れる(名前が抑止力になる)か、1 リリース保留する(ETHOS はアイデンティティであり、変更履歴ではない)。推奨: 短い段落を今出荷する。
+2. Gate Integrity カテゴリのための有料の `gate` 層の E2E ケースを 1 つ新たに追加するか、既存の選択された eval だけにするか。推奨: ケースを 1 つ追加する。挙動を変えない文章は、本計画自身の基準では形式的な儀式にすぎない。
+3. 振り返りの監査のパッケージ化(`/review --gate-audit <since>` か、`/honesty-audit` スキルか)は、フォローアップとして保留。今は判断不要。
 
-User challenges: none. Both voices agree with the user's direction (adapt
-into base skills, no new skill).
+ユーザーへの異議: なし。両方の声がユーザーの方向性に同意(基本スキルに適応させる。新しいスキルは作らない)。
 
-### DX phase (autoplan, DX POLISH; native Claude + outside GPT-6 Astra)
+### DX フェーズ(autoplan、DX POLISH。ネイティブの Claude と社外の GPT-6 Astra)
 
-Both voices measured gstack's own history and found the CEO-phase floor
-unworkable as a disposition unit (median 23–45 listed test/CI hunks per
-PR); both found the spawned/headless rule unenforced by the code that
-actually chooses answers; both found the `NO FINDINGS` sentence
-contradictory and the `/review`-publishes-draft line out of `/review`'s
-remit.
+両方の声が gstack 自身の履歴を計測し、CEO フェーズの下限が、処理の単位としては実用的でないことを発見した(PR あたりのテスト/CI ハンクの一覧の中央値は 23〜45)。また、spawned/headless のルールが、実際に回答を選ぶコードによって強制されていないことも発見した。さらに、「NO FINDINGS」の文が矛盾していること、および `/review` が draft を公開するという行が `/review` の役割外であることも発見した。
 
-Decisions applied (P5 explicit, P3 pragmatic, P1 completeness):
-- Three levels, listed / read / finding; only findings reach ASK; groups are
-  one decision; confidence scores identification (native 4.1, outside DX-01,
-  DX-05).
-- ASK options Restore / Keep-justified (agent-drafted reason) / Keep-other;
-  no bare Skip; record gains `gate`, `reason`, `actor`, `open`/`kept`
-  (native 4.2; outside DX-01, DX-07).
-- `review-gate-disposition` registered one-way so `never-ask` and
-  `AUTO_DECIDE` cannot waive it; spawned block exempts it; `/spec` sets
-  `GSTACK_SESSION_KIND=spawned` (native 3.1; outside DX-06).
-- `/review` persists, `/ship` publishes; draft-while-open covers new, early
-  and existing PRs; disclosure failure reported (outside DX-07).
-- Own test-path matcher + content backstop + explicit config list +
-  untracked union; CLAUDE.md `## Gate Integrity` paths block; CLI and exit
-  contract specified; `--range` walks commits; `--paths` for children;
-  `GATE_SCAN_BLOCK` shared constant with explicit exit branching; gate scan
-  before slop (native 2.3, 1.1, 1.2; outside DX-02, DX-03, DX-04).
-- Tool never suppresses RH-15; shows citation; human decides (native).
-- Three count states for zero-run (outside DX-08).
-- `no_claim=` folded into the existing test card vocabulary; `/spec` drops
-  "Tests written and passing" (native, outside duplication check).
-- W7 reviewer sentence dropped; Step 9.4 is parent work (native; outside
-  DX-10).
-- Kernel composition and sizing made explicit; stderr rule scoped (outside
-  DX-09).
-- Calibration redefined per PR as listed/read/findings/decisions, including
-  test-scoped PRs and two external fixture repos (native, outside DX-05).
+適用した判断(P5 明示性、P3 実用性、P1 完全性):
+- 3 つのレベル(一覧 / 読み取り / 指摘)。指摘だけが ASK に届く。グループは 1 つの判断。信頼度は識別を採点(ネイティブ 4.1、社外 DX-01、DX-05)。
+- ASK の選択肢は、復元 / 維持-正当化(エージェントが起草した理由)/ 維持-その他。単純な Skip はなし。記録に `gate`、`reason`、`actor`、`open`/`kept` を追加(ネイティブ 4.2。社外 DX-01、DX-07)。
+- `review-gate-disposition` を一方向で登録し、`never-ask` と `AUTO_DECIDE` でも免除できないようにする。spawned のブロックはこれを免除する。`/spec` は `GSTACK_SESSION_KIND=spawned` を設定(ネイティブ 3.1。社外 DX-06)。
+- `/review` は保存し、`/ship` は公開する。オープン中のドラフトは、新規、早期、既存の PR のすべてに適用。開示の失敗は報告(社外 DX-07)。
+- 独自のテストパスのマッチャー + 内容のバックストップ + 明示的な設定リスト + 未追跡の和集合。CLAUDE.md の `## Gate Integrity` のパスのブロック。CLI と終了の契約を明記。`--range` はコミットを走査。子プロセス向けの `--paths`。明示的な終了の分岐を伴う共有定数 `GATE_SCAN_BLOCK`。slop の前にゲートのスキャン(ネイティブ 2.3、1.1、1.2。社外 DX-02、DX-03、DX-04)。
+- ツールは RH-15 を決して抑制しない。引用を表示し、人間が判断する(ネイティブ)。
+- ゼロ件実行の 3 つの件数の状態(社外 DX-08)。
+- `no_claim=` を既存のテストカードの語彙に統合。`/spec` は「Tests written and passing」を削除(ネイティブ、社外の重複チェック)。
+- W7 のレビュアーの文を削除。Step 9.4 は親の仕事(ネイティブ。社外 DX-10)。
+- 核の構成とサイズを明記。標準エラーのルールの範囲を限定(社外 DX-09)。
+- 較正を PR ごとに、一覧 / 読み取り / 指摘 / 判断、として再定義。テストに限定された PR と 2 つの外部のフィクスチャのリポジトリを含む(ネイティブ、社外 DX-05)。
 
-Not adopted: a project-level off switch or `Mode: listing-only` in v1
-(both voices lean against a silent off; revisit after calibration); handing
-large-diff gate reads to the testing specialist (keeps the category in the
-core pass that small diffs get); renaming the tool.
+採用しなかったもの: v1 でのプロジェクト全体の無効化スイッチや `Mode: listing-only`(両方の声は、黙っての無効化に消極的。較正の後に再検討)。大きな差分のゲートの読み取りを、テスト専門家に渡すこと(カテゴリを、小さな差分が受ける中核のパスに残すため)。ツールの改名。
 
-Taste decisions carried to the final gate: tool name (`gstack-gate-diff`,
-matching the `gstack-*` helper family, vs `gstack-diff-gates`); whether to
-offer `Mode: listing-only` later; the read cap (50).
+最終ゲートに持ち越す好みの判断: ツール名(`gstack-gate-diff`。`gstack-*` のヘルパーファミリーに合わせる。対 `gstack-diff-gates`)。後から `Mode: listing-only` を提供するかどうか。読み取りの上限(50)。
 
-### Eng phase (autoplan; native Claude + outside GPT-6 Astra)
+### Eng フェーズ(autoplan。ネイティブの Claude と社外の GPT-6 Astra)
 
-Both voices: Go as one PR, not as written. Agreed: the DX draft had become
-a cross-workflow state machine (disposition reuse, draft conversion of
-ready PRs, child path lists, ownership inference) sized as a 600-LOC
-helper; the detector's `.gstack/tmp` artifact would flip the review
-binding; `actor`/`reason` were self-attested; RH-15 missed lowered
-thresholds (the motivating suppression) and RH-3 had no owner definition;
-the citation-only exclusion let a forged comment remove a finding before
-the human control; Step 7 has no `summary` field; `CHANGED` already means
-"same goal achieved"; the kernel is ~250–290 tokens; the paid case needs
-three touchfile maps plus the PR profile.
+両方の声: PR は 1 本として進めるが、記述どおりではない。合意事項: DX 草案は、ワークフローをまたぐ状態機械(処理の再利用、ready な PR の draft への変換、子プロセスのパスのリスト、所有権の推論)になっており、600 LOC のヘルパーの規模になっていた。検出器の `.gstack/tmp` の成果物は、レビューのバインディングを変えてしまう。`actor`/`reason` は自己申告だった。RH-15 は、しきい値の引き下げ(動機となった抑制)を見逃していた。RH-3 には所有者の定義がなかった。引用だけによる除外は、偽造されたコメントが人間による統制の前に指摘を除去することを許していた。Step 7 には `summary` フィールドがない。`CHANGED` はすでに「同じ目標を達成した」を意味している。核は約 250〜290 トークン。有料のケースには、3 つの touchfile マップと PR プロファイルが必要。
 
-Decisions applied (P5 explicit, P3 pragmatic, P4 DRY, P6 action):
-- Artifact under the state root, 0600, unsynced; records store identity,
-  not hunks; snippets redacted through the existing scanner.
-- Logger stamps `actor` and forces `open` for spawned/headless; option D
-  "Leave open" recommended in those sessions, so no auto-pick exemption is
-  edited anywhere (native 1.2/1.3 chosen over editing four hook surfaces).
-- RH-15 direction-agnostic with per-key relax direction, same-hunk pairs,
-  `RH-15?` for unpaired; RH-3 conventional `__snapshots__` owner only,
-  `RH-3?` otherwise; tags stay factual on controls.
-- Admission = floor OR tag; bounded read with `partial` coverage state.
-- Citations never exclude a finding; resolved read-only, pre-fill option B.
-- One candidate model (merge-base → working tree + untracked), hardened git
-  flags, named unsupported path kinds; tool-computed identities.
-- Full rescan after children; Step 7 JSON untouched; `ACCEPTANCE_EDITED`
-  as a new classification; `no_claim` optional at `test-value.ts`.
-- Kernel tiers 2–4 + terse, ≤ 200 tokens; `/benchmark` to tier 2 later.
-- Free calibration (tag precision + 10-PR hand read); agent-level signal
-  collected post-ship from records.
-- Paid case: `rule` kind, `gate` tier, three maps + PR profile, hermetic bin.
-- Cuts: cross-invocation reuse, `--paths`, `--range`, RH-14 job removal,
-  RH-3 inference, cross-hunk RH-15, Go counts, ready→draft conversion,
-  tier-1 kernel.
-- Sizing 3–4 AI days; four staged commits with single owners.
+適用した判断(P5 明示性、P3 実用性、P4 DRY、P6 行動):
+- 成果物は state root の下、0600、同期しない。記録はハンクではなく識別子を保存。抜粋は既存のスキャナーで秘匿化。
+- ロガーが `actor` を刻印し、spawned/headless では `open` を強制。これらのセッションでは選択肢 D「未解決のまま残す」を推奨するため、自動選択の免除をどこにも編集しなくてよい(4 つのフックの面を編集するより、ネイティブ 1.2/1.3 を選んだ)。
+- RH-15 は方向を問わず、キーごとの緩和の方向、同じハンク内のペア、ペアにならないものは `RH-15?`。RH-3 は慣例的な `__snapshots__` の所有者のみ、それ以外は `RH-3?`。対照群のタグは事実のまま。
+- 取り込み = 下限 OR タグ。`partial` のカバレッジ状態を伴う有界の読み取り。
+- 引用は決して指摘を除外しない。読み取り専用で解決し、選択肢 B に事前入力。
+- 候補モデルは 1 つ(マージベース → 作業ツリー + 未追跡)。git のフラグを強化。サポート外のパスの種類を明示。ツールが計算する識別子。
+- 子プロセスの後に完全な再スキャン。Step 7 の JSON は変更しない。`ACCEPTANCE_EDITED` を新しい分類として追加。`test-value.ts` で `no_claim` は任意。
+- 核は tier 2〜4 + terse、200 トークン以下。`/benchmark` は後で tier 2 へ。
+- 無償の較正(タグの精度 + 10 件の PR の手動の読み取り)。エージェントレベルのシグナルは、出荷後に記録から収集。
+- 有料のケース: `rule` 種別、`gate` 層、3 つのマップ + PR プロファイル、密閉されたバイナリ。
+- 削除: 呼び出しをまたぐ再利用、`--paths`、`--range`、RH-14 のジョブ削除、RH-3 の推論、ハンクをまたぐ RH-15、Go の件数、ready から draft への変換、tier-1 の核。
+- 規模は AI で 3〜4 日。単独の所有者による段階的な 4 つのコミット。
 
-Taste decisions carried to the final gate: ETHOS paragraph now vs later;
-the paid `rule` case; `open` counting in `issues_found` (plan says yes);
-read cap 50 / 200 KB.
+最終ゲートに持ち越す好みの判断: ETHOS の段落を今入れるか後にするか。有料の `rule` ケース。`issues_found` で `open` を数えるか(計画では「はい」)。読み取りの上限 50 件 / 200 KB。

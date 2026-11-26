@@ -37,17 +37,19 @@ describe('/ship review fix loop (#2391)', () => {
   test('rendered section instructs the bounded in-invocation loop', () => {
     const content = fs.readFileSync(path.join(ROOT, 'ship/SKILL.md'), 'utf-8').replace(/\s+/g, ' ');
     const review = fs.readFileSync(path.join(ROOT, 'ship/sections/review-army.md'), 'utf-8').replace(/\s+/g, ' ');
-    expect(review).toContain('**Fixes applied below the cap:** Insert Step 5');
-    expectMentions(content, [['without', 'invocation', 'restarting']], 'content');
-    expectMentions(review, [['do not', 'fourth', 'fixing']], 'review');
+    expect(review).toContain('**上限未満で修正が適用された:** Step 5');
+    expectMentions(content, [['再起動せず', 'この実行']], 'content');
+    expectMentions(review, [['4 回目', '修正サイクル', '実行しないで']], 'review');
     // The loop re-runs tests AND the review, and only a converged pass continues.
-    expectMentions(review, [['before', 'affected', 'pending']], 'review');
-    expect(review).toContain('Every repeat starts before the checklist read and captures a fresh REVIEW_START');
-    expect(review).toContain('**No edits in this pass:** Resolve the required-probe gate below. Only after it clears may you continue to Step 10');
+    expectMentions(review, [['Step 10', '保留中', '影響を受ける']], 'review');
+    expectMentions(review, [['繰り返し', 'checklist', 'REVIEW_START', '新しい']], 'review');
+    expect(review).toContain('**このパスで編集がない:**');
+    expectMentions(review, [['クリア', '後にのみ', 'Step 10']], 'review');
   });
 
   test('the non-convergence stop is a blocker report, not a rerun request', () => {
     const content = fs.readFileSync(path.join(ROOT, 'ship/sections/review-army.md'), 'utf-8');
-    expect(content).toContain('**Third fixing cycle reached (`CYCLES >= 3`):** STOP and report recurring findings');
+    expect(content).toContain('(`CYCLES >= 3`):**');
+    expectMentions(content, [['停止', '再発', '指摘事項', 'converged:false']], 'content');
   });
 });

@@ -4,7 +4,7 @@ import { defineHost, GBRAIN_RESOLVERS, preambleToolGlossary } from './define-hos
 // from #396/#487 (@ridermw) and #1852 (@lolisaigao1234); disposition in
 // docs/ADDING_A_HOST.md "GitHub Copilot CLI".
 // On Windows: Git Bash note (#3047).
-const COPILOT_TOOL_GLOSSARY = '**GitHub Copilot tool names:** `AskUserQuestion` means your `ask_user` tool (one question per call: put the decision brief in the question and each option in the choices). `ExitPlanMode` means `exit_plan_mode`; the Agent tool means `task`; the Read tool means `view`; the Skill tool means `skill`. Copilot has no `mcp__*__AskUserQuestion` variant. **On Windows:** run each bash block in Git for Windows Bash by its full path (usually `C:\\Program Files\\Git\\bin\\bash.exe`; bare `bash` can start WSL instead). Never translate a block into PowerShell, and never run an extensionless gstack helper from PowerShell directly: Windows opens an app picker instead of running it.';
+const COPILOT_TOOL_GLOSSARY = '**GitHub Copilot のツール名:** `AskUserQuestion` は `ask_user` ツールを指します(1 回の呼び出しにつき質問は 1 つ。判断の要約を質問文に、各選択肢を choices に入れます)。`ExitPlanMode` は `exit_plan_mode`、Agent ツールは `task`、Read ツールは `view`、Skill ツールは `skill` を指します。Copilot には `mcp__*__AskUserQuestion` 系のバリアントはありません。**Windows の場合:** 各 bash ブロックは、フルパス(通常は `C:\\Program Files\\Git\\bin\\bash.exe`)で Git for Windows の Bash で実行してください。素の `bash` では WSL が起動することがあります。ブロックを PowerShell に書き換えないでください。また、拡張子のない gstack ヘルパーを PowerShell から直接実行しないでください。Windows はアプリ選択ダイアログを開いてしまい、実行されません。';
 
 const copilot = defineHost({
   name: 'copilot',

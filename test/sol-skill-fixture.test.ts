@@ -82,7 +82,7 @@ test('private Sol render matches the full in-place artifact and leaves cache byt
     expect(inventory(fixture.skillDir, false)).toEqual(fullSkill);
     const skill = fs.readFileSync(path.join(fixture.skillDir, 'SKILL.md'), 'utf8');
     expect(skill).toContain('name: investigate');
-    expect(skill).toContain('Model-Specific Behavioral Patch (gpt-5.6-sol)');
+    expect(skill).toContain('Model-Specific Behavioral Patch (gpt-5.6-sol)(モデル固有の動作パッチ)');
     expect(skill).not.toContain(fixture.outputRoot);
     expect(fs.existsSync(path.join(fixture.outputRoot, 'gstack/llms.txt'))).toBe(true);
     expect(fs.existsSync(path.join(fixture.outputRoot, 'agents-digest/gstack-AGENTS.md'))).toBe(true);

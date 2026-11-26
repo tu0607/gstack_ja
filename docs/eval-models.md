@@ -1,14 +1,8 @@
-# Eval model rules: `.gstack/eval-models.json`
+# Eval のモデルルール: `.gstack/eval-models.json`
 
-A repository that has rules about which models its evals may use (for example
-"Fable in smoke tests only", "no gpt-5.4-mini", "the newest model of each
-family") writes them as data in `.gstack/eval-models.json`. `gstack-eval-plan`
-checks every arm against them: `arms`, `dry-run`, `pilot start`, and every
-call row of `price-gate`. gstack never reads these rules from prose in
-`CLAUDE.md` or any other document. Plan: field list 2, W9
-(`docs/designs/field-list-2-2026-10-16/PLAN.md`).
+eval でどのモデルを使ってよいかについてルールを持つリポジトリ(例: 「Fable はスモークテストでのみ」「gpt-5.4-mini は不可」「各ファミリーで最新のモデルのみ」)は、そのルールをデータとして `.gstack/eval-models.json` に書きます。`gstack-eval-plan` は、各アームをこのルールと照合します。対象は `arms`、`dry-run`、`pilot start`、そして `price-gate` の各呼び出し行です。gstack は、`CLAUDE.md` やその他のドキュメントの散文からこのルールを読むことは決してありません。計画: フィールドリスト 2、W9(`docs/designs/field-list-2-2026-10-16/PLAN.md`)。
 
-## The file
+## ファイル
 
 ```json
 {
@@ -24,58 +18,37 @@ call row of `price-gate`. gstack never reads these rules from prose in
 }
 ```
 
-| Key | Required | Meaning |
+| キー | 必須 | 意味 |
 |---|---|---|
-| `schema_version` | yes | `1` |
-| `allow` | yes | Model ids or globs an arm may use. An id that no entry matches fails, so a misspelled or new model is never admitted by default. Use `["*"]` to allow everything not denied. |
-| `deny` | no | Ids or globs no arm may use. Checked first. |
-| `scopes` | no | Per eval scope (`smoke` or `full`), an extra `allow` and/or `deny` list. "Fable in smoke only" is `scopes.full.deny: ["claude-fable-*"]`. |
-| `families` | no | Family name to literal ids, **newest first**. With this key present, an arm must be the newest id of its family (`EVAL_MODEL_OLD_GENERATION` otherwise), and an arm in no family fails `EVAL_MODEL_GENERATION_UNRESOLVED` instead of passing unchecked. |
+| `schema_version` | はい | `1` |
+| `allow` | はい | アームが使ってよいモデル ID またはグロブ。どのエントリにも一致しない ID は失敗します。そのため、綴りを間違えた、または新しいモデルが、初期状態で通ることはありません。denied 以外をすべて許可するには `["*"]` を使います。 |
+| `deny` | いいえ | どのアームも使ってはいけない ID またはグロブ。最初にチェックされます。 |
+| `scopes` | いいえ | eval のスコープごと(`smoke` または `full`)に、追加の `allow` および/または `deny` のリスト。「Fable はスモークのみ」は `scopes.full.deny: ["claude-fable-*"]` と書きます。 |
+| `families` | いいえ | ファミリー名から、リテラルの ID のリストへの対応。**新しい順** に並べます。このキーがあると、アームはそのファミリーで最新の ID でなければなりません(そうでなければ `EVAL_MODEL_OLD_GENERATION`)。どのファミリーにも属さないアームは、通過せずに `EVAL_MODEL_GENERATION_UNRESOLVED` で失敗します。 |
 
-Globs use `*` (any run of characters) and `?` (one character); every other
-character is literal. A rule matches the id as written, the id without a
-provider prefix (`openai/gpt-5.4-mini` matches `gpt-5.4-mini`), and a Claude id
-without its date suffix (`claude-opus-5-5-20261001` matches `claude-opus-5-5`).
-An unknown key, an unknown scope, a glob inside `families`, or an id listed in
-two families makes the whole file invalid (`EVAL_MODELS_INVALID`), and then no
-arm passes.
+グロブでは `*`(任意の文字の並び)と `?`(任意の 1 文字)を使います。それ以外の文字はすべてリテラルとして扱います。ルールは、書かれたままの ID と、プロバイダーの接頭辞を除いた ID(`openai/gpt-5.4-mini` は `gpt-5.4-mini` に一致)、そして日付の接尾辞を除いた Claude の ID(`claude-opus-5-5-20261001` は `claude-opus-5-5` に一致)に対して照合されます。未知のキー、未知のスコープ、`families` 内のグロブ、または二つのファミリーに登録された ID があると、ファイル全体が無効になり(`EVAL_MODELS_INVALID`)、その場合はどのアームも通過しません。
 
-The rules apply whatever gstack's own model catalog (`lib/model-catalog.ts`)
-holds: an uncatalogued model is allowed or denied by the file alone. The
-catalog only checks that `families` is current. If a family lists the
-catalog's current frontier or smart model after another id, the file is stale
-and invalid.
+ルールは、gstack 自身のモデルカタログ(`lib/model-catalog.ts`)が何を持っているかに関係なく適用されます。カタログにないモデルは、ファイルだけで許可または拒否が決まります。カタログが確認するのは `families` が最新かどうかだけです。ファミリーがカタログの現在のフロンティアまたはスマートモデルを、別の ID より後ろに並べている場合は、ファイルが古く、無効になります。
 
-## Order of checks
+## チェックの順序
 
-For each arm at its scope, the first rule that refuses decides:
+各アームについて、そのスコープで最初に拒否したルールが結果を決めます。
 
 1. `deny` → `EVAL_MODEL_DENIED`
 2. `scopes.<scope>.deny` → `EVAL_MODEL_DENIED`
-3. no `allow` entry matches → `EVAL_MODEL_DENIED` (unknown ids fail closed)
-4. `scopes.<scope>.allow` is set and does not match → `EVAL_MODEL_DENIED`
-5. `families` is set: in no family → `EVAL_MODEL_GENERATION_UNRESOLVED`; not the family's first id → `EVAL_MODEL_OLD_GENERATION`
+3. どの `allow` エントリにも一致しない → `EVAL_MODEL_DENIED`(未知の ID は閉じた側で失敗する)
+4. `scopes.<scope>.allow` が設定されていて、一致しない → `EVAL_MODEL_DENIED`
+5. `families` が設定されている場合: どのファミリーにも属さない → `EVAL_MODEL_GENERATION_UNRESOLVED`。ファミリーの先頭の ID ではない → `EVAL_MODEL_OLD_GENERATION`
 
-## Scope
+## スコープ
 
-`price-gate` checks each call row at that row's `scope` (`GSTACK_EVAL_CALLS v1`,
-`docs/eval-calls.md`). `arms`, `dry-run` and `pilot start` take
-`--scope smoke|full`, which defaults to `full`. So a smoke-only model fails
-unless the command says it is a smoke run.
+`price-gate` は、各呼び出し行をその行の `scope` でチェックします(`GSTACK_EVAL_CALLS v1`、`docs/eval-calls.md`)。`arms`、`dry-run`、`pilot start` は `--scope smoke|full` を受け取り、デフォルトは `full` です。そのため、スモーク専用のモデルは、コマンドがスモーク実行だと宣言しない限り失敗します。
 
-## Which copy is read
+## どちらのコピーを読むか
 
-By default the reviewed copy is read: `git show origin/<base>:.gstack/eval-models.json`
-(`--base`, default origin/HEAD's branch). A branch cannot loosen the rules it
-is checked against. When the working-tree copy differs, an
-`EVAL_MODELS_NOTE:` line says so. `--models-from head` lints with the working-tree copy
-instead. Use it for the PR that adds or changes the file; the source label
-says `head (unreviewed)`. When neither copy exists, nothing is checked and
-the line says `EVAL_MODELS: none ...`. When the base cannot be resolved but a
-working-tree copy exists, the command refuses (`EVAL_MODELS_INVALID`) rather
-than skipping the rules.
+デフォルトでは、レビュー済みのコピーを読みます。`git show origin/<base>:.gstack/eval-models.json`(`--base`、デフォルトは origin/HEAD のブランチ)です。ブランチが、照合される側のルールを緩めることはできません。作業ツリーのコピーと違う場合は、`EVAL_MODELS_NOTE:` の行でその旨を表示します。`--models-from head` を指定すると、代わりに作業ツリーのコピーでリントします。ファイルを追加または変更する PR で使ってください。ソースのラベルは `head (unreviewed)` と表示されます。どちらのコピーも存在しない場合は、何もチェックされず、その行は `EVAL_MODELS: none ...` と表示されます。ベースを解決できないのに作業ツリーのコピーが存在する場合は、ルールをスキップせずにコマンドが拒否します(`EVAL_MODELS_INVALID`)。
 
-## Output
+## 出力
 
 ```
 EVAL_MODEL: claude-fable-5-1 scope=full denied (scopes.full.deny claude-fable-*) where=dry-run --arms
@@ -83,7 +56,4 @@ EVAL_MODEL: claude-opus-5-5 scope=full ok (allow claude-*; newest in families.cl
 EVAL_MODELS: fail refused=1/2 source=origin/main@0123456789ab:.gstack/eval-models.json
 ```
 
-Each refusal also prints a result line on stderr ending in its code. `dry-run`
-records the check as `checks.model_rules` in `dry-run.json` and fails
-`DRY_RUN_RESULT`. `pilot start` reserves nothing. `price-gate` writes no
-receipt.
+拒否のたびに、stderr にもその結果行が出力され、最後にコードが付きます。`dry-run` はそのチェックを `dry-run.json` の `checks.model_rules` に記録し、`DRY_RUN_RESULT` を失敗させます。`pilot start` は何も確保しません。`price-gate` はレシートを書きません。

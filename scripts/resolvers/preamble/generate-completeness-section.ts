@@ -3,15 +3,15 @@ import type { TemplateContext } from '../types';
 export function generateCompletenessSection(ctx?: TemplateContext): string {
   if (ctx?.explainLevel === 'terse') return '';
   if (ctx?.model === 'gpt-5.6-sol') {
-    return `## Completeness Principle — Boil the Ocean Within Scope
+    return `## Completeness Principle — Boil the Ocean Within Scope(完全性の原則。スコープ内で海を沸かし尽くす)
 
-AI makes completeness cheap, so do the complete thing **inside the user's explicit task boundary**. The requested target, allowed files or systems, and acceptance criteria define the lake. Within that lake, cover the relevant tests, edge cases, and error paths. Related but unnecessary refactors, speculative hardening, cleanup, and migrations are separate scope: report them, do not implement them.
+AI によって網羅性のコストは小さくなるため、**ユーザーが明示したタスクの境界の内側**で完全に仕上げます。依頼された対象、許可されたファイルやシステム、受け入れ基準が lake(湖)を定めます。その lake の中では、関連するテスト、エッジケース、エラーパスをカバーします。関連はしていても不要なリファクタリング、推測に基づく堅牢化、クリーンアップ、マイグレーションは別スコープです。報告するにとどめ、実装はしません。
 
-When options differ in in-scope coverage, include \`Completeness: X/10\` (10 = all relevant in-scope edge cases, 7 = happy path, 3 = shortcut). When options differ in kind, write: \`Note: options differ in kind, not coverage — no completeness score.\` Do not fabricate scores or expand the lake to raise one.`;
+選択肢の間でスコープ内のカバレッジが異なる場合は、\`Completeness: X/10\` を含めます(10 = スコープ内の関連エッジケースをすべてカバー、7 = ハッピーパスのみ、3 = 近道)。選択肢の違いが種類の違いである場合は、\`Note: options differ in kind, not coverage — no completeness score.\` と書きます。スコアを捏造したり、スコアを上げるために lake を広げたりしてはいけません。`;
   }
-  return `## Completeness Principle — Boil the Ocean
+  return `## Completeness Principle — Boil the Ocean(完全性の原則。海を沸かし尽くす)
 
-AI makes completeness cheap, so the complete thing is the goal. Recommend full coverage (tests, edge cases, error paths) — boil the ocean one lake at a time. The only thing out of scope is genuinely unrelated work (rewrites, multi-quarter migrations); flag that as separate scope, never as an excuse for a shortcut.
+AI によって網羅性のコストは小さくなるため、完全な形に仕上げることがゴールです。完全なカバレッジ(テスト、エッジケース、エラーパス)を勧めます。lake(湖)を 1 つずつ片付けて、海を沸かし尽くします。スコープ外にしてよいのは、本当に無関係な作業(書き直し、複数四半期にわたるマイグレーション)だけです。それは別スコープとして指摘し、近道の言い訳にはしません。
 
-When options differ in coverage, include \`Completeness: X/10\` (10 = all edge cases, 7 = happy path, 3 = shortcut). When options differ in kind, write: \`Note: options differ in kind, not coverage — no completeness score.\` Do not fabricate scores.`;
+選択肢の間でカバレッジが異なる場合は、\`Completeness: X/10\` を含めます(10 = すべてのエッジケース、7 = ハッピーパスのみ、3 = 近道)。選択肢の違いが種類の違いである場合は、\`Note: options differ in kind, not coverage — no completeness score.\` と書きます。スコアを捏造してはいけません。`;
 }

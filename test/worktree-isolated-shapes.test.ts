@@ -61,8 +61,8 @@ describe('worktree-isolated session shapes (#2763)', () => {
       starts++;
       expect(fenceAfter(text, /^## Preamble \((?:run first|after scope gate)\)/m), file)
         .toMatch(/^~\/\.claude\/skills\/gstack\/bin\/gstack-skill-start --skill "[a-z0-9-]+" --model "[a-z0-9.-]+"$/);
-      if (text.includes('\n## Context Recovery\n')) {
-        expect(fenceAfter(text, /^## Context Recovery$/m), file).toBe('~/.claude/skills/gstack/bin/gstack-context-recovery');
+      if (text.includes('\n## Context Recovery(コンテキストの復元)\n')) {
+        expect(fenceAfter(text, /^## Context Recovery\(コンテキストの復元\)$/m), file).toBe('~/.claude/skills/gstack/bin/gstack-context-recovery');
       }
       if (text.includes('**Eureka:**')) {
         const eureka = fenceAfter(text, /\*\*Eureka:\*\*/);

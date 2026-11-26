@@ -34,7 +34,7 @@ async function runCaller(captured: string | undefined, scenario: 'success' | 'ti
     },
     spawnSync: () => ({status:0}), path: fixturePath, os: {tmpdir:()=>'/tmp'},
     fs: { mkdtempSync:(prefix:string)=>prefix+'owned', mkdirSync:()=>{}, rmSync:()=>{}, existsSync:(name:string)=>files.has(name),
-      writeFileSync:(name:string,body:string)=>files.set(name,body), readFileSync:(name:string)=>name===fixturePath.join(sourceRoot,'office-hours','SKILL.md') ? '## AskUserQuestion Format\nformat\n## Phase 4: Alternatives Generation\nworkflow\n## Phase 4.5\nnext' : files.get(name) },
+      writeFileSync:(name:string,body:string)=>files.set(name,body), readFileSync:(name:string)=>name===fixturePath.join(sourceRoot,'office-hours','SKILL.md') ? '## AskUserQuestion Format\nformat\n## フェーズ 4: 代替案の生成\nworkflow\n## フェーズ 4.5\nnext' : files.get(name) },
     runSkillTest: async (opts: any) => {
       calls.push(opts); expect(opts.timeout).toBe(CAPTURE_MS); expect(opts.maxTurns).toBe(12); expect(opts.model).toBe(resolveEvalModel('capture'));
       expect(opts.prompt).toContain('Do NOT call any tool to ask the user.');

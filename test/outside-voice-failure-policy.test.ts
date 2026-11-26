@@ -14,6 +14,7 @@ import { ALL_HOST_CONFIGS } from '../hosts/index';
 import { outsideVoiceFailurePolicy, outsideVoiceFor, type OutsideVoiceFailurePolicyOptions } from '../scripts/resolvers/outside-voice';
 import { generateAdversarialStep } from '../scripts/resolvers/outside-voice-steps';
 import { HOST_PATHS, type TemplateContext } from '../scripts/resolvers/types';
+import { expectMentions, expectTokens } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const ALLOWLIST = 'test/fixtures/outside-voice-failure-prose-allowlist.json';
@@ -28,27 +29,31 @@ const base: OutsideVoiceFailurePolicyOptions = {
 
 describe('outsideVoiceFailurePolicy', () => {
   test('native fallback: every failure names the provider message and falls back to the native subagent', () => {
-    expect(outsideVoiceFailurePolicy(ctxFor('claude'), base)).toBe([
-      '- **Auth failure:** If stderr contains "auth", "login", "unauthorized", or "API key": "Codex authentication failed. Run `codex login` to authenticate." Fall back to the Claude subagent below.',
-      '- **Timeout:** "Codex timed out after 5 minutes." Fall back to the Claude subagent below.',
-      '- **Empty response:** "Codex returned no response." Fall back to the Claude subagent below.',
-    ].join('\n'));
+    const lines = outsideVoiceFailurePolicy(ctxFor('claude'), base).split('\n');
+    expect(lines).toHaveLength(3);
+    for (const line of lines) {
+      expect(line.startsWith('- **')).toBe(true);
+      expectMentions(line, [['Codex'], ['Claude', 'サブエージェント', 'フォールバック']], 'bullet');
+    }
+    expectTokens(lines[0]!, ['"auth"', '"login"', '"unauthorized"', '"API key"', '`codex login`'], 'auth bullet');
+    expectTokens(lines[1]!, ['5 分'], 'timeout bullet');
   });
 
   test('missing-coverage timeout, stderr on empty, no fallback, escaped backticks', () => {
     const out = outsideVoiceFailurePolicy(ctxFor('claude'), {
       timeoutMinutes: 9, onTimeout: 'missing-coverage', stderrOnEmpty: true, fallback: 'none', escape: 1,
     });
-    expect(out).toContain('Run \\`codex login\\` to authenticate."\n');
-    expect(out).toContain('- **Timeout:** "Codex timed out after 9 minutes and was terminated; this pass produced NO findings." A timed-out pass is MISSING COVERAGE, not a clean bill');
-    expect(out).toContain('- **Empty response:** "Codex returned no response. Stderr: <paste relevant error>."');
-    expect(out).not.toContain('Fall back');
+    expectTokens(out, ['\\`codex login\\`'], 'out');
+    const lines = out.split('\n');
+    expectTokens(lines[1]!, ['9 分', 'MISSING COVERAGE'], 'timeout bullet');
+    expectTokens(lines[2]!, ['Stderr: <paste relevant error>.'], 'empty bullet');
+    expect(out).not.toContain('フォールバック');
   });
 
   test('the Codex harness names Claude Code and its login command', () => {
     const out = outsideVoiceFailurePolicy(ctxFor('codex'), base);
-    expect(out).toContain('"Claude Code authentication failed. Run `claude auth login` to authenticate."');
-    expect(out).toContain(`Fall back to the ${outsideVoiceFor(ctxFor('codex')).nativeLabel} subagent below.`);
+    expectTokens(out, ['Claude Code', '`claude auth login`'], 'out');
+    expectMentions(out, [[outsideVoiceFor(ctxFor('codex')).nativeLabel, 'サブエージェント', 'フォールバック']], 'out');
   });
 });
 
@@ -57,7 +62,7 @@ describe('outsideVoiceFailurePolicy', () => {
 // the agent that a timed-out outside pass is MISSING COVERAGE. The prose
 // unification must not turn any of those into a silent timeout.
 describe('timeout MISSING COVERAGE wording is retained', () => {
-  const timeoutLine = (text: string) => text.split('\n').find((l) => l.startsWith('- **Timeout:**')) ?? '';
+  const timeoutLine = (text: string) => text.split('\n').find((l) => l.startsWith('- **タイムアウト:**')) ?? '';
 
   test.each(ALL_HOST_CONFIGS.flatMap((h) => ['review', 'ship'].map((s) => [h.name, s])))(
     'adversarial step on %s /%s', (host, skill) => {
@@ -79,6 +84,11 @@ const SIGNATURE = [
   /timed out after \d+ minutes/,
   /exceeded \d+ minutes and was terminated/,
   /returned no response/,
+  // Japanese renderings of the same phrasings.
+  /認証に失敗しました。/,
+  /\d+ 分でタイムアウト/,
+  /\d+ 分を超えて.*終了され/,
+  /レスポンスが(?:あり|返り)ませんでした/,
 ];
 
 interface SourceFile { file: string; text: string }
@@ -144,7 +154,13 @@ export function formatFailureProse(problems: string[]): string {
   ].join('\n');
 }
 
-const readAllowlist = (): AllowEntry[] => JSON.parse(fs.readFileSync(path.join(ROOT, ALLOWLIST), 'utf8'));
+// The fixture stays English; the templates are Japanese, so each fixture line is matched through its Japanese rendering.
+const ALLOW_JA: Record<string, string> = {
+  '"Codex authentication failed. Run `codex login` in your terminal to authenticate via ChatGPT."': '「Codex の認証に失敗しました。ChatGPT で認証するには、ターミナルで `codex login` を実行してください。」',
+  '"Codex returned no response. Check stderr for errors."': '「Codex からレスポンスが返りませんでした。stderr でエラーを確認してください。」',
+};
+const readAllowlist = (): AllowEntry[] =>
+  (JSON.parse(fs.readFileSync(path.join(ROOT, ALLOWLIST), 'utf8')) as AllowEntry[]).map((e) => ({ ...e, text: ALLOW_JA[e.text] ?? e.text }));
 
 describe('ratchet (d): outside-voice failure prose has one owner', () => {
   test('no resolver or template hand-writes the failure bullets', () => {
@@ -161,13 +177,13 @@ describe('ratchet (d): outside-voice failure prose has one owner', () => {
 
   test('a planted copy is reported with file:line, the fix and the allowlist path', () => {
     const planted = [
-      { file: 'scripts/resolvers/planted.ts', text: 'const a = 1;\n- **Timeout:** "${label} exceeded 9 minutes and was terminated."\n' },
-      { file: 'planted/SKILL.md.tmpl', text: '- Auth failure: "Codex auth failed. Run `codex login`."\n' },
+      { file: 'scripts/resolvers/planted.ts', text: 'const a = 1;\n- **Timeout:** "${label} が 9 分でタイムアウトし、終了されました。"\n' },
+      { file: 'planted/SKILL.md.tmpl', text: '- Auth failure: "Codex の認証に失敗しました。`codex login` を実行してください。"\n' },
     ];
     const problems = scanFailureProse(planted, []);
     expect(problems).toEqual([
-      'scripts/resolvers/planted.ts:2  - **Timeout:** "${label} exceeded 9 minutes and was terminated."',
-      'planted/SKILL.md.tmpl:1  - Auth failure: "Codex auth failed. Run `codex login`."',
+      'scripts/resolvers/planted.ts:2  - **Timeout:** "${label} が 9 分でタイムアウトし、終了されました。"',
+      'planted/SKILL.md.tmpl:1  - Auth failure: "Codex の認証に失敗しました。`codex login` を実行してください。"',
     ]);
     const message = formatFailureProse(problems);
     expect(message).toContain('scripts/resolvers/planted.ts:2');
@@ -177,7 +193,7 @@ describe('ratchet (d): outside-voice failure prose has one owner', () => {
 
   test('a copy pasted into the owner file outside the owner function is still reported', () => {
     const owner = scannedFiles().find((f) => f.file === OWNER_FILE)!;
-    const text = `${owner.text}\nconst copy = '"Codex returned no response."';\n`;
+    const text = `${owner.text}\nconst copy = '"Codex からレスポンスがありませんでした。"';\n`;
     const problems = scanFailureProse([{ file: OWNER_FILE, text }], []);
     expect(problems).toHaveLength(1);
     expect(problems[0]).toStartWith(`${OWNER_FILE}:`);

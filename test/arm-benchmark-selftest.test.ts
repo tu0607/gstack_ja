@@ -51,7 +51,7 @@ describe('arm benchmark selftest (free, no API)', () => {
     expect(skill).toContain('## Search Before Building');
     expect(skill).toContain('first rung that holds');
     expect(skill).toContain('## Voice');
-    expect(skill).toContain('**Bounded closer.**');
+    expect(skill).toContain('締めは簡潔に');
     // Telemetry tail stripped: a hermetic child must not write to the
     // operator's real ~/.gstack.
     expect(skill).not.toContain('Eureka');

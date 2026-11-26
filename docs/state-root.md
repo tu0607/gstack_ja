@@ -1,35 +1,29 @@
-# Where gstack keeps its state
+# gstack が状態を保存する場所
 
-gstack keeps everything it remembers — config, analytics, sessions, projects,
-learnings, review logs, the egress ledger, the trust-policy store, hook error
-logs — under one directory, the **state root**. By default that is
-`~/.gstack`. Set `GSTACK_HOME` to put it somewhere else.
+gstack は、設定、分析データ、セッション、プロジェクト、学習内容、レビューログ、egress 台帳、trust-policy ストア、フックのエラーログなど、覚えておくべきものをすべて 1 つのディレクトリ(**state root**)の下に保存します。既定では `~/.gstack` です。別の場所にしたい場合は `GSTACK_HOME` を設定してください。
 
-One rule picks the root, and every gstack script, hook and skill uses it. The
-rule lives in two owner files that a parity test keeps identical:
-`bin/gstack-state-root.sh` (bash) and `lib/state-root.ts` (TypeScript).
+ルートを選ぶ規則は 1 つだけで、gstack のすべてのスクリプト、フック、スキルがこれを使います。この規則は 2 つの所有者ファイルにあり、パリティテストによって両者は同一に保たれています。`bin/gstack-state-root.sh` (bash) と `lib/state-root.ts` (TypeScript) です。
 
-## How the root is chosen
+## ルートの選ばれ方
 
-The first variable in this list with a non-empty value wins. Empty values count
-as unset.
+下の一覧で最初に空でない値を持つ変数が採用されます。空の値は未設定として扱います。
 
-| Order | Source | When to use it |
+| 順位 | 変数 | 使いどころ |
 |------:|--------|----------------|
-| 1 | `GSTACK_STATE_ROOT` | `gstack-paths`' own output. It is also honored as input, so re-reading it in the same environment returns the same root. Do not set it by hand. |
-| 2 | `GSTACK_HOME` | **The one variable to set** when you want your state somewhere other than `~/.gstack`. |
-| 3 | `GSTACK_STATE_DIR` | Legacy alias, honored for compatibility. |
-| 4 | `CLAUDE_PLUGIN_DATA` | Only when `CLAUDE_PLUGIN_ROOT` contains `gstack` (any case), so another plugin's data directory never captures gstack state. |
-| 5 | `$HOME/.gstack` | The default. On Windows shells, `USERPROFILE` stands in when `HOME` is unset. |
-| 6 | `.gstack` | Last resort when there is no home directory at all (some containers). |
+| 1 | `GSTACK_STATE_ROOT` | `gstack-paths` 自身の出力です。入力としても読まれるため、同じ環境で再度読めば同じルートが返ります。手で設定しないでください。 |
+| 2 | `GSTACK_HOME` | 状態を `~/.gstack` 以外に置きたいときに**設定すべき唯一の変数**です。 |
+| 3 | `GSTACK_STATE_DIR` | 互換性のために受け付ける旧来の別名です。 |
+| 4 | `CLAUDE_PLUGIN_DATA` | `CLAUDE_PLUGIN_ROOT` に `gstack` (大文字小文字は問わない) が含まれる場合に限ります。これにより、他のプラグインのデータディレクトリが gstack の状態を取り込むことがなくなります。 |
+| 5 | `$HOME/.gstack` | 既定値です。Windows のシェルでは、`HOME` が未設定の場合に `USERPROFILE` が代わりになります。 |
+| 6 | `.gstack` | ホームディレクトリがまったくない環境 (一部のコンテナなど) の最後の手段です。 |
 
-## See which root is in use
+## どのルートが使われているか確認する
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-paths --explain
 ```
 
-Real output with `GSTACK_HOME` set while `~/.gstack` still holds older state:
+`GSTACK_HOME` を設定していても、`~/.gstack` に古い状態がまだ残っている場合の実際の出力は次のとおりです。
 
 ```
 state root: /home/you/work-state (selected by GSTACK_HOME)
@@ -48,13 +42,11 @@ merged privacy keys (most restrictive value across roots wins):
 docs: https://github.com/garrytan/gstack/blob/main/docs/state-root.md
 ```
 
-`--explain` only reads; it writes nothing and exits 0. `gstack-config list`
-also prints a one-line note when `GSTACK_STATE_ROOT`, `GSTACK_HOME` and
-`GSTACK_STATE_DIR` name different directories.
+`--explain` は読み取るだけで、何も書き込まず、終了コード 0 で終わります。`gstack-config list` も、`GSTACK_STATE_ROOT`、`GSTACK_HOME`、`GSTACK_STATE_DIR` が異なるディレクトリを指している場合には、その旨を 1 行で表示します。
 
-## Move your state
+## 状態を移動する
 
-gstack never moves state for you. To relocate it:
+gstack が状態を勝手に移動することはありません。移動したい場合は次のとおりにします。
 
 ```bash
 cp -a ~/.gstack /new/place/gstack-state
@@ -62,166 +54,92 @@ export GSTACK_HOME=/new/place/gstack-state   # add this to your shell profile
 ~/.claude/skills/gstack/bin/gstack-paths --explain   # confirm: selected by GSTACK_HOME
 ```
 
-Keep or delete the old `~/.gstack` once you have checked the new root works.
-Until you delete it, its privacy settings still count (next section).
+新しいルートが正しく動くことを確認したら、古い `~/.gstack` は残すか削除してください。削除するまでは、次のセクションで説明するプライバシー設定が引き続き有効です。
 
-## Privacy settings never get looser when the root moves
+## ルートを移してもプライバシー設定が緩くなることはない
 
-Four config keys are opt-outs: `telemetry` (off < anonymous < community),
-`memorable_recall` (off < on), `codex_reviews` (disabled < enabled) and
-`update_check` (false < true). gstack reads each of them from the resolved root
-**and** from `~/.gstack`, and uses the most restrictive value. So turning
-telemetry off once in `~/.gstack` keeps it off after you set `GSTACK_HOME`.
-Every other key, including `proactive` and `founder_resources`, reads the
-resolved root only.
+4 つの設定キーはオプトアウト型です。`telemetry` (off < anonymous < community)、`memorable_recall` (off < on)、`codex_reviews` (disabled < enabled)、`update_check` (false < true) です。gstack は、各キーを解決済みのルートと `~/.gstack` の両方から読み、最も制限的な値を採用します。そのため、`~/.gstack` で一度 telemetry をオフにしておけば、`GSTACK_HOME` を設定した後もオフのままです。ほかのキー(proactive と founder_resources を含む)は、解決済みのルートだけを読みます。
 
-When `gstack-config set` writes a merged key but the other root still holds a
-more restrictive value, it tells you which root overrides it and prints the
-command that changes that root, for example:
+`gstack-config set` が統合対象のキーを書き込んだとき、もう一方のルートにより制限的な値が残っている場合は、どちらのルートがその値を上書きしているかを表示し、そのルートを変更するためのコマンドを示します。例えば次のとおりです。
 
 ```bash
 GSTACK_STATE_ROOT='/home/you/.gstack' ~/.claude/skills/gstack/bin/gstack-config set codex_reviews enabled
 ```
 
-`gstack-config list` shows the winning root for merged keys, for example
-`telemetry: off (set, /home/you/.gstack)`.
+`gstack-config list` は、統合対象のキーについて勝っているルートを表示します。例: `telemetry: off (set, /home/you/.gstack)`。
 
-Trust-policy deny tiers merge the same way: a `deny` or `read-only` entry in
-`~/.gstack/gbrain-repo-policy.json` still applies when your resolved root is
-elsewhere. Nothing is ever written to the other root.
+trust-policy の拒否ティアも同じように統合されます。`~/.gstack/gbrain-repo-policy.json` にある `deny` または `read-only` のエントリは、解決済みのルートが別の場所にあっても引き続き有効です。また、もう一方のルートに何かが書き込まれることは決してありません。
 
-## Project buckets
+## プロジェクトのバケット
 
-Per-project state (checkpoints, learnings, timeline, question preferences)
-lives in `projects/<slug>/`. `bin/gstack-slug` picks the slug from the git
-`origin` remote:
+プロジェクトごとの状態 (チェックポイント、学習内容、タイムライン、質問の設定) は `projects/<slug>/` に保存されます。スラッグは `bin/gstack-slug` が git の `origin` リモートから決めます。
 
-- A 2-segment remote (`github.com/owner/repo`) files under `owner-repo`.
-- A remote with 3 or more path segments (GitLab nested groups such as
-  `gitlab.com/customer-a/product/repo`, Azure DevOps) files under
-  `product-repo-<16 hex>`. The hex is a digest of the canonical remote, so
-  `customer-a/product/repo` and `customer-b/product/repo` get separate buckets,
-  and the ssh, https and ssh-with-port spellings of one repository share one.
-- Without a remote, the project root's directory name is used.
+- 2 セグメントのリモート (`github.com/owner/repo`) は `owner-repo` に入ります。
+- パスのセグメントが 3 つ以上あるリモート (GitLab のネストしたグループ、例: `gitlab.com/customer-a/product/repo`、Azure DevOps) は `product-repo-<16 hex>` に入ります。16 進数の部分は正規化されたリモートのダイジェストなので、`customer-a/product/repo` と `customer-b/product/repo` は別々のバケットになります。また、ssh、https、ポート付き ssh の表記が同じリポジトリを指す場合は同じバケットになります。
+- リモートがない場合は、プロジェクトルートのディレクトリ名が使われます。
 
-The first slug gstack resolves in a directory sticks (it is cached under
-`slug-cache/`), so a project keeps its bucket when it adds a remote later.
+あるディレクトリで gstack が最初に解決したスラッグは固定されます (`slug-cache/` の下にキャッシュされます)。そのため、後からリモートを追加してもプロジェクトは同じバケットを使い続けます。
 
-**Upgrading from a version that used one bucket for nested groups.** Earlier
-versions filed every `<group>/product/repo` under `product-repo`. That bucket
-stays where it is; gstack neither moves nor deletes it. The first time gstack
-resolves the new slug it prints one notice naming both buckets, and
-`/context-restore` reports the old bucket while it still holds checkpoints. To
-bring earlier files across, run this in the project:
+**ネストしたグループを 1 つのバケットにまとめていたバージョンからのアップグレード。** 以前のバージョンでは、`<group>/product/repo` をすべて `product-repo` に入れていました。この旧バケットはそのまま残ります。gstack がそれを移動したり削除したりすることはありません。gstack が新しいスラッグを初めて解決するとき、両方のバケットの名前を挙げた通知を 1 回表示します。旧バケットにまだチェックポイントが残っている間は、`/context-restore` がその旧バケットを報告します。以前のファイルを新しい場所へ移すには、プロジェクトで次を実行します。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-slug --adopt-legacy
 ```
 
-It lists every file in the old bucket. Checkpoints are marked as matching this
-project, another project (never copied), or unknown (saved before checkpoints
-recorded their project). Files with no project identity (question
-preferences, learnings, timeline) may belong to any project that shared the
-bucket, so they are listed for you to decide. On a terminal it asks per file;
-otherwise copy chosen files with
-`gstack-slug --adopt-legacy --copy <path> [<path>...]`. Nothing is copied
-without your confirmation, and nothing in the new bucket is overwritten.
+このコマンドは、旧バケットにあるすべてのファイルを一覧表示します。チェックポイントには、このプロジェクトに一致する、別のプロジェクトに属する (コピーは決してされない)、または不明 (チェックポイントがプロジェクトを記録する前に保存されたもの) のいずれかのマークが付きます。プロジェクトの識別情報を持たないファイル (質問の設定、学習内容、タイムライン) は、同じバケットを共有していた任意のプロジェクトに属する可能性があるため、一覧に出され、どれをコピーするかはあなたが決めます。ターミナルでは 1 ファイルごとに確認されます。ターミナル以外では `gstack-slug --adopt-legacy --copy <path> [<path>...]` で選んだファイルをコピーします。確認なしにコピーされることはなく、新しいバケット内のものが上書きされることもありません。
 
-**Pinning a slug.** Set `GSTACK_PROJECT_SLUG=<name>` to choose the bucket
-yourself, for example in the project's `.claude/settings.local.json`
-(`"env": {"GSTACK_PROJECT_SLUG": "<name>"}`). Use it when an ssh host alias
-(`git@work-gitlab:group/sub/repo`) gives a different host than the https
-remote, or for a vendored sub-repo that should be its own project. The pin is
-applied per run and never cached.
+**スラッグの固定。** `GSTACK_PROJECT_SLUG=<name>` を設定すると、バケットを自分で選べます。例えばプロジェクトの `.claude/settings.local.json` に設定します (`"env": {"GSTACK_PROJECT_SLUG": "<name>"}`)。ssh のホストエイリアス (`git@work-gitlab:group/sub/repo`) が https のリモートとは別のホストを指している場合や、独立したプロジェクトとして扱いたいベンダリングされたサブリポジトリの場合に使います。この固定は実行ごとに適用され、キャッシュされることはありません。
 
-## Ephemeral machines
+<a id="ephemeral-machines"></a>
+## 使い捨てのマシン
 
-A Capy cloud machine, a CI runner or a throwaway VM loses its disk when the
-run ends, and with it every learning, decision, review-log row and timing
-record gstack wrote under the default root. gstack does not guess this from
-the path (a tmpfs and a home directory look alike); the host says so with one
-environment marker:
+Capy のクラウドマシン、CI ランナー、使い捨ての VM は、実行が終わるとディスクが失われます。それに伴い、既定のルートの下に gstack が書き込んだ学習内容、判断、レビューログの行、タイミング記録もすべて失われます。gstack はパスからこの状態を推測しません (tmpfs とホームディレクトリは見た目が似ているためです)。代わりに、ホストが 1 つの環境変数でそれを宣言します。
 
 ```
 GSTACK_EPHEMERAL=1
 ```
 
-What the marker changes:
+このマーカーによって変わる点は次のとおりです。
 
-- `gstack-doctor` and `gstack-doctor --check` report the `state root` row as
-  `durable=no` (the dashboard warns, the check still passes: an ephemeral root
-  is a fact, not a broken install).
-- Unattended sessions print `learnings: skipped (state root is ephemeral; set
-  GSTACK_STATE_ROOT)` instead of writing silently to a disk that will vanish.
+- `gstack-doctor` と `gstack-doctor --check` は、`state root` の行を `durable=no` として報告します (ダッシュボードは警告しますが、チェックは通ります。一時的なルートは事実であって、壊れたインストールではないためです)。
+- 無人セッションでは、`learnings: skipped (state root is ephemeral; set GSTACK_STATE_ROOT)` と表示されます。消えるディスクに黙って書き込むことはありません。
 
-A durable root is opt-in: the owner sets `GSTACK_STATE_ROOT` (or `GSTACK_HOME`)
-to a directory that outlives the machine. The installer never picks one for
-you. On Capy the drive is governed by Capy's own drive policy, which excludes
-memory and verification evidence, so `bin/gstack-capy-install` only prints the
-option and never writes there.
+永続的なルートは、オーナーが自分で選ぶ場合に限られます。マシンより長く残るディレクトリを `GSTACK_STATE_ROOT` (または `GSTACK_HOME`) に設定します。インストーラーが勝手に選ぶことはありません。Capy では、ドライブは Capy 自身のドライブポリシーによって管理されます。そのポリシーはメモリと検証の証跡を除外するため、`bin/gstack-capy-install` はそのオプションを表示するだけで、そこには決して書き込みません。
 
-A child shell's `export` cannot configure the parent's later commands
-(`lib/state-root.ts` reads each process's own environment), so the installer
-ends with one machine-readable line the parent supplies to every gstack
-command it launches:
+子シェルでの `export` は、親の後続のコマンドを設定できません (`lib/state-root.ts` は各プロセス自身の環境変数を読みます)。そのため、インストーラーは最後に、親が起動するすべての gstack コマンドに渡す 1 行の機械可読な出力を表示します。
 
 ```
 GSTACK_LAUNCH: GSTACK_SESSION_KIND=unattended GSTACK_STATE_ROOT=<path> GSTACK_EPHEMERAL=1
 ```
 
-Prefix each command with those assignments (or export them once in the shell
-that runs them). See [docs/capy-install.md](capy-install.md).
+各コマンドの前に、これらの代入を付けるか (`export` で一度設定します)、それを実行するシェルで設定してください。詳しくは [docs/capy-install.md](capy-install.md) を参照してください。
 
-## Uninstall
+## アンインストール
 
-`gstack-uninstall` deletes state only at `~/.gstack`.
+`gstack-uninstall` が状態を削除するのは `~/.gstack` の場合だけです。
 
-- It first refuses (exit 2) when `~/.gstack` resolves — following symlinks —
-  to `/`, your home directory or one of its parents, the gstack checkout, the
-  current git repository, or a parent of either. The message names the reason
-  and a `fix:` line.
-- When the resolved root is somewhere else (you set `GSTACK_HOME`, for
-  example), uninstall leaves it in place and prints
-  `left in place: <path> (selected by <VAR>=<value>)` plus the exact
-  `rm -rf -- '<path>'` command to run after you have checked it.
-- `--keep-state` never deletes any state. `--force` only skips the prompt.
+- `~/.gstack` の解決結果 (シンボリックリンクをたどった先) が `/`、ホームディレクトリまたはその親、gstack のチェックアウト、現在の git リポジトリ、またはそれらの親のいずれかである場合は、まず拒否されます (終了コード 2)。メッセージには理由と `fix:` 行が示されます。
+- 解決されたルートが別の場所にある場合 (例: `GSTACK_HOME` を設定した場合)、アンインストールはそれを残し、`left in place: <path> (selected by <VAR>=<value>)` と、中身を確認した後に実行すべき正確な `rm -rf -- '<path>'` コマンドを表示します。
+- `--keep-state` は状態を一切削除しません。`--force` は確認プロンプトを省くだけです。
 
-## If gstack-paths is missing
+## gstack-paths がない場合
 
-Skill blocks resolve the root with
+スキルのブロックは、次の方法でルートを解決します。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
 ```
 
-(No `eval`: worktree-isolated Claude Code sessions refuse it.)
+(`eval` は使っていません。worktree で分離された Claude Code セッションは `eval` を拒否するためです。)
 
-The second half stops the block instead of writing under `/` if the resolver
-is broken. If you see `gstack-paths failed` or
-`cannot resolve the gstack state root`, reinstall: run `./setup` in the gstack
-checkout, or `/gstack-upgrade`.
+後半の部分は、リゾルバーが壊れている場合に `/` の下へ書き込んでしまうのを防ぎ、ブロックを停止させます。`gstack-paths failed` または `cannot resolve the gstack state root` と表示された場合は、再インストールしてください。gstack のチェックアウトで `./setup` を実行するか、`/gstack-upgrade` を使います。
 
-## Claude Code plugin installs
+## Claude Code プラグインでのインストール
 
-gstack does not ship an official Claude Code plugin distribution today (no
-`.claude-plugin` manifest has ever been on `main`; some forks publish one), and
-telemetry does not report plugin-mode installs. When gstack does run as a
-plugin, `CLAUDE_PLUGIN_ROOT` names gstack and state lives in
-`CLAUDE_PLUGIN_DATA`, while a terminal run outside the plugin session uses
-`~/.gstack`. Those are two different roots; run `gstack-paths --explain` in
-each environment to see which one is active. Cross-environment support (a
-pointer from `~/.gstack` to the plugin root) is deferred until a plugin
-distribution exists.
+gstack は現在、公式の Claude Code プラグインとしては配布していません (`.claude-plugin` のマニフェストが `main` に入ったことはありません。一部のフォークが公開しています)。また、telemetry はプラグイン形式のインストールを報告しません。gstack がプラグインとして動く場合、`CLAUDE_PLUGIN_ROOT` が gstack を指し、状態は `CLAUDE_PLUGIN_DATA` に置かれます。一方、プラグインセッションの外でのターミナル実行は `~/.gstack` を使います。これは 2 つの異なるルートです。どちらが有効かは、それぞれの環境で `gstack-paths --explain` を実行して確認してください。環境をまたぐサポート (`~/.gstack` からプラグインのルートへのポインタ) は、プラグイン配布が存在するようになるまで見送られています。
 
-## For contributors
+## コントリビューター向け
 
-- Bash: executables source `bin/gstack-state-root.sh` beside them and call
-  `gstack_state_root_select` (sets `$_gstack_sr_root`), or `eval` gstack-paths
-  with the guard above. Hooks must source the twin; never spawn gstack-paths
-  from a hook.
-- TypeScript: `resolveStateRoot()` and `readConfigKey()` from
-  `lib/state-root.ts`.
-- `test/state-root-ratchet.test.ts` fails on a hand-rolled chain, an
-  executable `~/.gstack` in a template bash block, an unguarded gstack-paths
-  eval or `export GSTACK_STATE_ROOT` in prose. Its allowlist
-  (`test/state-root-ratchet.allowlist.json`) needs a reason per entry.
+- Bash: 実行ファイルは隣の `bin/gstack-state-root.sh` を source し、`gstack_state_root_select` を呼び出します (`$_gstack_sr_root` が設定されます)。あるいは、前述のガード付きで gstack-paths を `eval` します。フックは対になるファイルを source しなければならず、フックから gstack-paths を起動してはいけません。
+- TypeScript: `lib/state-root.ts` の `resolveStateRoot()` と `readConfigKey()` を使います。
+- `test/state-root-ratchet.test.ts` は、手書きのチェーン、テンプレートの bash ブロック内の実行可能な `~/.gstack`、ガードのない gstack-paths の `eval`、または文章中の `export GSTACK_STATE_ROOT` が見つかると失敗します。その許可リスト (`test/state-root-ratchet.allowlist.json`) では、各エントリに理由が必要です。

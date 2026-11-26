@@ -1,9 +1,8 @@
 <!-- AUTO-GENERATED from greptile.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Step 10: Address Greptile review comments (if PR exists)
+## Step 10: Greptile のレビューコメントへの対応(PR がある場合)
 
-Check for a PR first. Greptile reviews a PR, so with no PR, no `gh`, no `gh` login or
-a non-GitHub remote there is nothing to triage yet:
+まず PR の有無を確認します。Greptile は PR をレビューするため、PR がない場合、`gh` がない場合、`gh` にログインしていない場合、または GitHub 以外のリモートの場合は、トリアージする対象がまだありません:
 
 ```bash
 if ! command -v gh >/dev/null 2>&1; then echo "PR: skip (gh not installed)"
@@ -14,82 +13,68 @@ else case "$_PR_ERR" in *"no pull requests found"*) echo "PR: skip (no PR yet)" 
 fi
 ```
 
-Only `PR: exists` dispatches. `PR: skip (<reason>)` → do not dispatch; record
-"Greptile: not run (<reason>); runs on the PR once it exists" and continue to Step 11.
+`PR: exists` の場合にのみ dispatch します。`PR: skip (<reason>)` の場合は dispatch せず、
+「Greptile: not run (<reason>); runs on the PR once it exists」(Greptile: 未実行(<reason>)。PR ができると PR 上で実行されます)と記録して、Step 11 に進みます。
 
-**Early PR (Step 6.5):** when the record holds `EARLY_PR` and `EARLY_PR_OPENED_AT`, first
-wait for Greptile's review of that PR, substituting both values:
+**早期 PR (Step 6.5):** 記録に `EARLY_PR` と `EARLY_PR_OPENED_AT` がある場合は、まずその PR に対する Greptile のレビューを待ちます。両方の値を置き換えてください:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-greptile-early wait <pr-number> --since <opened-at>
 ```
 
-Each call returns within about 90 seconds; relay its progress line. Rerun on
-`GREPTILE_REVIEW: pending`. `complete` dispatches below. `timeout` or `unavailable` takes
-the Unavailable triage route with that line as the reason, never a claim of zero
-comments. Comments on the early head are triaged against the current diff
-(`already_fixed` when the code has moved on).
+各呼び出しは約 90 秒以内に戻るので、その進捗の行を伝えてください。`GREPTILE_REVIEW: pending` の場合は再実行します。`complete` の場合は下の dispatch に進みます。`timeout` または `unavailable` の場合は、その行を理由として Unavailable のトリアージ経路に進みます。コメントがゼロだと主張してはいけません。早期のヘッドに対するコメントは、現在の差分に照らしてトリアージします(コードがすでに変わっている場合は `already_fixed`)。
 
-Dispatch a subagent through Agent with `subagent_type: "general-purpose"` and
-`run_in_background: false`, using Step 7's shared foreground-dispatch rule.
-It fetches and classifies all Greptile comments,
-including escalation tiers; the parent handles decisions and queues approved fixes.
+`subagent_type: "general-purpose"` と `run_in_background: false` を指定して、Agent でサブエージェントを dispatch します。Step 7 の共通のフォアグラウンド dispatch ルールを使います。
+サブエージェントは、Greptile のすべてのコメントを取得して分類します。エスカレーションの階層も含みます。判断は親が行い、承認された修正をキューに入れます。
 
-**Subagent prompt:**
+**サブエージェントのプロンプト:**
 
-> You are classifying Greptile review comments for a /ship workflow. Read `~/.claude/skills/gstack/review/greptile-triage.md` and follow the fetch, filter, classify, and **escalation detection** steps. Do NOT fix code, do NOT reply to comments, do NOT commit — report only.
+> あなたは /ship のワークフローのために Greptile のレビューコメントを分類しています。`~/.claude/skills/gstack/review/greptile-triage.md` を読み、取得、絞り込み、分類、**エスカレーションの検出**の各ステップに従ってください。コードを修正せず、コメントに返信せず、コミットしないでください。報告のみを行ってください。
 >
-> For each comment, assign: `classification` (`valid_actionable`, `already_fixed`, `false_positive`, `suppressed`), `escalation_tier` (1 or 2), the file:line or [top-level] tag, body summary, and permalink URL.
+> 各コメントに次を割り当ててください: `classification`(`valid_actionable`、`already_fixed`、`false_positive`、`suppressed` のいずれか)、`escalation_tier`(1 または 2)、file:line または [top-level] のタグ、本文の要約、パーマリンク URL。
 >
-> Return one JSON object on the LAST LINE:
+> 最後の行に、次の形式の JSON オブジェクトを 1 つ返してください:
 > `{"status":"complete|no_pr|unavailable","total":N,"comments":[{"classification":"...","escalation_tier":N,"ref":"file:line","summary":"...","permalink":"url"},...],"reason":"..."}`
-> Use `complete` only after a successful fetch, including zero comments; `no_pr` only after confirming no PR exists; `unavailable` for `gh`/API errors or incomplete classification. The latter two return zero total and an empty array. State the failure reason for `unavailable`; otherwise use an empty reason.
+> `complete` は、コメントがゼロ件であっても、取得が成功した後にのみ使ってください。`no_pr` は、PR が存在しないことを確認した後にのみ使ってください。`unavailable` は、`gh`/API のエラーまたは分類の未完了の場合に使ってください。後の 2 つは、total をゼロ、配列を空で返します。`unavailable` の場合は失敗の理由を書き、それ以外は理由を空にしてください。
 
-**Parent processing:**
+**親による処理:**
 
-Parse the LAST line as JSON. Require the declared status, a nonnegative integer
-total matching the comments array, and the status/reason invariants above. An
-unknown or missing status is unavailable, never an empty successful review.
+最後の行を JSON として解析します。宣言されたステータス、コメント配列と一致する非負の整数の total、上記のステータスと理由の不変条件を要求します。
+不明または欠けているステータスは unavailable とみなし、決して空の成功したレビューとはみなしません。
 
-For `no_pr`, record "Greptile: no PR exists"; for `complete` with zero comments,
-record "Greptile: fetched, zero comments". Both continue to Step 11.
+`no_pr` の場合は「Greptile: no PR exists」(Greptile: PR は存在しません)と記録します。コメントがゼロ件の `complete` の場合は「Greptile: fetched, zero comments」(Greptile: 取得済み。コメントはゼロ件)と記録します。どちらの場合も Step 11 に進みます。
 
-**Unavailable triage:** A returned `unavailable`, failed dispatch, invalid result,
-or missing completion after ~10 minutes takes this route. Stop a running child
-and confirm it stopped before continuing. Print `Greptile triage did not complete — review the PR comments manually`.
-Include `Greptile triage: UNAVAILABLE (dispatch failed)` and the actual reason in
-Step 19's review results; Step 20 has no triage field. Continue to Step 11 without
-claiming zero comments or completed triage. This optional triage does not block ship.
+**Unavailable のトリアージ:** 返された `unavailable`、dispatch の失敗、無効な結果、または約 10 分後に完了がない場合は、この経路を取ります。実行中の子プロセスを停止し、停止したことを確認してから続行します。`Greptile triage did not complete — review the PR comments manually`(Greptile のトリアージは完了しませんでした。PR のコメントを手動で確認してください)と表示します。
+Step 19 のレビュー結果に `Greptile triage: UNAVAILABLE (dispatch failed)` と実際の理由を含めます。Step 20 にはトリアージのフィールドがありません。コメントがゼロ件だと主張したり、トリアージが完了したと主張したりせず、Step 11 に進みます。この任意のトリアージは ship をブロックしません。
 
-Otherwise, print: `+ {total} Greptile comments ({valid_actionable} valid, {already_fixed} already fixed, {false_positive} FP)`.
+それ以外の場合は、次を表示します: `+ {total} Greptile comments ({valid_actionable} valid, {already_fixed} already fixed, {false_positive} FP)`(+ Greptile のコメント {total} 件({valid_actionable} 件が有効、{already_fixed} 件は修正済み、{false_positive} 件が誤検知))。
 
-For each comment in `comments`:
+`comments` の各コメントについて:
 
-**VALID & ACTIONABLE:** Use AskUserQuestion with:
-- The comment (file:line or [top-level] + body summary + permalink URL)
-- `RECOMMENDATION: Choose A because [one-line reason]`
-- Options: A) Fix now, B) Acknowledge and ship anyway, C) It's a false positive
-- If user chooses A: queue the approved fix without editing here. After that fix passes review and tests, use the **Fix reply template** from greptile-triage.md (inline diff + explanation) and save per-project/global greptile-history (type: fix).
-- If user chooses C: reply using the **False Positive reply template** from greptile-triage.md (include evidence + suggested re-rank), save to both per-project and global greptile-history (type: fp).
+**VALID & ACTIONABLE(有効で対応可能):** AskUserQuestion を次の内容で使います:
+- コメント(file:line または [top-level]、本文の要約、パーマリンク URL)
+- `RECOMMENDATION: Choose A because [one-line reason]`(推奨: 1 行の理由により A を選択)
+- 選択肢: A) 今すぐ修正する、B) 承認して、そのまま ship する、C) 誤検知である
+- ユーザーが A を選んだ場合: ここでは編集せず、承認された修正をキューに入れます。その修正がレビューとテストに合格した後、greptile-triage.md の **Fix reply template**(インラインの差分と説明)を使い、プロジェクト単位とグローバルの greptile-history に保存します(type: fix)。
+- ユーザーが C を選んだ場合: greptile-triage.md の **False Positive reply template**(根拠と提案する再ランクを含む)を使って返信し、プロジェクト単位とグローバルの greptile-history の両方に保存します(type: fp)。
 
-**VALID BUT ALREADY FIXED:** Reply using the **Already Fixed reply template** from greptile-triage.md — no AskUserQuestion needed:
-- Include what was done and the fixing commit SHA
-- Save to both per-project and global greptile-history (type: already-fixed)
+**VALID BUT ALREADY FIXED(有効だが修正済み):** AskUserQuestion は不要です。greptile-triage.md の **Already Fixed reply template** を使って返信します:
+- 何をしたか、修正のコミット SHA を含めます。
+- プロジェクト単位とグローバルの greptile-history の両方に保存します(type: already-fixed)。
 
-**FALSE POSITIVE:** Use AskUserQuestion:
-- Show the comment and why you think it's wrong (file:line or [top-level] + body summary + permalink URL)
-- Options:
-  - A) Reply to Greptile explaining the false positive (recommended if clearly wrong)
-  - B) Fix it anyway (if trivial)
-  - C) Ignore silently
-- If user chooses A: reply using the **False Positive reply template** from greptile-triage.md (include evidence + suggested re-rank), save to both per-project and global greptile-history (type: fp)
-- If user chooses B: queue the approved fix, as above.
+**FALSE POSITIVE(誤検知):** AskUserQuestion を使います:
+- コメントと、誤りだと考える理由を示します(file:line または [top-level]、本文の要約、パーマリンク URL)。
+- 選択肢:
+  - A) 誤検知であることを Greptile に返信して説明する(明らかに誤りの場合は推奨)
+  - B) それでも修正する(些細な場合)
+  - C) 黙って無視する
+- ユーザーが A を選んだ場合: greptile-triage.md の **False Positive reply template**(根拠と提案する再ランクを含む)を使って返信し、プロジェクト単位とグローバルの greptile-history の両方に保存します(type: fp)。
+- ユーザーが B を選んだ場合: 上と同様に、承認された修正をキューに入れます。
 
-**SUPPRESSED:** Skip silently — these are known false positives from previous triage.
+**SUPPRESSED(抑制済み):** 黙ってスキップします。これらは以前のトリアージで既知となった誤検知です。
 
-**After triage:** If fixes were approved, save their approvals and comment references.
-Run Step 9's full review/fix loop, then return here. Finish the saved replies
-without asking again about completed fixes, and classify new comments.
-With no queued fixes, continue to Step 11.
+**トリアージの後:** 修正が承認された場合は、その承認とコメントの参照を保存します。
+Step 9 のレビューと修正のループを最後まで実行し、ここに戻ります。保存済みの返信を、完了した修正について再度尋ねることなく完了させ、新しいコメントを分類します。
+キューに入った修正がなければ、Step 11 に進みます。
 
 ---

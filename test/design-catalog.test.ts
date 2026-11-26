@@ -106,7 +106,7 @@ describe('legacy blacklist derivation', () => {
     const legacy = DESIGN_SLOP_CATALOG.filter(e => e.legacyBlacklist);
     expect(legacy.length).toBe(11);
     expect(legacy.map(e => e.prose)).toEqual(AI_SLOP_BLACKLIST);
-    expect(AI_SLOP_BLACKLIST[0]).toBe('Purple/violet/indigo gradient backgrounds or blue-to-purple color schemes');
+    expect(AI_SLOP_BLACKLIST[0]).toMatch(/紫.*グラデーション/);
     expect(AI_SLOP_BLACKLIST[1]).toContain('3-column feature grid');
     expect(AI_SLOP_BLACKLIST[7]).toContain('border-left: 3px solid');
   });
@@ -176,7 +176,7 @@ const MOCKUP_NEVER_IDS = ['kicker-above-heading', 'icon-tile-stack', 'gradient-t
 
 function designHtmlNeverIds(): string[] {
   const tmpl = fs.readFileSync(path.join(ROOT, 'design-html', 'SKILL.md.tmpl'), 'utf-8');
-  const start = tmpl.indexOf('**Never include by default (AI slop blacklist):**');
+  const start = tmpl.indexOf('**デフォルトでは決して含めないもの (AI スロップのブラックリスト):**');
   expect(start).toBeGreaterThan(0);
   const block = tmpl.slice(start, tmpl.indexOf('\n\n', start + 10));
   const lines = block.split('\n').filter(l => l.startsWith('- '));

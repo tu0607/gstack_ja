@@ -3,10 +3,10 @@ name: review
 preamble-tier: 4
 version: 1.0.0
 description: |
-  Pre-landing PR review. Analyzes diff against the base branch for SQL safety, LLM trust
-  boundary violations, conditional side effects, and other structural issues. Use when
-  asked to "review this PR", "code review", "pre-landing review", or "check my diff".
-  Proactively suggest when the user is about to merge or land code changes. (gstack)
+  マージ前の PR レビュー。ベースブランチとの差分を分析し、SQL の安全性、LLM の信頼境界違反、
+  条件付きの副作用、その他の構造的な問題を確認します。「review this PR」「code review」
+  「pre-landing review」「check my diff」と頼まれたときに使います。変更をマージ・取り込もうとしている
+  ときには積極的に提案してください。(gstack)
 allowed-tools:
   - Bash
   - Read
@@ -28,9 +28,9 @@ triggers:
 
 {{BASE_BRANCH_DETECT}}
 
-# Pre-Landing PR Review
+# マージ前の PR レビュー
 
-Review the branch diff against the base for structural issues tests miss.
+テストでは見逃す構造的な問題がないか、ブランチの差分をベースと比較してレビューします。
 
 ---
 
@@ -38,12 +38,12 @@ Review the branch diff against the base for structural issues tests miss.
 
 ---
 
-## Step 1: Check branch
+## Step 1: ブランチの確認
 
-1. Run `git branch --show-current`.
-2. If on the base branch, output: **"Nothing to review — you're on the base branch or have no changes against it."** and stop.
-3. Run `git fetch origin <base> --quiet && echo "BASE_REFRESH: fresh" || echo "BASE_REFRESH: stale $(git rev-parse --short origin/<base>)"`, then `DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" --stat`. If no diff, output the same message and stop. `stale` is not an empty diff: continue; report `Base coverage: stale at <revision>`.
-4. Run `~/.claude/skills/gstack/bin/gstack-contributor-mode detect` (add `--contributor` when the user asked). `CONTRIBUTOR_MODE: on` prints the evidence-first instructions: follow them through Steps 4-5 and record mode, source and author in Step 5.8.
+1. `git branch --show-current` を実行します。
+2. ベースブランチ上にいる場合は、**「Nothing to review — you're on the base branch or have no changes against it.」**と出力して停止します。
+3. `git fetch origin <base> --quiet && echo "BASE_REFRESH: fresh" || echo "BASE_REFRESH: stale $(git rev-parse --short origin/<base>)"` を実行し、続けて `DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" --stat` を実行します。差分がなければ、同じメッセージを出力して停止します。`stale` は空の差分を意味しません。続行し、`Base coverage: stale at <revision>` と報告してください。
+4. `~/.claude/skills/gstack/bin/gstack-contributor-mode detect` を実行します(ユーザーが求めた場合は `--contributor` を付ける)。`CONTRIBUTOR_MODE: on` が出力されたら、その証拠ファーストの指示が表示されます。Step 4〜5 を通してそれに従い、Step 5.8 でモード、出典、作成者を記録してください。
 
 ---
 
@@ -51,34 +51,32 @@ Review the branch diff against the base for structural issues tests miss.
 
 {{SECTION:plan-completion}}
 
-## Step 2: Read the checklist
+## Step 2: チェックリストの読み込み
 
-Read `~/.claude/skills/gstack/review/checklist.md`.
+`~/.claude/skills/gstack/review/checklist.md` を読みます。
 
-**If the file cannot be read, STOP and report the error.** Never proceed without it.
-
----
-
-## Step 2.5: Check for Greptile review comments
-
-Read `~/.claude/skills/gstack/review/greptile-triage.md` and follow the fetch, filter, classify, and **escalation detection** steps.
-
-**No PR, a `gh` or API failure, or zero Greptile comments:** skip silently; the review works without Greptile.
-
-**Comments found:** store the classifications (VALID & ACTIONABLE, VALID BUT ALREADY FIXED, FALSE POSITIVE, SUPPRESSED) for Step 5.
+**ファイルを読めない場合は、停止してエラーを報告してください。** チェックリストなしで決して進まないこと。
 
 ---
 
-## Step 3: Get the diff
+## Step 2.5: Greptile のレビューコメントの確認
 
-An invocation is this /review run; a pass reviews one candidate before any fixes.
-On first entry, initialize one invocation action list and CYCLES=0. Keep both through re-reviews.
+`~/.claude/skills/gstack/review/greptile-triage.md` を読み、その取得、絞り込み、分類、**エスカレーションの検出**の手順に従ってください。
 
-Each pass has one direction: collect findings in Steps 3–4.8, approve and apply
-fixes in Step 5, then choose repeat or final persistence in Step 5.8.
-Do not edit reviewed source until Step 5. All readers examine the same candidate.
+**PR がない、`gh` または API が失敗した、Greptile のコメントがゼロ:** 黙ってスキップします。Greptile がなくてもレビューは機能します。
 
-Diff the working tree against the merge base:
+**コメントが見つかった場合:** 分類(VALID & ACTIONABLE、VALID BUT ALREADY FIXED、FALSE POSITIVE、SUPPRESSED)を保存し、Step 5 で使います。
+
+---
+
+## Step 3: 差分の取得
+
+呼び出し 1 回が、この /review の実行です。1 回のパスでは、修正の前に 1 つの候補をレビューします。最初に入ったときに、1 つの呼び出しのアクションリストを初期化し、CYCLES=0 とします。再レビューの間も両方を保持します。
+
+各パスは 1 つの方向を持ちます。Step 3〜4.8 で指摘を集め、Step 5 で修正を承認して適用し、Step 5.8 で繰り返すか最終的な記録を残すかを決めます。
+Step 5 まではレビュー対象のソースを編集しないでください。すべての読み手は同じ候補を検査します。
+
+マージベースとの作業ツリーの差分を取ります:
 
 ```bash
 DIFF_BASE=$(git merge-base origin/<base> HEAD)
@@ -86,25 +84,23 @@ DIFF_BASE=$(git merge-base origin/<base> HEAD)
 git diff "$DIFF_BASE"
 ```
 
-1. Save the printed REVIEW_START for this core candidate before reading its diff.
-2. Each re-review captures a new token before reading, never at log time. Earlier
-   core tokens remain unused; Step 5.8 finishes only the final core token.
-3. Native/outside reviewer attempts own separate PASS_START tokens, not REVIEW_START.
-4. Read non-ignored untracked source too (`git ls-files --others --exclude-standard`);
-   the captured candidate includes it.
+1. 表示された REVIEW_START を、このコア候補のために保存してから、その差分を読みます。
+2. 各再レビューは、読み込む前に新しいトークンを取得します。ログを書く時点では取得しません。以前のコアのトークンは使われないまま残ります。Step 5.8 では最後のコアのトークンだけを完了させます。
+3. ネイティブ/外部のレビュアーの試行は、それぞれ独自の PASS_START トークンを持ちます。REVIEW_START は使いません。
+4. 無視されていない未追跡のソースも読みます(`git ls-files --others --exclude-standard`)。キャプチャされる候補には、これも含まれます。
 
-Keep the review-record terms separate:
+レビュー記録の用語は分けて扱ってください:
 
-| Value | Purpose and owner |
+| 値 | 目的と所有者 |
 |---|---|
-| REVIEW_START / PASS_START | Opaque start receipts from the logger: one for the core pass, one for each other reviewer attempt. |
-| Finding fingerprint | Groups duplicate findings. The installed helper computes shared-code fingerprints; a matching key alone never proves a prior Skip is reusable. |
-| `review_binding` | The logger's proof tying a finished review to its captured candidate, not a finding identifier. |
-| `snapshot_covered_paths` | Supporting advice files the logger proved byte-identical to that candidate. Used by the prior-Skip checker, never supplied by the reviewer. |
+| REVIEW_START / PASS_START | ロガーが発行する開始の受付番号。コアのパスに 1 つ、他のレビュアーの試行ごとに 1 つ。 |
+| 指摘のフィンガープリント | 重複した指摘をまとめる。インストール済みのヘルパーが共有コードのフィンガープリントを計算する。一致するキーだけでは、以前のスキップを再利用できると証明されない。 |
+| `review_binding` | 完了したレビューを、キャプチャされた候補に結び付けるロガーの証明。指摘の識別子ではない。 |
+| `snapshot_covered_paths` | ロガーが、その候補とバイト単位で同一だと証明した補助的なアドバイスのファイル。以前のスキップのチェッカーが使う。レビュアーが提供するものではない。 |
 
-## Step 3.4: Workspace-aware queue status (advisory)
+## Step 3.4: ワークスペースを考慮したキューの状態(助言的)
 
-Check the claimed VERSION's queue slot. This landing-order advice never blocks review.
+宣言された VERSION のキューの枠を確認します。この着地順の助言がレビューをブロックすることはありません。
 
 ```bash
 BRANCH_VERSION=$(git show HEAD:VERSION 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
@@ -119,93 +115,83 @@ CLAIMED_COUNT=$(echo "$QUEUE_JSON" | jq -r '.claimed | length // 0')
 OFFLINE=$(echo "$QUEUE_JSON" | jq -r '.offline // false')
 ```
 
-- `OFFLINE=true`: skip this section.
-- Otherwise, include ONE line in the review output: `Version claimed: v<BRANCH_VERSION>. Queue: <CLAIMED_COUNT> PR(s) ahead. <VERDICT>` where VERDICT is either `Slot free` (if `BRANCH_VERSION >= NEXT_SLOT`) or `⚠ queue moved — rerun /ship to reconcile v<BRANCH_VERSION> → v<NEXT_SLOT>`.
+- `OFFLINE=true`: このセクションをスキップします。
+- それ以外: レビューの出力に 1 行を含めます: `Version claimed: v<BRANCH_VERSION>. Queue: <CLAIMED_COUNT> PR(s) ahead. <VERDICT>`。VERDICT は `Slot free`(`BRANCH_VERSION >= NEXT_SLOT` の場合)、または `⚠ queue moved — rerun /ship to reconcile v<BRANCH_VERSION> → v<NEXT_SLOT>` のいずれかです。
 
-Compare dotted version components as integers from left to right; missing trailing components count as zero.
+ドット区切りのバージョンの各要素を、左から順に整数として比較します。後ろの要素が欠けている場合は 0 とみなします。
 
 ---
 
-## Step 3.5: Diff scans
+## Step 3.5: 差分のスキャン
 
-Run the gate scan first (local, seconds; every diff size), then the slop scan.
+まずゲートのスキャンを実行し(ローカルで数秒、差分のサイズにかかわらず)、その後でスロップのスキャンを行います。
 
-### Gate scan
+### ゲートのスキャン
 
 {{GATE_SCAN_BLOCK}}
 
-Save the `GATE_SUMMARY:` line and the read-level listing for Step 4's Gate Integrity
-category, Step 5.8's record and the final report.
+`GATE_SUMMARY:` の行と、読み取りレベルの一覧を保存してください。Step 4 のゲートの整合性のカテゴリ、Step 5.8 の記録、最終報告で使います。
 
-### Banned terms
+### 禁止用語
 
-`~/.claude/skills/gstack/bin/gstack-banned-terms check --base <base>`: each `BANNED_TERM:` line (term, file:line, allowed locations) is a Step 4 finding; `none` means the repo keeps no list.
+`~/.claude/skills/gstack/bin/gstack-banned-terms check --base <base>` を実行します。各 `BANNED_TERM:` の行(用語、file:line、許可された場所)は Step 4 の指摘です。`none` はリポジトリがリストを持っていないことを意味します。
 
-### Slop scan (advisory)
+### スロップのスキャン(助言的)
 
-Scan changed files for empty catches, redundant `return await` and needless abstractions:
+変更されたファイルについて、空の catch、冗長な `return await`、不要な抽象化をスキャンします:
 
 ```bash
 bun run slop:diff origin/<base> 2>/dev/null || true
 ```
 
-Include findings as non-blocking informational diagnostics. If slop:diff is
-unavailable, skip silently.
+指摘は、ブロックしない情報の診断として含めてください。slop:diff が利用できない場合は、黙ってスキップします。
 
 ---
 
-## Step 3.6: Gather review context
+## Step 3.6: レビューの文脈を集める
 
-Run Prior Learnings, then Web research readiness after Step 3.5, before Step 4.
-Use their results in the core review.
+Step 3.5 の後、Step 4 の前に、Prior Learnings を実行してから Web 調査の準備を行います。その結果をコアのレビューで使ってください。
 
 {{LEARNINGS_SEARCH}}
 
 {{ASIDE_RESEARCH}}
 
-## Step 4: Critical pass (core review)
+<a id="step-4-critical-pass-core-review"></a>
+## Step 4: 重大な問題のパス(コアのレビュー)
 
 {{QA_REVIEW_PREFLIGHT}}
 
-Apply both checklist passes in order: CRITICAL, then INFORMATIONAL. Respect its suppressions.
+チェックリストの 2 つのパスを順番に適用してください。まず CRITICAL、次に INFORMATIONAL です。チェックリストの抑制ルールは尊重します。
 
 {{SIDEWAYS_SWEEP}}
 
-**Gate Integrity reads Step 3.5's listing.** Carry the `GATE_SUMMARY:` line and every
-read-level hunk (`[<id>] <tag> <path> @<hunk>`) into the checklist's Gate Integrity
-category: read each hunk in the diff with its one question, keep groups as one
-finding, and record `gate` (the RH tag) and `gate_id` (the tool's id) on each gate
-finding. A partial or UNAVAILABLE scan is missing coverage for this category, never
-a clean result. Gate findings are ASK in Step 5 regardless of how mechanical the
-revert looks. {{FLAKE_FIX_NUMBER:review}}
+**ゲートの整合性は Step 3.5 の一覧を読みます。** `GATE_SUMMARY:` の行と、読み取りレベルの各ハンク(`[<id>] <tag> <path> @<hunk>`)を、チェックリストのゲートの整合性のカテゴリに持ち込みます。各ハンクを差分の中で、1 つの問いとともに読んでください。グループは 1 つの指摘として扱い、ゲートの指摘には `gate`(RH タグ)と `gate_id`(ツールの ID)を記録します。一部だけのスキャンや UNAVAILABLE のスキャンは、そのカテゴリのカバレッジが不足していることを意味し、クリーンな結果ではありません。ゲートの指摘は、元に戻す作業がどれほど機械的に見えても、Step 5 では ASK です。{{FLAKE_FIX_NUMBER:review}}
 
-**Search-before-recommending:** Research proposed fixes through Aside, especially
-concurrency, caching, auth and framework behavior:
-- Check current best practice for the installed framework version.
-- Look for a newer built-in before proposing a workaround.
-- Verify API signatures against current docs.
+**推奨する前に検索する:** 提案する修正は Aside で調査してください。特に並行処理、キャッシュ、認証、フレームワークの動作について:
+- インストール済みのフレームワークのバージョンに対する、現在のベストプラクティスを確認する。
+- 回避策を提案する前に、新しい組み込み機能がないかを探す。
+- API のシグネチャを現在のドキュメントと照合する。
 
-Prompt file text (create, write and send it with the Web research runs in Aside blocks above): `{framework} {version} {pattern} current best practice and whether a built-in replaces it. Reply with up to 5 bullets, each with its source URL.`
+プロンプトファイルの本文(上の Aside の Web 調査の実行と一緒に作成し、書き込み、送信する): `{framework} {version} {pattern} current best practice and whether a built-in replaces it. Reply with up to 5 bullets, each with its source URL.`
 
-Without Aside `READY`, use WebSearch if available; with neither, disclose the gap
-and use existing knowledge. Research runs alongside specialist dispatch.
+Aside が `READY` でない場合は、利用可能なら WebSearch を使います。どちらも使えない場合は、その欠落を明示し、既存の知識を使います。調査は専門家の割り当てと並行して実行します。
 
-### Shared-code opportunities (core pass)
+### 共有コードの機会(コアのパス)
 
-Run this check on every diff, including fewer than 50 changed lines and hosts without Review Army:
-1. Read the changed code and related unchanged callers using the rubric below. Do not run the standalone history/PR sweep or impose candidate quotas.
-2. Require at least one verified authored location changed in this diff and at least two actual authored source locations needing the shared behavior. Added or uncommitted source qualifies; invented future callers do not.
-3. Trace generated copies to authored templates/resolvers. Exclude generated and third-party copies from evidence and savings.
+差分ごとにこのチェックを実行します。変更行が 50 行未満の場合や、Review Army のないホストでも同様です:
+1. 変更されたコードと、関連する変更されていない呼び出し元を、以下のルーブリックを使って読みます。スタンドアロンの履歴/PR のスキャンは実行せず、候補の数の割り当てもしません。
+2. この差分で変更された、検証済みの作成者による場所が少なくとも 1 つ必要です。さらに、共有の振る舞いを必要としている作成者によるソースの場所が、実際に少なくとも 2 つ必要です。追加されたものや未コミットのソースは対象になります。将来の呼び出し元を想定するのは不可です。
+3. 生成されたコピーは、作成者が書いたテンプレート/リゾルバーまでたどります。生成されたコピーやサードパーティのコピーは、根拠や節約の算定から除外します。
 
 {{SHARED_LIBS_RUBRIC}}
 
-The core pass owns optional extraction advice. Zero proposals is valid; prefer a compatible existing helper.
-- Show the changed anchor, verified callers, smallest helper/destination, preserved differences, compatibility tests and shared-failure risk.
-- Estimate implementation and total removed/added/saved lines from named blocks; deduplicate equivalent proposals and overlapping savings.
-- Use `"category":"shared-libs","severity":"INFORMATIONAL","advisory":true`, `evidence_paths` (all authored supporting paths) and `helper_target:{"path":"...","symbol":"..."}`.
-- Include an existing helper's authored path in `evidence_paths` so its contract and raw bytes participate in revalidation. A not-yet-created helper belongs only in `helper_target`.
+コアのパスは、任意の抽出の助言を担当します。提案がゼロでも有効です。既存の適切なヘルパーを優先してください。
+- 変更されたアンカー(変更箇所)、検証済みの呼び出し元、最小のヘルパー/配置先、保持される違い、互換性のテスト、共有の失敗リスクを示します。
+- 名前付きのブロックから、実装の行数と、削除・追加・節約の行数を見積もります。同等の提案や重なる節約は重複排除します。
+- `"category":"shared-libs","severity":"INFORMATIONAL","advisory":true`、`evidence_paths`(作成者が書いたすべての補助パス)、`helper_target:{"path":"...","symbol":"..."}` を使います。
+- 既存のヘルパーの作成者によるパスは `evidence_paths` に含め、その契約と生のバイトが再検証の対象になるようにします。まだ作成されていないヘルパーは `helper_target` だけに入れます。
 
-**Identity before merge or suppression:** Use installed `sharedLibsFingerprint`, never model-generated hashes. Send literal JSON on stdin (actual paths/symbol; keep the quoted delimiter), not interpolated shell code:
+**マージや抑制の前に識別すること:** インストール済みの `sharedLibsFingerprint` を使い、モデルが生成したハッシュは決して使わないでください。リテラルの JSON を標準入力で送ります(実際のパスとシンボル。引用符で囲んだデリミタを保つ)。シェルのコードとして埋め込まないでください:
 
 ```bash
 GSTACK_SHARED_LIB=~/.claude/skills/gstack/lib/review-evidence.ts
@@ -214,25 +200,22 @@ bun --no-env-file --config=/dev/null -e 'const { sharedLibsFingerprint } = await
 GSTACK_SHARED_LIBS_JSON
 ```
 
-Use the returned fingerprint; malformed/missing metadata requires revalidation. Real defects follow Fix-First independently: advice or a prior Skip cannot suppress, downgrade or replace them, even with a shared supplied fingerprint.
+返されたフィンガープリントを使ってください。メタデータの形式が不正または欠けている場合は、再検証が必要です。実際の欠陥は Fix-First とは独立に扱われます。助言も以前のスキップも、共有で提供されたフィンガープリントがあっても、実際の欠陥を抑制・格下げ・置き換えすることはできません。
 
-Core findings use the confidence gates below; Step 4.6 applies its specialist gates.
-Use CRITICAL/INFORMATIONAL labels in the finding format.
-Step 5.8 combines these finding lines with the checklist's action groups.
+コアの指摘は、以下の信頼度のゲートを使います。Step 4.6 は専門家向けのゲートを適用します。
+指摘の形式では CRITICAL/INFORMATIONAL のラベルを使います。
+Step 5.8 は、これらの指摘の行と、チェックリストのアクショングループを組み合わせます。
 
 {{CONFIDENCE_CALIBRATION}}
 
-### TODOS cross-reference
+### TODOS の相互参照
 
-If root `TODOS.md` exists, report closed items as "This PR addresses TODO: <title>".
-Flag new TODOs as informational and cite related items. Otherwise skip silently.
+ルートに `TODOS.md` があれば、完了した項目を「This PR addresses TODO: <title>」として報告します。
+新しい TODO は情報として指摘し、関連する項目を挙げます。ない場合は黙ってスキップします。
 
-### Documentation staleness check
+### ドキュメントの陳腐化の確認
 
-Read root `.md` files. When changed code affects a documented feature or workflow
-but its doc was not updated, flag an INFORMATIONAL finding naming the file and
-affected behavior. Propose `/document-release` for the parent's decision, never a
-critical finding or another writer during collection. Skip silently if no docs exist.
+ルートの `.md` ファイルを読みます。変更されたコードが文書化された機能やワークフローに影響するのに、そのドキュメントが更新されていない場合は、ファイル名と影響を受ける振る舞いを挙げた INFORMATIONAL の指摘を立てます。`/document-release` を提案するのは親の判断に委ねるためで、重大な指摘や、収集中の別の書き手としては扱いません。ドキュメントがなければ黙ってスキップします。
 
 ---
 
@@ -246,237 +229,155 @@ critical finding or another writer during collection. Skip silently if no docs e
 
 {{SECTION:adversarial}}
 
-## Step 5: Fix-First Review
+## Step 5: Fix-First レビュー
 
-Before edits, confirm every dispatched reader has returned or is confirmed stopped.
-For an active or unknown reader/writer, wait or confirm it is stopped. If settlement
-cannot be confirmed, persist incomplete at Step 5.8 and STOP without edits.
-Terminal failure does not block fixes from independent evidence. Missing required
-output still makes the pass incomplete, even after the reader is stopped.
+編集する前に、派遣したすべての読み手が返答したか、停止したことを確認してください。
+アクティブまたは状態不明の読み手/書き手については、待つか、停止したことを確認します。
+決着を確認できない場合は、Step 5.8 で未完了として保存し、編集せずに停止してください。
+終了の失敗が、独立した証拠に基づく修正をブロックすることはありません。必須の出力が欠けている場合は、読み手が停止した後でも、パスは未完了のままです。
 
-Combine core, specialist, Step 4.7 QA, Step 4.8 adversarial and VALID & ACTIONABLE Greptile findings.
-For QA findings, assign confidence (1–10) from replay/code evidence using Confidence
-Calibration; retain Step 4.7's severity, not a severity inferred from confidence.
-Run Step 5.0 severity/prior-skip dedup on all
-findings before Step 5a classification. Then action every remaining finding.
-Structured approval does not waive advisory/test_stub ASK gates.
+コア、専門家、Step 4.7 の QA、Step 4.8 の敵対的検証、VALID & ACTIONABLE な Greptile の指摘を統合します。
+QA の指摘には、再現・コードの証拠に基づいて信頼度(1〜10)を割り当てます。信頼度の校正を使ってください。Step 4.7 の重大度は保持し、信頼度から重大度を推測しないこと。
+Step 5a の分類の前に、すべての指摘に対して Step 5.0 の重大度と以前のスキップの重複排除を実行します。残りのすべての指摘には対応してください。
+構造化された承認があっても、advisory/test_stub の ASK のゲートは免除されません。
 
 {{CROSS_REVIEW_DEDUP}}
 
-**Keep decisions through fix cycles:**
-1. Immediately save completed AUTO-FIX/fix and explicit Skip actions in the Step 3
-   action list, keeping defects separate from advice. For advice retain the helper's
-   fingerprint, `advisory`, `evidence_paths` and `helper_target`.
-2. Before reusing a decision, re-read every supporting caller and helper destination,
-   including secondary callers and transformed/indirect paths. Compare their raw
-   source with the decision evidence.
-3. Unrelated auto-fixes do not reopen unchanged identity, contract and tradeoffs.
-   Material proposal, behavior, migration or risk changes require a new question.
-   Carrying this invocation's decisions cannot suppress new/recurring defects or
-   replace Step 5.0's prior-review checker.
+**修正サイクルを通じて判断を保持する:**
+1. 完了した AUTO-FIX/修正と、明示的なスキップのアクションを、Step 3 のアクションリストにすぐ保存します。欠陥とアドバイスを分けて保持してください。アドバイスについては、ヘルパーのフィンガープリント、`advisory`、`evidence_paths`、`helper_target` を保持します。
+2. 判断を再利用する前に、すべての補助的な呼び出し元とヘルパーの配置先を再読み込みします。二次的な呼び出し元や、変換された/間接的なパスも含みます。生のソースを、判断の根拠と比較してください。
+3. 無関係な自動修正は、変更されていない同一性、契約、トレードオフを再オープンしません。実質的な提案、振る舞い、移行、リスクの変更には、新しい質問が必要です。この実行の判断を持ち越しても、新規・再発の欠陥を抑制したり、Step 5.0 の以前のレビューのチェッカーを置き換えたりすることはできません。
 
-### Step 5a: Classify each finding
+### Step 5a: 各指摘を分類する
 
-For each finding, classify as AUTO-FIX or ASK per the Fix-First Heuristic in
-checklist.md. Critical findings lean toward ASK; informational findings lean
-toward AUTO-FIX.
+各指摘を、checklist.md の Fix-First ヒューリスティックに従って AUTO-FIX か ASK に分類します。重大な指摘は ASK に寄せ、情報の指摘は AUTO-FIX に寄せます。
 
-**Advisory override:** After severity validation, `advisory:true` is ASK-only. Never auto-apply an optional extraction, even when mechanical. Show `[ADVISORY]`, helper, caller migration, tests and estimated total savings for approval or Skip. Handle real defects independently.
+**助言による上書き:** 重大度の検証の後、`advisory:true` は ASK のみです。任意の抽出は、機械的に行えるものでも決して自動適用しないでください。`[ADVISORY]`、ヘルパー、呼び出し元の移行、テスト、推定の総節約量を示し、承認またはスキップを求めます。実際の欠陥は独立に扱ってください。
 
-**Test stub override:** Any finding that has a `test_stub` field, from a specialist or exploratory QA,
-is reclassified as ASK regardless of its original classification. When presenting the ASK
-item, show the proposed test file path and the test code. Step 5c's A) Fix writes the test and
-repair in Step 5d's regression-before-repair order; B) Skip skips both; the defect stays unresolved. Derive the test file path from
-the finding's `path` using project conventions (`spec/` for RSpec, `__tests__/` for
-Jest/Vitest, `test_` prefix for pytest, `_test.go` suffix for Go). If the test file
-already exists, append the new test.
+**テストスタブによる上書き:** 専門家や探索的な QA による `test_stub` フィールドを持つ指摘は、元の分類にかかわらず ASK に再分類します。ASK の項目を提示するときは、提案するテストファイルのパスとテストコードを示します。Step 5c の A) 修正では、テストを書き、Step 5d のリグレッション先行の順序で修正します。B) スキップでは両方をスキップし、欠陥は未解決のままになります。テストファイルのパスは、指摘の `path` からプロジェクトの慣習に従って導出してください(RSpec は `spec/`、Jest/Vitest は `__tests__/`、pytest は `test_` の接頭辞、Go は `_test.go` の接尾辞)。テストファイルが既に存在する場合は、新しいテストを追記します。
 
-### Step 5b: Auto-fix all AUTO-FIX items
+### Step 5b: すべての AUTO-FIX 項目を自動修正する
 
-Apply each fix directly, with a one-line summary each:
+各修正を直接適用し、それぞれ一行の要約を出力します:
 `[AUTO-FIXED] [file:line] Problem → what you did`
-Retain the completed action in the invocation action list before starting any re-review.
+再レビューを始める前に、完了したアクションをアクションリストに保持してください。
 
-### Step 5c: Batch-ask about ASK items
+### Step 5c: ASK 項目についてまとめて確認する
 
-Present remaining ASK items in ONE AskUserQuestion (3 or fewer: individual calls are fine):
+残りの ASK 項目を、AskUserQuestion の 1 回にまとめて提示します(3 件以下なら個別の呼び出しでも可):
 
-- Number each item with its severity label (or `[ADVISORY]` for optional advice), problem and recommended fix
-- Options per item: A) Fix as recommended, B) Skip (describe only as: no code/index change; Skip recorded)
-- Include an overall RECOMMENDATION
-Retain each explicit Skip choice and its finding metadata in the invocation action list. Do not record an unanswered question as skipped or ask again about a decision already revalidated in this invocation.
+- 各項目に重大度のラベル(任意の助言は `[ADVISORY]`)、問題、推奨する修正を付けて番号を振る
+- 項目ごとの選択肢: A) 推奨どおり修正、B) スキップ(「コードやインデックスの変更なし。スキップを記録」とだけ説明する)
+- 全体の推奨(RECOMMENDATION)を含める
+明示的なスキップの選択と、その指摘のメタデータをアクションリストに保持します。未回答の質問をスキップとして記録したり、この実行で既に再検証された判断について再度尋ねたりしないでください。
 
-**Gate findings use their own question**, `review-gate-disposition` (include
-`<gstack-qid:review-gate-disposition>`; it is a one-way id, so `never-ask` and
-`AUTO_DECIDE` never apply). One question per finding or coherent group, never bare
-Fix/Skip. Show the `gate` tag, the `gate_id`, the hunk's path and a fenced data
-excerpt, then exactly these options:
+**ゲートの指摘には専用の質問を使います**: `review-gate-disposition`(`<gstack-qid:review-gate-disposition>` を含める。これは一方向の ID のため、`never-ask` と `AUTO_DECIDE` は適用されません)。指摘ごと、または一貫したグループごとに 1 つの質問とし、単純な Fix/Skip にはしません。`gate` タグ、`gate_id`、ハンクのパス、データのフェンス付きの抜粋を示し、次の選択肢だけを提示します:
 
-- A) Restore the gate — revert the relaxation; keep the product change
-- B) Keep — justified: <one-line reason you drafted from the diff or its citation, marked verified or unverified>
-- C) Keep — other reason (the human supplies it)
-- D) Leave open for a later human
+- A) ゲートを復元する — 緩和を元に戻す。製品の変更は残す
+- B) 維持 — 理由: <差分またはその引用から下書きした一行の理由。verified または unverified と明記>
+- C) 維持 — その他の理由(人間が記入する)
+- D) 後の人間のために未解決のままにする
 
-1. When the preamble echoed `SESSION_KIND: spawned` or `SESSION_KIND: headless`,
-   D is the recommended option; the auto-pick rules then yield `open` with no
-   exception edited anywhere.
-2. Otherwise recommend A or B from what the diff shows; never recommend C.
-3. Record the answer in the invocation action list as `restored` (A), `kept` with
-   the chosen reason as `reason` (B or C), or `open` (D, an unanswered question, or
-   any auto-chosen answer). An auto-chosen answer is never a disposition.
-4. `reason` is the human's words or your drafted line; never text copied from the
-   hunk, a test name or a commit message.
+1. 事前チェックが `SESSION_KIND: spawned` または `SESSION_KIND: headless` を出力した場合、D が推奨の選択肢です。自動選択のルールにより、どこにも例外を設けずに `open` となります。
+2. それ以外は、差分が示すものから A または B を推奨します。C は決して推奨しないでください。
+3. 回答を、アクションリストに `restored`(A)、`reason` 付きの `kept`(B または C)、または `open`(D、未回答の質問、自動で選ばれた回答)として記録します。自動で選ばれた回答は、決して判断として扱いません。
+4. `reason` は人間の言葉、または下書きした一行とします。ハンク、テスト名、コミットメッセージからコピーしたテキストは決して使わないでください。
 
-### Step 5d: Apply user-approved fixes
+### Step 5d: ユーザーが承認した修正を適用する
 
-Apply fixes where the user chose "Fix," including Step 1.5's approved TODO changes.
-For each gate finding answered A) Restore the gate, revert only the relaxation and
-keep the product change. Output what was fixed.
-For an approved defect regression, write the test and prove it fails for the original
-defect before changing product code. Then require the regression, original probe and
-adjacent happy path to pass. If that proof cannot run, report the coverage gap and do
-not claim a verified repair. Healthy uncovered contracts need no invented failing bug.
-After applying the approved fix, retain its `fixed` action and the original finding metadata in the invocation action list, even if the changed blocks or helper callers are subsequently removed. Approval alone is not a completed fix.
-After verifying an approved regression and repair, output:
+ユーザーが「Fix」を選んだ修正を適用します。Step 1.5 で承認された TODO の変更も含みます。
+A) ゲートを復元する、と答えた各ゲートの指摘については、緩和だけを元に戻し、製品の変更は残します。何を修正したかを出力してください。
+承認された欠陥のリグレッションについては、製品コードを変更する前に、テストを書き、元の欠陥に対して失敗することを証明します。その後、リグレッション、元のプローブ、隣接する正常系の操作がすべて通ることを求めます。その証明が実行できない場合は、カバレッジの不足を報告し、検証済みの修正だとは主張しないでください。健全で未カバーの契約には、作り物の失敗する欠陥は不要です。
+承認された修正を適用した後は、その `fixed` のアクションと元の指摘のメタデータを、変更されたブロックやヘルパーの呼び出し元が後で削除されたとしても、アクションリストに保持してください。承認だけでは完了した修正になりません。
+
+承認されたリグレッションと修正を検証した後、次を出力します:
 `[FIXED + TEST] [file:line] Problem -> fix + test at [test_path]`
 
-No ASK items (everything was AUTO-FIX): skip the question.
+ASK 項目がない場合(すべて AUTO-FIX): 質問はスキップします。
 
-### Verification of claims
+### 主張の検証
 
-Before final output, cite the line proving a safety claim, read and cite any
-handling code you rely on, and name the test file and method for coverage claims.
-Verify claims or flag them as unknown; "this looks fine" is not evidence.
+最終出力の前に、安全性の主張を証明する行を引用し、依拠するハンドリングのコードを読んで引用します。カバレッジの主張については、テストファイルとメソッドを名指しします。主張を検証するか、不明として示してください。「問題なさそう」は証拠ではありません。
 
-### Greptile comment resolution
+### Greptile のコメントの解決
 
-After outputting your own findings, if Greptile comments were classified in Step 2.5:
+自分の指摘を出力した後、Step 2.5 で Greptile のコメントを分類していた場合:
 
-**Include a Greptile summary in your output header:** `+ N Greptile comments (X valid, Y fixed, Z FP)`
+**レビューのヘッダーに Greptile の要約を含めます:** `+ N Greptile comments (X valid, Y fixed, Z FP)`
 
-Before replying to any comment, run greptile-triage.md's **Escalation Detection** to choose Tier 1 (friendly) or Tier 2 (firm) reply templates.
+コメントに返信する前に、greptile-triage.md の **Escalation Detection** を実行し、Tier 1(丁寧)または Tier 2(断定的)の返信テンプレートを選びます。
 
-1. **VALID & ACTIONABLE comments:** Use their Step 5a–5d disposition; do not ask a second fix question. Step 5c alone supplies A) Fix / B) Skip for ASK items. After a completed fix, use the **Fix reply template** with diff and explanation; cite the current diff if uncommitted, never invent a commit SHA. A Skip leaves the defect unresolved and grants no new fix permission. If evidence disproves the finding, reclassify it below.
+1. **VALID & ACTIONABLE のコメント:** Step 5a〜5d の処理をそのまま使います。2 回目の修正の質問はしません。Step 5c だけが ASK 項目の A) 修正 / B) スキップを提供します。修正が完了したら、差分と説明を付けた **Fix reply template** を使います。未コミットなら現在の差分を引用し、コミットの SHA は決して捏造しないでください。スキップすると欠陥は未解決のままで、新たな修正の許可は与えられません。証拠が指摘を否定する場合は、下で再分類します。
 
-2. **FALSE POSITIVE comments:** These are reply decisions, not code approval. Show file:line (or [top-level]), summary, permalink and evidence, then ask:
-   - A) Reply explaining why this is incorrect (recommended if clearly wrong)
-   - B) Propose a code change
-   - C) Ignore — don't reply, don't fix
+2. **FALSE POSITIVE のコメント:** これらは返信の判断であり、コードの承認ではありません。file:line(または [top-level])、要約、パーマリンク、証拠を示してから、次を尋ねます:
+   - A) なぜ誤りかを説明する返信をする(明らかに誤りなら推奨)
+   - B) コードの変更を提案する
+   - C) 無視する — 返信も修正もしない
 
-   For A, use the **False Positive reply template** with evidence + suggested re-rank; save to both histories. For B, return to Steps 5c–5d with an ASK proposal. Show the exact change and any `test_stub`; wait for approval before editing. Retain the comment decision so re-entry does not repeat its question.
+   A の場合は、証拠と提案する再ランクを付けた **False Positive reply template** を使い、両方の履歴に保存します。B の場合は、ASK の提案を持って Step 5c〜5d に戻ります。正確な変更と、あれば `test_stub` を示し、承認を待ってから編集してください。再入時に同じ質問を繰り返さないように、コメントの判断を保持します。
 
-3. **VALID BUT ALREADY FIXED comments:** Reply with greptile-triage.md's **Already Fixed reply template**, no AskUserQuestion: what was done and the fixing commit SHA; save to both per-project and global greptile-history.
+3. **VALID BUT ALREADY FIXED のコメント:** greptile-triage.md の **Already Fixed reply template** で返信します。ユーザーへの質問(AskUserQuestion)は使いません。何をしたか、修正のコミットの SHA を書き、プロジェクト単位と全体の greptile 履歴の両方に保存します。
 
-4. **SUPPRESSED comments:** Skip silently (known false positives from previous triage).
+4. **SUPPRESSED のコメント:** 黙ってスキップします(以前のトリアージで既知の誤検知)。
 
 ---
 
-## Step 5.8: Persist Eng Review result
+## Step 5.8: エンジニアリングレビューの結果を保存する
 
-### 1. Re-review after edits
+### 1. 編集後の再レビュー
 
-1. A pass covers Steps 3–5, including all reviewers before fixes. Allow at most 3 fix cycles:
-   - Edited: increment CYCLES once. Below 3, repeat Steps 3–5 with a new
-     REVIEW_START. At 3, persist `converged:false` and remaining findings by filling
-     and saving the record below. Report nonconvergence and coverage gaps, then STOP
-     this invocation, without a clean summary or a fourth pass.
-   - No edits: fill the record below.
-2. On a repeat, execute Steps 3–5 in order. At Step 4.7, reuse only this invocation's
-   unchanged-input QA evidence; rerun affected probes after source, test, contract,
-   command or fixture changes. Reusing a probe never skips a review step.
-   A probe is affected when its entrypoint, dependencies, contract or replay inputs
-   change; if uncertain, rerun it.
-3. **Verify completed actions.** On the final zero-edit pass, reconcile this
-   invocation's actions with current findings. Deduplicate by structural identity
-   and advisory/defect kind. For a completed extraction, retain `fixed` and the
-   original `evidence_paths`/`helper_target`; use `sharedLibsFingerprint` on that
-   metadata. Verify the replacement helper, remaining callers and tests without
-   requiring deleted pre-extraction blocks. Current findings determine recurring
-   defects and unresolved counts; earlier fixes do not suppress them.
-4. **Recheck skipped advice.** Re-read its final-snapshot supporting source and
-   reconfirm the decision; otherwise report its history without a reusable skip.
-   The logger computes `snapshot_covered_paths` from eligible paths whose raw bytes
-   equal the bound snapshot blobs (`[]` if none). Never carry prior-cycle, supplied
-   or prior-record coverage forward or build this proof yourself. Fixed advice
-   needs no skip coverage.
+1. 1 回のパスは Step 3〜5 を含みます。修正の前に、すべてのレビュアーを含みます。修正サイクルは最大 3 回までです:
+   - 編集した場合: CYCLES を 1 増やします。3 未満なら、新しい REVIEW_START で Step 3〜5 を繰り返します。3 回目に達したら、下の記録を埋めて保存することで `converged:false` と残りの指摘を保存します。収束しなかったことと、カバレッジの不足を報告し、クリーンな要約や 4 回目のパスなしで、この呼び出しを停止します。
+   - 編集していない場合: 下の記録を埋めます。
+2. 繰り返すときは、Step 3〜5 を順番に実行します。Step 4.7 では、この呼び出しの変更のない入力の QA の証拠だけを再利用し、ソース、テスト、契約、コマンド、フィクスチャが変わった後は、影響を受けるプローブを再実行します。プローブを再利用しても、レビューの手順を飛ばすことにはなりません。
+   プローブは、そのエントリポイント、依存関係、契約、リプレイの入力が変わったときに影響を受けたとみなします。不確かな場合は再実行してください。
+3. **完了したアクションを検証する。** 編集がない最後のパスでは、この呼び出しのアクションを現在の指摘と照合します。構造的な同一性と、助言/欠陥の種類で重複排除します。完了した抽出については、`fixed` と元の `evidence_paths`/`helper_target` を保持し、そのメタデータに `sharedLibsFingerprint` を使います。置き換えられたヘルパー、残りの呼び出し元、テストを、削除された抽出前のブロックを必要とせずに検証します。再発した欠陥や未解決の件数は、現在の指摘で決まります。以前の修正が、それらを抑制することはありません。
+4. **スキップした助言を再確認する。** 最終スナップショットの補助的なソースを再読み込みし、判断を確認します。確認できなければ、その履歴を報告し、再利用可能なスキップとはしません。
+   ロガーは、生のバイトが束縛されたスナップショットの blob と等しい、対象となるパスから `snapshot_covered_paths` を計算します(該当がなければ `[]`)。前のサイクル、提供された、または前の記録のカバレッジを持ち越したり、この証明を自分で作ったりしないでください。修正済みの助言は、スキップのカバレッジを必要としません。
 
-### 2. Fill the record
+### 2. 記録を埋める
 
-- `COMPLETED`: true only when the checklist, dispatched specialists and native
-  Step 4.8 adversarial pass finish, and every required Step 4.7 probe passes.
-  Any failed, blocked, inconclusive or not-run required probe means false, as does
-  a failed native review. `/ship` named-risk acceptance cannot complete `/review`.
-- `CONVERGED`: true only for a completed zero-edit pass; `CYCLES` counts editing
-  passes, not findings or reviewer attempts.
-- `STATUS`: `clean` only when completed with zero unresolved non-advisory
-  defects; otherwise `issues_found`. An incomplete review with no defects has
-  zero counts and `completed:false`; explain the gap. Advice never blocks clean
-  status or relaxes completion, convergence, start-token or missing-reviewer rules.
+- `COMPLETED`: チェックリスト、派遣した専門家、ネイティブの Step 4.8 敵対的検証のパスがすべて完了し、必須の Step 4.7 のプローブがすべて通った場合にのみ true。必須のプローブが 1 つでも失敗、ブロック、判定不能、または未実行なら false。ネイティブのレビューが失敗した場合も false。`/ship` の名指しのリスク受容では `/review` を完了させられません。
+- `CONVERGED`: 編集のないパスが完了した場合にのみ true。`CYCLES` は指摘やレビュアーの試行の数ではなく、編集したパスの数を数えます。
+- `STATUS`: 完了していて、解決されていない非助言的な欠陥がゼロの場合にのみ `clean`。それ以外は `issues_found`。欠陥がなくても完了していないレビューは、件数をゼロとし `completed:false` とします。ギャップを説明してください。助言がクリーンな状態をブロックすることはなく、完了、収束、開始トークン、レビュアーの欠落のルールを緩和することもありません。
 
-The required in-host adversarial result controls native completion. Optional outside
-attempts keep their own incomplete records when unavailable and cannot substitute
-for the native result, or vice versa. Step 4.8's structured-review gate still applies.
-An outside review reporting `unverified` or `unavailable` is missing coverage, never a
-pass: report it with its reason.
+必須のホスト内の敵対的検証の結果が、ネイティブの完了を左右します。任意の外部の試行は、利用できない場合でも独自の不完全な記録を保持します。ネイティブの結果の代わりにはできず、その逆も同様です。Step 4.8 の構造化レビューのゲートは引き続き適用されます。
+外部レビューが `unverified` または `unavailable` を報告した場合は、カバレッジの不足であり、合格ではありません。その理由とともに報告してください。
 
-- Use Step 4.6's `specialists` object unchanged, including its empty small-diff map.
-  If this host omits Review Army, use `specialists: {}` without claiming specialist coverage.
-- Build `findings` from Step 5's combined final-pass findings (core, specialist,
-  adversarial, actionable Greptile, verified exploratory QA findings) and invocation actions. Retain `fingerprint`, `severity`
-  (`CRITICAL|INFORMATIONAL`), `action`, and any `advisory`, `evidence_paths`,
-  `helper_target`. Recheck source after fixes. The logger uses `sharedLibsFingerprint`,
-  never supplied/model hashes.
-  Actions: `auto-fixed` (Step 5b), `fixed` (approved **and completed** in Step 5d),
-  `skipped` (explicit Skip in Step 5c). Advice is never `auto-fixed`; pending
-  advice stays in the response, not the record. Exclude prior Step 5.0
-  suppressions; include this invocation's revalidated decisions.
-- Gate findings additionally carry `gate` (the RH tag, e.g. `"RH-15"`), `gate_id`
-  (the tool's hunk identity), `reason` (for `kept`) and one of the actions
-  `kept`, `restored` or `open`. Never store hunk text, test names or commit
-  messages in the record (it is brain-synced). `open` findings count in
-  `issues_found` and in `critical`/`informational` by severity. The logger stamps
-  `actor` from `gstack-session-kind` itself and discards any `actor` you supply;
-  for a non-interactive session it also forces `action: "open"` on every gate
-  finding. Dispositions are per invocation: `/ship`'s own review pass asks again.
+- Step 4.6 の `specialists` オブジェクトを、空の小規模差分のマップを含めてそのまま使います。このホストが Review Army を省略している場合は、専門家のカバレッジを主張せず、`specialists: {}` を使います。
+- `findings` は、Step 5 の最終パスで統合された指摘(コア、専門家、敵対的検証、VALID な Greptile の指摘、検証済みの探索的 QA の指摘)とアクションから作ります。`fingerprint`、`severity`(`CRITICAL|INFORMATIONAL`)、`action`、および任意の `advisory`、`evidence_paths`、`helper_target` を保持します。修正後にソースを再確認します。ロガーは `sharedLibsFingerprint` を使い、提供された/モデルのハッシュは決して使いません。
+  アクション: `auto-fixed`(Step 5b)、`fixed`(Step 5d で承認され**かつ完了**した)、`skipped`(Step 5c で明示的にスキップ)。助言は決して `auto-fixed` にしません。保留中の助言はレスポンスに残し、記録には入れません。Step 5.0 の以前の抑制は除外します。この呼び出しで再検証された判断は含めます。
+- ゲートの指摘には、さらに `gate`(RH タグ。例: `"RH-15"`)、`gate_id`(ツールのハンクの識別子)、`reason`(`kept` の場合)、そして `kept`、`restored`、`open` のいずれかのアクションを付けます。ハンクのテキスト、テスト名、コミットメッセージは決して記録に保存しないでください(記録は brain に同期されます)。`open` の指摘は `issues_found` に含め、重大度に応じて `critical`/`informational` にも数えます。ロガーは `gstack-session-kind` から `actor` を自分で記録し、あなたが与えた `actor` は破棄します。非対話的なセッションでは、すべてのゲートの指摘に `action: "open"` を強制します。判断は呼び出しごとのものです。`/ship` 自身のレビューのパスでは、改めて尋ねられます。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"review","timestamp":"TIMESTAMP","status":"STATUS","issues_found":N,"critical":N,"informational":N,"quality_score":SCORE,"specialists":SPECIALISTS_JSON,"findings":FINDINGS_JSON,"commit":"COMMIT","completed":COMPLETED,"converged":CONVERGED,"cycles":CYCLES}' --finish REVIEW_START
 ```
 
-`TIMESTAMP` is ISO 8601; `COMMIT` is `git rev-parse --short HEAD`.
-`quality_score` is Step 4.6's specialist score (`10.0` when small-diff specialists
-were skipped or this host omits Review Army). This default is not completion evidence;
-unresolved non-advisory core defects still count in `issues_found`,
-`critical`, `informational`. The logger builds trusted `review_binding` from the
-validated captured branch digest, discarding caller bindings. Never invent a binding
-or replace REVIEW_START at log time; finish only the final core token.
+`TIMESTAMP` は ISO 8601 の形式です。`COMMIT` は `git rev-parse --short HEAD` の結果です。
+`quality_score` は Step 4.6 の専門家のスコアです(小規模差分の専門家がスキップされた場合、またはホストが Review Army を省略している場合は `10.0`)。この既定値は完了の証拠ではありません。解決されていない非助言的なコアの欠陥は、引き続き `issues_found`、`critical`、`informational` に数えられます。ロガーは検証済みのキャプチャ済みブランチのダイジェストから、信頼できる `review_binding` を作ります。呼び出し元の binding は破棄されます。`review_binding` を捏造したり、ログを書く時点で REVIEW_START を置き換えたりしないでください。完了させるのは最後のコアのトークンだけです。
 
-### Report the final review
+### 最終レビューの報告
 
-Emit one final report, merging all reviewers rather than concatenating them:
-1. `Pre-Landing Review: N issues (X critical, Y informational)` counts final unresolved
-   non-advisory defects. State INCOMPLETE if `COMPLETED` is false, even when N=0.
-2. Use the checklist's action groups with confidence-tagged finding lines. Keep fixed,
-   skipped and advisory items separate from unresolved defects; retain their dispositions.
-3. Append Step 4.7's single `## Exploratory QA and Verification Results` section with
-   current evidence and coverage gaps. Neither coverage gaps nor advice are defects.
-4. Add one `Gate edits:` line from Step 3.5's `GATE_SUMMARY:` and Step 5c's answers,
-   using exactly one of these shapes:
+すべてのレビュアーを、単に連結するのではなく統合して、最終報告を 1 つ出力します:
+1. `Pre-Landing Review: N issues (X critical, Y informational)`。解決されていない非助言的な欠陥の最終件数を示す。`COMPLETED` が false の場合は、N=0 であっても INCOMPLETE と明記する。
+2. チェックリストのアクショングループを使い、信頼度のタグ付きの指摘の行を示す。修正済み、スキップ、助言の項目は、未解決の欠陥とは分けて、その判断を保持する。
+3. Step 4.7 の単一の `## Exploratory QA and Verification Results` のセクションを、現在の証拠とカバレッジのギャップとともに追記する。カバレッジのギャップも助言も、欠陥ではない。
+4. Step 3.5 の `GATE_SUMMARY:` と Step 5c の回答から、`Gate edits:` の行を 1 つ追加する。次の形式のいずれかを正確に使うこと:
    - `Gate edits: none detected (N listed, M read; patterns: <coverage>; unlisted idioms: <languages_unlisted>)`
    - `Gate edits: N listed, M read, K findings — J kept (reasons below), R restored, O open`
-   - `Gate edits: partial (K of M eligible read)` followed by the findings counts for the hunks that were read
-   - `Gate edits: UNAVAILABLE — <GATE_ERROR line or helper exit>` (missing coverage, never `none detected`)
-   List each kept finding's `gate`, path and `reason` under it.
+   - `Gate edits: partial (K of M eligible read)` に続けて、読めたハンクについての指摘の件数
+   - `Gate edits: UNAVAILABLE — <GATE_ERROR line or helper exit>`(カバレッジの不足を意味する。`none detected` とは決して書かない)
+   維持された各指摘について、その下に `gate`、パス、`reason` を列挙する。
 
 {{LEARNINGS_LOG}}
 
-If the review exits early (for example, no diff against the base branch), do **not** write this entry.
+レビューが早期に終了した場合(例: ベースブランチとの差分がない)は、この記録を**書かないでください**。
 
-## Important Rules
+## 重要なルール
 
-- **Read the FULL diff before commenting.** Do not flag issues already addressed in the diff.
-- **Fix-first, not read-only.** AUTO-FIX items are applied directly, ASK items only after user approval. Never commit, push, or create PRs — that's /ship's job.
-- **Be terse.** One line problem, one line fix. No preamble.
-- **Only flag real problems.** Skip anything that's fine.
-- **Optional extractions stay advisory.** Shared-code opportunities need verified callers and useful reliability or total savings; similarity alone is not a defect. Keep actual defects independently actionable.
-- **Use Greptile reply templates from greptile-triage.md.** Every reply includes evidence. Never post vague replies.
+- **コメントする前に、差分全体を読む。** 差分で既に対処されている問題をフラグしない。
+- **Fix-first であり、読み取り専用ではない。** AUTO-FIX の項目は直接適用し、ASK の項目はユーザーの承認後にのみ適用する。コミット、プッシュ、PR の作成は決してしない — それは /ship の仕事。
+- **簡潔に。** 問題は 1 行、修正も 1 行。前置きは不要。
+- **実際の問題だけをフラグする。** 問題ないものは飛ばす。
+- **任意の抽出は助言に留める。** 共有コードの機会には、検証済みの呼び出し元と、有用な信頼性または全体の節約が必要。類似性だけでは欠陥にならない。実際の欠陥は独立して対応可能に保つ。
+- **Greptile の返信テンプレートは greptile-triage.md のものを使う。** どの返信にも証拠を含める。曖昧な返信は決してしない。

@@ -227,7 +227,7 @@ describe('CEO plan persistence uses the selected state root', () => {
           const document = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', source), 'utf8');
           // Only the directory-preparation commands precede the plan-format fence.
           // Later review-loop Bash blocks are outside this path-resolution contract.
-          const section = document.split('### 0H. Persist CEO Plan')[1]!.split('\n```markdown\n')[0]!;
+          const section = document.split('### 0H. CEO プランの保存')[1]!.split('\n```markdown\n')[0]!;
           // Execute the shipped commands with only their installation paths
           // rebound, as the hermetic skill runtime does. No copied save logic.
           const blocks = [...section.matchAll(/```bash\n([\s\S]*?)```/g)].map(match => match[1]!
@@ -278,7 +278,7 @@ describe('CEO plan persistence uses the selected state root', () => {
             fs.utimesSync(decoy, new Date('2099-01-01'), new Date('2099-01-01'));
           }
           const design = fs.readFileSync(path.join(ROOT, 'design-html', source), 'utf8')
-            .split('## Step 0: Input Detection')[1]!.split('### Case A:')[0]!;
+            .split('## Step 0: 入力の検出')[1]!.split('### Case A:')[0]!;
           const detectionBlocks = [...design.matchAll(/```bash\n([\s\S]*?)```/g)].map(match => match[1]!);
           const ceoBlock = detectionBlocks.findIndex(block => block.includes('_CEO='));
           expect(ceoBlock).toBeGreaterThanOrEqual(0);

@@ -47,8 +47,8 @@ export async function shipSkipWorkflow() {
     if (generated.exitCode !== 0) throw new Error('Ship fixture generation failed');
     const army = read(path.join(rendered, 'ship/sections/review-army.md'));
     const adversarial = read(path.join(rendered, 'ship/sections/adversarial.md'));
-    return section(army, '### Step 9.3:', '### Decide whether to repeat Step 9')
-      + '\n\n' + section(adversarial, '### Finish the adversarial phase', '\n---');
+    return section(army, '### Step 9.3:', '### Step 9 を繰り返すかどうか判断する')
+      + '\n\n' + section(adversarial, '### 敵対的フェーズを終える', '\n---');
   } finally { fs.rmSync(rendered, { recursive: true, force: true }); }
 }
 

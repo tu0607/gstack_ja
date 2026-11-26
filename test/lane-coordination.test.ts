@@ -117,7 +117,7 @@ describe('gstack-evidence verify', () => {
 describe('coordinator contract', () => {
   test('the resolver, the prompt printer and `gstack-autoplan contract` emit the same bytes', () => {
     expect(COORDINATOR_CONTRACT.startsWith(COORDINATOR_CONTRACT_HEADING + '\n')).toBe(true);
-    for (const term of ['merge', 'behavior', 'spend', 'Handoff', 'jam_']) expect(COORDINATOR_CONTRACT).toContain(term);
+    for (const term of ['マージ', '挙動', '支出', '引き継ぎ', 'jam_']) expect(COORDINATOR_CONTRACT).toContain(term);
     const resolver = RESOLVERS.COORDINATOR_CONTRACT;
     expect(typeof resolver).toBe('function');
     expect(resolver({ skillName: 'spec', tmplPath: 'spec/SKILL.md.tmpl', host: 'claude', paths: { skillRoot: '~/.claude/skills/gstack' } } as any)).toBe(COORDINATOR_CONTRACT);
@@ -131,10 +131,10 @@ describe('coordinator contract', () => {
 
   test('field wave CD: a lane runs pregate (and the sealed guard where configured) before done; the handoff carries the gstack trailer and the PREGATE: line after GSTACK_RESULT', () => {
     expect(COORDINATOR_CONTRACT).toContain('`gstack-pregate run --allow-repo-commands`');
-    expect(COORDINATOR_CONTRACT).toContain('`gstack-pregate sealed` before any push or PR creation');
-    expect(COORDINATOR_CONTRACT).toContain('passes; `requires-remote` needs `--stage tests --remote --spend-cap <cap>`.');
-    const handoff = COORDINATOR_CONTRACT.slice(COORDINATOR_CONTRACT.indexOf('Handoff format.'));
-    const order = ['`GSTACK_RESULT` line', '`gstack: ok|fail <rev>` line', '`PREGATE:` line', 'gate summary'].map(t => handoff.indexOf(t));
+    expect(COORDINATOR_CONTRACT).toMatch(/push[^。]*PR[^。]*`gstack-pregate sealed`|`gstack-pregate sealed`[^。]*push[^。]*PR/);
+    expect(COORDINATOR_CONTRACT).toContain('`requires-remote` には `--stage tests --remote --spend-cap <cap>` が必要です。');
+    const handoff = COORDINATOR_CONTRACT.slice(COORDINATOR_CONTRACT.indexOf('引き継ぎの書式。'));
+    const order = ['`GSTACK_RESULT` 行', '`gstack: ok|fail <rev>` 行', '`PREGATE:` 行', 'ゲートの要約'].map(t => handoff.indexOf(t));
     expect(order.every(i => i > 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });

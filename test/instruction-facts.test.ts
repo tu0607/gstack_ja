@@ -55,8 +55,8 @@ describe('CLAUDE.md facts match the code that owns them', () => {
     const value = Number(constant![1]!.replace(/_/g, ''));
     const at = claudeMd.indexOf('`CATALOG_BUDGET_TOKEN_EQUIVALENTS`');
     expect(at, 'CLAUDE.md no longer names `CATALOG_BUDGET_TOKEN_EQUIVALENTS`; fix: name the constant next to its value').toBeGreaterThanOrEqual(0);
-    const stated = /^`CATALOG_BUDGET_TOKEN_EQUIVALENTS` \(([\d,]+) today/.exec(claudeMd.slice(at));
-    expect(stated, `CLAUDE.md:${lineOf(claudeMd, at)} names the constant without "(<value> today"; fix: state ${value.toLocaleString('en-US')}`).not.toBeNull();
+    const stated = /^`CATALOG_BUDGET_TOKEN_EQUIVALENTS`[((]現在 ([\d,]+)/.exec(claudeMd.slice(at));
+    expect(stated, `CLAUDE.md:${lineOf(claudeMd, at)} names the constant without "(現在 <value>"; fix: state ${value.toLocaleString('en-US')}`).not.toBeNull();
     const claimed = Number(stated![1]!.replace(/,/g, ''));
     expect(claimed, `CLAUDE.md:${lineOf(claudeMd, at)} says ${claimed}, test/catalog-budget.test.ts says ${value}; fix: update CLAUDE.md to ${value.toLocaleString('en-US')}`).toBe(value);
   });
@@ -72,7 +72,7 @@ describe('CLAUDE.md facts match the code that owns them', () => {
         expect(at, `CLAUDE.md:${lineOf(claudeMd, at)} states ${spelled}, the ${name} --timeout in package.json; fix: point at package.json's \`${name}\` instead of copying the number`).toBe(-1);
       }
     }
-    const start = claudeMd.indexOf('## Running evals as an agent');
+    const start = claudeMd.indexOf('## エージェントとして評価を実行する');
     expect(start).toBeGreaterThanOrEqual(0);
     const section = claudeMd.slice(start, claudeMd.indexOf('\n## ', start + 1));
     expect(section, 'CLAUDE.md "Running evals as an agent" no longer names scripts/eval-bg.ts, which computes the detach caps; fix: name it in that section').toContain('scripts/eval-bg.ts');
@@ -90,7 +90,7 @@ describe('CLAUDE.md facts match the code that owns them', () => {
 const SHIP_STEP_REFERENCES: Array<{ file: string; step: string; title?: string; historical?: string }> = [
   { file: 'document-release/sections/release-body.md.tmpl', step: '14', title: 'TODOS.md' },
 ];
-const SHIP_REFERENCE = /\/ship`?(?:'s)? Step (\d+(?:\.\d+)?)\b/g;
+const SHIP_REFERENCE = /\/ship`?(?:'s| の)? Step (\d+(?:\.\d+)?)\b/g;
 
 function shipSteps(): Map<string, string> {
   const steps = new Map<string, string>();
@@ -149,7 +149,7 @@ describe('/ship step references resolve to the step they mean', () => {
 
   test('negative control: moving a reference to another existing /ship step fails', () => {
     const file = 'document-release/sections/release-body.md.tmpl';
-    const moved = sources[file]!.replace("`/ship`'s Step 14.", "`/ship`'s Step 12.");
+    const moved = sources[file]!.replace('`/ship` の Step 14', '`/ship` の Step 12');
     expect(moved).not.toBe(sources[file]);
     expect(shipSteps().has('12')).toBe(true);
     const problems = shipReferenceProblems({ ...sources, [file]: moved });
@@ -170,16 +170,16 @@ const DESCRIPTION = 'user-facing description of where the data lives; no command
 const SOURCE_COMMENT = 'source comment, not rendered into any skill';
 
 const STATE_ROOT_ALLOWLIST: Array<{ file: string; match: string; reason: string }> = [
-  { file: 'autoplan/SKILL.md.tmpl', match: 'test plan on disk at ~/.gstack/projects/$SLUG/', reason: DESCRIPTION },
-  { file: 'careful/SKILL.md.tmpl', match: '`~/.gstack/projects/<slug>/careful-patterns.txt` (per-project)', reason: DESCRIPTION },
-  { file: 'design-shotgun/SKILL.md.tmpl', match: 'v1 schema at `~/.gstack/projects/$SLUG/taste-profile.json`', reason: DESCRIPTION },
-  { file: 'land-and-deploy/sections/readiness-gate.md.tmpl', match: 'eval store (`~/.gstack/projects/<slug>/evals/`', reason: readinessEvalReason },
+  { file: 'autoplan/SKILL.md.tmpl', match: '~/.gstack/projects/$SLUG/ にあるディスク上のテスト計画', reason: DESCRIPTION },
+  { file: 'careful/SKILL.md.tmpl', match: '`~/.gstack/projects/<slug>/careful-patterns.txt`(プロジェクトごと)', reason: DESCRIPTION },
+  { file: 'design-shotgun/SKILL.md.tmpl', match: '`~/.gstack/projects/$SLUG/taste-profile.json` の v1 スキーマ', reason: DESCRIPTION },
+  { file: 'land-and-deploy/sections/readiness-gate.md.tmpl', match: '評価ストア(`~/.gstack/projects/<slug>/evals/`', reason: readinessEvalReason },
   { file: 'land-and-deploy/sections/readiness-gate.md.tmpl', match: 'EVAL_DIR=~/.gstack/projects/$SLUG/evals', reason: readinessEvalReason },
-  { file: 'office-hours/SKILL.md.tmpl', match: "see each other's design docs in `~/.gstack/projects/`", reason: DESCRIPTION },
-  { file: 'office-hours/sections/design-and-handoff.md.tmpl', match: 'The design doc at `~/.gstack/projects/` is automatically discoverable', reason: DESCRIPTION },
-  { file: 'plan-ceo-review/sections/review-sections.md.tmpl', match: 'Keep in `~/.gstack/projects/` only (local, personal reference)', reason: DESCRIPTION },
-  { file: 'plan-tune/SKILL.md.tmpl', match: 'Logs stay local (`~/.gstack/projects/<slug>/question-log.jsonl`)', reason: DESCRIPTION },
-  { file: 'plan-tune/SKILL.md.tmpl', match: '`~/.gstack/projects/<slug>/question-log.jsonl` — nothing leaves your', reason: DESCRIPTION },
+  { file: 'office-hours/SKILL.md.tmpl', match: '`~/.gstack/projects/` にある互いの設計ドキュメントを見ることができます', reason: DESCRIPTION },
+  { file: 'office-hours/sections/design-and-handoff.md.tmpl', match: '`~/.gstack/projects/` にある設計ドキュメントは、後続のスキルから自動的に発見できます', reason: DESCRIPTION },
+  { file: 'plan-ceo-review/sections/review-sections.md.tmpl', match: '`~/.gstack/projects/` にのみ保持(ローカルの個人用の参照)', reason: DESCRIPTION },
+  { file: 'plan-tune/SKILL.md.tmpl', match: 'ログはローカルに保存されます(`~/.gstack/projects/<slug>/question-log.jsonl`)', reason: DESCRIPTION },
+  { file: 'plan-tune/SKILL.md.tmpl', match: '`~/.gstack/projects/<slug>/question-log.jsonl` にローカルで記録されます', reason: DESCRIPTION },
   { file: 'scripts/resolvers/learnings.ts', match: '* Learnings are stored per-project at ~/.gstack/projects/{slug}/learnings.jsonl', reason: SOURCE_COMMENT },
   { file: 'scripts/resolvers/preamble.ts', match: 'local JSONL append to ~/.gstack/analytics/ (inline, inspectable)', reason: SOURCE_COMMENT },
 ];

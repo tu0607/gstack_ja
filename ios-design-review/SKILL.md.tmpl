@@ -3,19 +3,18 @@ name: ios-design-review
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Visual design audit for iOS apps on real hardware. Connects to a real
-  iPhone via the same StateServer as /ios-qa, screenshots every screen,
-  evaluates against Apple HIG, DESIGN.md, and design best practices. Scores
-  each dimension 0-10 with "what would make it a 10" framing — mirrors
-  /plan-design-review for browser. For plan-stage design review (before
-  implementation), use /plan-design-review. For live web visual audits, use
-  /design-review.
-  Use when asked to "review the iOS design", "audit the iPhone app's
-  visuals", or "design QA the iOS app". (gstack)
+  実機上の iOS アプリに対するビジュアルデザイン監査です。/ios-qa と同じ StateServer を使って
+  実機の iPhone に接続し、すべての画面をスクリーンショットで撮り、Apple HIG、DESIGN.md、
+  デザインのベストプラクティスに照らして評価します。各項目を 0〜10 で採点し、
+  「何があれば 10 になるか」という観点で示します。ブラウザ版の /plan-design-review に相当します。
+  実装前の計画段階のデザインレビューには /plan-design-review を、ライブの Web ビジュアル監査には
+  /design-review を使ってください。
+  「iOS のデザインをレビューして」「iPhone アプリの見た目を監査して」「iOS アプリのデザイン QA をして」
+  と依頼されたときに使います。(gstack)
 voice-triggers:
-  - "review the iOS design"
-  - "audit the iPhone app's visuals"
-  - "design QA the iPhone app"
+  - "iOS のデザインをレビュー"
+  - "iPhone アプリの見た目を監査"
+  - "iOS アプリのデザイン QA"
 allowed-tools:
   - Bash
   - Read
@@ -30,82 +29,54 @@ triggers:
 
 {{PREAMBLE}}
 
-# iOS Design Review
+# iOS デザインレビュー
 
-Designer's-eye QA on a real iOS device. Finds visual inconsistency, spacing
-issues, hierarchy problems, AI-slop patterns, and accessibility gaps. Rates
-each dimension 0-10. Mirrors `/plan-design-review`'s scoring rubric ported
-to iOS idioms.
+実機の iOS デバイス上で、デザイナーの目線で QA を行います。視覚的な不整合、余白の問題、階層の問題、AI スロップ的なパターン、アクセシビリティの不足を検出します。各項目を 0〜10 で評価します。評価基準は `/plan-design-review` の採点ルーブリックを iOS の作法に移植したものです。
 
-## Connection
+## 接続
 
-Uses the running `gstack-ios-qa-daemon`. If no daemon is running, spawn one
-via the same flow as `/ios-qa` (Phase 0-2). Read-only by default — no
-mutating calls.
+実行中の `gstack-ios-qa-daemon` を使います。デーモンが動いていない場合は、`/ios-qa` と同じフロー(フェーズ 0〜2)で起動します。デフォルトは読み取り専用で、状態を変更する呼び出しは行いません。
 
-## Dimensions + scoring
+## 項目と採点
 
-For each screen in the app, score 0-10 and explain what would push it to 10:
+アプリの各画面について、0〜10 で採点し、何があれば 10 になるかを説明します:
 
-1. **Typography hierarchy.** Display vs body vs caption sizes consistent
-   with Apple HIG. SF Pro at correct dynamic-type scale. Line-height matches
-   font size. No 12pt body anywhere.
-2. **Spacing rhythm.** 4pt or 8pt grid used consistently. No magic
-   17/23/31pt paddings. Safe-area insets respected.
-3. **Color hierarchy.** Primary action highest contrast; secondary muted;
-   destructive distinct. Dark mode renders correctly. Contrast ratios meet
-   WCAG AA for body text (4.5:1) and large text (3:1).
-4. **Touch targets.** Every interactive element >= 44x44pt. No "tappable
-   text" smaller than 24pt.
-5. **Loading + empty + error states.** Each present and intentional. No
-   blank screens during async work. Empty states explain what to do next.
-6. **Accessibility.** VoiceOver labels on every interactive element.
-   Dynamic Type cap at XXL doesn't break layouts. Reduce Motion respected.
-   Color-blindness palette tested (deuteranopia is most common).
-7. **Animation discipline.** No more than 2 simultaneous animations.
-   Duration 200-300ms for UI feedback. Spring damping correct (not bouncy
-   for serious flows).
-8. **iOS idiom alignment.** Uses native components (`NavigationStack`,
-   `List`, `Form`, system sheets) where appropriate. No re-invented
-   navigation. No web-style hamburger menus on phone.
-9. **Information density.** Per-screen content fits without horizontal
-   scroll. Long screens have section anchors. Lists use real iOS list
-   patterns (swipe-to-delete, contextual menus).
-10. **AI-slop check.** Generic stock layouts, "lorem ipsum" data left in,
-    cargo-cult Material Design imported from Android, gradients that smell
-    AI-generated.
+1. **タイポグラフィの階層。** ディスプレイ、本文、キャプションのサイズが Apple HIG に沿って一貫していること。SF Pro が正しい Dynamic Type のスケールで使われていること。行の高さがフォントサイズに合っていること。本文に 12pt のものがないこと。
+2. **余白のリズム。** 4pt または 8pt のグリッドが一貫して使われていること。17/23/31pt のような中途半端な余白がないこと。セーフエリアの inset が守られていること。
+3. **色の階層。** 主要なアクションのコントラストが最も高く、副次的なものは抑えられ、破壊的な操作は区別できること。ダークモードが正しく描画されること。本文のコントラスト比は WCAG AA(4.5:1)を、大きな文字は(3:1)を満たすこと。
+4. **タッチターゲット。** すべての操作可能な要素が 44x44pt 以上であること。24pt より小さい「タップできるテキスト」がないこと。
+5. **読み込み中・空・エラーの状態。** それぞれが存在し、意図的に設計されていること。非同期処理中に画面が真っ白にならないこと。空の状態では次に何をすればよいかを説明していること。
+6. **アクセシビリティ。** 操作可能なすべての要素に VoiceOver のラベルがあること。Dynamic Type を XXL で止めてもレイアウトが壊れないこと。Reduce Motion が尊重されていること。色覚への配慮(最も多い deuteranopia を含む)のパレットがテストされていること。
+7. **アニメーションの規律。** 同時に動くアニメーションは 2 つまでであること。UI のフィードバックは 200〜300ms であること。真剣な操作の流れでは、バネの減衰が適切で跳ねすぎないこと。
+8. **iOS の作法との整合。** 適切な箇所でネイティブのコンポーネント(`NavigationStack`、`List`、`Form`、システムのシート)を使っていること。ナビゲーションを独自に作り直していないこと。スマートフォンで Web 風のハンバーガーメニューを使っていないこと。
+9. **情報密度。** 各画面の内容が横スクロールなしで収まっていること。長い画面にはセクションのアンカーがあること。リストは実際の iOS のリストのパターン(スワイプで削除、コンテキストメニュー)を使っていること。
+10. **AI スロップのチェック。** 汎用的なストックレイアウト、残された "lorem ipsum" のデータ、Android から持ち込まれた、形だけ真似した Material Design、AI が生成したように見えるグラデーションがないこと。
 
-## Loop
+## ループ
 
-1. `POST /session/acquire` with capability `observe` (read-only).
-2. For each major screen (driven from a screen list the user provides, or
-   auto-discovered via the accessibility tree):
+1. 権限 `observe`(読み取り専用)で `POST /session/acquire` を呼びます。
+2. 主要な各画面について(ユーザーが提供する画面リストから、またはアクセシビリティツリーから自動検出して)次を行います:
    - `GET /screenshot`
    - `GET /elements`
-   - Apply the 10-dimension rubric.
-   - Record findings.
-3. Produce a markdown report with screenshots, scores per screen, and a
-   "biggest leverage fix" suggestion per dimension.
-4. Use AskUserQuestion for any score < 7 — present the issue with
-   recommended fix + tradeoff so the user can decide whether to address.
+   - 10 項目のルーブリックを適用する。
+   - 指摘事項を記録する。
+3. スクリーンショット、画面ごとのスコア、項目ごとの「最も効果の大きい修正」の提案を含む Markdown レポートを作成します。
+4. スコアが 7 未満の項目は AskUserQuestion を使います。推奨される修正とトレードオフを提示し、ユーザーが対応するかどうかを決められるようにします。
 
-## Output
+## 出力
 
-Write a markdown report to
-`$GSTACK_STATE_ROOT/projects/<slug>/ios-design-review-<date>.md`, using the
-`PROJECT_DIR` this block prints:
+Markdown レポートを `$GSTACK_STATE_ROOT/projects/<slug>/ios-design-review-<date>.md` に書き出します。`PROJECT_DIR` は次のブロックが出力する値を使います:
 
 ```bash
 {{SLUG_SETUP}}
 ```
 
-Include the screenshots inline. The CEO/eng review skills can reference this
-report when planning UI changes.
+スクリーンショットはインラインで含めてください。CEO/エンジニアリングのレビュー系スキルは、UI の変更を計画する際にこのレポートを参照できます。
 
-## Failure modes
+## 失敗パターン
 
-| Symptom | Action |
+| 症状 | 対処 |
 |---|---|
-| `403 capability_insufficient` from /screenshot | Daemon is in tailnet mode and token is below `observe` tier — owner must mint with `--capability observe` |
-| Screenshot is black/blank | App may be in foreground but not rendering; AskUserQuestion to confirm the app is in the expected state |
-| 10 screens, but ground-truth screen list said 12 | AskUserQuestion: were 2 hidden behind state we haven't triggered? |
+| /screenshot が `403 capability_insufficient` を返す | デーモンが tailnet モードで、トークンが `observe` の階層を下回っている。オーナーが `--capability observe` を付けて発行し直す必要がある |
+| スクリーンショットが真っ黒または真っ白 | アプリがフォアグラウンドにあるが描画されていない可能性がある。AskUserQuestion でアプリが想定の状態にあるか確認する |
+| 10 画面見つかったが、正解の画面リストでは 12 画面だった | AskUserQuestion: 残り 2 画面は、まだ起動していない状態の裏に隠れていないか確認する |

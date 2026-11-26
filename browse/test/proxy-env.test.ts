@@ -180,7 +180,7 @@ describe('proxyMismatchLines', () => {
 describe('BROWSER.md documents the proxy messages', () => {
   test('the anchor every #915 message cites exists and covers the precedence and both messages', async () => {
     const doc = await Bun.file(new URL('../../BROWSER.md', import.meta.url)).text();
-    const section = doc.slice(doc.indexOf('\n### Proxy from environment\n'));
+    const section = doc.slice(doc.indexOf('<a id="proxy-from-environment"></a>'));
     expect(section.length).toBeLessThan(doc.length);
     for (const needle of ['BROWSE_PROXY_URL=direct', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY', 'is not a proxy URL browse can use', 'different proxy settings', 'browse stop']) {
       expect(section).toContain(needle);

@@ -1,18 +1,10 @@
-# How to put diagrams in your documents (and export beyond PDF)
+# ドキュメントに図を入れる方法(PDF を超えたエクスポート)
 
-This guide covers the diagram + multi-format engine that ships with
-`/make-pdf` and `/diagram` (v1.58.0.0+). Everything here runs fully offline:
-the mermaid and excalidraw runtimes are vendored in `lib/diagram-render/` and
-loaded into a browser by `bin/gstack-render.ts`, which serves the bundle from
-your machine on loopback for the length of one render. No CDN, no network at
-render time. The browser is your Aside browser when it is open (macOS 15+);
-when it is not — Linux, Windows, or the app closed — the same bundle renders in
-gstack's own bundled browser, so it renders offline on every platform (PNGs
-come out at 1x on the fallback, 2x through Aside).
+このガイドでは、`/make-pdf` と `/diagram` に付属する図とマルチフォーマットのエンジンを扱います(v1.58.0.0 以降)。ここで説明することはすべてオフラインで動作します。mermaid と excalidraw のランタイムは `lib/diagram-render/` にベンダリングされ、`bin/gstack-render.ts` がブラウザに読み込みます。このスクリプトは、1回のレンダリングの間だけ、バンドルをループバック上でマシンから配信します。CDN もレンダリング時のネットワークも使いません。ブラウザは、Aside が開いているとき(macOS 15 以降)は Aside のブラウザです。開いていない場合(Linux、Windows、または Aside を閉じている場合)は、同じバンドルが gstack 独自のバンドル済みブラウザでレンダリングされるので、どのプラットフォームでもオフラインで描画できます(PNG は、フォールバック時は 1x、Aside 経由では 2x で出力されます)。
 
-## Render a mermaid diagram inside a PDF
+## PDF の中に mermaid の図を描画する
 
-Put a fence in your markdown. That's it.
+Markdown にフェンスを置くだけです。それで完了です。
 
 ````markdown
 ```mermaid title="Render pipeline"
@@ -27,43 +19,28 @@ graph LR
 make-pdf generate doc.md out.pdf
 ```
 
-The fence renders as a **vector** diagram (crisp at any zoom, selectable
-text), with the `title` as caption and accessibility label. The raw mermaid
-source is preserved base64-encoded in a `data-gstack-source` attribute on the
-figure for debugging and round-trips (an HTML comment would corrupt mermaid's
-`-->` arrows). One catch: the fence must start at **column 0** — indented
-fences (inside lists, for example) stay plain code blocks by design.
+このフェンスは**ベクター**の図として描画されます(どの倍率でもくっきりしていて、テキストは選択可能です)。`title` は図のキャプションとアクセシビリティのラベルになります。mermaid の生のソースは、デバッグや往復変換のために、図の `data-gstack-source` 属性に base64 エンコードされて保持されます(HTML コメントにすると、mermaid の `-->` の矢印が壊れてしまうため、そうしていません)。注意点が1つあります。フェンスは**列 0**から始まる必要があります。インデントされたフェンス(たとえばリストの中)は、設計どおり通常のコードブロックのままになります。
 
-**Fence options** (space-separated in the info string):
+**フェンスのオプション**(情報文字列の中でスペース区切り):
 
-| Option | Effect |
+| オプション | 効果 |
 |---|---|
-| `title="..."` | caption below the diagram + `aria-label` |
-| `render=false` | keep the fence as a plain code block |
-| `page=landscape` | force this diagram onto its own landscape page |
-| `page=portrait` | veto auto-landscape for this diagram |
+| `title="..."` | 図の下のキャプション + `aria-label` |
+| `render=false` | フェンスを通常のコードブロックのまま残す |
+| `page=landscape` | この図を、横向きの専用ページに強制的に配置する |
+| `page=portrait` | この図について、横向きの自動配置を拒否する |
 
-A fence that fails to parse renders as a loud red diagnostic block with the
-parse error and source excerpt — your document still builds, and the error
-is impossible to miss.
+解析に失敗したフェンスは、解析エラーとソースの抜粋を含む、目立つ赤い診断ブロックとして描画されます。ドキュメント全体はビルドされ続け、エラーは見逃しようがありません。
 
-` ```excalidraw ` fences work the same way; the body is a full `.excalidraw`
-scene file (what excalidraw.com saves with File → Save).
+` ```excalidraw ` のフェンスも同じように動作します。本文は完全な `.excalidraw` のシーンファイルです(excalidraw.com で File → Save したものと同じ)。
 
-## Control image size and orientation
+## 画像のサイズと向きを制御する
 
-Local images are inlined automatically (relative paths resolve against the
-markdown file) and **never truncate** — every image caps at the content box.
-Oversized photos downscale to print resolution (300dpi at the content width),
-so a phone photo doesn't bloat the document.
+ローカルの画像は自動的にインライン化されます(相対パスは Markdown ファイルを基準に解決されます)。また、画像が**切り詰められることは決してありません**。どの画像もコンテンツボックスの幅で上限が決まります。大きすぎる写真は、印刷解像度(コンテンツ幅で 300dpi)にダウンスケールされるので、スマートフォンの写真でドキュメントが肥大化することはありません。
 
-Image safety defaults: remote (http/https) images are **blocked with a
-visible placeholder** unless you pass `--allow-network`. An image path that
-resolves outside the markdown's directory (even through a symlink) still
-inlines but warns loudly. Files over 64MB and non-regular files (fifos,
-devices) degrade to a placeholder instead of hanging the render.
+画像の安全性のデフォルト: リモート(http/https)の画像は、`--allow-network` を渡さない限り、目に見えるプレースホルダーに**置き換えられてブロック**されます。Markdown のディレクトリの外に解決される画像パス(シンボリックリンク経由でも)は、インライン化はされますが、大きな警告が出ます。64MB を超えるファイルや、通常のファイルでないもの(FIFO、デバイス)は、描画をハングさせる代わりに、プレースホルダーに置き換えられます。
 
-Per-image directives go immediately after the image:
+画像ごとのディレクティブは、画像の直後に置きます。
 
 ```markdown
 ![quarterly chart](chart.png){width=full}
@@ -72,80 +49,51 @@ Per-image directives go immediately after the image:
 ![wide screenshot](shot.png){page=portrait}
 ```
 
-`width=` accepts `full`, a percentage (`50%`), or a dimension (`3in`, `8cm`,
-`200px`). `page=` forces or vetoes a dedicated landscape page.
+`width=` には、`full`、パーセンテージ(`50%`)、寸法(`3in`、`8cm`、`200px`)を指定できます。`page=` は、横向きの専用ページを強制または拒否します。
 
-**Auto-landscape:** a wide, small-text, diagram-like image gets its own
-vertically-centered landscape page automatically — inside an otherwise
-portrait document. The heuristic is deliberately conservative (aspect ratio
-≥ 1.8, intrinsic width over ~2.5x the content box, and a diagram-ish alt
-word: diagram / architecture / flowchart / chart / graph). If it doesn't
-fire when you want it, add `{page=landscape}`; if it fires when you don't,
-add `{page=portrait}`.
+**横向きの自動配置:** 横長で、文字が小さく、図らしい画像には、自動的に縦方向の中央に配置された横向きの専用ページが与えられます。縦向きのドキュメントの中でも行われます。ヒューリスティックは意図的に保守的です(アスペクト比 ≥ 1.8、固有の幅がコンテンツボックスの約 2.5 倍を超える、そして図らしい alt の語: diagram / architecture / flowchart / chart / graph のいずれか)。思った通りに発動しない場合は `{page=landscape}` を追加し、発動してほしくない場合は `{page=portrait}` を追加してください。
 
-## Export single-file HTML or Word
+## 単一ファイルの HTML または Word にエクスポートする
 
 ```bash
 make-pdf generate doc.md out.html --to html
 make-pdf generate doc.md out.docx --to docx
 ```
 
-- **`--to html`** writes ONE self-contained file: diagrams as inline SVG,
-  images as data URIs, zero network references (under the default offline
-  posture — `--allow-network` deliberately keeps remote image tags live),
-  plus a screen-reading layer (centered measure, padding). Email it, attach
-  it, open it anywhere.
-- **`--to docx`** is a content-fidelity export: headings, tables, code
-  blocks, lists, and diagrams (embedded as 300dpi PNGs with alt text) carry
-  over. Page-perfect layout does not — that's Word's job once it's open.
+- **`--to html`** は、1つの自己完結したファイルを書き出します。図はインラインの SVG、画像はデータ URI になり、ネットワークへの参照はゼロです(デフォルトのオフラインの方針の下では。`--allow-network` を指定すると、リモートの画像タグは意図的に有効のままになります)。さらに、画面で読むための層(中央揃えの行長、パディング)も含みます。メールに添付したり、どこでも開けたりします。
+- **`--to docx`** は、内容の忠実度を重視したエクスポートです。見出し、表、コードブロック、リスト、図(300dpi の PNG として、代替テキスト付きで埋め込まれる)が引き継がれます。ページ単位の完璧なレイアウトは保証されません。開いた後のレイアウトは Word の仕事です。
 
-Heads-up: `--to` is the output format. `--format` is an old alias for
-`--page-size` — different thing.
+注意: `--to` は出力形式です。`--format` は `--page-size` の古い別名で、別の意味です。
 
-## Generate a diagram from English
+## 英語の説明から図を生成する
 
 ```
 /diagram make a flowchart of our deploy pipeline: build, test, canary, promote
 ```
 
-The skill authors mermaid and emits a **triplet**:
+スキルは mermaid を書き、**3点セット**を出力します。
 
-| File | Use it for |
+| ファイル | 用途 |
 |---|---|
-| `<slug>.mmd` | the source of truth — edit and re-render |
-| `<slug>.excalidraw` | open at excalidraw.com (File → Open), move boxes, hand back |
-| `<slug>.svg` / `<slug>.png` | docs, issues, READMEs, chat |
+| `<slug>.mmd` | 正となるソース。編集して再描画する |
+| `<slug>.excalidraw` | excalidraw.com で開く(File → Open)。箱を動かして、また渡す |
+| `<slug>.svg` / `<slug>.png` | ドキュメント、issue、README、チャット用 |
 
-Flowcharts convert to fully editable excalidraw scenes. Other mermaid types
-(sequence, state, gantt) render to SVG/PNG fine but skip the `.excalidraw`
-artifact — an upstream converter limitation the skill will tell you about.
+フローチャートは、完全に編集可能な excalidraw のシーンに変換されます。ほかの mermaid の種類(シーケンス、状態、ガント)は SVG/PNG にきちんと描画されますが、`.excalidraw` の成果物は省かれます。これは上流のコンバータの制限で、スキルがその旨を伝えます。
 
-For documents, embed the `.mmd` source in your markdown instead of the PNG —
-`/make-pdf` renders it as vector and the diagram stays editable forever.
+ドキュメントでは、PNG ではなく `.mmd` のソースを Markdown に埋め込んでください。`/make-pdf` がそれをベクターとして描画するので、図はずっと編集可能なままです。
 
-## CI: fail loud instead of shipping placeholders
+## CI: プレースホルダーを出荷する代わりに大きく失敗させる
 
 ```bash
 make-pdf generate docs.md --strict
 ```
 
-Missing local images, blocked remote images, out-of-tree image reads (a path
-or symlink resolving outside the markdown's directory), oversized files
-(>64MB), and non-regular files all exit non-zero instead of degrading to a
-warning or placeholder — for docs pipelines where a broken image should
-break the build.
+ローカルの画像の欠落、ブロックされたリモート画像、Markdown のディレクトリの外へ出る画像の読み取り(パスやシンボリックリンクが外に解決される場合)、大きすぎるファイル(>64MB)、通常のファイルでないものは、いずれも警告やプレースホルダーに落とす代わりに、ゼロ以外の終了コードで終了します。壊れた画像がビルドを壊すべきドキュメントのパイプライン向けです。
 
-## Troubleshooting
+## トラブルシューティング
 
-- **"diagram-render bundle not found"** → run `bun run build:diagram-render`
-  in the gstack repo, or re-run `./setup`.
-- **Diagram renders but looks squished inline** → it's wide; give it room
-  with `page=landscape` on the fence.
-- **A two-row "racetrack" loop instead of one long line:** mermaid subgraph
-  trick — top-level `flowchart TB`, two subgraphs with `direction LR` and
-  `direction RL`, connect the *subgraphs* (node-level edges across subgraph
-  boundaries silently disable `direction`).
-- **"[remote image blocked]" placeholder** → remote images are never fetched
-  by default (offline posture); the tag is replaced with a visible
-  placeholder so the browser can't fetch it at print time either. Pass
-  `--allow-network` to opt in.
+- **「diagram-render bundle not found」** → gstack のリポジトリで `bun run build:diagram-render` を実行するか、`./setup` を再実行してください。
+- **図は描画されるが、インラインで潰れて見える** → 横長なので、フェンスに `page=landscape` を指定して余裕を持たせてください。
+- **1本の長い線ではなく、2行の「racetrack」のループになる** → mermaid のサブグラフの小技: トップレベルは `flowchart TB`、2つのサブグラフに `direction LR` と `direction RL` を設定し、*サブグラフ同士*を接続します(サブグラフの境界をまたぐノード同士の辺は、`direction` を黙って無効にします)。
+- **「[remote image blocked]」のプレースホルダー** → リモートの画像は、デフォルトでは決して取得されません(オフラインの方針)。タグは目に見えるプレースホルダーに置き換えられるので、印刷時にもブラウザが取得できません。使いたい場合は `--allow-network` を指定してください。

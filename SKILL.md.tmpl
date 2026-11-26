@@ -3,10 +3,10 @@ name: gstack
 preamble-tier: 1
 version: 1.2.0
 description: |
-  Router for the gstack skill suite. Sends any gstack request to the right skill
-  (planning, review, QA, shipping, debugging, docs, security, design). Routes QA by
-  intent and browser interaction to /browse. Use when you invoke gstack without a specific
-  skill, or ask "which gstack skill fits this?". (gstack)
+  gstack スキルスイートのルーターです。gstack へのあらゆるリクエストを適切なスキルに振り分けます
+  (計画、レビュー、QA、出荷、デバッグ、ドキュメント、セキュリティ、デザイン)。QA は意図に応じて振り分け、
+  ブラウザ操作は /browse に回します。スキル名を指定せずに gstack を呼び出したとき、または
+  「どの gstack スキルが合うか?」と尋ねられたときに使用します。(gstack)
 allowed-tools:
   - Bash
   - Read
@@ -20,92 +20,88 @@ triggers:
 
 {{PREAMBLE}}
 
-## Route first
+## 最初にルーティング
 
-This is the gstack router. Its one job is to send the request to the right skill.
+これは gstack のルーターです。その唯一の役割は、リクエストを適切なスキルに送ることです。
 
-1. If the request is to test behavior, find bugs, QA or dogfood software → invoke `/qa`,
-   or `/qa-only` when the user wants reporting without fixes. These skills select browser,
-   API, CLI, job, worker or webhook surfaces before loading their testing instructions.
-   An API URL does not imply browser testing. An explicit skill request keeps its authority.
-2. If the request is browser interaction, screenshots, or inspecting a page
-   (open a site, take a screenshot, inspect a flow visually) → invoke `/browse`.
-   Every gstack browser skill (`/browse`, `/qa`, `/qa-only`, `/design-review`, `/canary`,
-   `/benchmark`, `/scrape`) drives the Aside browser first — the user's real browser with
-   their real logged-in sessions — and falls back to gstack's own browser when Aside is not
-   installed or not running. Route "open the browser" / "import cookies" requests to the
-   fallback-browser skills below only when the user is clearly on that path (Linux,
-   Windows, or Aside closed); on Aside there is nothing to open or import.
-3. Otherwise, route by the rules below. If nothing matches, answer directly.
+1. リクエストが、動作のテスト、バグの発見、ソフトウェアの QA やドッグフーディングである場合 → `/qa` を呼び出します。
+   レポートだけを求めて修正は不要な場合は `/qa-only` を呼び出します。これらのスキルは、テスト手順を読み込む前に
+   ブラウザ、API、CLI、ジョブ、ワーカー、Webhook のどの対象かを判断します。
+   API の URL だからといって、ブラウザでのテストが必要という意味にはなりません。スキルを明示的に指定された場合は、その指定を優先します。
+2. リクエストが、ブラウザ操作、スクリーンショット、ページの確認(サイトを開く、スクリーンショットを撮る、
+   フローを目視で確認する)である場合 → `/browse` を呼び出します。
+   gstack のブラウザ系スキルはすべて (`/browse`、`/qa`、`/qa-only`、`/design-review`、`/canary`、
+   `/benchmark`、`/scrape`)、まず Aside ブラウザを使います。Aside ブラウザはユーザーの実際のブラウザで、
+   ログイン済みの実際のセッションを使えます。Aside がインストールされていないか起動していない場合は、gstack 独自のブラウザにフォールバックします。
+   「ブラウザを開く」「Cookie をインポートする」というリクエストは、ユーザーが明らかにその経路にいる場合
+   (Linux、Windows、または Aside が閉じている場合)にのみ、下記のフォールバックブラウザ用スキルに振り分けます。
+   Aside を使っている場合は、開くものも取り込むものもないためです。
+3. それ以外の場合は、下記のルールに従って振り分けます。どれにも該当しない場合は、直接回答します。
 
-Best-effort, record which way you routed (never block on it). Set `ROUTE_OUTCOME` to
-`browse` (sent to /browse), `routed` (sent to another skill), or `direct` (answered
-directly, no skill matched), and replace `SESSION_ID` with the value the skill-start
-output echoed:
+ベストエフォートで、どの経路に振り分けたかを記録します(記録に失敗しても処理は止めません)。`ROUTE_OUTCOME` を
+`browse` (/browse に送った場合)、`routed` (他のスキルに送った場合)、`direct` (どのスキルにも該当せず直接回答した場合)のいずれかに設定し、
+`SESSION_ID` をスキル開始時の出力に表示された値に置き換えます:
 ```bash
 ~/.claude/skills/gstack/bin/gstack-telemetry-log --event-type route --skill gstack --outcome ROUTE_OUTCOME --session-id "SESSION_ID" 2>/dev/null || true
 ```
 
-If `PROACTIVE` is `false`: do not proactively invoke or suggest other gstack skills during
-this session, including by asking whether to run one ("want me to run /X?"). Only run
-skills the user explicitly invokes. This preference persists across sessions via
-`gstack-config`.
+`PROACTIVE` が `false` の場合: このセッション中は、他の gstack スキルを自分から呼び出したり提案したりしないでください。
+「/X を実行しましょうか?」と尋ねることも含みます。ユーザーが明示的に呼び出したスキルだけを実行します。
+この設定は `gstack-config` を通じてセッションをまたいで保持されます。
 
-If `PROACTIVE` is `true` (default): **invoke the Skill tool** when the user's request
-matches a skill's purpose. Do NOT answer directly when a skill exists for the task.
-Use the Skill tool to invoke it. The skill has specialized workflows, checklists, and
-quality gates that produce better results than answering inline.
+`PROACTIVE` が `true` の場合(デフォルト): ユーザーのリクエストがスキルの目的に合致したら、**Skill ツールを呼び出してください**。
+そのタスク用のスキルが存在する場合は、直接回答しないでください。Skill ツールを使って呼び出します。
+スキルには専用のワークフロー、チェックリスト、品質ゲートがあり、その場の回答より良い結果を出せます。
 
-**Routing rules — when you see these patterns, INVOKE the skill via the Skill tool:**
-- User describes a new idea, asks "is this worth building", brainstorms, pitches a concept → invoke `/office-hours`
-- User asks to spec something out, file an issue, write up a ticket, "turn this into a GitHub issue", "backlog item" → invoke `/spec`
-- User asks about strategy, scope, ambition, "think bigger", "what should we build" → invoke `/plan-ceo-review`
-- User asks to review architecture, lock in the plan, "does this design make sense" → invoke `/plan-eng-review`
-- User asks about design system, brand, visual identity, "how should this look" → invoke `/design-consultation`
-- User asks to review design of a plan → invoke `/plan-design-review`
-- User asks about developer experience of a plan, API/CLI/SDK design → invoke `/plan-devex-review`
-- User wants all reviews done automatically, "review everything" → invoke `/autoplan`
-- User reports a bug, error, broken behavior, "why is this broken", "this doesn't work", "wtf", "something's wrong" → invoke `/investigate`
-- User asks to test the site, find bugs, QA, "does this work", "check the deploy" → invoke `/qa`
-- User asks to just report bugs without fixing → invoke `/qa-only`
-- User asks to review code, check the diff, pre-landing review, "look at my changes" → invoke `/review`
-- User asks to find code worth sharing, shared-code extractions, or duplication worth consolidating → invoke `/deslop-shared-libs`
-- User asks to audit, prune or find low-value tests in the existing suite → invoke `/test-audit`
-- User asks about visual polish, design audit of a live site, "this looks off" → invoke `/design-review`
-- User asks to audit the live developer experience, time-to-hello-world → invoke `/devex-review`
-- User asks to ship, deploy, push, create a PR, "let's land this", "send it" → invoke `/ship`
-- User asks to merge + deploy + verify as one flow → invoke `/land-and-deploy`
-- User asks to configure deployment for the project → invoke `/setup-deploy`
-- User asks to monitor prod after shipping, post-deploy checks → invoke `/canary`
-- User asks to update docs after shipping → invoke `/document-release`
-- User asks to write docs from scratch, generate documentation, "document this feature/module" → invoke `/document-generate`
-- User asks for a weekly retro, what did we ship, "how'd we do" → invoke `/retro`
+**ルーティングルール — 以下のパターンが見られたら、Skill ツールでスキルを呼び出してください:**
+- ユーザーが新しいアイデアを説明する、「作る価値はあるか」と尋ねる、ブレインストーミングする、コンセプトを提案する → `/office-hours` を呼び出す
+- ユーザーが仕様を書き出すこと、issue の起票、チケットの作成、「GitHub issue にして」「バックログ項目にして」を依頼する → `/spec` を呼び出す
+- ユーザーが戦略、スコープ、野心について尋ねる、「もっと大きく考えて」「何を作るべきか」と言う → `/plan-ceo-review` を呼び出す
+- ユーザーがアーキテクチャのレビュー、計画の確定、「この設計は筋が通っているか」を依頼する → `/plan-eng-review` を呼び出す
+- ユーザーがデザインシステム、ブランド、ビジュアルアイデンティティ、「どう見せるべきか」について尋ねる → `/design-consultation` を呼び出す
+- ユーザーが計画のデザインをレビューしたいと言う → `/plan-design-review` を呼び出す
+- ユーザーが計画の開発者体験、API/CLI/SDK の設計について尋ねる → `/plan-devex-review` を呼び出す
+- ユーザーがすべてのレビューを自動で行いたいと言う、「全部レビューして」 → `/autoplan` を呼び出す
+- ユーザーがバグ、エラー、壊れた動作を報告する、「なぜ壊れているのか」「動かない」「wtf」「何かおかしい」と言う → `/investigate` を呼び出す
+- ユーザーがサイトのテスト、バグの発見、QA を依頼する、「動くか確認して」「デプロイを確認して」と言う → `/qa` を呼び出す
+- ユーザーが修正せずにバグを報告するだけでよいと言う → `/qa-only` を呼び出す
+- ユーザーがコードのレビュー、差分の確認、マージ前のレビュー、「変更を見て」と言う → `/review` を呼び出す
+- ユーザーが共有に値するコード、共有コードへの切り出し、統合すべき重複を探すことを依頼する → `/deslop-shared-libs` を呼び出す
+- ユーザーが既存のテストスイートの監査、低価値なテストの整理や発見を依頼する → `/test-audit` を呼び出す
+- ユーザーがビジュアルの磨き込み、公開中のサイトのデザイン監査、「なんか違和感がある」と言う → `/design-review` を呼び出す
+- ユーザーが稼働中の開発者体験、Hello World までの時間の監査を依頼する → `/devex-review` を呼び出す
+- ユーザーが出荷、デプロイ、push、PR の作成、「これをマージしよう」「送って」と言う → `/ship` を呼び出す
+- ユーザーがマージ、デプロイ、検証を一つのフローとして行うことを求める → `/land-and-deploy` を呼び出す
+- ユーザーがプロジェクトのデプロイ設定を依頼する → `/setup-deploy` を呼び出す
+- ユーザーが出荷後の本番監視、デプロイ後のチェックを依頼する → `/canary` を呼び出す
+- ユーザーが出荷後にドキュメントを更新するよう依頼する → `/document-release` を呼び出す
+- ユーザーがドキュメントをゼロから書く、ドキュメントを生成する、「この機能/モジュールを文書化して」と依頼する → `/document-generate` を呼び出す
+- ユーザーが週次の振り返り、何を出荷したか、「どうだった?」を依頼する → `/retro` を呼び出す
 {{OUTSIDE_VOICE_ROUTING}}
-- User asks for safety mode, careful mode → invoke `/careful` or `/guard`
-- User asks to restrict edits to a directory → invoke `/freeze` or `/unfreeze`
-- User asks to upgrade gstack → invoke `/gstack-upgrade`
-- User asks to save progress, checkpoint, "save my work" → invoke `/context-save`
-- User asks to resume, restore, "where was I" → invoke `/context-restore`
-- User asks about security, OWASP, vulnerabilities, "is this secure" → invoke `/cso`
-- User asks to make a PDF, document, publication → invoke `/make-pdf`
-- User asks to pull data off a web page, "grab the table from", "extract the prices" → invoke `/scrape`
-- User asks to launch a real browser for QA, "open the browser" → invoke `/open-gstack-browser` (fallback browser; on Aside the tabs are already visible)
-- User asks to import cookies for authenticated testing → invoke `/setup-browser-cookies` (fallback browser; Aside already has the sessions)
-- User asks to share the browser with another agent, "pair OpenClaw/Codex with my browser" → invoke `/pair-agent` (fallback browser)
-- User asks to codify or save the last `/scrape` as a reusable skill → invoke `/skillify` (fallback browser)
-- User asks about page speed, web performance regression → invoke `/benchmark`; model or skill benchmarks → invoke `/benchmark-models`
-- User asks to plan, preregister, price or pilot a paid eval → invoke `/eval-plan`
-- User asks what gstack has learned, "show learnings" → invoke `/learn`
-- User asks to tune question sensitivity, "stop asking me that" → invoke `/plan-tune`
-- User asks for code quality dashboard, "health check" → invoke `/health`{{VOICE_TRIGGER_ROUTING}}
+- ユーザーが安全モード、慎重モードを依頼する → `/careful` または `/guard` を呼び出す
+- ユーザーがディレクトリへの編集を制限するよう依頼する → `/freeze` または `/unfreeze` を呼び出す
+- ユーザーが gstack のアップグレードを依頼する → `/gstack-upgrade` を呼び出す
+- ユーザーが進捗の保存、チェックポイント、「作業を保存して」と依頼する → `/context-save` を呼び出す
+- ユーザーが再開、復元、「どこまでやったっけ」と依頼する → `/context-restore` を呼び出す
+- ユーザーがセキュリティ、OWASP、脆弱性について尋ねる、「これは安全か」と言う → `/cso` を呼び出す
+- ユーザーが PDF、ドキュメント、出版物の作成を依頼する → `/make-pdf` を呼び出す
+- ユーザーがウェブページからデータを取り出すことを依頼する、「表を取ってきて」「価格を抽出して」と言う → `/scrape` を呼び出す
+- ユーザーが QA 用に実際のブラウザを起動することを依頼する、「ブラウザを開いて」と言う → `/open-gstack-browser` を呼び出す(フォールバックブラウザ。Aside ではタブがすでに見えています)
+- ユーザーが認証を伴うテストのために Cookie のインポートを依頼する → `/setup-browser-cookies` を呼び出す(フォールバックブラウザ。Aside にはすでにセッションがあります)
+- ユーザーが別のエージェントとブラウザを共有することを依頼する、「OpenClaw/Codex を自分のブラウザとペアリングして」と言う → `/pair-agent` を呼び出す(フォールバックブラウザ)
+- ユーザーが直前の `/scrape` を再利用可能なスキルとしてコード化または保存することを依頼する → `/skillify` を呼び出す(フォールバックブラウザ)
+- ユーザーがページ速度、ウェブパフォーマンスの低下について尋ねる → `/benchmark` を呼び出す。モデルやスキルのベンチマークの場合は `/benchmark-models` を呼び出す
+- ユーザーが有料の評価を計画、事前登録、価格設定、パイロット実施することを依頼する → `/eval-plan` を呼び出す
+- ユーザーが gstack が学習した内容を尋ねる、「学習内容を見せて」と言う → `/learn` を呼び出す
+- ユーザーが質問の頻度の調整を依頼する、「その質問はもうしないで」と言う → `/plan-tune` を呼び出す
+- ユーザーがコード品質のダッシュボード、「ヘルスチェック」を依頼する → `/health` を呼び出す{{VOICE_TRIGGER_ROUTING}}
 
-**Route only to skills in your available-skills list.** A rule above whose skill is
-not listed there is turned off on this install; skip it, never try to invoke it.
+**振り分けは、利用可能なスキル一覧にあるスキルにのみ行ってください。** 上のルールのうち、そのスキルが
+一覧にないものは、このインストールでは無効です。その場合は読み飛ばし、決して呼び出そうとしないでください。
 
-**When to invoke, and when not to.** Invoke when the request matches a skill's purpose:
-the skill's workflow, checklists and gates beat an ad-hoc answer. Answer directly when
-no skill matches, for a quick factual question or a small edit the user scoped
-themselves, and when the user asks for a direct answer instead of a workflow.
+**呼び出すときと呼び出さないとき。** リクエストがスキルの目的に合致する場合は呼び出してください。スキルのワークフロー、
+チェックリスト、ゲートは、その場しのぎの回答より優れています。どのスキルにも該当しない場合、簡単な事実確認、
+またはユーザー自身がスコープを決めた小さな編集、そしてユーザーがワークフローではなく直接の回答を求めた場合は、直接回答してください。
 
-If the user opts out of suggestions, run `gstack-config set proactive false`.
-If they opt back in, run `gstack-config set proactive true`.
+ユーザーが提案を受けないことを希望する場合は、`gstack-config set proactive false` を実行してください。
+後から提案を受けることに同意した場合は、`gstack-config set proactive true` を実行してください。

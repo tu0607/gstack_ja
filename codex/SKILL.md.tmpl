@@ -3,11 +3,10 @@ name: codex
 preamble-tier: 3
 version: 1.0.0
 description: |
-  OpenAI Codex CLI wrapper — three modes. Code review: independent diff review via
-  codex review with pass/fail gate. Challenge: adversarial mode that tries to break
-  your code. Consult: ask codex anything with session continuity for follow-ups.
-  The "200 IQ autistic developer" second opinion. Use when asked to "codex review",
-  "codex challenge", "ask codex", "second opinion", or "consult codex". (gstack)
+  OpenAI Codex CLI のラッパー — 3 つのモード。コードレビュー: codex review による独立した差分レビューと合否ゲート。
+  チャレンジ: コードを壊そうとする敵対的なモード。相談: フォローアップのためにセッションの継続性を持って何でも Codex に質問できます。
+  「200 IQ の自閉的な開発者」によるセカンドオピニオンです。"codex review"、
+  "codex challenge"、"ask codex"、"second opinion"、"consult codex" と言われたときに使います。(gstack)
 voice-triggers:
   - "code x"
   - "code ex"
@@ -29,13 +28,11 @@ allowed-tools:
 
 {{BASE_BRANCH_DETECT}}
 
-# /codex — Multi-AI Second Opinion
+# /codex — マルチ AI によるセカンドオピニオン
 
-You are running the `/codex` skill. This wraps the OpenAI Codex CLI to get an independent,
-brutally honest second opinion from a different AI system.
+あなたは `/codex` スキルを実行しています。これは OpenAI Codex CLI をラップし、別の AI システムから独立した、遠慮のないセカンドオピニオンを得るためのものです。
 
-Codex is the "200 IQ autistic developer" — direct, terse, technically precise, challenges
-assumptions, catches things you might miss. Present its output faithfully, not summarized.
+Codex は「200 IQ の自閉的な開発者」です。率直で、簡潔で、技術的に正確であり、前提に異を唱え、あなたが見落とすかもしれない点を捉えます。出力は要約せず、そのまま忠実に提示してください。
 
 ---
 
@@ -43,45 +40,31 @@ assumptions, catches things you might miss. Present its output faithfully, not s
 
 ---
 
-## Step 0.4: Check codex binary
+## ステップ 0.4: Codex バイナリの確認
 
 ```bash
 CODEX_BIN=$(command -v codex || echo "")
 [ -z "$CODEX_BIN" ] && echo "NOT_FOUND" || echo "FOUND: $CODEX_BIN"
 ```
 
-If `NOT_FOUND`: stop and tell the user:
-"Codex CLI not found. Install it: `npm install -g @openai/codex` or see https://github.com/openai/codex"
+`NOT_FOUND` の場合: 処理を止めて、ユーザーに次のように伝えます:
+「Codex CLI が見つかりません。次のコマンドでインストールしてください: `npm install -g @openai/codex` または https://github.com/openai/codex を参照してください」
 
-If `NOT_FOUND`, also log the event:
+`NOT_FOUND` の場合は、そのイベントも記録します:
 ```bash
 ~/.claude/skills/gstack/bin/gstack-codex-probe log-event codex_cli_missing 2>/dev/null || true
 ```
 
 ---
 
-## Step 0.5: Auth probe + model probe + version check
+## ステップ 0.5: 認証の確認、モデルの確認、バージョンのチェック
 
-Before building expensive prompts, verify Codex has valid auth, that the account
-can actually USE gstack's selected model, AND the installed CLI version isn't in the
-known-bad list. `gstack-codex-probe` is the shared helper that `/codex`, `/autoplan`
-and every outside review run as a command, one subcommand per check.
+高コストなプロンプトを組み立てる前に、Codex に有効な認証があること、そのアカウントが gstack の選択したモデルを実際に使えること、そしてインストールされた CLI のバージョンが既知の不具合のリストに含まれていないことを確認します。`gstack-codex-probe` は共有ヘルパーで、`/codex`、`/autoplan`、およびすべての外部レビューが、チェックごとに 1 つのサブコマンドとしてコマンド実行します。
 
-Model order: a model the user names for this request, `GSTACK_CODEX_MODEL`, Codex
-`config.toml` `model` (`review_model` first for `codex review`; honors `$CODEX_HOME`),
-then `gpt-6-astra`. Each call prints `CODEX_MODEL: <model> (<kind>; source: ...)` first.
-For a named model, add `--model '<model>'` to every `select-model`, `probe-model` and
-`role-ready` call, including the probe below. An invalid or unavailable choice stops
-with a repair message, never the default; a named model also wins over a role.
-Only for an explicit `--role plan-review` (e.g. `/codex challenge --role plan-review`),
-set `_CODEX_ROLE='plan-review'` below and in the mode block; the mode block then
-probes and dispatches the policy model within its own timeout. [Policy setup](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md).
+モデルの順序: このリクエストでユーザーが指定したモデル、`GSTACK_CODEX_MODEL`、Codex の `config.toml` の `model`(`codex review` では `review_model` を優先。`$CODEX_HOME` を尊重)、そして `gpt-6-astra` です。各呼び出しは、まず `CODEX_MODEL: <model> (<kind>; source: ...)` を出力します。モデル名が指定されている場合は、下のプローブを含むすべての `select-model`、`probe-model`、`role-ready` の呼び出しに `--model '<model>'` を追加します。無効または利用できない選択は、既定値に戻らず、修復のメッセージを出して停止します。指定されたモデルは、ロールよりも優先されます。
+明示的な `--role plan-review`(例: `/codex challenge --role plan-review`)の場合に限り、下と各モードのブロックで `_CODEX_ROLE='plan-review'` を設定します。モードのブロックは、そのタイムアウトの範囲内でポリシーのモデルを確認し、そのモデルに送信します。[ポリシーの設定](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md)。
 
-**Effort flags, read before the mode:** `--effort <level>`, `--effort=<level>` or `--xhigh`
-(= `--effort xhigh`) directly after `/codex` or its mode word, among its leading flags
-(`-m`, `--model`, `--role`) and before any prompt text, set `<effort-level>` (else `''`);
-remove them before Step 1. A later `--effort` is prompt text; if a level follows, say so. Missing
-value, not one lowercase word, or differing levels: stop, name the levels; nothing is sent.
+**エフォートのフラグ。モードの前に読んでください:** `/codex` またはそのモードの語の直後、先頭のフラグ(`-m`、`--model`、`--role`)の中、そしてプロンプトのテキストの前に置かれた `--effort <level>`、`--effort=<level>`、または `--xhigh`(= `--effort xhigh`)は、`<effort-level>` を設定します(なければ `''`)。ステップ 1 の前にこれらを取り除きます。後に続く `--effort` はプロンプトのテキストとして扱います。その場合はレベルが続いていることを伝えてください。値がない、小文字の単語 1 つになっていない、またはレベルが食い違う場合は、停止してそのレベルを示します。何も送信されません。
 
 ```bash
 _CODEX_PROBE=~/.claude/skills/gstack/bin/gstack-codex-probe
@@ -99,57 +82,34 @@ fi
 "$_CODEX_PROBE" check-version   # warns if known-bad, non-blocking
 ```
 
-If `check-effort` failed, relay its lines and stop; no Codex call was made.
+`check-effort` が失敗した場合は、その行を伝えて停止します。Codex の呼び出しは行われていません。
 
-If the runtime guard reports a harness mismatch, stop. Outside coverage is unavailable. Repair with `./setup --host codex`; do not silently substitute another provider or force a same-harness invocation.
+ランタイムのガードがハーネスの不一致を報告した場合は、停止します。外部のカバレッジは利用できません。`./setup --host codex` で修復してください。別のプロバイダーに黙って置き換えたり、同じハーネスでの呼び出しを無理に行ったりしないでください。
 
-If the output contains `HELPER_UNAVAILABLE`, stop: `gstack-codex-probe` is missing or
-not executable in this install. Tell the user to re-run `./setup` (or `/gstack-upgrade`).
+出力に `HELPER_UNAVAILABLE` が含まれる場合は停止します。`gstack-codex-probe` がこのインストールにないか、実行可能ではありません。ユーザーに `./setup`(または `/gstack-upgrade`)を再実行するよう伝えてください。
 
-If the output contains `AUTH_FAILED`, stop and tell the user:
-"No Codex authentication found. Run `codex login` or set `$CODEX_API_KEY` / `$OPENAI_API_KEY`, then re-run this skill."
+出力に `AUTH_FAILED` が含まれる場合は停止し、ユーザーに次のように伝えます:
+「Codex の認証が見つかりません。`codex login` を実行するか、`$CODEX_API_KEY` / `$OPENAI_API_KEY` を設定してから、このスキルを再実行してください。」
 
-If the output contains `MODEL_UNUSABLE`, stop — the selected model (named with its
-source on the `CODEX_MODEL:` line) is invalid or the account cannot use it. Relay the
-probe's HINT lines and
-follow the "Model not supported (HTTP 400 or 404)" recovery steps in
-`## Error Handling` below. Running the modes anyway just burns four
-invocations on the same 400.
+出力に `MODEL_UNUSABLE` が含まれる場合は停止します。選択されたモデル(`CODEX_MODEL:` の行に、その取得元とともに示されています)が無効か、アカウントがそのモデルを使えません。プローブの HINT の行を伝え、下の `## Error Handling` にある「Model not supported (HTTP 400 or 404)」の回復手順に従ってください。そのままモードを実行すると、同じ 400 エラーで 4 回分の呼び出しが無駄になります。
 
-If the output contains `MODEL_QUOTA_EXHAUSTED`, stop: the account hit its Codex
-usage limit. Relay Codex's own line under the marker verbatim (it names the reset
-time) and the HINT line (how long gstack skips Codex, and how to retry now); the model
-is fine, so do not change it. Running the modes anyway fails the same way.
+出力に `MODEL_QUOTA_EXHAUSTED` が含まれる場合は停止します。アカウントが Codex の利用上限に達しています。そのマーカーの下にある Codex 自身の行(リセットの時刻を含む)を一字一句そのまま伝え、HINT の行(gstack が Codex をどれだけ飛ばすか、今すぐ再試行する方法)も伝えてください。モデルに問題はないので、変更しないでください。そのままモードを実行すると、同じように失敗します。
 
-`MODEL_PROBE_RATE_LIMITED` is non-blocking: Codex answered 429. Report
-`CODEX_MODE: unverified (rate_limited)`, relay Codex's line and continue; a
-rate-limited mode run is missing coverage, never a pass.
+`MODEL_PROBE_RATE_LIMITED` はブロックしません。Codex が 429 で応答しました。`CODEX_MODE: unverified (rate_limited)` と報告し、Codex の行を伝えて続行します。レート制限されたモードの実行は、カバレッジが欠けているのであって、合格ではありません。
 
-If the output contains `CODEX_SANDBOX: unavailable`, stop: Codex's sandbox cannot
-start here, so every command it runs would fail and its review would read nothing.
-Relay the `Codex outside review unavailable: ...` line verbatim, including its fix.
-No paid call was made.
+出力に `CODEX_SANDBOX: unavailable` が含まれる場合は停止します。Codex のサンドボックスがここでは起動できないため、実行されるすべてのコマンドが失敗し、そのレビューは何も読めません。`Codex outside review unavailable: ...` の行を、修正方法を含めて一字一句そのまま伝えてください。有料の呼び出しは行われていません。
 
-`MODEL_PROBE_INCONCLUSIVE` is non-blocking (timeout/transient network): report
-`CODEX_MODE: unverified`, pass the warning through and continue; the mode's own
-validator still decides the result.
+`MODEL_PROBE_INCONCLUSIVE` はブロックしません(タイムアウトや一時的なネットワークの問題)。`CODEX_MODE: unverified` と報告し、警告をそのまま伝えて続行します。結果を決めるのは、モード自身のバリデーターです。
 
-If the version check printed a `WARN:` line, pass it through to the user verbatim
-(non-blocking — Codex may still work, but the user should upgrade).
+バージョンチェックが `WARN:` の行を出力した場合は、それをユーザーにそのまま伝えてください(ブロックはしません。Codex はまだ動く可能性がありますが、ユーザーはアップグレードすべきです)。
 
-The probe multi-signal auth logic accepts: `$CODEX_API_KEY` set, `$OPENAI_API_KEY`
-set, or `${CODEX_HOME:-~/.codex}/auth.json` exists. Avoids false-negatives for
-env-auth users (CI, platform engineers) that file-only checks would reject.
+プローブの複数シグナルによる認証ロジックは、`$CODEX_API_KEY` が設定されている、`$OPENAI_API_KEY` が設定されている、または `${CODEX_HOME:-~/.codex}/auth.json` が存在する、のいずれかを受け入れます。ファイルだけをチェックすると拒否してしまう、環境変数による認証のユーザー(CI やプラットフォームのエンジニア)の偽陰性を避けます。
 
 ---
 
-## Step 0.6: Resolve portable roots
+## ステップ 0.6: ポータブルなルートの解決
 
-Before any mode runs, resolve `$PLAN_ROOT` (where plan files live) and `$TMP_ROOT`
-(where ephemeral codex stderr / response captures land) via `bin/gstack-paths`.
-This keeps the skill working whether installed as a Claude Code plugin
-(`CLAUDE_PLANS_DIR` set), a global `~/.claude/skills/gstack/` install, or a CI
-container where `HOME` may be unset and `/tmp` may be read-only.
+どのモードを実行する前にも、`bin/gstack-paths` を使って `$PLAN_ROOT`(プランファイルの置き場所)と `$TMP_ROOT`(codex の一時的な stderr やレスポンスの取得先)を解決します。これにより、Claude Code のプラグインとしてインストールされている場合(`CLAUDE_PLANS_DIR` が設定されている)、グローバルな `~/.claude/skills/gstack/` インストールの場合、または `HOME` が未設定で `/tmp` が読み取り専用かもしれない CI コンテナの場合のいずれでも、このスキルが動作し続けます。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -157,81 +117,62 @@ PLAN_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get PLAN_ROOT)
 TMP_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get TMP_ROOT)
 ```
 
-After this, every subsequent bash block in this skill uses `"$PLAN_ROOT"` and
-`"$TMP_ROOT"` rather than hardcoded `~/.claude/plans` or `/tmp/codex-*`.
+この後、このスキルの以降のすべての bash ブロックは、ハードコードされた `~/.claude/plans` や `/tmp/codex-*` の代わりに `"$PLAN_ROOT"` と `"$TMP_ROOT"` を使います。
 
 ---
 
-## Step 1: Detect mode
+## ステップ 1: モードの判定
 
-Parse the input, effort flags removed, to determine which mode to run:
+入力を解析します。エフォートのフラグは取り除いた後で、実行するモードを決めます:
 
-1. `/codex review` or `/codex review <instructions>` — **Review mode** (Step 2A)
-2. `/codex challenge` or `/codex challenge <focus>` — **Challenge mode** (Step 2B)
-3. `/codex` with no arguments — **Auto-detect:**
-   - Check for a diff (with fallback if origin isn't available):
+1. `/codex review` または `/codex review <instructions>` — **レビューモード**(ステップ 2A)
+2. `/codex challenge` または `/codex challenge <focus>` — **チャレンジモード**(ステップ 2B)
+3. 引数のない `/codex` — **自動検出:**
+   - 差分を確認します(origin が利用できない場合のフォールバック付き):
      `git diff origin/<base> --stat 2>/dev/null | tail -1 || git diff <base> --stat 2>/dev/null | tail -1`
-   - If a diff exists, use AskUserQuestion:
+   - 差分があれば、AskUserQuestion を使います:
      ```
-     Codex detected changes against the base branch. What should it do?
+     Codex がベースブランチとの差分を検出しました。何をさせますか?
      A) Review the diff (code review with pass/fail gate)
      B) Challenge the diff (adversarial — try to break it)
      C) Something else — I'll provide a prompt
      ```
-   - If no diff, check for plan files scoped to the current project:
+   - 差分がなければ、現在のプロジェクトに紐づくプランファイルを確認します:
      `ls -t "$PLAN_ROOT"/*.md 2>/dev/null | xargs grep -l "$(basename $(pwd))" 2>/dev/null | head -1`
-     If no project-scoped match, fall back to: `ls -t "$PLAN_ROOT"/*.md 2>/dev/null | head -1`
-     but warn the user: "Note: this plan may be from a different project."
-   - If a plan file exists, offer to review it
-   - Otherwise, ask: "What would you like to ask Codex?"
-4. `/codex <anything else>` — **Consult mode** (Step 2C), where the remaining text is the prompt
+     プロジェクトに紐づくものが見つからなければ、次にフォールバックします: `ls -t "$PLAN_ROOT"/*.md 2>/dev/null | head -1`
+     ただし、ユーザーに警告します: 「注意: このプランは別のプロジェクトのものかもしれません。」
+   - プランファイルがあれば、そのレビューを提案します
+   - それ以外の場合は、尋ねます: 「Codex に何を聞きますか?」
+4. `/codex <anything else>` — **相談モード**(ステップ 2C)。残りのテキストがプロンプトになります。
 
-The three modes are MUTUALLY EXCLUSIVE — at most one runs per invocation. Once
-the mode is determined, read ONLY that mode's section (see the Section index
-above); never read the other two mode sections.
+3 つのモードは互いに排他的です。1 回の呼び出しで実行されるのは最大 1 つです。モードが決まったら、そのモードのセクションだけを読んでください(上のセクション索引を参照)。他の 2 つのモードのセクションは決して読まないでください。
 
-**Reasoning effort:** each dispatch passes `--request-effort '<effort-level>'`, which
-outranks `GSTACK_CODEX_EFFORT`, then `codex_effort`, then the per-mode defaults:
-- Review (2A): `high` — bounded diff input, needs thoroughness
-- Challenge (2B): `high` — adversarial but bounded by diff
-- Consult (2C): `medium` — large context, interactive, needs speed
+**推論のエフォート:** 各ディスパッチは `--request-effort '<effort-level>'` を渡します。これは `GSTACK_CODEX_EFFORT`、`codex_effort`、そしてモードごとの既定値より優先されます:
+- レビュー(2A): `high` — 差分の入力は限られており、徹底したレビューが必要
+- チャレンジ(2B): `high` — 敵対的だが、差分によって範囲が限られている
+- 相談(2C): `medium` — コンテキストが大きく、対話的で、速さが必要
 
 ---
 
-## Filesystem Boundary
+## ファイルシステムの境界
 
-Every prompt sent to Codex MUST be prefixed with this boundary instruction:
+Codex に送られるすべてのプロンプトには、次の境界に関する指示を先頭に付けなければなりません:
 
-> IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.
+> 重要: ~/.claude/、~/.agents/、.claude/skills/、agents/ の下にあるファイルを読んだり実行したりしないでください。これらは別の AI システム向けの Claude Code のスキル定義です。時間を無駄にするだけの bash スクリプトやプロンプトテンプレートが入っています。完全に無視してください。agents/openai.yaml を変更しないでください。リポジトリのコードだけに集中してください。
 
-This applies to Challenge mode (prompt) and Consult mode (persona prompt), and to the
-custom-instructions path of Review mode — all three use `codex exec`, which still takes
-a free-form prompt (fed on stdin with `codex exec -`, so size and quoting never break it). It does **not** apply to the default scoped `codex review`
-call in Step 2A: that command is invoked with **no prompt at all** (see "Scope
-flags exclude the prompt argument" in the Review mode section), so there is nowhere to put the preamble. That
-is acceptable — `codex review --base` hands the model a pre-computed diff rather than
-turning it loose on the filesystem, so the rabbit-hole risk the boundary guards against
-is much lower on that path. Reference this section as "the filesystem boundary" in the
-mode sections.
+これはチャレンジモード(プロンプト)と相談モード(ペルソナのプロンプト)、およびレビューモードのカスタム指示の経路に適用されます。この 3 つはすべて `codex exec` を使い、これは自由形式のプロンプトを受け取ります(`codex exec -` で標準入力から渡すため、サイズや引用符で壊れることはありません)。ステップ 2A の既定のスコープ付き `codex review` の呼び出しには**適用されません**。このコマンドはプロンプトを**一切付けずに**呼び出されるため(レビューモードのセクションの「Scope flags exclude the prompt argument」を参照)、前文を入れる場所がありません。これは許容されます。`codex review --base` は、モデルを放し飼いにするのではなく、事前に計算された差分をモデルに渡すため、この経路では境界が防ごうとしている迷走のリスクははるかに小さくなります。モードのセクションでは、このセクションを「ファイルシステムの境界」として参照してください。
 
 ---
 
-## Synthesis recommendation (REQUIRED) — all modes
+## 総合的な推奨(必須) — すべてのモード
 
-Every mode ends by emitting ONE synthesis recommendation line after presenting
-Codex's verbatim output, in this format:
+各モードは、Codex の出力をそのまま提示した後、次の形式の総合的な推奨を 1 行だけ出して終わります:
 
 ```
 Recommendation: <action> because <one-line reason that names the most actionable finding>
 ```
 
-The reason must engage with a specific Codex finding or insight and compare
-against an alternative (another finding, fix-vs-ship, fix order, or status-quo).
-Boilerplate reasons ("because it's better", "because adversarial review found
-things") fail the format. The recommendation is the ONE line a user reads when
-they don't have time for the verbatim output. **Never silently auto-decide;
-always emit the line.** Each mode section restates this rule with mode-specific
-examples.
+理由は、Codex の具体的な指摘や洞察を取り上げ、代替案(別の指摘、修正してから出荷か、修正の順序、現状維持)と比較しなければなりません。定型的な理由(「より良いから」「敵対的レビューで色々見つかったから」)は、この形式を満たしません。この 1 行は、そのまま出力を読む時間がないユーザーが読む行です。**黙って自分で決めてはいけません。必ずこの行を出してください。** 各モードのセクションでは、モード固有の例とともにこのルールを改めて示しています。
 
 ---
 
@@ -247,114 +188,67 @@ examples.
 
 ---
 
-## Model & Reasoning
+## モデルと推論
 
-**Model:** every Codex call passes the selection above via `{{CODEX_MODEL_CONFIG_FLAG}}`.
-Native `codex review` selects with `review` and sets both `model` and `review_model`. The
-flag also keeps installed skills out of Codex's context, so a review cannot become a
-nested skill run.
+**モデル:** すべての Codex の呼び出しは、上で選択されたものを `{{CODEX_MODEL_CONFIG_FLAG}}` 経由で渡します。ネイティブの `codex review` は `review` で選択し、`model` と `review_model` の両方を設定します。このフラグは、インストール済みのスキルを Codex のコンテキストから外す役割もあるため、レビューがスキルの入れ子の実行になることはありません。
 
-**Reasoning effort** (defaults in Step 1): `run-with-timeout --effort <default>` resolves
-`--request-effort`, `GSTACK_CODEX_EFFORT`, `codex_effort`, then the default; an invalid
-value stops before any Codex call.
-`--user-invoked` runs even with `codex_reviews` disabled: the user asked by name.
+**推論のエフォート**(ステップ 1 の既定値): `run-with-timeout --effort <default>` は、`--request-effort`、`GSTACK_CODEX_EFFORT`、`codex_effort`、そして既定値の順に解決します。無効な値の場合は、Codex の呼び出しの前に停止します。
+`--user-invoked` は、`codex_reviews` が無効になっていても実行されます。ユーザーが名指しで依頼しているからです。
 
-Override one run with `--effort <level>` (`/codex review --effort medium`). `xhigh`
-uses ~23x more tokens than `high` and causes 50+ minute hangs on large context tasks
-(OpenAI issues #8545, #8402, #6931).
+1 回の実行だけ `--effort <level>` で上書きできます(`/codex review --effort medium`)。`xhigh` は `high` の約 23 倍のトークンを使い、大きなコンテキストのタスクでは 50 分以上のハングを引き起こします(OpenAI の issue #8545、#8402、#6931)。
 
-**Web search:** All codex commands pass `{{CODEX_WEB_SEARCH_FLAG}}` so `codex exec`
-invocations can look up docs and APIs during review. This is OpenAI's cached index —
-fast, no extra cost. Unlike the legacy `--enable`-based spelling (deprecated by
-codex >=0.144), the `-c` form explicitly overrides any top-level
-`web_search` setting in `~/.codex/config.toml`. Note: native `codex review` disables
-web search regardless of configuration, so on the default Review path the flag is a
-harmless no-op — only exec-based modes actually search.
+**Web 検索:** すべての codex コマンドは `{{CODEX_WEB_SEARCH_FLAG}}` を渡すため、`codex exec` の呼び出しはレビュー中にドキュメントや API を調べられます。これは OpenAI のキャッシュされたインデックスで、高速で追加費用はかかりません。古い `--enable` ベースの書き方(codex >=0.144 で非推奨)と異なり、`-c` の形式は `~/.codex/config.toml` のトップレベルの `web_search` 設定を明示的に上書きします。注意: ネイティブの `codex review` は、設定にかかわらず Web 検索を無効にします。そのため既定のレビューの経路では、このフラグは害のない何もしない指定になります。実際に検索するのは exec ベースのモードだけです。
 
-If the user specifies a model (e.g., `/codex review -m gpt-5.6-sol` or
-`/codex challenge --model gpt-daybreak-blue-latest`), translate it to the same config
-form and replace the default model flag with `-c "model=\"<model>\""`. Native review
-also requires `-c "review_model=\"<model>\""`; replace both model values together.
-Review mode runs `codex review`, which REJECTS `-m` (`error: unexpected argument '-m' found`,
-verified on 0.147.0), while `-c model=...` is accepted by both `codex review` and
-`codex exec`.
+ユーザーがモデルを指定した場合(例: `/codex review -m gpt-5.6-sol` や `/codex challenge --model gpt-daybreak-blue-latest`)は、それを同じ設定の形式に変換し、既定のモデルフラグを `-c "model=\"<model>\""` に置き換えます。ネイティブのレビューでは `-c "review_model=\"<model>\""` も必要です。両方のモデルの値を一緒に置き換えてください。
+レビューモードは `codex review` を実行します。これは `-m` を拒否します(`error: unexpected argument '-m' found`。0.147.0 で確認済み)。一方 `-c model=...` は `codex review` と `codex exec` の両方で受け付けられます。
 
 ---
 
-## Cost Estimation
+## コストの見積もり
 
-Parse token count from stderr. Codex prints `tokens used\nN` to stderr.
+stderr からトークン数を解析します。Codex は `tokens used\nN` を stderr に出力します。
 
-Display as: `Tokens: N`
+次のように表示します: `Tokens: N`
 
-If token count is not available, display: `Tokens: unknown`
+トークン数が取得できない場合は、次のように表示します: `Tokens: unknown`
 
 ---
 
-## Error Handling
+## エラーの処理
 
-- **Binary not found:** Detected in Step 0. Stop with install instructions.
-- **Auth error:** Codex prints an auth error to stderr. Surface the error:
-  "Codex authentication failed. Run `codex login` in your terminal to authenticate via ChatGPT."
-- **Timeout (Bash outer gate):** Every Bash gate sits ABOVE its inner wrapper (360s gate
-  over the 330s review wrapper; 600s gate, the tool maximum, over the 540s challenge/consult
-  wrappers), so
-  the wrapper's exit-124 path normally fires first with its explicit message. If the Bash
-  call itself times out anyway (wrapper unavailable AND codex hung), tell the user:
-  "Codex timed out. The prompt may be too large or the API may be slow. Try again or use a smaller scope."
-- **Timeout (inner `timeout` wrapper, exit 124):** If the wrapper fires first (it TERMs Codex, then KILLs it after 10s), the skill's hang-detection block auto-logs a telemetry event + operational learning and prints: "Codex stalled past 9 minutes. Common causes: model API stall, long prompt, network issue. Try re-running. If persistent, split the prompt or check `~/.codex/logs/`." No extra action needed.
-- **`the argument '[PROMPT]' cannot be used with '--base <BRANCH>'`:** a prompt argument
-  leaked into a scoped `codex review`. This fails instantly, before any API call, so it
-  looks like a hang-free "no output" — do not misread it as a model stall. Drop the
-  prompt: the scope flags (`--base`, `--commit`, `--uncommitted`) carry the scope on
-  their own. If the prompt was custom review instructions, run them through `codex exec`
-  instead (Step 2A, custom-instructions path). Do **not** fix it by removing `--base` and
-  keeping the prompt — that parses, but silently reviews the uncommitted working tree
-  instead of the branch diff.
-- **Review says "no changes" on a branch that clearly has changes:** the scope flag is
-  missing or wrong. A prompt-only `codex review` defaults to uncommitted changes, so a
-  clean working tree reads as an empty review even when `<base>...HEAD` is large. Confirm
-  `--base <base>` is actually on the command line.
-- **Model not supported (HTTP 400 or 404):** stderr shows
+- **バイナリが見つからない:** ステップ 0 で検出されます。インストールの手順を示して停止します。
+- **認証エラー:** Codex は認証エラーを stderr に出力します。次のようにエラーを伝えてください:
+  「Codex の認証に失敗しました。ChatGPT で認証するには、ターミナルで `codex login` を実行してください。」
+- **タイムアウト(Bash の外側のゲート):** すべての Bash のゲートは、内側のラッパーより上に位置します(330 秒のレビューのラッパーの上に 360 秒のゲート。540 秒のチャレンジ/相談のラッパーの上に 600 秒のゲート。600 秒は Bash ツールの最大値です)。
+  そのため、ラッパーの終了コード 124 の経路が、明示的なメッセージとともに通常は先に発動します。それでも Bash の呼び出し自体がタイムアウトした場合(ラッパーが使えず、codex がハングした場合)は、ユーザーに次のように伝えます:
+  「Codex がタイムアウトしました。プロンプトが大きすぎるか、API が遅い可能性があります。もう一度試すか、より小さな範囲で実行してください。」
+- **タイムアウト(内側の `timeout` ラッパー、終了コード 124):** ラッパーが先に発動した場合(Codex に TERM を送り、10 秒後に KILL します)、スキルのハング検出ブロックが自動でテレメトリのイベントと運用上の学びを記録し、次のように表示します: 「Codex が 9 分を超えて停止しました。よくある原因: モデル API の停止、長すぎるプロンプト、ネットワークの問題。もう一度実行してください。繰り返す場合は、プロンプトを分割するか、`~/.codex/logs/` を確認してください。」追加の対応は不要です。
+- **`the argument '[PROMPT]' cannot be used with '--base <BRANCH>'`:** スコープ付きの `codex review` に、プロンプトの引数が紛れ込んでいます。これは API を呼び出す前に即座に失敗するため、ハングのない「出力なし」のように見えます。モデルの停止と読み違えないでください。プロンプトを取り除いてください。スコープのフラグ(`--base`、`--commit`、`--uncommitted`)だけでスコープを指定できます。プロンプトがカスタムのレビュー指示だった場合は、代わりに `codex exec` で実行してください(ステップ 2A のカスタム指示の経路)。`--base` を取り除いてプロンプトを残す方法で直して**は**いけません。それも構文上は通りますが、ブランチの差分ではなく、コミットされていないワーキングツリーを黙ってレビューしてしまいます。
+- **差分が明らかにあるブランチで「変更なし」とレビューされる:** スコープのフラグが欠けているか、間違っています。プロンプトだけの `codex review` は、既定でコミットされていない変更を対象にします。そのため、`<base>...HEAD` が大きくても、ワーキングツリーがきれいだと空のレビューに見えます。`--base <base>` が実際にコマンドラインにあることを確認してください。
+- **モデルがサポートされていない(HTTP 400 または 404):** stderr に次のいずれかが表示されます。
   `The '<model>' model is not supported when using Codex with a ChatGPT account`
-  (a `status: 400` / `invalid_request_error` naming a model), or
+  (モデル名を含む `status: 400` / `invalid_request_error`)、または
   `404 Not Found: The model '<model>' does not exist or you do not have access to it`
-  (a retired model; a bare 404 usually means a custom provider's `base_url` is wrong).
-  `requires a newer version of Codex` means the CLI is too old: upgrade it instead.
-  None of these is an auth or network failure, and the auth probe cannot catch them.
-  Recovery, in order:
-  1. Read the `CODEX_MODEL:` line: it names the model and where it came from.
-  2. Fix that source and relay its HINT/Repair lines. With `--role plan-review`,
-     tier pins outrank native settings; native `model`/`review_model` applies
-     only in `host` mode. Without a role, request, `GSTACK_CODEX_MODEL`, then
-     native settings choose the model, falling back to `gpt-6-astra`.
-  3. If Codex printed `[notice.model_migrations]`, use that replacement for
-     no-role calls. For a role, offer an explicit override; do not silently substitute.
-  Never present this as a model stall or a PASS — it is a fail-closed gate result.
-- **`VERDICT: unavailable`:** the shared validator found the run did not execute (for
-  example `Codex's sandbox could not start here`). Relay its line and fix verbatim; it is
-  missing coverage, never a PASS. Details: `docs/troubleshooting.md` in the gstack checkout.
-- **Empty response:** If `$TMPRESP` is empty or doesn't exist, tell the user:
-  "Codex returned no response. Check stderr for errors."
-- **Session resume failure:** If resume fails, delete the session file and start fresh.
+  (廃止されたモデル。素の 404 は通常、カスタムプロバイダーの `base_url` が間違っていることを意味します)。
+  `requires a newer version of Codex` は、CLI が古すぎることを意味します。その場合はアップグレードしてください。
+  これらはいずれも認証やネットワークの失敗ではなく、認証のプローブでは検出できません。
+  回復の手順は次の順序です:
+  1. `CODEX_MODEL:` の行を読みます。モデル名と、その取得元が示されています。
+  2. その取得元を修正し、その HINT/Repair の行を伝えます。`--role plan-review` の場合、ティアのピン留めはネイティブの設定より優先されます。ネイティブの `model`/`review_model` が適用されるのは `host` モードだけです。ロールがない場合は、リクエスト、`GSTACK_CODEX_MODEL`、ネイティブの設定の順にモデルを選び、最後は `gpt-6-astra` にフォールバックします。
+  3. Codex が `[notice.model_migrations]` を出力していれば、ロールなしの呼び出しではその置き換えを使います。ロールがある場合は、明示的な上書きを提案してください。黙って置き換えてはいけません。
+  これをモデルの停止や合格として提示しないでください。これは fail-closed のゲートの結果です。
+- **`VERDICT: unavailable`:** 共有のバリデーターが、実行が行われなかったと判定しました(例: `Codex's sandbox could not start here`)。その行と修正方法を一字一句そのまま伝えてください。これはカバレッジの欠落であって、合格ではありません。詳細: gstack のチェックアウトにある `docs/troubleshooting.md`。
+- **空のレスポンス:** `$TMPRESP` が空か存在しない場合は、ユーザーに次のように伝えます:
+  「Codex からレスポンスが返りませんでした。stderr でエラーを確認してください。」
+- **セッションの再開の失敗:** 再開に失敗した場合は、セッションファイルを削除して、新しく始めます。
 
 ---
 
-## Important Rules
+## 重要なルール
 
-- **Never modify files.** This skill is read-only. Codex runs in read-only sandbox mode
-  (full access only when the user exported `GSTACK_CODEX_NO_SANDBOX=1`; it warns on every use).
-- **Present output verbatim.** Do not truncate, summarize, or editorialize Codex's output
-  before showing it. Show it in full inside the CODEX SAYS block.
-- **Add synthesis after, not instead of.** Any Claude commentary comes after the full output.
-- **Bash gate above the wrapper.** Every Bash call to codex sets its `timeout`
-  parameter ABOVE the inner `run-with-timeout` budget (Review:
-  `timeout: 360000` over the 330s wrapper; Challenge/Consult: `timeout: 600000`
-  over the 540s wrappers) so the wrapper fires first with a diagnosable exit 124.
-- **No double-reviewing.** If the user already ran `/review`, Codex provides a second
-  independent opinion. Do not re-run Claude Code's own review.
-- **Detect skill-file rabbit holes.** After receiving Codex output, scan for signs
-  that Codex got distracted by skill files: `gstack-config`, `gstack-update-check`,
-  `SKILL.md`, or `skills/gstack`. If any of these appear in the output, append a
-  warning: "Codex appears to have read gstack skill files instead of reviewing your
-  code. Consider retrying."
+- **ファイルは決して変更しない。** このスキルは読み取り専用です。Codex は読み取り専用のサンドボックスモードで実行されます(ユーザーが `GSTACK_CODEX_NO_SANDBOX=1` をエクスポートしている場合に限り、フルアクセスになります。その場合は毎回警告が出ます)。
+- **出力はそのまま提示する。** Codex の出力を、切り詰めたり、要約したり、論評を加えたりせずに表示してください。CODEX SAYS のブロックの中に全文を示します。
+- **分析は出力の後に追加し、置き換えない。** Claude による論評はすべて、出力の全文の後に続けます。
+- **ラッパーより上の Bash のゲート。** codex を呼び出すすべての Bash の呼び出しは、内側の `run-with-timeout` の予算より上に `timeout` パラメータを設定します(レビュー: 330 秒のラッパーの上に `timeout: 360000`。チャレンジ/相談: 540 秒のラッパーの上に `timeout: 600000`)。これによりラッパーが先に発動し、診断可能な終了コード 124 が得られます。
+- **二重のレビューをしない。** ユーザーがすでに `/review` を実行していれば、Codex は 2 つ目の独立したセカンドオピニオンを提供します。Claude Code 自身のレビューを再実行しないでください。
+- **スキルファイルの迷走を検出する。** Codex の出力を受け取った後、Codex がスキルファイルに気を取られた兆候がないか確認してください: `gstack-config`、`gstack-update-check`、`SKILL.md`、`skills/gstack`。これらのいずれかが出力に現れたら、次の警告を付け加えます: 「Codex がコードをレビューする代わりに gstack のスキルファイルを読んだようです。もう一度試すことを検討してください。」

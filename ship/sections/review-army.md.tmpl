@@ -1,48 +1,39 @@
-## Step 9: Pre-Landing Review
+## Step 9: Pre-Landing Review(ステップ 9。着地前レビュー)
 
-Set CYCLES to 0 on first entry only. Keep existing approvals; changed finding scope
-needs a new decision. Run checklist/design, specialists (9.1), merge/Red Team (9.2),
-exploratory QA (9.2.1), dedup (9.3), then fixes and logging (9.4).
-Gated/unsupported specialists skip only their dispatch, never QA or Step 11.
-Steps 10–11 queue findings without editing; include those findings in this pass.
-Every repeat starts before the checklist read and captures a fresh REVIEW_START.
-Finish the complete review and QA before applying any fix in Step 9.4.
+CYCLES は初回の入場時のみ 0 に設定します。既存の承認は維持します。変更された指摘事項の範囲には、新しい判断が必要です。checklist/design、specialist (9.1)、merge/Red Team (9.2)、exploratory QA (9.2.1)、dedup (9.3)、そして修正とログ記録 (9.4) の順に実行します。
+ゲートされている、またはサポートされていない specialist は、そのディスパッチだけをスキップします。QA や Step 11 はスキップしません。
+Step 10–11 では、編集せずに指摘事項をキューに入れます。それらの指摘事項も、この pass に含めてください。
+繰り返しのたびに、checklist を読む前から開始し、新しい REVIEW_START を取得します。
+Step 9.4 で修正を適用する前に、レビューと QA を完全に終えてください。
 
 {{CONFIDENCE_CALIBRATION}}
 
-### Core checklist
+### 基本チェックリスト
 
-This pass is static; defer product probes to Step 9.2.1.
+この pass は静的に行います。製品のプローブは Step 9.2.1 に回します。
 
-1. Read `~/.claude/skills/gstack/review/checklist.md`. If the file cannot be read, **STOP** and report the error.
+1. `~/.claude/skills/gstack/review/checklist.md` を読みます。ファイルを読めない場合は **停止** して、エラーを報告してください。
 
-2. Before reading the diff, run `~/.claude/skills/gstack/bin/gstack-review-log --start review` and save its token as REVIEW_START. Then run `git diff origin/<base>`. Read non-ignored untracked source files too (`git ls-files --others --exclude-standard`); the snapshot includes them.
+2. diff を読む前に、`~/.claude/skills/gstack/bin/gstack-review-log --start review` を実行し、そのトークンを REVIEW_START として保存します。次に `git diff origin/<base>` を実行します。無視されていない未追跡のソースファイルも読んでください (`git ls-files --others --exclude-standard`)。スナップショットにはそれらも含まれます。
 
-2.5. **Gate scan.** Before applying the checklist, run the gate scan on the same candidate:
+2.5. **ゲートスキャン。** チェックリストを適用する前に、同じ候補に対してゲートスキャンを実行します:
 
 {{GATE_SCAN_BLOCK}}
 
-   Save the `GATE_SUMMARY:` line and the read-level listing for the checklist's Gate
-   Integrity category, Step 9.4's record, Step 16 stage 5 and the PR body. Carry any
-   gate hunks Step 7's rescan already flagged into the same category.
+   `GATE_SUMMARY:` の行と、読み取りレベルの一覧を保存してください。これは、チェックリストのゲート整合性 (Gate Integrity) カテゴリ、Step 9.4 の記録、Step 16 の段階 5、そして PR 本文で使います。Step 7 の再スキャンですでに検出されたゲートの hunk は、同じカテゴリに持ち越してください。
 
-3. Apply the review checklist in two passes:
-   - **Pass 1 (CRITICAL):** the checklist's Pass 1 categories, including Gate Integrity
-     over item 2.5's listing (three levels; only findings reach a question)
-   - **Pass 2 (INFORMATIONAL):** All remaining categories
+3. チェックリストは 2 つのパスで適用します:
+   - **パス 1 (CRITICAL):** チェックリストのパス 1 のカテゴリ。項目 2.5 の一覧に対するゲート整合性を含みます (3 段階。質問に進むのは指摘事項のみ)
+   - **パス 2 (INFORMATIONAL):** 残りのすべてのカテゴリ
 
-### Design-lite checklist
+### Design-lite チェックリスト
 
-Its numbering is local to this checklist. When frontend review applies, `/ship`
-automatically attempts this optional design check; `enabled` expresses that choice,
-not a new user question. Step 11 has its own outside-review switch and required native pass.
+この番号はこのチェックリスト内でのみ有効です。フロントエンドのレビューが該当する場合、`/ship` はこの任意のデザインチェックを自動的に試みます。`enabled` は、新たなユーザーへの質問ではなく、その選択を表します。Step 11 には独自の外部レビューの切り替えと、必須のネイティブ pass があります。
 
 {{DESIGN_REVIEW_LITE}}
 
-The parent owns design-lite; the Design specialist is an independent read.
-Before final counting/Fix-First, merge the same evidenced design defect at the same path/line
-into one item with both sources and stricter ASK. Retain actual specialist stats;
-distinct defects stay separate and neither pass substitutes for the other.
+design-lite は親が担当します。Design specialist は独立した読み取りです。
+最終的な集計と Fix-First の前に、同じパス/行で裏付けられた同一のデザイン上の欠陥は、両方の出所を持つ 1 つの項目にまとめ、より厳しい ASK を付けます。実際の specialist の統計は保持してください。別個の欠陥は別々のままにし、どちらの pass も他方の代わりにはなりません。
 
 {{REVIEW_ARMY}}
 
@@ -50,122 +41,83 @@ distinct defects stay separate and neither pass substitutes for the other.
 
 {{CROSS_REVIEW_DEDUP}}
 
-## Step 9.4: Fix-First and persistence
+## Step 9.4: Fix-First と永続化
 
-Before edits, inspect every dispatched reader/writer's handle. Wait for return
-or confirm termination; otherwise log incomplete through items 5–6 and STOP
-without edits. After terminal failure, independent evidence may support fixes,
-but missing dispatched output still blocks continuation, even with a QA exception.
+編集の前に、ディスパッチしたすべての reader/writer のハンドルを確認します。戻りを待つか、終了を確認してください。そうしないと、項目 5–6 で不完全としてログに記録し、編集せずに停止します。
+終了の失敗後、独立した証拠があれば修正を裏付けられますが、ディスパッチした出力が欠けている場合は、QA の例外があっても継続をブロックします。
 
-1. **Classify only unmatched or reopened findings as AUTO-FIX or ASK** after Step 9.3 matches all sources, including queued Steps 10–11 findings, per the Fix-First Heuristic in
-   checklist.md. Critical findings lean toward ASK; informational lean toward AUTO-FIX.
+1. Step 9.3 がキューに入った Step 10–11 の指摘事項を含め、すべてのソースを照合した後で、**照合されなかった、または再オープンされた指摘事項のみを** AUTO-FIX または ASK に分類します。分類は checklist.md の Fix-First ヒューリスティックに従います。CRITICAL の指摘事項は ASK に寄せ、INFORMATIONAL は AUTO-FIX に寄せます。
 
-2. **Auto-fix all AUTO-FIX items.** Apply each fix. Output one line per fix:
+2. **すべての AUTO-FIX 項目を自動修正します。** 各修正を適用し、修正ごとに 1 行を出力します:
    `[AUTO-FIXED] [file:line] Problem → what you did`
 
-3. **If ASK items remain,** present them in ONE AskUserQuestion:
-   - List each with number, severity, problem, recommended fix
-   - Per-item options: A) Fix  B) Skip
-   - Overall RECOMMENDATION
-   - If 3 or fewer ASK items, you may use individual AskUserQuestion calls instead
+3. **ASK の項目が残っている場合は、** 1 回の AskUserQuestion にまとめて提示します:
+   - 各項目を番号、重大度、問題、推奨の修正とともに列挙します
+   - 項目ごとの選択肢: A) 修正する  B) スキップ
+   - 全体の RECOMMENDATION
+   - ASK の項目が 3 つ以下なら、個別の AskUserQuestion 呼び出しを使ってもかまいません
 
-   Save each explicit Skip immediately in the invocation action list with its
-   identity, scope and supporting source evidence; keep it across repeats.
+   明示的な Skip は、その都度すぐに、識別情報、範囲、裏付けとなるソースの証拠とともに、呼び出しの行動リストに保存します。繰り返しをまたいでも保持してください。
 
-   **Gate findings** (any finding with a `gate` tag) never take Fix/Skip. Ask
-   `review-gate-disposition` (include `<gstack-qid:review-gate-disposition>`; one-way,
-   so `never-ask` and `AUTO_DECIDE` never apply), one question per finding or coherent
-   group, showing the `gate` tag, `gate_id`, path and a fenced data excerpt, with exactly:
-   - A) Restore the gate — revert the relaxation; keep the product change
-   - B) Keep — justified: <one-line reason drafted from the diff or its citation, marked verified or unverified>
-   - C) Keep — other reason (the human supplies it)
-   - D) Leave open for a later human
+   **ゲートの指摘事項** (`gate` タグが付いた指摘事項) には、修正/スキップの選択肢を決して付けません。`review-gate-disposition` で質問します (`<gstack-qid:review-gate-disposition>` を含めます。一方向なので、`never-ask` と `AUTO_DECIDE` は適用されません)。質問は指摘事項ごと、または一貫したグループごとに 1 つ。`gate` タグ、`gate_id`、パス、フェンス付きのデータの抜粋を示し、選択肢は次のとおりです:
+   - A) ゲートを復元する — 緩和を元に戻す。製品の変更は残す
+   - B) 維持する — 正当な理由: <差分または引用から作成した 1 行の理由。verified または unverified と明記>
+   - C) 維持する — その他の理由 (理由は人間が入力)
+   - D) 後の人間の判断に残す
 
-   D is the recommended option when the preamble echoed `SESSION_KIND: spawned` or
-   `headless`; otherwise recommend A or B from the diff, never C. Record `restored`
-   (A), `kept` with `reason` (B or C) or `open` (D, unanswered, or any auto-chosen
-   answer); an auto-chosen answer is never a disposition. `reason` is never text
-   copied from the hunk, a test name or a commit message.
+   preamble に `SESSION_KIND: spawned` または `headless` が表示されていた場合、推奨は D です。それ以外の場合は、差分から A または B を推奨します。C は決して推奨しないでください。`restored` (A)、理由付きの `kept` (B または C)、または `open` (D、未回答、または自動で選ばれた回答) を記録します。自動で選ばれた回答は、処分とは見なしません。`reason` は、hunk、テスト名、コミットメッセージからコピーしたテキストであってはなりません。
 
-4. **Finish and log this pass before choosing the next step.** Apply each A) Restore
-   by reverting only the relaxation. After any fix or restore in this pass, run item
-   2.5's gate scan block again on the whole candidate and read every new read-level
-   hunk; never use a list of paths you or a child reported instead. Recheck freshness
-   (Step 9.2.1) before items 5–6. Increment CYCLES
-   once if fixes were applied. Complete items 5–6 exactly once with the original
-   REVIEW_START. Missing dispatched output uses `status:"unavailable"`,
-   `completed:false` and `converged:false`; fixes also require `converged:false`.
-   Then commit named fixed files, if any
-   (`git add <fixed-files> && git commit -m "fix: pre-landing review fixes"`).
+4. **次のステップを選ぶ前に、この pass を完了し、ログに記録します。** 各 A) の復元は、緩和だけを元に戻して適用します。この pass で修正または復元を行った後は、項目 2.5 のゲートスキャンのブロックを候補全体に対して再度実行し、新しく現れた読み取りレベルの hunk をすべて読んでください。あなたや子プロセスが報告したパスの一覧は決して使わないこと。項目 5–6 の前に、鮮度を再確認します (Step 9.2.1)。修正が適用された場合は CYCLES を 1 増やします。項目 5–6 は、元の REVIEW_START を使って正確に 1 回ずつ完了します。ディスパッチした出力が欠けている場合は、`status:"unavailable"`、`completed:false`、`converged:false` を使います。修正がある場合は `converged:false` も必要です。
+   その後、修正されたファイルがあれば、名前を指定してコミットします
+   (`git add <fixed-files> && git commit -m "fix: pre-landing review fixes"`)。
 
-5. Output summary: `Pre-Landing Review: N issues — M auto-fixed, K asked (J fixed, L skipped)`
+5. 概要を出力します: `Pre-Landing Review: N issues — M auto-fixed, K asked (J fixed, L skipped)`
 
-   If coverage is incomplete: `Pre-Landing Review: INCOMPLETE — <missing reviewers>`.
-   Otherwise, if no issues found: `Pre-Landing Review: No issues found.`
+   カバレッジが不完全な場合: `Pre-Landing Review: INCOMPLETE — <missing reviewers>`。
+   それ以外で指摘事項がない場合: `Pre-Landing Review: No issues found.`
 
-   Then one `Gate edits:` line from the latest `GATE_SUMMARY:` and the gate answers:
-   `Gate edits: none detected (N listed, M read; patterns: <coverage>; unlisted idioms: <languages_unlisted>)`,
-   `Gate edits: N listed, M read, K findings — J kept (reasons below), R restored, O open`,
-   `Gate edits: partial (K of M eligible read)` plus the counts for the read hunks, or
-   `Gate edits: UNAVAILABLE — <GATE_ERROR line or helper exit>` (missing coverage,
-   never `none detected`). List each kept finding's `gate`, path and `reason` under it.
+   次に、最新の `GATE_SUMMARY:` とゲートの回答から、`Gate edits:` の行を 1 つ出力します:
+   `Gate edits: none detected (N listed, M read; patterns: <coverage>; unlisted idioms: <languages_unlisted>)`、
+   `Gate edits: N listed, M read, K findings — J kept (reasons below), R restored, O open`、
+   `Gate edits: partial (K of M eligible read)` と読み取った hunk の件数、または
+   `Gate edits: UNAVAILABLE — <GATE_ERROR line or helper exit>` (カバレッジの欠落。`none detected` と書いてはいけません)。
+   その下に、維持された各指摘事項の `gate`、パス、`reason` を列挙します。
 
-6. Persist the review result to the review log:
+6. レビュー結果をレビューログに永続化します:
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"review","timestamp":"TIMESTAMP","status":"STATUS","issues_found":N,"critical":N,"informational":N,"quality_score":SCORE,"specialists":SPECIALISTS_JSON,"findings":FINDINGS_JSON,"commit":"'"$(git rev-parse --short HEAD)"'","via":"ship","completed":COMPLETED,"converged":CONVERGED,"cycles":CYCLES}' --finish REVIEW_START
 ```
-- `TIMESTAMP`: ISO 8601. `STATUS`: `unavailable` for missing dispatched reviewer output;
-  otherwise `clean` only for completed coverage with no
-  unresolved non-advisory defects; otherwise `issues_found`. N counts current
-  unresolved defects, not original totals. Missing coverage is not a defect.
-- `REVIEW_START`: this pass's Step 9 token captured before reading the diff;
-  never recapture at persistence to certify unreviewed fixes.
-- `COMPLETED`: checklist and dispatched specialists/Red Team finish, and all required probes pass.
-  Failed, blocked, inconclusive or not-run required probes mean false, never clean.
-  Record accepted untested risk separately, not as passing verification.
-  Undispatched host-unsupported/gated specialists do not block; retain their labels.
-- `CONVERGED`: completed with zero fixes. `CYCLES`: fix cycles performed, initially 0.
-- `quality_score`: Step 9.2's score, or `10.0` when specialists were skipped/unsupported.
-- `specialists`: `{}` for a small-diff skip; otherwise every considered specialist's Step 9.2 stats:
-  `{"dispatched":true,"findings":N,"critical":N,"informational":N}` or
-  `{"dispatched":false,"reason":"scope|gated"}`.
-- `findings`: checklist, specialist, exploratory QA and queued Steps 10–11 records with
-  `{"fingerprint":"path:line:category","severity":"CRITICAL|INFORMATIONAL","action":"ACTION"}`.
-  ACTION: `"auto-fixed"`, `"fixed"` (approved), or `"skipped"` (explicit Skip).
-  Merge revalidated invocation decisions by identity and advisory/defect kind;
-  preserve `advisory`, `evidence_paths` and `helper_target`.
-  Gate findings add `gate` (RH tag), `gate_id` (the tool's hunk identity), `reason`
-  (for `kept`) and ACTION `"kept"`, `"restored"` or `"open"`; never store hunk text.
-  `open` counts in `issues_found` and by severity. The logger stamps `actor` from
-  `gstack-session-kind` (a supplied `actor` is discarded) and forces `"open"` on
-  gate findings in a non-interactive session.
-Save the review output and the `Gate edits:` line — they go into the PR body in Step 19.
-Any `open` gate finding also decides Step 19's draft state.
+- `TIMESTAMP`: ISO 8601。`STATUS`: ディスパッチしたレビュアーの出力が欠けている場合は `unavailable`。
+  それ以外は、カバレッジが完了し、未解決の非助言的な欠陥がない場合に限り `clean`。それ以外は `issues_found`。N は現在の未解決の欠陥数を数えます。元の合計ではありません。カバレッジの欠落は欠陥ではありません。
+- `REVIEW_START`: diff を読む前に取得した、この pass の Step 9 のトークン。
+  未レビューの修正を認定するために、永続化の時点で再取得しないでください。
+- `COMPLETED`: チェックリストと、ディスパッチした specialist/Red Team が完了し、必要なプローブがすべて合格していること。
+  失敗、ブロック、判定不能、または未実行の必要なプローブがある場合は false とし、clean にはしません。
+  許容された未テストのリスクは、合格した検証としてではなく、別に記録してください。
+  ディスパッチされていない、ホストが未サポートまたはゲートされた specialist はブロックしません。そのラベルは保持してください。
+- `CONVERGED`: 修正 0 件で完了した場合。`CYCLES`: 実行した修正サイクル数。初期値は 0。
+- `quality_score`: Step 9.2 のスコア。specialist をスキップまたは未サポートにした場合は `10.0`。
+- `specialists`: 小さな差分でスキップした場合は `{}`。それ以外は検討したすべての specialist の Step 9.2 の統計:
+  `{"dispatched":true,"findings":N,"critical":N,"informational":N}` または `{"dispatched":false,"reason":"scope|gated"}`。
+- `findings`: チェックリスト、specialist、exploratory QA、キューに入った Step 10–11 の記録を、
+  `{"fingerprint":"path:line:category","severity":"CRITICAL|INFORMATIONAL","action":"ACTION"}` の形式で記録します。
+  ACTION: `"auto-fixed"`、`"fixed"` (承認済み)、または `"skipped"` (明示的な Skip)。
+  再検証された呼び出しの判断は、identity と advisory/defect の種類で統合します。`advisory`、`evidence_paths`、`helper_target` は保持します。
+  ゲートの指摘事項には `gate` (RH タグ)、`gate_id` (ツールの hunk の識別子)、`reason` (`kept` の場合)、ACTION として `"kept"`、`"restored"`、`"open"` を追加します。hunk のテキストは決して保存しないこと。
+  `open` は `issues_found` と重大度ごとに数えます。ロガーは `gstack-session-kind` から `actor` を設定します (指定された `actor` は破棄されます)。非対話のセッションでは、ゲートの指摘事項に `"open"` を強制します。
+レビューの出力と `Gate edits:` の行を保存してください。Step 19 で PR 本文に入ります。
+`open` のゲートの指摘事項があれば、Step 19 の下書きの状態も決まります。
 
-### Decide whether to repeat Step 9
+### Step 9 を繰り返すかどうか判断する
 
-After persistence, record missing dispatched output, CYCLES and applied fixes in
-the invocation record. Apply these decisions in order:
+永続化の後、ディスパッチした出力の欠落、CYCLES、適用した修正を、呼び出しの記録に残します。次の判断を順番に適用してください:
 
-1. **Dispatched reviewer output missing:** STOP and name each failed specialist or
-   Red Team. Retain queued fixes and restore coverage. If this pass made edits,
-   resume at the next decision; otherwise run a fresh complete Step 9. A successful
-   peer or a QA exception cannot replace missing dispatched coverage.
-2. **Third fixing cycle reached (`CYCLES >= 3`):** STOP and report recurring findings with
-   `converged:false`; do not run a fourth fixing cycle.
-3. **Fixes applied below the cap:** Insert Step 5, affected Steps 6–8 and all of
-   Step 9 before the pending Step 10 in the work list. Tests must pass or retain approval for the same verified pre-existing
-   failures and scope. Keep CYCLES and scoped approvals across this repeat.
-4. **No edits in this pass:** Resolve the required-probe gate below. Only after it
-   clears may you continue to Step 10. Undispatched gated/unsupported specialists
-   do not block independently, but never replace QA or required native review.
+1. **ディスパッチしたレビュアーの出力が欠けている:** 停止し、失敗した specialist または Red Team をそれぞれ明記します。キューに入った修正は保持し、カバレッジを回復してください。このパスで編集した場合は、次の判断から再開します。そうでなければ、新たに Step 9 を完全に実行します。成功した peer や QA の例外は、欠けているディスパッチのカバレッジの代わりにはなりません。
+2. **3 回目の修正サイクルに到達 (`CYCLES >= 3`):** 停止し、`converged:false` とともに再発した指摘事項を報告します。4 回目の修正サイクルは実行しないでください。
+3. **上限未満で修正が適用された:** Step 5、影響を受ける Step 6–8、そして Step 9 全体を、作業リストの保留中の Step 10 の前に挿入します。テストは合格している必要があります。または、検証済みの既存の失敗と範囲について承認を保持してください。この繰り返しをまたいで CYCLES とスコープ付きの承認を保持します。
+4. **このパスで編集がない:** 以下の必要なプローブのゲートを解決します。それがクリアされた後にのみ Step 10 に進めます。ゲートされている/未サポートの specialist は単独ではブロックしませんが、QA や必須のネイティブレビューの代わりにはなりません。
 
-**Required-probe parent gate:** With completed checklist and dispatched reviewers,
-failed/unavailable required probes block continuation.
-Use AskUserQuestion: stop for repair (recommended), or explicitly accept each
-named probe's concrete risk. Skipping a fix is not risk acceptance or a passing
-probe. Keep actual outcomes and incomplete flags; VERIFY_RESULT stays fail for
-plan-check exceptions. This cannot waive missing reviewer output, recurring fixes
-or independent test/security gates.
+**必要なプローブの親ゲート:** チェックリストとディスパッチしたレビュアーが完了している場合、失敗または利用不可の必要なプローブは継続をブロックします。
+AskUserQuestion を使い、修復のために停止する (推奨)、または名指しされた各プローブの具体的なリスクを明示的に受け入れる、のいずれかを選んでもらいます。修正をスキップすることは、リスクの受け入れや合格したプローブとは見なしません。実際の結果と不完全フラグを保持してください。プラン確認の例外では VERIFY_RESULT は fail のままです。これは、欠けたレビュアーの出力、再発した修正、独立したテスト/セキュリティのゲートを免除できません。
 
 ---

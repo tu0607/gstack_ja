@@ -36,7 +36,7 @@ describe('review/design-checklist.md is generated', () => {
     expect(md).toContain(`# ${DESIGN_CHECKLIST_TITLE}`);
     expect(md).toContain(`### 1. ${DESIGN_CHECKLIST_SLOP_HEADING} (`);
     // Fixed sections other readers depend on.
-    for (const h of ['## Instructions', '## Confidence Tiers', '## Classification', '## Output Format', '## Categories', '## Suppressions']) {
+    for (const h of ['## 手順', '## 信頼度ティア', '## 分類', '## 出力形式', '## カテゴリ', '## 抑制']) {
       expect(md).toContain(h);
     }
   });
@@ -75,13 +75,13 @@ describe('review/design-checklist.md is generated', () => {
     for (const e of checklistSlopEntries()) expect(e.kind).toBe('slop');
     expect(md).toContain('[side-tab]');
     expect(md).toContain('[overused-font]');
-    expect(md).toContain('Faces: Inter, Roboto');
+    expect(md).toContain('書体: Inter, Roboto');
   });
 
   test('font blacklist renders from BANNED_FONTS without role qualifiers', () => {
     const md = generateDesignChecklistMd();
-    expect(md).toContain('Blacklisted fonts: Papyrus, Comic Sans');
-    expect(md).toContain('Courier New.');
+    expect(md).toContain('ブラックリストのフォント: Papyrus, Comic Sans');
+    expect(md).toContain('Courier New。');
     expect(md).not.toContain('(for body)');
     expect(BANNED_FONTS.length).toBeGreaterThan(5);
   });

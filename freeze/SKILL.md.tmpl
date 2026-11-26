@@ -2,11 +2,10 @@
 name: freeze
 version: 0.1.0
 description: |
-  Restrict file edits to a specific directory for the session. Blocks Edit,
-  Write and NotebookEdit outside the allowed path. Use when debugging to prevent accidentally
-  "fixing" unrelated code, or when you want to scope changes to one module.
-  Use when asked to "freeze", "restrict edits", "only edit this folder",
-  or "lock down edits". (gstack)
+  セッション中のファイル編集を特定のディレクトリに制限します。許可されたパスの外への Edit、
+  Write、NotebookEdit をブロックします。デバッグ中に無関係なコードを誤って「修正」するのを防ぐとき、
+  または変更を 1 つのモジュールに絞りたいときに使います。「freeze」「restrict edits」「only edit this folder」
+  「lock down edits」と依頼されたときに使います。(gstack)
 triggers:
   - freeze edits to directory
   - lock editing scope
@@ -35,11 +34,10 @@ hooks:
 sensitive: true
 ---
 
-# /freeze — Restrict Edits to a Directory
+# /freeze — ディレクトリへの編集を制限する
 
-Lock file edits to a specific directory. Any Edit, Write or NotebookEdit
-operation targeting a file outside the allowed path will be **blocked** (not
-just warned).
+ファイルの編集を特定のディレクトリに限定します。許可されたパスの外にあるファイルを対象とする Edit、Write、NotebookEdit の操作は、
+単に警告されるのではなく、**ブロック**されます。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -47,50 +45,44 @@ mkdir -p "$GSTACK_STATE_ROOT"/analytics
 echo '{"skill":"freeze","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> "$GSTACK_STATE_ROOT"/analytics/skill-usage.jsonl 2>/dev/null || true
 ```
 
-## Setup
+## セットアップ
 
-Ask the user which directory to restrict edits to. Use AskUserQuestion:
+編集を制限するディレクトリをユーザーに尋ねます。AskUserQuestion を使います:
 
-- Question: "Which directory should I restrict edits to? Files outside this path will be blocked from editing."
-- Text input (not multiple choice) — the user types a path.
+- 質問: 「どのディレクトリに編集を制限しますか? このパスの外にあるファイルは、編集がブロックされます。」
+- 選択肢ではなく、テキスト入力(ユーザーがパスを入力します)
 
-Once the user provides a directory path:
+ユーザーがディレクトリのパスを指定したら:
 
-Set the user-selected boundary with the shared state writer. It resolves the physical absolute path and serializes replacement with investigation cleanup:
+共有の状態書き込みツールを使って、ユーザーが選んだ境界を設定します。このツールは物理的な絶対パスを解決し、境界の置き換えと /investigate による境界の解除が同時に走らないようロックで順番に実行します:
 ```bash
 bash "{{RUNTIME_ROOT}}/freeze/bin/freeze-state.sh" set "<user-provided-path>"
 ```
 
-Only report success if the helper succeeds. On `FREEZE_BUSY` or unexpected state, preserve it and ask the user to inspect recovery after any active writer finishes; never write or delete the state file directly.
+ヘルパーが成功した場合にのみ、成功を報告します。`FREEZE_BUSY` や想定外の状態の場合は、その状態を保持し、
+実行中の書き込みが終わった後に、回復の確認をユーザーに求めます。状態ファイルを直接書き込んだり削除したりしてはいけません。
 
-Tell the user: "Edits are now restricted to `<path>/`. Any Edit, Write or
-NotebookEdit outside this directory will be blocked. To change the boundary, run `/freeze`
-again. To remove it, run `/unfreeze`."
+ユーザーに伝えます:「編集は `<path>/` に制限されました。このディレクトリの外での Edit、Write、
+NotebookEdit はブロックされます。境界を変更するには、もう一度 `/freeze` を実行してください。解除するには `/unfreeze` を実行してください。」
 
-## How it works
+## 仕組み
 
-The hook reads `file_path` from the Edit/Write tool input JSON, or
-`notebook_path` from a NotebookEdit (Jupyter notebook) call (shared
-real-JSON extractor with /careful — one copy, sourced by both hooks), then
-checks whether the path starts with the freeze directory. If not, it returns a
-`hookSpecificOutput` payload with `permissionDecision: "deny"` to block the
-operation (nested under `hookSpecificOutput` — Claude Code ignores a top-level
-`permissionDecision`).
+フックは、Edit/Write のツール入力 JSON から `file_path` を読み取ります。NotebookEdit(Jupyter ノートブック)の呼び出しの場合は、
+`notebook_path` を読み取ります(実際の JSON を抽出する処理は /careful と共有しています。コピーは 1 つで、両方のフックから読み込まれます)。
+そのうえで、パスが凍結ディレクトリから始まるかを確認します。始まらない場合は、`hookSpecificOutput` のペイロードを返し、
+`permissionDecision: "deny"` で操作をブロックします(Claude Code はトップレベルの `permissionDecision` を無視するため、`hookSpecificOutput` の中に入れます)。
 
-Polarity is fail-closed: a tool payload the hook cannot parse is DENIED, not
-allowed — a boundary that fails open is not a boundary. A payload that parses
-but has neither path field (a non-file tool) is allowed. A deny names the
-tool, the path field, the boundary and `/unfreeze`. Symlinks are resolved
-through their FINAL component, so an in-boundary symlink pointing outside the
-boundary is checked against its target.
+判定は fail-closed です。フックが解析できないツールのペイロードは、許可ではなく**拒否**されます。
+失敗時に通してしまう境界は、境界とは言えないからです。どちらのパスフィールドも持たないペイロード(ファイルを扱わないツール)は許可されます。
+拒否の際には、ツール名、パスのフィールド、境界、`/unfreeze` を示します。シンボリックリンクは最終コンポーネントまで解決されるため、
+境界内にあるが境界外を指すシンボリックリンクは、そのリンク先に対して確認されます。
 
-The freeze boundary persists until explicitly removed via the state file. The hook
-script reads it on every Edit/Write/NotebookEdit invocation. Boundaries containing spaces
-are supported.
+凍結の境界は、状態ファイルから明示的に削除されるまで続きます。フックスクリプトは、Edit/Write/NotebookEdit の呼び出しのたびに、それを読み込みます。
+スペースを含む境界にも対応しています。
 
-## Notes
+## 補足
 
-- The trailing `/` on the freeze directory prevents `/src` from matching `/src-old`
-- Freeze applies to Edit, Write and NotebookEdit only — Read, Bash, PowerShell, Glob, Grep are unaffected
-- This prevents accidental edits, not a security boundary — Bash or PowerShell commands like `sed` or `Set-Content` can still modify files outside the boundary
-- To deactivate, run `/unfreeze`; ending or killing a conversation does not remove persisted state
+- 凍結ディレクトリ末尾の `/` は、`/src` が `/src-old` に一致するのを防ぎます。
+- 凍結が適用されるのは Edit、Write、NotebookEdit だけです。Read、Bash、PowerShell、Glob、Grep には影響しません。
+- これは誤った編集を防ぐためのもので、セキュリティの境界ではありません。`sed` や `Set-Content` のような Bash または PowerShell のコマンドは、境界の外のファイルを依然として変更できます。
+- 無効にするには `/unfreeze` を実行します。会話を終えたり強制終了したりしても、保存された状態は削除されません。

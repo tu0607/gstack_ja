@@ -1,67 +1,26 @@
-## Flake recipe
+## Flake の手順
 
-A flake is a test whose verdict depends on something other than the code it
-guards. The Iron Law holds here: no rerun, no wider timeout, no retry and no
-skip until the cause is named and probed.
+Flake とは、判定が、それが検証しているコードとは別の何かに依存しているテストのことです。ここでも鉄則は変わりません。原因を特定して検証するまで、再実行もタイムアウトの延長も再試行もスキップもしません。
 
-1. **Reproduce on main.** Check out `origin/<base>` in a worktree
-   (`git worktree add <dir> origin/<base>`) and run the failing file alone N
-   times (N ≥ 10). On gstack:
-   `bun --no-env-file --config=/dev/null run scripts/ship-measure.ts free --files <file> --reruns N`; elsewhere a
-   loop over the project's single-file test command. Record `failed/N` on main,
-   then the same on the branch. A failure that reproduces on main is outside the
-   PR; one that appears only on the branch is inside it.
-2. **Cause inside or outside the PR.** Diff the two runs' logs at the first
-   divergence and name the dependency: timing, file order, shared state, network,
-   clock, a resource limit. "Flaky" is a symptom, never a cause.
-3. **Compare the metric with the last N green runs.** Once for `<base>` and once
-   for the branch (`--branch <branch-name>`), against the workflow that ran the
-   failing shard; read the duration or retry token next to the test:
+1. **main で再現する。** worktree で `origin/<base>` をチェックアウトし(`git worktree add <dir> origin/<base>`)、失敗したファイルだけを N 回(N ≥ 10)実行します。gstack では `bun --no-env-file --config=/dev/null run scripts/ship-measure.ts free --files <file> --reruns N` を使います。それ以外では、プロジェクトの単一ファイル用テストコマンドをループで実行します。main での `failed/N` を記録し、次にブランチで同じ実行を行います。main で再現する失敗は PR の外の問題です。ブランチでのみ現れる失敗は PR の内の問題です。
+2. **原因が PR の内か外か。** 2 回の実行のログを最初に食い違った箇所で比較し、依存関係を特定します。タイミング、ファイルの順序、共有状態、ネットワーク、クロック、リソース上限などです。「不安定」は症状であり、原因ではありません。
+3. **直近 N 回の成功実行と指標を比較する。** `<base>` について 1 回、ブランチについて 1 回(`--branch <branch-name>`)、失敗したシャードを実行したワークフローと照らし合わせます。テストの隣にある実行時間や再試行トークンを読みます:
    ```bash
    gh run list --branch <base> --workflow free-tests.yml --status success --limit 20 --json databaseId,headSha,createdAt,updatedAt
    gh run view <run-id> --log | grep -F -- "<failing-test-file>"
    ```
-   The run where the duration, retry count or failing test first moved dates the
-   regression; cite its `headSha`.
-4. **Forced probe.** Build the smallest change that makes the test fail
-   deterministically for the stated cause (inject the delay, pin the file order,
-   freeze the clock, exhaust the resource). Show the probe output failing before
-   the fix and passing after. No probe, no cause.
-5. **Never loosen.** A wider timeout, a retry, a looser assertion or a skip is a
-   gate relaxation (review tag RH-15); the fix lives in the code or in the test's
-   isolation, not in its threshold.
+   実行時間、再試行回数、または失敗テストが初めて変化した実行が、回帰の時期を示します。その `headSha` を引用してください。
+4. **強制プローブ。** 示された原因に対して、テストを決定的に失敗させる最小限の変更を作ります(遅延を注入する、ファイルの順序を固定する、クロックを凍結する、リソースを使い切るなど)。修正前にはプローブの出力が失敗し、修正後には成功することを示してください。プローブがなければ原因は確定しません。
+5. **決して緩めない。** タイムアウトの延長、再試行、アサーションの緩和、スキップはゲートの緩和にあたります(レビュータグ RH-15)。修正はコードまたはテストの分離にあるべきで、閾値にあってはなりません。
    {{FLAKE_FIX_NUMBER:investigate}}
-6. **A rerun only when the cause is known and outside the PR** (infrastructure,
-   a polluter already fixed on main, a provider outage), stated in the PR body.
-   Reruns follow `ship-measure`'s discipline: bounded, counted, logged,
-   `flaky retry off`; a free rerun is diagnostic, never the green. Paid evals
-   are never retried (`EVAL_POLICY` in `test/helpers/periodic-exclude-data.ts`).
-7. **`## Flake evidence` in the PR body (required for any flake fix).** The
-   probe's before and after output, `failed/N` on main and on the branch, the
-   `gh run list` comparison with the first-moved `headSha`, and a routing note
-   for the owner: `fix in this PR` | `rerun; cause outside the PR: <what>` |
-   `owner decision needed: <the relaxation and its P(fail | regression) before/after>`.
+6. **再実行は、原因が既知で PR の外にある場合(インフラ、main で既に修正済みの汚染元、プロバイダの障害など)に限ります。** PR の本文に明記してください。再実行は `ship-measure` の規律に従います。回数を制限し、数えて、ログに残し、`flaky retry off` とします。無料の再実行は診断であり、グリーンの根拠にはなりません。有料の eval は決して再試行しません(`test/helpers/periodic-exclude-data.ts` の `EVAL_POLICY`)。
+7. **PR 本文に `## Flake evidence` を記載する(flake の修正すべてで必須)。** プローブの修正前後の出力、main とブランチでの `failed/N`、最初に変化した `headSha` を含む `gh run list` の比較、そして担当者向けのルーティングメモを書きます。メモは `fix in this PR` | `rerun; cause outside the PR: <what>` | `owner decision needed: <the relaxation and its P(fail | regression) before/after>` のいずれかです。
 
-### Timing flakes (`TIMING_ASSERTION`)
+### タイミング由来の flake(`TIMING_ASSERTION`)
 
-When the failing line compares an elapsed time with a bound or sleeps and then
-asserts (`gstack-pregate`'s `timing` check prints it as
-`TIMING_ASSERTION: <file>:<line> <pattern>`):
+失敗した行が、経過時間を上限と比較している場合、または sleep の後にアサートしている場合に適用します(`gstack-pregate` の `timing` チェックは `TIMING_ASSERTION: <file>:<line> <pattern>` の形式で表示します)。
 
-1. **Same-load distributions.** Log the asserted value on every run and run the
-   file N ≥ 20 times on `origin/<base>` and on the PR head under the same load
-   (same machine, same concurrency, beside the same shard). Report min, p50,
-   p95, max and failures against the bound for both. A distribution that moved
-   on the PR head is a regression in the PR; the same distribution on both is a
-   test that depends on machine load.
-2. **Forced probe.** Inject the delay the load causes (a sleep inside the
-   measured span behind a test-only hook, or a starved CPU) and show the
-   assertion failing every time.
-3. **Fix the measurement, never the bound.** Assert on the outcome, an injected
-   clock, a forced deadline or a poll with a deadline instead of a fixed sleep;
-   a complexity bound measures thread CPU time against a same-run baseline.
-   When a bound stays the contract, the line carries
-   `gstack-timing-ok: <reason>`. Raising the bound is not a fix.
-4. **Rerun only with outside-cause evidence:** the same-load distributions show
-   no PR regression and the failed run's load is on record (CI log, runner
-   metrics). Put both in `## Flake evidence`.
+1. **同一負荷での分布を比較する。** すべての実行でアサートされる値をログに残し、同じ負荷の下(同じマシン、同じ並行数、同じシャードの隣)で、`origin/<base>` と PR の HEAD のそれぞれについて、ファイルを N ≥ 20 回実行します。両方について、最小値、p50、p95、最大値、および上限に対する失敗数を報告します。PR の HEAD で分布が動いていれば、それは PR 内の回帰です。両方で同じ分布であれば、そのテストはマシンの負荷に依存しています。
+2. **強制プローブ。** 負荷が引き起こす遅延を注入します(テスト専用のフックの背後で、計測区間内に sleep を入れる、または CPU を飢餓状態にする)。アサーションが毎回失敗することを示してください。
+3. **上限ではなく測定を修正する。** 固定の sleep ではなく、結果に対してアサートする、注入されたクロックを使う、強制的な期限を使う、または期限付きのポーリングを使います。計算量の上限は、同一実行内のベースラインと比べてスレッドの CPU 時間を計測します。上限が契約として残る場合は、その行に `gstack-timing-ok: <reason>` を付けます。上限を引き上げることは修正ではありません。
+4. **外部原因の証拠がある場合に限り再実行する。** 同一負荷での分布が PR による回帰を示しておらず、失敗した実行の負荷が記録されている(CI ログ、ランナーのメトリクス)必要があります。両方を `## Flake evidence` に記載してください。

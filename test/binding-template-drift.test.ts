@@ -24,33 +24,32 @@ function rendered(rel: string): string {
 describe('content-binding template drift', () => {
   test('design-lite records outside coverage after the outside step in ship', () => {
     const text = rendered('ship/sections/review-army.md');
-    const outside = text.indexOf('design voice**');
+    const outside = text.indexOf('Codex デザインボイス**');
     expect(outside).toBeGreaterThan(-1);
     expect(text.indexOf('--finish DESIGN_START')).toBeGreaterThan(outside);
-    expect(text).toContain('Use the original DESIGN_START token');
+    expectMentions(text.replace(/\s+/g, ' '), [['DESIGN_START', '最初', 'トークン']], 'review-army');
   });
 
   test('ship eval selection scopes the Rails example below the project-native path', () => {
     const text = rendered('ship/sections/tests.md');
-    const native = text.indexOf('**Project-native path:**');
-    const rails = text.indexOf('**Rails example only');
+    const native = text.indexOf('**プロジェクト固有の方法:**');
+    const rails = text.indexOf('**Rails の例のみ');
     expect(native).toBeGreaterThan(-1);
     expect(rails).toBeGreaterThan(native);
     expect(text).not.toContain('**If no matches:**');
-    expect(text).toContain('If any eval fails');
+    expect(text).toContain('**eval が 1 つでも失敗した場合:**');
   });
 
   test('ship historical readiness does not replace the current pre-landing gate', () => {
     const text = rendered('ship/SKILL.md');
-    expectMentions(text, [['never', 'convergence', 'approval']], 'text');
+    expectMentions(text.replace(/\s+/g, ' '), [['Step 9', '承認', '収束', 'スキップ']], 'text');
   });
 
   test('ship Step 16 carries the evidence check (mechanized IRON LAW)', () => {
     const ship = rendered('ship/SKILL.md');
     expect(ship).toMatch(/gstack-evidence check --label tests --expect-cmd '[^']+' --label vitest --expect-cmd '[^']+' --max-age 24 --allow-paths CHANGELOG\.md,VERSION,package\.json/);
-    expect(ship.replace(/\s+/g, ' ')).toContain("| STALE/MISSING: changed content, command or age, or no proven run | Run `~/.claude/skills/gstack/bin/gstack-evidence run --label <lane> -- '<command>'`, read the result and recheck once");
-    expect(ship.replace(/\s+/g, ' ')).toContain("**New, changed or unwaived test failure:** STOP publication. Run Steps 5–15, starting with Step 5's triage, then return to Step 16 stage 1");
-    expect(ship).toContain('return to Step 16 stage 1');
+    expect(ship.replace(/\s+/g, ' ')).toMatch(/\| STALE\/MISSING: [^|]+ \| `~\/\.claude\/skills\/gstack\/bin\/gstack-evidence run --label <lane> -- '<command>'` を実行/);
+    expectMentions(ship.replace(/\s+/g, ' '), [['Step 5–15', 'Step 16', '段階 1']], 'ship');
   });
 
   test('ship Step 5 lanes run wrapped with per-lane labels', () => {
@@ -75,8 +74,8 @@ describe('content-binding template drift', () => {
     // {{REVIEW_DASHBOARD}}; ship is the canonical carrier.
     const ship = rendered('ship/SKILL.md');
     expect(ship).toContain('---WTREE---');
-    expect(ship).toContain('Content-first rule');
-    expect(ship).toContain('A failed command means UNKNOWN, treated as stale');
+    expect(ship).toContain('内容優先のルール');
+    expectMentions(ship.replace(/\s+/g, ' '), [['コマンド', '失敗', 'UNKNOWN', '古い']], 'ship');
   });
 
   test('the diff-scoped row list is IDENTICAL in both grading surfaces (no drift)', () => {
@@ -84,7 +83,7 @@ describe('content-binding template drift', () => {
     // they diverged once (codex-review present in one, missing in the other).
     // Rendered dashboards escape backticks (template-literal origin), so match
     // structurally: the three row names in order inside the rule sentence.
-    const rowList = /Content-first rule[\s\S]{0,80}?`review`[\s\S]{0,80}?`adversarial-review`[\s\S]{0,80}?`codex-review`[\s\S]{0,80}?ship-stage (?:entries|reviews)[\s\S]{0,80}?`design-review-lite`/;
+    const rowList = /内容優先のルール[\s\S]{0,80}?`review`[\s\S]{0,80}?`adversarial-review`[\s\S]{0,80}?`codex-review`[\s\S]{0,80}?ship 段階の(?:エントリ|レビュー)[\s\S]{0,80}?`design-review-lite`/;
     expect(rendered('ship/SKILL.md')).toMatch(rowList);
     // land-and-deploy's copy of the row list lives in the carved readiness-gate
     // section (Step 3.5a), not the skeleton.
@@ -96,9 +95,9 @@ describe('content-binding template drift', () => {
       const text = rendered(file);
       expect(text).toContain('review_freshness');
       expect(text).toContain('UNVERIFIED');
-      expect(text).toContain('Never fall back');
-      expect(text).toMatch(/(?:0|zero) commits/);
-      expect(text.toLowerCase()).toMatch(/plan-tier|plan records/);
+      const flat = text.replace(/\s+/g, ' ');
+      expectMentions(flat, [['フォールバック'], ['HEAD', '0']], file);
+      expect(flat).toMatch(/プランレコード|プランレベル/);
     }
   });
 
@@ -108,13 +107,13 @@ describe('content-binding template drift', () => {
     expect(review).toContain('--finish REVIEW_START');
     expect(review).toContain('"completed":COMPLETED,"converged":CONVERGED,"cycles":CYCLES');
     const army = rendered('ship/sections/review-army.md');
-    expect(army.indexOf('gstack-review-log --start review')).toBeLessThan(army.indexOf('run `git diff origin/<base>`'));
+    expect(army.indexOf('gstack-review-log --start review')).toBeLessThan(army.indexOf('`git diff origin/<base>`'));
     expect(army).toContain('--finish REVIEW_START');
-    expect(army.replace(/\s+/g, ' ')).toContain('Complete items 5–6 exactly once with the original REVIEW_START');
-    expect(army).toContain('fixes also require `converged:false`');
+    expectMentions(army.replace(/\s+/g, ' '), [['項目 5–6', '元の REVIEW_START', '1 回']], 'army');
+    expectMentions(army.replace(/\s+/g, ' '), [['修正', '`converged:false`', '必要']], 'army');
     const ship = rendered('ship/SKILL.md');
-    expect(army.replace(/\s+/g, ' ')).toContain('**Third fixing cycle reached (`CYCLES >= 3`):** STOP and report recurring findings with `converged:false`; do not run a fourth fixing cycle');
-    expectMentions(ship.replace(/\s+/g, ' '), [['never', 'approvals', 'expands']], 'ship.replace(/\s+/g,  )');
+    expectMentions(army.replace(/\s+/g, ' '), [['`CYCLES >= 3`', '`converged:false`'], ['4 回目', '実行しない']], 'army');
+    expectMentions(ship.replace(/\s+/g, ' '), [['承認', '拡張']], 'ship.replace(/\s+/g,  )');
     expect(army).toContain('--start design-review-lite');
     expect(army).toContain('--finish DESIGN_START');
     const codex = rendered('codex/sections/review-mode.md');
@@ -126,13 +125,13 @@ describe('content-binding template drift', () => {
     expect(starts[1].index).toBeLessThan(codex.indexOf('git diff "<base>...HEAD"'));
     expect(codex).toContain('--finish CODEX_REVIEW_START');
     expect(codex).toContain('"completed":COMPLETED,"converged":CONVERGED');
-    expectMentions(codex, [['until', 'genuine', 'fixes']], 'codex');
+    expectMentions(codex, [['再実行', 'トークン']], 'codex');
     for (const skill of ['ship', 'review']) {
       const adversarial = rendered(`${skill}/sections/adversarial.md`);
       expect(adversarial).toContain('--start adversarial-review');
       expect(adversarial).toContain('--finish PASS_START');
-      expectMentions(adversarial.replace(/\s+/g, ' '), [['before', 'adversarial', 'structured']], 'adversarial.replace(/\s+/g,  )');
-      expect(adversarial).toContain('Each token is consumed once');
+      expectMentions(adversarial.replace(/\s+/g, ' '), [['diff を読む前', '敵対的', '構造化']], 'adversarial.replace(/\s+/g,  )');
+      expectMentions(adversarial.replace(/\s+/g, ' '), [['トークン', '一度']], 'adversarial');
     }
   });
 
@@ -140,16 +139,14 @@ describe('content-binding template drift', () => {
     for (const host of ALL_HOST_CONFIGS) {
       const text = generateReviewDashboard({ host: host.name, skillName: 'ship',
         tmplPath: 'ship/SKILL.md.tmpl', paths: HOST_PATHS[host.name] }).replace(/\s+/g, ' ');
-      const positions = ['**1. Choose the records', '**2. Check freshness',
-        '**3. Choose the historical verdict', '**4. Display the dashboard'].map(marker => text.indexOf(marker));
+      const positions = ['**1. ', '**2. ', '**3. ', '**4. '].map(marker => text.indexOf(marker));
       expect(positions.every(position => position >= 0)).toBe(true);
       expect(positions).toEqual([...positions].sort((a, b) => a - b));
-      expectMentions(text, [['never', 'substitute', 'success']], 'text');
-      expect(text).toContain('CLEARED requires the selected Eng Review to be `clean`, within 7 days and fresh under step 2');
-      expect(text).toContain('STALE or UNVERIFIED cannot clear Eng Review');
-      expect(text).toContain('Missing `review_freshness`, including legacy log-only records, means UNVERIFIED');
-      expectMentions(text, [['never', 'convergence', 'approval']], 'text');
-      expect(text).toContain('Continue Step 1 even when history is NOT CLEARED');
+      expectMentions(text, [['CLEARED', '`clean`', '7 日', '鮮度']], 'text');
+      expectMentions(text, [['STALE', 'UNVERIFIED', 'CLEAR']], 'text');
+      expectMentions(text, [['`review_freshness`', 'UNVERIFIED']], 'text');
+      expectMentions(text, [['Step 9', '承認', '収束', 'スキップ']], 'text');
+      expectMentions(text, [['NOT CLEARED', 'Step 1', '続行']], 'text');
     }
   });
 

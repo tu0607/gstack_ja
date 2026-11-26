@@ -1,57 +1,57 @@
-# Chrome Sidebar + Conductor: What We Need
+# Chrome サイドバーと Conductor: 必要なこと
 
-## What we're building
+## 作っているもの
 
-Right now when Claude is working in a Conductor workspace — editing files, running tests, browsing your app — you can only watch from Conductor's chat window. If Claude is doing QA on your website, you see tool calls scrolling by but you can't actually *see* the browser.
+いま Claude が Conductor のワークスペースで作業しているとき(ファイルの編集、テストの実行、アプリのブラウズ)、見られるのは Conductor のチャットウィンドウだけです。Claude があなたのウェブサイトで QA をしているとき、ツール呼び出しが次々と流れていくのは見えますが、ブラウザ自体を*見る*ことはできません。
 
-We built a Chrome sidebar that fixes this. When you run `$B connect`, Chrome opens with a side panel that shows everything Claude is doing in real time. You can type messages in the sidebar and Claude acts on them — "click the signup button", "go to the settings page", "summarize what you see."
+私たちは Chrome のサイドバーを作りました。`$B connect` を実行すると、Chrome がサイドパネルを開いて、Claude が今やっていることをリアルタイムで表示します。サイドバーにメッセージを入力すると、Claude がそれに従って動きます。「サインアップボタンをクリック」「設定ページへ移動」「今見えているものを要約」といった具合です。
 
-The problem: the sidebar currently runs its own separate Claude instance. It can't see what the main Conductor session is doing, and the main session can't see what the sidebar is doing. They're two separate agents that don't talk to each other.
+問題は、サイドバーが今のところ独自の Claude インスタンスを別に動かしていることです。メインの Conductor セッションが何をしているかを見られず、メインのセッションもサイドバーが何をしているかを見られません。互いに話をしない 2 つのエージェントになっています。
 
-The fix is simple: make the sidebar a *window into* the Conductor session, not a separate thing.
+修正方法は単純です。サイドバーを、別物ではなく *Conductor セッションの窓*にすることです。
 
-## What we need from Conductor (3 things)
+## Conductor に必要な 3 つのこと
 
-### 1. Let us watch what the agent is doing
+### 1. エージェントの動きを見せてください
 
-We need a way to subscribe to the active session's events. Something like an SSE stream or WebSocket that sends us events as they happen:
+アクティブなセッションのイベントを購読する手段がほしいです。イベントが発生するたびに届く SSE ストリームや WebSocket のようなものです。
 
-- "Claude is editing `src/App.tsx`"
-- "Claude is running `npm test`"
-- "Claude says: I'll fix the CSS issue..."
+- 「Claude が `src/App.tsx` を編集中」
+- 「Claude が `npm test` を実行中」
+- 「Claude の発言: CSS の問題を直します…」
 
-The sidebar already knows how to render these events — tool calls show as compact badges, text shows as chat bubbles. We just need a pipe from Conductor's session to our extension.
+サイドバーは、これらのイベントをすでに描画できます。ツール呼び出しはコンパクトなバッジ、テキストはチャットの吹き出しとして表示されます。必要なのは、Conductor のセッションから拡張機能へのパイプだけです。
 
-### 2. Let us send messages into the session
+### 2. セッションにメッセージを送らせてください
 
-When the user types "click the other button" in the Chrome sidebar, that message should appear in the Conductor session as if the user typed it in the workspace chat. The agent picks it up on its next turn and acts on it.
+ユーザーが Chrome のサイドバーに「もう一方のボタンをクリックして」と入力したら、そのメッセージは、ワークスペースのチャットに直接入力されたかのように Conductor のセッションに現れるべきです。エージェントは次のターンでそれを拾い、動きます。
 
-This is the magic moment: user is watching Chrome, sees something wrong, types a correction in the sidebar, and Claude responds — without the user ever switching windows.
+ここが肝心の瞬間です。ユーザーは Chrome を見ていて、何かおかしいことに気づき、サイドバーに修正を入力すると、Claude が応答します。ウィンドウを切り替える必要はありません。
 
-### 3. Let us create a workspace from a directory
+### 3. ディレクトリからワークスペースを作らせてください
 
-When `$B connect` launches, it creates a git worktree for file isolation. We want to register that worktree as a Conductor workspace so the user can see the sidebar agent's file changes in Conductor's file tree. This also sets up the foundation for multiple browser sessions, each with their own workspace.
+`$B connect` が起動すると、ファイルを分離するために git worktree を作ります。その worktree を Conductor のワークスペースとして登録したいのです。そうすれば、ユーザーはサイドバーのエージェントによるファイルの変更を Conductor のファイルツリーで見られます。これは、ブラウザセッションごとに独自のワークスペースを持つ、複数のブラウザセッションの土台にもなります。
 
-## Why this matters
+## なぜ重要か
 
-Today, `/qa` and `/design-review` feel like a black box. Claude says "I found 3 issues" but you can't see what it's looking at. With the sidebar connected to Conductor:
+いまの `/qa` と `/design-review` は、ブラックボックスのように感じられます。Claude は「問題を 3 件見つけました」と言いますが、何を見ているのかは見えません。Conductor と接続したサイドバーがあれば、次のようになります。
 
-- **You watch Claude test your app** in real time — every click, every navigation, every screenshot appears in Chrome while you watch
-- **You can interrupt** — "no, test the mobile view" or "skip that page" — without switching windows
-- **One agent, two views** — the same Claude that's editing your code is also controlling the browser. No context duplication, no stale state
+- **Claude がアプリをテストする様子を、リアルタイムで見られます。** クリックするたび、遷移するたび、スクリーンショットを撮るたびに、見ている間に Chrome に表示されます。
+- **途中で割り込めます。** 「いや、モバイル表示をテストして」「そのページは飛ばして」と、ウィンドウを切り替えずに言えます。
+- **1 つのエージェント、2 つのビュー。** コードを編集しているのと同じ Claude が、ブラウザも操作します。コンテキストの重複もなく、古い状態が残ることもありません。
 
-## What's already built (gstack side)
+## gstack 側ですでにできていること
 
-Everything on our side is done and shipping:
+gstack 側はすべて完成していて、出荷されています。
 
-- Chrome extension that auto-loads when you run `$B connect`
-- Side panel that auto-opens (zero setup for the user)
-- Streaming event renderer (tool calls, text, results)
-- Chat input with message queuing
-- Reconnect logic with status banners
-- Session management with persistent chat history
-- Agent lifecycle (spawn, stop, kill, timeout detection)
+- `$B connect` を実行すると自動的に読み込まれる Chrome 拡張機能
+- 自動的に開くサイドパネル(ユーザー側の設定はゼロ)
+- ストリーミングのイベント描画(ツール呼び出し、テキスト、結果)
+- メッセージのキューイングに対応したチャット入力
+- ステータスバナー付きの再接続ロジック
+- 永続的なチャット履歴付きのセッション管理
+- エージェントのライフサイクル(起動、停止、強制終了、タイムアウトの検出)
 
-The only change on our side: swap the data source from "local `claude -p` subprocess" to "Conductor session stream." The extension code stays the same.
+gstack 側で変えるのは 1 点だけです。データソースを「ローカルの `claude -p` サブプロセス」から「Conductor のセッションストリーム」に差し替えます。拡張機能のコードはそのままです。
 
-**Estimated effort:** 2-3 days Conductor engineering, 1 day gstack integration.
+**見積もりの工数:** Conductor 側で 2〜3 日、gstack 側の統合で 1 日。

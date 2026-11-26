@@ -39,7 +39,7 @@ describe('setup-gbrain documented lock acquisition', () => {
       for (const b of ['gstack-paths', 'gstack-state-root.sh']) fs.copyFileSync(path.join(import.meta.dir, '..', 'bin', b), path.join(installBin, b));
       fs.chmodSync(path.join(installBin, 'gstack-paths'), 0o755);
       const source = fs.readFileSync(path.join(import.meta.dir, '..', 'setup-gbrain', 'SKILL.md.tmpl'), 'utf8');
-      const script = source.match(/\*\*Concurrent-run lock\.\*\*[\s\S]*?```bash\n([\s\S]*?)\n  ```/)?.[1];
+      const script = source.match(/\*\*(?:Concurrent-run lock|並行実行のロック)[。.]\*\*[\s\S]*?```bash\n([\s\S]*?)\n  ```/)?.[1];
       expect(script).toBeDefined();
       const result = await command('bash', ['-c', script!], { ...process.env, HOME: home } as Record<string, string>);
       expect(result.exitCode).toBe(scenario === 'fresh-home' ? 0 : 1);
@@ -81,7 +81,7 @@ describe('setup-gbrain owned Path 4 fixture', () => {
         const skill = fs.readFileSync(fixture.skillPath, 'utf8');
         expect(skill.includes('~/.claude/skills/gstack/bin/')).toBe(false);
         expect(skill.includes(`${fixture.bin}'/gstack-gbrain-install`)).toBe(true);
-        expect(skill.includes('Want symbol-aware code search')).toBe(true);
+        expect(skill.includes('シンボルを認識したコード検索')).toBe(true);
         const detectPath = path.join(fixture.bin, 'gstack-gbrain-detect');
         const before = await command(detectPath, [], env);
         expect(before.exitCode).toBe(0);
@@ -545,7 +545,7 @@ describe('setup-gbrain local-PGLite fixture answers', () => {
     expect(labels).toHaveLength(5);
     expect(chooseLocalPgliteFixtureAnswer({
       question: 'Where should your brain live?', options: labels.map(label => ({ label })),
-    })).toBe('4 — Remote gbrain MCP.');
+    })).toBe('4 — リモートの gbrain MCP。');
   });
 
 });

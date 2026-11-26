@@ -9,6 +9,7 @@ import { HOST_PATHS, type TemplateContext } from '../scripts/resolvers/types';
 import { outsideVoiceFor, outsideVoiceCommand } from '../scripts/resolvers/outside-voice';
 import { RESOLVERS } from '../scripts/resolvers';
 import { installOutsideReviewFixture } from './helpers/outside-voice-fixture';
+import { expectMentions, expectOrdered } from './helpers/prompt-structure';
 
 const ROOT = resolve(import.meta.dir, '..');
 let output: string;
@@ -68,10 +69,9 @@ describe('outside-review host and model matrix', () => {
 
     test(`${host.name}: generic and explicit second-opinion routing is installed`, () => {
       const router = readUnion(skillDir(host, 'gstack'));
-      expect(router).toMatch(/second opinion/i);
+      expect(router).toContain('セカンドオピニオン');
       expect(router).toContain(host.name === 'codex' ? 'claude-code' : 'codex');
-      expect(router).toMatch(/explicit/i);
-      expect(router).toMatch(/(?:do not|never|without).*?(?:substitut|switch|replac)|(?:keep|honor|respect).*?(?:provider|request)/i);
+      expectMentions(router, [['明示', 'プロバイダー'], ['代用', 'いけません']], 'router');
     });
   }
 });
@@ -138,9 +138,7 @@ for (const host of ['claude', 'codex'] as const) {
     try {
       const dir = installOutsideReviewFixture(output, host, repo, ROOT);
       const text = readFileSync(join(dir, 'SKILL.md'), 'utf8');
-      expect(text).toContain('Step 0: Detect platform and base branch');
-      expect(text).toContain('Step 3: Get the diff');
-      expect(text).toContain('Step 4.8: Adversarial review (always-on)');
+      expectOrdered(text, ['## Step 0:', '## Step 3:', '## Step 4.8:'], 'extracted workflow');
       expect(text).toContain(host === 'codex' ? 'gstack-claude-code' : 'codex exec');
       expect(text).not.toContain('## Preamble (run first)');
       expect(text.match(/^name:/gm)).toHaveLength(1);

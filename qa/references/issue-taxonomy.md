@@ -1,85 +1,85 @@
-# QA Issue Taxonomy
+# QA 問題の分類(Issue Taxonomy)
 
-## Severity Levels
+## 重大度
 
-| Severity | Definition | Examples |
+| 重大度 | 定義 | 例 |
 |----------|------------|----------|
-| **critical** | Blocks a core workflow, causes data loss, or crashes the app | Form submit causes error page, checkout flow broken, data deleted without confirmation |
-| **high** | Major feature broken or unusable, no workaround | Search returns wrong results, file upload silently fails, auth redirect loop |
-| **medium** | Feature works but with noticeable problems, workaround exists | Slow page load (>5s), form validation missing but submit still works, layout broken on mobile only |
-| **low** | Minor cosmetic or polish issue | Typo in footer, 1px alignment issue, hover state inconsistent |
+| **critical** | 中核となる業務フローを阻害する、データ損失を起こす、またはアプリがクラッシュする | フォーム送信でエラーページが出る、チェックアウトの流れが壊れている、確認なしでデータが削除される |
+| **high** | 主要な機能が壊れている、または使えず、回避策がない | 検索結果が誤っている、ファイルアップロードが黙って失敗する、認証リダイレクトのループ |
+| **medium** | 機能は動くが、目立つ問題があり、回避策がある | ページの読み込みが遅い(5 秒超)、フォームのバリデーションがないが送信はできる、モバイルでだけレイアウトが崩れる |
+| **low** | 見た目だけの小さな問題、または仕上げの問題 | フッターの誤字、1px のずれ、ホバー状態の不統一 |
 
-## Categories
+## カテゴリ
 
-### 1. Visual/UI
-- Layout breaks (overlapping elements, clipped text, horizontal scrollbar)
-- Broken or missing images
-- Incorrect z-index (elements appearing behind others)
-- Font/color inconsistencies
-- Animation glitches (jank, incomplete transitions)
-- Alignment issues (off-grid, uneven spacing)
-- Dark mode / theme issues
+### 1. Visual/UI(見た目・UI)
+- レイアウトの崩れ(要素の重なり、テキストの切れ、横スクロールバー)
+- 画像の破損や欠落
+- z-index の誤り(要素が他の要素の裏に出る)
+- フォントや色の不統一
+- アニメーションの不具合(ガタつき、トランジションが途中で止まる)
+- 配置の問題(グリッドからのずれ、不均一な間隔)
+- ダークモード/テーマの問題
 
-### 2. Functional
-- Broken links (404, wrong destination)
-- Dead buttons (click does nothing)
-- Form validation (missing, wrong, bypassed)
-- Incorrect redirects
-- State not persisting (data lost on refresh, back button)
-- Race conditions (double-submit, stale data)
-- Search returning wrong or no results
+### 2. Functional(機能)
+- リンク切れ(404、誤った遷移先)
+- 反応しないボタン(クリックしても何も起きない)
+- フォームのバリデーション(欠落、誤り、回避されている)
+- リダイレクトの誤り
+- 状態が保持されない(リフレッシュや戻るボタンでデータが失われる)
+- 競合状態(二重送信、古いデータ)
+- 検索結果の誤り、または結果がない
 
 ### 3. UX
-- Confusing navigation (no breadcrumbs, dead ends)
-- Missing loading indicators (user doesn't know something is happening)
-- Slow interactions (>500ms with no feedback)
-- Unclear error messages ("Something went wrong" with no detail)
-- No confirmation before destructive actions
-- Inconsistent interaction patterns across pages
-- Dead ends (no way back, no next action)
+- わかりにくいナビゲーション(パンくずがない、行き止まり)
+- 読み込み中の表示がない(何かが進行中かユーザーにわからない)
+- 操作の遅さ(500ms 超で何のフィードバックもない)
+- わかりにくいエラーメッセージ(詳細のない「Something went wrong」)
+- 破壊的な操作の前に確認がない
+- ページごとに操作パターンが一貫していない
+- 行き止まり(戻る方法も、次の操作もない)
 
-### 4. Content
-- Typos and grammar errors
-- Outdated or incorrect text
-- Placeholder / lorem ipsum text left in
-- Truncated text (cut off without ellipsis or "more")
-- Wrong labels on buttons or form fields
-- Missing or unhelpful empty states
+### 4. Content(コンテンツ)
+- 誤字や文法の誤り
+- 古い、または誤った文言
+- プレースホルダーやダミーテキスト(lorem ipsum)が残っている
+- 切り詰められたテキスト(省略記号や「もっと見る」なしで途切れている)
+- ボタンやフォーム項目のラベルの誤り
+- 欠けている、または役に立たない空の状態の表示
 
-### 5. Performance
-- Slow page loads (>3 seconds)
-- Janky scrolling (dropped frames)
-- Layout shifts (content jumping after load)
-- Excessive network requests (>50 on a single page)
-- Large unoptimized images
-- Blocking JavaScript (page unresponsive during load)
+### 5. Performance(パフォーマンス)
+- ページの読み込みが遅い(3 秒超)
+- スクロールがガタつく(フレームの欠落)
+- レイアウトのずれ(読み込み後にコンテンツが動く)
+- ネットワークリクエストが多すぎる(1 ページで 50 件超)
+- 最適化されていない大きな画像
+- ブロッキングする JavaScript(読み込み中にページが応答しない)
 
-### 6. Console/Errors
-- JavaScript exceptions (uncaught errors)
-- Failed network requests (4xx, 5xx)
-- Deprecation warnings (upcoming breakage)
-- CORS errors
-- Mixed content warnings (HTTP resources on HTTPS)
-- CSP violations
+### 6. Console/Errors(コンソール/エラー)
+- JavaScript の例外(捕捉されていないエラー)
+- ネットワークリクエストの失敗(4xx、5xx)
+- 非推奨の警告(将来の破損の予兆)
+- CORS エラー
+- 混在コンテンツの警告(HTTPS 上の HTTP リソース)
+- CSP 違反
 
-### 7. Accessibility
-- Missing alt text on images
-- Unlabeled form inputs
-- Keyboard navigation broken (can't tab to elements)
-- Focus traps (can't escape a modal or dropdown)
-- Missing or incorrect ARIA attributes
-- Insufficient color contrast
-- Content not reachable by screen reader
+### 7. Accessibility(アクセシビリティ)
+- 画像の alt テキストがない
+- ラベルのないフォーム入力
+- キーボード操作の不具合(Tab でその要素に移動できない)
+- フォーカスの罠(モーダルやドロップダウンから出られない)
+- ARIA 属性の欠落や誤り
+- 色のコントラスト不足
+- スクリーンリーダーから到達できないコンテンツ
 
-## Per-Page Exploration Checklist
+## ページごとの探索チェックリスト
 
-For each page visited during a QA session:
+QA セッション中に訪れたページごとに:
 
-1. **Visual scan** — Take a screenshot (the Read-a-page script; `annotatedScreenshot(pg)` when you need ref labels). Look for layout issues, broken images, alignment.
-2. **Interactive elements** — Click every button, link, and control. Does each do what it says?
-3. **Forms** — Fill and submit (non-local target: consent first — browser rule 3). Test empty submission, invalid data, edge cases (long text, special characters).
-4. **Navigation** — Check all paths in/out. Breadcrumbs, back button, deep links, mobile menu.
-5. **States** — Check empty state, loading state, error state, full/overflow state.
-6. **Console** — Print `CONSOLE_ERRORS=` after interactions. Any new JS errors or failed requests?
-7. **Responsiveness** — If relevant, check mobile and tablet viewports.
-8. **Auth boundaries** — Never sign the user out or switch accounts yourself. If the signed-out or other-role view matters, ask the user to sign out / switch in Aside and re-run the page scripts.
+1. **見た目の確認** — スクリーンショットを撮る(ページ読み取りのスクリプト。参照用のラベルが必要なら `annotatedScreenshot(pg)`)。レイアウトの問題、画像の破損、配置を確認する。
+2. **操作できる要素** — すべてのボタン、リンク、コントロールをクリックする。それぞれが表示どおりに動くか。
+3. **フォーム** — 入力して送信する(ローカル以外の対象では、まず同意を得る — ブラウザのルール 3)。空での送信、不正なデータ、エッジケース(長い文字列、特殊文字)を試す。
+4. **ナビゲーション** — 出入りのすべての経路を確認する。パンくず、戻るボタン、ディープリンク、モバイルのメニュー。
+5. **状態** — 空の状態、読み込み中の状態、エラーの状態、満杯/あふれた状態を確認する。
+6. **コンソール** — 操作の後に `CONSOLE_ERRORS=` を出力する。新しい JS のエラーや失敗したリクエストはないか。
+7. **レスポンシブ** — 関係する場合は、モバイルとタブレットのビューポートを確認する。
+8. **認証の境界** — 自分でサインアウトしたり、アカウントを切り替えたりしないこと。サインアウト時や別ロールでのビューが重要な場合は、ユーザーに Aside でサインアウトまたは切り替えてもらい、ページのスクリプトを再実行してもらう。

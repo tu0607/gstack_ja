@@ -8,6 +8,7 @@ import { describe, test, expect } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
 import { scan } from "../lib/redact-engine";
+import { expectMentions } from "./helpers/prompt-structure";
 
 const ROOT = path.resolve(import.meta.dir, "..");
 // Carved (v2 plan T9): ship is a skeleton template + sections/*.md.tmpl. The
@@ -41,15 +42,15 @@ describe("/ship redaction wiring", () => {
     expect(TMPL).not.toContain("NEW_TITLE");
   });
   test("HIGH blocks the PR (exit 1), with no confirmation path", () => {
-    expect(TMPL).toMatch(/\*\*1\*\* HIGH finding: BLOCKED — do not publish/);
+    expect(TMPL).toMatch(/\*\*1\*\* HIGH/);
+    expectMentions(TMPL, [["**1** HIGH", "ブロック", "公開しない"]], "ship exit 1");
   });
   test("MEDIUM needs the user's answer and the token printed for those bytes", () => {
-    expect(TMPL).toContain("AskUserQuestion per\n  finding");
     expect(TMPL).toContain("`--confirm <confirm-token>`");
-    expect(TMPL).toContain("any edit needs a new token");
+    expectMentions(TMPL, [["AskUserQuestion", "指摘事項ごと"], ["`TOKEN:`", "`RULE:`"], ["編集", "新しいトークン"]], "ship exit 2");
   });
   test("instructs wrapping tool output in attributed fences (TENSION-3)", () => {
-    expect(TMPL).toMatch(/tool-attributed fences/);
+    expectMentions(TMPL, [["ツール名付きのフェンス", "codex-review", "greptile"]], "tool fences");
     expect(TMPL).toMatch(/codex-review/);
     expect(TMPL).toMatch(/greptile/);
   });

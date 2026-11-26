@@ -1,26 +1,26 @@
-# How to document a feature before it ships
+# 機能を出荷する前にドキュメント化する方法
 
-This is the pre-merge documentation workflow: the feature is implemented and you want to audit coverage and fill gaps. `/ship` already runs the relevant documentation audit before publication; use standalone `/document-release` on a committed feature branch to revisit it, then `/document-generate` for missing pages.
+これは、マージ前のドキュメント作成のワークフローです。機能は実装済みで、カバレッジを監査し、ギャップを埋めたい場合に使います。`/ship` は公開の前に、関連するドキュメント監査を既に実行しています。コミット済みの機能ブランチで改めて確認したい場合は、単体の `/document-release` を使い、そのあと不足しているページを `/document-generate` で作成してください。
 
-## Prerequisites
+## 前提条件
 
-- gstack installed (`./setup` complete; verify with `which gstack` or by typing `/` in Claude Code and seeing skills listed)
-- The committed feature branch is checked out, before merge
-- Optional: an existing GitHub or GitLab PR lets standalone `/document-release` update its body with the coverage map
+- gstack がインストール済みであること(`./setup` が完了していること。`which gstack` で確認するか、Claude Code で `/` と入力してスキルの一覧が表示されることを確認してください)。
+- コミット済みの機能ブランチがチェックアウトされていて、マージ前であること。
+- 任意: 既存の GitHub または GitLab の PR があると、単体の `/document-release` が、カバレッジマップで PR 本文を更新できます。
 
-No PR is required to audit. `/ship` runs its audit before creating or updating the PR; a standalone invocation without a PR skips the PR-body update.
+監査に PR は不要です。`/ship` は、PR を作成または更新する前に監査を実行します。PR のない単独の実行では、PR 本文の更新はスキップされます。
 
-## Steps
+## 手順
 
-### 1. Audit current coverage
+### 1. 現在のカバレッジを監査する
 
-Run:
+次を実行します。
 
 ```
 /document-release
 ```
 
-The skill walks your diff against the base branch, extracts new public surface (skills, CLI flags, config options, API endpoints, new modules), and scores each entity across the four Diataxis quadrants. You'll see a coverage map like:
+このスキルは、差分をベースブランチと比べてたどり、新しい公開インターフェース(スキル、CLI フラグ、設定オプション、API エンドポイント、新しいモジュール)を抽出し、各エンティティを4つの Diataxis の象限で採点します。次のようなカバレッジマップが表示されます。
 
 ```
 Coverage map:
@@ -30,13 +30,13 @@ Coverage map:
   FooProcessor     ❌            ❌        ❌          ❌
 ```
 
-Items with zero coverage are **critical gaps**. Items with only reference coverage are **common gaps**. The audit reports both; when a PR exists, it also adds a `### Documentation Debt` subsection for reviewers.
+カバレッジがゼロの項目は**重大なギャップ**です。リファレンスのカバレッジしかない項目は**一般的なギャップ**です。監査はどちらも報告します。PR が存在する場合は、レビューアのために `### Documentation Debt` のサブセクションも追加されます。
 
-If `/document-release` reports everything is covered, you're done. Skip the rest of this how-to.
+`/document-release` が、すべてカバーされていると報告した場合は完了です。この先の手順は飛ばしてください。
 
-### 2. Read the reported documentation gaps
+### 2. 報告されたドキュメントのギャップを読む
 
-Use the audit's coverage map and gap summary. If a PR exists, open `## Documentation` → `### Documentation Debt` in its body. Each item is tagged with the Diataxis quadrant that would fill it:
+監査のカバレッジマップとギャップの要約を使ってください。PR が存在する場合は、その本文の `## Documentation` → `### Documentation Debt` を開いてください。各項目には、それを埋めるべき Diataxis の象限がタグ付けされています。
 
 ```
 ### Documentation Debt
@@ -45,61 +45,61 @@ Use the audit's coverage map and gap summary. If a PR exists, open `## Documenta
 - ⚠️ FooProcessor — zero coverage. Diataxis quadrants: reference, explanation.
 ```
 
-This is the input to the next step. Each line tells you what's missing and which quadrant fills it.
+これが次の手順への入力です。各行が、何が欠けているか、そしてどの象限がそれを埋めるかを教えてくれます。
 
-### 3. Fill the gaps with /document-generate
+### 3. /document-generate でギャップを埋める
 
-Run:
+次を実行します。
 
 ```
 /document-generate
 ```
 
-When the skill asks about scope, tell it the specific entities flagged in the debt section. The skill reads the codebase (its Step 1 archaeology phase is mandatory), partitions by Diataxis quadrant, and writes the missing docs.
+スキルがスコープを尋ねてきたら、ドキュメント債務のセクションで挙げられた具体的なエンティティを伝えてください。スキルは(Step 1 のアーケオロジーフェーズは必須です)コードベースを読み、Diataxis の象限ごとに分け、不足しているドキュメントを書きます。
 
-You can also let the skill auto-discover: if /document-release passed you the gaps explicitly (it does this when chained), `/document-generate` already knows what to write.
+自動検出に任せることもできます。`/document-release` がギャップを明示的に渡してきた場合(連鎖して実行されたときはそうします)、`/document-generate` は何を書くべきかを既に知っています。
 
-### 4. Verify the gaps closed
+### 4. ギャップが埋まったことを確認する
 
-Re-run `/document-release`:
+`/document-release` をもう一度実行してください。
 
 ```
 /document-release
 ```
 
-The coverage map should now show the previously-flagged entities with green checkmarks in the previously-empty quadrants. Reported documentation debt, including the PR-body section when present, should be empty or reduced to items you intentionally deferred.
+カバレッジマップでは、先ほどフラグが立ったエンティティが、以前は空だった象限に緑のチェックマークを付けて表示されるはずです。ドキュメント債務(PR 本文のセクションがある場合はそれも含む)は、空になっているか、意図的に先送りした項目だけに減っているはずです。
 
-## Verification
+## 検証
 
-Read the audit output and, when present, the PR body. Confirm:
+監査の出力と、PR がある場合は PR 本文を読んでください。次を確認します。
 
-1. The audit summarizes the docs reviewed and changed; an existing PR has a `## Documentation` section with a doc-diff preview.
-2. The reported documentation debt lists zero critical gaps (or only items you knowingly deferred).
-3. Each generated doc file in `docs/` opens cleanly and cross-links to siblings (reference → how-to → tutorial → explanation).
-4. Run `grep -rE '\]\([^)]*\.md\)' docs/` and verify no link points to a missing file.
+1. 監査が、確認と変更を行ったドキュメントを要約している。既存の PR には、ドキュメントの差分プレビュー付きの `## Documentation` セクションがある。
+2. 報告されたドキュメント債務に、重大なギャップが0件ある(または意図的に先送りしたものだけが残っている)。
+3. 生成された `docs/` 内の各ドキュメントファイルが問題なく開け、兄弟のドキュメントに相互リンクしている(リファレンス → how-to → チュートリアル → 解説)。
+4. `grep -rE '\]\([^)]*\.md\)' docs/` を実行し、存在しないファイルを指すリンクがないことを確認する。
 
-These checks complete the documentation pass, with any deferred gaps recorded. They do not replace `/ship`'s code review, tests or final verification.
+これらのチェックで、ドキュメントの作業は完了します。先送りしたギャップは記録されます。`/ship` のコードレビュー、テスト、最終的な検証の代わりにはなりません。
 
-## Troubleshooting
+## トラブルシューティング
 
-**`/document-release` reports "No public surface changes detected."**
-There may be no new public surface, but still check affected setup, testing, architecture and workflow instructions. A completed audit can report current documentation; an empty public-surface map alone is not that audit.
+**`/document-release` が「No public surface changes detected.」と報告する。**
+新しい公開インターフェースがない可能性はありますが、関連するセットアップ、テスト、アーキテクチャ、ワークフローの手順は、それでも確認してください。監査が完了して現状のドキュメントを報告することはありますが、公開インターフェースのマップが空だというだけでは、その監査が完了したことにはなりません。
 
-**The Diataxis quadrant tag on a gap doesn't match what you'd expect.**
-The skill uses an entity taxonomy to decide which quadrants matter (CLI flags want reference + how-to; internal modules want reference + explanation; user-facing features want all four). If you disagree, you can override by hand-editing the docs after generation. The audit is a guide, not a constraint.
+**ギャップに付いた Diataxis の象限のタグが、思っていたものと違う。**
+スキルは、どの象限が重要かを判断するためにエンティティの分類を使います(CLI フラグにはリファレンスと how-to が必要、内部モジュールにはリファレンスと解説が必要、ユーザー向けの機能には4つすべてが必要)。納得できない場合は、生成後にドキュメントを手で編集して上書きできます。監査はガイドであって、制約ではありません。
 
-**`/document-generate` writes a tutorial that takes 8 steps to reach a working result.**
-Tutorials should hit a working result in 3 steps or fewer. Re-run the skill and ask it to compress, or hand-edit. The Step 8 Quality Self-Review catches some of these but not all.
+**`/document-generate` が、動く結果に到達するまでに8つのステップを要するチュートリアルを書く。**
+チュートリアルは、3つ以下のステップで動く結果に到達するべきです。スキルを再実行して圧縮を依頼するか、手で編集してください。Step 8 の品質の自己レビューでいくつかは捕まえられますが、すべてではありません。
 
-**You want to document a feature but no PR exists yet.**
-Run standalone `/document-release` on the committed feature branch; it can audit without a PR and skips the PR-body update. Or run `/ship`, which includes the audit before publication.
+**機能をドキュメント化したいが、まだ PR がない。**
+コミット済みの機能ブランチで、単体の `/document-release` を実行してください。PR がなくても監査でき、PR 本文の更新はスキップされます。または、公開の前に監査を含む `/ship` を実行してください。
 
-**A generated reference doc has hallucinated API signatures.**
-File a bug. The skill's Step 1 archaeology is supposed to read implementation files end-to-end, not just signatures, specifically to prevent this. Include the generated text and the actual code so we can trace why the archaeology missed it.
+**生成されたリファレンスドキュメントに、捏造された API のシグネチャがある。**
+バグとして報告してください。スキルの Step 1 のアーケオロジーは、シグネチャだけでなく実装ファイルを端から端まで読むことになっています。まさにこの種の捏造を防ぐためです。生成されたテキストと実際のコードを添えて報告してください。アーケオロジーがなぜ見落としたのかを追跡できます。
 
-## Related
+## 関連
 
-- **Tutorial: first time using `/document-generate`:** [tutorial-document-generate.md](./tutorial-document-generate.md)
-- **Why gstack uses the Diataxis framework:** [explanation-diataxis-in-gstack.md](./explanation-diataxis-in-gstack.md)
-- **Reference for the audit skill:** [`document-release/SKILL.md`](../document-release/SKILL.md)
-- **Reference for the generation skill:** [`document-generate/SKILL.md`](../document-generate/SKILL.md)
+- **チュートリアル: `/document-generate` を初めて使う:** [tutorial-document-generate.md](./tutorial-document-generate.md)
+- **gstack が Diataxis のフレームワークを使う理由:** [explanation-diataxis-in-gstack.md](./explanation-diataxis-in-gstack.md)
+- **監査スキルのリファレンス:** [`document-release/SKILL.md`](../document-release/SKILL.md)
+- **生成スキルのリファレンス:** [`document-generate/SKILL.md`](../document-generate/SKILL.md)

@@ -1,86 +1,86 @@
-# On the LOC controversy
+# LOC 論争について
 
-Or: what happened when I mentioned how many lines of code I've been shipping, and what the numbers actually say.
+あるいは: 自分が出荷しているコード行数に触れたら何が起きたか、そして数字が本当に何を示しているか。
 
-## The critique is right. And it doesn't matter.
+## 批判は正しい。そして、それは問題ではない。
 
-LOC is a garbage metric. Every senior engineer knows it. Dijkstra wrote in 1988 that lines of code shouldn't be counted as "lines produced" but as "lines spent" ([*On the cruelty of really teaching computing science*, EWD1036](https://www.cs.utexas.edu/~EWD/transcriptions/EWD10xx/EWD1036.html)). The old line (widely attributed to Bill Gates, sourcing murky) puts it more memorably: measuring programming progress by LOC is like measuring aircraft building progress by weight. If you measure programmer productivity in lines of code, you're measuring the wrong thing. This has been true for 40 years and it's still true.
+LOC(行数)はひどい指標です。シニアエンジニアなら誰でも知っています。Dijkstra は 1988 年に、コードの行数は「生産された行」ではなく「費やされた行」として数えるべきだと書きました([*On the cruelty of really teaching computing science*, EWD1036](https://www.cs.utexas.edu/~EWD/transcriptions/EWD10xx/EWD1036.html))。出典が不確かなものの広く引用される言葉(Bill Gates の発言とされるもの)は、もっと印象的です。LOC で開発の進捗を測るのは、飛行機の製造の進捗を重量で測るようなものだ、というのです。プログラマーの生産性を行数で測っているなら、測るべきものを間違えています。これは 40 年間ずっと正しく、今も正しいままです。
 
-I posted that in the last 60 days I'd shipped 600,000 lines of production code. The replies came in fast:
+私は、直近 60 日間に 60 万行の本番コードを出荷した、と投稿しました。返信はすぐに来ました。
 
-- "That's just AI slop."
-- "LOC is a meaningless metric. Every senior engineer in the last 40 years said so."
-- "Of course you produced 600K lines. You had an AI writing boilerplate."
-- "More lines is bad, not good."
-- "You're confusing volume with productivity. Classic PM brain."
-- "Where are your error rates? Your DAUs? Your revert counts?"
-- "This is embarrassing."
+- 「それはただの AI スロップだ」
+- 「LOC は無意味な指標。ここ 40 年のシニアエンジニアは全員そう言っている」
+- 「もちろん 60 万行は書けるよ。AI に定型コードを書かせてただけだろ」
+- 「行数が多いのは良いことではなく、悪いことだ」
+- 「量と生産性を混同している。典型的な PM の頭だね」
+- 「エラー率は? DAU は? リバート件数は?」
+- 「恥ずかしいね」
 
-Some of those are right. Here's what happens when you take the smart version of the critique seriously and do the math anyway.
+そのうちのいくつかは正しいです。ここでは、その批判の賢い版を真剣に受け止めたうえで、それでも計算してみたら何が分かるかを示します。
 
-## Three branches of the AI coding critique
+## AI コーディング批判の 3 つの枝
 
-They get collapsed into one, but they're different arguments.
+ひとまとめにされがちですが、これらは別々の主張です。
 
-**Branch 1: LOC doesn't measure quality.** True. Always has been. A 50-line well-factored library beats a 5,000-line bloated one. This was true before AI and it's true now. It was never a killer argument. It was a reminder to think about what you're measuring.
+**枝 1: LOC は品質を測らない。** その通りです。昔からそうでした。きれいに整理された 50 行のライブラリは、肥大化した 5,000 行のものに勝ります。これは AI 以前から正しく、今も正しいです。決定的な反論になったことは一度もなく、何を測っているのかを考えよ、という注意喚起にすぎません。
 
-**Branch 2: AI inflates LOC.** True. LLMs generate verbose code by default. More boilerplate. More defensive checks. More comments. More tests. Raw line counts go up even when "real work done" didn't.
+**枝 2: AI は LOC を水増しする。** その通りです。LLM は初期状態で冗長なコードを生成します。定型コードが増え、防御的なチェックが増え、コメントが増え、テストが増えます。実際の作業量が増えていなくても、行数の生データは増えます。
 
-**Branch 3: Therefore bragging about LOC is embarrassing.** This is where the argument jumps the track.
+**枝 3: だから LOC を自慢するのは恥ずかしい。** ここで議論が脱線します。
 
-Branch 2 is the interesting one. If raw LOC is inflated by some factor, the honest thing is to compute the deflation and report the deflated number. That's what this post does.
+枝 2 がいちばん面白いところです。生の LOC がなんらかの係数で水増しされているなら、誠実なのは、その係数で割り引いた数字を計算して報告することです。この投稿はそれをやったものです。
 
-## The math
+## 計算
 
-### Raw numbers
+### 生の数字
 
-I wrote a script ([`scripts/garry-output-comparison.ts`](../scripts/garry-output-comparison.ts)) that enumerates every commit I authored across all 41 repos owned by `garrytan/*` on GitHub — 15 public, 26 private — in 2013 and 2026. For each commit, it counts logical lines added (non-blank, non-comment). The 2013 corpus includes Bookface, the YC-internal social network I built that year.
+`scripts/garry-output-comparison.ts` というスクリプト([`scripts/garry-output-comparison.ts`](../scripts/garry-output-comparison.ts))を書きました。これは、GitHub 上の `garrytan/*` が所有する 41 のリポジトリ(公開 15、非公開 26)で、私がコミットした全コミットを、2013 年と 2026 年について列挙します。コミットごとに、追加された論理行(空行・コメントを除く)を数えます。2013 年のデータには Bookface が含まれます。これは、その年に私が作った、YC 社内向けのソーシャルネットワークです。
 
-One repo excluded from 2026: `tax-app` (demo for a YC video, not production work). Baked into the script's `EXCLUDED_REPOS` constant. Run it yourself.
+2026 年の集計から除外したリポジトリは 1 つだけです: `tax-app`(YC の動画のためのデモで、本番の作業ではないため)。これはスクリプトの `EXCLUDED_REPOS` 定数に書かれています。ご自身で実行してみてください。
 
-2013 was a full year. 2026 is day 108 as of this writing (April 18).
+2013 年は 1 年間まるごとです。2026 年は、この文章を書いている時点(4 月 18 日)で 108 日目です。
 
-|                  | 2013 (full year) | 2026 (108 days) | Multiple |
+|                  | 2013年(通年) | 2026年(108日) | 倍率 |
 |------------------|----------------:|----------------:|---------:|
-| Logical SLOC     |           5,143 |       1,233,062 |     240x |
-| Logical SLOC/day |              14 |          11,417 |     810x |
-| Commits          |              71 |             351 |     4.9x |
-| Files touched    |             290 |          13,629 |      47x |
-| Active repos     |               4 |              15 |    3.75x |
+| 論理 SLOC        |           5,143 |       1,233,062 |     240x |
+| 論理 SLOC/日     |              14 |          11,417 |     810x |
+| コミット数       |              71 |             351 |     4.9x |
+| 変更されたファイル |             290 |          13,629 |      47x |
+| 稼働中のリポジトリ |               4 |              15 |    3.75x |
 
-### "14 lines per day? That's pathetic."
+### 「1 日 14 行? 情けない」
 
-It was. That's the point.
+確かに情けない数字です。それがポイントです。
 
-In 2013 I was a YC partner, then a cofounder at Posterous shipping code nights and weekends. 14 logical lines per day was my actual part-time output while holding down a real job. Historical research puts professional full-time programmer output in a wide band depending on project size and study: Fred Brooks cited ~10 lines/day for systems programming in *The Mythical Man-Month* (OS/360 observations), Capers Jones measured roughly 16-38 LOC/day across thousands of projects, and Steve McConnell's *Code Complete* reports 20-125 LOC/day for small projects (10K LOC) down to 1.5-25 for large projects (10M LOC) — it's size-dependent, not a single number.
+2013 年の私は、YC のパートナーであり、夜と週末にコードを書いていた Posterous の共同創業者でした。1 日 14 行の論理行は、本業を抱えながら書いた、私の実際のパートタイムの成果です。過去の研究では、フルタイムのプロのプログラマーの生産量は、プロジェクトの規模や調査によって幅があるとされています。Fred Brooks は *The Mythical Man-Month*(OS/360 の観察)で、システムプログラミングについて 1 日あたり約 10 行を挙げています。Capers Jones は、数千のプロジェクトで 1 日あたり約 16〜38 LOC を計測しました。Steve McConnell の *Code Complete* は、小規模プロジェクト(1 万 LOC)では 1 日 20〜125 LOC、大規模プロジェクト(1,000 万 LOC)では 1.5〜25 LOC と報告しています。規模に依存するもので、単一の数字ではありません。
 
-My 2013 baseline isn't cherry-picked. It's normal for a part-time coder with a day job. If you think the right baseline is 50 (3.5x higher), the 2026 multiple drops from 810x to 228x. Still high.
+2013 年のベースラインは選び抜いたものではありません。本業を持つパートタイムのコーダーとしては普通です。もし適切なベースラインが 50(3.5 倍)だと考えるなら、2026 年の倍率は 810x から 228x に下がります。それでも十分に大きい数字です。
 
-### Two deflations
+### 2 段階の割り引き
 
-The standard response to "raw LOC is garbage" is **logical SLOC** (source lines of code, non-comment non-blank). Tools like `cloc` and `scc` have computed this for 20 years. Same code, fluff stripped: no blank lines, no single-line comments, no comment block bodies, no trailing whitespace.
+「生の LOC はゴミだ」という定番の反論への標準的な答えは、**論理 SLOC**(ソース行数。コメントと空行を除く)です。`cloc` や `scc` は 20 年にわたってこれを計算してきました。同じコードから、余分なものを取り除きます。空行、1 行コメント、コメントブロックの本体、末尾の空白を除きます。
 
-But logical SLOC doesn't eliminate AI inflation entirely. AI writes 2-3 defensive null checks where a senior engineer would write zero. AI inlines try/catch around things that don't throw. AI spells out `const result = foo(); return result` instead of `return foo()`.
+しかし、論理 SLOC では AI による水増しを完全には消せません。AI は、シニアエンジニアならゼロ個で済ませるところに、防御的な null チェックを 2〜3 個書きます。例外を投げない処理の周りに try/catch を入れます。`return foo()` で済むところを、`const result = foo(); return result` と書きます。
 
-So let's apply a **second deflation**. Assume AI-generated code is 2x more verbose than senior hand-crafted code at the logical level. That's aggressive — most measurements I've seen put the multiplier at 1.3-1.8x — but it's the upper bound a skeptic would demand.
+そこで、**2 段階目の割り引き**を適用します。AI が生成するコードは、論理レベルで、シニアエンジニアが手で書いたコードより 2 倍冗長だと仮定します。これは強気の仮定です。私が見た測定の多くは、倍率を 1.3〜1.8 倍としています。ただし、懐疑的な人が求めるであろう上限として置いています。
 
-- My 2026 per-day rate, NCLOC: **11,417**
-- With 2x AI-verbosity deflation: **5,708** logical lines per day
-- Multiple on daily pace with both deflations: **408x**
+- 2026 年の 1 日あたりのペース、NCLOC: **11,417**
+- AI の冗長性で 2 倍割り引くと: **5,708** 論理行/日
+- 両方の割り引きを適用したときの日次ペースの倍率: **408x**
 
-Now pick your priors:
+ここから、ご自分の前提を選んでください。
 
-- At 5x deflation (unfounded but let's go): **162x**
-- At 10x (pathological): **81x**
-- At 100x (impossible — that's one line per minute sustained): **8x**
+- 5 倍の割り引き(根拠は薄いが、そうしてみる): **162x**
+- 10 倍(極端な想定): **81x**
+- 100 倍(不可能 — 1 分に 1 行を延々と続けることに相当): **8x**
 
-The argument about the size of the coefficient doesn't change the conclusion. The number is large regardless.
+係数の大きさをめぐる議論は、結論を変えません。どんな前提でも、数字は大きいままです。
 
-### Weekly distribution
+### 週ごとの分布
 
-"Your per-day number assumes uniform output. Show the distribution. If it's a single burst, your run-rate is bogus."
+「1 日あたりの数字は、出力が一様だと仮定している。分布を見せてくれ。もし単発の爆発的な作業なら、ペースの計算は当てにならない」
 
-Fair.
+もっともな指摘です。
 
 ```
 Week 1-4  (Jan):  ████████░░░░░░░░░  ~8,800/day
@@ -89,56 +89,56 @@ Week 9-12 (Mar):  ██████████░░░░░░░  ~10,900/d
 Week 13-15 (Apr): █████████████░░░░  ~13,200/day
 ```
 
-It's not a spike. The rate has been approximately consistent and slightly increasing. Run the script yourself.
+スパイクではありません。ペースはおおむね一定で、わずかに増加しています。ご自身でスクリプトを実行してください。
 
-## The quality question
+## 品質の問題
 
-This is the most legitimate critique, channeled through the [David Cramer](https://x.com/zeeg) voice: OK, you're pushing more lines. Where are your error rates? Your post-merge reverts? Your bug density? If you're typing at 10x speed but shipping 20x more bugs, you're not leveraged, you're making noise at scale.
+これは最も正当な批判で、David Cramer の声を借りると、こうなります。「確かに行数は増えている。では、エラー率は? マージ後のリバートは? バグ密度は? 10 倍の速さでタイピングしても、バグが 20 倍出ているなら、レバレッジが効いているのではなく、規模を大きくしてノイズを出しているだけだ」
 
-Fair. Here's the data:
+もっともです。データを示します。
 
-**Reverts.** `git log --grep="^revert" --grep="^Revert" -i` across the 15 active repos: 7 reverts in 351 commits = **2.0% revert rate**. For context, mature OSS codebases typically run 1-3%. Run the same command on whatever you consider the bar and compare.
+**リバート。** 15 の稼働中リポジトリで `git log --grep="^revert" --grep="^Revert" -i` を実行したところ、351 コミット中 7 件のリバート、つまり **2.0% のリバート率**でした。参考までに、成熟した OSS のコードベースは通常 1〜3% です。基準だと思うものに同じコマンドを実行して、比べてみてください。
 
-**Post-merge fixes.** Commits matching `^fix:` that reference a prior commit on the same branch: 22 of 351 = **6.3%**. Healthy fix cycle. A zero-fix rate would mean I'm not catching my own mistakes.
+**マージ後の修正。** 同じブランチ上の以前のコミットを参照する `^fix:` のコミットは、351 件中 22 件、つまり **6.3%** でした。健全な修正サイクルです。修正率がゼロなら、自分のミスを捕まえられていないということになります。
 
-**Tests.** This is the thing that actually matters, and it's the thing that changed everything for me. Early in 2026, I was shipping without tests and getting destroyed in bug land. Then I hit 30% test-to-code ratio, then 100% coverage on critical paths, and suddenly I could fly. Tests went from ~100 across all repos in January to **over 2,000 now**. They run in CI. They catch regressions. Every gstack PR has a coverage audit in the PR body.
+**テスト。** これが本当に重要で、私にとっては、すべてを変えたものです。2026 年の初め、私はテストなしで出荷していて、バグだらけで痛い目を見ていました。そこで、テストとコードの比率を 30% にし、重要な経路を 100% カバーするようにしたところ、突然、速く飛べるようになりました。テスト数は 1 月の全リポジトリで約 100 件から、**今では 2,000 件超**に増えました。テストは CI で走り、回帰を捕まえてくれます。gstack の PR はすべて、PR 本文にカバレッジ監査が付いています。
 
-The real insight: testing at multiple levels is what makes AI-assisted coding actually work. Unit tests, E2E tests, LLM-as-judge evals, smoke tests, slop scans. Without those layers, you're just generating confident garbage at high speed. With them, you have a verification loop that lets the AI iterate until the code is actually correct.
+本質的な知見は、複数のレベルでテストすることこそが、AI 支援のコーディングを実際に機能させるということです。ユニットテスト、E2E テスト、LLM-as-judge の評価、スモークテスト、スロップスキャン。こうした層がなければ、自信満々のゴミを高速で生成するだけです。層があれば、AI が正しくなるまで反復できる検証ループが手に入ります。
 
-gstack's core real-code feature — the thing that isn't just markdown prompts — is a **Playwright-based CLI browser** I wrote specifically so I could stop manually black-box testing my stuff. `/qa` opens a real browser, navigates your staging URL, and runs automated checks. That's 2,000+ lines of real systems code (server, CDP inspector, snapshot engine, content security, cookie management) that exists because testing is the unlock, not the overhead.
+gstack の中核にある、単なるマークダウンのプロンプトではない実際のコード機能は、**Playwright ベースの CLI ブラウザ**です。手動でブラックボックステストをしなくて済むように、私が書いたものです。`/qa` は本物のブラウザを開き、ステージング URL に移動して、自動チェックを実行します。これは 2,000 行を超える本物のシステムコードです(サーバー、CDP インスペクター、スナップショットエンジン、コンテンツセキュリティ、Cookie 管理)。テストは余計な作業ではなく、これを可能にするカギだからこそ存在しています。
 
-**Slop scan.** A third party — [Ben Vinegar](https://x.com/bentlegen), founding engineer at Sentry — built a tool called [slop-scan](https://github.com/benvinegar/slop-scan) specifically to measure AI code patterns. Deterministic rules, calibrated against mature OSS baselines. Higher score = more slop. He ran it on gstack and we scored 5.24, the worst he'd measured at the time. I took the findings seriously, refactored, and cut the score by 62% in one session. Run `bun test` and watch 2,000+ tests pass.
+**スロップスキャン。** 第三者である [Ben Vinegar](https://x.com/bentlegen)(Sentry の創業エンジニア)が、AI コードのパターンを計測するために [slop-scan](https://github.com/benvinegar/slop-scan) というツールを作りました。決定論的なルールで、成熟した OSS のベースラインに対して調整されています。彼が gstack に対して実行したところ、5.24 というスコアになりました。当時、彼が計測した中で最悪の数字です。私はこの指摘を真剣に受け止め、リファクタリングし、1 回のセッションでスコアを 62% 下げました。`bun test` を実行して、2,000 件を超えるテストが通るのを確認してください。
 
-**Review rigor.** Every gstack branch goes through CEO review, Codex outside-voice review, DX review, and eng review. Often 2-3 passes of each. The `/plan-tune` skill I just shipped had a scope ROLLBACK from the CEO expansion plan because Codex's outside-voice review surfaced 15+ findings my four Claude reviews missed. The review infrastructure catches the slop. It's visible in the repo. Anyone can read it.
+**レビューの厳密さ。** gstack のブランチはすべて、CEO レビュー、Codex による外部視点のレビュー、DX レビュー、エンジニアリングレビューを通ります。多くの場合、それぞれ 2〜3 回の往復があります。私が最近出荷した `/plan-tune` スキルは、Codex の外部視点のレビューが、Claude による 4 回のレビューが見逃した 15 件以上の指摘を挙げたため、CEO の拡張計画からスコープをロールバックしました。レビューの仕組みがスロップを捕まえています。それはリポジトリで目に見える形になっており、誰でも読めます。
 
-## What I'll concede
+## 認めること
 
-I'm going to steelman harder than the critics steelmanned themselves:
+批判する側が自分たちの立場を補強するよりも、さらに強く、私の側の主張を補強してみます。
 
-**Greenfield vs maintenance.** 2026 numbers are dominated by new-project code. Mature-codebase maintenance produces fewer lines per day. If you're asking "can Garry 100x the team maintaining 10 million lines of legacy Java at a bank," my number doesn't prove that. Someone else will have to run their own script on a different context.
+**グリーンフィールドか保守か。** 2026 年の数字は、新規プロジェクトのコードが大半を占めています。成熟したコードベースの保守では、1 日あたりに生まれる行数は少なくなります。「Garry は、銀行にある 1,000 万行のレガシーな Java の保守チームを 100 倍にできるか」と聞かれたら、私の数字はそれを証明しません。別の文脈で、誰か別の人が自分のスクリプトを走らせる必要があります。
 
-**The 2013 baseline has survivorship bias.** My 2013 public activity was low. This analysis includes Bookface (private, 22 active weeks) which was my biggest project that year, so the bias is smaller than it looks. It's not zero. If the true 2013 rate was 50/day instead of 14, the multiple at current pace is 228x instead of 810x. Still high.
+**2013 年のベースラインには生存者バイアスがあります。** 2013 年の公開されている活動は少なめでした。この分析には、Bookface(非公開。22 週間稼働)が含まれています。これは、その年の私の最大のプロジェクトでした。そのため、バイアスは見た目より小さくなっていますが、ゼロではありません。もし 2013 年の本当のペースが 14 行ではなく 50 行/日だったなら、現在のペースでの倍率は 810x ではなく 228x になります。それでも大きい数字です。
 
-**Quality-adjusted productivity isn't fully proven.** I don't have a clean bug-density comparison between 2013-me and 2026-me. What I can say: revert rate is in the normal band, fix rate is healthy, test coverage is real, and the adversarial review process caught 15+ issues on the most recent plan. That's evidence, not proof. A skeptic can discount it.
+**品質で調整した生産性は、完全には証明されていません。** 2013 年の私と 2026 年の私を、きれいなバグ密度で比べることはできません。言えるのは、リバート率は通常の範囲にあり、修正率は健全で、テストのカバレッジは実質的にあり、最新の計画では敵対的なレビューが 15 件以上の問題を捕まえた、ということです。これは証拠ではあっても、証明ではありません。懐疑的な人が割り引いて考えても構いません。
 
-**"Shipped" means different things across eras.** Some 2013 products shipped and died. Some 2026 products may share that fate. If two years from now 80% of what I shipped this year is dead, the critique "you built a bunch of unused stuff" will have teeth. I accept that reality check.
+**「出荷した」の意味は時代によって違います。** 2013 年の製品には、出荷されて消えたものもあります。2026 年の製品も同じ運命をたどるかもしれません。2 年後に今年出荷したものの 80% が消えていたら、「使われない物をたくさん作った」という批判には、確かに説得力が生まれます。その現実のチェックは受け入れます。
 
-**Time to first user is the metric that matters, not LOC.** The 60-day cycle from "I wish this existed" to "it exists and someone is using it" is the real shift. LOC is downstream evidence. The right metric is "shipped products per quarter" or "working features per week." Those went up by a similar multiple.
+**重要な指標は LOC ではなく、ユーザーが最初に使うまでの時間です。** 「こんなものがあったらいいな」から「実際に存在し、誰かが使っている」までの 60 日というサイクルこそが、本当の変化です。LOC は、その結果を示す後付けの証拠にすぎません。正しい指標は「四半期ごとに出荷されるプロダクト」か「週ごとに動く機能」です。それらも、同じくらいの倍率で増えています。
 
-## What those lines became
+## それらの行が何になったか
 
-gstack is not a hypothetical. It's a product with real users:
+gstack は仮説ではありません。実際のユーザーがいるプロダクトです。
 
-- **75,000+ GitHub stars** in 5 weeks
-- **14,965 unique installations** (opt-in telemetry)
-- **305,309 skill invocations** recorded since January 2026
-- **~7,000 weekly active users** at peak
-- **95.2% success rate** across all skill runs (290,624 successes / 305,309 total)
-- **57,650 /qa runs**, **28,014 /plan-eng-review runs**, **24,817 /office-hours sessions**, **18,899 /ship workflows**
-- **27,157 sessions used the browser** (real Playwright, not toy)
-- Median session duration: **2 minutes**. Average: **6.4 minutes**.
+- **GitHub スター 75,000 超**(5 週間で)
+- **14,965 のユニークなインストール**(オプトインのテレメトリー)
+- **305,309 回のスキル呼び出し**(2026 年 1 月以降に記録)
+- **ピーク時の週間アクティブユーザー約 7,000 人**
+- **全スキル実行の成功率 95.2%**(305,309 件中 290,624 件が成功)
+- **57,650 回の /qa 実行**、**28,014 回の /plan-eng-review 実行**、**24,817 回の /office-hours セッション**、**18,899 回の /ship ワークフロー**
+- **27,157 セッションがブラウザを使用**(本物の Playwright で、おもちゃではありません)
+- セッションの中央値は **2 分**。平均は **6.4 分**。
 
-Top skills by usage:
+利用の多いスキル上位:
 
 ```
 /qa               57,650  ████████████████████████████
@@ -150,20 +150,20 @@ Top skills by usage:
 /plan-ceo-review  12,357  ██████
 ```
 
-These aren't scaffolds sitting in a drawer. Thousands of developers run these skills every day.
+これらは引き出しにしまわれた足場ではありません。何千人もの開発者が毎日これらのスキルを実行しています。
 
-## What this means
+## これが意味すること
 
-I am not saying engineers are going away. Nobody serious thinks that.
+エンジニアがいなくなると言っているのではありません。真剣に考えている人で、そう思っている人はいません。
 
-I am saying engineers can fly now. One engineer in 2026 has the output of a small team in 2013, working the same hours, at the same day job, with the same brain. The code-generation cost curve collapsed by two orders of magnitude.
+私が言いたいのは、今のエンジニアは飛べるようになった、ということです。2026 年の 1 人のエンジニアが、2013 年の小さなチームの成果を出せるようになりました。労働時間も、本業も、空き時間も、頭も同じままです。コードを生成するコストの曲線は、2 桁も崩れ落ちました。
 
-The interesting part of the number isn't the volume. It's the rate. And the rate isn't a statement about me. It's a statement about the ground underneath all software engineering.
+数字のうち面白いのは、その量ではなく、そのペースです。そしてそのペースは、私という個人についての話ではありません。ソフトウェアエンジニアリング全体の足元の地面が動いたことについての話です。
 
-2013 me shipped about 14 logical lines per day. Normal for a part-time coder with a real job. 2026 me is shipping 11,417 logical lines per day. While still running YC full-time. Same day job. Same free time. Same person.
+2013 年の私は、1 日に約 14 論理行を出荷していました。本業を持つパートタイムのコーダーとしては普通です。2026 年の私は、1 日 11,417 論理行を出荷しています。今も YC をフルタイムでやりながらです。本業は同じ。空き時間は同じ。人間も同じ。
 
-The delta isn't that I became a better programmer. If anything, my mental model of coding has atrophied. The delta is that AI let me actually ship the things I always wanted to build. Small tools. Personal products. Experiments that used to die in my notebook because the time cost to build them was too high. The gap between "I want this tool" and "this tool exists and I'm using it" collapsed from 3 weeks to 3 hours.
+変わったのは、私がプログラマーとして上達したことではありません。むしろ、コードについての私のメンタルモデルは衰えています。変わったのは、AI のおかげで、昔から作りたかったものを実際に出荷できるようになったことです。小さなツール。個人のプロダクト。以前は、作るための時間コストが高すぎて、ノートの中で消えていた実験。「このツールが欲しい」から「このツールが存在して、私が使っている」までの距離が、3 週間から 3 時間に縮みました。
 
-Here's the script: [`scripts/garry-output-comparison.ts`](../scripts/garry-output-comparison.ts). Run it on your own repos. Show me your numbers. The argument isn't about me — it's about whether the ground moved.
+スクリプトはこちらです: [`scripts/garry-output-comparison.ts`](../scripts/garry-output-comparison.ts)。ご自身のリポジトリで実行してください。ご自分の数字を見せてください。議論の対象は私ではありません。地面が動いたのかどうか、です。
 
-I'm betting it did for you too.
+私は、あなたにとっても動いたと確信しています。

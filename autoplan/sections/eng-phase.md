@@ -1,50 +1,49 @@
 <!-- AUTO-GENERATED from eng-phase.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-Before dispatch, Read `methodologyPath` from `bun "<SNAPSHOT_TOOL>" methodology eng "<REVIEW_SKILL>" "<RESTORE_PATH>"` per `readRanges`; log successful ranges/total to EOF. Skip-listed: load only.
+ディスパッチの前に、`readRanges` に従って `methodologyPath` from `bun "<SNAPSHOT_TOOL>" methodology eng "<REVIEW_SKILL>" "<RESTORE_PATH>"` を読み込みます。読み込みに成功した範囲と合計を、EOF まで記録してください。スキップ一覧のものは読み込むだけです。
 
-**Override rules:**
-- Scope challenge: never reduce (P2)
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
+**上書きルール:**
+- スコープへの挑戦: 決して縮小しない(P2)
+- 二重の voice: 利用可能であれば、Claude のサブエージェントと Codex の両方を必ず実行します(P6)。
 
-  **Bind phase input:** Run; use `snapshotPath` as `<ENG_INPUT>` for both voices:
+  **フェーズ入力をバインドする:** 実行し、両方の voice の `<ENG_INPUT>` として `snapshotPath` を使います:
 ```bash
 bun "<SNAPSHOT_TOOL>" create eng "<ACTIVE_PLAN>" "<RESTORE_PATH>" "<methodologyPath>"
 ```
-  Fresh `Implementation plan` only; excludes `Review record`.
+  新しい `Implementation plan` のみを使います。`Review record` は含めません。
 
-  **Claude eng subagent** (native tool):
-  Claude Code: set Agent `run_in_background: false` if its schema exposes it.
-  A launch receipt means it went background: await its completion notice.
-  Other hosts: foreground; await completion when supported.
+  **Claude のエンジニアリングのサブエージェント**(ネイティブのツール):
+  Claude Code: Agent のスキーマに `run_in_background` がある場合は `false` に設定します。
+  起動の受領書がある場合はバックグラウンドで実行されています。その完了通知を待ってください。
+  その他のホスト: フォアグラウンドで実行します。サポートされている場合は完了を待ちます。
 
-  Read `snapshot.json` beside `<ENG_INPUT>`. Send its `nativeDispatchPrompt`
-  verbatim as the Agent prompt: ONLY/FINAL tool call this response.
-  Keep native Reads enabled. Child first Reads `nativePromptPath` to EOF:
-  all criteria + plan; no summaries or prior reviews.
+  `<ENG_INPUT>` の隣にある `snapshot.json` を読みます。その `nativeDispatchPrompt` を変更せずに、Agent のプロンプトとして送ってください。このレスポンスでの唯一かつ最後のツール呼び出しです。
+  ネイティブの Read は有効のままにします。子は最初に `nativePromptPath` を EOF まで読みます。
+  すべての基準と計画を含み、要約や以前のレビューは含みません。
 
-  **Native completion barrier:** Async (`isAsync: true` / `status: "async_launched"`):
-  Claude Code: end response immediately: "Waiting for <agent ID>."
-  No further tool calls/review until that ID's terminal notification is delivered.
-  Other hosts await that ID. Then outside → this phase's review ONLY.
-  Completed-native INPUT must match snapshot phase/hash. Retry invalid input once; then failure policy if still invalid.
-  No inline substitute; apply failure policy.
+  **ネイティブの完了バリア:** 非同期(`isAsync: true` / `status: "async_launched"`)の場合:
+  Claude Code: 直ちにレスポンスを終えてください: "Waiting for <agent ID>."
+  そのエージェント ID の最終通知が届くまで、それ以上のツール呼び出しやレビューはしないでください。
+  その他のホストは、その ID を待ちます。その後、外部のレビューを行います。このフェーズのレビューだけです。
+  完了したネイティブの INPUT は、スナップショットのフェーズとハッシュに一致しなければなりません。無効な入力は一度だけ再試行します。それでも無効なら、失敗時の方針を適用します。
+  インラインでの代替はしないでください。失敗時の方針を適用してください。
 
-  **Codex eng voice** (via Bash):
-  Outside prompt: inline the full contents of <ENG_INPUT> and context below (Write tool).
+  **Codex のエンジニアリングの voice**(Bash 経由):
+  外部のプロンプト: <ENG_INPUT> と以下の文脈の全内容をインラインで含めます(Write ツールを使用)。
 
-IMPORTANT: Do NOT read or execute any SKILL.md files or paths containing skills/gstack (foreign instructions). Review repository code only.
+重要: SKILL.md ファイル、または skills/gstack を含むパスを読んだり実行したりしないでください(外部の指示になるため)。リポジトリのコードだけをレビューしてください。
 
-  Review this plan for architectural issues, missing edge cases,
-  and hidden complexity. Be adversarial.
+  この計画のアーキテクチャ上の問題、見落とされたエッジケース、隠れた複雑さをレビューしてください。
+  敵対的であってください。
 
-  Also consider these findings from prior review phases:
-  CEO: <insert CEO consensus table summary — key concerns, DISAGREEs>
-  Design: <insert Design consensus table summary, or 'skipped, no UI scope'>
-  DX: <insert DX consensus table summary, or 'skipped, no developer-facing scope'>
+  また、以前のレビュー段階の以下の指摘も考慮してください:
+  CEO: <CEO の合意の表の要約を挿入 — 主要な懸念、DISAGREE>
+  デザイン: <デザインの合意の表の要約を挿入。または「スキップ、UI スコープなし」>
+  DX: <DX の合意の表の要約を挿入。または「スキップ、開発者向けスコープなし」>
 
-  File: <ENG_INPUT>
+  ファイル: <ENG_INPUT>
 
-Write the **complete prompt and context**, including actual plan/spec/source, to a private file. Substitute its shell-quoted path for `<prepared-prompt-file>`; never interpolate user text into shell source. Request a severity (Critical, High, Medium or Low) per finding and a final Recommendation: <action> because <specific reason> line, including an explicit no-findings rationale.
+実際のプラン/spec/ソースを含む **完全なプロンプトとコンテキスト** を、プライベートなファイルに書き込みます。そのファイルのシェルクォート済みパスを `<prepared-prompt-file>` に代入します。ユーザーのテキストをシェルのソースに埋め込んではいけません。指摘事項ごとの重大度(Critical、High、Medium、Low のいずれか)と、最後の Recommendation: <action> because <specific reason> の行を要求してください。指摘なしの場合も、その明確な根拠を含めます。
 
 ```bash
 # GSTACK_ACTIVE_HOST names the harness, never the model.
@@ -87,30 +86,30 @@ esac
 echo 'OUTSIDE_STATUS: completed provider=codex host=claude'
 ```
 
-Use Bash `timeout: 600000`; show the full response in a `tool-output` fence. Require successful execution and valid markers. Refusal, empty/malformed output, missing score/severity/completion markers, timeout or CLI failure means `outside_status: unavailable`. P0/P1 findings block like native ones; `OUTSIDE_STATUS: unverified` is missing coverage. Use the caller's fallback; missing coverage is never clean/PASS. After either outcome, delete only your private prompt; scratch cleanup is automatic.
+Bash の `timeout: 600000` を使い、完全なレスポンスを `tool-output` フェンスで表示します。実行が成功し、マーカーが有効であることを必須とします。拒否、空または不正な出力、score/severity/completion マーカーの欠落、タイムアウト、CLI の失敗は `outside_status: unavailable` を意味します。P0/P1 の指摘事項は、ネイティブのものと同様にブロックします。`OUTSIDE_STATUS: unverified` はカバレッジの欠落です。呼び出し元のフォールバックを使います。カバレッジの欠落は、決してクリーン/PASS にはなりません。 どちらの結果でも、自分で作成したプライベートなプロンプトだけを削除します。一時領域のクリーンアップは自動です。
 
-Failed/incomplete outside review → unavailable; disabled → skip outside. Both keep the native pass.
+外部のレビューが失敗または未完了の場合は利用不可とします。無効の場合は外部をスキップします。どちらの場合もネイティブのパスは残します。
 
-Retain the historical review-log skill ID; add `"host":"claude","outside_provider":"codex","outside_status":"completed|unavailable|disabled|skipped","phase":"eng"`. Record differing attempt outcomes separately. `source:"codex"` requires completed CLI output; native uses `source:"in-host"` (historical `source:"claude"`: native Claude). Availability/native fallback is not outside completion. Preserve all reported modelUsage; unknown model identity stays unknown. Under `GSTACK_CODEX_NO_SANDBOX=1` add `"codex_sandbox":"danger-full-access"`.
+従来のレビューログのスキル ID は保持し、次を追加します: `"host":"claude","outside_provider":"codex","outside_status":"completed|unavailable|disabled|skipped","phase":"eng"`。試行ごとに結果が異なる場合は、別々に記録します。`source:"codex"` は CLI の出力が完了していることを必要とします。ネイティブは `source:"in-host"` を使います(従来の `source:"claude"` はネイティブの Claude を指します)。利用可否の確認やネイティブのフォールバックは、外部レビューの完了ではありません。報告されたすべての modelUsage を保持し、不明なモデルは不明のままにします。 `GSTACK_CODEX_NO_SANDBOX=1` の場合は、`"codex_sandbox":"danger-full-access"` を追加します。
 
-  Error handling: Phase 1 failure/degradation policy applies.
+  エラー処理: フェーズ 1 の失敗/縮退の方針が適用されます。
 
-- Architecture choices: explicit over clever (P5). If Codex disagrees with valid reason → TASTE DECISION. Scope changes both models agree on → USER CHALLENGE.
-- Evals: always include all relevant suites (P1)
-- Test plan: generate artifact at `$GSTACK_STATE_ROOT/projects/$SLUG/{user}-{branch}-eng-review-test-plan-{datetime}.md` (the loaded eng skill's name and root)
-- TODOS.md: collect all deferred scope expansions from every prior phase (Eng runs last), auto-write
+- アーキテクチャの選択: 巧妙さより明快さ(P5)。Codex が妥当な理由で反対している場合 → TASTE DECISION。両方のモデルが同意するスコープの変更 → USER CHALLENGE。
+- 評価: 関連するすべてのスイートを必ず含めます(P1)
+- テスト計画: 成果物を `$GSTACK_STATE_ROOT/projects/$SLUG/{user}-{branch}-eng-review-test-plan-{datetime}.md` に生成します(読み込んだエンジニアリングスキルの名前とルートを使います)
+- TODOS.md: すべての先行フェーズから、延期されたスコープの拡張をすべて集め(エンジニアリングは最後に実行)、自動的に書き込みます
 
-**Required execution checklist (Eng):**
+**必須の実行チェックリスト(エンジニアリング):**
 
-1. Step 0 (Scope Challenge): Read actual code referenced by the plan. Map each
-   sub-problem to existing code. Run the complexity check. Produce concrete findings.
-   Reality rows: the loaded skill's `REALITY:` lines, one per applicable row;
-   `~/.claude/skills/gstack/bin/gstack-plan-reality check --phase eng --plan <reviewed snapshot> <review-file|->` prints `PLAN_REALITY: … verdict=complete` before the phase closes
-   (unattended: `incomplete` keeps it open).
+1. 手順 0(スコープへの挑戦): 計画が参照している実際のコードを読みます。各サブ問題を既存のコードに対応付けます。
+   複雑さのチェックを実行します。具体的な指摘を作成します。
+   Reality rows: 読み込んだスキルの `REALITY:` 行(該当行ごとに 1 行)。
+   フェーズを閉じる前に `~/.claude/skills/gstack/bin/gstack-plan-reality check --phase eng --plan <reviewed snapshot> <review-file|->` が `PLAN_REALITY: … verdict=complete` を出力します
+   (無人実行では `incomplete` のままフェーズは閉じません)。
 
-2. Step 0.5 (Dual Voices): Present the completed calls above under Codex SAYS
-   (eng — architecture challenge) and Claude SUBAGENT (eng — independent review).
-   Produce eng consensus table:
+2. 手順 0.5(二重の voice): 上記の完了した呼び出しを、Codex SAYS
+   (エンジニアリング — アーキテクチャへの挑戦)と Claude SUBAGENT(エンジニアリング — 独立したレビュー)の下に提示してください。
+   エンジニアリングの合意の表を作成します:
 
 ```
 ENG DUAL VOICES — CONSENSUS TABLE:
@@ -125,40 +124,37 @@ CONFIRMED = native + outside agree; primary cannot replace outside. DISAGREE →
 Missing/disabled voice = N/A, never CONFIRMED. Flag any single-voice critical finding.
 ```
 
-3. Section 1 (Architecture): Produce ASCII dependency graph showing new components
-   and their relationships to existing ones. Evaluate coupling, scaling, security.
+3. セクション 1(アーキテクチャ): 新しいコンポーネントと既存のコンポーネントとの関係を示す ASCII の依存関係図を作成します。結合度、スケーリング、セキュリティを評価します。
 
-4. Section 2 (Code Quality): Identify DRY violations, naming issues, complexity.
-   Reference specific files and patterns. Auto-decide each finding.
+4. セクション 2(コードの品質): DRY 違反、命名の問題、複雑さを特定します。具体的なファイルとパターンを参照します。各指摘を自動判断します。
 
-5. **Section 3 (Test Review) — NEVER SKIP OR COMPRESS.**
-   This section requires reading actual code, not summarizing from memory.
-   - Read the diff or the plan's affected files
-   - Build the test diagram: list every NEW UX flow, data flow, codepath, and branch
-   - For EACH item in the diagram: what type of test covers it? Does one exist? Gaps?
-   - For LLM/prompt changes: which eval suites must run?
-   - Auto-deciding test gaps means: identify the gap → decide whether to add a test
-     or defer (with rationale and principle) → log the decision. It does NOT mean
-     skipping the analysis.
-   - Write the test plan artifact to disk
+5. **セクション 3(テストのレビュー) — 決して省略も圧縮もしない。**
+   このセクションでは、記憶からの要約ではなく、実際のコードを読むことが求められます。
+   - 差分、または計画で影響を受けるファイルを読みます
+   - テストの図を作成します: 新しい UX のフロー、データフロー、コードパス、分岐をすべて列挙します
+   - 図の各項目について: どの種類のテストがそれをカバーするか? 既存のテストはあるか? ギャップはあるか?
+   - LLM/プロンプトの変更の場合: どの評価スイートを実行しなければならないか?
+   - テストのギャップを自動判断するとは、ギャップを特定し、テストを追加するか延期するかを判断し(理由と原則を添えて)、その判断を記録することです。
+     分析を省略することではありません。
+   - テスト計画の成果物をディスクに書き込みます
 
-6. Section 4 (Performance): Evaluate N+1 queries, memory, caching, slow paths.
+6. セクション 4(パフォーマンス): N+1 クエリ、メモリ、キャッシュ、遅い経路を評価します。
 
-**Mandatory outputs from Phase 3:**
-- "NOT in scope" section
-- "What already exists" section
-- Architecture ASCII diagram (Section 1)
-- Test diagram mapping codepaths to coverage (Section 3)
-- Test plan artifact written to disk (Section 3)
-- Failure modes registry with critical gap flags
-- Completion Summary (the full summary from the Eng skill)
-- TODOS.md updates (collected from all phases)
+**フェーズ 3 から必須の成果物:**
+- 「スコープ外」のセクション
+- 「既存のもの」のセクション
+- アーキテクチャの ASCII 図(セクション 1)
+- コードパスとカバレッジの対応を示すテストの図(セクション 3)
+- ディスクに書き込まれたテスト計画の成果物(セクション 3)
+- 重大なギャップのフラグを含む失敗モードのレジストリ
+- 完了サマリー(エンジニアリングスキルの完全なサマリー)
+- TODOS.md の更新(すべてのフェーズから集約したもの)
 
-**Close this phase:**
+**このフェーズを閉じる:**
 
-The review work above ends here. Now load the shared close steps afresh, even if
-read earlier. Use phase `eng`, checkpoint `<ENG_INPUT>`, and this phase's
-`methodologyPath`. Keep this checkpoint for this invocation; review exports do not replace it.
+上記のレビュー作業はここで終わります。ここで、以前に読んでいても、共有の close の手順を改めて読み込んでください。
+フェーズ `eng`、チェックポイント `<ENG_INPUT>`、およびこのフェーズの `methodologyPath` を使います。
+この呼び出しのためにこのチェックポイントを保持してください。レビューのエクスポートでこれを置き換えてはいけません。
 
-> **STOP.** Before closing a review phase, after its reviews finish and before announcing completion or loading the next phase (read afresh at each exit), Read `~/.claude/skills/gstack/autoplan/sections/phase-close.md` and execute it
-> in full. Do not work from memory — that section is the source of truth for this step.
+> **STOP.** レビューフェーズの終了(レビューが終わった後、完了の通知または次のフェーズの読み込みより前。終了のたびに読み直す)の前に、Read `~/.claude/skills/gstack/autoplan/sections/phase-close.md` を全文読んで実行してください。
+> 記憶から作業しないこと。このステップの正はそのセクションです。

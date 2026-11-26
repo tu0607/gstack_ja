@@ -1,59 +1,45 @@
-# A census went red
+# 棚卸し(census)で赤が出た
 
-A periodic census (`evals-periodic.yml`: the weekly periodic lane plus the
-gate census) or a marathon run reports each red verdict as one line. This page
-takes one red line to a diagnosis, using free commands first. A paid run is
-allowed only after a repair.
+定期的な棚卸し(`evals-periodic.yml`: 毎週の定期レーンと gate の棚卸し)や marathon 実行は、赤になった判定をそれぞれ 1 行で報告します。このページでは、その赤い 1 行を、無料のコマンドを優先して診断までたどります。有料の実行は、修正を行った後にのみ許されます。
 
-Where the report is:
+報告の場所:
 
-- **Main** (the scheduled weekly run, or a dispatch on `main`): a comment on the
-  open "Weekly periodic evals: red lane needs triage" issue (marathon: "Weekly
-  marathon evals: red lane needs triage").
-- **Any branch**: the run's step summary and its `census-report-a<attempt>`
-  artifact (marathon: `marathon-report-a<attempt>`). A branch census never
-  comments on or closes main's issue.
+- **main**(毎週の定期実行、または main 上でのディスパッチ): 「Weekly periodic evals: red lane needs triage」という、開いている issue へのコメント(marathon の場合は「Weekly marathon evals: red lane needs triage」)。
+- **任意のブランチ**: 実行のステップサマリーと、`census-report-a<attempt>` というアーティファクト(marathon の場合は `marathon-report-a<attempt>`)。ブランチの棚卸しが main の issue にコメントしたり、それを閉じたりすることはありません。
 
-## Prerequisites
+## 前提条件
 
-- A checkout of the census branch with `bun install` done. Bun 1.4.2 is the
-  tested version.
-- `gh` authenticated with read access to the repository's Actions (or
-  `GH_TOKEN` set). `eval:pass-rates` downloads artifacts through the REST zip
-  route, which also works where `gh run download` is blocked.
-- The run id: the number at the end of the run URL in the report's first line.
+- `bun install` を済ませた、棚卸しのブランチのチェックアウト。テスト済みの Bun のバージョンは 1.4.2 です。
+- Actions の読み取り権限を持つ、認証済みの `gh`(または `GH_TOKEN` の設定)。`eval:pass-rates` は REST の zip ルートでアーティファクトをダウンロードします。このルートは、`gh run download` がブロックされている環境でも動きます。
+- 実行 ID。報告の一行目にある実行 URL の末尾の数字です。
 
-## 1. Read the red line
+## 1. 赤い行を読む
 
-A red line in the census report looks like this (one line; a behavior panel
-with one failed trial shown):
+棚卸しの報告にある赤い行は次のような形です(一行で、行動パネルで失敗が 1 回だった場合の例です)。
 
 ```
 ✗ plan-review-prosons-neutral-neg  behavior  FAIL 1/3 (✗✗✓)  t1: assertion (session completed; check failed) — expect(received).not.toMatch(expected)  · cause assertion: session completed; check failed  Expected: not /taste call/i · Received: "a taste call"; t2: assertion  [t1@slice 7, t2@slice 9, t3@slice 9, attempt 1]  evidence: paid-slice-7-a1/shards/skill-e2e-plan-prosons--plan-review-prosons-neutral-neg.t1 (fetch: bun run eval:pass-rates --run 37193478719 --case plan-review-prosons-neutral-neg)  after a repair: bun run scripts/test-paid-shards.ts --tier periodic --case plan-review-prosons-neutral-neg --trials 3
 ```
 
-| Field | What it says |
+| フィールド | 内容 |
 |---|---|
-| case, kind, verdict | the registry id, its kind (`rule`, `behavior`, `judge`) and the verdict with each trial's outcome; the brackets name the slice and attempt of each trial |
-| `failure_class` | the class verdicts read: `assertion`, `contract`, `timeout` or `infra` |
-| `cause` | what the machine observed (`failure_cause`, glossary in [TESTING_INTERNALS](../TESTING_INTERNALS.md#failure-causes)), with its evidence line |
-| Expected / Received | the failed matcher's values; for a judge, each failing dimension's gating median (the mean before EVAL_POLICY v3), threshold, sample count and lowest rationale |
-| `evidence:` | the slice artifact and shard directory holding the transcript |
-| `after a repair:` | the command that runs only this case, once a repair exists |
+| case, kind, verdict | レジストリの ID、その種類(`rule`、`behavior`、`judge`)、各試行の結果を含む判定。括弧は各試行のスライスと試行回数を示す |
+| `failure_class` | 判定が読み取るクラス: `assertion`、`contract`、`timeout`、`infra` のいずれか |
+| `cause` | 機械が観測した内容(`failure_cause`。用語集は [TESTING_INTERNALS](../TESTING_INTERNALS.md#failure-causes))と、その証拠の行 |
+| Expected / Received | 失敗したマッチャーの値。judge の場合は、失敗した各ディメンションのゲートの中央値(EVAL_POLICY v3 より前は平均)、しきい値、サンプル数、最も低い根拠 |
+| `evidence:` | 文字起こしを含む、スライスのアーティファクトとシャードのディレクトリ |
+| `after a repair:` | 修正が存在するようになったら、このケースだけを実行するコマンド |
 
-The cause is a label. Under EVAL_POLICY v1 it never changes a verdict: a
-`provider_stall` or `refusal` is still a failed trial. Whether an assertion
-failure was a detector, harness or product fault is your diagnosis, not a
-machine cause.
+原因はラベルにすぎません。EVAL_POLICY v1 のもとでは、原因が判定を変えることはありません。`provider_stall` や `refusal` であっても、その試行は失敗のままです。アサーションの失敗が、検出器、ハーネス、プロダクトのいずれの不具合によるものかは、機械の原因ではなく、あなたが行う診断です。
 
-## 2. Inspect the evidence (free)
+## 2. 証拠を確認する(無料)
 
 ```bash
 bun run eval:pass-rates --run <run-id>                 # every red of that census
 bun run eval:pass-rates --run <run-id> --case <id>     # one case
 ```
 
-Expected output: one block per red, with its history and a local evidence path.
+期待される出力: 赤ごとに一つのブロック。履歴とローカルの証拠のパスを含みます。
 
 ```
 run 37198445662 (main @ 1a2b3c4d5, 2026-10-04T11:29:00Z): 2 verdict red(s)
@@ -62,15 +48,9 @@ run 37198445662 (main @ 1a2b3c4d5, 2026-10-04T11:29:00Z): 2 verdict red(s)
     evidence: ~/.gstack/eval-pass-rates-cache/garrytan-gstack/37198445662/paid-slice-5-a1/shards/skill-llm-eval
 ```
 
-Only the slices the reds name are downloaded, into
-`<state root>/eval-pass-rates-cache/<owner>-<repo>/<run-id>/`. The shard
-directory holds the eval record JSON (transcript, judge scores), `junit.xml`
-and, for runs after the session ledger landed, `session-ledger.jsonl` (each
-session's armed budget, elapsed time, end reason and liveness summary). A slice
-artifact over 64 MB is reported as `too large to fetch`; download it from the
-run page or with `gh api repos/<owner>/<repo>/actions/artifacts/<id>/zip > slice.zip`.
+ダウンロードされるのは、赤が指すスライスだけです。保存先は `<state root>/eval-pass-rates-cache/<owner>-<repo>/<run-id>/` です。シャードのディレクトリには eval の記録 JSON(文字起こし、judge のスコア)、`junit.xml`、そして session ledger が導入された後の実行では `session-ledger.jsonl`(各セッションに割り当てられた予算、経過時間、終了理由、生存状況の要約)が入ります。サイズが 64 MB を超えるスライスのアーティファクトは `too large to fetch` と報告されます。その場合は、実行のページから、または `gh api repos/<owner>/<repo>/actions/artifacts/<id>/zip > slice.zip` でダウンロードしてください。
 
-## 3. Put it in context (free)
+## 3. 文脈に置く(無料)
 
 ```bash
 bun run eval:pass-rates --reds --runs 10 --branch <branch>      # reds per census by class and cause, all-green probability
@@ -78,57 +58,45 @@ bun run eval:pass-rates --headroom --runs 10 --branch <branch>  # slowest sessio
 bun run eval:pass-rates --case <id> --runs 10                   # the case's pass rate per input series
 ```
 
-`--reds` ends with the all-green probability: Π(1 − p_i) over the latest
-census's cases, with per-case red rates shrunk toward the pooled rate. It is an
-approximation (verdicts are not proven independent). A case that is red in
-several censuses is a repeat offender; its fix is structural (a replay corpus,
-a structured signal or a speedup), not a one-off spelling patch.
+`--reds` の最後には、全部緑になる確率が出ます。最新の棚卸しのケース全体について Π(1 − p_i) で計算し、ケースごとの赤の割合は全体の割合に向けて縮小します。これは近似です(判定が独立であることは証明されていません)。複数の棚卸しで赤になるケースは、常習犯です。その修正は構造的なもの(リプレイのコーパス、構造化されたシグナル、または高速化)であり、一度限りの文言の修正ではありません。
 
-What incomplete data means:
+不完全なデータが何を意味するかは次のとおりです。
 
-| Shown | Meaning |
+| 表示 | 意味 |
 |---|---|
-| headroom `unknown (no session ledger)` | the trials predate the session ledger, or the runner wrote none; the case wall beside it is an upper bound, not a session clock |
-| headroom `insufficient` | fewer than 3 session samples; never read as a pass |
-| headroom `censored` | a sample timed out, so its real duration is at least the budget |
-| cause `unrecorded` | the trial was written before `failure_cause` existed |
-| cause `unknown` | the trial failed with no evidence for any other cause |
-| `cost unknown` | the harness (PTY, Codex) records no billing; only the known sum is shown |
-| `history unavailable (...)` | the GitHub history could not be read; `--gate` fails closed |
+| headroom `unknown (no session ledger)` | 試行が session ledger より前のものか、ランナーがそれを書かなかった。隣に表示されるケースの実時間は上限であり、セッションの時計ではない |
+| headroom `insufficient` | セッションのサンプルが 3 未満。決して合格とは読まない |
+| headroom `censored` | サンプルがタイムアウトした。実際の所要時間は少なくとも予算以上 |
+| cause `unrecorded` | 試行が `failure_cause` の導入前に書かれた |
+| cause `unknown` | 試行が、他のどの原因の証拠もないまま失敗した |
+| `cost unknown` | ハーネス(PTY、Codex)が課金を記録しない。わかっている合計だけを表示する |
+| `history unavailable (...)` | GitHub の履歴を読めなかった。`--gate` は閉じた側で失敗する |
 
-## 4. Replay and repair (free)
+## 4. リプレイと修正(無料)
 
-Diagnose before changing code: product defect, test or detector defect, harness
-defect, or infrastructure. Then reproduce with the smallest free check:
+コードを変更する前に診断します。プロダクトの不具合か、テストや検出器の不具合か、ハーネスの不具合か、インフラか。そのうえで、最も小さい無料のチェックで再現します。
 
 ```bash
 bun test test/detector-corpus-<case>.test.ts      # cases with a replay corpus
 bun run eval:pass-rates --reds --dir <evidence dir>   # re-read downloaded artifacts offline
 ```
 
-The repair lands with a free regression test that fails before it and passes
-after it (`AGENTS.md`, "Validation discipline").
+修正には、修正前に失敗し修正後に成功する、無料の回帰テストを添えてください(`AGENTS.md` の「Validation discipline」)。
 
-## 5. After a repair: one paid run
+## 5. 修正の後: 有料の実行を一回
 
-Run the line's `after a repair:` command, which selects only that case:
+行の `after a repair:` にあるコマンドを実行します。これはそのケースだけを選択します。
 
 ```bash
 bun run scripts/test-paid-shards.ts --tier periodic --case <id>              # a rule case: one diagnostic trial
 bun run scripts/test-paid-shards.ts --tier periodic --case <id> --trials 3   # a behavior case: its 3-trial panel
 ```
 
-A judge prints an `EVALS_JUDGE_SELECTION_JSON=... bun test <file> -t '<pattern>'`
-command instead; a changed judge gets one 3-sample panel.
+judge の場合は、代わりに `EVALS_JUDGE_SELECTION_JSON=... bun test <file> -t '<pattern>'` というコマンドが表示されます。変更された judge には、3 サンプルのパネルが一つ割り当てられます。
 
-Rules (see [TESTING_INTERNALS](../TESTING_INTERNALS.md#eval-verdict-policy)):
+ルール(詳しくは [TESTING_INTERNALS](../TESTING_INTERNALS.md#eval-verdict-policy)):
 
-- A paid run follows a concrete repair. A red census is never rerun on
-  unchanged inputs.
-- A diagnostic run never forms a verdict. The next census on the repaired head
-  decides.
-- A census whose every red is machine-classified INFRA or INCOMPLETE is
-  re-dispatched once automatically; both runs stay reported.
-- An unresolved red is listed as a named red with its diagnosis. A case enters
-  `CASE_QUARANTINE` only under its entry rule, and a product defect is never
-  quarantined.
+- 有料の実行は、具体的な修正に続けてのみ行います。赤になった棚卸しを、入力が変わっていないまま再実行することはありません。
+- 診断のための実行が判定を下すことはありません。修正されたヘッドでの次の棚卸しが判定します。
+- すべての赤が機械によって INFRA または INCOMPLETE に分類された棚卸しは、一度だけ自動的に再ディスパッチされます。両方の実行は報告に残ります。
+- 解決されていない赤は、名前付きの赤として、その診断とともに一覧にします。ケースが `CASE_QUARANTINE` に入るのは、そのエントリールールの下にある場合だけです。プロダクトの不具合が隔離されることはありません。

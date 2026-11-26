@@ -1,0 +1,185 @@
+#!/usr/bin/env -S bun --no-env-file --config=/dev/null
+/**
+ * gstack-translation-ledger — どの upstream 版まで日本語に翻訳したかを記録し、差分ファイルだけを翻訳できるようにする。
+ *
+ *   gstack-translation-ledger init --base <commit>          台帳を初期化(翻訳対象の blob を <commit> から記録)
+ *   gstack-translation-ledger status [--upstream <ref>] [--diff] [--json]
+ *                                                           CHANGED / ADDED / REMOVED / UNTRACKED を一覧
+ *   gstack-translation-ledger mark [--base <ref>] [<paths...>]
+ *                                                           翻訳済みの blob を新しい ref の値に更新
+ *   gstack-translation-ledger check                         台帳の鮮度検査(UNTRACKED があれば exit 1)
+ *
+ * ネットワークには出ない: upstream の取得(fetch)は利用者が実行する。
+ * 判定ロジック: lib/translation-ledger.ts。手順: docs/TRANSLATION.md
+ */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { EXIT, exitTableHelp } from '../lib/headless-artifacts';
+import {
+  LEDGER_PATH, PENDING_DIR, computeStatus, git, listLocalFiles, listTree, readLedger, resolveCommit,
+  sourceBlobs, today, writeLedger, type Ledger, type LedgerStatus,
+} from '../lib/translation-ledger';
+
+const DEFAULT_UPSTREAM = 'upstream/main';
+
+const HELP = `gstack-translation-ledger — upstream の翻訳済み位置を記録する台帳(docs/TRANSLATION.md)
+
+  init --base <commit>                      ${LEDGER_PATH} を作る(全翻訳対象の blob を <commit> から記録)
+  status [--upstream <ref>] [--diff] [--json]
+                                            台帳と <ref>(既定 ${DEFAULT_UPSTREAM})を比べる
+                                            CHANGED  upstream で blob が変わった
+                                            ADDED    upstream に新規で台帳にない
+                                            REMOVED  upstream から消えた
+                                            UNTRACKED ローカルに翻訳対象があるが台帳にない
+                                            --diff   CHANGED ごとの unified diff を ${PENDING_DIR}/<path>.diff に書く
+                                            --json   機械可読出力(stdout は JSON のみ)
+  mark [--base <ref>] [<paths...>]          翻訳済みにする(省略時は CHANGED/ADDED 全部)。REMOVED は台帳から消す
+  check                                     UNTRACKED があれば exit 1
+
+upstream の取得(fetch)は自分で実行してください(このコマンドは実行しません)
+${exitTableHelp()}`;
+
+function flagValue(args: string[], name: string): string | undefined {
+  const i = args.indexOf(name);
+  return i >= 0 ? args[i + 1] : undefined;
+}
+function usage(message: string): number {
+  process.stderr.write(`gstack-translation-ledger: ${message}\n${HELP}\n`);
+  return EXIT.usage;
+}
+function fail(message: string): number {
+  process.stderr.write(`gstack-translation-ledger: ${message}\n`);
+  return EXIT.fail;
+}
+
+/** `--flag value` と、フラグではない位置引数を分ける。 */
+function positionals(args: string[], valueFlags: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]!;
+    if (valueFlags.includes(a)) i++;
+    else if (!a.startsWith('--')) out.push(a);
+  }
+  return out;
+}
+
+function result(status: LedgerStatus): string {
+  const pending = status.changed.length + status.added.length + status.removed.length > 0;
+  return `GSTACK_RESULT: skill=translation status=${pending ? 'pending' : 'clean'} changed=${status.changed.length} added=${status.added.length} removed=${status.removed.length}`;
+}
+
+function loadUpstream(cwd: string, ref: string): { commit: string; blobs: Map<string, string> } | string {
+  const commit = resolveCommit(cwd, ref);
+  if (!commit) {
+    return `${ref} が見つかりません。先に upstream remote を fetch してください(remote が無ければ docs/TRANSLATION.md の準備手順で追加)。`;
+  }
+  return { commit, blobs: sourceBlobs(listTree(cwd, ref)) };
+}
+
+function cmdInit(cwd: string, args: string[]): number {
+  const base = flagValue(args, '--base');
+  if (!base) return usage('init には --base <commit> が必要です');
+  if (fs.existsSync(path.join(cwd, LEDGER_PATH))) return fail(`${LEDGER_PATH} はすでにあります。作り直すなら先に削除してください。`);
+  const commit = resolveCommit(cwd, base);
+  if (!commit) return fail(`${base} が見つかりません。`);
+  const date = today();
+  const files: Ledger['files'] = {};
+  for (const [p, blob] of sourceBlobs(listTree(cwd, commit))) files[p] = { blob, translated_at: date };
+  writeLedger(cwd, { upstream_base: commit, upstream_remote: 'upstream', files });
+  process.stdout.write(`${LEDGER_PATH}: ${Object.keys(files).length} ファイルを ${commit.slice(0, 8)} から記録しました\n`);
+  return EXIT.ok;
+}
+
+function writeDiffs(cwd: string, ledger: Ledger, ref: string, changed: string[]): string[] {
+  const written: string[] = [];
+  for (const p of changed) {
+    const r = git(cwd, ['diff', `${ledger.upstream_base}..${ref}`, '--', p]);
+    if (!r.ok) throw new Error(`git diff failed for ${p}: ${r.err}`);
+    const out = path.join(cwd, PENDING_DIR, `${p}.diff`);
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, r.out);
+    written.push(path.join(PENDING_DIR, `${p}.diff`));
+  }
+  return written;
+}
+
+function cmdStatus(cwd: string, args: string[]): number {
+  const json = args.includes('--json');
+  const ref = flagValue(args, '--upstream') ?? DEFAULT_UPSTREAM;
+  const ledger = readLedger(cwd);
+  const up = loadUpstream(cwd, ref);
+  if (typeof up === 'string') return fail(up);
+  const status = computeStatus(ledger, up.blobs, listLocalFiles(cwd));
+  const diffs = args.includes('--diff') ? writeDiffs(cwd, ledger, ref, status.changed) : [];
+  if (json) {
+    process.stdout.write(JSON.stringify({ upstream: ref, upstream_commit: up.commit, upstream_base: ledger.upstream_base, ...status, diffs }, null, 2) + '\n');
+    return EXIT.ok;
+  }
+  const lines = [
+    ...status.changed.map(p => `CHANGED   ${p}`),
+    ...status.added.map(p => `ADDED     ${p}`),
+    ...status.removed.map(p => `REMOVED   ${p}`),
+    ...status.untracked.map(p => `UNTRACKED ${p}`),
+    ...diffs.map(p => `DIFF      ${p}`),
+  ];
+  process.stdout.write(lines.join('\n') + (lines.length ? '\n' : ''));
+  process.stdout.write(result(status) + '\n');
+  return EXIT.ok;
+}
+
+function cmdMark(cwd: string, args: string[]): number {
+  const ref = flagValue(args, '--base') ?? DEFAULT_UPSTREAM;
+  const paths = positionals(args, ['--base']);
+  const ledger = readLedger(cwd);
+  const up = loadUpstream(cwd, ref);
+  if (typeof up === 'string') return fail(up);
+  const status = computeStatus(ledger, up.blobs, []);
+  const pending = new Set([...status.changed, ...status.added, ...status.removed]);
+  const targets = paths.length ? paths : [...pending];
+  const unknown = targets.filter(p => !pending.has(p));
+  if (unknown.length) return fail(`未処理の差分がないパスです: ${unknown.join(', ')}`);
+  const date = today();
+  for (const p of targets) {
+    if (up.blobs.has(p)) ledger.files[p] = { blob: up.blobs.get(p)!, translated_at: date };
+    else delete ledger.files[p];
+    fs.rmSync(path.join(cwd, PENDING_DIR, `${p}.diff`), { force: true });
+  }
+  // 一部だけ印を付けた場合、残りの差分は古い基準との diff が正しいので upstream_base は動かさない。
+  if (targets.length === pending.size) ledger.upstream_base = up.commit;
+  writeLedger(cwd, ledger);
+  process.stdout.write(`${targets.length} ファイルを翻訳済みにしました(upstream_base=${ledger.upstream_base.slice(0, 8)})\n`);
+  return EXIT.ok;
+}
+
+function cmdCheck(cwd: string): number {
+  const ledger = readLedger(cwd);
+  const untracked = computeStatus(ledger, new Map(Object.entries(ledger.files).map(([p, e]) => [p, e.blob])), listLocalFiles(cwd)).untracked;
+  if (untracked.length) {
+    process.stderr.write(`gstack-translation-ledger: 台帳にない翻訳対象があります:\n${untracked.map(p => `  ${p}`).join('\n')}\n` +
+      `fix: upstream にあるファイルなら \`status\` → 翻訳 → \`mark\`、フォーク独自のファイルなら lib/translation-ledger.ts の FORK_ONLY に追加\n`);
+    return EXIT.fail;
+  }
+  process.stdout.write(`${LEDGER_PATH}: ok (${Object.keys(ledger.files).length} ファイル)\n`);
+  return EXIT.ok;
+}
+
+function main(argv: string[]): number {
+  const [cmd, ...rest] = argv;
+  if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help') { process.stdout.write(HELP + '\n'); return cmd ? EXIT.ok : EXIT.usage; }
+  const top = git(process.cwd(), ['rev-parse', '--show-toplevel']);
+  if (!top.ok) return fail('git リポジトリの中で実行してください。');
+  const cwd = top.out.trim();
+  try {
+    switch (cmd) {
+      case 'init': return cmdInit(cwd, rest);
+      case 'status': return cmdStatus(cwd, rest);
+      case 'mark': return cmdMark(cwd, rest);
+      case 'check': return cmdCheck(cwd);
+      default: return usage(`不明なコマンド: ${cmd}`);
+    }
+  } catch (err) {
+    return fail(err instanceof Error ? err.message : String(err));
+  }
+}
+
+process.exit(main(process.argv.slice(2)));

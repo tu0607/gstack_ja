@@ -1,46 +1,46 @@
-# Maintainability Specialist Review Checklist
+# 保守性・スペシャリストのレビューチェックリスト
 
-Scope: Always-on (every review)
-Output: JSON objects, one finding per line. Schema:
+適用範囲: 常時(すべてのレビュー)
+出力: JSON オブジェクト。1 行に 1 件の指摘。スキーマ:
 {"severity":"INFORMATIONAL","confidence":N,"path":"file","line":N,"category":"maintainability","summary":"...","fix":"...","fingerprint":"path:line:maintainability","specialist":"maintainability"}
-Optional: line, fix, fingerprint, evidence, test_stub.
-If no findings: output `NO FINDINGS` and nothing else.
+任意: line, fix, fingerprint, evidence, test_stub。
+指摘がない場合: `NO FINDINGS` とだけ出力する。
 
 ---
 
-## Categories
+## カテゴリ
 
-### Dead Code & Unused Imports
-- Variables assigned but never read in the changed files
-- Functions/methods defined but never called (check with Grep across the repo)
-- Imports/requires that are no longer referenced after the change
-- Commented-out code blocks (either remove or explain why they exist)
+### 使われていないコードと未使用の import
+- 変更されたファイルの中で、代入されているが読まれていない変数
+- 定義されているが呼び出されていない関数やメソッド(リポジトリ全体を Grep で確認する)
+- 変更後に参照されなくなった import や require
+- コメントアウトされたコードのブロック(削除するか、残している理由を説明する)
 
-### Magic Numbers & String Coupling
-- Bare numeric literals used in logic (thresholds, limits, retry counts) — should be named constants
-- Error message strings used as query filters or conditionals elsewhere
-- Hardcoded URLs, ports, or hostnames that should be config
-- Duplicated literal values across multiple files
+### マジックナンバーと文字列の結合
+- ロジックの中で使われている裸の数値リテラル(しきい値、上限、リトライ回数など)。名前付きの定数にすべき
+- エラーメッセージの文字列を、別の場所で検索条件や条件分岐に使っている
+- 設定にすべき、ハードコードされた URL、ポート、ホスト名
+- 複数のファイルにまたがって重複している値のリテラル
 
-### Stale Comments & Docstrings
-- Comments that describe old behavior after the code was changed in this diff
-- TODO/FIXME comments that reference completed work
-- Docstrings with parameter lists that don't match the current function signature
-- ASCII diagrams in comments that no longer match the code flow
-- User-facing strings (errors, toasts, labels) whose guarding condition changed in this diff while the text did not
+### 古くなったコメントとドキュメント文字列
+- この差分でコードを変更した後も、古い動作を説明しているコメント
+- 完了済みの作業を参照している TODO/FIXME コメント
+- 現在の関数のシグネチャと一致しなくなったパラメーター一覧を持つ docstring
+- コードの流れと合わなくなったコメント内の ASCII 図
+- 差分で、ガードする条件は変わったがテキストは変わっていない、ユーザー向けの文字列(エラー、トースト、ラベル)
 
-### Duplicated Behavior with Defects
-- Divergent copies that produce a demonstrated incorrect result, miss required error handling, or violate the same contract
-- Report the concrete defect and its evidence through normal Fix-First handling; matching syntax or repeated line counts alone are not findings
-- Optional shared-helper extractions belong to the core shared-code check. Do not duplicate its proposals or turn structural preferences into defects
+### 欠陥を伴う重複した動作
+- 誤った結果を生む、必要なエラー処理が欠けている、または同じ契約に違反している、分岐したコピー
+- 具体的な欠陥とその証拠を、通常の Fix-First の処理で報告します。構文が一致している、または行数が重複しているだけでは指摘になりません
+- 任意の共有ヘルパーへの抽出は、コアの共有コードのチェックに属します。その提案を重複させたり、構造上の好みを欠陥に変えたりしないでください
 
-### Conditional Side Effects
-- Code paths that branch on a condition but forget a side effect on one branch
-- Log messages that claim an action happened but the action was conditionally skipped
-- State transitions where one branch updates related records but the other doesn't
-- Event emissions that only fire on the happy path, missing error/edge paths
+### 条件付きの副作用
+- 条件によって分岐しているが、一方の分岐で副作用を忘れているコードパス
+- 行われたと主張しているが、条件によって実際にはスキップされたアクションのログメッセージ
+- 一方の分岐は関連するレコードを更新するが、もう一方は更新しない状態遷移
+- 正常系でしか発火せず、エラーや例外のパスでは発火しないイベントの発行
 
-### Module Boundary Violations
-- Reaching into another module's internal implementation (accessing private-by-convention methods)
-- Direct database queries in controllers/views that should go through a service/model
-- Tight coupling between components that should communicate through interfaces
+### モジュール境界の違反
+- 別のモジュールの内部実装に踏み込んでいる(規約上 private なメソッドへのアクセス)
+- コントローラーやビューから、サービスやモデルを経由せずに直接データベースに問い合わせている
+- インターフェースを通じて連携すべきコンポーネント同士が、密結合している

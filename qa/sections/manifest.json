@@ -8,43 +8,43 @@
       "id": "scope",
       "file": "scope.md",
       "title": "Surface selection and safe probe authority",
-      "trigger": "setting up or probing a target, unless this invocation already established its surfaces and isolation"
+      "trigger": "ターゲットのセットアップまたはプローブ(この呼び出しがすでにサーフェスと分離を確立している場合を除く)"
     },
     {
       "id": "browser-setup",
       "file": "browser-setup.md",
       "title": "Browser-only setup",
-      "trigger": "setting up an explicitly selected browser surface; never for functional-only targets"
+      "trigger": "明示的に選択されたブラウザサーフェスのセットアップ(機能のみのターゲットでは読まない)"
     },
     {
       "id": "exploratory",
       "file": "exploratory.md",
       "title": "Shared exploratory QA",
-      "trigger": "running the selected target's QA baseline and exploratory probes, with caller-owned authority"
+      "trigger": "選択されたターゲットの QA ベースラインと探索的プローブの実行(権限は呼び出し元が持つ)"
     },
     {
       "id": "system-functional",
       "file": "system-functional.md",
       "title": "Native functional contracts and evidence",
-      "trigger": "probing a selected API, CLI, job, worker or webhook surface with repository-supported tools"
+      "trigger": "リポジトリがサポートするツールによる、選択された API、CLI、ジョブ、ワーカー、Webhook サーフェスのプローブ"
     },
     {
       "id": "browser-verify",
       "file": "browser-verify.md",
       "title": "Browser-only repair verification",
-      "trigger": "rechecking a reproduced browser defect after repair; never for a functional-only repair"
+      "trigger": "修復後の、再現済みブラウザ不具合の再確認(機能のみの修復では読まない)"
     },
     {
       "id": "test-bootstrap",
       "file": "test-bootstrap.md",
       "title": "Test Framework Bootstrap",
-      "trigger": "checking the browser target's test framework during Setup; never for functional-only targets — ecosystem detection, authorized bootstrap, CI pipeline and first tests"
+      "trigger": "Setup 中のブラウザターゲットのテストフレームワークの確認(機能のみのターゲットでは読まない。エコシステムの検出、認可されたブートストラップ、CI パイプライン、最初のテスト)"
     },
     {
       "id": "qa-patterns",
       "file": "qa-patterns.md",
       "title": "Core QA patterns — modes, Phases 1-6 workflow, health rubric, framework guidance, testing rules",
-      "trigger": "running the QA baseline (Phases 1-6) — mode selection (Diff-aware/Full/Quick/Regression), the phase-by-phase browser workflow, the Health Score Rubric, framework-specific guidance, and the browser-testing Important Rules"
+      "trigger": "QA ベースライン(Phases 1-6)の実行(モードの選択(Diff-aware/Full/Quick/Regression)、フェーズごとのブラウザワークフロー、Health Score Rubric、フレームワーク固有のガイダンス、ブラウザテストの Important Rules)"
     }
   ]
 }

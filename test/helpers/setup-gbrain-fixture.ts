@@ -30,17 +30,21 @@ const ROOT = path.resolve(import.meta.dir, '..', '..');
 const SKILL_MD = path.join(ROOT, 'setup-gbrain', 'SKILL.md');
 const SECTIONS_DIR = path.join(ROOT, 'setup-gbrain', 'sections');
 
-const TITLE = '# /setup-gbrain — Coding-Agent Onboarding for gbrain';
+// English upstream title or the Japanese-localized one (the fork's generated SKILL.md).
+const TITLES = [
+  '# /setup-gbrain — Coding-Agent Onboarding for gbrain',
+  '# /setup-gbrain — gbrain のコーディングエージェント向けオンボーディング',
+];
 
 /** Matches one generated STOP-Read pointer (two lines) and captures the section file name. */
 const STOP_POINTER =
-  /^> \*\*STOP\.\*\* Before [^\n]*sections\/([a-z0-9-]+\.md)[^\n]*\n> in full\.[^\n]*/gm;
+  /^> \*\*STOP\.\*\* [^\n]*sections\/([a-z0-9-]+\.md)[^\n]*\n> 記憶から作業しないこと[^\n]*/gm;
 
 /** Distinctive per-section anchors — the non-empty guard for inlined content. */
 export const SECTION_ANCHORS: Record<string, string> = {
-  'brain-init.md': '### Path 4 (Remote gbrain MCP',
+  'brain-init.md': '### Path 4(リモート gbrain MCP',
   'claude-md-persist.md': 'Mode: remote-http',
-  'engine-remediation.md': "Your local gbrain engine isn't responding",
+  'engine-remediation.md': 'ローカルの gbrain エンジンが応答しません',
   'transcript-gate.md': 'gstack-memory-ingest.ts --probe',
 };
 
@@ -63,8 +67,8 @@ export function buildSetupGbrainFixture(
 
   let full = fs.readFileSync(SKILL_MD, 'utf-8');
 
-  const titleIdx = full.indexOf(TITLE);
-  if (titleIdx < 0) throw new Error(`setup-gbrain fixture: title heading not found: "${TITLE}"`);
+  const titleIdx = TITLES.map(t => full.indexOf(t)).find(i => i >= 0) ?? -1;
+  if (titleIdx < 0) throw new Error(`setup-gbrain fixture: title heading not found: "${TITLES.join('" or "')}"`);
   full = full.slice(titleIdx);
 
   // Cut the Section index table (heading through its closing --- separator).
@@ -149,12 +153,15 @@ export function chooseLocalPgliteFixtureAnswer(question: {
   const sync = options.filter(o => /^(?:yes,? )?(?:full sync(?: \(everything allowlisted\))?|artifacts[- ]only(?: sync)?|sync (?:all|artifacts)(?: only)?)$/i.test(o.label));
   const remote = options.filter(o => /^(?:(?:use|connect to|select) )?remote (?:gbrain )?mcp(?: \(path ?4\))?$/i.test(o.label)
     || /^path ?4(?:\s*[-—–:]\s*remote (?:gbrain )?mcp)?$/i.test(o.label)
-    || /^4 — remote gbrain mcp\.?$/i.test(o.label));
+    || /^4 — remote gbrain mcp\.?$/i.test(o.label)
+    || /^4 — リモートの gbrain mcp[。.]?$/i.test(o.label));
   // Step 2's existing backend alternatives are not affirmative setup actions.
   const backendLabels = new Set([
     'local pglite', '1 — supabase, i already have a connection string',
     '2a — supabase, auto-provision a new project', '2b — supabase, create manually',
     '3 — pglite local',
+    '1 — supabase、接続文字列がすでにある。', '2a — supabase、新しいプロジェクトを自動プロビジョニング。',
+    '2b — supabase、手動で作成。', '3 — ローカルの pglite。',
   ]);
   const otherBackends = options.filter(o => backendLabels.has(o.label.replace(/\.$/, '').toLowerCase()));
   const known = new Set([...declines, ...local, ...sync, ...remote, ...otherBackends]);

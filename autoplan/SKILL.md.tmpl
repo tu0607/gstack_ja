@@ -3,14 +3,11 @@ name: autoplan
 preamble-tier: 3
 version: 1.0.0
 description: |
-  Auto-review pipeline — reads the full CEO, design, eng, and DX review skills from disk
-  and runs them sequentially with auto-decisions using 6 decision principles. Surfaces
-  taste decisions (close approaches, borderline scope, outside-review disagreements) at a final
-  approval gate. One command, fully reviewed plan out.
-  Use when asked to "auto review", "autoplan", "run all reviews", "review this plan
-  automatically", or "make the decisions for me".
-  Proactively suggest when the user has a plan file and wants to run the full review
-  gauntlet without answering 15-30 intermediate questions. (gstack)
+  自動レビューパイプラインです。CEO、デザイン、エンジニアリング、DX の各レビュースキルをディスクから読み込み、
+  6 つの判断原則を使った自動判断で順番に実行します。好みに関わる判断(近い選択肢、境界線上のスコープ、
+  外部レビューとの不一致)は、最後の承認ゲートで提示します。コマンドは 1 つで、完全にレビュー済みの計画が出力されます。
+  「auto review」「autoplan」「run all reviews」「review this plan automatically」「make the decisions for me」と依頼されたときに使用します。
+  ユーザーが計画ファイルを持っていて、途中の 15〜30 個の質問に答えずにレビューを一通り行いたい場合は、自分から提案してください。(gstack)
 voice-triggers:
   - "auto plan"
   - "automatic review"
@@ -35,7 +32,7 @@ allowed-tools:
 
 {{BASE_BRANCH_DETECT}}
 
-## Design Doc Check
+## 設計ドキュメントの確認
 
 ```bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
@@ -43,15 +40,14 @@ SLUG=$(~/.claude/skills/gstack/browse/bin/remote-slug 2>/dev/null || basename "$
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo 'no-branch')
 {{DESIGN_DOC_DISCOVERY}}
 ```
-If a design doc exists, read it; its problem statement, constraints and chosen
-approach feed the pipeline.
+設計ドキュメントが存在する場合は読んでください。その問題定義、制約、選択されたアプローチをパイプラインに反映させます。
 
 {{BENEFITS_FROM}}
 
-# /autoplan — Auto-Review Pipeline
+# /autoplan — 自動レビューパイプライン
 
-Read every CEO, design, DX and eng section from disk at full interactive depth.
-The 6 principles answer intermediate questions; taste goes to one final gate.
+CEO、デザイン、DX、エンジニアリングの各セクションを、ディスクから完全なインタラクティブな深さで読み込んでください。
+6 つの原則が途中の質問に答え、好みに関わる判断は最後のゲートに一つにまとめます。
 
 ---
 
@@ -59,147 +55,128 @@ The 6 principles answer intermediate questions; taste goes to one final gate.
 
 ---
 
-## The 6 Decision Principles
+## 6 つの判断原則
 
-1. **Choose completeness** — Ship the whole thing; pick the approach covering more edge cases.
-2. **Boil lakes** — Fix everything in the blast radius (files this plan modifies + direct importers). Auto-approve expansions in blast radius AND < 1 day CC effort (< 5 files, no new infra).
-3. **Pragmatic** — Two options fix the same thing? Pick the cleaner one, in seconds.
-4. **DRY** — Duplicates existing functionality? Reject; reuse what exists.
-5. **Explicit over clever** — 10-line obvious fix > 200-line abstraction; pick what a new contributor reads at a glance.
-6. **Bias toward action** — Merge > review cycles > stale deliberation. Flag concerns, don't block.
+1. **完全性を選ぶ** — 全体を出荷します。より多くのエッジケースを網羅するアプローチを選びます。
+2. **湖を沸騰させる** — 影響範囲(この計画が変更するファイルと、それを直接 import しているファイル)の中にあるものはすべて修正します。影響範囲内で、かつ CC での作業が 1 日未満(5 ファイル未満、新しいインフラなし)の拡張は、自動承認します。
+3. **実用的であること** — 2 つの選択肢が同じことを修正する場合は、よりすっきりした方を数秒で選びます。
+4. **DRY** — 既存の機能と重複するか? 却下して、既存のものを再利用します。
+5. **巧妙さより明快さ** — 10 行の明白な修正は、200 行の抽象化より優れています。新しいコントリビューターが一目で読めるものを選びます。
+6. **行動を優先する** — マージ > レビューの繰り返し > 古くなった熟慮。懸念は指摘しますが、ブロックはしません。
 
-**Conflict resolution (context-dependent tiebreakers):**
-- **CEO phase:** P1 (completeness) + P2 (boil lakes) dominate.
-- **Eng phase:** P5 (explicit) + P3 (pragmatic) dominate.
-- **Design phase:** P5 (explicit) + P1 (completeness) dominate.
-
----
-
-## Decision Classification
-
-Every auto-decision is classified:
-
-**Mechanical** — one clearly right answer. Auto-decide silently (run the enabled
-outside reviewer: yes; run evals: yes; reduce scope on a complete plan: no).
-
-**Taste** — reasonable people could disagree. Auto-decide with a recommendation; surface at the final gate. Sources:
-1. **Close approaches** — top two are both viable with different tradeoffs.
-2. **Borderline scope** — in blast radius but 3-5 files, or ambiguous radius.
-3. **{{OUTSIDE_LABEL}} disagreements** — the outside reviewer recommends differently and has a valid point.
-
-**User Challenge** — {{NATIVE_LABEL}} and {{OUTSIDE_LABEL}} both recommend changing the
-user's stated direction: merge, split, add or remove features/skills/workflows.
-NEVER auto-decide these. At the final approval gate give the original direction,
-proposed change, reasoning, blind spots and cost of being wrong (Phase 4 gate item);
-flag agreed security/feasibility risks. The user's direction stands until they approve the change.
+**競合の解決(文脈依存の決着ルール):**
+- **CEO フェーズ:** P1(完全性)+ P2(湖を沸騰させる)が優先されます。
+- **エンジニアリングフェーズ:** P5(明快さ)+ P3(実用性)が優先されます。
+- **デザインフェーズ:** P5(明快さ)+ P1(完全性)が優先されます。
 
 ---
 
-## Sequential Execution — MANDATORY
+## 判断の分類
 
-Phases MUST run in strict order: CEO → Design (if UI scope) → DX (if developer-facing
-scope) → Eng. Eng runs LAST, always, reviewing all prior amendments.
-Keep ONE phase active, completing these gates in order:
-1. Load its phase instructions and full skill/sections, recording complete Read ranges.
-   On Claude Code, enter through a native `Read` of the installed phase driver,
-   then use native `Read` for its methodology ranges. The driver Read is the
-   guarded entrypoint. If denied, finish or repair the preceding phase and retry
-   the same Read; changing file-loading tools does not satisfy the boundary.
-2. Complete the phase's required preliminary work (CEO: all Step 0, including its
-   Spec Review Loop and its amendment checkpoint), then create the fresh snapshot
-   and dispatch its nativeDispatchPrompt unchanged.
-3. Consume the native terminal result and apply the phase's failure policy, then
-   consume enabled outside results. Complete the phase's remaining primary review
-   sections after these results.
-4. At the phase's exit, load its `phase-close` section afresh. Execute its numbered
-   operations: prepare the current packet, Read it completely, reconcile it
-   semantically, then SEND the parent completion message. Publication is its own
-   operation; an earlier Read is not this close.
-5. Only after the message has been sent may the driver load/create/dispatch the
-   next phase. Then continue to the next phase's tool calls in the same turn;
-   after Eng, proceed to final synthesis/approval. Use the declared skip rule for
-   an inapplicable phase; do not load its review or close steps.
-Phase notifications, skips included, are progress updates: never end the turn
-or wait for a "continue" reply there.
-A missing gate keeps the current phase open, even if a reviewer finished.
-Read requests/self-reports and INPUT hashes do not prove uptake or review quality.
-Never draft future-phase reviews or outputs. Headings/promises are not completion.
-After compaction, reload current phase instructions/skill/sections, then
-reconcile saved artifacts and sent conversation messages separately. If closing,
-reload `phase-close` and resume its first incomplete numbered operation;
-regenerate and reread the full packet when the implementation or accepted decisions changed:
-- If a verified phase lacks its announcement, resume the close procedure at step 6 (Publish) before advancing.
-- If its reviewer is pending, wait for that same reviewer.
-- If native dispatch has not happened, finish any incomplete preliminary work before recovering a voice input.
-  If the final voice input does not exist, create it after the preliminary gates.
-  Read `snapshot.json` beside that final `<PHASE_INPUT>` and use its `nativeDispatchPrompt` unchanged.
-  Never dispatch `<CEO_STEP0_CHECKPOINT>`: it is the stable amendment baseline, not current review input.
-  `nativePrompt` is the file's review body, not the Agent prompt. Resume at the first incomplete gate.
+すべての自動判断は次のように分類されます。
 
-Pending is not unavailable. Never skip native passes/required sections for time,
-context pressure or your own review. Missing outside coverage never blocks native
-completion; report accurately. Never read raw agent transcripts.
+**機械的(Mechanical)** — 明確に正しい答えが一つある判断です。黙って自動判断します(有効化された外部レビュアーの実行: はい、評価の実行: はい、完全な計画のスコープ縮小: いいえ)。
+
+**好み(Taste)** — 合理的な人同士でも意見が分かれ得る判断です。推奨付きで自動判断し、最後のゲートで提示します。出どころは次のとおりです。
+1. **近い選択肢** — 上位 2 つがどちらも実行可能で、トレードオフが異なる場合。
+2. **境界線上のスコープ** — 影響範囲内だが 3〜5 ファイルにまたがる場合、または範囲が曖昧な場合。
+3. **{{OUTSIDE_LABEL}} との不一致** — 外部レビュアーが別の推奨をしており、その指摘に妥当性がある場合。
+
+**ユーザーへの挑戦(User Challenge)** — {{NATIVE_LABEL}} と {{OUTSIDE_LABEL}} の両方が、ユーザーが示した方向性の変更を推奨する場合です。
+マージ、分割、機能/スキル/ワークフローの追加または削除が該当します。これらは決して自動判断しないでください。
+最後の承認ゲートで、元の方向性、提案された変更、理由、見落としている点、判断を誤った場合のコストを提示してください(フェーズ 4 のゲート項目)。
+合意されたセキュリティや実現可能性のリスクには旗を立ててください。ユーザーが変更を承認するまで、ユーザーの方向性はそのまま有効です。
 
 ---
 
-## What "Auto-Decide" Means
+## 逐次実行 — 必須
 
-Auto-decide replaces the USER'S answer, not ANALYSIS. Run each loaded section at
-full interactive depth; answer each question using the 6 principles.
+フェーズは厳密に CEO → デザイン(UI スコープがある場合) → DX(開発者向けスコープがある場合) → エンジニアリング の順で実行しなければなりません。エンジニアリングは常に最後に実行し、それまでのすべての修正を確認します。
+1 つのフェーズだけを有効にし、次のゲートを順番に完了させてください。
+1. そのフェーズの指示とスキル/セクション全体を読み込み、読んだ範囲をすべて記録します。
+   Claude Code では、インストール済みのフェーズドライバーをネイティブの `Read` で開き、その後、手法の範囲もネイティブの `Read` で読みます。
+   ドライバーの Read が保護された入口になります。拒否された場合は、前のフェーズを完了するか修復してから、同じ Read を再試行してください。
+   ファイル読み込みツールを変えても、この境界は満たされません。
+2. そのフェーズに必要な準備作業を完了させます(CEO: 手順 0 すべて。スペックレビューのループと修正のチェックポイントを含む)。その後、新しいスナップショットを作成し、
+   その nativeDispatchPrompt を変更せずにディスパッチします。
+3. ネイティブの最終結果を受け取り、そのフェーズの失敗時の方針を適用します。その後、有効な外部結果を受け取ります。
+   これらの結果の後で、そのフェーズの残りの主要なレビューセクションを完了させます。
+4. フェーズの終わりに、`phase-close` セクションを改めて読み込みます。番号付きの操作を実行してください。現在のパケットを準備し、
+   完全に読み、意味的に照合し、その後、親に完了メッセージを送信します。公開は独立した操作です。以前の Read は、この close の代わりにはなりません。
+5. メッセージを送信した後にのみ、ドライバーは次のフェーズを読み込み、作成し、ディスパッチできます。その後、同じターンで次のフェーズのツール呼び出しを続けます。
+   エンジニアリングの後は、最終的な統合と承認に進みます。適用されないフェーズには、宣言されたスキップルールを使います。そのレビューや close の手順は読み込まないでください。
+フェーズの通知(スキップを含む)は進捗の更新です。そこでターンを終わらせたり、「続けて」という返答を待ったりしないでください。
+ゲートが欠けている場合、レビュアーが完了していても、現在のフェーズは開いたままです。
+読み込みの要求や自己報告、INPUT のハッシュは、受け取りやレビューの品質を証明しません。
+将来のフェーズのレビューや成果物を決して下書きしないでください。見出しや約束は完了ではありません。
+コンパクション後は、現在のフェーズの指示、スキル、セクションを再読み込みし、その後、保存された成果物と送信済みの会話メッセージを別々に照合します。
+close 中であれば、`phase-close` を再読み込みし、その最初の未完了の番号付き操作から再開します。
+実装や承認済みの判断が変わった場合は、パケット全体を再生成して再読み込みしてください。
+- 検証済みのフェーズにアナウンスがない場合は、進む前に close の手順の 6 番目(公開)から再開します。
+- そのレビュアーが保留中であれば、同じレビュアーを待ちます。
+- ネイティブのディスパッチがまだ行われていない場合は、フェーズ入力(voice input)を復旧する前に、未完了の準備作業をすべて完了させます。
+  最後のフェーズ入力(voice input)が存在しない場合は、準備ゲートの後に作成します。
+  その最終の `<PHASE_INPUT>` の隣にある `snapshot.json` を読み、その `nativeDispatchPrompt` を変更せずに使います。
+  `<CEO_STEP0_CHECKPOINT>` は決してディスパッチしないでください。これは安定した修正のベースラインであり、現在のレビュー入力ではありません。
+  `nativePrompt` はファイルのレビュー本文であり、Agent のプロンプトではありません。最初の未完了のゲートから再開してください。
 
-**Default resolution: the recommended option.** Take `(recommended)` or the mode's
-context default. Use the 6 principles for missing recommendations/ties. On principle
-disagreement, take the recommendation and surface it as Taste at the final gate.
+保留中は利用不可ではありません。時間、コンテキストの圧迫、自分のレビューを理由に、ネイティブのパスや必須セクションを省略しないでください。
+外部レビューのカバレッジが欠けていても、ネイティブの完了はブロックされません。その状況を正確に報告してください。
+エージェントの生のトランスクリプトは決して読まないでください。
 
-**Never auto-decide User Challenges:** both models agree to change the user's
-direction/settled decisions, or a premise is clearly wrong. Ask once at the Final
-Approval Gate, never mid-run; the user has context models lack.
+---
 
-Read referenced code/diffs/files; decide every issue. Produce all required
-diagrams, tables, registries and artifacts on disk or in the plan. LOG decisions,
-record ALL accepted obligations below and run `amend-input` before continuing.
-Missing deliverables leave the review incomplete.
+## 「自動判断」の意味
 
-No summary substitutes or one-line sections; under 3 sentences likely means
-compression. "No issues found" needs 1-2 sentences on what was examined and why.
-Explain inapplicability with evidence; skip only under Phase 0's list. Never abort
-or redirect to interactive review: the user chose /autoplan.
+自動判断は、ユーザーの回答を置き換えるものであり、分析を置き換えるものではありません。読み込んだ各セクションは、完全なインタラクティブな深さで実行してください。各質問には 6 つの原則を使って答えます。
 
-**Accepted obligations:** One unfenced block per phase in `Review record`:
+**既定の解決: 推奨される選択肢。** `(recommended)` またはモードの文脈上の既定値を採用します。推奨がない場合や同点の場合は、6 つの原則を使います。原則同士が食い違う場合は、推奨を採用し、最後のゲートで好みの判断として提示します。
+
+**ユーザーへの挑戦は決して自動判断しない:** 両方のモデルがユーザーの方向性や決定済みの判断を変えることに同意している場合、または前提が明らかに誤っている場合です。
+最後の承認ゲートで一度だけ尋ねてください。実行の途中では尋ねません。ユーザーはモデルにはない文脈を持っているからです。
+
+参照されているコード、差分、ファイルを読み、すべての問題を判断してください。必要な図、表、レジストリ、成果物はすべて、ディスク上または計画の中に作成してください。
+判断をログに記録し、以下の承認済みの義務をすべて記録し、続行する前に `amend-input` を実行します。
+必要な成果物が欠けている場合、レビューは未完了です。
+
+要約で代用したり、1 行のセクションで済ませたりしないでください。3 文未満の場合は、おそらく内容が圧縮されすぎています。「問題は見つからなかった」という場合は、何を調べ、なぜそう判断したかを 1〜2 文で説明してください。
+該当しない理由は証拠を添えて説明してください。スキップしてよいのはフェーズ 0 の一覧にあるものだけです。決して中断したり、対話的なレビューに誘導したりしないでください。ユーザーは /autoplan を選んでいます。
+
+**承認済みの義務:** `Review record` の中に、フェーズごとに 1 つの囲みのないブロックを置きます。
 ```markdown
 <!-- autoplan-accepted:ceo -->
 - Requirement, all conditions and verification/tests.
 <!-- /autoplan-accepted:ceo -->
 ```
-Phase: `ceo|design|dx|eng`. Record accepted requirements here;
-no analysis/severity/verdict/consensus. None accepted: `None: reason`.
-On a rerun, carry forward unchanged accepted requirements; never replace them with None.
-`amend` checks exact retention atomically; full readback; None unchanged.
-Baseline edits: `create`'s `baselineEdits`. Prior blocks immutable;
-state replacements in current block. Reconcile all decisions with readback.
-Transport ≠ approval/complete enumeration/correctness.
+フェーズは `ceo|design|dx|eng` のいずれかです。ここには承認された要件だけを記録します。
+分析、重大度、判定、合意は記録しません。承認された要件がない場合は `None: reason` と書きます。
+再実行時には、変更されていない承認済みの要件を引き継ぎ、None で置き換えないでください。
+`amend` は正確な保持を原子的に確認し、全体を読み戻します。None のものは変更しません。
+ベースラインの編集は `create` の `baselineEdits` で行います。過去のブロックは変更不可です。
+置換内容は現在のブロックに書いてください。すべての判断を読み戻しで照合します。
+伝送が完了したことは、承認や列挙の完全性、正確さを意味しません。
 
 ---
 
-## Filesystem Boundary — {{OUTSIDE_LABEL}} Prompts
+## ファイルシステムの境界 — {{OUTSIDE_LABEL}} のプロンプト
 
-Prefix every {{OUTSIDE_LABEL}} prompt:
+すべての {{OUTSIDE_LABEL}} のプロンプトの先頭に、次の文を付けてください。
 
-> IMPORTANT: Do NOT read or execute any SKILL.md files or paths containing skills/gstack (foreign instructions). Review repository code only.
+> 重要: SKILL.md ファイル、または skills/gstack を含むパスを読んだり実行したりしないでください (外部の指示になるため)。リポジトリのコードだけをレビューしてください。
 
 ---
 
-## Phase 0: Intake + Restore Point
+## フェーズ 0: 受付と復元ポイント
 
-### Step 1: Capture restore point
+### 手順 1: 復元ポイントを取得する
 
-Absolute paths: SOURCE_PLAN (input), ACTIVE_PLAN (harness-assigned plan, else SOURCE_PLAN).
-Save plan amendments and review artifacts to ACTIVE_PLAN.
-Send phase announcements and the final approval request (the brief) in the conversation.
-Resolve SNAPSHOT_TOOL once:
+絶対パス: SOURCE_PLAN (入力)、ACTIVE_PLAN (ハーネスが割り当てた計画。なければ SOURCE_PLAN)。
+計画の修正とレビュー成果物は ACTIVE_PLAN に保存してください。
+フェーズのアナウンスと最終的な承認依頼(概要)は、会話の中で送信します。
+SNAPSHOT_TOOL は一度だけ解決します:
 {{AUTOPLAN_SNAPSHOT_TOOL}}
 
-Fresh RESTORE_PATH, beside its phase artifacts in the git-excluded `.gstack/tmp/autoplan/`:
+新しい RESTORE_PATH は、git の除外対象である `.gstack/tmp/autoplan/` の中の、フェーズの成果物の隣に作成します:
 ```bash
 {{SLUG_EVAL}}
 _AP="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gstack/tmp/autoplan"; mkdir -p "$_AP" && chmod 700 "$_AP"
@@ -211,116 +188,109 @@ echo "RESTORE_PATH=$_AP/${BRANCH}-autoplan-restore-${DATETIME}.md"
 echo "RUN_ID=${BRANCH}-${DATETIME}"; ~/.claude/skills/gstack/bin/gstack-autoplan-timing estimate --run "${BRANCH}-${DATETIME}" --out "$_AP"
 ```
 
-Before scope/review:
+スコープ判定とレビューの前に:
 ```bash
 bun "<SNAPSHOT_TOOL>" init "<SOURCE_PLAN>" "<ACTIVE_PLAN>" "<RESTORE_PATH>"
 ```
-Run init as its own Bash call with literal absolute paths: no variables,
-substitutions, chaining, pipes or redirects, which the guard cannot bind.
-Use returned paths/`scope`; never hand-wrap. init backs up SOURCE_PLAN exactly,
-then initializes ACTIVE_PLAN atomically, keeping every requirement.
-Reviewers get only `## Implementation plan`; analysis, structured inputs included,
-stays in `## Review record`. On helper errors, stop; no stderr hiding/grep fallback.
-Re-run: copy RESTORE_PATH's bytes to SOURCE_PLAN, then /autoplan.
+init は、独立した Bash 呼び出しとして、リテラルの絶対パスで実行してください。変数、置換、連結、パイプ、リダイレクトは使えません。ガードがそれらを束縛できないためです。
+返されたパスと `scope` を使い、自分で組み立て直さないでください。init は SOURCE_PLAN を正確にバックアップし、
+その後 ACTIVE_PLAN をアトミックに初期化して、すべての要件を保持します。
+レビュアーに渡されるのは `## Implementation plan` だけです。構造化された入力を含む分析は、`## Review record` に残します。
+ヘルパーがエラーを返したら停止してください。stderr を隠したり、grep で代替したりしないでください。
+再実行する場合: RESTORE_PATH のバイト列を SOURCE_PLAN にコピーしてから、/autoplan を実行します。
 
-### Step 2: Read context
+### 手順 2: 文脈を読む
 
-- Read CLAUDE.md, TODOS.md, git log -30, git diff against the base branch --stat
-- Discover design docs: `~/.claude/skills/gstack/bin/gstack-design-doc-find "$SLUG" "$BRANCH"` (prints the doc path, or nothing)
-- Use init's full-input `scope`. For changed input or semantic enabling flags, rerun:
+- CLAUDE.md、TODOS.md、`git log -30`、ベースブランチとの `git diff --stat` を読みます。
+- 設計ドキュメントを探します: `~/.claude/skills/gstack/bin/gstack-design-doc-find "$SLUG" "$BRANCH"` (ドキュメントのパスを表示します。何も表示されない場合もあります)
+- init の全入力の `scope` を使います。入力が変わった場合、またはセマンティックな有効化フラグを変えた場合は、次を再実行します:
 ```bash
 bun "<SNAPSHOT_TOOL>" scope "<ACTIVE_PLAN>"
 ```
-  UI scope is returned `uiRequired`: a rendered file path or a UI term next to a visual
-  noun (`uiEvidence`); bare UI words never add Design. Use returned `dxRequired` (initially `scope.dxRequired`); record its input hash and matched
-  terms. The threshold is 2+ term matches (occurrences, not distinct terms). Also enable DX when the
-  product is a developer tool (developers install, integrate or build on it) or an AI agent is
-  the primary user: add `--developer-tool` or `--agent-primary`. These flags only enable DX; no
-  context label negates a positive result. Skip DX only when both are false.
+  UI スコープは `uiRequired` として返されます。描画されたファイルパス、または視覚的な名詞の近くにある UI 用語(`uiEvidence`)が該当します。UI だけの単語では Design は追加されません。返された `dxRequired` を使います(最初は `scope.dxRequired`)。その入力のハッシュと一致した用語を記録してください。しきい値は 2 つ以上の用語の一致です(別々の用語の数ではなく、出現回数で数えます)。
+  また、製品が開発者向けツールである場合(開発者がインストールし、統合し、その上に構築する)や、AI エージェントが主要なユーザーである場合も DX を有効にします。その場合は `--developer-tool` または `--agent-primary` を追加します。これらのフラグは DX を有効にするだけです。文脈上のラベルで肯定的な結果を打ち消すことはできません。両方とも偽の場合にのみ DX をスキップします。
 
 
-### Step 3: Locate review skills; load each at phase entry
+### 手順 3: レビュースキルを探し、各フェーズの開始時に読み込む
 
-Resolve this phase's source to absolute `<REVIEW_SKILL>`; load via its checkpoint:
-- Phase 1: {{AUTOPLAN_REVIEW_FILE:plan-ceo-review}}
-- Phase 2: {{AUTOPLAN_REVIEW_FILE:plan-design-review}} (only if UI scope detected)
-- Phase 2.5: {{AUTOPLAN_REVIEW_FILE:plan-devex-review}} (only if DX scope detected)
-- Phase 3: {{AUTOPLAN_REVIEW_FILE:plan-eng-review}}
+このフェーズのソースを絶対パスの `<REVIEW_SKILL>` に解決し、そのチェックポイントを経由して読み込みます:
+- フェーズ 1: {{AUTOPLAN_REVIEW_FILE:plan-ceo-review}}
+- フェーズ 2: {{AUTOPLAN_REVIEW_FILE:plan-design-review}} (デザインの UI スコープが検出された場合のみ)
+- フェーズ 2.5: {{AUTOPLAN_REVIEW_FILE:plan-devex-review}} (DX スコープが検出された場合のみ)
+- フェーズ 3: {{AUTOPLAN_REVIEW_FILE:plan-eng-review}}
 
-Use /autoplan's installed registry; resolve siblings from its discovered SKILL.md
-directory, never cwd/runtime assets. Missing skill: report the phase and setup
-repair; never substitute a harness or claim completion.
+/autoplan のインストール済みのレジストリを使います。兄弟のスキルは、検出された SKILL.md のディレクトリから解決し、cwd やランタイムの資産からは解決しないでください。
+スキルが見つからない場合は、フェーズと修復の手順を報告してください。ハーネスで代用したり、完了を主張したりしないでください。
 
-Read skills/sections only at their triggers, never prefetch future phases. Load
-the tasks aggregator at Phase 4. Run every applicable skill and lazy section fully.
+スキルやセクションは、それぞれのトリガーの時点でのみ読み込んでください。将来のフェーズを先読みしないでください。
+フェーズ 4 でタスクの集約を読み込みます。該当するスキルと遅延セクションはすべて、完全に実行してください。
 
-**Section skip list — when following a loaded skill file, SKIP these sections
-(they are already handled by /autoplan):**
-- Preamble (run first)
-- Scope gate (the plan under review is already the target)
-- AskUserQuestion Format
-- Completeness Principle — Boil the Ocean
-- Search Before Building
-- Completion Status Protocol
-- Telemetry (run last)
-- Step 0: Detect platform and base branch
-- Review Readiness Dashboard
-- Plan File Review Report
-- Prerequisite Skill Offer (BENEFITS_FROM)
-- Outside Voice — Independent Plan Challenge
-- Design Outside Voices (independent)
+**セクションのスキップ一覧 — 読み込んだスキルファイルに従うときは、次のセクションをスキップしてください(/autoplan がすでに処理しています):**
+- プリアンブル(最初に実行)
+- スコープゲート(レビュー対象の計画はすでに対象になっています)
+- AskUserQuestion の形式
+- 完全性の原則 — 湖を沸騰させる
+- 作る前に検索する
+- 完了ステータスのプロトコル
+- テレメトリ(最後に実行)
+- 手順 0: プラットフォームとベースブランチの検出
+- レビュー準備状況のダッシュボード
+- 計画ファイルのレビューレポート
+- 前提スキルの提案(BENEFITS_FROM)
+- 外部の声 — 独立した計画への挑戦
+- デザインの外部の声(独立)
 
-Follow ONLY the review-specific methodology, sections and required outputs.
+レビュー固有の手法、セクション、必要な成果物にだけ従ってください。
 
-Output: "Here's what I'm working with: [plan summary]. UI scope: [yes/no]. DX scope: [yes/no].
-Review skills load at each phase entry; starting the full pipeline with auto-decisions."
+出力: 「作業内容: [計画の概要]。UI スコープ: [はい/いいえ]。DX スコープ: [はい/いいえ]。
+レビュースキルは各フェーズの開始時に読み込みます。自動判断で全パイプラインを開始します。」
 
 ---
 
-## Phase 0.5: Outside reviewer preflight
+## フェーズ 0.5: 外部レビュアーの事前確認
 
 {{OUTSIDE_PREFLIGHT:autoplan}}
 
-Disabled/unavailable retains applicable native passes. Recheck each outside dispatch.
-Record provider and completed/unavailable/disabled/skipped per phase (CEO covers
-only CEO). Missing voices: N/A, never CONFIRMED. Skipped scope stays skipped.
+無効または利用不可の場合でも、適用されるネイティブのパスは残します。外部へのディスパッチのたびに再確認してください。
+フェーズごとに、プロバイダーと、完了/利用不可/無効/スキップのいずれかを記録します(CEO は CEO のみをカバーします)。
+欠けている voice は N/A とし、CONFIRMED としてはいけません。スキップされたスコープはスキップのままです。
 
 
-## Phase 1: CEO Review (Strategy & Scope)
+## フェーズ 1: CEO レビュー(戦略とスコープ)
 
 {{SECTION:ceo-phase}}
 
 ---
 
-## Phase 2: Design Review (conditional — skip if no UI scope)
+## フェーズ 2: デザインレビュー(条件付き — UI スコープがなければスキップ)
 
-**Skip condition:** No UI scope detected in Phase 0: skip this phase
-entirely — do NOT read its section. Send: "Phase 2 skipped — no UI scope detected."
-Record the skip in ACTIVE_PLAN; it is not a completed review.
+**スキップ条件:** フェーズ 0 で UI スコープが検出されなかった場合、このフェーズ全体をスキップします。そのセクションは読まないでください。
+次を送信してください: 「フェーズ 2 はスキップしました — UI スコープが検出されませんでした。」
+スキップを ACTIVE_PLAN に記録します。これは完了したレビューではありません。
 
 {{SECTION:design-phase}}
 
 ---
 
-## Phase 2.5: DX Review (conditional — skip if no developer-facing scope)
+## フェーズ 2.5: DX レビュー(条件付き — 開発者向けスコープがなければスキップ)
 
-**Skip condition:** No DX scope detected in Phase 0: skip this phase
-entirely — do NOT read its section. Send: "Phase 2.5 skipped — no developer-facing scope detected."
-Record the skip in ACTIVE_PLAN; it is not a completed review.
+**スキップ条件:** フェーズ 0 で DX スコープが検出されなかった場合、このフェーズ全体をスキップします。そのセクションは読まないでください。
+次を送信してください: 「フェーズ 2.5 はスキップしました — 開発者向けスコープが検出されませんでした。」
+スキップを ACTIVE_PLAN に記録します。これは完了したレビューではありません。
 
 {{SECTION:dx-phase}}
 
 ---
 
-## Phase 3: Eng Review + Dual Voices (always runs, always LAST — the required gate reviews the final amended plan)
+## フェーズ 3: エンジニアリングレビュー + 二重の voice(常に実行し、常に最後 — 必須のゲートは最終的に修正された計画をレビューします)
 
 {{SECTION:eng-phase}}
 
 ---
 
-## Decision Audit Trail
+## 判断の監査証跡
 
-Right after each auto-decision, append one row to the plan file using Edit:
+自動判断の直後に、Edit を使って計画ファイルに 1 行ずつ追加します:
 
 ```markdown
 <!-- AUTONOMOUS DECISION LOG -->
@@ -332,39 +302,33 @@ Right after each auto-decision, append one row to the plan file using Edit:
 
 ---
 
-## Pre-Gate Verification
+## ゲート前の検証
 
-Check the plan and conversation for each applicable deliverable:
+該当する成果物ごとに、計画と会話を確認してください:
 
-| Phase | Required outputs |
+| フェーズ | 必要な成果物 |
 |---|---|
-| CEO | Named premise challenges (the premise table's `REALITY:` lines); findings or explicit examination/no-findings per applicable section; Error & Rescue and Failure Modes registries (or N/A with reason); NOT in scope; What already exists; dream state delta; Completion Summary; consensus table. |
-| Design, if UI | Scores for all 7 dimensions; identified and decided issues; litmus scorecard. |
-| DX, if developer-facing | Scores for all 8 dimensions; developer journey map; empathy narrative; TTHW assessment and target; DX Implementation Checklist; consensus table. |
-| Eng, always last | Scope challenge grounded in code with its `REALITY:` lines; architecture ASCII diagram; codepath-to-test diagram; test plan on disk at ~/.gstack/projects/$SLUG/; NOT in scope; What already exists; failure modes registry with critical gaps; Completion Summary; consensus table. |
+| CEO | 名前付きの前提への挑戦(前提の表の `REALITY:` の行)。該当する各セクションの指摘、または明示的な検討/指摘なしの記録。Error & Rescue と Failure Modes のレジストリ(または理由付きの N/A)。対象外。既存の資産。夢の状態の差分。完了サマリー。合意の表。 |
+| デザイン(UI がある場合) | 7 つの次元すべてのスコア。特定され判断された問題。リトマス・スコアカード。 |
+| DX(開発者向けの場合) | 8 つの次元すべてのスコア。開発者の行動マップ。共感のナラティブ。TTHW の評価と目標。DX の実装チェックリスト。合意の表。 |
+| エンジニアリング(常に最後) | `REALITY:` の行を含む、コードに基づくスコープへの挑戦。アーキテクチャの ASCII 図。コードパスからテストへの図。~/.gstack/projects/$SLUG/ にあるディスク上のテスト計画。対象外。既存の資産。重大なギャップを含む失敗モードのレジストリ。完了サマリー。合意の表。 |
 
-Per phase, verify native and outside voice results or explicit unavailable/skipped
-status, cross-phase themes and one Decision Audit Trail row per auto-decision.
-Produce missing outputs before the gate; after at most 2 repair attempts, warn
-there with each incomplete item.
+フェーズごとに、ネイティブと外部の voice の結果、または明示的な利用不可/スキップの状態を確認します。さらに、フェーズをまたぐテーマと、自動判断ごとに 1 行の Decision Audit Trail を確認します。
+不足している成果物はゲートの前に作成してください。修復の試行は最大 2 回までです。その後も残る場合は、不完全な項目ごとに警告してください。
 
 {{PLAN_REALITY_ROWS:pregate}}
 
 ---
 
-## Phase 4: Final Approval Gate
+## フェーズ 4: 最終承認ゲート
 
 {{SECTION:tasks-aggregator}}
 
-**STOP here and present the one-page brief to the user.**
+**ここで停止し、1 ページの概要をユーザーに提示してください。**
 
-Write `$_AP/gate.json` (shape: `gstack-gate --help`): one item per User Challenge
-(`uc<n>`, approval; `why` = you said / both recommend / why / blind spots / cost if
-wrong), per taste decision (`d<n>`, auto; `why` = principle and the alternative's
-impact) and `plan` (approval: a) approve as-is (recommended) b) with overrides
-c) interrogate d) revise e) reject). Run `~/.claude/skills/gstack/bin/gstack-gate render $_AP/gate.json`
-and append its `decisions` output to `$_AP/decisions.jsonl`. Write the full review
-to `$_AP/review-record.md` and its Plan Summary alone to `$_AP/summary.md`:
+`$_AP/gate.json` を書き込みます(形式: `gstack-gate --help`)。ユーザーへの挑戦ごとに 1 項目(`uc<n>`、承認。`why` = あなたの発言 / 両者の推奨 / 理由 / 見落としている点 / 誤った場合のコスト)、
+好みの判断ごとに 1 項目(`d<n>`、自動。`why` = 原則と代替案の影響)、そして `plan` (承認: a) そのまま承認(推奨) b) 上書きを付けて承認 c) 質問する d) 修正する e) 却下)。
+`~/.claude/skills/gstack/bin/gstack-gate render $_AP/gate.json` を実行し、その `decisions` の出力を `$_AP/decisions.jsonl` に追記します。レビュー全体を `$_AP/review-record.md` に書き込み、その計画の概要だけを `$_AP/summary.md` に書き込みます:
 
 ```
 ## /autoplan Review Complete
@@ -394,39 +358,32 @@ Concerns independently raised in 2+ phases, or "No cross-phase themes — each p
 [Substitute $AGGREGATED_TASKS. If empty: "_No per-phase task lists found in $TASKS_DIR for branch $BRANCH._"]
 ```
 
-Present `~/.claude/skills/gstack/bin/gstack-owner-brief render --out "$_AP" --write`
-verbatim (URGENT block, plain summary, numbered decisions seven per page with each
-auto default, review-record path; `--page N` for later pages), never the full review.
+`~/.claude/skills/gstack/bin/gstack-owner-brief render --out "$_AP" --write` を、そのまま提示してください(緊急ブロック、平易な概要、番号付きの判断(1 ページに 7 件ずつ、各自動の既定値付き)、レビュー記録のパス。後のページは `--page N`)。
+レビューの全文は提示しないでください。
 
-Parse the reply: `~/.claude/skills/gstack/bin/gstack-gate parse $_AP/gate.json --reply "<text>" --gate-rev <rev>`;
-unparsed or stale replies are re-presented (`gate_rev`+1), never guessed. `all` or `plana`
-without overrides = A; `d<n>` overrides = B; `uc<n>` overrides = B2; `planc`/`pland`/`plane`
-= C/D/E. Under `SESSION_KIND: unattended` Read `sections/unattended.md`, end here
-with its `GSTACK_RESULT` line and never approve.
+返信を解析します: `~/.claude/skills/gstack/bin/gstack-gate parse $_AP/gate.json --reply "<text>" --gate-rev <rev>`。
+解析できない返信や古い返信は、再提示します(`gate_rev` を +1)。推測はしません。上書きのない `all` または `plana` は A です。`d<n>` の上書きは B、`uc<n>` の上書きは B2、`planc`/`pland`/`plane` は C/D/E です。
+`SESSION_KIND: unattended` の場合は `sections/unattended.md` を読み、ここで終わらせて、その `GSTACK_RESULT` の行を出力してください。決して承認しないでください。
 
-**Option handling:**
-- A: mark APPROVED, run `~/.claude/skills/gstack/bin/gstack-owner-brief close --out "$_AP" --plan <ACTIVE_PLAN>` (draft-direction lines become the decided option and date), write review logs, suggest /ship
-- B: ask which overrides, apply, then follow D's affected-phase rerun rule (Eng last) before re-presenting the gate; same 3-cycle cap as D.
-- B2: accept/reject User Challenges one at a time; rejected ones preserve the user's direction. Re-run Eng, then re-present the gate.
-- C: answer freeform, re-present the gate
-- D: make changes, re-run affected phases (scope→1, design→2, dx→2.5, test plan→3, arch→3; a re-run of any earlier phase re-runs Eng after it — the gate always reviews the final plan). Max 3 cycles.
-- E: start over
+**選択肢の処理:**
+- A: APPROVED とし、`~/.claude/skills/gstack/bin/gstack-owner-brief close --out "$_AP" --plan <ACTIVE_PLAN>` を実行します(方向性の下書きの行は、決定された選択肢と日付になります)。レビューのログを書き、/ship を提案します。
+- B: どの上書きかを尋ね、適用します。その後、ゲートを再提示する前に、D の影響フェーズの再実行ルール(エンジニアリングは最後)に従います。D と同じ 3 回のサイクル上限です。
+- B2: ユーザーへの挑戦を一つずつ承認または却下します。却下したものは、ユーザーの方向性を維持します。エンジニアリングを再実行してから、ゲートを再提示します。
+- C: 自由記述で回答し、ゲートを再提示します。
+- D: 変更を加え、影響するフェーズを再実行します(スコープ→1、デザイン→2、DX→2.5、テスト計画→3、アーキテクチャ→3。それより前のフェーズを再実行した場合は、その後にエンジニアリングも再実行します。ゲートは常に最終的な計画をレビューします)。最大 3 サイクルです。
+- E: 最初からやり直します。
 
-**Starting an affected-phase rerun:** Keep the current Implementation plan and all
-prior accepted obligations intact. Move that phase's applied `autoplan-baseline-edits`
-record verbatim into fenced history in Review record, keeping its original source SHA.
-Create a fresh amendment checkpoint. New baseline edits use `create`'s
-`baselineEdits.record` and `sourceSha256`; the review projection hash is not baseline
-identity. Carry forward unchanged accepted requirements. Never replay old replacements
-or rewrite a historical source SHA. This is a new phase invocation; compaction
-resumes the existing one and its checkpoint. Eng still runs last.
+**影響するフェーズの再実行を開始する場合:** 現在の Implementation plan と、それ以前に承認されたすべての義務はそのまま保持します。
+そのフェーズの適用済みの `autoplan-baseline-edits` の記録を、Review record の中の囲まれた履歴に、そのまま移します。元のソースの SHA は保持します。
+新しい修正のチェックポイントを作成します。新しいベースラインの編集は、`create` の `baselineEdits.record` と `sourceSha256` を使います。レビューの投影のハッシュはベースラインの識別子ではありません。
+変更されていない承認済みの要件を引き継ぎます。過去の置換を再生したり、過去のソース SHA を書き換えたりしないでください。
+これは新しいフェーズの呼び出しです。コンパクションでは既存のものとそのチェックポイントを再開します。エンジニアリングは引き続き最後に実行します。
 
 ---
 
-## Completion: Write Review Logs
+## 完了: レビューログを書き込む
 
-On approval, log each completed review for /ship's dashboard, substituting
-TIMESTAMP, STATUS ("clean" or "issues_open") and N.
+承認されたら、完了した各レビューを /ship のダッシュボード用に記録します。TIMESTAMP、STATUS("clean" または "issues_open")、N を置き換えてください。
 
 ```bash
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null)
@@ -435,32 +392,30 @@ TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-eng-review","timestamp":"'"$TIMESTAMP"'","status":"STATUS","unresolved":N,"critical_gaps":N,"issues_found":N,"mode":"FULL_REVIEW","via":"autoplan","commit":"'"$COMMIT"'"}'
 ```
 
-If Phase 2 ran (UI scope):
+フェーズ 2 を実行した場合(UI スコープ):
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-design-review","timestamp":"'"$TIMESTAMP"'","status":"STATUS","unresolved":N,"via":"autoplan","commit":"'"$COMMIT"'"}'
 ```
 
-If Phase 2.5 ran (DX scope):
+フェーズ 2.5 を実行した場合(DX スコープ):
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-devex-review","timestamp":"'"$TIMESTAMP"'","status":"STATUS","initial_score":N,"overall_score":N,"product_type":"TYPE","tthw_current":"TTHW","tthw_target":"TARGET","unresolved":N,"dx_rubric":"agent-ready-v1","via":"autoplan","commit":"'"$COMMIT"'"}'
 ```
 
-Dual voice logs: one record per PHASE (`ceo`, `design`, `dx`, `eng`) with that
-phase's status/counts, sharing one AUTOPLAN_RUN_ID and TIMESTAMP.
+二重の voice のログ: フェーズごとに 1 件のレコード(`ceo`、`design`、`dx`、`eng`)を、そのフェーズのステータスと件数とともに記録します。AUTOPLAN_RUN_ID と TIMESTAMP は共有します。
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"autoplan-voices","run_id":"AUTOPLAN_RUN_ID","timestamp":"'"$TIMESTAMP"'","status":"STATUS","source":"SOURCE","host":"{{HOST_ID}}","outside_provider":"{{OUTSIDE_PROVIDER}}","outside_status":"OUTSIDE_STATUS","phase":"PHASE","via":"autoplan","consensus_confirmed":N,"consensus_disagree":N,"commit":"'"$COMMIT"'"}'
 ```
 
-Always log skipped Design/DX: status/outside_status "skipped", source "none", zero
-consensus counts. SOURCE = "{{OUTSIDE_PROVIDER}}" only for completed external output;
-native results use "in-host". OUTSIDE_STATUS: completed, unavailable, disabled or
-skipped. Never carry success across phases/runs; preserve modelUsage.
+スキップしたデザインと DX は、必ず記録してください: status/outside_status は "skipped"、source は "none"、合意の件数はゼロです。
+SOURCE は、外部の出力が完了した場合にのみ "{{OUTSIDE_PROVIDER}}" とします。ネイティブの結果は "in-host" を使います。
+OUTSIDE_STATUS は completed、unavailable、disabled、skipped のいずれかです。フェーズや実行をまたいで成功を引き継がないでください。modelUsage は保持します。
 
 {{OUTSIDE_PROVENANCE:autoplan}}
 
-Present a phase coverage table (CEO, design, DX, eng): host, outside provider/status,
-native completion, findings, partial coverage, with actual counts.
+フェーズのカバレッジの表(CEO、デザイン、DX、エンジニアリング)を提示してください。ホスト、外部プロバイダーとステータス、
+ネイティブの完了、指摘事項、部分的なカバレッジを、実際の件数とともに記載します。
 
 {{IMPLEMENTATION_MODEL_HANDOFF}}
 
-Suggest `/ship` when ready to create the PR.
+PR を作成する準備ができたら、/ship を提案してください。

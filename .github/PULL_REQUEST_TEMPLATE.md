@@ -1,48 +1,36 @@
 <!--
-gstack is AI-coded and proud of it. The bar is EVIDENCE OF REAL USE, not lines
-of code. A PR with no proof behind it gets closed, no matter how clean it looks.
-Fill every section below. See CONTRIBUTING.md → "The evidence bar".
+gstack は AI でコーディングされていて、そのことを誇りに思っています。評価基準は行数ではなく、実際に使ったことの「証拠」です。その裏付けとなる証拠のない PR は、どれだけきれいに見えても閉じられます。
+以下のセクションをすべて埋めてください。詳細は CONTRIBUTING.md の「The evidence bar」を参照してください。
 -->
 
-## Why (in your own words)
+## なぜ(ご自身の言葉で)
 
-<!-- One paragraph: what breaks for a user today, and what this change does about
-it. Not a restatement of the diff. -->
+<!-- 一段落で書いてください: 今ユーザーに何が問題として起きているのか、そして今回の変更がそれにどう対処するのか。差分の言い換えにはしないでください。 -->
 
-## Live evidence
+## ライブでの証拠
 
-<!-- REQUIRED. Paste the command(s) you ran and their real output — before and
-after. For a bug: the reproduction, failing then fixed. For a skill change: the
-actual transcript / `claude -p` output. For anything visual: before/after
-screenshots. "bun test passes" alone is not enough — show the behavior you
-changed. -->
+<!-- 必須。実行したコマンドと、その実際の出力を変更前後で貼ってください。バグの場合: 修正前に失敗する再現と、修正後の結果。スキルの変更の場合: 実際のトランスクリプトまたは `claude -p` の出力。見た目に関わるものの場合: 変更前後のスクリーンショット。「bun test が通る」だけでは不十分です。変更した振る舞いそのものを示してください。 -->
 
 ```
 # what you ran + what it produced
 ```
 
-## Scope
+## 範囲
 
-- **Changed:**
-- **Verified live by:**
-- **Did NOT test:**
+- **変更した箇所:**
+- **ライブで検証した方法:**
+- **テストしていない箇所:**
 
-## Liveness proof (required for external contributors)
+## 生存証明(外部コントリビューター向けに必須)
 
-<!-- Repository owner @garrytan is explicitly exempt. Agents must verify the
-authenticated GitHub login with `gh api user --jq .login`; Git author metadata
-alone is not sufficient.
+<!-- オーナーの @garrytan は適用除外です。エージェントは `gh api user --jq .login` で認証済みの GitHub ログインを確認してください。Git の author メタデータだけでは不十分です。
 
-All other contributors: attach a screenshot of your own machine with the text `GSTACK PR` typed LIVE
-into a real surface — terminal prompt, a shell command, your browser
-address/search bar, an editor buffer. It must be TYPED INTO A LIVE UI, not drawn,
-overlaid, or edited onto the image. A painted-on `GSTACK PR` is an automatic
-close. This confirms a human opened this PR. -->
+その他のコントリビューターは: ご自身のマシンのスクリーンショットを添付してください。そこには `GSTACK PR` という文字列が、実際の画面(ターミナルのプロンプト、シェルのコマンド、ブラウザのアドレスバーや検索欄、エディタのバッファなど)にライブで入力されている必要があります。画像に描き込んだり、重ねたり、編集で追加したものは認められません。描き込まれた `GSTACK PR` は即クローズの対象です。これは人間がこの PR を開いたことを確認するためのものです。 -->
 
-## Checklist
+## チェックリスト
 
-- [ ] Liveness screenshot attached (`GSTACK PR` typed live into a real surface) or PR author is @garrytan (owner exemption)
-- [ ] This is not a generated-file-only diff (I edited the source/template and regenerated)
-- [ ] No ETHOS.md edits, and no changes to voice / founder perspective / YC references
-- [ ] New public command / external service / host adapter has an accepted issue linked (or N/A)
-- [ ] Linked issue or reproduction: #
+- [ ] 生存確認のスクリーンショットを添付済み(実際の画面に `GSTACK PR` をライブで入力したもの)、または PR の作成者が @garrytan である(オーナーの適用除外)
+- [ ] 生成ファイルだけの差分ではない(ソースまたはテンプレートを編集し、再生成した)
+- [ ] ETHOS.md は編集していない。声のトーン、創業者の視点、YC への言及も変更していない
+- [ ] 新しい公開コマンド、外部サービス、ホストアダプターには、承認済みの issue をリンクした(または該当なし)
+- [ ] 関連する issue または再現手順へのリンク: #

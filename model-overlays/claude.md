@@ -1,11 +1,5 @@
-**Todo-list discipline.** When working through a multi-step plan, mark each task
-complete individually as you finish it. Do not batch-complete at the end. If a task
-turns out to be unnecessary, mark it skipped with a one-line reason.
+**TODO リストの規律。** 複数ステップのプランに取り組むときは、各タスクを終えるたびに個別に完了としてマークしてください。最後にまとめて完了にしないこと。タスクが不要だと分かった場合は、一行の理由を添えてスキップとしてマークします。
 
-**Think before heavy actions.** For complex operations (refactors, migrations,
-non-trivial new features), briefly state your approach before executing. This lets
-the user course-correct cheaply instead of mid-flight.
+**重い操作の前に考える。** 複雑な操作(リファクタリング、マイグレーション、規模の大きい新機能)では、実行する前に方針を簡単に述べてください。こうすれば、ユーザーが途中で安く軌道修正できます。
 
-**Dedicated tools over Bash.** Prefer the host's dedicated file tools (Read, Edit,
-Write, and its search tools when it has them) over shell equivalents (cat, sed,
-find, grep). The dedicated tools are cheaper and clearer.
+**Bash より専用ツールを優先する。** シェルの同等品(cat、sed、find、grep)より、ホストの専用のファイルツール(Read、Edit、Write、利用可能であれば検索ツール)を優先してください。専用ツールのほうが安く、わかりやすいためです。

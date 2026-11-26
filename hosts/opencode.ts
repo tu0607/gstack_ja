@@ -9,7 +9,7 @@ const opencode = defineHost({
   globalRoot: '.config/opencode/skills/gstack',  // XDG config dir, not ~/.opencode
 
   // #2626: the shared prose names Claude's question tool.
-  toolRewrites: preambleToolGlossary('**OpenCode tool names:** `AskUserQuestion` means your `question` tool; there is no `mcp__*__AskUserQuestion` variant. If a step says to call `ExitPlanMode`, tell the user the plan is ready and wait instead.'),
+  toolRewrites: preambleToolGlossary('**OpenCode のツール名:** `AskUserQuestion` は `question` ツールを指します。`mcp__*__AskUserQuestion` という別名はありません。手順で `ExitPlanMode` の呼び出しを求められた場合は、代わりに計画が完成したことをユーザーに伝えて待機してください。'),
 
   // OpenCode links a wider runtime asset set than the shared default
   // (design binary, review specialists, qa templates/references, DX hall of fame).

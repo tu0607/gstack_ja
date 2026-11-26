@@ -1,108 +1,108 @@
-# Using GBrain with GStack
+# GStack で GBrain を使う
 
-Your coding agent, with a memory it actually keeps.
+コーディングエージェントに、実際に覚えておいてくれる記憶を持たせましょう。
 
-[GBrain](https://github.com/garrytan/gbrain) is a persistent knowledge base designed for AI agents. It stores what your agent learns, what you've decided, what worked and what didn't, and lets the agent search all of it on demand. GStack gives you a one-command path from zero to "gbrain is running, and my agent can call it" — with paths for try-it-local, share-with-your-team, and everything between.
+[GBrain](https://github.com/garrytan/gbrain) は AI エージェント向けに設計された永続的なナレッジベースです。エージェントが学んだこと、決めたこと、うまくいったことといかなかったことを保存し、エージェントがそのすべてをオンデマンドで検索できるようにします。GStack には、ゼロから「gbrain が動いていて、エージェントがそれを呼び出せる」状態まで、コマンド1つで到達する道筋があります。試しにローカルで動かす方法、チームと共有する方法、そしてその中間の方法が用意されています。
 
-This is the full monty: every scenario, every flag, every helper bin, every troubleshooting step. For the quick pitch, see the [README's GBrain section](README.md#gbrain--persistent-knowledge-for-your-coding-agent). For error codes and sync-specific issues, see [docs/gbrain-sync.md](docs/gbrain-sync.md).
+ここでは、すべてのシナリオ、すべてのフラグ、すべてのヘルパーのバイナリ、すべてのトラブルシューティング手順を扱います。手短な紹介は [README の GBrain の節](README.md#gbrain--persistent-knowledge-for-your-coding-agent) を、エラーコードと同期に特有の問題は [docs/gbrain-sync.md](docs/gbrain-sync.md) を参照してください。
 
 ---
 
-## The one-command install
+## ワンコマンドでのインストール
 
 ```bash
 /setup-gbrain
 ```
 
-That's it. The skill detects your current state, asks three questions at most, and walks you through install, init, MCP registration for Claude Code, and per-repo trust policy. On a clean Mac with nothing installed it finishes in under five minutes. On a Mac where something's already set up it takes seconds (it detects the existing state and skips done work).
+これだけです。このスキルは現在の状態を検出し、質問は多くても3つだけ行い、インストール、初期化、Claude Code への MCP 登録、リポジトリごとの信頼ポリシーの設定を順に案内します。何もインストールされていないクリーンな Mac なら、5分以内に完了します。すでに何かがセットアップされている Mac では、既存の状態を検出して完了済みの作業を飛ばすので、数秒で終わります。
 
-## What you get after setup
+## セットアップ後に得られるもの
 
-Once `/setup-gbrain` finishes, your coding agent has two retrieval surfaces it didn't have before:
+`/setup-gbrain` が完了すると、コーディングエージェントには、それまでなかった2つの検索手段が加わります。
 
-- **Semantic code search across this repo.** `gbrain search "browser security canary"` returns ranked file regions, not exact-match grep hits. `gbrain code-def`, `code-refs`, `code-callers`, `code-callees` walk the call graph by symbol — useful when you don't know which file holds the implementation but you know what it does. The agent prefers these over Grep when the question is semantic; CLAUDE.md gets a `## GBrain Search Guidance` block that teaches it the routing rules.
-- **Cross-session memory.** Plans, retros, decisions, and learnings from past sessions live in `~/.gstack/` and (if you opted in to artifacts sync) get pushed to a private git repo that gbrain indexes. `gbrain search "what did we decide about auth?"` actually finds the prior CEO plan instead of you re-describing context every session.
+- **このリポジトリ全体に対するセマンティックなコード検索。** `gbrain search "browser security canary"` は、完全一致の grep ヒットではなく、順位付けされたファイル内の領域を返します。`gbrain code-def`、`code-refs`、`code-callers`、`code-callees` は、シンボルをたどって呼び出しグラフを辿ります。実装がどのファイルにあるかはわからないが、何をするものかはわかっているときに役立ちます。エージェントは、問いが意味的なものである場合、grep より先にこれらを使うようになります。CLAUDE.md には `## GBrain Search Guidance` のブロックが追加され、そのルーティングの規則が書かれます。
+- **セッションをまたぐ記憶。** 過去のセッションの計画、振り返り、決定事項、学びは `~/.gstack/` に保存され(アーティファクトの同期を有効にしていれば)、gbrain がインデックスする非公開の git リポジトリに送られます。`gbrain search "what did we decide about auth?"` は、以前の CEO 計画を実際に見つけ出すので、毎回のセッションでコンテキストを説明し直す必要がなくなります。
 
-If you also enabled remote MCP (Path 4 below), brain queries route to a shared brain server that other machines can write to — your laptop, your desktop, and a teammate's machine all see the same memory.
+リモート MCP(後述の Path 4)も有効にすると、ブレインへの問い合わせは共有のブレインサーバーに送られ、ほかのマシンからも書き込めるようになります。ノートパソコン、デスクトップ、チームメンバーのマシンが、すべて同じメモリを参照できます。
 
-## The four paths
+## 4つの経路
 
-You pick one when the skill asks "Where should your brain live?"
+スキルから「Where should your brain live?(ブレインをどこに置きますか)」と聞かれたときに、どれか1つを選びます。
 
-### Path 1: Supabase, you already have a connection string
+### Path 1: Supabase、接続文字列はすでにある
 
-Best for: you (or a teammate's cloud agent) already provisioned a Supabase brain and you want this local machine to use the same data.
+向いている人: あなた(またはチームメンバーのクラウドエージェント)がすでに Supabase のブレインを用意していて、このローカルマシンでも同じデータを使いたい場合。
 
-**What happens:** Paste the Session Pooler URL (Settings → Database → Connection Pooler → Session → copy URI, port 6543). The skill reads it with echo off, shows you a redacted preview (`aws-0-us-east-1.pooler.supabase.com:6543/postgres` — host visible, password masked), hands it to `gbrain init` via the `GBRAIN_DATABASE_URL` environment variable, and the URL is never written to argv or your shell history.
+**何が起きるか:** Session Pooler の URL を貼り付けます(Settings → Database → Connection Pooler → Session → URI をコピー、ポート 6543)。スキルは、エコーをオフにして読み取り、マスクされたプレビュー(`aws-0-us-east-1.pooler.supabase.com:6543/postgres`。ホストは見えるがパスワードは伏せられます)を表示したうえで、`GBRAIN_DATABASE_URL` 環境変数経由で `gbrain init` に渡します。URL は argv にもシェル履歴にも書き込まれません。
 
-**Trust warning:** Pasting this URL gives your local Claude Code full read/write access to every page in the shared brain. If that's not the trust level you want, pick PGLite local (Path 3) instead and accept the brains are disjoint.
+**信頼に関する警告:** この URL を貼り付けると、ローカルの Claude Code に、共有ブレインのすべてのページに対する読み書きの権限が与えられます。その信頼レベルが望ましくない場合は、代わりに PGLite ローカル(Path 3)を選んでください。その場合、ブレインは互いに分離されたままになります。
 
-### Path 2a: Supabase, auto-provision a new project
+### Path 2a: Supabase、新しいプロジェクトを自動で用意する
 
-Best for: fresh Supabase account, you want a clean new project with zero clicking.
+向いている人: Supabase のアカウントを新しく作ったばかりで、クリックなしできれいな新しいプロジェクトを使いたい場合。
 
-**What happens:** You paste a Supabase Personal Access Token (PAT). The skill shows you the scope disclosure first — *the token grants full access to every project in your Supabase account, not just the one we're about to create*. It lists your organizations, asks which one and which region (default `us-east-1`), generates a database password, calls `POST /v1/projects`, polls `GET /v1/projects/{ref}` every 5 seconds until the project is `ACTIVE_HEALTHY` (180s timeout), fetches the pooler URL, hands it to `gbrain init`. End-to-end: ~90 seconds.
+**何が起きるか:** Supabase の Personal Access Token(PAT)を貼り付けます。スキルは先に、スコープの開示を表示します。*このトークンは、これから作成するプロジェクトだけでなく、あなたの Supabase アカウント内のすべてのプロジェクトに対するフルアクセス権を持ちます。* 次に組織の一覧を出し、どの組織とどのリージョン(デフォルトは `us-east-1`)を使うかを尋ねます。データベースのパスワードを生成し、`POST /v1/projects` を呼び出し、プロジェクトが `ACTIVE_HEALTHY` になるまで 5 秒ごとに `GET /v1/projects/{ref}` をポーリングします(タイムアウトは 180 秒)。そのうえで pooler URL を取得し、`gbrain init` に渡します。全体で約 90 秒です。
 
-At the end: explicit reminder to revoke the PAT at https://supabase.com/dashboard/account/tokens. The skill already discarded it from memory.
+最後に、https://supabase.com/dashboard/account/tokens で PAT を失効させるよう改めて促されます。スキルはそのトークンをすでにメモリから破棄していますが、念のための案内です。
 
-**If you Ctrl-C mid-provision:** The SIGINT trap prints your in-flight project ref + a resume command. You can delete the orphan at the Supabase dashboard, or run `/setup-gbrain --resume-provision <ref>` to pick up where you left off.
+**プロビジョニングの途中で Ctrl-C を押した場合:** SIGINT のトラップが、作成途中のプロジェクトの ref と再開用のコマンドを表示します。Supabase のダッシュボードで孤立したプロジェクトを削除するか、`/setup-gbrain --resume-provision <ref>` を実行して中断したところから再開できます。
 
-### Path 2b: Supabase, create manually
+### Path 2b: Supabase、手動で作成する
 
-Best for: you'd rather click through supabase.com yourself than paste a PAT.
+向いている人: PAT を貼り付けるより、supabase.com を自分でクリックして進めたい場合。
 
-**What happens:** The skill walks you through the four manual steps (signup → new project → wait ~2 min → copy Session Pooler URL), then takes over from Path 1's paste step. Same security treatment as Path 1.
+**何が起きるか:** スキルが手動の4つのステップ(サインアップ → 新規プロジェクト → 約2分待つ → Session Pooler URL のコピー)を案内し、その後は Path 1 の貼り付けの手順に引き継ぎます。セキュリティの扱いは Path 1 と同じです。
 
-### Path 3: PGLite local
+### Path 3: PGLite ローカル
 
-Best for: try-it-first, no account, no cloud, no sharing. Or a dedicated "this Mac's brain" that stays isolated from any cloud agent.
+向いている人: まず試してみたい、アカウントもクラウドも共有も不要な場合。あるいは、クラウドのエージェントから切り離された「この Mac のブレイン」が欲しい場合。
 
-**What happens:** `gbrain init --pglite`. Brain lives at `~/.gbrain/brain.pglite`. No network calls for the init itself. Done in 30 seconds.
+**何が起きるか:** `gbrain init --pglite` を実行します。ブレインは `~/.gbrain/brain.pglite` に作られます。初期化自体はネットワーク通信なしで、30 秒で終わります。
 
-**Embedding model.** When `VOYAGE_API_KEY` is set, gstack inits PGLite with `voyage-code-3` (1024-dim) — Voyage's code-specialized embedding model, which beats their general-purpose `voyage-4-large` and OpenAI `text-embedding-3-large` head-to-head on this codebase's symbol queries. Without `VOYAGE_API_KEY`, gbrain auto-selects (OpenAI 1536-dim when `OPENAI_API_KEY` is present, else falls down its provider chain). Either way, the embeddings call out to the chosen provider's API during sync — set the key for the provider you want before running `/sync-gbrain`.
+**埋め込みモデル。** `VOYAGE_API_KEY` が設定されていると、gstack は `voyage-code-3`(1024 次元)で PGLite を初期化します。これは Voyage のコード特化の埋め込みモデルで、このコードベースのシンボルクエリに対して、汎用の `voyage-4-large` や OpenAI の `text-embedding-3-large` よりも良い結果を出しました。`VOYAGE_API_KEY` がない場合は、gbrain が自動で選びます(`OPENAI_API_KEY` があれば OpenAI の 1536 次元、なければ gbrain のプロバイダの連鎖をたどります)。どちらの場合も、埋め込みは `/sync-gbrain` の同期中に選ばれたプロバイダの API を呼び出します。使いたいプロバイダのキーを、`/sync-gbrain` を実行する前に設定してください。
 
-This is the best first choice if you just want to see what gbrain feels like before committing to cloud. You can always migrate later with `/setup-gbrain --switch`.
+クラウドに手を出す前に gbrain の感触を確かめたいなら、最初の選択としておすすめです。あとから `/setup-gbrain --switch` で移行することもできます。
 
-### Path 4: Remote gbrain MCP (split-engine)
+### Path 4: リモートの gbrain MCP(分割エンジン)
 
-Best for: your brain runs on another machine you control (Tailscale, ngrok, internal LAN) or a teammate's server. You want the cross-machine memory benefit without standing up a local database, and you still want symbol-aware code search on this Mac.
+向いている人: ブレインを、自分の管理下にある別のマシン(Tailscale、ngrok、社内 LAN)またはチームメンバーのサーバーで動かしている場合。ローカルにデータベースを立てずに、マシンをまたいだメモリの利点を得たいが、この Mac でもシンボルを意識したコード検索は使いたい場合。
 
-**What happens:** You paste an MCP URL (e.g. `https://wintermute.tail554574.ts.net:3131/mcp`) and a bearer token. The skill verifies the URL over the wire, registers gbrain as an HTTP MCP in `~/.claude.json` at user scope, and offers to also stand up a tiny local PGLite for code search (~30 seconds, ~120 MB disk).
+**何が起きるか:** MCP の URL(例: `https://wintermute.tail554574.ts.net:3131/mcp`)とベアラートークンを貼り付けます。スキルは URL を実際に通信して検証し、gbrain を HTTP MCP として `~/.claude.json` にユーザースコープで登録します。さらに、コード検索用の小さなローカル PGLite(約 30 秒、約 120 MB のディスク)を用意するかを尋ねます。
 
-If you accept the local PGLite, you end up in **split-engine mode**:
+ローカルの PGLite を受け入れると、**分割エンジンモード** になります。
 
-- **Brain/context queries** (`mcp__gbrain__search`, `mcp__gbrain__query`, `mcp__gbrain__get_page`) route to the remote MCP. Plans, retros, learnings, cross-machine memory — all on the shared server.
-- **Code queries** (`gbrain code-def`, `code-refs`, `code-callers`, `code-callees`, `gbrain search` for code) route to the local PGLite via the `.gbrain-source` pin in each worktree. Indexed locally, fast, never leaves the machine.
+- **ブレイン／コンテキストへの問い合わせ**(`mcp__gbrain__search`、`mcp__gbrain__query`、`mcp__gbrain__get_page`)は、リモート MCP に送られます。計画、振り返り、学び、マシンをまたいだメモリは、すべて共有サーバー上にあります。
+- **コードへの問い合わせ**(`gbrain code-def`、`code-refs`、`code-callers`、`code-callees`、コード用の `gbrain search`)は、各ワークツリーの `.gbrain-source` のピンを通じてローカルの PGLite に送られます。ローカルでインデックスされるため高速で、マシンの外に出ることはありません。
 
-The two engines are independent. Wiping the local PGLite doesn't touch the remote brain; rotating the remote MCP bearer doesn't affect local code search. This is also the right configuration if your remote brain admin can't (or shouldn't) index every developer's checkout — local code stays local.
+2つのエンジンは互いに独立しています。ローカルの PGLite を消去してもリモートのブレインには影響せず、リモート MCP のベアラートークンを更新してもローカルのコード検索には影響しません。また、リモートのブレインの管理者がすべての開発者のチェックアウトをインデックスできない(またはすべきでない)場合にも、この構成が適しています。ローカルのコードはローカルにとどまります。
 
-## MCP registration for Claude Code
+## Claude Code への MCP 登録
 
-By default the skill asks "Give Claude Code a typed tool surface for gbrain?" If you say yes, it runs:
+デフォルトでは、スキルは「Give Claude Code a typed tool surface for gbrain?(gbrain の型付きツールを Claude Code に与えますか)」と尋ねます。「はい」と答えると、次を実行します。
 
 ```bash
 claude mcp add gbrain -- gbrain serve
 ```
 
-That registers gbrain's stdio MCP server with Claude Code. Now `gbrain search`, `gbrain put`, `gbrain get`, etc. show up as first-class tools in every session, not bash shell-outs.
+これにより、gbrain の stdio MCP サーバーが Claude Code に登録されます。以後、`gbrain search`、`gbrain put`、`gbrain get` などが、シェルからの呼び出しではなく、すべてのセッションで第一級のツールとして表示されます。
 
-**If `claude` is not on PATH**, the skill skips MCP registration gracefully with a manual-register hint. The CLI resolver still works from any skill that shells out to `gbrain` — MCP is an upgrade, not a prerequisite.
+**`claude` が PATH にない場合**、スキルは MCP の登録を飛ばし、手動で登録するためのヒントを表示します。gbrain を呼び出すスキルは、CLI のリゾルバ経由で今も動作します。MCP はあくまで機能の上乗せであり、前提条件ではありません。
 
-**Other local agents** (Cursor, Codex CLI, etc.) need their own MCP registration. The skill is Claude-Code-targeted for v1; other hosts can register `gbrain serve` manually in their own MCP config.
+**ほかのローカルエージェント**(Cursor、Codex CLI など)は、それぞれ独自に MCP を登録する必要があります。このスキルは v1 では Claude Code を対象にしています。ほかのホストでは、自分の MCP 設定に `gbrain serve` を手動で登録できます。
 
-## Per-remote trust policy (the triad)
+## リポジトリごとの信頼ポリシー(3択)
 
-Every repo on your machine gets a policy decision: **read-write**, **read-only**, or **deny**.
+マシン上のリポジトリはそれぞれ、**read-write**、**read-only**、**deny** のいずれかのポリシーを持ちます。
 
-- **read-write** — your agent can `gbrain search` from this repo's context AND write new pages back to the brain. Default for your own projects.
-- **read-only** — your agent can search the brain but never writes new pages from this repo's sessions. Ideal for multi-client consultants: search the shared brain, don't contaminate it with Client A's code while you're in Client B's repo.
-- **deny** — no gbrain interaction at all. The repo is invisible to gbrain tooling.
+- **read-write** — エージェントは、このリポジトリのコンテキストから `gbrain search` を実行でき、新しいページをブレインに書き戻すこともできます。自分のプロジェクトのデフォルトです。
+- **read-only** — エージェントはブレインを検索できますが、このリポジトリのセッションから新しいページを書き込むことはありません。複数のクライアントを担当するコンサルタントに最適です。共有のブレインは検索するが、クライアント A のコードでクライアント B のリポジトリを汚染しない、という使い方ができます。
+- **deny** — gbrain とのやり取りは一切ありません。このリポジトリは gbrain のツールから見えません。
 
-The skill asks once per repo the first time you run a gstack skill there. After that the decision is sticky — every worktree + branch of the same git remote shares the same policy, so you set it once and it follows you.
+スキルは、そのリポジトリで gstack のスキルを初めて実行したときに、リポジトリごとに1回だけ尋ねます。その後、決定は固定されます。同じ git リモートのすべてのワークツリーとブランチは、同じポリシーを共有するので、1回設定すれば、その後もついてきます。
 
-SSH and HTTPS remote variants collapse to the same key: `https://github.com/foo/bar.git` and `git@github.com:foo/bar.git` are the same repo.
+SSH と HTTPS のリモートは、同じキーにまとめられます。`https://github.com/foo/bar.git` と `git@github.com:foo/bar.git` は同じリポジトリです。
 
-**To change a policy:**
+**ポリシーを変更するには:**
 
 ```bash
 /setup-gbrain --repo      # re-prompt for this repo only
@@ -111,17 +111,17 @@ SSH and HTTPS remote variants collapse to the same key: `https://github.com/foo/
 ~/.claude/skills/gstack/bin/gstack-gbrain-repo-policy set "github.com/foo/bar" read-only
 ```
 
-**To see every policy:**
+**すべてのポリシーを見るには:**
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-gbrain-repo-policy list
 ```
 
-Storage: `~/.gstack/gbrain-repo-policy.json`, mode 0600, schema-versioned so future migrations stay deterministic.
+保存先は `~/.gstack/gbrain-repo-policy.json`(モード 0600)で、将来のマイグレーションが決定的に行えるよう、スキーマのバージョンが付いています。
 
-## Keeping the brain current with `/sync-gbrain`
+## `/sync-gbrain` でブレインを最新に保つ
 
-`/setup-gbrain` is one-time onboarding. `/sync-gbrain` is the verb you run every time you want gbrain to see fresh changes in this repo's code.
+`/setup-gbrain` は一度だけのオンボーディングです。`/sync-gbrain` は、このリポジトリのコードの新しい変更を gbrain に見せたいときに、そのたびに実行するコマンドです。
 
 ```bash
 /sync-gbrain                # incremental: mtime fast-path, ~seconds on a clean tree
@@ -130,264 +130,263 @@ Storage: `~/.gstack/gbrain-repo-policy.json`, mode 0600, schema-versioned so fut
 /sync-gbrain --dry-run      # preview what would sync; no writes
 ```
 
-The skill runs three stages — code, memory, brain-sync — independently. A failure in one doesn't block the others. State persists to `~/.gstack/.gbrain-sync-state.json` so re-running picks up cleanly.
+スキルは、コード、メモリ、ブレインの同期の3つの段階を、それぞれ独立して実行します。ある段階が失敗しても、ほかの段階はブロックされません。状態は `~/.gstack/.gbrain-sync-state.json` に保存されるので、再実行すると途中から正しく再開します。
 
-Stages that can send data off-machine (code sync into a possibly-remote gbrain DB, memory ingest, the brain-sync push) each write a tamper-evident receipt to the egress ledger (`~/.gstack/security/egress.jsonl`) before sending, fail-closed: if the receipt can't be written, the stage refuses with `EGRESS_RECEIPT_FAILED` instead of syncing unrecorded. Fix is usually `mkdir -p ~/.gstack/security && chmod -R u+w ~/.gstack/security`, then re-run. Inspect receipts with `gstack-egress list`.
+マシンの外へデータを送りうる段階(リモートにあるかもしれない gbrain DB へのコード同期、メモリの取り込み、ブレインの同期の push)は、いずれも送信の前に、改ざん検知可能な受領記録を送信の台帳(`~/.gstack/security/egress.jsonl`)に書きます。これはフェイルクローズで動作し、受領記録を書けない場合は、記録されないまま同期する代わりに、段階を `EGRESS_RECEIPT_FAILED` で拒否します。通常の対処は `mkdir -p ~/.gstack/security && chmod -R u+w ~/.gstack/security` を実行してから再実行することです。受領記録は `gstack-egress list` で確認できます。
 
-**What it does on a fresh worktree:**
+**新しいワークツリーでの動作:**
 
-1. **Pre-flight.** Checks `gbrain_local_status` (the local engine's health). If the engine is `broken-db` or `broken-config`, the skill STOPs with a remediation menu — it refuses to silently degrade. If the local engine is missing and you're in remote-MCP mode (Path 4), the code stage SKIPs cleanly and only brain-sync runs.
-2. **Code stage.** Registers the cwd as a federated source via `gbrain sources add`, writes a `.gbrain-source` pin file in the repo root (kubectl-style context — every worktree gets its own pin, so Conductor sibling worktrees don't collide), runs `gbrain sync --strategy code`.
-3. **Memory stage.** Stages your `~/.gstack/` transcripts + curated memory. In local-stdio MCP mode, ingests into the local engine. In remote-http MCP mode, persists staged markdown to `~/.gstack/transcripts/run-<pid>-<ts>/` for the remote brain admin's pull pipeline. The ingest timeout is 30 minutes by default; raise it for a big brain with `GSTACK_INGEST_TIMEOUT_MS` (accepts 1 min–24h). On timeout the gbrain import checkpoint is preserved, so the next `/sync-gbrain` resumes instead of starting over.
-4. **Brain-sync stage.** Pushes curated artifacts (plans, designs, retros) to your private artifacts repo if you have one configured.
-5. **CLAUDE.md guidance.** Capability-checks the round-trip (write a page → search → find it). If green, writes the `## GBrain Search Guidance` block to your project's CLAUDE.md. If red, REMOVES the block — the agent should never be told to use a tool that isn't installed.
+1. **事前チェック。** `gbrain_local_status`(ローカルエンジンの健全性)を確認します。エンジンが `broken-db` または `broken-config` なら、スキルは対処法のメニューを表示して停止します。エラーを黙って縮退させることはしません。ローカルエンジンがなく、リモート MCP モード(Path 4)を使っている場合は、コードの段階をきれいにスキップし、ブレインの同期だけを実行します。
+2. **コードの段階。** カレントディレクトリを `gbrain sources add` で連携ソースとして登録し、リポジトリのルートに `.gbrain-source` のピンファイルを書き込み(kubectl 風のコンテキスト。ワークツリーごとに独自のピンを持つので、Conductor の兄弟ワークツリーが衝突しません)、`gbrain sync --strategy code` を実行します。
+3. **メモリの段階。** `~/.gstack/` のトランスクリプトと厳選されたメモリをステージングします。ローカルの stdio MCP モードでは、ローカルエンジンに取り込みます。リモートの http MCP モードでは、リモートブレインの管理者のプル用パイプラインのために、ステージングされた markdown を `~/.gstack/transcripts/run-<pid>-<ts>/` に保存します。取り込みのタイムアウトは、デフォルトで 30 分です。大きなブレインでは `GSTACK_INGEST_TIMEOUT_MS`(1 分〜24 時間を指定可能)で延長できます。タイムアウトした場合も gbrain のインポートのチェックポイントは保持されるので、次の `/sync-gbrain` は最初からではなく途中から再開します。
+4. **ブレインの同期の段階。** プライベートのアーティファクトリポジトリを設定していれば、厳選されたアーティファクト(計画、設計、振り返り)をそこへ送ります。
+5. **CLAUDE.md の案内。** ラウンドトリップ(ページを書き込む → 検索する → 見つける)の能力を確認します。成功すれば、プロジェクトの CLAUDE.md に `## GBrain Search Guidance` のブロックを書き込みます。失敗すれば、そのブロックを削除します。インストールされていないツールの使用をエージェントに指示してはいけないからです。
 
-**The watermark.** Sync state advances by commit hash. If gbrain hits a file it can't index (5 MB hard limit per file, or a file vanished mid-sync), the watermark stays put and subsequent syncs retry. To acknowledge an unfixable failure and move past it:
+**ウォーターマーク。** 同期の状態はコミットハッシュ単位で進みます。gbrain がインデックスできないファイル(1 ファイルあたりのハードリミット 5 MB を超える、または同期中にファイルが消えた)に当たると、ウォーターマークは動かず、以後の同期で再試行されます。修正できない失敗を認めて先に進めるには、次を実行します。
 
 ```bash
 gbrain sync --source <source-id> --skip-failed
 ```
 
-Re-runnable, idempotent, safe to run from multiple terminals on the same machine (locked at `~/.gstack/.sync-gbrain.lock`).
+何度実行しても安全で(冪等)、同じマシン上の複数のターミナルから同時に実行しても安全です(`~/.gstack/.sync-gbrain.lock` でロックされます)。
 
-## Switching engines later
+## エンジンの切り替え
 
-Picked PGLite and now want to join a team brain? One command:
+PGLite を選んだあとで、チームのブレインに参加したくなったら、コマンド1つで済みます。
 
 ```bash
 /setup-gbrain --switch
 ```
 
-The skill runs `gbrain migrate --to supabase --url "$URL"` wrapped in `timeout 180s`. Migration is bidirectional (Supabase → PGLite also works) and lossless — pages, chunks, embeddings, links, tags, and timeline all copy. Your original brain is preserved as a backup.
+スキルは `gbrain migrate --to supabase --url "$URL"` を `timeout 180s` で囲んで実行します。移行は双方向(Supabase → PGLite も可能)で、ロスレスです。ページ、チャンク、埋め込み、リンク、タグ、タイムラインがすべてコピーされます。元のブレインはバックアップとして残ります。
 
-**If migration hangs:** another gstack session may be holding a lock on the source brain. The timeout fires at 3 minutes with an actionable message. Close other workspaces and re-run.
+**移行がハングする場合:** 別の gstack のセッションが、移行元のブレインにロックをかけている可能性があります。3 分でタイムアウトし、対処すべきことを表示します。ほかのワークスペースを閉じてから、再実行してください。
 
-## GStack memory sync (a separate concern)
+## GStack のメモリ同期(別の関心事)
 
-This is different from gbrain itself. Your gstack state (`~/.gstack/` — learnings, plans, retros, timeline, developer profile) is machine-local by default. "GStack memory sync" optionally pushes a curated, secret-scanned subset to a private git repo so your memory follows you across machines — and, if you're running gbrain, that git repo becomes indexable there too.
+これは gbrain 自体とは別の話です。gstack の状態(`~/.gstack/` の学び、計画、振り返り、タイムライン、開発者のプロファイル)は、初期状態ではそのマシンだけに保存されます。「GStack のメモリ同期」を有効にすると、秘密情報をスキャンして厳選したサブセットを、プライベートな git リポジトリに任意で送れます。これにより、メモリがマシンをまたいで引き継がれます。gbrain を使っていれば、その git リポジトリもそこでインデックスの対象になります。
 
-Turn it on with:
+次のコマンドで有効にします。
 
 ```bash
 gstack-artifacts-init
 ```
 
-You'll get a one-time privacy prompt: **everything allowlisted** / **artifacts only** (plans, designs, retros, learnings — skip behavioral data like timelines) / **off**. Every skill run syncs the queue at start and end — no daemon, no background process.
+初回のプライバシーの確認が表示されます。選択肢は **すべて許可**、**アーティファクトのみ**(計画、設計、振り返り、学び。タイムラインなどの行動データは除く)、**オフ** の3つです。スキルの実行のたびに、開始時と終了時にキューが同期されます。デーモンもバックグラウンドプロセスもありません。
 
-Secret-shaped content (AWS keys, GitHub tokens, PEM blocks, JWTs, bearer tokens) is blocked from sync before it leaves your machine.
+秘密情報らしき内容(AWS キー、GitHub トークン、PEM ブロック、JWT、ベアラートークン)は、マシンの外に出る前に同期からブロックされます。
 
-**On a new machine:** Copy `~/.gstack-artifacts-remote.txt` over (the legacy
-`~/.gstack-brain-remote.txt` name still works), run `gstack-brain-restore`, and
-yesterday's learnings surface on today's laptop.
+**新しいマシンでは:** `~/.gstack-artifacts-remote.txt` をコピーし(旧名の `~/.gstack-brain-remote.txt` も引き続き読めます)、`gstack-brain-restore` を実行すると、昨日の学びが今日のノートパソコンにも現れます。
 
-Full guide: [docs/gbrain-sync.md](docs/gbrain-sync.md). Error index: [docs/gbrain-sync-errors.md](docs/gbrain-sync-errors.md).
+詳しいガイドは [docs/gbrain-sync.md](docs/gbrain-sync.md) にあります。エラーの一覧は [docs/gbrain-sync-errors.md](docs/gbrain-sync-errors.md) を参照してください。
 
-`/setup-gbrain` offers to wire this up for you at the end of initial setup — it's one more AskUserQuestion, and it integrates with the same private-repo infrastructure.
+`/setup-gbrain` は、初回セットアップの最後にこれを設定するかを提案します。これは AskUserQuestion の質問がもう 1 つ増えるだけで、同じプライベートリポジトリのインフラと連携します。
 
-## Cleanup orphan projects
+## 孤立したプロジェクトの整理
 
-If you Ctrl-C'd mid-provision, tried three different names before settling on one, or otherwise accumulated gbrain-shaped Supabase projects you don't use, there's a subcommand for that:
+プロビジョニングの途中で Ctrl-C を押したり、3つの名前を試してから1つに決めたり、そのほかの理由で、使っていない gbrain らしき Supabase プロジェクトが溜まってしまった場合は、次のサブコマンドを使えます。
 
 ```bash
 /setup-gbrain --cleanup-orphans
 ```
 
-The skill re-collects a PAT (one-time, discarded after), lists every project in your Supabase account whose name starts with `gbrain` and whose ref doesn't match your active `~/.gbrain/config.json` pooler URL. For each orphan it asks per-project: *"Delete orphan project `<ref>` (`<name>`, created `<date>`)?"* — no batching, no "delete all" shortcut. The active brain is never offered for deletion.
+スキルは PAT を一度だけ再度尋ね(使用後に破棄されます)、Supabase アカウント内のプロジェクトのうち、名前が `gbrain` で始まり、かつ ref がアクティブな `~/.gbrain/config.json` の pooler URL と一致しないものを一覧にします。孤立したプロジェクトごとに、*「孤立したプロジェクト `<ref>`(`<name>`、作成日 `<date>`)を削除しますか?」* と1件ずつ尋ねます。まとめて処理したり「すべて削除」の近道を用意したりはしません。アクティブなブレインが削除の候補に挙がることは決してありません。
 
-## Command + flag reference
+## コマンドとフラグの一覧
 
-### `/setup-gbrain` entry modes
+### `/setup-gbrain` の起動モード
 
-| Invocation | What it does |
+| 呼び出し方 | 何をするか |
 |---|---|
-| `/setup-gbrain` | Full flow: detect state, pick path, install, init, MCP, policy, optional memory-sync |
-| `/setup-gbrain --repo` | Flip the per-remote trust policy for the current repo only |
-| `/setup-gbrain --switch` | Migrate engine (PGLite ↔ Supabase) without re-running the other steps |
-| `/setup-gbrain --resume-provision <ref>` | Resume a path-2a auto-provision that was interrupted during polling |
-| `/setup-gbrain --cleanup-orphans` | List + per-project delete of orphan Supabase projects |
+| `/setup-gbrain` | 完全なフロー: 状態を検出し、経路を選び、インストール、初期化、MCP、ポリシー、任意でメモリ同期 |
+| `/setup-gbrain --repo` | 現在のリポジトリだけ、リモートごとの信頼ポリシーを切り替える |
+| `/setup-gbrain --switch` | ほかの手順を再実行せずに、エンジンを移行する(PGLite ↔ Supabase) |
+| `/setup-gbrain --resume-provision <ref>` | ポーリング中に中断された Path 2a の自動プロビジョニングを再開する |
+| `/setup-gbrain --cleanup-orphans` | 孤立した Supabase プロジェクトの一覧と、プロジェクトごとの削除 |
 
-### Bin helpers (for scripting)
+### ヘルパーのバイナリ(スクリプト用)
 
-| Bin | Purpose |
+| バイナリ | 目的 |
 |---|---|
-| `gstack-gbrain-detect` | Emit current state as JSON: gbrain on PATH, version, config engine, doctor status, sync mode |
-| `gstack-gbrain-install` | Detect-first installer (probes `~/git/gbrain`, `~/gbrain`, then fresh clone). Has `--dry-run` and `--validate-only` flags. PATH-shadow check exits 3 with remediation menu. |
-| `gstack-gbrain-lib.sh` | Sourced, not executed. Provides `read_secret_to_env VARNAME "prompt" [--echo-redacted "<sed-expr>"]` |
-| `gstack-gbrain-supabase-verify` | Structural URL check. Rejects direct-connection URLs (`db.*.supabase.co:5432`) with exit 3 |
-| `gstack-gbrain-supabase-provision` | Management API wrapper. Subcommands: `list-orgs`, `create`, `wait`, `pooler-url`, `list-orphans`, `delete-project`. All require `SUPABASE_ACCESS_TOKEN` in env. `create` and `pooler-url` also require `DB_PASS`. `--json` mode available on every subcommand. |
-| `gstack-gbrain-repo-policy` | Per-remote trust triad. Subcommands: `get`, `set`, `list`, `normalize` |
-| `gstack-gbrain-source-wireup` | Registers your `~/.gstack/` brain repo with gbrain as a federated source via `gbrain sources add` + `git worktree`, then runs an initial `gbrain sync`. Idempotent. Replaces the dead `consumers.json + /ingest-repo` HTTP wireup from v1.12.x. Flags: `--strict`, `--source-id <id>`, `--no-pull`, `--uninstall`, `--probe`. |
+| `gstack-gbrain-detect` | 現在の状態を JSON で出力: PATH 上の gbrain、バージョン、設定のエンジン、doctor の状態、同期モード |
+| `gstack-gbrain-install` | 検出優先のインストーラ(`~/git/gbrain`、`~/gbrain` を探し、なければ新規にクローン)。`--dry-run` と `--validate-only` のフラグがあります。PATH のシャドウチェックで、対処法のメニューとともに終了コード 3 で終わります。 |
+| `gstack-gbrain-lib.sh` | 実行されず、source して使います。`read_secret_to_env VARNAME "prompt" [--echo-redacted "<sed-expr>"]` を提供します |
+| `gstack-gbrain-supabase-verify` | URL の構造チェック。直接接続の URL(`db.*.supabase.co:5432`)は終了コード 3 で拒否されます |
+| `gstack-gbrain-supabase-provision` | Management API のラッパー。サブコマンドは `list-orgs`、`create`、`wait`、`pooler-url`、`list-orphans`、`delete-project`。すべて環境変数に `SUPABASE_ACCESS_TOKEN` が必要です。`create` と `pooler-url` は `DB_PASS` も必要です。すべてのサブコマンドで `--json` モードが使えます。 |
+| `gstack-gbrain-repo-policy` | リモートごとの信頼の3択。サブコマンドは `get`、`set`、`list`、`normalize` |
+| `gstack-gbrain-source-wireup` | `~/.gstack/` のブレインのリポジトリを、`gbrain sources add` と `git worktree` 経由で gbrain の連携ソースとして登録し、続けて初回の `gbrain sync` を実行します。冪等です。v1.12.x の古い `consumers.json + /ingest-repo` による HTTP の連携に代わるものです。フラグは `--strict`、`--source-id <id>`、`--no-pull`、`--uninstall`、`--probe`。 |
 
-### gbrain CLI (upstream tool)
+### gbrain CLI(上流のツール)
 
-Gbrain itself ships with these that gstack wraps:
+gstack がラップしている gbrain 自体のコマンドは次のとおりです。
 
-| Command | Purpose |
+| コマンド | 目的 |
 |---|---|
-| `gbrain init --pglite` | Initialize a local PGLite brain |
-| `gbrain init --non-interactive` | Initialize via env (`GBRAIN_DATABASE_URL` or `DATABASE_URL`). Never pass a URL as argv — it'll leak to shell history. |
-| `gbrain doctor --json` | Health check. Returns `{status: "ok"|"warnings"|"error", health_score: 0-100, checks: [...]}` |
-| `gbrain migrate --to supabase --url ...` | Move a PGLite brain to Supabase (lossless, preserves source as backup) |
-| `gbrain migrate --to pglite` | Reverse migration |
-| `gbrain search "query"` | Search the brain |
-| `gbrain put "<slug>" --content "<markdown-with-frontmatter>"` | Write a page (title/tags go in YAML frontmatter inside `--content`) |
-| `gbrain get "<slug>"` | Fetch a page |
-| `gbrain serve` | Start the MCP stdio server (used by `claude mcp add`) |
+| `gbrain init --pglite` | ローカルの PGLite ブレインを初期化する |
+| `gbrain init --non-interactive` | 環境変数(`GBRAIN_DATABASE_URL` または `DATABASE_URL`)で初期化する。URL を argv として渡してはいけません。シェル履歴に残ってしまいます。 |
+| `gbrain doctor --json` | ヘルスチェック。`{status: "ok"|"warnings"|"error", health_score: 0-100, checks: [...]}` を返す |
+| `gbrain migrate --to supabase --url ...` | PGLite のブレインを Supabase に移す(ロスレス。移行元はバックアップとして残す) |
+| `gbrain migrate --to pglite` | 逆方向の移行 |
+| `gbrain search "query"` | ブレインを検索する |
+| `gbrain put "<slug>" --content "<markdown-with-frontmatter>"` | ページを書き込む(タイトルとタグは `--content` 内の YAML フロントマターに書く) |
+| `gbrain get "<slug>"` | ページを取得する |
+| `gbrain serve` | MCP の stdio サーバーを起動する(`claude mcp add` で使われる) |
 
-### Config files + state
+### 設定ファイルと状態
 
-| Path | What lives there |
+| パス | 中身 |
 |---|---|
-| `~/.gbrain/config.json` | Engine (pglite/postgres), database URL or path, API keys. Mode 0600. Written by `gbrain init`. |
-| `~/.gstack/gbrain-repo-policy.json` | Per-remote trust triad. Schema v2. Mode 0600. |
-| `~/.gstack/.setup-gbrain.lock.d` | Concurrent-run lock (atomic mkdir). Released on normal exit + SIGINT. |
-| `~/.gstack/.brain-queue.d/` | Pending sync records for gstack memory sync — maildir-style spool, one file per record. A legacy `.brain-queue.jsonl` from older releases migrates automatically on the next drain. |
-| `~/.gstack/.brain-last-push` | Timestamp of last sync push (for `/health` scoring) |
-| `~/.gstack-artifacts-remote.txt` | URL of your gstack memory sync remote (safe to copy between machines; legacy name `~/.gstack-brain-remote.txt` still read) |
-| `~/.gstack/.setup-gbrain-inflight.json` | Reserved for future `--resume-provision` persisted state |
+| `~/.gbrain/config.json` | エンジン(pglite/postgres)、データベースの URL またはパス、API キー。モード 0600。`gbrain init` が書き込みます。 |
+| `~/.gstack/gbrain-repo-policy.json` | リモートごとの信頼の3択。スキーマ v2。モード 0600。 |
+| `~/.gstack/.setup-gbrain.lock.d` | 同時実行のロック(アトミックな mkdir)。通常終了と SIGINT で解放されます。 |
+| `~/.gstack/.brain-queue.d/` | GStack メモリ同期の保留中の同期レコード。maildir 形式のスプールで、レコードごとに 1 ファイル。古いリリースの `.brain-queue.jsonl` は、次のドレインで自動的に移行されます。 |
+| `~/.gstack/.brain-last-push` | 最後の同期のプッシュの時刻(`/health` のスコア算出用) |
+| `~/.gstack-artifacts-remote.txt` | GStack メモリ同期のリモートの URL(マシン間でコピーしても安全。旧名 `~/.gstack-brain-remote.txt` も引き続き読まれます) |
+| `~/.gstack/.setup-gbrain-inflight.json` | 将来の `--resume-provision` の永続化状態のために予約 |
 
-### Environment variables
+### 環境変数
 
-| Var | Where it's read | What it does |
+| 変数 | 読み取られる場所 | 何をするか |
 |---|---|---|
-| `SUPABASE_ACCESS_TOKEN` | `gstack-gbrain-supabase-provision` | PAT for Management API calls. Discarded after each setup run. |
-| `DB_PASS` | `gstack-gbrain-supabase-provision` (create, pooler-url) | Generated DB password. Never in argv. |
-| `GBRAIN_DATABASE_URL` | `gbrain init`, `gbrain doctor`, etc. | Postgres connection string (Supabase pooler URL for us). Env takes precedence over `~/.gbrain/config.json`. |
-| `DATABASE_URL` | `gbrain init` (fallback) | Same semantics as `GBRAIN_DATABASE_URL`; checked second. |
-| `SUPABASE_API_BASE` | `gstack-gbrain-supabase-provision` | Override the Management API host. Used by tests to point at a mock server. |
-| `GBRAIN_INSTALL_DIR` | `gstack-gbrain-install` | Override default install path (`~/gbrain`) |
-| `GSTACK_HOME` | every bin helper | Override `~/.gstack` state dir. Heavy test use. |
-| `VOYAGE_API_KEY` | `gbrain embed` subprocess; gstack PGLite init | When set, gstack inits PGLite with `voyage-code-3` (1024-dim), Voyage's code-specialized embedding model. Beats `voyage-4-large` and OpenAI `text-embedding-3-large` head-to-head on this codebase's symbol queries. See CHANGELOG v1.43.1.0 for the A/B numbers. |
-| `OPENAI_API_KEY` | `gbrain embed` subprocess | Used for embeddings during `gbrain sync` / `/sync-gbrain` when `VOYAGE_API_KEY` is not set (gbrain's auto-selected fallback, `text-embedding-3-large` 1536-dim). Without either key, pages are imported structurally (symbol tables, chunks) but semantic search degrades — you'll see `[gbrain] embedding failed for code file ...` in the sync log. |
-| `ANTHROPIC_API_KEY` | `claude-agent-sdk`, paid evals | Required for paid evals (`bun run eval:bg:pr`) and any direct `query()` call against Claude. |
-| `GSTACK_OPENAI_API_KEY` | `lib/conductor-env-shim.ts` | Conductor-injected fallback. Promoted to `OPENAI_API_KEY` when the canonical name is empty. |
-| `GSTACK_ANTHROPIC_API_KEY` | `lib/conductor-env-shim.ts` | Same pattern as above for Anthropic. |
+| `SUPABASE_ACCESS_TOKEN` | `gstack-gbrain-supabase-provision` | Management API 呼び出し用の PAT。セットアップの実行ごとに破棄されます。 |
+| `DB_PASS` | `gstack-gbrain-supabase-provision`(create、pooler-url) | 生成されたデータベースのパスワード。argv には決して入りません。 |
+| `GBRAIN_DATABASE_URL` | `gbrain init`、`gbrain doctor` など | Postgres の接続文字列(当プロジェクトでは Supabase の pooler URL)。環境変数が `~/.gbrain/config.json` より優先されます。 |
+| `DATABASE_URL` | `gbrain init`(フォールバック) | `GBRAIN_DATABASE_URL` と同じ意味。2番目に確認されます。 |
+| `SUPABASE_API_BASE` | `gstack-gbrain-supabase-provision` | Management API のホストを上書きする。テストでモックサーバーを指すために使われます。 |
+| `GBRAIN_INSTALL_DIR` | `gstack-gbrain-install` | デフォルトのインストール先(`~/gbrain`)を上書きする |
+| `GSTACK_HOME` | すべてのヘルパーのバイナリ | `~/.gstack` の状態ディレクトリを上書きする。テストで多用されます。 |
+| `VOYAGE_API_KEY` | `gbrain embed` のサブプロセス、gstack の PGLite 初期化 | 設定されていると、gstack は `voyage-code-3`(1024 次元)、つまり Voyage のコード特化の埋め込みモデルで PGLite を初期化します。このコードベースのシンボルクエリで、`voyage-4-large` や OpenAI の `text-embedding-3-large` よりも良い結果でした。A/B の数値は CHANGELOG v1.43.1.0 を参照してください。 |
+| `OPENAI_API_KEY` | `gbrain embed` のサブプロセス | `VOYAGE_API_KEY` が設定されていないときに、`gbrain sync` や `/sync-gbrain` の埋め込みに使われます(gbrain が自動で選ぶ代替手段で、`text-embedding-3-large` の 1536 次元)。どちらのキーもなければ、ページは構造的にだけインポートされます(シンボルテーブル、チャンク)。意味的な検索は劣化し、同期のログに `[gbrain] embedding failed for code file ...` と表示されます。 |
+| `ANTHROPIC_API_KEY` | `claude-agent-sdk`、有償の eval | 有償の eval(`bun run eval:bg:pr`)と、Claude に対する直接の `query()` 呼び出しに必要です。 |
+| `GSTACK_OPENAI_API_KEY` | `lib/conductor-env-shim.ts` | Conductor が注入するフォールバック。正式名の値が空のとき、`OPENAI_API_KEY` に昇格されます。 |
+| `GSTACK_ANTHROPIC_API_KEY` | `lib/conductor-env-shim.ts` | 上と同じパターンの Anthropic 版。 |
 
-## Conductor + GSTACK_* env vars
+<a id="conductor--gstack_-env-vars"></a>
+## Conductor + GSTACK_* の環境変数
 
-If you run gstack inside a [Conductor](https://conductor.build) workspace, **Conductor explicitly strips `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` from the workspace env.** Setting them in `~/.zshrc` or `.env` won't help — the strip happens after env inheritance. To get a usable API key into a workspace, set `GSTACK_ANTHROPIC_API_KEY` and `GSTACK_OPENAI_API_KEY` in Conductor's workspace env config instead. Conductor passes those through untouched.
+[Conductor](https://conductor.build) のワークスペースの中で gstack を実行している場合、**Conductor は、ワークスペースの環境から `ANTHROPIC_API_KEY` と `OPENAI_API_KEY` を明示的に取り除きます。** `~/.zshrc` や `.env` に設定しても効果はありません。取り除かれるのは環境の継承のあとだからです。ワークスペースで使えるキーにするには、代わりに Conductor のワークスペースの環境設定で `GSTACK_ANTHROPIC_API_KEY` と `GSTACK_OPENAI_API_KEY` を設定してください。Conductor はこれらを手を加えずに通します。
 
-`lib/conductor-env-shim.ts` bridges the gap on the gstack side: when imported as a side effect (`import "../lib/conductor-env-shim";`), it promotes `GSTACK_FOO_API_KEY` to `FOO_API_KEY` for any subprocess that doesn't see the canonical name. The shim is already wired into:
+`lib/conductor-env-shim.ts` が、gstack 側でこのギャップを埋めます。副作用としてインポートされると(`import "../lib/conductor-env-shim";`)、正式名のほうが見えていないサブプロセスに対して、`GSTACK_FOO_API_KEY` を `FOO_API_KEY` に昇格させます。このシムはすでに次の箇所に組み込まれています。
 
-- `bin/gstack-gbrain-sync.ts` — so `/sync-gbrain` picks up OpenAI for embeddings
-- `bin/gstack-model-benchmark` — so `--judge` runs work without manual env mapping
-- `scripts/preflight-agent-sdk.ts` — so paid-eval auth probes work
-- `test/helpers/e2e-helpers.ts` — so paid evals find Anthropic
+- `bin/gstack-gbrain-sync.ts`。`/sync-gbrain` が埋め込み用に OpenAI を使えるようにするため
+- `bin/gstack-model-benchmark`。`--judge` の実行が、手動の環境変数の対応付けなしで動くようにするため
+- `scripts/preflight-agent-sdk.ts`。有償 eval の認証のプローブが動くようにするため
+- `test/helpers/e2e-helpers.ts`。有償 eval が Anthropic を見つけられるようにするため
 
-If you add a new TS entry point that hits a paid API or needs gbrain embeddings, add the same one-line import at the top. See [CONTRIBUTING.md "Conductor workspaces"](CONTRIBUTING.md#conductor-workspaces) for the contributor checklist.
+有料の API を呼び出す、あるいは gbrain の埋め込みが必要な新しい TS のエントリポイントを追加する場合は、先頭に同じ 1 行のインポートを加えてください。コントリビューター向けのチェックリストは [CONTRIBUTING.md の「Conductor workspaces」](CONTRIBUTING.md#conductor-workspaces) を参照してください。
 
-`bin/gstack-codex-probe` is bash and doesn't read these directly — it relies on `~/.codex/` auth managed by the Codex CLI.
+`bin/gstack-codex-probe` は bash で書かれており、これらを直接読みません。Codex CLI が管理する `~/.codex/` の認証に依存しています。
 
-## Security model
+## セキュリティモデル
 
-One rule for every secret this skill touches: **env var only, never argv, never logged, never written to disk by us.** The only persistent storage is gbrain's own `~/.gbrain/config.json` at mode 0600, which is gbrain's discipline, not ours.
+このスキルが扱うすべての秘密情報に対する1つのルール: **環境変数だけに置き、argv に渡さず、ログに残さず、こちらからディスクに書き込まない。** 永続化されるのは gbrain 自身の `~/.gbrain/config.json` だけで、モード 0600 です。これは gbrain の運用規律であり、こちらの規律ではありません。
 
-**Enforced in code:**
+**コードで強制されている項目:**
 
-- CI grep test in `test/skill-validation.test.ts` fails the build if `$SUPABASE_ACCESS_TOKEN` or `$GBRAIN_DATABASE_URL` appears in an argv position
-- CI grep test fails if `--insecure`, `-k`, or `NODE_TLS_REJECT_UNAUTHORIZED=0` appear in `bin/gstack-gbrain-supabase-provision`
-- `set +x` at the top of the provision helper prevents debug tracing from leaking PAT
-- Telemetry payload contains only enumerated categorical values (scenario, install result, MCP opt-in, trust tier) — never free-form strings that could contain secrets
+- `test/skill-validation.test.ts` の CI の grep テストは、`$SUPABASE_ACCESS_TOKEN` または `$GBRAIN_DATABASE_URL` が argv の位置に現れると、ビルドを失敗させます。
+- `bin/gstack-gbrain-supabase-provision` に `--insecure`、`-k`、`NODE_TLS_REJECT_UNAUTHORIZED=0` が現れると、CI の grep テストが失敗します。
+- プロビジョニングのヘルパーの先頭にある `set +x` により、デバッグのトレースから PAT が漏れることを防ぎます。
+- テレメトリのペイロードには、列挙された分類値(シナリオ、インストールの結果、MCP のオプトイン、信頼のレベル)だけが含まれ、秘密情報を含みうる自由記述の文字列は含まれません。
 
-**Enforced via tests:**
+**テストで強制されている項目:**
 
-- `test/secret-sink-harness.test.ts` runs every secret-handling bin with a seeded secret and asserts the seed never appears in any captured channel (stdout, stderr, files under `$HOME`, telemetry JSONL). Four match rules per seed: exact, URL-decoded, first-12-char prefix, base64.
-- Positive controls in the same test file deliberately leak seeds in every covered channel and assert the harness catches each one. Without the positive controls, a harness that silently under-reports would look identical to a working harness.
+- `test/secret-sink-harness.test.ts` は、秘密情報を扱うすべてのバイナリを、埋め込んだ秘密情報とともに実行し、その秘密情報が取得されるすべての経路(stdout、stderr、`$HOME` 配下のファイル、テレメトリの JSONL)に現れないことを確認します。シードごとに4つの一致ルールを使います。完全一致、URL デコード後、先頭 12 文字の接頭辞、base64 です。
+- 同じテストファイル内の陽性対照(positive control)は、対象となるすべての経路に意図的に秘密情報を漏らし、ハーネスがそれぞれを検出することを確認します。陽性対照がなければ、検出が甘いハーネスと正しく動くハーネスの区別がつかなくなります。
 
-**What you can still leak** (the honest limits of v1):
+**それでも漏れうるもの**(v1 の正直な限界):
 
-- If you paste a secret into a normal chat message outside `read -s`, it's in the conversation transcript and any host-side logging
-- The leak harness doesn't dump subprocess environment — a bin that `env >> ~/.log` would evade detection (no bin in v1 does this; grep tests prevent it)
-- Your shell's own `HISTFILE` behavior is your shell's, not ours — we never pass secrets to argv so they don't land there via our code, but nothing stops you from pasting one into a raw `curl` command yourself
+- `read -s` の外で、秘密情報を通常のチャットメッセージに貼り付けた場合、それは会話のトランスクリプトと、ホスト側のログに残ります。
+- 漏えい検出ハーネスはサブプロセスの環境変数をダンプしません。`env >> ~/.log` のようなバイナリは検出を逃れます(v1 のどのバイナリもそうしていませんが、grep テストで防いでいます)。
+- シェルの `HISTFILE` の挙動はシェル自身のものであり、こちらのものではありません。こちらのコードは秘密情報を argv に渡さないので、そこから履歴に残ることはありません。ただし、生の `curl` コマンドに自分で秘密情報を貼り付けることを止める仕組みはありません。
 
-## Troubleshooting
+## トラブルシューティング
 
-### "PATH SHADOWING DETECTED" during install
+### インストール中の「PATH SHADOWING DETECTED」
 
-Another `gbrain` binary is earlier in PATH than the one the installer just linked. The installer's version check caught it. Fix one of:
+インストーラがリンクしたものより前の PATH に、別の `gbrain` バイナリがあります。インストーラのバージョンチェックがこれを検出しました。次のいずれかで対処してください。
 
-- `rm $(which gbrain)` if you don't need the other one
-- Prepend `~/.bun/bin` to PATH in your shell rc so the linked binary wins
-- Set `GBRAIN_INSTALL_DIR` to the shadowing binary's install directory and re-run
+- 別のほうが不要なら、`rm $(which gbrain)` を実行する
+- シェルの rc で `~/.bun/bin` を PATH の先頭に追加し、リンクされたバイナリが優先されるようにする
+- `GBRAIN_INSTALL_DIR` に、シャドウしているバイナリのインストール先を設定して再実行する
 
-Then re-run `/setup-gbrain`.
+その後、`/setup-gbrain` を再実行してください。
 
-### "rejected direct-connection URL"
+### 「直接接続の URL は拒否されました」
 
-You pasted a `db.<ref>.supabase.co:5432` URL. Those are IPv6-only and fail in most environments. Use the Session Pooler URL instead: Supabase dashboard → Settings → Database → Connection Pooler → **Session** → copy URI (port 6543).
+`db.<ref>.supabase.co:5432` の URL を貼り付けてしまった場合です。これらは IPv6 のみで、ほとんどの環境では失敗します。代わりに Session Pooler の URL を使ってください。Supabase のダッシュボードで、Settings → Database → Connection Pooler → **Session** → URI をコピーします(ポート 6543)。
 
-### Auto-provision times out at 180s
+### 自動プロビジョニングが 180 秒でタイムアウトする
 
-The Supabase project is still initializing. Your ref was printed in the exit message. Wait a minute, then:
+Supabase のプロジェクトがまだ初期化中です。終了メッセージに ref が表示されています。少し待ってから、次を実行してください。
 
 ```bash
 /setup-gbrain --resume-provision <ref>
 ```
 
-The skill re-collects a PAT, skips project creation, resumes polling.
+スキルは PAT を再度尋ね、プロジェクトの作成を飛ばして、ポーリングを再開します。
 
-### "Another `/setup-gbrain` instance is running"
+### 「別の `/setup-gbrain` インスタンスが実行中です」
 
-You have a stale lock directory. If you're sure no other instance is actually running:
+古いロックディレクトリが残っています。ほかのインスタンスが本当に動いていないと確信できる場合は、次を実行してください。
 
 ```bash
 rm -rf ~/.gstack/.setup-gbrain.lock.d
 ```
 
-Then re-run.
+その後、再実行してください。
 
-### "No cross-model tension" on policy file
+### ポリシーファイルの「No cross-model tension」
 
-You edited `~/.gstack/gbrain-repo-policy.json` by hand with legacy `allow` values? No problem. On the next read, gstack auto-migrates `allow` → `read-write` and adds `_schema_version: 2`. One log line on stderr, idempotent, deterministic.
+`~/.gstack/gbrain-repo-policy.json` を、古い `allow` の値を使って手で編集しましたか?問題ありません。次回の読み取り時に、gstack が `allow` を `read-write` に自動で移行し、`_schema_version: 2` を追加します。stderr に 1 行のログが出ます。これは冪等で、結果は決定的です。
 
-### `gbrain doctor` says "warnings"
+### `gbrain doctor` が「warnings」と言う
 
-`/health` treats that as yellow, not red. Check `gbrain doctor --json | jq .checks` to see which sub-checks are warning. Typical causes: resolver MECE overlap (skill names clashing) or DB connection not yet configured.
+`/health` はそれを赤ではなく黄色として扱います。`gbrain doctor --json | jq .checks` で、どのサブチェックが警告になっているかを確認してください。典型的な原因は、リゾルバの MECE の重なり(スキル名の衝突)や、DB の接続がまだ設定されていないことです。
 
-### `/sync-gbrain` reports `OK` but `gbrain search` returns nothing semantic
+### `/sync-gbrain` は `OK` と報告するのに、`gbrain search` が意味的な結果を返さない
 
-Embeddings probably failed during import. Symbol queries (`code-def`, `code-refs`) still work because they don't need embeddings, but `gbrain search "<terms>"` falls back to a degraded BM25 path. Look in the sync output for lines like:
+インポートの途中で埋め込みが失敗している可能性があります。シンボルのクエリ(`code-def`、`code-refs`)は埋め込みを必要としないため今も動きますが、`gbrain search "<terms>"` は劣化した BM25 の経路にフォールバックします。同期の出力に次のような行がないか確認してください。
 
 ```
 [gbrain] embedding failed for code file <name>: OpenAI embedding requires OPENAI_API_KEY
 ```
 
-The fix is to put a provider API key in the process env before re-running. `VOYAGE_API_KEY` is preferred for code (gstack defaults PGLite to `voyage-code-3` when set); otherwise `OPENAI_API_KEY` falls back to `text-embedding-3-large`. On a bare Mac shell, source the key from `~/.zshrc` before calling. In Conductor, the `lib/conductor-env-shim.ts` shim promotes `GSTACK_ANTHROPIC_API_KEY` / `GSTACK_OPENAI_API_KEY` to their canonical names automatically; for `VOYAGE_API_KEY`, set it directly in your Conductor workspace env. Re-run `/sync-gbrain --code-only` to backfill embeddings on already-imported pages.
+対処は、再実行の前にプロバイダの API キーをプロセスの環境に入れることです。コードには `VOYAGE_API_KEY` が推奨されます(gstack は設定されていると PGLite を `voyage-code-3` にします)。そうでなければ、`OPENAI_API_KEY` が `text-embedding-3-large` にフォールバックします。素の Mac のシェルでは、呼び出す前に `~/.zshrc` からキーを読み込んでください。Conductor では、`lib/conductor-env-shim.ts` のシムが `GSTACK_ANTHROPIC_API_KEY` と `GSTACK_OPENAI_API_KEY` を正式名に自動で昇格させます。`VOYAGE_API_KEY` については、Conductor のワークスペースの環境に直接設定してください。すでにインポート済みのページの埋め込みを補うには、`/sync-gbrain --code-only` を再実行してください。
 
-### `gbrain sync` blocked at a commit hash — `FILE_TOO_LARGE`
+### `gbrain sync` がコミットハッシュで止まる — `FILE_TOO_LARGE`
 
-A file in your tree exceeds gbrain's 5 MB hard limit (`MAX_FILE_SIZE` in `gbrain/src/core/import-file.ts`). Common culprits: response replay caches, captured screenshots, large JSON fixtures. Gbrain doesn't honor `.gitignore`-style exclude lists for code sync; the only knob is acknowledging the failure:
+ツリー内のファイルが、gbrain のハードリミットである 5 MB を超えています(`gbrain/src/core/import-file.ts` の `MAX_FILE_SIZE`)。よくある原因は、レスポンスのリプレイキャッシュ、キャプチャしたスクリーンショット、大きな JSON のフィクスチャです。gbrain はコード同期で `.gitignore` 形式の除外リストを参照しません。できることは、失敗を認めることだけです。
 
 ```bash
 gbrain sync --source <source-id> --skip-failed
 ```
 
-Watermark advances past the offending commit. The same file fails again if it changes; re-skip when that happens.
+ウォーターマークは問題のあるコミットを越えて進みます。同じファイルが再び変更されると、また失敗するので、そのたびに再度スキップしてください。
 
-### ZeroEntropy embeddings stop working after September 4, 2026
+### ZeroEntropy の埋め込みは 2026 年 9 月 4 日以降に動かなくなる
 
-ZeroEntropy was acquired by Notion and sunsets its hosted API on **September 4, 2026** (new signups already disabled). A gbrain configured with the `zeroentropyai` embedding recipe keeps importing pages after that date, but embedding silently fails — pages land structurally with no semantic search. The wireup helper warns when your `~/.gbrain/config.json` names the recipe; migrate to another provider (Voyage via `VOYAGE_API_KEY`, or OpenAI via `OPENAI_API_KEY`) before the deadline. Details, self-hosting caveats, and migration discussion: [garrytan/gstack#2365](https://github.com/garrytan/gstack/issues/2365).
+ZeroEntropy は Notion に買収され、そのホスト型 API は **2026 年 9 月 4 日** にサービスを終了します(新規登録はすでに停止されています)。`zeroentropyai` の埋め込みレシピで設定された gbrain は、その日以降もページのインポートは続けますが、埋め込みは黙って失敗します。ページは構造的にだけ入り、意味的な検索はできなくなります。連携(wireup)のヘルパーは、`~/.gbrain/config.json` にそのレシピの名前があると警告します。期限より前に、別のプロバイダ(`VOYAGE_API_KEY` による Voyage、または `OPENAI_API_KEY` による OpenAI)へ移行してください。詳細、セルフホストの注意点、移行の議論は [garrytan/gstack#2365](https://github.com/garrytan/gstack/issues/2365) を参照してください。
 
-### Switching PGLite → Supabase hangs
+### PGLite → Supabase への切り替えがハングする
 
-Another gstack session in a sibling Conductor workspace may be holding a lock on your local PGLite file via its preamble's `gstack-brain-sync` call. Close other workspaces, re-run `/setup-gbrain --switch`. The timeout is bounded at 180s so you'll never actually wait forever.
+同じ Conductor の別のワークスペースにある gstack のセッションが、プリアンブルの `gstack-brain-sync` の呼び出しを通じて、ローカルの PGLite ファイルにロックをかけている可能性があります。ほかのワークスペースを閉じてから、`/setup-gbrain --switch` を再実行してください。タイムアウトは 180 秒に制限されているので、永遠に待つことはありません。
 
-## Why this design
+## なぜこの設計なのか
 
-**Why per-remote trust triad and not binary allow/deny?** Multi-client consultants need search without write-back. A freelance dev working on Client A in the morning and Client B in the afternoon can't let A's code insights leak into a brain Client B can search. Read-only solves that cleanly.
+**なぜ二択の allow/deny ではなく、リモートごとの信頼の3択なのか?** 複数のクライアントを抱えるコンサルタントは、書き戻しなしの検索を必要とします。午前はクライアント A、午後はクライアント B の案件を担当するフリーランスの開発者は、A のコードから得た知見が、B が検索できるブレインに漏れることを許せません。read-only なら、それがきれいに解決します。
 
-**Why not bundle gbrain into gstack?** Gbrain is a separate, actively-developed project with its own release cadence, schema migrations, and MCP surface. Bundling would mean gstack has to gate gbrain updates, which slows gbrain improvements from reaching users. Separate-but-integrated lets each ship on its own cadence.
+**なぜ gbrain を gstack に同梱しないのか?** gbrain は独立して活発に開発されている別のプロジェクトで、独自のリリースサイクル、スキーマのマイグレーション、MCP のインターフェースを持っています。同梱すると、gstack が gbrain の更新を制御しなければならなくなり、gbrain の改善がユーザーに届くのが遅くなります。別々でありながら連携している構成なら、それぞれが独自のペースで出荷できます。
 
-**Why `gbrain init --non-interactive` via env var and not a flag?** Connection strings contain database passwords. Passing them as argv lands the password in `ps`, shell history, and process listings. Env-var handoff keeps the secret in process memory only. Gbrain supports both `GBRAIN_DATABASE_URL` and `DATABASE_URL`; we use the former to avoid collisions with non-gbrain tooling.
+**なぜ `gbrain init --non-interactive` を、フラグではなく環境変数で渡すのか?** 接続文字列にはデータベースのパスワードが含まれます。argv で渡すと、パスワードが `ps`、シェル履歴、プロセス一覧に残ります。環境変数で渡せば、秘密情報はプロセスのメモリの中だけにとどまります。gbrain は `GBRAIN_DATABASE_URL` と `DATABASE_URL` の両方をサポートしていますが、gbrain 以外のツールとの衝突を避けるために、前者を使っています。
 
-**Why fail-hard on PATH shadowing instead of warn-and-continue?** A shadowed `gbrain` means every subsequent command calls a different binary than the one we just installed. That's a silent version-drift bug that surfaces as mysterious feature gaps weeks later. Setup skills have one job — set up a working environment. Refusing to install into a broken one is the setup-skill-correct behavior.
+**なぜ PATH のシャドウを、警告して続行するのではなく、失敗として止めるのか?** シャドウされた `gbrain` があると、以後のすべてのコマンドが、今インストールしたものとは別のバイナリを呼び出してしまいます。それは静かなバージョンのずれのバグで、数週間後に原因不明の機能の欠落として表面化します。セットアップのスキルの仕事は、動く環境を作ることです。壊れた環境へのインストールを拒否することが、セットアップのスキルとして正しい振る舞いです。
 
-**Why not auto-import every repo?** Privacy + noise. An auto-import preamble hook that ingests every repo you touch would: (a) leak work code into a shared brain without consent, and (b) clog search with throwaway repos. The per-remote policy makes ingestion an explicit, per-repo decision. `/setup-gbrain` doesn't install any auto-import hook today — but the policy store is forward-compatible for one later.
+**なぜすべてのリポジトリを自動でインポートしないのか?** プライバシーとノイズのためです。触れたすべてのリポジトリを取り込む自動インポートのプリアンブルのフックは、(a) 業務のコードを、同意なしに共有ブレインへ漏らし、(b) 使い捨てのリポジトリで検索を散らかしてしまいます。リポジトリごとのポリシーにより、取り込みは明示的なリポジトリごとの決定になります。`/setup-gbrain` は現時点では自動インポートのフックをインストールしませんが、ポリシーのストアは、将来そうする場合にも互換性があるように作られています。
 
-## Related skills + next steps
+## 関連するスキルと次のステップ
 
-- `/health` — includes a GBrain dimension (doctor status, sync queue depth, last-push age) in its 0-10 composite score. The dimension is omitted when gbrain isn't installed; running `/health` on a non-gbrain machine doesn't penalize that choice.
-- `/gstack-upgrade` — keeps gstack itself up to date. Does NOT upgrade gbrain independently. gbrain installs at the latest HEAD by default; to refresh it, `git pull` in your gbrain clone (default `~/gbrain`) and re-run `/setup-gbrain`. Pin a specific commit with `gstack-gbrain-install --pinned-commit <sha>` if you need reproducibility. Installs below the minimum tested version are refused.
-- `/retro` — weekly retrospective pulls learnings and plans from your gbrain when memory sync is on, letting the retro reference cross-machine history.
+- `/health`。GBrain の観点(doctor の状態、同期キューの深さ、最後のプッシュからの経過時間)を、0〜10 の総合スコアに含めます。gbrain がインストールされていないマシンでは、この観点は省略されます。gbrain を入れないという選択で減点されることはありません。
+- `/gstack-upgrade`。gstack 自体を最新に保ちます。gbrain は独立してはアップグレードしません。gbrain はデフォルトで最新の HEAD にインストールされます。更新するには、gbrain のクローン(デフォルトは `~/gbrain`)で `git pull` を実行し、`/setup-gbrain` を再実行してください。再現性が必要なら、`gstack-gbrain-install --pinned-commit <sha>` で特定のコミットに固定できます。テスト済みの最低バージョンより古いインストールは拒否されます。
+- `/retro`。メモリ同期が有効なら、週次の振り返りが gbrain から学びと計画を取り出し、マシンをまたいだ過去の履歴を振り返りで参照できるようにします。
 
-Run `/setup-gbrain` and see what sticks.
+`/setup-gbrain` を実行して、どれが定着するか試してみてください。

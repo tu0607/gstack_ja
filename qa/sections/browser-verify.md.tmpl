@@ -1,17 +1,10 @@
-# Browser repair verification
+# ブラウザ修正の検証
 
-Use this section only for a browser defect. Re-run the original interaction and an
-adjacent happy path. The Phase 5 evidence is the before (`issue-NNN-result.jpg` for an
-interactive defect, the annotated `issue-NNN.png` for a static one); capture the after now.
+ブラウザの不具合に限ってこのセクションを使います。元の操作と隣接する正常系の操作を再実行してください。Phase 5 の証拠は修正前のもの(操作系の不具合なら `issue-NNN-result.jpg`、静的な不具合なら注釈付きの `issue-NNN.png`)です。修正後の証拠は今この時点で取得してください。
 
-Use the Phase 3 read/flow script in qa-patterns with `flow = true` for interaction bugs;
-set its actions and waits to the original reproduction. For static defects use `flow = false`.
-Keep the error hook, snapshot, console output and `GSTACK_STEP_OK` check. Run each flow
-in one script from the affected URL; tabs do not survive the script.
+interaction の不具合では qa-patterns の Phase 3 にある read/flow スクリプトを `flow = true` で使います。操作と待機は元の再現手順に合わせて設定してください。静的な不具合では `flow = false` を使います。エラーフック、スナップショット、コンソール出力、`GSTACK_STEP_OK` の確認は維持してください。各フローは影響のある URL から単一のスクリプトで実行します。タブはスクリプトをまたいで保持されません。
 
-Use fresh screenshot names, with `issue-NNN-after.jpg` for the result (add a suffix if it exists).
-Copy them from the printed `ASIDE_DIR` to `$REPORT_DIR/screenshots/`, then Read the copied screenshot.
-Compare the snapshot tree, `DIFF` and `CONSOLE_ERRORS=` with the before evidence.
+修正後のスクリーンショット名は新規のものを使い、結果は `issue-NNN-after.jpg` とします(同名が既に存在する場合はサフィックスを付けてください)。表示された `ASIDE_DIR` から `$REPORT_DIR/screenshots/` にコピーし、コピーしたスクリーンショットを Read で確認します。スナップショットツリー、`DIFF`、`CONSOLE_ERRORS=` を修正前の証拠と比較してください。
 
-On fallback, apply browser-setup's `$B` mapping to the same checks.
-Functional repairs never load this section.
+フォールバック時は、同じチェックに browser-setup の `$B` へのマッピングを適用してください。
+機能面の修正では、このセクションは読み込まないでください。

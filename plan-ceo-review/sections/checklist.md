@@ -1,37 +1,35 @@
 <!-- AUTO-GENERATED from checklist.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Checklist (runner profile)
+## チェックリスト(ランナーのプロファイル)
 
-CEO phase steps and required outputs for `bin/gstack-autoplan` (unattended or
-`light` runs); interactive runs read `sections/review-sections.md` in full.
+`bin/gstack-autoplan`(無人または `light` の実行)向けの CEO フェーズの手順と必須の出力です。
+対話的な実行では、`sections/review-sections.md` を全文読んでください。
 
-### Steps
-1. Scope and mode agreed (Step 0); carry the decision ledger in. 0A/0B end
-   with the reality rows: one `REALITY:` line per applicable row
-   (`gstack-plan-reality rows --phase ceo`), each with a file:line receipt.
-2. Sections 1–10 in order; Section 11 only with `ui` scope, else record the
-   no-UI skip. Sections 3 and 7 carry `security` and `perf` scope.
-3. Outside voice per its integration rule; reconcile each finding.
-4. Every required output below, then the report, log and chaining.
+### 手順
+1. スコープとモードを合意します(ステップ 0)。判断台帳を引き継ぎます。0A と 0B は、現実の行で締めくくります。該当する行ごとに `REALITY:` の行を 1 つずつ(`gstack-plan-reality rows --phase ceo`)、それぞれ file:line の根拠とともに示してください。
+2. セクション 1〜10 を順番に実行します。セクション 11 は `ui` のスコープがある場合にのみ実行し、それ以外は UI なしのスキップとして記録します。セクション 3 と 7 は `security` と `perf` のスコープを持ちます。
+3. アウトサイドボイスを、その統合ルールに従って実行します。各指摘を照合してください。
+4. 以下のすべての必須の出力を作成し、その後に報告、ログ、連携を行います。
 
-### Required outputs → producing section
+### 必須の出力 → 生成するセクション
 
-| Output | Produced by | Scope |
+| 出力 | 生成元 | スコープ |
 |---|---|---|
-| Review facts | Review facts | always |
-| Reality rows (`REALITY:` lines, `PLAN_REALITY` check) | Reality rows | always |
-| NOT in scope | "NOT in scope" section | always |
-| What already exists | "What already exists" section | always |
-| Dream state delta | "Dream state delta" section | always |
-| Error & Rescue Registry | Error & Rescue Registry (from Section 2) | always |
-| Failure Modes Registry | Failure Modes Registry | always |
-| Scope Expansion Decisions | Scope Expansion Decisions | always |
-| Diagrams | Diagrams (mandatory, produce all that apply) | always |
-| Stale Diagram Audit | Stale Diagram Audit | always |
-| Completion Summary | Completion Summary | always |
-| Unresolved Decisions | Unresolved Decisions | always |
-| Saved terminal report | Stage 2 — Save and verify the terminal report | always |
-| Published summary | Stage 3 — Publish the Completion Summary | always |
-| Review log row | Review Log | always |
-| Next-skill handoff | Next Steps — Review Chaining | always |
-| Design & UX findings | Section 11: Design & UX Review | ui |
+| 計画本文とサマリー | 段階1 — 計画本文とサマリーを準備 | 常に |
+| レビューの事実 | レビューの事実 | 常に |
+| 現実の確認行(`REALITY:` の行、`PLAN_REALITY` のチェック) | 現実の確認行 | 常に |
+| スコープ外 | 「スコープ外」セクション | 常に |
+| 既存のもの | 「既存のもの」セクション | 常に |
+| 夢の状態の差分 | 「夢の状態の差分」セクション | 常に |
+| エラーとリカバリのレジストリ | エラーとリカバリのレジストリ(セクション 2から) | 常に |
+| 障害モードのレジストリ | 障害モードのレジストリ | 常に |
+| スコープ拡張の判断 | スコープ拡張の判断 | 常に |
+| 図 | 図(必須、該当するものはすべて作成) | 常に |
+| 古くなった図の監査 | 古くなった図の監査 | 常に |
+| 完了サマリー | 完了サマリー | 常に |
+| 未解決の決定事項 | 未解決の決定事項 | 常に |
+| 保存された最終レポート | 段階2 — 最終レポートを保存して検証 | 常に |
+| 公開された完了サマリー | 段階3 — 完了サマリーを公開 | 常に |
+| レビューログの行 | レビューログ | 常に |
+| 次のスキルへの引き継ぎ | 次のステップ — レビューの連鎖 | 常に |
+| デザインとUXの指摘 | セクション 11: デザインとUXのレビュー | ui |

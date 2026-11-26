@@ -8,91 +8,91 @@
       "id": "apple-release",
       "file": "apple-release.md",
       "title": "Apple App Store / TestFlight release adapter",
-      "trigger": "App Store/TestFlight distribution is requested for an Apple app (.xcodeproj, .xcworkspace, or an app-product Swift package) \u2014 read at Step 0.9 before the branch gate; an Apple repository-landing request follows the normal pipeline"
+      "trigger": "Apple アプリ(.xcodeproj、.xcworkspace、またはアプリ製品の Swift パッケージ)の App Store/TestFlight 配布の依頼(Step 0.9 のブランチゲートの前に読む。Apple リポジトリへのランディング依頼は通常のパイプラインに従う)"
     },
     {
       "id": "tests",
       "file": "tests.md",
       "title": "Test bootstrap, run, triage + eval suites",
-      "trigger": "running the test suites and (if prompt files changed) the eval suites (Steps 4-6)"
+      "trigger": "テストスイートと(プロンプトファイルが変わった場合は)eval スイートの実行(Steps 4-6)"
     },
     {
       "id": "greptile-early",
       "file": "greptile-early.md",
       "title": "Early Greptile PR",
-      "trigger": "opening the PR early for a parallel Greptile review after the free tests pass (Step 6.5)"
+      "trigger": "無料テストが通った後の、並列の Greptile レビューのための PR の早期オープン(Step 6.5)"
     },
     {
       "id": "measure",
       "file": "measure.md",
       "title": "Measure-then-fix loop for a red eval or free shard",
-      "trigger": "a paid eval case is red or a free-suite shard failed (Steps 5-6) \u2014 read from the tests section; diagnostic reruns, then the gate once"
+      "trigger": "有料 eval ケースの失敗、または無料スイートのシャードの失敗への対応(Steps 5-6。tests セクションから読む。診断のための再実行の後、ゲートは 1 回だけ)"
     },
     {
       "id": "test-coverage",
       "file": "test-coverage.md",
       "title": "Test coverage audit (subagent)",
-      "trigger": "auditing test coverage of the diff (Step 7)"
+      "trigger": "差分のテストカバレッジの監査(Step 7)"
     },
     {
       "id": "plan-completion",
       "file": "plan-completion.md",
       "title": "Plan completion + verification audit (subagent)",
-      "trigger": "auditing plan completion, verification, and scope drift (Step 8)"
+      "trigger": "プランの完了、検証、スコープのずれの監査(Step 8)"
     },
     {
       "id": "review-army",
       "file": "review-army.md",
       "title": "Pre-landing review + specialist army",
-      "trigger": "the pre-landing review and specialist dispatch (Step 9)"
+      "trigger": "ランディング前のレビューと専門家のディスパッチ(Step 9)"
     },
     {
       "id": "shared-code-reuse",
       "file": "shared-code-reuse.md",
       "title": "Verified reuse of skipped shared-code advice",
-      "trigger": "reusing explicitly skipped shared-code advice (Step 9.3)"
+      "trigger": "明示的にスキップした共有コードの助言の再利用(Step 9.3)"
     },
     {
       "id": "greptile",
       "file": "greptile.md",
       "title": "Address Greptile review comments",
-      "trigger": "addressing Greptile review comments when a PR exists (Step 10)"
+      "trigger": "PR がある場合の Greptile のレビューコメントへの対応(Step 10)"
     },
     {
       "id": "adversarial",
       "file": "adversarial.md",
       "title": "Adversarial review + learnings refresh",
-      "trigger": "the adversarial review and learnings capture (Step 11)"
+      "trigger": "敵対的レビューと learnings の記録(Step 11)"
     },
     {
       "id": "changelog",
       "file": "changelog.md",
       "title": "CHANGELOG entry (release-summary + itemized)",
-      "trigger": "writing the CHANGELOG entry (Step 13)"
+      "trigger": "CHANGELOG エントリの作成(Step 13)"
     },
     {
       "id": "documentation",
       "file": "documentation.md",
       "title": "Pre-publication documentation audit and completion gate",
-      "trigger": "auditing docs before final commit/verification (Step 14.5), on every ship"
+      "trigger": "最終コミット/検証の前のドキュメント監査(Step 14.5。すべての ship で実行)"
     },
     {
       "id": "pr-body",
       "file": "pr-body.md",
       "title": "PR/MR creation and documentation outcome",
-      "trigger": "preparing the title and creating or updating the PR/MR with the verified documentation outcome (Steps 18-19)"
+      "trigger": "検証済みのドキュメントの結果を添えた、タイトルの準備と PR/MR の作成または更新(Steps 18-19)"
     },
     {
       "id": "capy-pr",
       "file": "capy-pr.md",
       "title": "Capy PR body: What changed (before/after images), Why, Approvals",
-      "trigger": "Step 19 printed CAPY_PR: on (a Capy session, GSTACK_CAPY=1) — read before composing the PR body"
+      "trigger": "Step 19 が CAPY_PR: on(Capy セッション、GSTACK_CAPY=1)を出力した場合の対応(PR 本文を組み立てる前に読む)"
     },
     {
       "id": "handoff",
       "file": "handoff.md",
       "title": "Handoff without a PR (automation lanes)",
-      "trigger": "handing the branch to a coordinator instead of opening a PR (--no-pr or an automation lane; Step 18)"
+      "trigger": "PR を開く代わりにブランチをコーディネーターへ引き渡す作業(--no-pr または自動化レーン。Step 18)"
     }
   ]
 }

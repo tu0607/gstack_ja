@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { expectMentions } from './helpers/prompt-structure';
+import { expectMentions, expectTokens } from './helpers/prompt-structure';
 
 const root = join(import.meta.dir, '..');
 const source = (name: string) => readFileSync(join(root, 'land-and-deploy', name), 'utf8');
@@ -16,7 +16,7 @@ describe('land-and-deploy decision ordering', () => {
     expect(main).toContain('LOCAL_TARGET_MISMATCH');
     expect(main.indexOf('gstack-diff-scope')).toBeLessThan(main.indexOf('{{SECTION:readiness-gate}}'));
     expect(merge.match(/--match-head-commit "\$PR_HEAD"/g)).toHaveLength(2);
-    expect(merge).toContain('invalidate the approval');
+    expectMentions(merge, [['承認を無効化']], 'merge');
   });
 
   test('readback precedes the only direct fallback and includes queue membership', () => {
@@ -25,7 +25,7 @@ describe('land-and-deploy decision ordering', () => {
     expect(merge.indexOf('gh api graphql')).toBeLessThan(merge.indexOf('gh pr merge "$MERGE_FLAG" --delete-branch'));
     expect(merge).not.toContain('Both fall through');
     expect(merge).not.toContain('never call `gh pr merge` a second time');
-    expect(merge).toMatch(/never\s+replay a merge after MERGED/);
+    expectMentions(merge, [['MERGED', '決して', 'マージを再実行しない']], 'merge');
   });
 
   test('deploy and URL evidence take precedence over docs-only skipping', () => {
@@ -37,16 +37,14 @@ describe('land-and-deploy decision ordering', () => {
   test('true staging-first stops before merge instead of pretending production is held', () => {
     const readiness = source('sections/readiness-gate.md.tmpl');
     const merge = source('sections/merge-and-deploy.md.tmpl');
-    expect(readiness).toContain('true staging-first');
-    expect(readiness).toContain('production hold');
-    expect(readiness).toContain('STOP before merge');
-    expect(merge).toContain('production may already be live');
+    expectMentions(readiness, [['真のステージング優先', '前に STOP'], ['本番の保留']], 'readiness');
+    expectMentions(merge, [['本番', 'すでに公開されている可能性']], 'merge');
     expect(merge).not.toContain('production is untouched');
     expect(merge).not.toContain('Now deploying to production');
   });
 
   test('blockers and failed canary evidence cannot be approved into a pass', () => {
-    expectMentions(source('sections/readiness-gate.md.tmpl'), [['do not', 'blockers', 'offer']], 'section');
+    expectMentions(source('sections/readiness-gate.md.tmpl'), [['ブロッカー', 'A や C', '提示しない']], 'section');
     const main = source('SKILL.md.tmpl');
     expect(main).not.toContain('Mark it as healthy');
     expect(main).toContain('DEGRADED');
@@ -58,7 +56,7 @@ describe('land-and-deploy decision ordering', () => {
   test('revert distinguishes merge parents and refuses an unknown rebase range', () => {
     const main = source('SKILL.md.tmpl');
     expect(main).toContain('git revert -m 1 "$MERGE_SHA" --no-edit');
-    expect(main).toContain('exact landed commit range');
+    expectMentions(main, [['リベースマージ', '取り込まれたコミットの範囲', 'revert']], 'main');
     expect(main).toContain('ROLLBACK PENDING');
     expect(main).not.toContain('git revert <merge-commit-sha> --no-edit');
   });
@@ -210,9 +208,9 @@ describe('land-and-deploy selected target and CLI contracts', () => {
 
   test('rollback binds fresh evidence to production and staging unavailability follows choice A', () => {
     const main = source('SKILL.md.tmpl');
-    expect(main).toContain('`ROLLBACK=true`, `TARGET=production`');
-    expect(main).toContain('`DEPLOY_SHA=REVERT_SHA`, and reset production deployment/health');
-    expect(main).toContain('C goes to Step 9 without claiming');
+    expectTokens(main, ['`ROLLBACK=true`', '`TARGET=production`', '`DEPLOY_SHA=REVERT_SHA`'], 'main');
+    expectMentions(main, [['`DEPLOY_SHA=REVERT_SHA`', '本番', 'リセット']], 'main');
+    expectMentions(main, [['C は', 'STAGING VERIFIED', 'Step 9']], 'main');
     expect(source('sections/first-run-validation.md.tmpl')).not.toMatch(/still be able to deploy|still deploy through GitHub/);
   });
   test('every post-selection PR call targets the pinned PR and repository', () => {
@@ -232,8 +230,7 @@ describe('land-and-deploy selected target and CLI contracts', () => {
       const fields = line.match(/--json ([a-zA-Z,]+)/)![1].split(',');
       expect(fields.every(field => ['bucket', 'completedAt', 'description', 'event', 'link', 'name', 'startedAt', 'state', 'workflow'].includes(field))).toBe(true);
     }
-    expect(text).toContain('Auth/network/schema');
-    expect(text).toContain('never "no required checks"');
+    expectMentions(text, [['認証', 'ネットワーク', 'スキーマ', 'ERROR', '必須チェックなし']], 'text');
   });
 
   test('local head, branch, and worktree mismatches fail closed without checkout', () => {

@@ -1,23 +1,8 @@
-## Eval bisect recipe
+## Eval bisect の手順
 
-A judged or scored metric regressed between two revisions. Bisect inputs, not
-commits, and spend the paid judge last.
+採点型の指標が 2 つのリビジョンの間で後退した場合の手順です。コミットではなく入力を二分探索し、有料のジャッジは最後にだけ使います。
 
-1. **Distinct revisions only.** `git log --oneline <good>..<bad> -- <prompt and
-   resolver paths>`; collapse commits that leave the expanded prompt bytes
-   identical (build the prompt with the actual builder at each revision and
-   compare hashes; a template edit that renders the same bytes is not a
-   candidate).
-2. **A cached cheap scorer first.** Score every distinct revision with the
-   deterministic or cheap check (the structural judge, a token count, the
-   quality judge at its lowest tier) and cache results per
-   `(revision, case)` under `.gstack/tmp/eval-bisect/`. Bisect on the cheap
-   score; spend the paid judge only on the two revisions where the cheap scorer
-   disagrees with the reported regression.
-3. **Detached runs.** Launch paid cases through the documented detached runner
-   (`bun run eval:bg:pr`), poll the log for `### gstack-detach EXIT=<code> ###`,
-   and keep the eval lock. Never retry a paid case; a failed launch is a launch
-   failure in the report, not a second sample.
-4. **Report.** The first bad revision with its prompt diff, the cheap and paid
-   scores per revision (cached hits marked), the pre-registered panel size and
-   every trial, and the cases that were not run.
+1. **異なるリビジョンのみを対象にする。** `git log --oneline <good>..<bad> -- <prompt and resolver paths>` を実行します。展開後のプロンプトのバイト列が同一になるコミットはまとめます(各リビジョンで実際のビルダーを使ってプロンプトを組み立て、ハッシュを比較します)。同じバイト列にしかならないテンプレートの編集は候補になりません。
+2. **まずキャッシュ付きの安価なスコアラーを使う。** すべての異なるリビジョンを、決定的な、または安価なチェック(構造ジャッジ、トークン数、最も低い段階の品質ジャッジ)で採点し、`(revision, case)` ごとの結果を `.gstack/tmp/eval-bisect/` にキャッシュします。二分探索は安価なスコアに基づいて行います。有料ジャッジは、安価なスコアラーが報告された後退と食い違う 2 つのリビジョンにのみ使います。
+3. **デタッチ実行。** 有料ケースは文書化されたデタッチ実行ランナー(`bun run eval:bg:pr`)で起動し、ログで `### gstack-detach EXIT=<code> ###` を待ち、評価ロックを保持します。有料ケースを再試行しないでください。起動の失敗は再サンプリングではなく、レポートに記載する起動失敗として扱います。
+4. **レポート。** 最初に悪化したリビジョンを、そのプロンプトの差分とともに示します。リビジョンごとの安価なスコアと有料スコア(キャッシュヒットには印を付ける)、事前に登録したパネルサイズとすべての試行、実行されなかったケースも記載します。

@@ -14,6 +14,7 @@ import { CLAUDE_JUDGE_EVAL_MODEL } from '../lib/eval-model';
 import { readOverlay } from '../scripts/resolvers/model-overlay';
 import { generateCompletenessSection } from '../scripts/resolvers/preamble/generate-completeness-section';
 import { generateSetupCommand } from '../scripts/resolvers/utility';
+import { expectMentions } from './helpers/prompt-structure';
 
 describe('model-overlay-fable-5', () => {
 function makeCtx(model: string): TemplateContext {
@@ -32,19 +33,19 @@ const ROOT = path.resolve(__dirname, '..');
 describe('Fable 5 overlay — family nudges', () => {
   test('raw fable-5.md contains the act-when-ready nudge', () => {
     const raw = fs.readFileSync(path.join(ROOT, 'model-overlays/fable-5.md'), 'utf-8');
-    expect(raw).toContain('Act when you have enough to act');
+    expect(raw).toContain('十分な材料がそろったら、行動する');
   });
 
   test('resolved overlay inherits from claude base (INHERIT:claude)', () => {
     const out = generateModelOverlay(makeCtx('fable-5'));
-    expect(out).toContain('Todo-list discipline');
-    expect(out).toContain('subordinate');
+    expect(out).toContain('TODO リストの規律');
+    expect(out).toContain('従属');
   });
 
   test('resolved overlay carries the Fable nudges', () => {
     const out = generateModelOverlay(makeCtx('fable-5'));
-    expect(out).toContain('Act when you have enough to act');
-    expect(out).toContain('Ground progress claims in evidence');
+    expect(out).toContain('十分な材料がそろったら、行動する');
+    expect(out).toContain('進捗の主張は証拠に基づかせる');
   });
 
   test('resolved overlay has no unresolved INHERIT directive', () => {
@@ -54,7 +55,7 @@ describe('Fable 5 overlay — family nudges', () => {
 
   test('claude overlay (base) does not carry the Fable nudge', () => {
     const out = generateModelOverlay(makeCtx('claude'));
-    expect(out).not.toContain('Act when you have enough to act');
+    expect(out).not.toContain('十分な材料がそろったら、行動する');
   });
 });
 });
@@ -89,18 +90,20 @@ describe('GPT-5.6 Sol model profile', () => {
 
   test('standalone overlay does not inherit generic GPT completion bias', () => {
     const raw = readOverlay('gpt-5.6-sol');
-    expect(raw).toContain('The explicit task is the lake');
-    expect(raw).toContain('one clean relevant verification pass');
-    expect(raw).toContain('report-only');
+    expect(raw).toContain('明示されたタスクが境界です');
+    expect(raw).toContain('関連する検証を 1 回、クリーンな状態で実行');
+    expect(raw).toContain('報告のみ');
     expect(raw).not.toContain('{{INHERIT:gpt}}');
-    expect(raw).not.toContain('make your best judgment and proceed');
+    expect(raw).not.toContain('最善の判断を下して進めて');
   });
 
   test('wrapper gives scope interpretation precedence but preserves concrete gates', () => {
     const out = generateModelOverlay(ctx('gpt-5.6-sol'));
-    expect(out).toContain('disambiguate scope');
-    expect(out).toContain('Concrete skill workflow steps');
-    expect(out).toContain('Never use this patch to skip a concrete requirement');
+    expectMentions(out, [
+      ['スコープの曖昧さを解消'],
+      ['スキルの具体的なワークフロー手順', 'STOP ポイント', '優先'],
+      ['このパッチ', '具体的な要件を省略', 'いけません'],
+    ], 'overlay');
   });
 
   // The lake intro moved from a per-model render-time generator into
@@ -110,16 +113,18 @@ describe('GPT-5.6 Sol model profile', () => {
   // is a single display-once blurb emitted by the script.
   test('completeness copy stays inside the explicit task boundary', () => {
     const completeness = generateCompletenessSection(ctx('gpt-5.6-sol'));
-    expect(completeness).toContain("inside the user's explicit task boundary");
-    expect(completeness).toContain('report them, do not implement them');
-    expect(completeness).toContain('all relevant in-scope edge cases');
+    expectMentions(completeness, [
+      ['ユーザーが明示したタスクの境界の内側'],
+      ['報告するにとどめ', '実装はしません'],
+      ['10 =', 'スコープ内の関連エッジケースをすべてカバー'],
+    ], 'completeness');
   });
 
   test('generic GPT copy remains unchanged', () => {
     const generic = generateModelOverlay(ctx('gpt'));
     const completeness = generateCompletenessSection(ctx('gpt'));
-    expect(generic).toContain('make your best judgment and proceed');
-    expect(completeness).toContain('the complete thing is the goal');
+    expect(generic).toContain('最善の判断を下して進めて');
+    expect(completeness).toContain('完全な形に仕上げることがゴール');
   });
 
   test('terse mode still suppresses the completeness section for Sol', () => {
@@ -169,8 +174,8 @@ describe('GPT-6 Astra model profile', () => {
     expect(raw).toContain('{{INHERIT:gpt}}');
 
     const out = generateModelOverlay(ctx('gpt-6-astra'));
-    expect(out).toContain('make your best judgment and proceed');
-    expect(out).toContain('Prefer decisive execution once scope is clear');
+    expect(out).toContain('最善の判断を下して進めて');
+    expect(out).toContain('スコープが明確になったら、迷わず実行することを優先');
     expect(out).not.toContain('{{INHERIT:');
   });
 });
@@ -196,7 +201,7 @@ describe('Opus 4.7 overlay — pacing directive', () => {
       path.join(ROOT, 'model-overlays/opus-4-7.md'),
       'utf-8',
     );
-    expect(raw).toContain('Pace questions to the skill');
+    expect(raw).toContain('質問はスキルの指示に合わせて行います');
   });
 
   test('raw opus-4-7.md does NOT contain "Batch your questions" directive', () => {
@@ -209,20 +214,20 @@ describe('Opus 4.7 overlay — pacing directive', () => {
 
   test('resolved overlay output contains "Pace questions to the skill"', () => {
     const out = generateModelOverlay(makeCtx('opus-4-7'));
-    expect(out).toContain('Pace questions to the skill');
+    expect(out).toContain('質問はスキルの指示に合わせて行います');
   });
 
   test('resolved overlay inherits from claude base (INHERIT:claude)', () => {
     const out = generateModelOverlay(makeCtx('opus-4-7'));
     // The claude base contributes the subordination wrapper + Todo discipline
-    expect(out).toContain('Todo-list discipline');
-    expect(out).toContain('subordinate');
+    expect(out).toContain('TODO リストの規律');
+    expect(out).toContain('従属');
   });
 
   test('resolved overlay says skill STOP directives trigger one-per-turn pacing', () => {
     const out = generateModelOverlay(makeCtx('opus-4-7'));
     expect(out).toMatch(/STOP\. AskUserQuestion/);
-    expect(out).toMatch(/pace one question per turn|one question per turn/i);
+    expectMentions(out, [['AskUserQuestion`', '含まれている場合', '1 ターンに 1 つの質問']], 'overlay');
   });
 
   test('resolved overlay requires AskUserQuestion as tool_use', () => {
@@ -232,21 +237,20 @@ describe('Opus 4.7 overlay — pacing directive', () => {
 
   test('resolved overlay flags "obvious fix" findings still need user approval', () => {
     const out = generateModelOverlay(makeCtx('opus-4-7'));
-    expect(out).toMatch(/obvious fix/i);
-    expect(out).toMatch(/user approval/i);
+    expectMentions(out, [['明白な修正', 'ユーザーの承認']], 'overlay');
   });
 
   test('resolved overlay keeps Effort-match / Literal interpretation nudges', () => {
     const out = generateModelOverlay(makeCtx('opus-4-7'));
-    expect(out).toContain('Effort-match the step');
-    expect(out).toContain('Literal interpretation awareness');
+    expect(out).toContain('作業の手順に工数を合わせます');
+    expect(out).toContain('指示は文字どおりに解釈します');
   });
 
   test('claude overlay (no INHERIT chain) does not carry the pacing directive', () => {
     // Claude is the default overlay; opus-4-7 inherits FROM claude.
     // The pacing directive belongs to opus-4-7 only.
     const out = generateModelOverlay(makeCtx('claude'));
-    expect(out).not.toContain('Pace questions to the skill');
+    expect(out).not.toContain('質問はスキルの指示に合わせて行います');
   });
 });
 });
@@ -271,7 +275,7 @@ describe('Opus 4.8 overlay — pacing directive', () => {
       path.join(ROOT, 'model-overlays/opus-4-8.md'),
       'utf-8',
     );
-    expect(raw).toContain('Pace questions to the skill');
+    expect(raw).toContain('質問はスキルの指示に合わせて行います');
   });
 
   test('raw opus-4-8.md does NOT contain "Batch your questions" directive', () => {
@@ -284,20 +288,20 @@ describe('Opus 4.8 overlay — pacing directive', () => {
 
   test('resolved overlay output contains "Pace questions to the skill"', () => {
     const out = generateModelOverlay(makeCtx('opus-4-8'));
-    expect(out).toContain('Pace questions to the skill');
+    expect(out).toContain('質問はスキルの指示に合わせて行います');
   });
 
   test('resolved overlay inherits from claude base (INHERIT:claude)', () => {
     const out = generateModelOverlay(makeCtx('opus-4-8'));
     // The claude base contributes the subordination wrapper + Todo discipline
-    expect(out).toContain('Todo-list discipline');
-    expect(out).toContain('subordinate');
+    expect(out).toContain('TODO リストの規律');
+    expect(out).toContain('従属');
   });
 
   test('resolved overlay says skill STOP directives trigger one-per-turn pacing', () => {
     const out = generateModelOverlay(makeCtx('opus-4-8'));
     expect(out).toMatch(/STOP\. AskUserQuestion/);
-    expect(out).toMatch(/pace one question per turn|one question per turn/i);
+    expectMentions(out, [['AskUserQuestion`', '含まれている場合', '1 ターンに 1 つの質問']], 'overlay');
   });
 
   test('resolved overlay requires AskUserQuestion as tool_use', () => {
@@ -307,21 +311,20 @@ describe('Opus 4.8 overlay — pacing directive', () => {
 
   test('resolved overlay flags "obvious fix" findings still need user approval', () => {
     const out = generateModelOverlay(makeCtx('opus-4-8'));
-    expect(out).toMatch(/obvious fix/i);
-    expect(out).toMatch(/user approval/i);
+    expectMentions(out, [['明白な修正', 'ユーザーの承認']], 'overlay');
   });
 
   test('resolved overlay keeps Effort-match / Literal interpretation nudges', () => {
     const out = generateModelOverlay(makeCtx('opus-4-8'));
-    expect(out).toContain('Effort-match the step');
-    expect(out).toContain('Literal interpretation awareness');
+    expect(out).toContain('作業の手順に工数を合わせます');
+    expect(out).toContain('指示は文字どおりに解釈します');
   });
 
   test('claude overlay (no INHERIT chain) does not carry the pacing directive', () => {
     // Claude is the default overlay; opus-4-8 inherits FROM claude.
     // The pacing directive belongs to the opus-4-x overlays only.
     const out = generateModelOverlay(makeCtx('claude'));
-    expect(out).not.toContain('Pace questions to the skill');
+    expect(out).not.toContain('質問はスキルの指示に合わせて行います');
   });
 });
 });
@@ -343,19 +346,19 @@ const ROOT = path.resolve(__dirname, '..');
 describe('Sonnet 5 overlay — family nudges', () => {
   test('raw sonnet-5.md contains the literal-instructions nudge', () => {
     const raw = fs.readFileSync(path.join(ROOT, 'model-overlays/sonnet-5.md'), 'utf-8');
-    expect(raw).toContain('Instructions are read literally');
+    expect(raw).toContain('指示は文字どおりに読まれます');
   });
 
   test('resolved overlay inherits from claude base (INHERIT:claude)', () => {
     const out = generateModelOverlay(makeCtx('sonnet-5'));
-    expect(out).toContain('Todo-list discipline');
-    expect(out).toContain('subordinate');
+    expect(out).toContain('TODO リストの規律');
+    expect(out).toContain('従属');
   });
 
   test('resolved overlay carries the Sonnet 5 nudges', () => {
     const out = generateModelOverlay(makeCtx('sonnet-5'));
-    expect(out).toContain('Instructions are read literally');
-    expect(out).toContain('Scope work to the request');
+    expect(out).toContain('指示は文字どおりに読まれます');
+    expect(out).toContain('作業は依頼の範囲に合わせます');
   });
 
   test('resolved overlay has no unresolved INHERIT directive', () => {
@@ -365,7 +368,7 @@ describe('Sonnet 5 overlay — family nudges', () => {
 
   test('claude overlay (base) does not carry the Sonnet 5 nudge', () => {
     const out = generateModelOverlay(makeCtx('claude'));
-    expect(out).not.toContain('Instructions are read literally');
+    expect(out).not.toContain('指示は文字どおりに読まれます');
   });
 });
 });

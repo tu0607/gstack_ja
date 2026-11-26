@@ -1,14 +1,8 @@
 <!-- AUTO-GENERATED from transcript-gate.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-After memory sync is wired (Step 7) but before persisting the CLAUDE.md
-config (Step 8), ask whether this machine's coding-agent session
-transcripts may go into gbrain. Curated `~/.gstack/` artifacts (learnings,
-timeline, plans, designs, retros) sync whatever the answer; this question
-covers transcripts only. Transcripts are ingested only after the user picks
-`recent`, `all` or `new` (only sessions that start from now on).
+メモリの同期が接続された後(Step 7)、ただし CLAUDE.md の設定を保存する前(Step 8)に、このマシンのコーディングエージェントのセッションのトランスクリプトを gbrain に取り込んでよいかを尋ねます。キュレーション済みの `~/.gstack/` の artifacts(learnings、timeline、plans、designs、retros)は、この回答にかかわらず同期されます。この質問はトランスクリプトのみを対象とします。トランスクリプトが取り込まれるのは、ユーザーが `recent`、`all`、または `new`(今後開始されるセッションのみ)を選んだ後だけです。
 
-Check whether the user already chose. The gate keys on `has`, because `get`
-prints the `off` default for a key that was never set:
+ユーザーがすでに選択しているかを確認します。ゲートは `has` で判断します。`get` は、一度も設定されていないキーに対して既定値の `off` を出力するためです:
 ```bash
 _TIM=$(~/.claude/skills/gstack/bin/gstack-config get transcript_ingest_mode 2>/dev/null || true)
 if ~/.claude/skills/gstack/bin/gstack-config has transcript_ingest_mode; then
@@ -23,83 +17,55 @@ else
 fi
 ```
 
-- `TRANSCRIPT_MODE:` with a value (`recent`, `all`, `off`, `new@<time>`,
-  any of them with `+repos`): the user already chose. Do not ask again;
-  continue to Step 8.
-- `TRANSCRIPT_MODE: ask`: ask once, below. With `SESSION_KIND: spawned` or
-  `headless`, do not ask and do not store a value. Consent is never
-  auto-chosen; leave the key unset (transcripts stay skipped) and report
-  that the next interactive `/sync-gbrain` will ask.
+- 値付きの `TRANSCRIPT_MODE:`(`recent`、`all`、`off`、`new@<time>`、またはそれらの `+repos` の付いたもの): ユーザーはすでに選択しています。再度尋ねないでください。Step 8 に進みます。
+- `TRANSCRIPT_MODE: ask`: 以下で一度だけ尋ねます。`SESSION_KIND: spawned` または `headless` の場合は、尋ねず、値も保存しないでください。同意は決して自動で選ばないでください。キーは未設定のままにしておき(トランスクリプトはスキップされたままです)、次回の対話的な `/sync-gbrain` で尋ねられることを報告してください。
 
-Size the question with two probes. `--sources transcript` makes the probe
-count transcripts even though none are consented yet:
+2つのプローブでサイズを見積もります。`--sources transcript` を指定すると、まだ同意されていなくても、プローブはトランスクリプトの件数を数えます:
 ```bash
 bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-memory-ingest.ts --probe --sources transcript
 bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-memory-ingest.ts --probe --sources transcript --all-history
 ```
-Read `Total files in window`, `Total bytes` and the estimate from each.
+それぞれから `Total files in window`、`Total bytes`、および見積もりを読み取ります。
 
-**No transcripts found** (both probes report 0): ask yes/no instead:
+**トランスクリプトが見つからない場合**(両方のプローブが 0 を報告): 代わりに、はい/いいえで尋ねます:
 
-> "Ingest coding-agent sessions as they appear?"
+> コーディングエージェントのセッションを、発生するたびに取り込みますか?
 
-Yes means `recent` (then ask the scope question below); No stores `off`.
+はいは `recent` を意味します(その後、以下のスコープの質問を尋ねます)。いいえは `off` を保存します。
 
-**Otherwise**, AskUserQuestion with the counts. Name both session sources
-and the destination brain from Step 4: the user's Supabase brain (Paths 1,
-2a, 2b) or the local PGLite brain on this machine (Path 3).
+**それ以外の場合**は、件数を示して AskUserQuestion を行います。2つのセッションのソースと、Step 4 からの送信先のブレインを明示してください: ユーザーの Supabase ブレイン(Path 1、2a、2b)、またはこのマシン上のローカル PGLite ブレイン(Path 3)です。
 
-> "Found <N_recent> Claude Code and Codex sessions from the last 90 days
-> (<N_all> in all history, <bytes>) across the projects on this machine
-> that your repo policy allows. Ingest them into your <Supabase | local
-> PGLite> brain?
+> リポジトリのポリシーが許可している、このマシン上のプロジェクトにまたがる、過去90日間の Claude Code と Codex のセッションを <N_recent> 件見つけました(全履歴では <N_all> 件、<bytes>)。それらを <Supabase | ローカル PGLite> のブレインに取り込みますか?
 >
-> What you get: gstack skills load recent context from your past sessions,
-> so the agent finds your prior work without you describing it, and you
-> can ask 'what was I doing on day X'. Per-session pages are searchable,
-> taggable and deletable. Secret scanning runs before any push.
+> 得られるもの: gstack のスキルは過去のセッションから最近のコンテキストを読み込むため、説明しなくてもエージェントが以前の作業を見つけられ、「X 日に何をしていたか」を尋ねることができます。セッションごとのページは検索、タグ付け、削除が可能です。どの push の前にも、シークレットのスキャンが行われます。
 >
-> What stays the same: nothing leaves this machine unless brain sync is
-> enabled (Step 7). Per-repo trust policies still apply. The first full
-> sync can take a while on a large history (estimate: <est>); skills stay
-> usable while it runs.
+> 変わらないこと: ブレインの同期が有効(Step 7)でない限り、このマシンから何も出ていきません。リポジトリごとの信頼ポリシーは引き続き適用されます。大きな履歴では、最初の完全な同期に時間がかかることがあります(見積もり: <est>)。同期の実行中もスキルは使用できます。
 >
-> Multi-machine note: with brain sync enabled, transcript pages sync across
-> your machines. Deleting a page later removes it from gbrain, but git
-> history keeps it in earlier commits. Use `gstack-transcript-prune` to
-> delete in bulk, and `git filter-repo` on the brain remote to remove it
-> from history."
+> 複数マシンに関する注意: ブレインの同期が有効な場合、トランスクリプトのページはマシン間で同期されます。後でページを削除すると gbrain からは消えますが、git の履歴には以前のコミットとして残ります。一括で削除するには `gstack-transcript-prune` を使い、履歴から消すにはブレインのリモートで `git filter-repo` を使ってください。
 
-Options:
-- A) Yes, last 90 days (`recent`)
-- B) Yes, all history (`all`)
-- C) Yes, only new sessions starting now (`new`)
-- E) No, never ingest transcripts (`off`)
+選択肢:
+- A) はい、過去90日間(`recent`)
+- B) はい、全履歴(`all`)
+- C) はい、今後開始されるセッションのみ(`new`)
+- E) いいえ、トランスクリプトは取り込まない(`off`)
 
-On any yes, ask a second, separate question: "Which repos' sessions?"
-A) every project repo your repo policy allows, or B) only this repo (offer
-B only when `git remote get-url origin` succeeds here). Store nothing until
-both answers are known; if the user cancels in between, store nothing.
-Then store the scope, then the mode value (never the letter; `new` stores
-`new@` plus the current UTC time):
+いずれかで「はい」を選んだ場合は、2つ目の別の質問をします: "Which repos' sessions?"(どのリポジトリのセッションですか?)A) リポジトリのポリシーが許可するすべてのプロジェクトのリポジトリ、または B) このリポジトリのみ(`git remote get-url origin` がここで成功する場合にのみ B を提示します)。両方の回答が分かるまで何も保存しないでください。その間にユーザーがキャンセルした場合は、何も保存しません。
+その後、スコープを保存し、次にモードの値を保存します(文字は保存せず、`new` の場合は `new@` と現在の UTC 時刻を保存します):
 ```bash
 ~/.claude/skills/gstack/bin/gstack-config set transcript_repos "$(git remote get-url origin)"  # only this repo
 ~/.claude/skills/gstack/bin/gstack-config unset transcript_repos                                 # every repo
 ~/.claude/skills/gstack/bin/gstack-config set transcript_ingest_mode <recent|all|off|new@$(date -u +%Y-%m-%dT%H:%M:%SZ)>
 bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/lib/transcript-consent.ts --describe
 ```
-Tell the user the `--describe` line: what will be ingested, in words.
+`--describe` の行をユーザーに伝えてください。何が取り込まれるかを言葉で説明します。
 
-For `recent`, `all` or `new@…`, run the first sync now:
+`recent`、`all`、または `new@…` の場合は、今すぐ最初の同期を実行します:
 ```bash
 bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-gbrain-sync.ts --full --no-brain-sync
 ```
-(`--no-brain-sync` because Step 7 already wired that path; this runs the
-code import and memory ingest stages, and `all` walks the full history.)
-For `off`, run nothing here; other memory still syncs on the next
-`/sync-gbrain`.
+(`--no-brain-sync` は、Step 7 ですでにそのパスが接続されているためです。これはコードのインポートとメモリの取り込みのステージを実行し、`all` は全履歴を走査します。)
+`off` の場合は、ここでは何も実行しないでください。他のメモリは次回の `/sync-gbrain` で同期されます。
 
-New transcripts are ingested on the next `/sync-gbrain` run. Nothing at
-skill start ingests them.
+新しいトランスクリプトは、次回の `/sync-gbrain` の実行時に取り込まれます。スキルの開始時には何も取り込まれません。
 
-Reference doc for users: `setup-gbrain/memory.md#transcripts`.
+ユーザー向けの参照ドキュメント: `setup-gbrain/memory.md#transcripts`。

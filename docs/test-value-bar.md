@@ -1,96 +1,50 @@
-# Test value bar
+# テストの価値の基準
 
-gstack's test workflows share one rule: a test earns its place by protecting
-behavior that a real regression would break. Test count is not a goal. The bar is
-embedded in `/plan-eng-review`, `/review`, `/qa`, `/qa-only` and `/ship`, so every
-new or changed test in a diff meets it without a separate step. `/test-audit`
-applies the same bar to tests that already exist.
+gstack のテストのワークフローは、1 つのルールを共有しています。テストは、本当のリグレッションで壊れるはずの振る舞いを守って初めて、その場所を得ます。テストの件数は目標ではありません。この基準は `/plan-eng-review`、`/review`、`/qa`、`/qa-only`、`/ship` に組み込まれているため、差分の中の新規・変更されたすべてのテストは、別の手順なしにこれを満たします。`/test-audit` は、既存のテストに同じ基準を適用します。
 
-The source of truth is `scripts/resolvers/test-value.ts`. It was adapted from
-OpenClaw's `test-audit` skill (openclaw/openclaw@a214e76,
-`.agents/skills/test-audit/SKILL.md`), generalized to any test runner.
+正本は `scripts/resolvers/test-value.ts` です。この基準は OpenClaw の `test-audit` スキル (openclaw/openclaw@a214e76、`.agents/skills/test-audit/SKILL.md`) を元に、任意のテストランナーに一般化したものです。
 
-## Glossary
+## 用語集
 
-- **Authoring gate**: four questions every new or changed test must answer. What
-  behavior, invariant or contract does it protect? What credible regression makes it
-  fail? Why does existing coverage not already catch that? Does it need a production
-  seam no production caller needs? A missing answer means extend an existing test or
-  drop the proposal.
-- **Value bar**: the authoring gate plus the rule that a test which breaks under a
-  behavior-preserving refactor asserts implementation, unless its exact output is the
-  declared contract (goldens, prompt bytes, wire formats).
-- **Prompt-byte contract**: the machine-read tokens inside a prompt, nothing wider.
-  A token qualifies when software consumes its exact bytes: a marker or sentinel
-  line a parser, hook or grader matches; a field name or JSON shape a script reads;
-  a command line, flag or environment variable the agent runs; an enum value or
-  status word a caller branches on; a file path or placeholder another step opens;
-  or an exact string a security boundary emits into model input. An English
-  sentence is not a prompt-byte contract because the model reads it: rewording it
-  must not break a test. Pin a sentence only when a recorded eval shows that exact
-  wording changes behavior, and cite that eval next to the pin.
-- **Sentence pin**: a test that asserts an English sentence or clause (40 or more
-  characters of prose, or a prose regex) against SKILL.md, a `.tmpl` template or a
-  section file. Convert it to a structural check (the section or heading is
-  present, steps keep their order, the machine-read token is present in the right
-  section), or delete it when a behavioral eval already covers the behavior and
-  name that eval in the commit. Check safety lines on meaning (a case-insensitive
-  keyword in the right section), never on capitalization or emphasis.
-- **Retention bar**: keep a test that independently enforces a public API, protocol,
-  config, migration, storage, security, platform, default, prompt-byte (as defined
-  above), generated-output (SKILL.md golden), package, release or architecture
-  contract; call order when order is observable; source inspection when it is the
-  cheapest independent guard. Static or slow is not a reason to delete. Anything
-  reachable from the package entrypoint is never retired.
-- **Value card**: the gate's four answers as one line,
-  `Value: protects=<...>; fails_when=<...>; why_new=<...>; seam=none`. Each field is
-  at most 160 UTF-8 bytes in that line (clamped to 157 bytes plus `...`); JSON keeps
-  full values and header comments wrap instead of truncating.
-- **Retirement card**: the evidence a deletion needs, complete before any edit:
-  `test`, `detects`, `non_test_callers`, `search_command`, `stronger_proof`,
-  `history`, `unlocks`, `validation`.
-- **Weak path**: a changed path whose only tests are weak: a ★ test (smoke,
-  existence, trivial assertion), a new test that fails the gate, or a test written in
-  this `/ship` run that the rating pass has not rated. Reasons:
-  `star_one | gate_failed | unrated`.
-- **X and Y**: X = paths with a ★★ or ★★★ test / total paths (value-weighted; the
-  `/ship` gate uses X). Y = paths with any test / total paths. Total paths is the
-  diff's codepath trace, capped at 30; zero paths skips the gate.
-- **Base control**: running a new regression test against the base branch in a
-  temporary worktree to prove the behavior existed and the test is valid.
-- **Grep-only**: caller evidence from a text search. It cannot see re-exports,
-  dynamic dispatch or generated code, so production code is never removed on grep
-  evidence alone.
+- **Authoring gate (作成時のゲート)**: 新規・変更されたすべてのテストが答えるべき 4 つの問い。どの振る舞い、不変条件、契約を守るのか。どんな確かなリグレッションで失敗するのか。既存のカバレッジがそれをまだ捕まえていないのはなぜか。本番の呼び出し元が必要としない本番の継ぎ目 (seam) を必要とするか。答えが欠けていれば、既存のテストを拡張するか、提案を捨てます。
+- **Value bar (価値の基準)**: 作成時のゲートに加え、振る舞いを保ったままのリファクタリングで壊れるテストは実装を assert しているという規則です。ただし、その正確な出力が宣言された契約である場合 (ゴールデンファイル、プロンプトのバイト列、ワイヤーフォーマット) は除きます。
+- **Prompt-byte contract (プロンプトのバイト列の契約)**: プロンプトの中で機械が読むトークンのみを指し、それ以上は含みません。ソフトウェアがそのトークンの正確なバイト列を消費するときに限り、トークンは資格を得ます。例えば、パーサー、フック、採点器が照合するマーカーや番兵の行、スクリプトが読むフィールド名や JSON の形、エージェントが実行するコマンドライン、フラグ、環境変数、呼び出し元が分岐する列挙値やステータスの語、別のステップが開くファイルパスやプレースホルダー、セキュリティの境界がモデルの入力に出力する正確な文字列です。英語の文は、モデルが読むからといって prompt-byte の契約にはなりません。言い換えでテストが壊れてはいけません。文を pin するのは、その正確な言い回しが振る舞いを変えることを記録された評価が示す場合だけで、その評価を pin の隣に引用します。
+- **Sentence pin (文の pin)**: SKILL.md、`.tmpl` のテンプレート、またはセクションのファイルに対して、英語の文や節 (40 文字以上の散文、または散文の正規表現) を assert するテスト。構造のチェックに変換します (セクションや見出しが存在する、手順が順序を保つ、機械が読むトークンが正しいセクションにある)。あるいは、振る舞いの評価がその振る舞いをすでにカバーしている場合は削除し、そのコミットで評価の名前を挙げます。安全性の文は、大文字小文字や強調ではなく、意味で確認します (正しいセクションに大文字小文字を区別しないキーワードがあるか)。
+- **Retention bar (保持の基準)**: 公開 API、プロトコル、設定、マイグレーション、ストレージ、セキュリティ、プラットフォーム、既定値、prompt-byte (上記の定義どおり)、生成された出力 (SKILL.md のゴールデン)、パッケージ、リリース、アーキテクチャの契約を、独立に強制しているテストは保持します。呼び出し順序が観測可能なら、その順序も保持します。最も安価な独立したガードであれば、ソースの検査も保持します。静的であること、遅いことは、削除の理由になりません。パッケージのエントリポイントから到達できるものは決して引退させません。
+- **Value card (価値のカード)**: ゲートの 4 つの答えを 1 行にまとめたもの: `Value: protects=<...>; fails_when=<...>; why_new=<...>; seam=none`。任意の 5 番目のフィールド `no_claim=<...>` には、green が証明しないことと、どのフィクスチャやモックが何の代役かを 1 文で書きます(必須のライブ確認を免除することは決してありません)。各フィールドは、その行の中で最大 160 UTF-8 バイトです (157 バイトに切り詰めて `...` を付けます)。JSON は完全な値を保持し、ヘッダーのコメントは切り詰めずに折り返します。
+- **Retirement card (引退のカード)**: 削除に必要な証拠で、編集の前に完全に揃えておくもの: `test`、`detects`、`non_test_callers`、`search_command`、`stronger_proof`、`history`、`unlocks`、`validation`。
+- **Weak path (弱いパス)**: 変更されたパスのうち、そのテストが弱いだけのもの。★ のテスト (スモーク、存在のみ、自明な assert)、ゲートを通らない新規テスト、または、この `/ship` の実行で書かれたがまだ評価されていないテスト。理由は `star_one | gate_failed | unrated` です。
+- **X と Y**: X = ★★ または ★★★ のテストを持つパス / 全パス (価値で重み付け。`/ship` のゲートは X を使います)。Y = 何らかのテストを持つパス / 全パス。全パスは、差分のコードパスのトレースで、30 件を上限とします。パスが 0 件ならゲートはスキップします。
+- **Base control (ベースのコントロール)**: 新しいリグレッションテストを、一時的なワークツリーでベースブランチに対して実行し、その振る舞いが以前から存在していて、テストが有効であることを証明すること。
+- **Grep-only (grep のみ)**: テキスト検索による呼び出し元の証拠。再 export、動的ディスパッチ、生成されたコードは見えないため、grep の証拠だけで本番のコードを削除することはありません。
 
-## Worked X/Y example
+## X/Y の具体例
 
-A diff touches 10 paths. Four have ★★ or ★★★ tests, three have only a ★ smoke test,
-and three have no test.
+差分が 10 個のパスに触れています。4 つには ★★ または ★★★ のテストがあり、3 つには ★ のスモークテストしかなく、3 つにはテストがありません。
 
-- X = 4 / 10 = 40% value-weighted. The gate uses this number.
-- Y = 7 / 10 = 70% including weakly covered paths.
-- `gaps` = 3 (no test); `weak_gaps` = the 3 ★-only paths with reason `star_one`.
+- X = 4 / 10 = 価値で重み付けして 40%。ゲートはこの数値を使います。
+- Y = 7 / 10 = 弱くカバーされたパスを含めて 70%。
+- `gaps` = 3 (テストなし)。`weak_gaps` = ★ のみの 3 つのパス。理由は `star_one`。
 
-The PR body shows `Coverage: 40% value-weighted (70% including 3 weakly covered paths)`.
+PR 本文には `Coverage: 40% value-weighted (70% including 3 weakly covered paths)` と表示されます。
 
-## Cards
+## カード
 
-A good value card:
+良い価値のカード:
 
 ```text
-Value: protects=refundPayment rejects an empty reason; fails_when=the reason guard is removed or inverted; why_new=billing.test.ts covers processPayment only; seam=none
+Value: protects=refundPayment は空の reason を拒否する; fails_when=reason のガードが外れるか反転する; why_new=billing.test.ts は processPayment しかカバーしていない; seam=none; no_claim=provider の受け入れ(provider はモック。ユニットのみ)
 ```
 
-A rejected proposal:
+却下された提案:
 
 ```text
-Rejected (covered_elsewhere): "checkout renders"; checkout.e2e.ts:15 covers it, so extend that test.
+Rejected (covered_elsewhere): "checkout renders"; checkout.e2e.ts:15 がすでにカバーしているので、そのテストを拡張する。
 ```
 
-Rejection codes: `duplicate_protects`, `needs_seam`, `incomplete_card`,
-`no_credible_regression`, `covered_elsewhere`, `implementation_coupled`.
+却下のコード: `duplicate_protects`、`needs_seam`、`incomplete_card`、`no_credible_regression`、`covered_elsewhere`、`implementation_coupled`。
 
-## Header comments written by `/ship`
+## `/ship` が書くヘッダーのコメント
 
 TypeScript:
 
@@ -116,10 +70,9 @@ def test_refund_rejects_empty_reason():
         refund_payment("pay_1", "")
 ```
 
-A file type with no known comment syntax gets its card in the PR body's Test value
-details instead.
+既知のコメント構文を持たないファイルの種類では、そのカードは PR 本文の Test value の詳細に記載されます。
 
-## Sample PR body block
+## サンプルの PR 本文のブロック
 
 ```markdown
 ## Test Coverage
@@ -130,7 +83,7 @@ Test value: 3 tests written, 2 rejected by the authoring gate, 1 existing test e
 Regression proof — fails at HEAD: yes · passes at base: yes · passes after fix: yes
 ```
 
-## Sample `/test-audit` report section
+## `/test-audit` のレポートのセクションのサンプル
 
 ```markdown
 ### Owner: src/billing/refund.ts (1 candidate, production -12 LOC, test -40 LOC)
@@ -149,10 +102,9 @@ Retained: test/fixtures/golden/ship-SKILL.md check (generated-output contract).
 Suppressed: test/legacy-api.test.ts (reason="public API snapshot for v1 clients").
 ```
 
-## Overrides
+## 上書き設定
 
-Projects tune `/ship` in their CLAUDE.md `## Test Coverage` section. Every key is
-optional; absent keys use the defaults.
+プロジェクトは、CLAUDE.md の `## Test Coverage` セクションで `/ship` を調整できます。すべてのキーは任意で、省略されたキーには既定値が使われます。
 
 ```markdown
 ## Test Coverage
@@ -164,58 +116,44 @@ Base control budget: 90
 Star rating: auto
 ```
 
-- `Generation cap:` tests per generation pass (default 5; 2 passes max).
-- `Base control:` `auto` runs regression tests at the base branch; `off` skips it.
-- `Base control budget:` seconds per base-control run (default 90; 3 minutes total).
-- `Star rating:` `off` makes the gate use `coverage_pct` (any test); weak paths are
-  still listed.
+- `Generation cap:` は生成パスごとのテスト数です (既定は 5。最大 2 パス)。
+- `Base control:` は `auto` でベースブランチに対してリグレッションテストを実行し、`off` でスキップします。
+- `Base control budget:` はベースのコントロールの 1 回あたりの秒数です (既定は 90。合計 3 分)。
+- `Star rating:` を `off` にすると、ゲートは `coverage_pct` (任意のテスト) を使います。弱いパスは引き続き一覧に出ます。
 
-A per-test pragma, in the file's comment syntax, makes `/review` and `/test-audit`
-skip a deliberate test and report the reason:
+テストごとの pragma は、ファイルのコメント構文で書きます。これにより、`/review` と `/test-audit` は意図的なテストをスキップし、その理由を報告します。
 
 ```ts
 // gstack:test-value keep reason="pins the v1 wire format for external clients"
 ```
 
-## Messages
+## メッセージ
 
-Each degraded-mode message names the problem, its consequence and the fix.
+劣化モードの各メッセージは、問題、その結果、修正方法を明記します。
 
 ### rating-unavailable
 
-`rating unavailable`: the read-only rating dispatch failed or timed out, so the
-coverage gate is skipped for this run. Re-run Step 7 of `/ship` to re-rate the tests.
+`rating unavailable`: 読み取り専用の評価のディスパッチが失敗したかタイムアウトしたため、この実行では coverage ゲートをスキップします。`/ship` の Step 7 を再実行して、テストを再評価してください。
 
 ### value-weighted-coverage-unavailable
 
-The coverage audit returned no usable `coverage_pct_value`, usually because the
-installed skill is older than this change. The gate used `coverage_pct` (any test)
-for this run. Run `/gstack-upgrade`.
+coverage 監査が使用可能な `coverage_pct_value` を返さなかったものです。通常は、インストールされているスキルがこの変更より古いことが原因です。この実行では、ゲートは `coverage_pct` (任意のテスト) を使いました。`/gstack-upgrade` を実行してください。
 
 ### inconsistent-coverage-inputs
 
-`coverage_pct_value` was above `coverage_pct`, which cannot happen when both are
-computed from the same paths. It was clamped to `coverage_pct`. Re-run Step 7 if the
-numbers look wrong.
+`coverage_pct_value` が `coverage_pct` より大きくなっていました。両方が同じパスから計算されている場合は、これは起こりえません。`coverage_pct` に切り詰められています。数値がおかしいように見える場合は、Step 7 を再実行してください。
 
 ### malformed-key-ignored
 
-A Step 7 JSON key had the wrong type (for example `weak_gaps` not an array), so it
-counts as empty. The likely cause is an outdated installed skill; run `/gstack-upgrade`.
+Step 7 の JSON のキーの型が誤っていました (例: `weak_gaps` が配列ではない)。そのため空として数えられます。原因は古いインストールスキルの可能性が高いです。`/gstack-upgrade` を実行してください。
 
 ### all-generated-tests-rejected
 
-Every test written in a generation pass failed the machine checks (incomplete card,
-duplicate `protects`, or a seam with no non-test caller). The rejected files were
-removed and the gate proceeds with the unchanged value-weighted coverage. See
-`tests_rejected` for each reason.
+生成パスで書かれたテストが、すべて機械的なチェックに落ちました (不完全なカード、重複した `protects`、非テストの呼び出し元がない seam のいずれか)。却下されたファイルは削除され、ゲートは変更のない価値で重み付けされた coverage で続行します。各理由は `tests_rejected` を参照してください。
 
 ### base-control-unavailable
 
-The regression test could not run at the base branch: `ecosystem` (not a Node/Bun
-project), `no base remote`, `base not fetched`, `worktree add failed`, `budget`, or
-`collection error` (the test could not load at base). The fails-at-HEAD result still
-stands. To check by hand:
+リグレッションテストがベースブランチで実行できませんでした。理由は `ecosystem` (Node/Bun のプロジェクトではない)、`no base remote`、`base not fetched`、`worktree add failed`、`budget`、または `collection error` (ベースでテストを読み込めなかった) のいずれかです。HEAD での失敗の結果は引き続き有効です。手で確認するには次のとおりです。
 
 ```bash
 git worktree add --detach /tmp/base-check origin/<base>
@@ -224,16 +162,12 @@ cp <test> /tmp/base-check/<test>          # plus any new test-only fixtures
 git worktree remove --force /tmp/base-check
 ```
 
-Then report `passes at base: manual`.
+その後、`passes at base: manual` と報告してください。
 
 ### caller-check-unavailable
 
-The non-test caller search failed, or the symbol is not a plain identifier
-(`unsupported symbol`). The finding stays INFORMATIONAL and nothing is proposed for
-deletion. Run the search by hand to complete the evidence.
+非テストの呼び出し元の検索が失敗したか、シンボルが単純な識別子ではありませんでした (`unsupported symbol`)。その発見は INFORMATIONAL のままになり、削除の提案はされません。証拠を完成させるには、検索を手で実行してください。
 
 ### unknown-test-value-bar-mode
 
-A template used `{{TEST_VALUE_BAR:<mode>}}` with a mode other than
-`plan|ship|qa|audit`. Fix the placeholder or add the mode in
-`scripts/resolvers/test-value.ts`.
+テンプレートが `plan|ship|qa|audit` 以外のモードで `{{TEST_VALUE_BAR:<mode>}}` を使っていました。プレースホルダーを修正するか、`scripts/resolvers/test-value.ts` にそのモードを追加してください。

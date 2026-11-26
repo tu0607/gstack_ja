@@ -467,7 +467,7 @@ _ROUTER="$INSTALL_DIR/SKILL.md"
 _GEN_SRC="$(cd "$SCRIPT_DIR/.." && pwd)"
 _PLAN_MODE_ARG=""
 [ "$("$GSTACK_CONFIG" get plan_mode_preamble 2>/dev/null || true)" != off ] || _PLAN_MODE_ARG="--plan-mode=off"
-if { [ "$DISABLED" != " " ] || grep -q '^Disabled on this install' "$_ROUTER" 2>/dev/null \
+if { [ "$DISABLED" != " " ] || grep -q '^Disabled on this install\|^このインストールでは無効です' "$_ROUTER" 2>/dev/null \
     || [ -n "$_PLAN_MODE_ARG" ] \
     || { grep -q 'PLAN MODE EXCEPTION' "$_ROUTER" 2>/dev/null && ! grep -q '^## Plan Mode Safe Operations' "$_ROUTER" 2>/dev/null; }; } \
   && grep -q '<!-- AUTO-GENERATED from' "$_ROUTER" 2>/dev/null && [ -f "$_GEN_SRC/scripts/gen-skill-docs.ts" ]; then

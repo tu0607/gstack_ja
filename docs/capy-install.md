@@ -1,263 +1,65 @@
-# Installing gstack on a Capy cloud machine
+# Capy クラウドマシンへの gstack のインストール
 
-Three layers, each owned by gstack:
+3つの層があり、それぞれを gstack が担当します。
 
-| Layer | Where | Job |
+| 層 | 場所 | 役割 |
 |---|---|---|
-| Bootstrapper | `capy/skill/gstack/scripts/install.sh` (copied once into the owner's Drive skill folder; frozen) | clone when absent; fetch origin's default branch and read the supported minimum from `FETCH_HEAD:capy/support.env`; in install mode fast-forward a clean, unpinned checkout below it; exec the full wrapper |
-| Full wrapper | `bin/gstack-capy-session` (moves with the checkout) | map the session start onto the installer: `--check` certifies (and reports a checkout behind origin), otherwise fast-forward a checkout behind origin (`bin/gstack-upgrade --ff-only-no-reinstall`), then install or repair |
-| Installer | `bin/gstack-capy-install` | Bun, both host profiles, the doctor, the install verdict, the launch line, the trailer |
+| ブートストラッパー | `capy/skill/gstack/scripts/install.sh`(オーナーの Drive のスキルフォルダに一度コピーされ、固定される) | 存在しなければ clone する。origin のデフォルトブランチを取得し、`FETCH_HEAD:capy/support.env` からサポートされる最小バージョンを読む。インストールモードでは、最小バージョンより古く、クリーンでピン留めされていないチェックアウトを fast-forward する。完全なラッパーを exec する |
+| 完全なラッパー | `bin/gstack-capy-session`(チェックアウトとともに移動する) | セッション開始を、インストーラーへの対応づける。`--check` は認証する(origin より遅れているチェックアウトも報告する)。それ以外の場合は、origin より遅れているチェックアウトを fast-forward する(`bin/gstack-upgrade --ff-only-no-reinstall`)。その後、インストールまたは修復する |
+| インストーラー | `bin/gstack-capy-install` | Bun、両方のホストプロファイル、doctor、インストールの判定、起動行、トレーラーを担当する |
 
-The vendored skill (`capy/skill/gstack/SKILL.md`) tells a Capy agent how to use
-them. The Drive folder is a mirror: the owner copies `capy/skill/gstack/` there
-when asked; nothing writes the Drive automatically.
+Capy エージェント向けに同梱されたスキル(`capy/skill/gstack/SKILL.md`)が、これらの使い方を説明します。Drive のフォルダはミラーです。オーナーが求めたときに `capy/skill/gstack/` をそこにコピーします。Drive への自動的な書き込みは行われません。
 
-Direct use, without the Drive skill (a subagent or reviewer machine): clone into
-the root the bootstrapper resolves when nothing is there, then run the
-checkout's own bootstrapper by absolute path, from the project directory, so
-the floor check and fast-forward still run and the verdict is keyed by the
-caller's project. The same command serves every later session (an existing
-checkout is fast-forwarded, never re-cloned):
+Drive のスキルを使わない直接の利用(サブエージェントやレビュー用マシン)では、ブートストラッパーが解決したルートに clone し、そのうえでチェックアウト自身のブートストラッパーを絶対パスで、プロジェクトのディレクトリから実行してください。そうすると、最小バージョンのチェックと fast-forward が実行され、判定はその呼び出し元のプロジェクトに紐づけられます。同じコマンドで、以降のすべてのセッションも処理できます(既存のチェックアウトは再 clone されず、fast-forward されます)。
 
 ```bash
 test -f "$HOME/.local/share/gstack/setup" || git clone --quiet --single-branch --depth 1 https://github.com/garrytan/gstack.git "$HOME/.local/share/gstack" && GSTACK_CAPY_ROOT="$HOME/.local/share/gstack" bash "$HOME/.local/share/gstack/capy/skill/gstack/scripts/install.sh" --for autoplan
 ```
 
-The text comes from `capyBootstrapCommand` in `lib/doctor-components.ts`
-(Bash: `gstack_capy_bootstrap_cmd`); the not-installed fix lines print it with
-the root they checked.
+この文面は `lib/doctor-components.ts` の `capyBootstrapCommand` から来ています(Bash では `gstack_capy_bootstrap_cmd`)。未インストール時の修正行は、確認したルートとともにこの文面を出力します。
 
-## Reviewer machines: `--for review-voice`
+## レビュー用マシン: `--for review-voice`
 
-A dispatched reviewer (an /autoplan voice, a second opinion) reads a plan and
-reports; it runs no workflow. `--for review-voice` gives its machine a real
-trailer in seconds: clone or fast-forward, Bun at gstack's own supported
-minimum (the project's pins are not applied, since no repo tests run there; the
-trailer says `pins: skipped (helper runtime)`), no `./setup`, no host profiles
-and no bun shim. The doctor certifies only the read-only helpers (`PASS
-helpers`: `gstack-pregate sealed`, `gstack-plan-reality`, `gstack-artifact` and
-the `gstack-autoplan` reads such as `status` and `contract`). Its verdict covers
-no host profile, so a workflow started there is refused (`INSTALL: fail verdict
-— … (review-voice certifies only the read-only helpers); fix: run
-GSTACK_CAPY_ROOT=<root> bash <root>/capy/skill/gstack/scripts/install.sh --for
-<skill> …`). A review-voice check never replaces an ok verdict that a fuller
-install wrote for the same HEAD and project. Every /autoplan reviewer prompt
-ends with this command (`GSTACK TRAILER`); the warm run's budget, under 20 s,
-is measured by `test/capy-review-voice.test.ts`.
+派遣されたレビュアー(/autoplan の一つの声、セカンドオピニオン)は、プランを読んで報告するだけで、ワークフローは実行しません。`--for review-voice` を使うと、そのマシンに数秒で本物のトレーラーが得られます。clone または fast-forward を行い、Bun を gstack 自身のサポートされる最小バージョンに揃えます(プロジェクトのピンは適用しません。リポジトリのテストはそこでは実行しないため、トレーラーには `pins: skipped (helper runtime)` と表示されます)。`./setup` は実行せず、ホストプロファイルも bun のシムも作りません。doctor が認証するのは読み取り専用のヘルパーだけです(`PASS helpers`: `gstack-pregate sealed`、`gstack-plan-reality`、`gstack-artifact`、および `gstack-autoplan` の `status` や `contract` などの読み取り)。その判定はホストプロファイルをカバーしないため、そこで開始されたワークフローは拒否されます(`INSTALL: fail verdict — … (review-voice certifies only the read-only helpers); fix: run GSTACK_CAPY_ROOT=<root> bash <root>/capy/skill/gstack/scripts/install.sh --for <skill> …`)。review-voice のチェックは、同じ HEAD とプロジェクトに対して、より完全なインストールが書き込んだ ok の判定を置き換えることはありません。/autoplan のレビュアーのプロンプトはすべて、このコマンド(`GSTACK TRAILER`)で終わります。ウォームな実行の予算(20 秒未満)は `test/capy-review-voice.test.ts` で計測されます。
 
-## Session start
+## セッション開始時
 
-1. `bash <skill>/scripts/install.sh --check --for <skill>` (under a second when
-   a checkout exists). It fetches refs only and never moves the checkout. With
-   no checkout it prints `gstack: fail not-installed — ...` and the session
-   records that line and continues when it runs no gstack workflow; install
-   right before the first workflow.
-2. When the trailer is `gstack: fail revision ...` or `gstack: fail runtime ...`
-   and a checkout exists, run the same command without `--check`. Below the
-   supported minimum, a clean checkout on the remote default branch is
-   fast-forwarded (`gstack-capy-skill: upgraded <old> -> <new>`), reinstalled
-   and rechecked as one transaction under `.gstack-capy-install.lock` (the
-   bootstrapper holds it and hands it over with `GSTACK_CAPY_LOCK_HELD=1`).
-   A pinned (`--revision`, detached HEAD, another branch), dirty or diverged
-   checkout is never moved; the trailer names the cause and the exact commands
-   ([REVISION_BELOW_MINIMUM](troubleshooting.md#revision-below-minimum)).
-   `GSTACK_CAPY_AUTO_UPGRADE=0` disables the fast-forward.
-3. The minimum is the floor, not the trigger. Above it, a checkout behind
-   origin's default branch still moves at install-mode session start: the
-   full wrapper runs `bin/gstack-upgrade --ff-only-no-reinstall` (every
-   refusal of `gstack-upgrade` applies), prints `SELF_UPGRADE: done <old> ->
-   <new>` and re-execs the new checkout's wrapper, which installs from the
-   new revision (`GSTACK_CAPY_UPGRADED_FROM` set, so setup is never skipped).
-   A refusal prints `SELF_UPGRADE: skipped (<reason>)`, and the session is
-   never certified ok: the trailer is `gstack: fail behind — installed <rev> is
-   <n> commits behind origin (latest <ver>) and the session-start upgrade was
-   skipped: <reason>; fix: <command> (UPGRADE_BUSY|UPGRADE_REFUSED)`, exit 1.
-   `SELF_UPGRADE: none (current)` when nothing is ahead;
-   `GSTACK_CAPY_SELF_UPGRADE=off` (or `GSTACK_CAPY_AUTO_UPGRADE=0`) prints
-   `SELF_UPGRADE: disabled (<variable>)`. `--check` never moves the checkout;
-   behind origin it prints `gstack-capy-session: behind origin/<branch>:
-   <installed> -> <remote> (<n> commits); fix: bash <skill>/scripts/install.sh
-   [--for <skill>] (fast-forwards)` and the agent runs that fix. Whenever the
-   session ends behind origin (`--check`, or a self-upgrade that was skipped or
-   disabled), the ok trailer also says so, because lanes relay only the
-   trailer: `behind=<n> (latest: <ver>); fix: <command>` (see the trailer
-   grammar below).
-4. When the fetch fails (offline), the bootstrapper says `remote minimum
-   unknown (fetch failed)` and checks the local install only; it never claims
-   the minimum, and nothing is fast-forwarded.
+1. `bash <skill>/scripts/install.sh --check --for <skill>` を実行します(チェックアウトが存在すれば 1 秒未満)。これはリファレンスを取得するだけで、チェックアウトは決して移動させません。チェックアウトがない場合は `gstack: fail not-installed — ...` と表示され、セッションはその行を記録し、gstack のワークフローを実行しない場合は続行します。最初のワークフローの直前にインストールしてください。
+2. トレーラーが `gstack: fail revision ...` または `gstack: fail runtime ...` で、かつチェックアウトが存在する場合は、同じコマンドを `--check` なしで実行してください。最小バージョンより低く、リモートのデフォルトブランチ上のクリーンなチェックアウトは、fast-forward され(`gstack-capy-skill: upgraded <old> -> <new>`)、再インストールされ、`.gstack-capy-install.lock` の下で一つのトランザクションとして再チェックされます(ブートストラッパーがロックを保持し、`GSTACK_CAPY_LOCK_HELD=1` で引き渡します)。ピン留めされている(`--revision`、detached HEAD、別のブランチ)、ダーティ、または分岐しているチェックアウトは決して移動されません。トレーラーに原因と正確なコマンドが示されます([REVISION_BELOW_MINIMUM](troubleshooting.md#revision-below-minimum))。`GSTACK_CAPY_AUTO_UPGRADE=0` を指定すると fast-forward は無効になります。
+3. 最小バージョンは下限であり、更新の契機ではありません。最小バージョンより上でも、origin のデフォルトブランチより遅れているチェックアウトは、インストールモードのセッション開始時に移動されます。完全なラッパーは `bin/gstack-upgrade --ff-only-no-reinstall` を実行します(`gstack-upgrade` のすべての拒否条件が適用されます)。`SELF_UPGRADE: done <old> -> <new>` と表示し、新しいチェックアウトのラッパーを re-exec します。そのラッパーは新しいリビジョンからインストールします(`GSTACK_CAPY_UPGRADED_FROM` が設定されるため、セットアップは決してスキップされません)。拒否された場合は `SELF_UPGRADE: skipped (<reason>)` と表示され、そのセッションが ok と認定されることは決してありません。トレーラーは `gstack: fail behind — installed <rev> is <n> commits behind origin (latest <ver>) and the session-start upgrade was skipped: <reason>; fix: <command> (UPGRADE_BUSY|UPGRADE_REFUSED)` となり、終了コードは 1 です。何も先行していない場合は `SELF_UPGRADE: none (current)` と表示されます。`GSTACK_CAPY_SELF_UPGRADE=off`(または `GSTACK_CAPY_AUTO_UPGRADE=0`)を指定すると `SELF_UPGRADE: disabled (<variable>)` と表示されます。`--check` はチェックアウトを決して移動させません。origin より遅れている場合は `gstack-capy-session: behind origin/<branch>: <installed> -> <remote> (<n> commits); fix: bash <skill>/scripts/install.sh [--for <skill>] (fast-forwards)` と表示され、エージェントはその修正を実行します。セッションが origin より遅れたまま終わった場合(`--check`、または fast-forward がスキップされたか無効化された場合)は、ok のトレーラーにもそのことが書かれます。レーンはトレーラーだけを中継するためです: `behind=<n> (latest: <ver>); fix: <command>`(下のトレーラーの文法を参照)。
+4. フェッチが失敗した場合(オフライン)は、ブートストラッパーが `remote minimum unknown (fetch failed)` と表示し、ローカルのインストールだけをチェックします。最小バージョンを主張することはなく、何も fast-forward されません。
 
-The upgrade target is always the tip of the default branch: every commit there
-is a stamped release that passed CI. Recovery runs forward, never back: an
-install interrupted after a fast-forward leaves the trailer `fail`, and the
-next install or `bin/gstack-upgrade` run completes the pending install stages
-(setup is never skipped after a fast-forward) or refuses and names the cause.
-Checking out an older commit is not a supported rollback; it does not undo
-setup migrations that already ran.
+アップグレードの対象は、常にデフォルトブランチの先端です。そこにあるすべてのコミットは、CI を通過した、タグ付きのリリースです。復旧は後戻りではなく前進します。fast-forward の後にインストールが中断された場合、トレーラーは `fail` のままになります。次のインストールまたは `bin/gstack-upgrade` の実行が、保留中のインストールの段階を完了させるか(fast-forward の後にセットアップが省略されることはありません)、原因を示して拒否します。古いコミットへのチェックアウトは、サポートされたロールバックではありません。すでに実行されたセットアップのマイグレーションは元に戻りません。
 
-Between minimums, `bin/gstack-upgrade --check` says `current <v>` or `behind
-<installed> -> <remote> (<n> commits)`, and `bin/gstack-upgrade` fast-forwards
-and reinstalls (`bin/gstack-capy-install` on a Capy install, else `./setup
---refresh-registered`). It refuses a dirty, diverged or pinned checkout with
-[UPGRADE_REFUSED](troubleshooting.md#upgrade-refused) and never stashes or
-resets.
+最小バージョンの間では、`bin/gstack-upgrade --check` が `current <v>` または `behind <installed> -> <remote> (<n> commits)` と表示します。`bin/gstack-upgrade` は fast-forward し、再インストールします(Capy のインストールでは `bin/gstack-capy-install`、それ以外では `./setup --refresh-registered`)。ダーティ、分岐、またはピン留めされたチェックアウトは拒否され([UPGRADE_REFUSED](troubleshooting.md#upgrade-refused))、stash やリセットは決して行いません。
 
-Several agents sharing one checkout (eight Capy subagents on a machine) hold
-workflow leases on it: every `bin/gstack-skill-start` touches
-`<git dir>/gstack-leases/<harness pid>` (`bin/gstack-lease touch`; pruned after
-120 minutes). Each lease records its process's start identity (Linux: boot id
-and `/proc` start time; elsewhere `ps -o lstart`), because a pid is reused after
-a reboot or a machine wake. `bin/gstack-upgrade`, and so the session-start
-self-upgrade, refuses with [UPGRADE_BUSY](troubleshooting.md#upgrade-busy)
-while a lease held by a live process outside its own chain exists, naming each
-holder as `pid <p> (<age>m <command>)`. A lease whose pid now belongs to another
-process, or an identity-less lease from an older gstack past 120 minutes, is
-stale: `bin/gstack-lease live` reclaims it (`gstack-lease: reclaimed stale
-lease …`). Stale needs proof: two well-formed identities from the same backend
-that differ (`ps` is read under `LC_ALL=C TZ=UTC0`). An identity that cannot be
-read, a malformed record or a backend change keeps the lease. `touch` (publish
-by rename, prune) and reclaim (reread, then delete only the record judged
-stale) run under one lock in the lease directory, a symlink naming its holder's
-pid and start identity, so a renewal is never deleted and a live lease never
-disappears from a concurrent scan. The lock is broken only when its holder is
-dead or its pid was reused, never by age, and breakers serialize on a second
-symlink and reread the lock before removing it. One killed gstack-lease process
-is always safe; two killed in a row, one holding the lock and the next while
-breaking it, can still let a reclaim delete a renewal. While a live process holds it,
-`touch` exits 3 without writing (`gstack-skill-start` reports that the
-session holds no lease) and a reclaim keeps the lease. `bin/gstack-lease list` shows `alive|dead|stale`, and
-`GSTACK_UPGRADE_FORCE=1` overrides.
+一つのチェックアウトを複数のエージェントで共有している場合(一台のマシンで 8 つの Capy サブエージェント)、それぞれがワークフローのリースを保持します。`bin/gstack-skill-start` を実行するたびに、`<git dir>/gstack-leases/<harness pid>` が更新されます(`bin/gstack-lease touch`。120 分を過ぎると削除されます)。各リースには、そのプロセスの開始時の識別情報が記録されます(Linux では boot ID と `/proc` の開始時刻、それ以外では `ps -o lstart`)。pid は再起動やマシンのスリープからの復帰後に再利用されることがあるためです。`bin/gstack-upgrade`、そしてセッション開始時の自動アップグレードは、自分のチェーンの外にある生きたプロセスが保持するリースが存在する間は、[UPGRADE_BUSY](troubleshooting.md#upgrade-busy) を出して拒否します。その際、保持者を `pid <p> (<age>m <command>)` の形式で一覧します。リースの pid がすでに別のプロセスのものになっている場合、または 120 分を過ぎた古い gstack の識別情報なしのリースは、古いとみなされます。`bin/gstack-lease live` がそれを回収します(`gstack-lease: reclaimed stale lease …`)。古いと判断するには証拠が必要です。同じバックエンドから得た、整った二つの識別情報が異なっていることです(`ps` は `LC_ALL=C TZ=UTC0` の下で読まれます)。識別情報が読めない場合、レコードが不正な場合、バックエンドが変わった場合は、リースは保持されます。`touch`(名前の変更による公開、削除)と回収(再読み込みしてから、古いと判断したレコードだけを削除)は、リースディレクトリ内の一つのロックの下で実行されます。このロックは、保持者の pid と開始時の識別情報を名前に含むシンボリックリンクです。そのため、更新が削除されることはなく、生きたリースが同時のスキャンから消えることもありません。ロックが破られるのは、その保持者が死んでいるか、pid が再利用された場合だけで、年齢では決して破られません。ロックを壊す側は、二つ目のシンボリックリンクで直列化し、削除する前にロックを再読み込みします。一つの gstack-lease プロセスが強制終了されるのは常に安全ですが、続けて二つが強制終了された場合(一方がロックを保持し、もう一方がそれを壊している最中)は、回収が更新を削除してしまう可能性があります。生きたプロセスがロックを保持している間、`touch` は書き込まずに終了コード 3 で終わります(`gstack-skill-start` は、そのセッションがリースを保持していないと報告します)。回収はそのリースを保持したままにします。`bin/gstack-lease list` は `alive|dead|stale` を表示し、`GSTACK_UPGRADE_FORCE=1` で上書きできます。
 
-## What the installer does
+## インストーラーの処理内容
 
-1. Reuses the checkout it lives in (or clones into `--root <dir>`), under the
-   lock. It never resets or pulls; `--revision <ref>` pins a fresh clone, and an
-   existing checkout at another revision is reused with the trailer note
-   `requested: <ref> (run <checkout>/bin/gstack-upgrade to move)`. A fresh
-   clone prints `cloned <repo> at <sha12> (<version>)` (the bootstrapper's
-   clone too, through `GSTACK_CAPY_CLONED`).
-2. Preflight: `git`, `curl`, `node`, `jq`, then Bun. The project's pins
-   (`--project <path>`, default the git toplevel of the current directory) are
-   read with the doctor's own parser (`bin/gstack-runtime-pins.ts`: engines,
-   packageManager, `.tool-versions`, `.bun-version` and CI `bun-version:` lanes
-   for this platform). CI exact pins for this platform are alternatives: a
-   repository may test several Bun versions (gstack's own CI pins 1.4.2 and
-   runs one job on 1.4.3), so a Bun equal to any one of them satisfies CI;
-   CI ranges and every non-CI pin stay required. One resolver picks the Bun (`gstack_bun_resolve` in
-   `bin/gstack-bun-version.sh`; `resolveBun` in `lib/pregate/runtime.ts` is
-   its TypeScript twin), and the installer, `--check`, the doctor, the bun
-   shim and install admission all use it. Candidates, first eligible wins:
-   the store copy of the project's exact pin (rule `pin`), the store copy of
-   the install default (`default`), `$BUN_INSTALL/bin/bun`, `~/.bun/bin/bun`
-   (`home`), then every `bun` on PATH. Eligible means it runs, reports a
-   version at or above the supported minimum (1.4.2) and satisfies the
-   project's pins. When nothing qualifies, the installer downloads one exact
-   release archive, verifies its SHA-256 against `bin/gstack-bun-version.sh`
-   and unpacks it into the versioned store
-   `<state root>/runtimes/bun/<version>/bun`, under `~/.gstack-runtime.lock`.
-   Each version directory also holds `bunx -> bun`. A broken entry is
-   repaired without a window (its files are renamed over their predecessors),
-   and `~/.bun/bin` is never written. The archive is the project's non-CI
-   exact pin when gstack carries a verified archive for it
-   (`GSTACK_BUN_VERIFIED`: 1.4.2, 1.4.3); with only CI exact pins, the install
-   default when it is one of them, else the highest verified one; else the
-   install default `GSTACK_BUN_DEFAULT` (1.4.3, above the 1.4.2 minimum; one
-   CI job runs the quick free tier on it).
-   `GSTACK_BUN_INSTALL_VERSION=<v>` overrides the default; a version without a
-   verified archive or below the minimum stops the install
-   ([BUN_INSTALL_VERSION_INVALID](troubleshooting.md#bun-install-version-invalid)).
-   With a non-CI exact pin, only that version satisfies it. Any other exact
-   pin (below the minimum, two different non-CI ones, or one without a verified
-   archive), or a range gstack's minimum does not satisfy, stops with both
-   constraints ([RUNTIME_PIN_CONFLICT](troubleshooting.md#capy-install-runtime-conflict),
-   exit 3) before `./setup`. With no Bun at or above the security floor, the
-   default is installed first so the pins can be read.
+1. その中にあるチェックアウトを再利用する(または `--root <dir>` に clone する)。ロックの下で行う。リセットや pull は決して行わない。`--revision <ref>` は新しい clone をピン留めする。別のリビジョンにある既存のチェックアウトは、`requested: <ref> (run <checkout>/bin/gstack-upgrade to move)` というトレーラーの注記とともに再利用される。新しく clone した場合は `cloned <repo> at <sha12> (<version>)` と表示される(ブートストラッパーの clone も、`GSTACK_CAPY_CLONED` を通じて同様)。
+2. 事前確認: `git`、`curl`、`node`、`jq`、次に Bun。プロジェクトのピン(`--project <path>`、デフォルトは現在のディレクトリの git のトップレベル)は、doctor 自身のパーサー(`bin/gstack-runtime-pins.ts`: engines、packageManager、`.tool-versions`、`.bun-version`、およびこのプラットフォームの CI の `bun-version:` レーン)で読まれます。このプラットフォームの CI の厳密なピンは代替として扱われます。リポジトリは複数の Bun バージョンでテストする場合があるためです(gstack 自身の CI は 1.4.2 をピンし、一つのジョブは 1.4.3 で実行します)。そのため、いずれか一つの CI のバージョンに一致する Bun であれば CI を満たします。CI の範囲指定と、CI 以外のすべてのピンは、引き続き必須です。一つのリゾルバーが Bun を選びます(`bin/gstack-bun-version.sh` の `gstack_bun_resolve`。`lib/pregate/runtime.ts` の `resolveBun` が TypeScript 側の対応物です)。インストーラー、`--check`、doctor、bun のシム、インストールの受け入れは、すべてこれを使います。候補は、先に適格なものが勝ちます。順番は次のとおりです。プロジェクトの厳密なピンのストアのコピー(ルール `pin`)、インストールのデフォルトのストアのコピー(`default`)、`$BUN_INSTALL/bin/bun`、`~/.bun/bin/bun`(`home`)、次に PATH 上のすべての `bun`。適格とは、実行でき、サポート最小バージョン(1.4.2)以上のバージョンを報告し、プロジェクトのピンを満たすことです。どれも適格でない場合、インストーラーは厳密なリリースのアーカイブを一つダウンロードし、その SHA-256 を `bin/gstack-bun-version.sh` と照合して、バージョン付きのストア `<state root>/runtimes/bun/<version>/bun` に展開します。これは `~/.gstack-runtime.lock` の下で行われます。各バージョンのディレクトリには `bunx -> bun` も含まれます。壊れたエントリは、隙間なく修復されます(ファイルは前のものの上に名前を変えて置かれます)。`~/.bun/bin` には決して書き込みません。アーカイブは、gstack が検証済みのアーカイブを持っている場合、プロジェクトの CI 以外の厳密なピンになります(`GSTACK_BUN_VERIFIED`: 1.4.2、1.4.3)。CI の厳密なピンだけがある場合は、インストールのデフォルトがそのうちの一つであればそれを、そうでなければ検証済みの中で最も高いものを使います。それもない場合は、インストールのデフォルト `GSTACK_BUN_DEFAULT`(1.4.3。最小の 1.4.2 より上で、一つの CI ジョブは軽量の無料ティアをこれで実行します)になります。`GSTACK_BUN_INSTALL_VERSION=<v>` はデフォルトを上書きします。検証済みのアーカイブがないバージョン、または最小バージョン未満のバージョンは、インストールを停止させます([BUN_INSTALL_VERSION_INVALID](troubleshooting.md#bun-install-version-invalid))。CI 以外の厳密なピンがある場合は、そのバージョンだけがそれを満たします。それ以外の厳密なピン(最小バージョン未満、CI 以外の二つの異なるピン、または検証済みアーカイブのないもの)や、gstack の最小バージョンが満たさない範囲指定は、両方の制約を示して停止します([RUNTIME_PIN_CONFLICT](troubleshooting.md#capy-install-runtime-conflict)、終了コード 3)。`./setup` の前に停止します。少なくとも最低限のセキュリティ基準を満たす Bun がない場合は、ピンを読めるように、まずデフォルトをインストールします。
 
-   Node follows the same rule (`bin/gstack-node-runtime.sh`): `engines.node`,
-   `.nvmrc`, `.tool-versions` and CI `node-version:` lanes, non-CI exact pins
-   required and CI exact pins in different jobs alternatives. The first node
-   that satisfies them wins: the node first on PATH (rule `PATH`), then for
-   each wanted version gstack's store copy
-   `<state root>/runtimes/node/<version>/bin/node` (`store`) and nvm's
-   `${NVM_DIR:-~/.nvm}/versions/node/v<version>/bin/node` (`nvm`), then every
-   other `node` on PATH. When nothing qualifies and the project names an exact
-   version, install mode downloads `node-v<version>-<target>.tar.gz` and
-   `SHASUMS256.txt` from `https://nodejs.org/dist/v<version>/`
-   (`GSTACK_NODE_DIST_URL` overrides the base), checks the archive's SHA-256
-   against that list and publishes the tree in the store by rename. A CI-only
-   pin set installs its highest version. `/usr/local/bin` and nvm are never
-   written. Two different non-CI exact Node pins stop with
-   [RUNTIME_PIN_CONFLICT](troubleshooting.md#capy-install-runtime-conflict).
-   `--check` keeps the recorded Node while it still reports its version and
-   satisfies the pins, and never installs one; the doctor's `pins` row reads
-   whatever node the launch PATH gives, and a Node mismatch names the node it
-   read and the installer command that fixes it.
-3. `./setup --host claude --no-prefix`, then `./setup --host codex --model
-   gpt-6-astra`, both with `--no-browser`. Skipped when this exact HEAD was set
-   up with the same hosts, model and browser flag (recorded in the git dir
-   after a successful setup) and `gstack-doctor --check` passes; a warm rerun
-   takes about a second. Each setup ends with its own `gstack ready (<host>)`;
-   the installer then prints `gstack ready (claude, codex)`.
-4. `gstack-doctor --check` for the requested workflow (`--for <skill>`,
-   `--only <skill>`, or `--require <id,id>`; default `claude,codex,patch`),
-   run with the launch PATH, so the trailer certifies the Bun workflows run.
-5. The install verdict (schema 2), written atomically to
-   `<state root>/install-verdicts/<sha256 of the checkout realpath>/<sha256 of the project realpath, or "none">.json`:
-   checkout, project, HEAD, the workflow and required components it
-   certified, whether pins were skipped as planning-only, the pin it
-   honoured, the resolved Bun (`bun_path`, `bun_version`, `bun_rule`, and
-   `bun_install` when this run downloaded it), the resolved Node when the
-   project pins one (`node_path`, `node_version`, `node_rule`), the trailer, the remote
-   minimum, the launch PATH and the time. Admission refuses a workflow whose
-   running Bun is not the one the verdict recorded
-   ([BUN_RESOLUTION_DRIFT](troubleshooting.md#bun-resolution-drift)), and so
-   do the pregate's lanes and guards, which also refuse an invalid verdict
-   ([INSTALL_UNVERIFIED](troubleshooting.md#install-unverified)) under
-   `GSTACK_CAPY=1` or whenever a verdict exists. `--check` keeps the recorded
-   Bun while it exists, reports the recorded version and satisfies the pins;
-   a candidate that would now resolve first is a `note:` line, and only a
-   recorded Bun that is gone, changed or no longer satisfies the pins fails
-   the doctor's `runtime` row. A schema 1 verdict (keyed by checkout only) is
-   still read.
-6. On a Capy machine (`CAPY_MACHINE_CONFIG` set or `~/.capy/system` present),
-   install mode writes the bun shims described below.
+Node も同じルールに従います(`bin/gstack-node-runtime.sh`)。`engines.node`、`.nvmrc`、`.tool-versions`、CI の `node-version:` レーンを使います。CI 以外の厳密なピンは必須で、異なるジョブにある CI の厳密なピンは代替です。条件を満たす最初の node が採用されます。順番は次のとおりです。PATH 上の最初の node(ルール `PATH`)、次に必要な各バージョンについて、gstack のストアのコピー `<state root>/runtimes/node/<version>/bin/node`(`store`)と nvm の `${NVM_DIR:-~/.nvm}/versions/node/v<version>/bin/node`(`nvm`)、そして PATH 上のその他の `node` です。どれも適格でなく、プロジェクトが厳密なバージョンを指定している場合、インストールモードでは `https://nodejs.org/dist/v<version>/` から `node-v<version>-<target>.tar.gz` と `SHASUMS256.txt` をダウンロードします(`GSTACK_NODE_DIST_URL` でベース URL を上書きできます)。アーカイブの SHA-256 をそのリストと照合し、ツリーをストアに名前の変更によって公開します。CI のピンだけがある場合は、最も高いバージョンをインストールします。`/usr/local/bin` と nvm には決して書き込みません。CI 以外の二つの異なる厳密な Node のピンがある場合は、[RUNTIME_PIN_CONFLICT](troubleshooting.md#capy-install-runtime-conflict) で停止します。`--check` は、バージョンを報告し続けてピンを満たす限り、記録された Node を保持します。Node をインストールすることは決してありません。doctor の `pins` の行は、起動時の PATH が与える node を読み取ります。Node が一致しない場合は、読み取った node の情報と、それを修正するインストーラーのコマンドを示します。
+3. `./setup --host claude --no-prefix`、次に `./setup --host codex --model gpt-6-astra`。どちらも `--no-browser` 付きです。このまったく同じ HEAD が、同じホスト、モデル、ブラウザのフラグでセットアップされており(成功したセットアップの後に git dir に記録されている)、かつ `gstack-doctor --check` が通る場合は、スキップされます。ウォームな再実行は約 1 秒です。各セットアップは独自の `gstack ready (<host>)` で終わり、インストーラーはその後 `gstack ready (claude, codex)` と表示します。
+4. 要求されたワークフロー(`--for <skill>`、`--only <skill>`、または `--require <id,id>`。デフォルトは `claude,codex,patch`)に対して `gstack-doctor --check` を、起動時の PATH で実行します。これにより、トレーラーは Bun のワークフローが実際に動くことを認証します。
+5. インストールの判定(スキーマ 2)。`<state root>/install-verdicts/<sha256 of the checkout realpath>/<sha256 of the project realpath, or "none">.json` に、アトミックに書き込まれます。内容は、チェックアウト、プロジェクト、HEAD、認証されたワークフローと必須コンポーネント、ピンがプランニング専用としてスキップされたかどうか、尊重したピン、解決された Bun(`bun_path`、`bun_version`、`bun_rule`、そして今回の実行でダウンロードされた場合は `bun_install`)、プロジェクトがピンを指定している場合は解決された Node(`node_path`、`node_version`、`node_rule`)、トレーラー、リモートの最小バージョン、起動時の PATH、時刻です。受け入れは、実行中の Bun が判定に記録されたものでないワークフローを拒否します([BUN_RESOLUTION_DRIFT](troubleshooting.md#bun-resolution-drift))。事前確認のレーンとガードも同様です。`GSTACK_CAPY=1` の下、または判定が存在する場合はいつでも、不正な判定を拒否します([INSTALL_UNVERIFIED](troubleshooting.md#install-unverified))。`--check` は、記録された Bun が存在する間はそれを保持し、記録されたバージョンを報告し、ピンを満たします。今解決されたら最初に選ばれる候補があれば `note:` の行になります。記録された Bun が消えた、変更された、またはピンを満たさなくなった場合だけ、doctor の `runtime` の行が失敗します。スキーマ 1 の判定(チェックアウトだけをキーとする)も引き続き読まれます。
+6. Capy のマシン上(`CAPY_MACHINE_CONFIG` が設定されているか、`~/.capy/system` が存在する場合)では、インストールモードで、以下に説明する bun のシムを書き込みます。
 
-`--check` runs only steps 4 and 5 (no clone, Bun install, setup or shim).
+`--check` は、ステップ 4 と 5 だけを実行します(clone、Bun のインストール、セットアップ、シムは行いません)。
 
-## The bun shim
+## bun のシム
 
-A fresh shell on Capy finds the image's `/usr/local/bin/bun` (1.3.14) first,
-so a `bun test` typed without the `GSTACK_LAUNCH` prefix used to run the wrong
-Bun. Install mode therefore writes `~/.local/bin/bun` and `~/.local/bin/bunx`
-(`~/.local/bin` precedes `/usr/local/bin` on the Capy image's PATH). Each is a
-small POSIX script whose second line is the marker
-`# gstack-bun-shim: gstack-owned; delete this file to remove it`. At every
-call the `bun` shim finds the git toplevel around the working directory and
-runs, in order: the Bun that project's install verdict recorded (the `none`
-verdict outside any project and inside the gstack checkout), the store copy
-of the project's exact pin, the store copy of the install default, then
-`$BUN_INSTALL/bin/bun`, `~/.bun/bin/bun` and every non-shim `bun` on PATH,
-first at or above the supported minimum, then at or above the security
-floor. A pin is used only when it is `x.y.z` and its store entry is a real
-binary inside the store (no `..`, symlink escape or shim-marked file). A
-project pinning a Bun the store lacks prints `gstack bun shim: <root> pins
-bun <v>, which is not in gstack's runtime store; run ... --check here`;
-an unrecorded, unpinned repo falls through quietly. `bunx` runs `bun x`
-through the `bun` shim beside it.
+Capy の新しいシェルは、イメージの `/usr/local/bin/bun`(1.3.14)を最初に見つけるため、`GSTACK_LAUNCH` の接頭辞なしで入力された `bun test` は、以前は間違った Bun を実行していました。そのため、インストールモードは `~/.local/bin/bun` と `~/.local/bin/bunx` を書き込みます(Capy イメージの PATH では `~/.local/bin` が `/usr/local/bin` より前にあります)。それぞれは小さな POSIX のスクリプトで、二行目にマーカー `# gstack-bun-shim: gstack-owned; delete this file to remove it` があります。呼び出しのたびに、`bun` のシムは作業ディレクトリを囲む git のトップレベルを見つけ、次の順番で実行します。そのプロジェクトのインストール判定に記録された Bun(プロジェクトの外や gstack のチェックアウト内では `none` の判定)、プロジェクトの厳密なピンのストアのコピー、インストールのデフォルトのストアのコピー、そして `$BUN_INSTALL/bin/bun`、`~/.bun/bin/bun`、およびシムではない PATH 上のすべての `bun` のうち、サポート最小バージョン以上で最初のもの、次にセキュリティの下限以上で最初のものです。ピンが使われるのは、それが `x.y.z` の形式で、そのストアのエントリがストア内の本物のバイナリである場合(`..` がなく、シンボリックリンクで外へ出ず、シムのマーカーのファイルではない)だけです。ストアにない Bun をピンしているプロジェクトは、`gstack bun shim: <root> pins bun <v>, which is not in gstack's runtime store; run ... --check here` と表示します。記録がなく、ピンもないリポジトリは、静かに次に進みます。`bunx` は、その隣にある `bun` のシムを通して `bun x` を実行します。
 
-- `GSTACK_BUN_SHIM_EXPLAIN=1 bun --version` prints
-  `gstack bun shim: project=<root> record=<file> chose=<bun> rule=<rule>`
-  (and names a missing record).
-- `GSTACK_BUN_SHIM=0` at install time writes no shim.
-- Removing it: delete `~/.local/bin/bun` and `~/.local/bin/bunx`. gstack
-  replaces only a missing file or a file carrying the marker; a foreign file
-  or a dangling link there is left untouched with a note, and the
-  `GSTACK_LAUNCH` prefix stays the way to reach the certified Bun.
-- The doctor's `runtime` row notes the shim; the resolver never treats a
-  shim-marked file as a Bun candidate.
+- `GSTACK_BUN_SHIM_EXPLAIN=1 bun --version` は、`gstack bun shim: project=<root> record=<file> chose=<bun> rule=<rule>` を表示します(記録がない場合はそれを示します)。
+- `GSTACK_BUN_SHIM=0` をインストール時に指定すると、シムは書き込まれません。
+- 削除するには、`~/.local/bin/bun` と `~/.local/bin/bunx` を削除します。gstack が置き換えるのは、存在しないファイル、またはマーカーを持つファイルだけです。そこにある他人のファイルや壊れたリンクは、注記とともにそのまま残されます。`GSTACK_LAUNCH` の接頭辞が、認証された Bun に到達する方法のままです。
+- doctor の `runtime` の行はシムに言及します。リゾルバーは、シムのマーカーを持つファイルを Bun の候補として決して扱いません。
 
-## The one line to grep
+## 確認に使う一行
 
-The last line is the trailer:
+最後の行がトレーラーです。
 
 ```
 gstack: ok 1.91.96.0 for=autoplan
@@ -267,19 +69,9 @@ gstack: ok 1.91.101.0 for=autoplan (behind=12 (latest: 1.91.107.0); fix: bash <s
 gstack: fail runtime,pins
 ```
 
-An ok trailer carries at most one parenthesised note group, `; `-separated,
-in this order: `requested: …` (an existing checkout at another revision than
-`--revision`), `pins: skipped (planning-only|no project|helper runtime)`, then either
-`behind=<n> (latest: <ver>)` followed by `fix: <command>` (the session ended
-<n> commits behind origin's default branch after a fetch that succeeded in this
-run; `bin/gstack-capy-session` exports `GSTACK_CAPY_BEHIND`, `_BEHIND_TO` and
-`_BEHIND_FIX`, so this works with every bootstrapper revision), or `latest:
-<ver> available` (origin's default branch has a newer VERSION; the bootstrapper
-exports it as `GSTACK_CAPY_REMOTE_VERSION` only after a fetch that succeeded
-in this run). A fail trailer never carries notes. Match `^gstack: ok ` or
-`^gstack: fail `; never parse past the first space after the version.
+ok のトレーラーには、括弧付きの注記グループが最大一つまで含まれ、`; ` で区切られます。順序は次のとおりです。`requested: …`(`--revision` とは別のリビジョンの既存チェックアウト)、`pins: skipped (planning-only|no project|helper runtime)`、そして `behind=<n> (latest: <ver>)` に続く `fix: <command>` のいずれか(このセッションが、このラン内で成功したフェッチの後、origin のデフォルトブランチより <n> コミット遅れたまま終わったことを示す。`bin/gstack-capy-session` は `GSTACK_CAPY_BEHIND`、`_BEHIND_TO`、`_BEHIND_FIX` を export するため、どのブートストラッパーのリビジョンでも機能する)、または `latest: <ver> available`(origin のデフォルトブランチに、より新しい VERSION がある。ブートストラッパーは、このラン内で成功したフェッチの後にのみ `GSTACK_CAPY_REMOTE_VERSION` として export する)。fail のトレーラーには注記は決して付きません。`^gstack: ok ` または `^gstack: fail ` に一致させてください。バージョンの後の最初の空白より先は、決して解析しないでください。
 
-Exit 0 only with `gstack: ok`. Read the exit status and the trailer directly:
+終了コードが 0 なのは `gstack: ok` の場合だけです。終了ステータスとトレーラーを直接読んでください。
 
 ```bash
 out=$(bash <skill>/scripts/install.sh --check --for autoplan 2>&1); rc=$?
@@ -287,134 +79,57 @@ printf '%s\n' "$out" | grep '^gstack: '
 [ "$rc" -eq 0 ]
 ```
 
-Never pipe `--check` (or the installer) through `tail`, `head` or `grep`
-alone: the pipe's exit status replaces the doctor's, and a silent failure is
-the incident this installer exists to end. Every `FAIL <id>` row carries a
-`fix:` clause and a reason code with its [troubleshooting
-anchor](troubleshooting.md#install-check-gstack-doctor---check-and-the-capy-installer).
-A parent agent confirms each subagent machine with this grep; one machine's
-install never covers another, and a subagent's first report carries its own
-`gstack:` line.
+`--check`(またはインストーラー)の出力を、`tail`、`head`、または単独の `grep` にパイプしないでください。パイプの終了ステータスが doctor の終了ステータスに取って代わり、静かな失敗が起きてしまいます。このインストーラーが無くそうとしている問題そのものです。`FAIL <id>` の行にはすべて `fix:` の句と、[troubleshooting の該当アンカー](troubleshooting.md#install-check-gstack-doctor---check-and-the-capy-installer)へのリンク付きの理由コードが付きます。親エージェントは、この grep でサブエージェントのマシンごとに確認します。一台のマシンのインストールが、別のマシンを保証することはありません。サブエージェントの最初の報告には、それぞれ独自の `gstack:` の行が含まれます。
 
-`SKIP pins (planning-only; repo pins differ: ..., launch bun <v>)` (trailer
-note `pins: skipped (planning-only)`) is not a
-failure: planning workflows (`--for autoplan`, the plan reviews,
-`office-hours`) never run the target repo's tests. Workflows that do (`review`,
-`ship`, `qa`) and `--require` keep `pins` required.
+`SKIP pins (planning-only; repo pins differ: ..., launch bun <v>)`(トレーラーの注記 `pins: skipped (planning-only)`)は失敗ではありません。プランニング系のワークフロー(`--for autoplan`、プランのレビュー、`office-hours`)は、対象リポジトリのテストを決して実行しないためです。実行するワークフロー(`review`、`ship`、`qa`)と `--require` は、`pins` を必須のまま保ちます。
 
-When a lane reports to another thread (a handoff, a `gstack-lane-check`
-result, a coordinator contract), store and use the full thread id (`jam_…`)
-in the message, never the short display code: the code is a label the app
-renders, the id is what another agent can address and what the evidence bundle
-records. `UBI_OWNER` and lane ownership records take the same full id.
+レーンが別のスレッドに報告する場合(ハンドオフ、`gstack-lane-check` の結果、コーディネーターの契約)は、メッセージで短い表示コードではなく、完全なスレッド ID(`jam_…`)を保存して使ってください。その コードはアプリが表示するラベルであり、ID こそが別のエージェントが宛先に指定でき、証拠のバンドルに記録されるものだからです。`UBI_OWNER` とレーンの所有記録も、同じ完全な ID を使います。
 
-## Browser
+## ブラウザ
 
-The default install prints `SKIP browser (lazy; gstack-browser-ensure
-installs on first use)` and downloads nothing. The first browser skill run
-(`/browse`, `/qa`, `/design-review`, ...) calls `bin/gstack-browser-ensure`
-from its preflight, which installs Chromium (~115 MiB, about 86 s on a Capy
-machine) under setup's lock and prints `BROWSER_OK` or `BROWSER_UNAVAILABLE
-<reason>`. `--with-browser` installs it during the install instead, and the
-installer then prints the planning-only install time and the browser bootstrap
-time separately.
+既定のインストールは `SKIP browser (lazy; gstack-browser-ensure installs on first use)` と表示し、何もダウンロードしません。最初のブラウザ系スキルの実行(`/browse`、`/qa`、`/design-review` など)は、その事前確認から `bin/gstack-browser-ensure` を呼び出します。これは、セットアップのロックの下で Chromium(約 115 MiB。Capy のマシンで約 86 秒)をインストールし、`BROWSER_OK` または `BROWSER_UNAVAILABLE <reason>` を表示します。`--with-browser` を指定すると、代わりにインストール中にブラウザをインストールします。その場合、インストーラーは計画専用のインストール時間とブラウザのブートストラップ時間を別々に表示します。
 
-## The launch line
+<a id="the-launch-line"></a>
+## 起動行
 
-Every successful run, `--check` included, prints before the trailer:
+成功したすべての実行(`--check` を含む)は、トレーラーの前に次の行を表示します。
 
 ```
 GSTACK_LAUNCH: PATH=<dir>:$PATH GSTACK_SESSION_KIND=unattended GSTACK_STATE_ROOT=<path> GSTACK_EPHEMERAL=1 GSTACK_CAPY=1 GSTACK_INSTALL_VERDICT=<file>
 GSTACK_LAUNCH_PATH: <dir>
 ```
 
-`PATH=<dir>:$PATH` and `GSTACK_LAUNCH_PATH` appear only when the certified Bun,
-or the project's resolved Node, is not first on PATH (older Capy images ship
-`/usr/local/bin/bun` 1.3.14; 57 gstack commands start with `#!/usr/bin/env bun`).
-`<dir>` is never a shared bin directory: a Bun from gstack's store launches
-from its own version directory, and any other Bun, or a Node the launch
-needs, launches through `<verdict file without .json>.launch`, a gstack-owned
-directory holding only `bun`, `bunx` and, when needed, `node`, `npm`, `npx` and
-`corepack` symlinks. So a Bun found in `/usr/local/bin` or `$BUN_INSTALL/bin`
-never puts that directory's other tools (the image's node) in front of PATH.
-The pregate's lanes launch through the same directory. A child shell's `export` cannot
-configure the parent's later commands, so the parent supplies these
-assignments to every gstack command it launches (prefix the command, or
-export them once in the shell that runs it). A fresh shell without them keeps
-reporting the Bun it would really run: `FAIL runtime — bun 1.3.14 at
-/usr/local/bin/bun ...; verified bun 1.4.2 found at ~/.bun/bin (not on PATH);
-fix: export PATH="$HOME/.bun/bin:$PATH" or prefix commands with the
-GSTACK_LAUNCH line`.
+`PATH=<dir>:$PATH` と `GSTACK_LAUNCH_PATH` は、認定された Bun、またはプロジェクトの解決された Node が PATH の先頭にない場合にのみ現れます(古い Capy のイメージは `/usr/local/bin/bun` 1.3.14 を含んでおり、57 個の gstack のコマンドは `#!/usr/bin/env bun` で始まります)。`<dir>` が共有の bin ディレクトリになることは決してありません。gstack のストアにある Bun は、自身のバージョンのディレクトリから起動します。それ以外の Bun、または起動に必要な Node は、`<verdict file without .json>.launch` を通して起動します。これは gstack が所有するディレクトリで、`bun`、`bunx`、そして必要な場合には `node`、`npm`、`npx`、`corepack` のシンボリックリンクだけを含みます。そのため、`/usr/local/bin` や `$BUN_INSTALL/bin` にある Bun が、そのディレクトリの他のツール(イメージの node など)を PATH の先頭に押し出すことはありません。事前確認のレーンも、同じディレクトリを通して起動します。子シェルの `export` は、親の後続のコマンドを設定できません。そのため、親はこれらの代入を、起動するすべての gstack コマンドに与えます(コマンドに接頭辞を付けるか、それを実行するシェルで一度だけ export します)。これらのない新しいシェルは、実際に実行する Bun を報告し続けます: `FAIL runtime — bun 1.3.14 at /usr/local/bin/bun ...; verified bun 1.4.2 found at ~/.bun/bin (not on PATH); fix: export PATH="$HOME/.bun/bin:$PATH" or prefix commands with the GSTACK_LAUNCH line`。
 
-`GSTACK_EPHEMERAL=1` tells gstack the disk vanishes with the machine, so the
-doctor's `state root` row reads `durable=no` and unattended runs say
-`learnings: skipped` instead of writing silently. A durable root is opt-in:
-set `GSTACK_STATE_ROOT` to a directory that outlives the machine. The
-installer never writes to the Capy drive. See
-[docs/state-root.md](state-root.md#ephemeral-machines).
+`GSTACK_EPHEMERAL=1` は、ディスクがマシンと一緒に消えることを gstack に伝えます。そのため doctor の `state root` の行は `durable=no` と表示し、無人の実行は、黙って書き込む代わりに `learnings: skipped` と表示します。永続的なルートはオプトインです。マシンより長く存続するディレクトリを `GSTACK_STATE_ROOT` に設定してください。インストーラーが Capy のドライブに書き込むことはありません。詳しくは [docs/state-root.md](state-root.md#ephemeral-machines) を参照してください。
 
-`GSTACK_CAPY=1` turns on install admission. An unattended session (any host)
-refuses to start a workflow on a Bun below the supported minimum; with
-`GSTACK_CAPY=1`, an unattended or `GSTACK_SESSION_KIND=spawned` session also
-needs a passing verdict for this checkout, its current HEAD and a workflow at
-least as wide as the one starting. A refusal prints `INSTALL: fail ...` and
-`GSTACK_RESULT: skill=<s> status=refused run=-` and exits 3
-([INSTALL_UNVERIFIED](troubleshooting.md#install-unverified)). Ambient
-spawned sessions (OpenClaw) only warn. `GSTACK_ALLOW_UNSUPPORTED_RUNTIME=1`
-admits anyway and says so.
+`GSTACK_CAPY=1` は、インストールの受け入れを有効にします。無人のセッション(どのホストでも)は、サポートされる最低バージョン未満の Bun では、ワークフローの開始を拒否します。`GSTACK_CAPY=1` のとき、無人または `GSTACK_SESSION_KIND=spawned` のセッションは、さらにこのチェックアウトに対する合格した判定、現在の HEAD、そして開始するワークフローと同じかそれ以上の範囲のワークフローも必要とします。拒否されると `INSTALL: fail ...` と `GSTACK_RESULT: skill=<s> status=refused run=-` が表示され、終了コード 3 で終わります([INSTALL_UNVERIFIED](troubleshooting.md#install-unverified))。環境内のスポーンされたセッション(OpenClaw)は、警告するだけです。`GSTACK_ALLOW_UNSUPPORTED_RUNTIME=1` を指定すると、それでも受け入れ、そのことを表示します。
 
-## Bake into a Capy snapshot
+## Capy のスナップショットに焼き込む
 
-Machines that never run a workflow should not pay the install (about 30 s
-cold). A project that runs gstack on most machines can bake it instead: the
-project Setup's initialize step runs
+ワークフローを一度も実行しないマシンは、インストールの費用(コールドで約 30 秒)を払うべきではありません。ほとんどのマシンで gstack を実行するプロジェクトは、代わりに焼き込めます。プロジェクトのセットアップの初期化ステップは、次を実行します。
 
 ```bash
 git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.local/share/gstack
 ~/.local/share/gstack/bin/gstack-capy-install --require claude,codex,patch
 ```
 
-and snapshots capture `$HOME` (the checkout, `~/.bun/bin`, both host
-profiles). Each session then pays only the `--check`. A baked revision still
-moves forward at install-mode session start whenever it is behind origin, and
-the baked `~/.bun/bin` reaches workflows through the `GSTACK_LAUNCH` line. The
-project Setup is shared by every thread in the project, so changing it is the
-project's decision.
+スナップショットは `$HOME`(チェックアウト、`~/.bun/bin`、両方のホストプロファイル)を取り込みます。その後、各セッションは `--check` の分だけを支払います。焼き込まれたリビジョンも、origin より遅れている場合はインストールモードのセッション開始時に前に進みます。焼き込まれた `~/.bun/bin` は、`GSTACK_LAUNCH` の行を通してワークフローに届きます。プロジェクトのセットアップは、そのプロジェクトのすべてのスレッドで共有されるため、それを変更するかどうかはプロジェクトの判断です。
 
-## Working under a Captain
+## キャプテンの下での作業
 
-In a Capy session (`GSTACK_CAPY=1`, set by the launch line) every workflow
-prints `CAPY: on` and a `capy-asks` block: decisions go through Capy (a crew
-thread asks its Captain, otherwise the person), plan approvals are rendered
-with `gstack-owner-brief render --captain`, answers are recorded with
-`gstack-approvals`, and /ship's PR body opens with before/after images
-(`gstack-pr-shots`), Why and Approvals. The guide is
-[`capy/skill/gstack/captain.md`](../capy/skill/gstack/captain.md);
-`GSTACK_CAPY_ASKS=0` drops the block for one session.
+Capy のセッション(起動行によって設定される `GSTACK_CAPY=1`)では、すべてのワークフローが `CAPY: on` と `capy-asks` ブロックを表示します。決定は Capy を通ります(クルーのスレッドはキャプテンに尋ね、それ以外は本人に尋ねます)。プランの承認は `gstack-owner-brief render --captain` で表示され、回答は `gstack-approvals` で記録されます。また /ship の PR の本文は、before/after の画像(`gstack-pr-shots`)、Why、Approvals で始まります。ガイドは [`capy/skill/gstack/captain.md`](../capy/skill/gstack/captain.md) にあります。`GSTACK_CAPY_ASKS=0` を指定すると、1 つのセッションについて `capy-asks` ブロックを省きます。
 
-## Raising the supported minimum
+<a id="raising-the-supported-minimum"></a>
+## サポートされる最低バージョンの引き上げ
 
-`capy/support.env` holds `GSTACK_MIN_REVISION` and `GSTACK_CAPY_MIN_WRAPPER`.
-Raise `GSTACK_MIN_REVISION` only for install-honesty or security fixes, at
-stamp time, to the VERSION being released: it is the floor below which the
-trailer fails and the bootstrapper itself fast-forwards (a checkout above it
-that is behind origin is fast-forwarded by the checkout's own wrapper, so the
-floor is not what keeps machines current). It never exceeds VERSION
-(test/capy-skill-wrapper.test.ts). Raise `GSTACK_CAPY_MIN_WRAPPER` together with
-`GSTACK_CAPY_WRAPPER` in the bootstrapper when the bootstrapper itself
-changes in a way older copies cannot work with; older Drive copies keep
-working and print an owner action
-([CAPY_WRAPPER_STALE](troubleshooting.md#capy-wrapper-stale)), and the
-doctor's `wrapper` row warns (an active copy below the minimum is a WARN,
-never a FAIL; `bin/gstack-upgrade` never leaves a pending reinstall for it).
-Wrapper 2 only adds optional exports (the trailer's `latest:` note and the
-`cloned` line), so the minimum stays 1.
+`capy/support.env` には `GSTACK_MIN_REVISION` と `GSTACK_CAPY_MIN_WRAPPER` があります。`GSTACK_MIN_REVISION` を引き上げるのは、インストールの正直さやセキュリティの修正に限られます。リリース時のスタンプで、リリースされる VERSION に合わせます。これは、トレーラーが失敗する下限であり、ブートストラッパー自身が fast-forward する基準でもあります(それより上で origin より遅れたチェックアウトは、そのチェックアウト自身のラッパーが fast-forward します。そのため、下限が機械を最新に保っているわけではありません)。VERSION を超えることは決してありません(test/capy-skill-wrapper.test.ts)。`GSTACK_CAPY_MIN_WRAPPER` は、ブートストラッパー自身が古いコピーでは動かない形で変わるとき、ブートストラッパーの `GSTACK_CAPY_WRAPPER` と一緒に引き上げます。古い Drive のコピーは引き続き動き、所有者の対処を求めるメッセージを表示します([CAPY_WRAPPER_STALE](troubleshooting.md#capy-wrapper-stale))。doctor の `wrapper` の行は警告します(最低バージョンを下回る有効なコピーは WARN であり、決して FAIL ではありません)。`bin/gstack-upgrade` は、そのために保留中の再インストールを残すことは決してありません。ラッパー 2 は、オプションの export(トレーラーの `latest:` の注記と `cloned` の行)を追加するだけなので、最低バージョンは 1 のままです。
 
-## Exit codes
+## 終了コード
 
-| Exit | Meaning |
+| 終了コード | 意味 |
 |-----:|---------|
-| 0 | `gstack: ok` — every required component passed |
-| 1 | `gstack: fail <ids>` — a required component failed; each row has a fix |
-| 2 | usage error |
-| 3 | preflight stopped before `./setup` (`INSTALL_PREFLIGHT_FAILED`, `RUNTIME_PIN_CONFLICT`); nothing was installed |
+| 0 | `gstack: ok` — 必須のコンポーネントがすべて合格 |
+| 1 | `gstack: fail <ids>` — 必須のコンポーネントが失敗。各行に修正方法がある |
+| 2 | 使い方のエラー |
+| 3 | `./setup` の前に事前確認が停止(`INSTALL_PREFLIGHT_FAILED`、`RUNTIME_PIN_CONFLICT`)。何もインストールされていない |

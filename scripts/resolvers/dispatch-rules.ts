@@ -10,14 +10,14 @@
  * JSON line. test/dispatch-rules.test.ts pins the rendering sites.
  */
 
-export const IMPLEMENTER_DISPATCH_RULES_HEADING = 'Rules for the implementing agent';
+export const IMPLEMENTER_DISPATCH_RULES_HEADING = '実装エージェント向けのルール';
 
 export const IMPLEMENTER_DISPATCH_RULES_ITEMS = [
-  'Acceptance criteria are the `protects / fails_when / no_claim` profile of each test: the observable it protects, the wrong result it rejects, and what green does not prove. Never "make the tests pass".',
-  'Real code and real tests land in the same change; a placeholder, a stub assertion or a test deferred to a follow-up is not done.',
-  'Any change to a test, validator, CI step, timeout, tolerance, threshold, snapshot or suppression pragma is reported on its own line in your summary with its justification, before any other result.',
-  'A reported command names the command and its observed result (exit status, counts, the failing line); a command you did not run is not reported, and stderr is never silenced in a command you cite.',
-  'Your report is a claim until the parent re-executes it: say what you verified, what you reused, and what you could not check.',
+  '受け入れ基準は各テストの `protects / fails_when / no_claim` プロファイルです。守る観測可能な挙動、拒否する誤った結果、そして green が証明しないことを指します。「テストを通す」を基準にしてはいけません。',
+  '本物のコードと本物のテストを同じ変更に含めます。プレースホルダー、スタブのアサーション、後続対応に回したテストは完了とみなしません。',
+  'テスト、バリデーター、CI ステップ、タイムアウト、許容誤差、しきい値、スナップショット、抑制プラグマの変更は、他のどの結果よりも先に、サマリー内の独立した行で根拠とともに報告します。',
+  '報告するコマンドには、コマンド自体と観測した結果(終了ステータス、件数、失敗した行)を記載します。実行していないコマンドは報告せず、引用するコマンドで stderr を握りつぶしてはいけません。',
+  '親が再実行するまで、あなたの報告は主張にすぎません。確認したこと、再利用したこと、確認できなかったことを明記します。',
 ] as const;
 
 /** The numbered list only; each rendering site supplies its own heading line (`## ` in the spec body, `label:` in a child prompt). */

@@ -1,54 +1,54 @@
 <!-- AUTO-GENERATED from report-format.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-Structure the output as:
+出力は次の構成にしてください:
 
 ---
 
-**Tweetable summary** (first line, before everything else):
+**一行サマリー**(最初の行、他のすべての前):
 ```
 Week of Mar 1: 47 commits (3 contributors), 3.2k LOC, 38% tests, 12 PRs, peak: 10pm | Streak: 47d
 ```
 
-## Engineering Retro: [date range]
+## エンジニアリング振り返り: [日付範囲]
 
-### Summary Table
-(from Step 2)
+### サマリーの表
+(Step 2 より)
 
-### Trends vs Last Retro
-(from Step 12, loaded before save — skip if no matching history; in `compare` mode use **Current vs Prior Period** from the computed prior window even on the first run). Include the Recommendation follow-through line when Step 12 produced one.
+### 前回の振り返りとの推移
+(Step 12 より。保存の前に読み込む。一致する履歴がなければ省略。`compare` モードでは、初回の実行でも計算済みの直前の期間の **Current vs Prior Period** を使う。Step 12 で推奨事項のフォロースルーの行が生成された場合は、それを含める)
 
-### Time & Session Patterns
-(from Steps 3-4)
+### 時間帯とセッションのパターン
+(Step 3〜4 より)
 
-Narrative interpreting what the team-wide patterns mean:
-- When the most productive hours are and what drives them
-- Whether sessions are getting longer or shorter over time
-- Estimated hours per day of active coding (team aggregate)
-- Notable patterns: do team members code at the same time or in shifts?
+チーム全体のパターンの意味を解釈する物語:
+- 最も生産的な時間帯と、その要因
+- セッションが時間とともに長くなっているか、短くなっているか
+- アクティブなコーディングの 1 日あたりの推定時間(チーム全体の合計)
+- 注目すべきパターン: チームメンバーは同じ時間にコーディングしているか、交代制か
 
-### Shipping Velocity
-(from Steps 5-7)
+### 出荷のスピード
+(Step 5〜7 より)
 
-Narrative covering:
-- Commit type mix and what it reveals
-- PR size distribution and what it reveals about shipping cadence
-- Fix-chain detection (sequences of fix commits on the same subsystem)
-- Version bump discipline
+次を扱う物語:
+- コミット種別の構成と、そこから分かること
+- PR サイズの分布と、出荷のペースについて分かること
+- 修正の連鎖の検出(同じサブシステムに対する修正コミットの連続)
+- バージョン更新の規律
 
-### Code Quality Signals
-- Test LOC ratio trend
-- Hotspot analysis (are the same files churning?)
-- Greptile signal ratio and trend (if history exists): "Greptile: X% signal (Y valid catches, Z false positives)"
+### コード品質のシグナル
+- テストの LOC 比率の傾向
+- ホットスポット分析(同じファイルが繰り返し変更されていないか)
+- Greptile のシグナル比率と傾向(履歴がある場合): 「Greptile: X% signal (Y valid catches, Z false positives)」
 
-### Test Health
-- Total test files: N (`TEST_FILES_TOTAL`)
-- Test files changed this period: M (`TEST_FILES_CHANGED`; not newly added test cases)
-- Regression test commits: list the `REGRESSION_COMMIT` lines (`test(qa):`, `test(design):`, and `test: coverage` commits)
-- If prior retro exists and has `test_health`: show delta "Test count: {last} → {now} (+{delta})"
-- If test ratio < 20%: flag as growth area — "100% test coverage is the goal. Tests make vibe coding safe."
+### テストの健全性
+- テストファイルの総数: N(`TEST_FILES_TOTAL`)
+- この期間に変更されたテストファイル: M(`TEST_FILES_CHANGED`。追加されたテストケースの数ではない)
+- リグレッションテストのコミット: `REGRESSION_COMMIT` の行を列挙する(`test(qa):`、`test(design):`、`test: coverage` のコミット)
+- 過去の振り返りがあり `test_health` を持つ場合: 差分を表示「Test count: {last} → {now} (+{delta})」
+- テスト比率が 20% 未満の場合: 成長の課題として指摘「テストカバレッジ 100% が目標です。テストがあれば、バイブコーディングは安全になります。」
 
-### Plan Completion
-Check review JSONL logs for plan completion data from /ship runs this period:
+### プラン完了率
+`/ship` の実行で、この期間のプランの完了データがないか、レビューの JSONL ログを確認します:
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -57,71 +57,71 @@ SLUG=$(~/.claude/skills/gstack/bin/gstack-slug --get SLUG 2>/dev/null)
 cat "$GSTACK_STATE_ROOT"/projects/$SLUG/*-reviews.jsonl 2>/dev/null | grep '"skill":"ship"' | grep '"plan_items_total"' || echo "NO_PLAN_DATA"
 ```
 
-If plan completion data exists within the retro time window:
-- Count branches shipped with plans (entries that have `plan_items_total` > 0)
-- Compute average completion: sum of `plan_items_done` / sum of `plan_items_total`
-- Identify most-skipped item category if data supports it
+振り返りの時間枠内にプランの完了データがある場合:
+- プランと共に出荷されたブランチの数を数える(`plan_items_total` > 0 のエントリ)
+- 平均完了率を計算する: `plan_items_done` の合計 / `plan_items_total` の合計
+- データが示す場合は、最もスキップされた項目のカテゴリを特定する
 
-Output:
+出力:
 ```
 Plan Completion This Period:
   {N} branches shipped with plans
   Average completion: {X}% ({done}/{total} items)
 ```
 
-If no plan data exists, skip this section silently.
+プランのデータがなければ、このセクションは黙って省略します。
 
-### Focus & Highlights
-(from Step 8)
-- Focus score with interpretation
-- Ship of the week callout
+### フォーカスとハイライト
+(Step 8 より)
+- 解釈を添えたフォーカススコア
+- Ship of the Week の強調
 
-### Shipping Streaks
-(from Step 11: team and personal streaks, including broken-streak disclosure)
+### 出荷の連続記録
+(Step 11 より: チームと個人の連続記録。途切れている場合はその旨を明示)
 
-### Shortcut Debt
-(from Step 11.5: marker ledger and count, or the clean-ledger statement)
+### ショートカット負債
+(Step 11.5 より: マーカーの台帳と件数、または台帳がきれいであるという記述)
 
-### Your Week (personal deep-dive)
-(from Step 9, for the current user only)
+### あなたの一週間(個人の詳細)
+(Step 9 より。現在のユーザーだけを対象)
 
-This is the section the user cares most about. Include:
-- Their personal commit count, LOC, test ratio
-- Their session patterns and peak hours
-- Their focus areas
-- Their biggest ship
-- **What you did well** (2-3 specific things anchored in commits)
-- **Where to level up** (1-2 specific, actionable suggestions)
+これは、ユーザーが最も気にしているセクションです。次を含めます:
+- 個人のコミット数、LOC、テスト比率
+- セッションのパターンとピークの時間帯
+- 主な作業領域
+- 最大のシップ
+- **うまくできたこと**(コミットに基づく具体的な 2〜3 点)
+- **レベルアップのポイント**(具体的で実行可能な 1〜2 点の提案)
 
-### Team Breakdown
-(from Step 9, for each teammate — skip if solo repo)
+### チームの内訳
+(Step 9 より。チームメンバーごと。ソロのリポジトリなら省略)
 
-For each teammate (sorted by commits descending), write a section:
+チームメンバーごと(コミット数の降順)にセクションを書きます:
 
-#### [Name]
-- **What they shipped**: 2-3 sentences on their contributions, areas of focus, and commit patterns
-- **Praise**: 1-2 specific things they did well, anchored in actual commits. Be genuine — what would you actually say in a 1:1? Examples:
-  - "Cleaned up the entire auth module in 3 small, reviewable PRs — textbook decomposition"
-  - "Added integration tests for every new endpoint, not just happy paths"
-  - "Fixed the N+1 query that was causing 2s load times on the dashboard"
-- **Opportunity for growth**: 1 specific, constructive suggestion. Frame as investment, not criticism. Examples:
-  - "Test coverage on the payment module is at 8% — worth investing in before the next feature lands on top of it"
-  - "Most commits land in a single burst — spacing work across the day could reduce context-switching fatigue"
-  - "All commits land between 1-4am — sustainable pace matters for code quality long-term"
+#### [名前]
+- **出荷したもの**: 貢献、主な作業領域、コミットのパターンを 2〜3 文で
+- **称賛**: うまくできたこと 1〜2 点を、実際のコミットに基づいて具体的に。誠実に。1 対 1 の面談で実際に言うなら何か。例:
+  - 「認証モジュール全体を、レビューしやすい 3 つの小さな PR に分けて整理 — 教科書どおりの分解」
+  - 「新しいエンドポイントすべてに、正常系だけでなく統合テストを追加」
+  - 「ダッシュボードの読み込みを 2 秒遅らせていた N+1 クエリを修正」
+- **成長の機会**: 具体的で建設的な提案 1 点。批判ではなく投資として伝える。例:
+  - 「決済モジュールのテストカバレッジは 8% — 次の機能がその上に積まれる前に投資する価値がある」
+  - 「コミットの大半が 1 回のまとまった時間に集中 — 作業を一日に分散すると、文脈切り替えの疲れを減らせるかもしれない」
+  - 「すべてのコミットが午前 1〜4 時の間に集中 — 長期的なコードの品質には持続可能なペースが重要」
 
-**AI collaboration note:** If many commits have `Co-Authored-By` AI trailers (e.g., Claude, Copilot), note the AI-assisted commit percentage as a team metric. Frame it neutrally — "N% of commits were AI-assisted" — without judgment.
+**AI 協働に関する注記:** 多くのコミットに AI の `Co-Authored-By` トレーラー(例: Claude、Copilot)がある場合は、AI の支援を受けたコミットの割合をチーム全体の指標として記載します。判断を交えず、中立に「N% of commits were AI-assisted」と書いてください。
 
-### Top 3 Team Wins
-Identify the 3 highest-impact things shipped in the window across the whole team. For each:
-- What it was
-- Who shipped it
-- Why it matters (product/architecture impact)
+### チームの主な成果 上位 3 件
+この期間にチーム全体で出荷された、影響の大きい 3 件を特定します。それぞれについて:
+- 何だったか
+- 誰が出荷したか
+- なぜ重要か(製品/アーキテクチャへの影響)
 
-### 3 Things to Improve
-Specific, actionable, anchored in actual commits. Mix personal and team-level suggestions. Phrase as "to get even better, the team could..." These are the items saved as `recommendations` in the Step 13 snapshot, which the next retro scores for follow-through, so name a concrete file, script or check in each.
+### 改善すべき 3 点
+具体的で実行可能な内容を、実際のコミットに基づいて示します。個人とチーム全体の提案を混ぜてください。「さらに良くするために、チームは…できる」という形で表現します。これらの項目は Step 13 のスナップショットに `recommendations` として保存され、次回の振り返りで対応状況が評価されるため、各項目に具体的なファイル、スクリプト、またはチェックの名前を挙げてください。
 
-### 3 Habits for Next Week
-Small, practical, realistic. Each must be something that takes <5 minutes to adopt. At least one should be team-oriented (e.g., "review each other's PRs same-day").
+### 来週の習慣 3 点
+小さく、実践的で、現実的なもの。それぞれ 5 分未満で取り入れられるものにしてください。少なくとも 1 つはチーム向けにしてください(例: 「お互いの PR を同じ日にレビューする」)。
 
-### Week-over-Week Trends
-(if applicable, from Step 10)
+### 週次の推移
+(該当する場合。Step 10 より)

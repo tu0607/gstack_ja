@@ -147,7 +147,8 @@ export function isProseAUQVisible(visible: string): boolean {
  */
 export function isScopeGateQuestionVisible(visible: string): boolean {
   const squished = visible.replace(/\s+/g, '').toLowerCase();
-  return /whatshouldi(?:design-?)?review/.test(squished) && squished.includes('currentbranchdiff');
+  return (/whatshouldi(?:design-?)?review/.test(squished) && squished.includes('currentbranchdiff'))
+    || (squished.includes('レビュー対象は何ですか') && squished.includes('現在のブランチの差分'));
 }
 
 /**
@@ -166,12 +167,12 @@ export function isScopeGateQuestionVisible(visible: string): boolean {
 export function isScopeGateAutoSelectVisible(visible: string): boolean {
   const squished = visible.replace(/\s+/g, '').toLowerCase();
   const QUOTES = ['"', "'", '`', '“', '‘'];
-  const re = /scopegate:planmode/g;
+  const re = /(?:scopegate|スコープゲート):(?:planmode|プランモード)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(squished)) !== null) {
     const before = m.index > 0 ? squished[m.index - 1]! : '';
     if (QUOTES.includes(before)) continue; // quoted occurrence — narration, keep scanning
-    if (/auto-?select(?:ed|ing|s)?b/.test(squished.slice(m.index))) return true;
+    if (/auto-?select(?:ed|ing|s)?b|bを自動選択/.test(squished.slice(m.index))) return true;
   }
   return false;
 }

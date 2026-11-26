@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { expectMentions } from './helpers/prompt-structure';
 import { createSnapshot, prepareMethodology } from '../bin/gstack-autoplan-snapshot';
 import { writePrompts } from '../lib/autoplan-prompts';
 import { DX_ERROR_COMPACT, DX_ERROR_CONTRACT, DX_ERROR_ITEMS, DX_ERROR_RUBRIC } from '../lib/dx-error-contract';
@@ -22,8 +23,7 @@ describe('agent-ready error contract reaches every DX reviewer', () => {
       expect(text).toContain('CAP6:<path>:<item>');
       expect(text).toContain('4/10');
       expect(text).toContain('6/10');
-      expect(text).toMatch(/[Uu]sage (and|or) validation error/);
-      expect(text).toMatch(/unexpected failures only/i);
+      expectMentions(text, [['利用', '検証'], ['trace', '予期しない失敗']], 'the DX error contract');
     }
   });
 
@@ -48,7 +48,7 @@ describe('agent-ready error contract reaches every DX reviewer', () => {
   test('rendered skills carry the contract where each consumer reads it', () => {
     expect(read('plan-devex-review/sections/review-sections.md').includes(DX_ERROR_COMPACT)).toBe(true);
     expect(read('plan-devex-review/dx-hall-of-fame.md').includes(DX_ERROR_CONTRACT)).toBe(true);
-    expect(read('autoplan/sections/dx-phase.md')).toContain('2. Errors, agent-ready (what, fix, recovery, code, context, trace, redaction, channel)');
+    expect(read('autoplan/sections/dx-phase.md')).toContain('CAP4/CAP6');
     const devex = read('devex-review/SKILL.md');
     expect(devex).toContain(DX_ERROR_ITEMS.join(', '));
     expect(devex).toContain('plan-devex-review/dx-hall-of-fame.md');
@@ -58,7 +58,7 @@ describe('agent-ready error contract reaches every DX reviewer', () => {
   });
 
   test('the public doc is generated from the contract', () => {
-    const body = DX_ERROR_CONTRACT.slice(DX_ERROR_CONTRACT.indexOf('| Item |'));
+    const body = DX_ERROR_CONTRACT.slice(DX_ERROR_CONTRACT.indexOf('| 項目 |'));
     expect(read('docs/agent-ready-errors.md')).toContain(body);
   });
 

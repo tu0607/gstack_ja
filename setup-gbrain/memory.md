@@ -1,47 +1,37 @@
-# gstack memory ingest — what it does, what stays local, what you can do with it
+# gstack のメモリ取り込み — 何をするのか、何がローカルに残るのか、何ができるのか
 
-This is the user-facing reference for the transcript + memory ingest
-feature in `/setup-gbrain` and `/sync-gbrain`. If either asked whether to
-ingest your coding-agent sessions into gbrain, this doc explains what each
-answer does.
+これは、`/setup-gbrain` と `/sync-gbrain` にあるトランスクリプトとメモリの取り込み機能について、ユーザー向けにまとめた資料です。どちらかで、コーディングエージェントのセッションを gbrain に取り込むかどうかを尋ねられた場合、この資料で、それぞれの回答が何をするのかを説明しています。
 
-## What gets ingested
+## 何が取り込まれるのか
 
-| Source | Type | Where | Sensitivity |
+| ソース | 種類 | 場所 | 機密性 |
 |---|---|---|---|
-| Claude Code session JSONL | `transcript` | `~/.claude/projects/*/` | High — full conversations including tool I/O |
-| Codex CLI session JSONL | `transcript` | `~/.codex/sessions/YYYY/MM/DD/` | High |
-| Cursor session SQLite (V1.0.1) | `transcript` | `~/Library/Application Support/Cursor/` | Same — deferred V1.0.1 |
-| Eureka log | `eureka` | `~/.gstack/analytics/eureka.jsonl` | Medium — your insights, often non-secret |
-| Project learnings | `learning` | `~/.gstack/projects/<slug>/learnings.jsonl` | Medium |
-| Project timeline | `timeline` | `~/.gstack/projects/<slug>/timeline.jsonl` | Low |
-| CEO plans | `ceo-plan` | `~/.gstack/projects/<slug>/ceo-plans/*.md` | Medium |
-| Design docs | `design-doc` | `~/.gstack/projects/<slug>/*-design-*.md` | Medium |
-| Retros | `retro` | `~/.gstack/projects/<slug>/retros/*.md` | Medium |
-| Builder profile | `builder-profile-entry` | `~/.gstack/builder-profile.jsonl` | Low |
+| Claude Code のセッション JSONL | `transcript` | `~/.claude/projects/*/` | 高 — ツールの入出力を含む会話の全文 |
+| Codex CLI のセッション JSONL | `transcript` | `~/.codex/sessions/YYYY/MM/DD/` | 高 |
+| Cursor のセッション SQLite (V1.0.1) | `transcript` | `~/Library/Application Support/Cursor/` | 同じ — V1.0.1 に延期 |
+| Eureka ログ | `eureka` | `~/.gstack/analytics/eureka.jsonl` | 中 — あなたの気づき。多くは秘密情報ではない |
+| プロジェクトの学び | `learning` | `~/.gstack/projects/<slug>/learnings.jsonl` | 中 |
+| プロジェクトのタイムライン | `timeline` | `~/.gstack/projects/<slug>/timeline.jsonl` | 低 |
+| CEO プラン | `ceo-plan` | `~/.gstack/projects/<slug>/ceo-plans/*.md` | 中 |
+| デザインドキュメント | `design-doc` | `~/.gstack/projects/<slug>/*-design-*.md` | 中 |
+| レトロ | `retro` | `~/.gstack/projects/<slug>/retros/*.md` | 中 |
+| ビルダープロファイル | `builder-profile-entry` | `~/.gstack/builder-profile.jsonl` | 低 |
 
-## Transcripts
+## トランスクリプト
 
-Curated memory (learnings, timeline, plans, designs, retros, eureka, builder
-profile) syncs on every `/sync-gbrain`. Session transcripts sync only after
-you choose to share them. The choice is the `transcript_ingest_mode` config
-key, optionally narrowed by the `transcript_repos` allowlist:
+キュレーションされたメモリ(学び、タイムライン、プラン、デザイン、レトロ、eureka、ビルダープロファイル)は、`/sync-gbrain` を実行するたびに同期されます。セッションのトランスクリプトは、共有すると決めた後にのみ同期されます。その選択は `transcript_ingest_mode` 設定キーで行い、必要に応じて `transcript_repos` の許可リストで絞り込めます。
 
-| Value | What `/sync-gbrain` ingests |
+| 値 | `/sync-gbrain` が取り込むもの |
 |---|---|
-| `recent` | Sessions from the last 90 days |
-| `all` | All history (`--full` walks every session file) |
-| `new@2026-10-03T17:00:00Z` | Only sessions whose first record is at or after that UTC time. A session that started earlier stays out even when it is appended to later. A session with no start timestamp stays out. |
-| `off` | No transcripts; other memory still syncs |
-| `recent+repos`, `all+repos`, `new@…+repos` | The same window, only for the repos in `transcript_repos`. gstack adds and removes `+repos` itself. |
+| `recent` | 過去 90 日以内のセッション |
+| `all` | 全履歴(`--full` ですべてのセッションファイルを走査) |
+| `new@2026-10-03T17:00:00Z` | 最初のレコードがその UTC 時刻以降のセッションだけ。それより前に始まったセッションは、後から追記されても対象外のまま。開始時刻のないセッションも対象外 |
+| `off` | トランスクリプトなし。それ以外のメモリは同期される |
+| `recent+repos`、`all+repos`、`new@…+repos` | 同じ期間で、`transcript_repos` に含まれるリポジトリだけ。`+repos` は gstack が自分で追加・削除します |
 
-Both sources are covered: Claude Code sessions (`~/.claude/projects/`) and
-Codex sessions (`~/.codex/sessions/`), from every project on this machine
-that your per-remote trust policy allows, not only the current repo. Pages go
-to your brain: the local engine (PGLite or Supabase) in local-stdio mode, or
-the artifacts repo the remote brain pulls from in remote-http mode.
+対象となるのは、Claude Code のセッション(`~/.claude/projects/`)と Codex のセッション(`~/.codex/sessions/`)の両方です。対象は、現在のリポジトリだけでなく、ユーザーのリポジトリごとの信頼ポリシーが許可している、このマシン上のすべてのプロジェクトです。ページは、ブレインに入ります。local-stdio モードではローカルのエンジン(PGLite または Supabase)に、remote-http モードではリモートのブレインが取得する成果物のリポジトリに入ります。
 
-Set or change it:
+設定や変更は次のように行います。
 
 ```bash
 gstack-config set transcript_ingest_mode recent   # or all, or off
@@ -52,117 +42,52 @@ gstack-config has transcript_ingest_mode && gstack-config get transcript_ingest_
 bun run lib/transcript-consent.ts --describe                                     # the effective consent in words
 ```
 
-`gstack-config set` rejects any other value and keeps the stored one. The
-cutoff takes only the `Z` (UTC) form, to the second. `transcript_repos`
-accepts any git remote spelling (`https://…`, `git@…:…`, with or without
-`.git`) and stores its canonical form; an empty list is rejected. Setting
-or clearing the allowlist updates the `+repos` marker in the same write.
-`gstack-config set transcript_ingest_mode <base>` keeps the marker while an
-allowlist exists, and `off` never carries it.
+`gstack-config set` は、それ以外の値を拒否し、保存されていた値を維持します。カットオフは `Z`(UTC)形式のみで、秒まで指定します。`transcript_repos` は、任意の git リモートの表記(`https://…`、`git@…:…`、末尾の `.git` の有無を問わない)を受け付け、正規化した形式で保存します。空のリストは拒否されます。許可リストを設定またはクリアすると、同じ書き込みで `+repos` のマーカーも更新されます。`gstack-config set transcript_ingest_mode <base>` は、許可リストが存在する間は `+repos` マーカーを維持します。`off` は、マーカーを決して持ち越しません。
 
-**Several config roots.** When gstack reads more than one state root (for
-example `GSTACK_HOME` plus `~/.gstack`), the most restrictive answer wins:
-`off` in any root means off, the latest cutoff and any 90-day window both
-apply, and only repos in every root's allowlist count. The resolved root
-must hold the consent itself.
+**複数の設定ルート。** gstack が複数の状態ルート(例: `GSTACK_HOME` と `~/.gstack`)を読む場合、最も制限的な回答が優先されます。どこか一つのルートに `off` があれば、それは off の意味になります。最も遅いカットオフと、90 日の期間の両方が適用されます。許可リストは、すべてのルートの許可リストに含まれるリポジトリだけが対象になります。解決されたルート自体が同意を保持している必要があります。
 
-**Not set.** Until you choose, transcripts are skipped. Each sync prints one
-line saying so, even with `--quiet`, and the next interactive `/sync-gbrain`
-asks once. Older values from previous gate versions (`A`-`E`, `incremental`)
-and values this version does not recognize also count as not chosen and get
-the question again. A stored `off` prints `transcripts off (your choice)`
-without `--quiet` and is never asked again.
+**未設定。** 選択するまでは、トランスクリプトはスキップされます。同期のたびに、`--quiet` であっても、その旨を一行表示します。次に対話形式で `/sync-gbrain` を実行したとき、一度だけ質問されます。以前のゲートのバージョンの値(`A`〜`E`、`incremental`)や、このバージョンが認識しない値も、選択されていないものとして扱われ、再度質問されます。保存された `off` は、`--quiet` なしで `transcripts off (your choice)` と表示され、二度と質問されません。
 
-**One-run override.** A `--sources` list (or `GSTACK_MEMORY_INGEST_SOURCES`)
-that names `transcript` ingests transcripts for that run whatever the mode;
-the sync still prints the mode notice. An override never widens a scoped
-consent: a `new@` cutoff and the `transcript_repos` allowlist still apply.
-`--sources all`, an empty list, or a list with no valid types does not
-override.
+**一回限りの上書き。** `--sources` のリスト(または `GSTACK_MEMORY_INGEST_SOURCES`)に `transcript` が含まれている場合、モードに関係なく、その実行ではトランスクリプトを取り込みます。同期は、モードの通知を依然として表示します。上書きによって、範囲を限定した同意が広がることはありません。`new@` のカットオフと `transcript_repos` の許可リストは依然として適用されます。`--sources all`、空のリスト、または有効な種類を含まないリストは、上書きにはなりません。
 
 ```bash
 bun run bin/gstack-gbrain-sync.ts --incremental --sources transcript
 ```
 
-**What each sync tells you.** Without `--quiet` the sync prints the consent
-in words (window or cutoff, up to three repos, the config roots it came
-from). The ingest summary counts sessions left out by reason: before the
-cutoff, no start time, not in the allowlist, and repo policy deny. A sync
-under `new@` that ingests nothing says so and says new sessions will appear
-on the next sync.
+**各同期が何を伝えるか。** `--quiet` なしの場合、同期は同意の内容を言葉で表示します(期間またはカットオフ、最大三つのリポジトリ、同意の元になった設定ルート)。取り込みの概要では、理由別に対象外となったセッションの数を数えます。カットオフより前、開始時刻なし、許可リストにない、リポジトリポリシーで deny、の各理由です。`new@` の下で同期が何も取り込まなかった場合は、その旨と、次の同期で新しいセッションが現れることを表示します。
 
-**Interrupted imports.** If a sync was interrupted mid-import and your
-transcript choice changed before the next run (the mode, the cutoff or the
-allowlist), the next sync restages memory from scratch once instead of
-resuming, and prints a line saying so.
+**中断されたインポート。** 同期が途中で中断され、次の実行の前にトランスクリプトの選択(モード、カットオフ、許可リスト)が変わっていた場合、次の同期は、再開せずにメモリを一度だけ最初からステージし直し、その旨を一行表示します。
 
-**Staged pages.** Transcript pages already staged under
-`~/.gstack/transcripts/` (remote-http mode) wait while the mode is not
-`recent`, `all` or `new@…`: they stay on disk and are not pushed by
-`gstack-brain-sync`. Other artifacts keep pushing. When you narrow a scoped
-consent (a later cutoff, a smaller allowlist), the next sync removes the
-staged pages that are now out of scope and prints `removed N staged
-transcript pages outside the new scope`; widening again re-stages them from
-the original sessions. Before every push, `gstack-brain-sync` also checks
-its own unpushed commits and rewrites them without any page outside your
-consent (`removed N excluded transcript pages from unpublished sync
-commits`). The removal covers staged and unpushed pages only.
+**ステージされたページ。** `~/.gstack/transcripts/` にすでにステージされているトランスクリプトのページ(remote-http モード)は、モードが `recent`、`all`、`new@…` のいずれでもない間は待機します。それらはディスク上に残り、`gstack-brain-sync` によって push されません。ほかの成果物は、引き続き push されます。同意の範囲を絞り込んだ場合(後のカットオフ、小さい許可リスト)は、次の同期で、範囲外になったステージ済みのページを削除し、`removed N staged transcript pages outside the new scope` と表示します。再び範囲を広げると、元のセッションから再ステージされます。push の前に、`gstack-brain-sync` は未 push のコミットも確認し、同意の範囲外のページを含まないように書き直します(`removed N excluded transcript pages from unpublished sync commits`)。この削除は、ステージ済みと未 push のページだけが対象です。
 
-**Already-ingested transcripts stay.** Switching to `off` or narrowing the
-scope stops new ingests; it does not remove pages already in the brain or
-already pushed. Delete them there (see "Delete a page" below).
+**すでに取り込まれたトランスクリプトは残ります。** `off` に切り替えたり、範囲を絞り込んだりしても、新しい取り込みが止まるだけです。すでにブレインにあるページや、すでに push されたページは削除されません。それらはそちらで削除してください(下の「ページを削除する」を参照)。
 
-**Downgrading gstack.** A gstack that predates `new@` and `transcript_repos`
-reads those values as unrecognized and ingests no transcripts
-automatically. It does honour an explicit transcript override without any
-scope, so before downgrading: remove `--sources transcript` and
-`GSTACK_MEMORY_INGEST_SOURCES=transcript` from scripts, and let pending sync
-publish, or run `gstack-config set transcript_ingest_mode off`.
+**gstack をダウングレードする場合。** `new@` と `transcript_repos` より前の gstack は、それらの値を認識できないものとして扱い、トランスクリプトを自動では取り込みません。ただし、範囲の指定がない明示的なトランスクリプトの上書きは、今も尊重します。そのため、ダウングレードする前に、スクリプトから `--sources transcript` と `GSTACK_MEMORY_INGEST_SOURCES=transcript` を削除し、保留中の同期を完了させるか、`gstack-config set transcript_ingest_mode off` を実行してください。
 
-## What stays local
+## ローカルに残るもの
 
-- **State files** (`~/.gstack/.gbrain-sync-state.json`,
-  `~/.gstack/.transcript-ingest-state.json`,
-  `~/.gstack/.gbrain-engine-cache.json`,
-  `~/.gstack/.gbrain-errors.jsonl`) are local-only per ED1 (state file
-  sync semantics decision). They are not synced via the brain remote.
+- **状態ファイル**(`~/.gstack/.gbrain-sync-state.json`、`~/.gstack/.transcript-ingest-state.json`、`~/.gstack/.gbrain-engine-cache.json`、`~/.gstack/.gbrain-errors.jsonl`)は、ED1(状態ファイルの同期の意思決定)に従い、ローカルのみです。ブレインのリモート経由では同期されません。
 
-- **Sessions with no resolvable git remote** (running in `/tmp/`, scratch
-  dirs, etc.) are skipped by default. Pass `--include-unattributed` to
-  the ingest helper to opt them in.
+- **git のリモートが解決できないセッション**(`/tmp/` やスクラッチディレクトリなどで実行されたもの)は、デフォルトでスキップされます。取り込みヘルパーに `--include-unattributed` を渡すと、対象に含められます。
 
-- **Repos under a `deny` trust policy** (set in `/setup-gbrain` Step 6)
-  are skipped — neither code nor transcripts from those repos ingest.
+- **`deny` のトラストポリシーがあるリポジトリ**(`/setup-gbrain` の Step 6 で設定)は、スキップされます。そのリポジトリのコードもトランスクリプトも取り込まれません。
 
-## Per-remote trust policy (deny / read-only)
+## リモートごとのトラストポリシー(deny / read-only)
 
-Transcript ingest respects the same per-remote trust store as code import
-(`~/.gstack/gbrain-repo-policy.json`, managed by
-`gstack-gbrain-repo-policy`). Each transcript's git remote is checked
-against the store before anything is written:
+トランスクリプトの取り込みは、コードのインポートと同じリモートごとの信頼ストアに従います(`~/.gstack/gbrain-repo-policy.json`。`gstack-gbrain-repo-policy` で管理)。各トランスクリプトの git リモートは、何かを書き込む前にこのストアと照合されます。
 
-- **deny** — the transcript is skipped (reported as `skipped (policy deny)`).
-- **read-only** — skipped too: read-only means "search allowed, page
-  writes never", and transcript ingest writes pages (reported as
-  `skipped (policy read-only)`).
-- **read-write, or no entry** — ingests normally.
-- **Corrupted or unreadable store** — ingestion aborts before any writes
-  rather than bypassing a set policy. Inspect the store with
-  `gstack-gbrain-repo-policy list`; re-run `/setup-gbrain` if it's corrupt.
+- **deny** — トランスクリプトはスキップされます(`skipped (policy deny)` と報告されます)。
+- **read-only** — これもスキップされます。read-only は「検索は許可するが、ページの書き込みは決してしない」という意味で、トランスクリプトの取り込みはページを書き込むからです(`skipped (policy read-only)` と報告されます)。
+- **read-write、またはエントリなし** — 通常どおり取り込まれます。
+- **ストアが壊れている、または読めない** — 設定済みのポリシーを迂回せず、書き込みを行う前に取り込みを中止します。`gstack-gbrain-repo-policy list` でストアを確認してください。壊れている場合は、`/setup-gbrain` を再実行してください。
 
-Artifacts (learnings, plans, retros, etc.) are never policy-filtered — the
-policy is keyed by git remote, which artifacts don't have.
+成果物(学び、プラン、レトロなど)は、ポリシーでフィルタされることは決してありません。ポリシーは git のリモートをキーにしており、成果物には git のリモートがないからです。
 
-## What gets scanned for secrets
+## 秘密情報のスキャン対象
 
-The cross-machine secret boundary is `gstack-brain-sync` (the git push
-to your private artifacts repo), which runs its own scanner before any
-content leaves this Mac. Local PGLite ingest doesn't change the exposure
-surface for content that already lives on disk in plaintext.
+秘密情報の境界となるのは `gstack-brain-sync`(プライベートな成果物リポジトリへの git push)です。これは、このマシンから内容が出る前に、独自のスキャナを実行します。ローカルの PGLite への取り込みは、すでにディスク上にプレーンテキストで存在する内容の露出範囲を変えるものではありません。
 
-Per-file **gitleaks** scanning during memory ingest is **opt-in** as of
-v1.33.0.0 — off by default. To re-enable it (adds ~4-8 min to cold runs
-on a large transcript corpus), use either:
+メモリの取り込み中のファイルごとの **gitleaks** スキャンは、v1.33.0.0 以降、**オプトイン**です(デフォルトではオフ)。再度有効にするには(大規模なトランスクリプトのコーパスでは、コールドの実行に約 4〜8 分追加されます)、次のいずれかを使います。
 
 ```bash
 bun run bin/gstack-memory-ingest.ts --bulk --scan-secrets
@@ -170,233 +95,153 @@ bun run bin/gstack-memory-ingest.ts --bulk --scan-secrets
 GSTACK_MEMORY_INGEST_SCAN_SECRETS=1 bun run bin/gstack-memory-ingest.ts --bulk
 ```
 
-When enabled, gitleaks scans each rendered page, the exact markdown that
-gets imported, rather than the raw `.jsonl`. It covers:
+有効にすると、gitleaks は生の `.jsonl` ではなく、レンダリングされた各ページ、つまりインポートされる正確なマークダウンをスキャンします。対象は次のとおりです。
 
-- AWS / GCP / Azure access keys
-- ANTHROPIC_API_KEY, OPENAI_API_KEY, GitHub tokens
-- Stripe keys, Slack tokens, JWT secrets
-- Generic high-entropy strings (configurable threshold)
+- AWS / GCP / Azure のアクセスキー
+- ANTHROPIC_API_KEY、OPENAI_API_KEY、GitHub のトークン
+- Stripe のキー、Slack のトークン、JWT のシークレット
+- 一般的な高エントロピー文字列(しきい値は設定可能)
 
-A session with a positive finding is **skipped entirely** — not partially
-redacted. The source path and finding count are logged, never secret values; you can see what
-was skipped via `bun run bin/gstack-memory-ingest.ts --probe` (which
-shows new vs. updated counts) or by reviewing the helper's output during
-`/sync-gbrain --full`.
+検出があったセッションは、部分的に黒塗りするのではなく、**完全にスキップ**されます。ソースのパスと検出件数はログに残りますが、秘密の値はログに残りません。スキップされた内容は `bun run bin/gstack-memory-ingest.ts --probe`(新規と更新の件数を表示)で確認するか、`/sync-gbrain --full` の実行中にヘルパーの出力を見ることで確認できます。
 
-If gitleaks is not installed (run `brew install gitleaks` on macOS, or
-`apt install gitleaks` on Linux) and you passed `--scan-secrets` anyway,
-the helper warns once and every file it cannot scan is skipped, not
-imported unscanned. The same goes for a scan that fails partway. Skipped
-files stay pending and are retried on the next run. Missing or malformed
-reports, reports over 16 MiB, and scans exceeding 60 seconds also block the
-page. Reports use private temporary files that are removed after scanning.
+gitleaks がインストールされていない(macOS では `brew install gitleaks`、Linux では `apt install gitleaks` を実行)のに、それでも `--scan-secrets` を渡した場合は、ヘルパーが一度だけ警告を出し、スキャンできなかったファイルはすべてスキップされます。スキャンせずにインポートされることはありません。スキャンが途中で失敗した場合も同様です。スキップされたファイルは保留のままになり、次の実行で再試行されます。レポートが欠落している、または不正な形式の場合、16 MiB を超えるレポート、60 秒を超えるスキャンも、そのページをブロックします。レポートは、スキャン後に削除される非公開の一時ファイルに保存されます。
 
-Resumed staging is scanned again, including files absent from the current
-source walk. Any finding, incomplete scan, or unsupported entry refuses the
-whole resumed import with a nonzero exit and preserves the stage for retry.
-Saved pages determine the expected import count; only pages matching the
-current rendered source can advance its ingest state. Incomplete or mismatched
-staging remains available for recovery.
+再開されたステージングも再度スキャンされます。これには、現在のソースの走査に含まれないファイルも含まれます。検出、不完全なスキャン、またはサポートされていないエントリがあると、再開されたインポート全体が、ゼロ以外の終了コードで拒否され、再試行のためにステージが保持されます。保存されたページによって、期待されるインポート件数が決まります。現在のレンダリング済みのソースと一致するページだけが、そのインジェスト状態を進めることができます。不完全または一致しないステージは、リカバリーのために残されます。
 
-`--no-write` is a dry run: it prepares and counts pages but imports nothing
-and never changes the ingest state, so a later real run still imports every
-eligible page.
+スキャンが要求されている場合、新規、再開、および永続的なパスはいずれも、ページのレンダリングに使われたソースのスナップショットにのみスタンプし、そのハッシュと更新時刻が変わっていない場合に限ります。増分チェックは、タイムスタンプが一致する場合でも、ハッシュを検証します。スキャンされたページは、アトミックに昇格させる前に、非公開のステージングに完全に書き込まれるため、部分的な書き込みが送信ページになることはありません。
 
-With scanning requested, fresh, resumed and persistent passes stamp only the source snapshot used to render the page, and only while its
-hash and modification time are unchanged. Incremental checks verify the hash
-even when the timestamp matches. Scanned pages are fully written in private
-staging before atomic promotion, so partial writes never become outgoing pages.
+`--no-write` はドライランです。ページを準備して件数を数えますが、何もインポートせず、インジェスト状態も変更しません。そのため、後の本番の実行は、対象となるすべてのページを依然としてインポートします。
 
-## Where it goes
+## 保存先
 
-Storage tier depends on your gbrain engine (set during `/setup-gbrain`):
+ストレージの階層は、gbrain のエンジン(`/setup-gbrain` の実行時に設定)によって異なります。
 
-- **Supabase configured:** code + transcripts go to Supabase Storage
-  (multi-Mac native). Curated memory (eureka/learnings/etc.) goes to the
-  brain-linked git repo via `gstack-brain-sync`.
-- **Local PGLite only:** everything stays on this Mac. Curated memory
-  syncs via git if you've enabled brain-sync.
+- **Supabase が設定されている場合:** コードとトランスクリプトは Supabase Storage に保存されます(複数の Mac にネイティブに対応)。キュレーションされたメモリ(eureka、学びなど)は、`gstack-brain-sync` を通じてブレインに紐づいた git リポジトリに保存されます。
+- **ローカルの PGLite だけの場合:** すべてこの Mac に残ります。キュレーションされたメモリは、ブレインの同期を有効にしていれば git で同期されます。
 
-The "never double-store" rule per the plan: code and transcripts NEVER
-go in the gbrain-linked git repo. They're too big and they're
-replaceable from disk on each Mac.
+「二重に保存しない」というルールがこの計画の原則です。コードとトランスクリプトは、ブレインに紐づいた git リポジトリには決して入りません。サイズが大きすぎ、各 Mac でディスクから再生成できるからです。
 
-## What you can do with it
+## 何ができるのか
 
-- **Query in natural language:**
+- **自然言語で問い合わせる:**
   ```bash
   gbrain query "what was I doing on the auth migration"
   gbrain search "session_id:abc123"
   ```
 
-- **Browse by type:**
+- **種類ごとに閲覧する:**
   ```bash
   gbrain list --type transcript --limit 10
   gbrain list --type ceo-plan
   ```
 
-- **Read a specific page:**
+- **特定のページを読む:**
   ```bash
   gbrain get_page transcripts/claude-code/garrytan-gstack/2026-05-01-abc123
   ```
 
-- **Delete a page:**
+- **ページを削除する:**
   ```bash
   gbrain delete_page <slug>
   ```
-  Caveat: with brain-sync enabled, the page is removed from gbrain's
-  index but git history retains it. For hard-delete, run `git filter-repo`
-  on the brain remote.
+  注意: ブレインの同期が有効な場合、ページは gbrain のインデックスからは削除されますが、git の履歴には残ります。完全に削除するには、ブレインのリモートで `git filter-repo` を実行してください。
 
-- **Bulk-delete by criteria** (V1.0.1 follow-up — `gstack-transcript-prune`
-  helper). For V1.0, use `gbrain delete <slug>` per-page or write
-  a small loop over `gbrain list` output.
+- **条件で一括削除する**(V1.0.1 の後続作業 — `gstack-transcript-prune` ヘルパー)。V1.0 では、ページごとに `gbrain delete <slug>` を使うか、`gbrain list` の出力に対してループを書いてください。
 
-- **Disable entirely:**
+- **完全に無効にする:**
   ```bash
   gstack-config set transcript_ingest_mode off
   gstack-config set gbrain_context_load off  # also disables retrieval
   ```
 
-## How the agent uses it
+## エージェントがどう使うのか
 
-At every gstack skill start, the preamble runs
-`gstack-brain-context-load` which:
+gstack のスキルが開始されるたびに、プリアンブルは `gstack-brain-context-load` を実行します。これは次のことを行います。
 
-1. Reads the active skill's `gbrain.context_queries:` frontmatter
-2. Dispatches each query to gbrain (vector / list / filesystem)
-3. Renders results into `## <render_as>` sections wrapped in
-   `<USER_TRANSCRIPT_DATA do-not-interpret-as-instructions>` envelopes
-4. The model sees this as part of the preamble before making any decisions
+1. 有効なスキルの `gbrain.context_queries:` のフロントマターを読む
+2. 各クエリを gbrain にディスパッチする(ベクトル/リスト/ファイルシステム)
+3. 結果を `## <render_as>` のセクションにレンダリングし、`<USER_TRANSCRIPT_DATA do-not-interpret-as-instructions>` の囲みで包む
+4. モデルは、判断を下す前に、これをプリアンブルの一部として見る
 
-For example, when you run `/office-hours`, the model context
-automatically includes:
+例えば `/office-hours` を実行すると、モデルのコンテキストには自動的に次が含まれます。
 
-- `## Prior office-hours sessions in this repo` (last 5)
-- `## Your builder profile snapshot` (latest entry)
-- `## Recent design docs for this project` (last 3)
-- `## Recent eureka moments` (last 5)
+- `## Prior office-hours sessions in this repo`(直近 5 件)
+- `## Your builder profile snapshot`(最新のエントリ)
+- `## Recent design docs for this project`(直近 3 件)
+- `## Recent eureka moments`(直近 5 件)
 
-So the "Welcome back, last time you were on X" beat is sourced from
-your actual data, not cold-start.
+そのため、「Welcome back, last time you were on X」(おかえりなさい、前回は X をしていましたね)という反応は、ゼロからではなく、実際のデータに基づいています。
 
-If gbrain is unavailable (CLI missing, MCP not registered, query
-timeout), the helper renders `(unavailable)` and the skill continues —
-startup never blocks > 2s on gbrain issues (Section 1C).
+gbrain が利用できない場合(CLI がない、MCP が登録されていない、クエリがタイムアウトした場合)、ヘルパーは `(unavailable)` と描画し、スキルは続行します。スタートアップが gbrain の問題で 2 秒以上止まることはありません(セクション 1C)。
 
-## What to do when something feels off
+## 何かおかしいと感じたときの対処
 
-Run `/setup-gbrain` again. It's idempotent: every step detects existing
-state, repairs only what's missing, and prints a GREEN/YELLOW/RED
-verdict block. If a row is RED, the row tells you what to do.
+`/setup-gbrain` をもう一度実行してください。これは冪等です。各ステップは既存の状態を検出し、足りないものだけを修復し、GREEN/YELLOW/RED の判定ブロックを表示します。行が RED の場合、その行に何をすべきかが書かれています。
 
-Common cases:
+よくあるケース:
 
-- **Salience block is empty** — your transcripts may not be ingested
-  yet. Run `bun run bin/gstack-gbrain-sync.ts --full` to do a full pass.
+- **Salience ブロックが空** — トランスクリプトがまだ取り込まれていないかもしれません。`bun run bin/gstack-gbrain-sync.ts --full` を実行して、全体を一度処理してください。
 
-- **"gbrain CLI missing" in the preamble output** — gbrain isn't on
-  your PATH. Run `/setup-gbrain` to install/wire it.
+- **プリアンブルの出力に「gbrain CLI missing」と表示される** — gbrain が PATH 上にありません。`/setup-gbrain` を実行して、インストールと接続を行ってください。
 
-- **PGLite engine corrupt (V1.5)** — V1.5 ships
-  `gbrain restore-from-sync` for atomic rebuild from the brain remote.
-  For V1.0, manual recovery: `cd ~/.gbrain && rm -rf db && gbrain init
-  --pglite && gbrain import <brain-remote-clone-dir>`.
+- **PGLite エンジンが壊れている(V1.5)** — V1.5 では、ブレインのリモートから原子的に再構築する `gbrain restore-from-sync` が提供されます。V1.0 では、手動で復旧してください: `cd ~/.gbrain && rm -rf db && gbrain init --pglite && gbrain import <brain-remote-clone-dir>`。
 
-- **A page has stale or wrong content** — `gbrain delete_page <slug>`,
-  then re-run `bun run bin/gstack-gbrain-sync.ts --incremental` to re-ingest from
-  source if the source file is still on disk and unchanged.
+- **ページの内容が古い、または間違っている** — `gbrain delete_page <slug>` を実行し、ソースファイルがディスク上にまだあって変更されていなければ、`bun run bin/gstack-gbrain-sync.ts --incremental` を再実行してソースから再取り込みしてください。
 
-## Privacy + audit
+## プライバシーと監査
 
-- Every `secretScanFile` finding is logged to stderr at ingest time.
-- Every gbrain put/delete is logged to `~/.gstack/.gbrain-errors.jsonl`
-  with `{ts, op, duration_ms, outcome}` for forensic tracing.
-- `~/.gstack/.gbrain-engine-cache.json` shows which storage tier is
-  active (PGLite vs Supabase).
-- Brain-sync git history shows every curated artifact push with the
-  user's git identity.
+- すべての `secretScanFile` の検出は、取り込み時に stderr にログされます。
+- gbrain へのすべての put/delete は、`{ts, op, duration_ms, outcome}` の形式で `~/.gstack/.gbrain-errors.jsonl` に記録され、事後の追跡に使えます。
+- `~/.gstack/.gbrain-engine-cache.json` は、どのストレージ階層(PGLite か Supabase か)が有効かを示します。
+- ブレインの同期の git 履歴には、ユーザーの git の ID で、すべてのキュレーション済み成果物の push が記録されます。
 
-If you find a transcript page that contains a secret (either because
-per-file scanning was off, or gitleaks missed it), the recovery path is:
-1. `gbrain delete_page <slug>` — removes from index immediately
-2. Rotate the secret (rotate it anyway as a defensive measure)
-3. If brain-sync is on: `git filter-repo --invert-paths --path <relative-path>`
-   on the brain remote for hard-delete from history
-4. If the miss looks like a gitleaks rule gap, file a gitleaks issue
-   with the pattern (or extend the gitleaks config at `~/.gitleaks.toml`).
+トランスクリプトのページに秘密情報が含まれているのを見つけた場合(ファイルごとのスキャンがオフだった、または gitleaks が見逃した場合)、復旧の手順は次のとおりです。
+1. `gbrain delete_page <slug>` — インデックスからすぐに削除します
+2. 秘密情報をローテーションします(予防措置として、念のため必ず行ってください)
+3. ブレインの同期が有効な場合: ブレインのリモートで `git filter-repo --invert-paths --path <relative-path>` を実行し、履歴から完全に削除します
+4. 見逃しが gitleaks のルールの穴によるものだと思われる場合は、パターンとともに gitleaks の issue を立てるか、`~/.gitleaks.toml` にある gitleaks の設定を拡張してください。
 
-## Path 4: Remote MCP setup (v1.27.0.0+)
+## Path 4: Remote MCP の設定(v1.27.0.0 以降)
 
-If you don't run gbrain locally — you have a teammate or another machine
-running `gbrain serve` over HTTP, accessible via Tailscale, ngrok, or
-internal LAN — `/setup-gbrain` Path 4 is the one-paste flow.
+ローカルで gbrain を実行していない場合 — HTTP で `gbrain serve` を実行している、Tailscale、ngrok、社内 LAN を通じてアクセスできるチームメイトや別のマシンがある場合 — `/setup-gbrain` の Path 4 は、貼り付けるだけで済むフローです。
 
-You provide:
-- The MCP URL (e.g., `https://wintermute.tail554574.ts.net:3131/mcp`)
-- A bearer token (issued by the brain admin via `gbrain access-token issue`)
+次のものを用意します。
+- MCP の URL(例: `https://wintermute.tail554574.ts.net:3131/mcp`)
+- ベアラートークン(ブレインの管理者が `gbrain access-token issue` で発行したもの)
 
-What `/setup-gbrain` does:
-1. Verifies the URL + token via `gstack-gbrain-mcp-verify`. Three failure
-   modes get classified with one-line remediation hints:
-   **NETWORK** ("check Tailscale/DNS"), **AUTH** ("rotate token"),
-   **MALFORMED** ("Accept-header gotcha — pass both `application/json`
-   AND `text/event-stream`").
-2. Registers the MCP at user scope:
+`/setup-gbrain` が行うこと:
+1. `gstack-gbrain-mcp-verify` で URL とトークンを検証します。失敗は三種類に分類され、それぞれ一行の修復のヒントが付きます。
+   **NETWORK**(「Tailscale/DNS を確認してください」)、**AUTH**(「トークンをローテーションしてください」)、**MALFORMED**(「Accept ヘッダーの落とし穴 — `application/json` と `text/event-stream` の両方を渡してください」)。
+2. ユーザースコープで MCP を登録します。
    ```
    claude mcp add --scope user --transport http gbrain "$URL" \
      --header "Authorization: Bearer $TOKEN"
    ```
-3. Skips local install, local doctor, transcript ingest, and federated
-   source registration. All four require a local `gbrain` CLI that Path 4
-   doesn't install.
-4. Optionally provisions a `gstack-artifacts-$USER` private repo on
-   GitHub or GitLab and prints the one-line `gbrain sources add` command
-   for your brain admin to run on the brain host.
+3. ローカルへのインストール、ローカルの doctor、トランスクリプトの取り込み、フェデレーションされたソースの登録をスキップします。これら四つはすべて、Path 4 がインストールしないローカルの `gbrain` CLI を必要とするためです。
+4. 任意で、GitHub または GitLab にプライベートな `gstack-artifacts-$USER` リポジトリを用意し、ブレインの管理者がブレインのホストで実行するための一行の `gbrain sources add` コマンドを表示します。
 
-### Token storage trade-off
+### トークン保存のトレードオフ
 
-The bearer token lives in `~/.claude.json` (mode 0600), where Claude Code
-stores every MCP server's credentials. During `claude mcp add --header
-"Authorization: Bearer $TOKEN"`, the token is briefly visible in
-process argv (~10ms) — visible to `ps` running concurrently. The window
-is small but it's not zero.
+ベアラートークンは `~/.claude.json`(モード 0600)に保存されます。Claude Code は、すべての MCP サーバーの認証情報をここに保存します。`claude mcp add --header "Authorization: Bearer $TOKEN"` の実行中は、トークンが一時的にプロセスの引数(argv)に現れ、同時に動いている `ps` からは見えてしまいます(約 10 ミリ秒)。その時間は短いものの、ゼロではありません。
 
-Mitigations we've considered:
-- **Stdin or env-var input form for headers** — would close the argv
-  window. As of Claude Code v1.0.x, the CLI doesn't expose either.
-  When it does, `/setup-gbrain` Path 4 will switch automatically.
-- **Keychain storage** — explicitly out of scope (the token's resting
-  state in `~/.claude.json` is the existing trust surface for every MCP
-  credential; expanding to Keychain would touch every MCP server, not
-  just gbrain).
+検討したが採用していない緩和策:
+- **ヘッダーを標準入力または環境変数で渡す形式** — これなら argv の時間枠を閉じられます。ただし Claude Code v1.0.x の時点では、CLI はどちらも提供していません。提供されたら、`/setup-gbrain` の Path 4 は自動的にそちらに切り替わります。
+- **キーチェーンへの保存** — 明示的に対象外です(トークンの常時の保存先である `~/.claude.json` が、すべての MCP の認証情報に対する既存の信頼の範囲です。キーチェーンに広げると、gbrain だけでなく、すべての MCP サーバーに影響します)。
 
-### Why Path 4 is "always print" for the brain-admin hookup
+### ブレインの管理者への連携に「常に表示する」理由
 
-`gstack-artifacts-init` always prints the `gbrain sources add` command
-labeled "Send this to your brain admin" — even when the user IS the
-brain admin (consistent UX, no mode-detection fragility).
+`gstack-artifacts-init` は、「Send this to your brain admin」とラベルの付いた `gbrain sources add` コマンドを、ユーザー自身がブレインの管理者である場合でも、必ず表示します(一貫した UX で、モードの検出による不安定さを避けるためです)。
 
-A previous design proposed probing whether the user's bearer has admin
-scope (via a benign MCP write call like `add_tag`) and auto-executing
-the source registration when scope was sufficient. The design review
-flagged that page-write doesn't actually prove source-management
-permission — those are different scopes in any sensible auth model.
-Until gbrain ships:
-- a `mcp__gbrain__whoami` capability tool that returns the bearer's
-  scope set, AND
-- a `mcp__gbrain__sources_add` MCP tool with admin-scope gating
+以前の設計では、無害な(副作用のない)MCP の書き込み呼び出し(`add_tag` など)を使って、ユーザーのベアラーが管理者のスコープを持つかどうかを調べ、十分なスコープがあればソースの登録を自動で実行することが提案されていました。設計レビューでは、ページの書き込みができても、ソースの管理権限があることは証明されない、と指摘されました。これらは、まともな認証モデルでは別のスコープだからです。gbrain が次の二つを提供するまでは、
 
-we always print the command rather than pretending we know who has
-permission to run it.
+- ベアラーのスコープの一覧を返す `mcp__gbrain__whoami` の機能ツール、かつ
+- 管理者スコープによる制限を伴う `mcp__gbrain__sources_add` の MCP ツール
 
-### CLAUDE.md block in Path 4
+誰がそのコマンドを実行する権限を持つかを知っているふりをするのではなく、常にコマンドを表示します。
 
-Distinct from local-stdio mode. Token is **never** written to CLAUDE.md
-(many projects check CLAUDE.md into git). The block records the URL,
-the verified server version, the artifacts repo URL (if provisioned),
-and the per-repo trust policy.
+### CLAUDE.md のブロック(Path 4)
+
+local-stdio モードとは異なります。トークンは**決して** CLAUDE.md に書き込まれません(多くのプロジェクトは CLAUDE.md を git にチェックインしています)。このブロックには、URL、検証済みのサーバーバージョン、成果物のリポジトリの URL(用意した場合)、リポジトリごとのトラストポリシーを記録します。
 
 ```markdown
 ## GBrain Configuration (configured by /setup-gbrain)
@@ -411,16 +256,12 @@ and the per-repo trust policy.
 - Current repo policy: read-write
 ```
 
-### Token rotation
+### トークンのローテーション
 
-Server-side. When verify hits `AUTH` (e.g., the brain admin rotated the
-token), the helper says: "rotate token on the brain host, re-run
-/setup-gbrain." On wintermute or wherever your gbrain server lives:
+これはサーバー側で行います。検証が `AUTH` に当たった場合(例: ブレインの管理者がトークンをローテーションした場合)、ヘルパーは「rotate token on the brain host, re-run /setup-gbrain」(ブレインのホストでトークンをローテーションし、/setup-gbrain を再実行してください)と表示します。wintermute など、gbrain サーバーがある場所で次を実行します。
 
 ```
 gbrain access-token rotate    # invalidates old, issues new
 ```
 
-(See `gstack/setup-gbrain/SKILL.md.tmpl` for the full Path 4 flow plus
-the gbrain enhancement requests around scoped tokens that would let
-gstack auto-rotate in V2.)
+(スコープ付きトークンに関する gbrain 側の拡張要望を含む、Path 4 の完全なフローについては `gstack/setup-gbrain/SKILL.md.tmpl` を参照してください。それらの拡張により、V2 では gstack が自動でローテーションできるようになる見込みです。)

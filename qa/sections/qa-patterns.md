@@ -1,30 +1,30 @@
 <!-- AUTO-GENERATED from qa-patterns.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-# Browser QA methodology
+# ブラウザ QA の方法論
 
-Run only for selected browser surfaces. Map diffs with source before probes; discovery stays black-box, diagnosis caller-owned.
+選択されたブラウザサーフェスに対してのみ実行します。プローブの前に、diff をソースと突き合わせてマッピングします。探索はブラックボックスのままとし、診断は呼び出し元が担当します。
 
-The shared exploratory loop owns execution order, not these technique phases. Its
-checkpoint rule covers every probe after the baseline, including orientation, links,
-exact replay and additional evidence. Never batch across checkpoints.
+実行順序を決めるのは共有の探索ループであり、これらの技法フェーズではありません。その
+チェックポイントのルールは、ベースライン以降のすべてのプローブ(オリエンテーション、リンク、
+正確なリプレイ、追加の証拠を含む)に適用されます。チェックポイントをまたいでバッチ処理してはいけません。
 
-## Modes
+## モード
 
-For /qa and /qa-only, choose Full, Quick or Regression. Resolve conflicting depth flags
-by asking before probes. /review and /ship keep their caller's smoke and plan bounds.
-Diff-aware selects scope, not another pass. Time caps include checkpoints and evidence.
-At exhaustion, stop probing and report unfinished coverage, never skip checkpoints.
+/qa と /qa-only では、Full、Quick、Regression のいずれかを選びます。深さを指定するフラグが
+競合する場合は、プローブの前に質問して解決します。/review と /ship は、呼び出し元のスモークと計画の範囲を維持します。
+Diff-aware は範囲を選ぶもので、別のパスではありません。時間の上限にはチェックポイントと証拠が含まれます。
+時間を使い切ったらプローブを止め、未完了のカバレッジを報告します。チェックポイントを飛ばしてはいけません。
 
-### Diff-aware (automatic when on a feature branch with no URL)
+### Diff-aware(URL がなくフィーチャーブランチにいる場合は自動)
 
-Substitute the detected base for `main`:
+`main` を、検出したベースに置き換えます:
 
 ```bash
 git diff main...HEAD --name-only
 git log main..HEAD --oneline
 ```
 
-Map changed controllers/routes/views/components/models/services/styles to pages. Check commits/PR intent; add related TODO bugs to the test plan. Open static pages directly. For browser-surface API probes:
+変更されたコントローラ/ルート/ビュー/コンポーネント/モデル/サービス/スタイルをページにマッピングします。コミットと PR の意図を確認し、関連する TODO のバグをテスト計画に加えます。静的ページは直接開きます。ブラウザサーフェスの API プローブ:
 
 ```bash
 aside repl '
@@ -36,44 +36,44 @@ await closeTab(pg); console.log("GSTACK_STEP_OK");
 '
 ```
 
-After selecting and isolating a browser surface, find a local app if its URL is missing:
+ブラウザサーフェスを選択して切り分けた後、URL がない場合はローカルアプリを探します:
 
 ```bash
 for p in 3000 4000 8080; do curl -sI --max-time 3 "http://localhost:$p" >/dev/null 2>&1 && echo "Found app on :$p"; done
 ```
 
-Use the supplied URL or first responder/staging/preview; ask if none. Test changed/adjacent pages and flows. Flag new bugs absent from TODOS.md in the Phase 6 report.
+渡された URL、または最初に応答したもの/ステージング/プレビューを使います。どれもない場合は質問します。変更されたページと隣接するページ、およびフローをテストします。TODOS.md にない新しいバグは、Phase 6 のレポートで指摘します。
 
-**No identifiable pages:** use Quick plus discovered interactions, even for backend/config/infrastructure changes.
+**特定できるページがない場合:** バックエンド/設定/インフラの変更であっても、Quick に加えて見つかったインタラクションを使います。
 
-### Full (default with a URL)
-Visit every reachable page (5-15 minutes). Score health; document 5-10 evidenced issues, never invent any.
+### Full(URL がある場合のデフォルト)
+到達できるすべてのページを訪れます(5〜15 分)。ヘルススコアを算出し、証拠のある問題を 5〜10 件記録します。問題をでっち上げてはいけません。
 
-### Quick (`--quick`)
-3 minutes: homepage + top 5 navigation targets. Check loads/console/broken links; score per Health Score Rubric; skip detailed issues/checklist, never the shared loop's gates.
+### Quick (`--quick`)(クイック)
+3 分: ホームページと主要なナビゲーション先 5 つ。読み込み/コンソール/リンク切れを確認し、Health Score Rubric に従ってスコアを付けます。詳細な問題とチェックリストはスキップしますが、共有ループのゲートは決してスキップしません。
 
-### Regression (`--regression <baseline>`)
-Run Full; append fixed/new issues and score delta. Preserve the supplied prior baseline.
-A missing or unreadable baseline is a missing prerequisite: it blocks the comparison, not the Full run.
+### Regression (`--regression <baseline>`)(回帰)
+Full を実行し、修正済み/新規の問題とスコアの差分を追記します。渡された過去のベースラインは保持します。
+ベースラインが存在しない、または読み取れない場合は、前提条件の欠落です。ブロックされるのは比較であり、Full の実行ではありません。
 
-## Workflow
+## ワークフロー
 
-### Phase 1: Initialize
+### Phase 1: 初期化
 
-Reuse the caller's BROWSER SETUP and owned artifact paths: Aside READY, otherwise `$B`
-(`NEEDS_ASIDE`/`ASIDE_NOT_RUNNING`). Complete only missing setup within caller
-authority. Clamp the shared loop's deadline guard to the caller's running deadline.
+呼び出し元の BROWSER SETUP と、呼び出し元が所有するアーティファクトのパスを再利用します。Aside が READY なら Aside、そうでなければ `$B`
+(`NEEDS_ASIDE`/`ASIDE_NOT_RUNNING`)を使います。足りないセットアップは、呼び出し元の権限の範囲内でのみ
+完了させます。共有ループの期限ガードは、呼び出し元の進行中の期限に合わせて絞り込みます。
 
-### Phase 2: Authenticate (if needed)
+### Phase 2: 認証(必要な場合)
 
-Follow BROWSER SETUP's **Browser access decision** for /setup-browser-cookies or `$B handoff`/`$B resume`. Rerun after user sign-in/2FA/OTP/CAPTCHA. Never handle credentials or expose cookies/tokens/localStorage.
+/setup-browser-cookies または `$B handoff`/`$B resume` については、BROWSER SETUP の **Browser access decision** に従います。ユーザーがサインイン/2FA/OTP/CAPTCHA を終えた後に再実行します。認証情報を扱ったり、cookie/トークン/localStorage を露出させたりしてはいけません。
 
-### Phase 3: Orient
+### Phase 3: オリエンテーション
 
-Establish the successful baseline before challenges. Observe the page or interaction's
-expected result/state, not merely a successful load.
+負荷をかける前に、成功するベースラインを確立します。単に読み込みが成功したことではなく、
+ページやインタラクションの期待される結果/状態を観察します。
 
-**Read/flow:** set `flow = true` and replace action/wait for interactions. Keep ONE script; tabs close at its end.
+**読み取り/フロー:** `flow = true` を設定し、インタラクションのアクション/待機を置き換えます。スクリプトは 1 つに保ちます。タブはその終了時に閉じられます。
 
 ```bash
 aside repl '
@@ -98,9 +98,9 @@ await closeTab(pg); console.log("GSTACK_STEP_OK");
 '
 ```
 
-EVERY screenshot: `cp "<ASIDE_DIR>/initial.jpg" "$REPORT_DIR/screenshots/initial.jpg"` (substitute names), then Read it. Never delete reports/screenshots.
+すべてのスクリーンショットについて: `cp "<ASIDE_DIR>/initial.jpg" "$REPORT_DIR/screenshots/initial.jpg"`(名前は置き換える)を実行し、続けて Read します。レポート/スクリーンショットを削除してはいけません。
 
-**Links:** same-origin safe paths; HEAD only locally (requests carry cookies).
+**リンク:** 同一オリジンの安全なパス。HEAD はローカルでのみ使います(リクエストには cookie が付きます)。
 
 ```bash
 aside repl '
@@ -112,13 +112,13 @@ await closeTab(pg); console.log("GSTACK_STEP_OK");
 '
 ```
 
-`LINK` 4xx/5xx or `ERR` is broken; `LINK ?` is unverified. Snapshot SPA buttons/menus missing from links.
+`LINK` が 4xx/5xx、または `ERR` の場合は、リンク切れです。`LINK ?` は未検証です。リンクに含まれない SPA のボタン/メニューは、スナップショットを取ります。
 
-Framework: `__next`/`_next/data` = Next.js; `csrf-token` = Rails; `wp-content` = WordPress; no-reload navigation = SPA.
+フレームワーク: `__next`/`_next/data` = Next.js、`csrf-token` = Rails、`wp-content` = WordPress、リロードなしのナビゲーション = SPA。
 
-### Phase 4: Explore
+### Phase 4: 探索
 
-Select the next candidate from the preceding result. For each page, use the read script with `page-<name>.jpg`. Check layout, controls, empty/invalid/edge-case forms, navigation and empty/loading/error/overflow states per `qa/references/issue-taxonomy.md`. Prioritize core flows over secondary pages; Quick skips this checklist. For mobile:
+直前の結果から、次の候補を選びます。各ページで、`page-<name>.jpg` を指定して読み取りスクリプトを使います。`qa/references/issue-taxonomy.md` に従い、レイアウト、コントロール、空/不正/境界値のフォーム、ナビゲーション、空/読み込み中/エラー/オーバーフローの状態を確認します。副次的なページよりコアフローを優先します。Quick ではこのチェックリストをスキップします。モバイルの場合:
 
 ```bash
 aside repl '
@@ -131,16 +131,16 @@ console.log("ASIDE_DIR=" + pwd); await closeTab(pg); console.log("GSTACK_STEP_OK
 '
 ```
 
-### Phase 5: Document
+### Phase 5: 記録
 
-Confirm each issue by retrying once under the shared loop's exact-replay rule, then
-minimize and report screenshot evidence immediately. A timeout before replay finishes leaves
-confirmation incomplete. Later timeouts leave confirmed defects intact but evidence
-or minimization unfinished.
+各問題は、共有ループの正確なリプレイのルールに従って一度再試行して確認し、その後
+最小化して、スクリーンショットの証拠をすぐに報告します。リプレイが終わる前のタイムアウトは、
+確認が未完了であることを意味します。それ以降のタイムアウトでは、確認済みの欠陥はそのままですが、証拠
+または最小化が未完了になります。
 
-**Interactive:** Phase 3, `flow = true`. Alternatives: `pg.fill("#email", "qa@example.com")`, `pg.getByRole("button", { name: "Save" }).click()`, `pg.waitForSelector("#done")`, `pg.waitForURL(/dashboard/)`. Link before/after screenshots in repro steps.
+**インタラクティブ:** Phase 3 で `flow = true` にします。代替手段: `pg.fill("#email", "qa@example.com")`, `pg.getByRole("button", { name: "Save" }).click()`, `pg.waitForSelector("#done")`, `pg.waitForURL(/dashboard/)`. 再現手順には、前後のスクリーンショットをリンクします。
 
-**Static** (copy/layout/images): one annotated screenshot and description.
+**静的**(文言/レイアウト/画像): 注釈付きスクリーンショット 1 枚と説明。
 
 ```bash
 aside repl '
@@ -151,51 +151,51 @@ console.log("ASIDE_DIR=" + pwd); await closeTab(pg); console.log("GSTACK_STEP_OK
 '
 ```
 
-### Phase 6: Wrap Up
+### Phase 6: まとめ
 
-Format retained evidence without new probes, using `templates/qa-report-template.md`
-from this host's installed QA directory and the caller's artifact/mixed-report rules.
+新しいプローブは行わず、保持した証拠を整形します。このホストにインストールされた QA ディレクトリの `templates/qa-report-template.md`
+と、呼び出し元のアーティファクト/混合レポートのルールを使います。
 
-Report score, Top 3 Things to Fix by severity, console health, severity counts, date, duration, page/screenshot counts and framework. Save `baseline.json`: `date` (YYYY-MM-DD), `url`, `healthScore`, `issues` (`id`, `title`, `severity`, `category`), `categoryScores`. Regression: fixed = prior only, new = current only.
+スコア、重大度順の Top 3 Things to Fix、コンソールの健全性、重大度ごとの件数、日付、所要時間、ページ/スクリーンショットの数、フレームワークを報告します。`baseline.json` を保存します: `date` (YYYY-MM-DD)、`url`、`healthScore`、`issues` (`id`、`title`、`severity`、`category`)、`categoryScores`。Regression では、fixed = 過去にのみ存在、new = 今回にのみ存在、とします。
 
-## Health Score Rubric
+## Health Score Rubric(ヘルススコア基準)
 
-Compute each category score (0-100), then take the weighted average.
+各カテゴリのスコア(0-100)を計算し、加重平均を取ります。
 
-### Counting
-- Deduplicate the same root cause across pages. Use one primary category, first applicable: Links (navigation), Accessibility (access barriers), Functional (behavior), Performance (speed), Visual (layout), Content (copy), UX (friction), Console (remaining errors). No double deductions.
-- Exclude **untested** categories; label partial scores **provisional** with coverage. None tested: "not scored". Compare only identical coverage.
+### カウント方法
+- ページをまたいで同じ根本原因は重複を排除します。最初に該当するものを 1 つの主カテゴリとして使います: Links(ナビゲーション)、Accessibility(アクセスの障壁)、Functional(動作)、Performance(速度)、Visual(レイアウト)、Content(文言)、UX(摩擦)、Console(残りのエラー)。二重に減点してはいけません。
+- **未テスト** のカテゴリは除外します。部分的なスコアには、カバレッジとともに **暫定** と明記します。どれもテストしていない場合は "not scored" とします。比較は、カバレッジが同一の場合のみ行います。
 
-### Console (weight: 15%)
-Deduplicate reproducible errors/exceptions by message+source across pages. Exclude warnings, info, and defects scored elsewhere.
+### Console(重み: 15%)
+再現可能なエラー/例外は、ページをまたいでメッセージとソースで重複を排除します。警告、情報、および他で採点された欠陥は除外します。
 - 0 errors → 100
 - 1-3 errors → 70
 - 4-10 errors → 40
 - 11+ errors → 10
 
-### Links (weight: 10%)
-Count unique broken destinations, including client-side routes: repeatable 4xx/5xx, missing routes/anchors, or timeouts. Exclude expected auth redirects and resource/API requests.
+### Links(重み: 10%)
+クライアントサイドのルートを含め、一意のリンク切れ先を数えます。再現する 4xx/5xx、存在しないルート/アンカー、タイムアウトが対象です。想定された認証リダイレクトと、リソース/API のリクエストは除外します。
 - 0 broken → 100
-- Each broken link → -15 (minimum 0)
+- リンク切れ 1 件ごとに → -15(最小 0)
 
-### Per-Category Scoring (Visual, Functional, UX, Content, Performance, Accessibility)
-Start at 100; deduct per finding:
+### カテゴリ別の採点(Visual、Functional、UX、Content、Performance、Accessibility)
+100 から始め、指摘事項ごとに減点します:
 - Critical issue → -25
 - High issue → -15
 - Medium issue → -8
 - Low issue → -3
-Floor: 0.
+下限: 0。
 
-Use the highest applicable severity; record impact/workaround:
-- **Critical:** data loss, security/privacy exposure, or core app unusable for all users.
-- **High:** core/major task blocked without a workaround.
-- **Medium:** task impaired but a workaround exists.
-- **Low:** cosmetic/copy/friction issue without lost task completion.
-Console/Links use counts instead.
+該当する最も高い重大度を使い、影響と回避策を記録します:
+- **Critical:** データ損失、セキュリティ/プライバシーの露出、またはすべてのユーザーにとってコアアプリが使用不能。
+- **High:** 回避策なしで、コア/主要なタスクがブロックされる。
+- **Medium:** タスクが阻害されるが、回避策がある。
+- **Low:** タスクの完了が妨げられない、見た目/文言/摩擦の問題。
+Console/Links は、代わりに件数を使います。
 
-### Weights
-| Category | Weight |
-|----------|--------|
+### 重み
+| カテゴリ | 重み |
+|----------|------|
 | Console | 15% |
 | Links | 10% |
 | Visual | 10% |
@@ -205,22 +205,22 @@ Console/Links use counts instead.
 | Content | 5% |
 | Accessibility | 15% |
 
-### Final Score
-Use decimal weights (15% = 0.15): `score = Σ (category_score × weight) / Σ tested weights`. Round only the final score to the nearest integer (0.5 rounds up).
+### 最終スコア
+小数の重みを使います(15% = 0.15): `score = Σ (category_score × weight) / Σ tested weights`。丸めるのは最終スコアだけで、最も近い整数にします(0.5 は切り上げ)。
 
 ---
 
-## Framework-Specific Guidance
+## フレームワーク別のガイダンス
 
-- **Next.js:** hydration errors (`Hydration failed`, `Text content did not match`), `_next/data` 404s, link-click routing (not just `goto`), dynamic-content CLS.
-- **Rails:** dev N+1 warnings, form CSRF, Turbo/Stimulus transitions, flash appearance/dismissal.
-- **WordPress:** plugin JS conflicts, signed-in admin bar, `/wp-json/`, mixed content.
-- **SPA:** snapshot navigation, stale state on return, back/forward history, console signs of leaks after extended use.
+- **Next.js:** ハイドレーションエラー(`Hydration failed`、`Text content did not match`)、`_next/data` の 404、リンクのクリックによるルーティング(`goto` だけでなく)、動的コンテンツの CLS。
+- **Rails:** 開発環境での N+1 警告、フォームの CSRF、Turbo/Stimulus の遷移、フラッシュメッセージの表示/消去。
+- **WordPress:** プラグインの JS の競合、サインイン時の管理バー、`/wp-json/`、混在コンテンツ。
+- **SPA:** スナップショットによるナビゲーション、戻ったときの古い状態、戻る/進むの履歴、長時間使用後のリークを示すコンソールの兆候。
 
-## Important Rules
+## 重要なルール
 
-**Never read source code during browser discovery.** Use realistic end-to-end flows; check console after every interaction. For missing click targets, use annotated labels, then ref/CSS clicks.
+**ブラウザでの探索中は、ソースコードを決して読んではいけません。** 現実的なエンドツーエンドのフローを使い、インタラクションのたびにコンソールを確認します。クリック対象が見つからない場合は、注釈付きラベルを使い、それでもだめなら ref/CSS によるクリックを使います。
 
-Use `[REDACTED]` for credentials. Follow BROWSER SETUP safety/sentinel rules: one AskUserQuestion listing non-LOCAL mutations per run, BEFORE acting. LOOK is not ACT.
+認証情報には `[REDACTED]` を使います。BROWSER SETUP の安全性/センチネルのルールに従います。実行ごとに、LOCAL 以外の変更を列挙した AskUserQuestion を、操作する前に 1 回だけ行います。LOOK は ACT ではありません。
 
-**Never refuse to use the browser for a selected browser surface**, even backend-only app changes. Tests/curl cannot replace it. API/CLI/job/worker/webhook targets do not select it.
+**選択されたブラウザサーフェスについて、ブラウザの使用を決して拒否してはいけません。** バックエンドのみのアプリ変更であっても同様です。テストや curl では代替できません。API/CLI/ジョブ/ワーカー/webhook が対象の場合は、選択されません。

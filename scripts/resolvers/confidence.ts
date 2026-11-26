@@ -17,98 +17,95 @@
 import type { TemplateContext } from './types';
 
 export function generateConfidenceCalibration(_ctx: TemplateContext): string {
-  if (_ctx.skillName === 'review') return `## Confidence Calibration
+  if (_ctx.skillName === 'review') return `## Confidence Calibration(確信度の較正)
 
-Verify evidence first, then score every finding (1-10) and apply its display rule.
+まず証拠を検証し、その後すべての指摘に 1〜10 のスコアを付けて、その表示ルールを適用します。
 
-### Pre-emit verification gate
+### Pre-emit verification gate(出力前の検証ゲート)
 
-1. **Quote the specific code line:** file:line and verbatim text. For a missing field,
-   quote its class definition; for a nullable value, its initialization; for a race, both sides.
-2. For framework-generated symbols, read and quote their generating metaclass,
-   descriptor, ORM Meta block, migration, decorator or schema. Missing literal
-   names in the class body or grep results do not prove absence.
-3. **If you cannot quote the motivating line(s), the finding is unverified.**
-   Force its confidence to 4-5: use 4 for appendix-only reporting, or 5 only when
-   the finding belongs in the main report with the medium-confidence caveat below.
-   Never invent speculative confidence 7+.
+1. **該当するコード行を引用する:** file:line と原文のテキスト。存在しないフィールドなら
+   そのクラス定義、null になりうる値ならその初期化、競合状態なら双方を引用する。
+2. フレームワークが生成するシンボルは、それを生成するメタクラス、ディスクリプタ、
+   ORM の Meta ブロック、マイグレーション、デコレーター、スキーマを読んで引用する。
+   クラス本体や grep の結果にリテラルな名前がなくても、不在の証明にはならない。
+3. **根拠となる行を引用できない場合、その指摘は未検証です。**
+   confidence を 4〜5 に固定します。付録のみで報告するなら 4、下の中程度の confidence の
+   注記付きで本文に載せるべき場合にのみ 5 を使います。
+   憶測で confidence 7 以上をつけてはいけません。
 
-| Score | Meaning | Display rule |
+| スコア | 意味 | 表示ルール |
 |-------|---------|-------------|
-| 9-10 | Specific code verifies a concrete bug or exploit. | Show normally |
-| 7-8 | High-confidence pattern match; very likely correct. | Show normally |
-| 5-6 | Moderate; could be a false positive. | Show with caveat: "Medium confidence, verify this is actually an issue" |
-| 3-4 | Suspicious but may be fine. | Suppress from main report. Include in appendix only. |
-| 1-2 | Speculation. | Only report a suspected release-blocking catastrophe (widespread data loss, total outage or system-wide compromise); label it CRITICAL and explicitly speculative. |
+| 9-10 | 具体的なコードが、具体的なバグまたはエクスプロイトを裏づけている。 | 通常どおり表示 |
+| 7-8 | 確度の高いパターン一致。ほぼ正しい。 | 通常どおり表示 |
+| 5-6 | 中程度。誤検知の可能性がある。 | 注記付きで表示: "Medium confidence, verify this is actually an issue" |
+| 3-4 | 疑わしいが問題ない可能性もある。 | 本文からは除外。付録にのみ含める。 |
+| 1-2 | 憶測。 | リリースを止めるほどの重大事態(広範なデータ損失、全面的な障害、システム全体の侵害)が疑われる場合にのみ報告し、CRITICAL とラベル付けして、憶測であることを明記する。 |
 
-**Finding format:**
+**指摘のフォーマット:**
 
 \`[CRITICAL|INFORMATIONAL] (confidence: N/10) file:line — description\`
 
-Example:
+例:
 \`[CRITICAL] (confidence: 9/10) user.rb:42 — SQL injection via string interpolation\`
 
-**Calibration learning:** If the user confirms a reported finding scored < 7 is
-real, log the corrected pattern as a learning.`;
+**キャリブレーションの学び:** スコアが 7 未満で報告した指摘を、ユーザーが実在する問題だと
+確認した場合は、修正したパターンを学びとして記録します。`;
 
-  const result = `## Confidence Calibration
+  const result = `## Confidence Calibration(確信度の較正)
 
-Every finding MUST include a confidence score (1-10):
+すべての指摘には、confidence スコア(1〜10)を必ず含めます。
 
-| Score | Meaning | Display rule |
+| スコア | 意味 | 表示ルール |
 |-------|---------|-------------|
-| 9-10 | Verified by reading specific code. Concrete bug or exploit demonstrated. | Show normally |
-| 7-8 | High confidence pattern match. Very likely correct. | Show normally |
-| 5-6 | Moderate. Could be a false positive. | Show with caveat: "Medium confidence, verify this is actually an issue" |
-| 3-4 | Low confidence. Pattern is suspicious but may be fine. | Suppress from main report. Include in appendix only. |
-| 1-2 | Speculation. | Only report if severity would be P0. |
+| 9-10 | 具体的なコードを読んで検証済み。具体的なバグまたはエクスプロイトを実証。 | 通常どおり表示 |
+| 7-8 | 確度の高いパターン一致。ほぼ正しい。 | 通常どおり表示 |
+| 5-6 | 中程度。誤検知の可能性がある。 | 注記付きで表示: "Medium confidence, verify this is actually an issue" |
+| 3-4 | 低い confidence。パターンは疑わしいが問題ない可能性もある。 | 本文からは除外。付録にのみ含める。 |
+| 1-2 | 憶測。 | 重大度が P0 になる場合にのみ報告する。 |
 
-**Finding format:**
+**指摘のフォーマット:**
 
 \\\`[SEVERITY] (confidence: N/10) file:line — description\\\`
 
-Example:
-\\\`[P1] (confidence: 9/10) app/models/user.rb:42 — SQL injection via string interpolation in where clause\\\`
-\\\`[P2] (confidence: 5/10) app/controllers/api/v1/users_controller.rb:18 — Possible N+1 query, verify with production logs\\\`
+例:
+\\\`[P1] (confidence: 9/10) app/models/user.rb:42 — where 句への文字列補間による SQL インジェクション\\\`
+\\\`[P2] (confidence: 5/10) app/controllers/api/v1/users_controller.rb:18 — N+1 クエリの可能性あり。本番ログで確認\\\`
 
-### Pre-emit verification gate
+### Pre-emit verification gate(出力前の検証ゲート)
 
-Before any finding is promoted to the report, the gate requires:
+指摘をレポートに載せる前に、このゲートは次を求めます。
 
-1. **Quote the specific code line that motivates the finding** — file:line plus
-   the verbatim text of the line(s) that triggered it. If the finding is "field
-   X doesn't exist on model Y", quote the lines of class Y where the field
-   would live. If "dict.get() might return None", quote the dict initialization.
-   If "race condition between A and B", quote both A and B.
+1. **指摘の根拠となる具体的なコード行を引用する** — file:line と、指摘のきっかけとなった
+   行の原文。指摘が「モデル Y にフィールド X が存在しない」なら、そのフィールドが
+   あるはずのクラス Y の行を引用する。「dict.get() が None を返しうる」なら、その dict の初期化を引用する。
+   「A と B の間の競合状態」なら、A と B の両方を引用する。
 
-2. **If you cannot quote the motivating line(s), the finding is unverified.**
-   Force its confidence to 4-5. Use 4 when it should be suppressed from the main
-   report; use 5 only when it belongs in the report with the medium-confidence
-   caveat. Keep suppressed items in the appendix so reviewers can audit
-   calibration. Do not work around this by inventing
-   speculative confidence 7+ — that defeats the gate.
+2. **根拠となる行を引用できない場合、その指摘は未検証です。**
+   confidence を 4〜5 に固定します。本文から除外すべき場合は 4、中程度の confidence の
+   注記付きでレポートに載せるべき場合にのみ 5 を使います。除外した項目は、レビュアーが
+   キャリブレーションを監査できるよう付録に残します。
+   憶測で confidence 7 以上をつけて回避してはいけません。それではゲートが無意味になります。
 
-**Framework-meta nudge:** When the symbol is generated by a framework
-metaclass, descriptor, ORM Meta inner-class, or migration history (Django
+**フレームワークのメタ構造への注意:** シンボルがフレームワークのメタクラス、ディスクリプタ、
+ORM の Meta 内部クラス、マイグレーション履歴によって生成される場合(Django
 \`Meta\`, Rails \`has_many\`/\`scope\`, SQLAlchemy \`relationship\`/\`Column\`,
-TypeORM decorators, Sequelize \`init\`/\`belongsTo\`, Prisma generated client),
-quote the meta-construct (the \`Meta\` block, the migration, the decorator,
-the schema file) instead of expecting the literal name in the class body.
-The verification is "I read the source that creates this symbol", not "I
-grep'd for the name and didn't find it."
+TypeORM のデコレーター、Sequelize の \`init\`/\`belongsTo\`、Prisma の生成クライアント)、
+クラス本体にリテラルな名前があることを期待せず、そのメタ構造(\`Meta\` ブロック、
+マイグレーション、デコレーター、スキーマファイル)を引用します。
+検証とは「このシンボルを生成するソースを読んだ」ことであり、「その名前を
+grep して見つからなかった」ことではありません。
 
-False-positive classes the gate catches:
+このゲートが捕捉する誤検知のクラス:
 
-| FP class | Why the gate catches it |
+| 誤検知のクラス | ゲートが捕捉する理由 |
 |---|---|
-| "field doesn't exist on model" | Requires quoting the model class body or Meta; the field's absence becomes obvious |
-| "dict.get() might be None" | Requires quoting the dict initialization (e.g. Django form's \`cleaned_data\` is \`{}\`-initialized) |
-| "save() might lose fields" | Requires quoting the ORM signature or model definition |
-| "update_fields might miss X" | Requires quoting the field set; if X doesn't exist, the FP is self-evident |
+| 「モデルにフィールドが存在しない」 | モデルのクラス本体または Meta の引用が必須。フィールドの有無が明らかになる |
+| 「dict.get() が None になりうる」 | dict の初期化の引用が必須(例: Django フォームの \`cleaned_data\` は \`{}\` で初期化される) |
+| 「save() でフィールドが失われうる」 | ORM のシグネチャまたはモデル定義の引用が必須 |
+| 「update_fields が X を漏らしうる」 | フィールド集合の引用が必須。X が存在しなければ、誤検知は自明 |
 
-**Calibration learning:** If you report a finding with confidence < 7 and the user
-confirms it IS a real issue, that is a calibration event. Your initial confidence was
-too low. Log the corrected pattern as a learning so future reviews catch it with
-higher confidence.`;
+**キャリブレーションの学び:** confidence 7 未満で報告した指摘を、ユーザーが実在する問題だと
+確認した場合、それはキャリブレーションの事象です。最初の confidence が低すぎたということです。
+修正したパターンを学びとして記録し、今後のレビューがより高い confidence で捕捉できるようにします。`;
   return _ctx.skillName === 'plan-eng-review' ? result.replaceAll('\\`', '`') : result;
 }

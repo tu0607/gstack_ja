@@ -1,30 +1,21 @@
-# GStack Browser V0 — The AI-Native Development Browser
+# GStack Browser V0 — AI ネイティブの開発用ブラウザ
 
-**Date:** 2026-03-30
-**Author:** Garry Tan + Claude Code
-**Status:** Phase 1a shipped, Phase 1b in progress
-**Branch:** garrytan/gstack-as-browser
+**日付:** 2026-03-30
+**作成者:** Garry Tan + Claude Code
+**ステータス:** Phase 1a 出荷済み、Phase 1b 作業中
+**ブランチ:** garrytan/gstack-as-browser
 
-## The Thesis
+## 基本となる考え方
 
-Every other AI browser (Atlas, Dia, Comet, Chrome Auto Browse) starts with a
-consumer browser and bolts AI onto it. GStack Browser inverts this. It starts
-with Claude Code as the runtime and gives it a browser viewport.
+Atlas、Dia、Comet、Chrome Auto Browse など、他の AI ブラウザはすべて、一般向けのブラウザに AI を後付けするところから始まっています。GStack Browser はこれを逆にします。ランタイムとして Claude Code から始めて、そこにブラウザの表示領域を与えます。
 
-The agent is the primary citizen. The browser is the canvas. Skills are
-first-class capabilities. You don't "use a browser with AI help." You use
-an AI that can see and interact with the web.
+エージェントが主役で、ブラウザはキャンバスです。スキルは第一級の機能です。「AI の助けを借りてブラウザを使う」のではありません。「ウェブを見て操作できる AI を使う」のです。
 
-This is the IDE for the post-IDE era. Code lives in the terminal. The product
-lives in the browser. The AI works across both simultaneously. What Cursor did
-for text editors, GStack Browser does for the browser.
+これは、ポスト IDE 時代の IDE です。コードはターミナルに、プロダクトはブラウザに置かれます。AI はその両方を同時に扱います。Cursor がテキストエディタにしたことを、GStack Browser はブラウザに対して行います。
 
-## What It Is Today (Phase 1a, shipped)
+## 現状(Phase 1a、出荷済み)
 
-A double-clickable macOS .app that wraps Playwright's Chromium with the gstack
-sidebar extension baked in. You open it and Claude Code can see your screen,
-navigate pages, fill forms, take screenshots, inspect CSS, clean up overlays,
-and run any gstack skill. All without touching a terminal.
+Playwright の Chromium をラップし、gstack のサイドバー拡張を組み込んだ、ダブルクリックで起動できる macOS の .app です。開けば、Claude Code は画面を見て、ページを移動し、フォームに入力し、スクリーンショットを撮り、CSS を調べ、オーバーレイを片付け、gstack のどのスキルでも実行できます。ターミナルを一切触らずにです。
 
 ```
 GStack Browser.app (389MB, 189MB DMG)
@@ -34,178 +25,125 @@ GStack Browser.app (389MB, 189MB DMG)
 └── Launcher script — binds project dir, sets env vars
 ```
 
-Launch → Chromium opens with sidebar → extension auto-connects to browse server
-→ agent ready in ~5 seconds.
+起動 → サイドバー付きの Chromium が開く → 拡張が browse サーバーに自動接続 → 約 5 秒でエージェントが準備完了。
 
-## What It Will Be
+## これから作るもの
 
-### Phase 1b: Developer UX (next)
+### Phase 1b: 開発者向け UX(次の作業)
 
-**Command Palette (Cmd+K):** The signature interaction. Opens a fuzzy-filtered
-skill picker. Type "/qa" to start QA testing, "/investigate" to debug, "/ship"
-to create a PR. Skills are fetched from the browse server, not hardcoded. The
-palette is the entry point to everything.
+**コマンドパレット (Cmd+K):** 中核となる操作です。あいまい検索でフィルタされるスキルピッカーを開きます。「/qa」と入力して QA テストを開始し、「/investigate」でデバッグ、「/ship」で PR を作成します。スキルはハードコードせず、browse サーバーから取得します。パレットはすべてへの入口です。
 
-**Quick Screenshot (Cmd+Shift+S):** Capture the current viewport and pipe it into
-the sidebar chat with "What do you see?" context. The AI analyzes the screenshot
-and gives you actionable feedback. Visual bug reports in one keystroke.
+**クイックスクリーンショット (Cmd+Shift+S):** 現在のビューポートをキャプチャし、「What do you see?」という文脈とともにサイドバーのチャットに送ります。AI がスクリーンショットを分析し、実行可能なフィードバックを返します。ワンキーで視覚的なバグ報告ができます。
 
-**Status Bar:** A persistent 30px bar at the bottom of every page. Shows agent
-status (idle/thinking), workspace name, current branch, and auto-detected dev
-servers. Click a dev server pill to navigate. Always-visible context about what
-the AI is doing.
+**ステータスバー:** すべてのページの下部に常駐する 30px のバーです。エージェントの状態(待機中/思考中)、ワークスペース名、現在のブランチ、自動検出された開発サーバーを表示します。開発サーバーのピルをクリックすると移動します。AI が何をしているかが、いつでも見えます。
 
-**Auto-Detect Dev Servers:** On launch, scans common ports (3000, 3001, 4200,
-5173, 5174, 8000, 8080). If exactly one server is found, auto-navigates to it.
-Dev server pills in the status bar for one-click switching.
+**開発サーバーの自動検出:** 起動時に、よく使われるポート(3000、3001、4200、5173、5174、8000、8080)をスキャンします。サーバーが 1 つだけ見つかったら、そこへ自動で移動します。ステータスバーの開発サーバーのピルで、ワンクリックで切り替えられます。
 
-### Phase 2: BoomLooper Integration
+### Phase 2: BoomLooper との統合
 
-The sidebar connects to BoomLooper's Phoenix/Elixir APIs instead of a local
-`claude -p` subprocess. BoomLooper provides:
+サイドバーは、ローカルの `claude -p` サブプロセスの代わりに、BoomLooper の Phoenix/Elixir API に接続します。BoomLooper が提供するもの:
 
-- **Multi-agent orchestration.** Spawn 5 agents in parallel, each with its own
-  browser tab. One runs QA, one does design review, one watches for regressions.
-- **Docker infrastructure.** Each agent gets an isolated container. The browser
-  inside the container tests the dev server. No port conflicts, no state leakage.
-- **Session persistence.** Agent conversations survive browser restarts. Pick up
-  where you left off.
-- **Team visibility.** Your teammates can watch what your agents are doing in
-  real-time. Like pair programming, but the pair is 5 AI agents and you're the
-  conductor.
+- **マルチエージェントのオーケストレーション。** 5 つのエージェントを並列に起動し、それぞれが自分のブラウザタブを持ちます。1 つは QA を、1 つはデザインレビューを、1 つはリグレッションの監視を担当します。
+- **Docker インフラ。** 各エージェントは隔離されたコンテナを持ちます。コンテナ内のブラウザが開発サーバーをテストします。ポートの衝突も、状態の漏洩もありません。
+- **セッションの永続化。** エージェントの会話はブラウザを再起動しても残ります。前回の続きから再開できます。
+- **チームからの可視化。** チームメンバーは、自分のエージェントが何をしているかをリアルタイムで見られます。ペアプログラミングのようですが、ペアは 5 つの AI エージェントで、あなたは指揮者です。
 
-### Phase 3: Browse as BoomLooper Tool
+### Phase 3: BoomLooper のツールとしての browse
 
-The browse binary becomes an MCP tool in BoomLooper. Agents in Docker containers
-use browse commands to test dev servers, take screenshots, fill forms, and verify
-deployments. Cross-platform compilation (linux-arm64/x64) required.
+browse バイナリは BoomLooper の MCP ツールになります。Docker コンテナ内のエージェントは、browse のコマンドを使って開発サーバーをテストし、スクリーンショットを撮り、フォームに入力し、デプロイを検証します。クロスプラットフォームのコンパイル(linux-arm64/x64)が必要です。
 
-### Phase 4: Chromium Fork (trigger-gated)
+### Phase 4: Chromium フォーク(トリガー制)
 
-When the extension side panel hits hard API limits, GStack Browser ships to
-external users, build infra exists, and the business justifies maintenance:
-fork Chromium. Brave's `chromium_src` override pattern, CC-powered 6-week
-rebases (2-4 hours with CC vs 1-2 weeks human). ~20-30 files modified.
+拡張のサイドパネルが厳しい API 制限に達し、GStack Browser が外部ユーザーに出荷され、ビルド基盤があり、保守がビジネス的に正当化されたとき、Chromium をフォークします。Brave の `chromium_src` オーバーライドのパターン、CC による 6 週ごとのリベース(CC なら 2〜4 時間、人間なら 1〜2 週間)。約 20〜30 ファイルを変更します。
 
-### Phase 5: Native Shell
+### Phase 5: ネイティブシェル
 
-SwiftUI/AppKit app shell with native sidebar, isolated Chromium service. Full
-platform integration. May be superseded by Phase 4 if the Chromium fork includes
-a native sidebar.
+SwiftUI/AppKit のアプリシェル。ネイティブのサイドバーと、隔離された Chromium サービス。プラットフォームとの完全な統合。Chromium フォークにネイティブのサイドバーが含まれれば、Phase 4 に置き換えられる可能性があります。
 
-## Vision: What an AI Browser Can Do
+## ビジョン: AI ブラウザにできること
 
-### 1. See What You See
+### 1. 見ているものを見る
 
-The browser is the AI's eyes. Not through screenshots (though it can do that),
-but through DOM access, CSS inspection, network monitoring, and accessibility
-tree parsing. The AI understands the page structure, not just the pixels.
+ブラウザは AI の目です。スクリーンショットでもできますが、それだけではありません。DOM へのアクセス、CSS の検査、ネットワークの監視、アクセシビリティツリーの解析を通じて見ます。AI はピクセルだけでなく、ページの構造を理解します。
 
-**Today:** `snapshot` command returns an accessibility-tree representation of any
-page. The AI can "see" every button, link, form field, and text element. Element
-references (`@e1`, `@e2`) let the AI click, fill, and interact.
+**現在:** `snapshot` コマンドは、どのページについてもアクセシビリティツリー形式の表現を返します。AI はすべてのボタン、リンク、フォームのフィールド、テキスト要素を「見る」ことができます。要素の参照(`@e1`、`@e2`)により、AI はクリック、入力、その他の操作ができます。
 
-**Next:** Real-time page observation. The AI notices when a page changes, when an
-error appears in the console, when a network request fails. Proactive debugging
-without being asked.
+**次:** リアルタイムのページ監視。AI はページの変化、コンソールへのエラーの出現、失敗したネットワークリクエストに気づきます。頼まれなくても先回りしてデバッグします。
 
-**Future:** Visual understanding. The AI compares before/after screenshots to catch
-visual regressions. Pixel-level design review. "This button moved 3px left and the
-font changed from 14px to 13px."
+**将来:** 視覚的な理解。AI が変更前後のスクリーンショットを比較して、視覚的なリグレッションを検出します。ピクセルレベルのデザインレビュー。「このボタンは 3px 左に動き、フォントは 14px から 13px に変わった」。
 
-### 2. Act on What It Sees
+### 2. 見たものに対して行動する
 
-Not just reading pages, but interacting with them like a human user would.
+ページを読むだけでなく、人間のユーザーと同じように操作します。
 
-**Today:** Click, fill, select, hover, type, scroll, upload files, handle dialogs,
-navigate, manage tabs. All via simple commands through the browse server.
+**現在:** クリック、入力、選択、ホバー、タイプ、スクロール、ファイルのアップロード、ダイアログの処理、移動、タブの管理。すべて browse サーバーを通じた簡単なコマンドで行います。
 
-**Next:** Multi-step user flows. "Log in, go to settings, change the timezone,
-verify the confirmation message." The AI chains commands with verification at each
-step.
+**次:** 複数ステップのユーザーフロー。「ログインして、設定を開き、タイムゾーンを変更し、確認メッセージを検証する」。AI は各ステップで検証しながらコマンドをつなぎます。
 
-**Future:** Autonomous QA agent. "Test every link on this page. Fill every form.
-Try to break it." The AI runs exhaustive interaction testing without a script.
-Finds bugs a human tester would miss because it tries combinations humans don't
-think of.
+**将来:** 自律的な QA エージェント。「このページのリンクをすべてテストし、フォームをすべて埋め、壊してみろ」。AI はスクリプトなしで網羅的な操作テストを実行します。人間のテスターが思いつかない組み合わせを試すため、見落としがちなバグも見つけます。
 
-### 3. Write Code While Browsing
+### 3. ブラウズしながらコードを書く
 
-This is the key differentiator. The AI can see the bug in the browser AND fix it
-in the code simultaneously.
+これが重要な差別化要因です。AI はブラウザでバグを見つけると同時に、コードでそれを直せます。
 
-**Today:** The sidebar chat connects to Claude Code. You say "this button is
-misaligned" and the AI reads the CSS, identifies the issue, and proposes a fix.
-The `/design-review` skill takes screenshots, identifies visual issues, and
-commits fixes with before/after evidence.
+**現在:** サイドバーのチャットは Claude Code に接続されています。「このボタンはずれている」と言えば、AI は CSS を読み、原因を特定し、修正を提案します。`/design-review` スキルはスクリーンショットを撮り、視覚的な問題を特定し、修正前後の証拠を付けて修正をコミットします。
 
-**Next:** Live reload loop. The AI edits CSS/HTML, the browser auto-reloads, the
-AI verifies the fix visually. No human in the loop for simple visual fixes.
-"Fix every spacing issue on this page" becomes a 30-second task.
+**次:** ライブリロードのループ。AI が CSS/HTML を編集し、ブラウザが自動でリロードし、AI が修正を視覚的に検証します。単純な見た目の修正なら、人間は介在しません。「このページのスペーシングの問題をすべて直せ」が 30 秒のタスクになります。
 
-**Future:** Full-stack debugging. The AI sees a 500 error in the browser, reads
-the server logs, traces to the failing line, writes the fix, and verifies in the
-browser. One command: "This page is broken. Fix it."
+**将来:** フルスタックのデバッグ。AI はブラウザで 500 エラーを見て、サーバーのログを読み、失敗している行をたどり、修正を書き、ブラウザで検証します。コマンド一つで「このページは壊れている。直せ」。
 
-### 4. Understand the Whole Stack
+### 4. スタック全体を理解する
 
-The browser isn't just a viewport. It's a window into the application's health.
+ブラウザは表示領域だけではありません。アプリケーションの健全性を映す窓です。
 
-**Today:**
-- Console log capture — every `console.log`, `console.error`, and warning
-- Network request monitoring — every XHR, fetch, websocket, and static asset
-- Performance metrics — Core Web Vitals, resource timing, paint events
-- Cookie and storage inspection — read and write localStorage, sessionStorage
-- CSS inspection — computed styles, box model, rule cascade
+**現在:**
+- コンソールログの取得 — すべての `console.log`、`console.error`、警告
+- ネットワークリクエストの監視 — すべての XHR、fetch、websocket、静的アセット
+- パフォーマンスのメトリクス — Core Web Vitals、リソースのタイミング、描画イベント
+- Cookie とストレージの検査 — localStorage、sessionStorage の読み書き
+- CSS の検査 — 計算済みスタイル、ボックスモデル、ルールのカスケード
 
-**Next:**
-- Network request replay — "replay this failing request with different params"
-- Performance regression detection — "this page is 200ms slower than yesterday"
-- Dependency auditing — "this page loads 47 third-party scripts"
-- Accessibility auditing — "this form has no labels, these colors fail contrast"
+**次:**
+- ネットワークリクエストの再生 — 「この失敗したリクエストを別のパラメータで再実行する」
+- パフォーマンスの回帰検出 — 「このページは昨日より 200ms 遅い」
+- 依存関係の監査 — 「このページは 47 個のサードパーティのスクリプトを読み込んでいる」
+- アクセシビリティの監査 — 「このフォームにはラベルがない。これらの色はコントラストが不足している」
 
-**Future:**
-- Full application telemetry — CPU, memory, GPU usage in real-time
-- Cross-browser testing — same test suite across Chrome, Firefox, Safari
-- Real user monitoring correlation — "this bug affects 12% of production users"
+**将来:**
+- アプリケーション全体のテレメトリ — CPU、メモリ、GPU の使用状況をリアルタイムで
+- クロスブラウザテスト — Chrome、Firefox、Safari で同じテストスイート
+- 実ユーザー監視との相関 — 「このバグは本番ユーザーの 12% に影響している」
 
-### 5. The Workspace Model
+### 5. ワークスペースのモデル
 
-The browser IS the workspace. Not a tab in a workspace. The workspace itself.
+ブラウザ自体がワークスペースです。ワークスペースの中のタブではありません。ワークスペースそのものです。
 
-**Today:** Each browser session is bound to a project directory. The sidebar shows
-the current branch. The status bar shows detected dev servers.
+**現在:** 各ブラウザセッションは、1 つのプロジェクトディレクトリに紐付けられています。サイドバーには現在のブランチが表示されます。ステータスバーには検出された開発サーバーが表示されます。
 
-**Next:** Multi-project support. Switch between projects without closing the
-browser. Each project gets its own set of tabs, its own agent, its own context.
-Like VSCode workspaces, but for the browser.
+**次:** マルチプロジェクト対応。ブラウザを閉じずにプロジェクトを切り替えられます。各プロジェクトは、独自のタブ、独自のエージェント、独自の文脈を持ちます。VSCode のワークスペースのような、ブラウザ版です。
 
-**Future:** Team workspaces. Multiple developers share a browser workspace. See
-each other's agents working. Collaborative debugging where one person navigates
-and the other watches the AI fix things in real-time.
+**将来:** チームのワークスペース。複数の開発者が、ブラウザのワークスペースを共有します。互いのエージェントが動いているのを見られます。一人がナビゲートし、もう一人が AI がリアルタイムで修正するのを見る、共同デバッグ。
 
-### 6. Skills as Browser Capabilities
+### 6. ブラウザの機能としてのスキル
 
-Every gstack skill becomes a browser capability.
+gstack のスキルはすべて、ブラウザの機能になります。
 
-| Skill | Browser Capability |
+| スキル | ブラウザの機能 |
 |-------|-------------------|
-| `/qa` | Test every page, find bugs, fix them, verify fixes |
-| `/design-review` | Screenshot → analyze → fix CSS → screenshot again |
-| `/investigate` | See the error in browser → trace to code → fix → verify |
-| `/benchmark` | Measure page performance → detect regressions → alert |
-| `/canary` | Monitor deployed site → screenshot periodically → alert on changes |
-| `/ship` | Run tests → review diff → create PR → verify deployment in browser |
-| `/cso` | Audit page for XSS, open redirects, clickjacking in real browser |
-| `/office-hours` | Browse competitor sites → synthesize observations → design doc |
+| `/qa` | すべてのページをテストし、バグを見つけ、修正し、修正を検証 |
+| `/design-review` | スクリーンショット → 分析 → CSS を修正 → 再度スクリーンショット |
+| `/investigate` | ブラウザでエラーを見る → コードまでたどる → 修正 → 検証 |
+| `/benchmark` | ページのパフォーマンスを測定 → 回帰を検出 → 通知 |
+| `/canary` | デプロイされたサイトを監視 → 定期的にスクリーンショット → 変化があれば通知 |
+| `/ship` | テストを実行 → 差分をレビュー → PR を作成 → ブラウザでデプロイを検証 |
+| `/cso` | 本物のブラウザで、ページの XSS、オープンリダイレクト、クリックジャッキングを監査 |
+| `/office-hours` | 競合サイトを閲覧 → 観察結果をまとめる → 設計書 |
 
-The command palette (Cmd+K) is the hub. You don't need to know the skills exist.
-You type what you want, the fuzzy filter finds the right skill, and the AI runs it
-with the browser as context.
+コマンドパレット (Cmd+K) がハブです。スキルが存在することを知らなくてもかまいません。やりたいことを入力すれば、あいまい検索が適切なスキルを見つけ、AI がブラウザを文脈にしてそれを実行します。
 
-### 7. The Design Loop
+### 7. デザインのループ
 
-AI-powered design is a loop, not a handoff.
+AI によるデザインは、受け渡しではなくループです。
 
 ```
 Generate mockup (GPT Image API)
@@ -218,25 +156,24 @@ Generate mockup (GPT Image API)
   → Ship
 ```
 
-The browser closes the gap between "what it looks like in Figma" and "what it
-looks like in production." Because the AI can see both simultaneously.
+ブラウザは「Figma で見た見た目」と「本番での見た目」の間のギャップを埋めます。AI が両方を同時に見られるからです。
 
-### 8. The Security Loop
+### 8. セキュリティのループ
 
-CSO review in a real browser, not just static analysis.
+静的解析だけでなく、本物のブラウザでの CSO レビュー。
 
-- Inject XSS payloads into every input field, check if they execute
-- Test CSRF by replaying requests from a different origin
-- Check for open redirects by navigating to crafted URLs
-- Verify CSP headers are actually enforced (not just present)
-- Test auth flows by manipulating cookies and tokens in real-time
-- Check for clickjacking by loading the site in an iframe
+- すべての入力欄に XSS のペイロードを注入し、実行されるかを確認する
+- 別のオリジンからリクエストを再送して CSRF をテストする
+- 細工した URL に移動して、オープンリダイレクトを確認する
+- CSP ヘッダーが存在するだけでなく、実際に強制されているかを検証する
+- リアルタイムで Cookie やトークンを操作して、認証フローをテストする
+- サイトを iframe に読み込んで、クリックジャッキングを確認する
 
-Static analysis catches patterns. Browser testing catches reality.
+静的解析はパターンを捉えます。ブラウザでのテストは現実を捉えます。
 
-### 9. The Monitoring Loop
+### 9. 監視のループ
 
-Post-deploy canary monitoring, in a real browser.
+デプロイ後のカナリア監視を、本物のブラウザで行います。
 
 ```
 Deploy → Browser loads production URL
@@ -246,10 +183,9 @@ Deploy → Browser loads production URL
   → Auto-rollback if critical error detected
 ```
 
-Synthetic monitoring with AI judgment. Not just "did the page return 200" but
-"does the page look right and work correctly."
+AI による判断を伴う合成監視です。「ページが 200 を返したか」ではなく、「ページは正しく見えて、正しく動いているか」を見ます。
 
-## Architecture
+## アーキテクチャ
 
 ```
 +-------------------------------------------------------+
@@ -286,57 +222,55 @@ Synthetic monitoring with AI judgment. Not just "did the page return 200" but
   +---------------------+    +-----------------------+
 ```
 
-## Competitive Landscape
+## 競合環境
 
-| Browser | Approach | Differentiator | Weakness |
+| ブラウザ | アプローチ | 差別化要因 | 弱点 |
 |---------|----------|---------------|----------|
-| **Atlas** | Chromium fork + AI layer | Agentic browser, "OWL" isolated Chromium | Consumer-focused, no code integration |
-| **Dia** | AI-native browser | Clean UI, built for AI interaction | No dev tools, no code editing |
-| **Comet** | AI browser | Multi-agent browsing | Early, unclear dev workflow |
-| **Chrome Auto Browse** | Extension | Google's own, deep Chrome integration | Extension-only, no code editing |
-| **Cursor** | VSCode fork + AI | Best-in-class code editing | No browser viewport |
-| **GStack Browser** | CC runtime + browser viewport | See bug in browser, fix in code, verify | Currently macOS-only, no consumer features |
+| **Atlas** | Chromium フォーク + AI 層 | エージェント型ブラウザ、「OWL」という隔離された Chromium | 一般向け。コード統合なし |
+| **Dia** | AI ネイティブのブラウザ | すっきりした UI、AI とのやり取り向け | 開発者ツールなし。コード編集なし |
+| **Comet** | AI ブラウザ | マルチエージェントのブラウジング | 初期段階。開発のワークフローが不明確 |
+| **Chrome Auto Browse** | 拡張機能 | Google 純正。Chrome との深い統合 | 拡張機能のみ。コード編集なし |
+| **Cursor** | VSCode フォーク + AI | 最高クラスのコード編集 | ブラウザの表示領域がない |
+| **GStack Browser** | CC ランタイム + ブラウザの表示領域 | ブラウザでバグを見て、コードで直し、検証する | 現在は macOS のみ。一般向けの機能なし |
 
-GStack Browser doesn't compete with consumer browsers. It competes with the
-workflow of switching between browser and editor. The goal is to make that switch
-invisible.
+GStack Browser は一般向けブラウザと競合しません。ブラウザとエディタを行き来するワークフローと競合します。目標は、その切り替えを目に見えないものにすることです。
 
-## Design System
+## デザインシステム
 
-From DESIGN.md:
-- **Primary accent:** Amber-500 (#F59E0B) — agent active, focus states, pulse
-- **Background:** Zinc-950 (#09090B) through Zinc-800 (#27272A) — dark, dense
-- **Typography:** JetBrains Mono (code/status), DM Sans (UI/labels)
-- **Border radius:** 8px (md), 12px (lg), full (pills)
-- **Motion:** Pulse animation on agent active, 200ms transitions
-- **Layout:** Sidebar (right), status bar (bottom), palette (centered overlay)
+DESIGN.md より:
+- **主要なアクセント:** Amber-500 (#F59E0B) — エージェントの稼働中、フォーカス状態、パルス
+- **背景:** Zinc-950 (#09090B) から Zinc-800 (#27272A) まで — 暗く、密度が高い
+- **タイポグラフィ:** JetBrains Mono(コード/ステータス)、DM Sans(UI/ラベル)
+- **角丸:** 8px (md)、12px (lg)、全円(ピル)
+- **モーション:** エージェント稼働中のパルスアニメーション、200ms のトランジション
+- **レイアウト:** サイドバー(右)、ステータスバー(下)、パレット(中央のオーバーレイ)
 
-## Implementation Status
+## 実装状況
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| .app bundle | **SHIPPED** | 389MB, launches in ~5s |
-| DMG packaging | **SHIPPED** | 189MB compressed |
-| `GSTACK_CHROMIUM_PATH` | **SHIPPED** | Custom Chromium binary support |
-| `BROWSE_EXTENSIONS_DIR` | **SHIPPED** | Extension path override |
-| Auth via `/health` | **SHIPPED** | Replaces .auth.json file approach, auto-refreshes on server restart |
-| Build script | **SHIPPED** | `scripts/build-app.sh` |
-| Model routing | **SHIPPED** | Sonnet for actions, Opus for analysis (`pickSidebarModel`) |
-| Debug logging | **SHIPPED** | 40+ silent catches → prefixed console logging across 4 files |
-| No idle timeout (headed) | **SHIPPED** | Browser stays alive as long as window is open |
-| Cookie import button | **SHIPPED** | One-click in sidebar footer, opens `/cookie-picker` |
-| Sidebar arrow hint | **SHIPPED** | Points to sidebar, hides only when sidebar actually opens |
-| Architecture doc | **SHIPPED** | `docs/designs/SIDEBAR_MESSAGE_FLOW.md` |
-| Command palette | Planned | Phase 1b |
-| Quick screenshot | Planned | Phase 1b |
-| Status bar | Planned | Phase 1b |
-| Dev server detection | Planned | Phase 1b |
-| BoomLooper integration | Future | Phase 2 |
-| Cross-platform | Future | Phase 3 |
-| Chromium fork | Trigger-gated | Phase 4 |
-| Native shell | Deferred | Phase 5 |
+| コンポーネント | ステータス | 備考 |
+|-----------|-----------|-----------|
+| .app バンドル | **出荷済み** | 389MB、約 5 秒で起動 |
+| DMG パッケージ | **出荷済み** | 圧縮後 189MB |
+| `GSTACK_CHROMIUM_PATH` | **出荷済み** | カスタムの Chromium バイナリに対応 |
+| `BROWSE_EXTENSIONS_DIR` | **出荷済み** | 拡張機能のパスの上書き |
+| `/health` による認証 | **出荷済み** | auth ファイル方式に代わる。サーバー再起動時に自動更新 |
+| ビルドスクリプト | **出荷済み** | `scripts/build-app.sh` |
+| モデルのルーティング | **出荷済み** | アクションには Sonnet、分析には Opus(`pickSidebarModel`) |
+| デバッグログ | **出荷済み** | 4 ファイルにわたる 40 件以上のサイレントな catch を、プレフィックス付きのコンソールログに変更 |
+| アイドルタイムアウトなし(ヘッドフルモード) | **出荷済み** | ウィンドウが開いている限りブラウザは稼働を続ける |
+| Cookie インポートボタン | **出荷済み** | サイドバーのフッターにワンクリックで配置。`/cookie-picker` を開く |
+| サイドバーの矢印ヒント | **出荷済み** | サイドバーを指す。サイドバーが実際に開いたときだけ消える |
+| アーキテクチャのドキュメント | **出荷済み** | `docs/designs/SIDEBAR_MESSAGE_FLOW.md` |
+| コマンドパレット | 計画中 | Phase 1b |
+| クイックスクリーンショット | 計画中 | Phase 1b |
+| ステータスバー | 計画中 | Phase 1b |
+| 開発サーバーの検出 | 計画中 | Phase 1b |
+| BoomLooper との統合 | 将来 | Phase 2 |
+| クロスプラットフォーム | 将来 | Phase 3 |
+| Chromium フォーク | トリガー制 | Phase 4 |
+| ネイティブシェル | 延期 | Phase 5 |
 
-## The 12-Month Vision
+## 12 か月のビジョン
 
 ```
 TODAY (Phase 1)               6 MONTHS (Phase 2-3)          12 MONTHS (Phase 4-5)
@@ -350,27 +284,17 @@ Manual skill invocation       Autonomous QA loops            Skill marketplace
                               Real-time collaboration         Enterprise features
 ```
 
-The 12-month ideal: you open GStack Browser, it detects your project, starts
-your dev server, runs your test suite, and reports what's broken. You say "fix
-it" and the AI fixes every bug, verifies each fix visually, and creates a PR.
-You review the PR in the same browser, approve it, and the AI deploys it and
-monitors the canary. All in one window.
+12 か月後の理想: GStack Browser を開くと、プロジェクトを検出し、開発サーバーを起動し、テストスイートを実行して、壊れている箇所を報告します。「直せ」と言えば、AI がすべてのバグを修正し、修正ごとに視覚的に検証し、PR を作成します。同じブラウザで PR をレビューし、承認すると、AI がデプロイしてカナリアを監視します。すべて一つのウィンドウの中で完結します。
 
-That's the browser as AI workspace. Not a browser with AI bolted on. An AI
-with a browser bolted on.
+それが、AI のワークスペースとしてのブラウザです。AI を後付けしたブラウザではありません。ブラウザを後付けした AI です。
 
-## Review History
+## レビューの履歴
 
-This plan went through 4 reviews:
+この計画は 4 回のレビューを経ました。
 
-1. **CEO Review** (`/plan-ceo-review`, SELECTIVE EXPANSION) — 9 scope proposals,
-   3 accepted (Cmd+K, Cmd+Shift+S, status bar), 5 deferred, 1 skipped
-2. **Design Review** (`/plan-design-review`) — scored 5/10 → 8/10, 9 design
-   decisions added, 2 approved mockups generated
-3. **Eng Review** (`/plan-eng-review`) — 4 issues found, 0 critical gaps,
-   test plan produced
-4. **Codex Review** (outside voice) — 9 findings, 3 critical gaps caught
-   (server bundling, auth file location, project binding). All resolved.
+1. **CEO レビュー** (`/plan-ceo-review`、SELECTIVE EXPANSION) — 9 件のスコープ提案。うち 3 件を採用(Cmd+K、Cmd+Shift+S、ステータスバー)、5 件を延期、1 件を見送り
+2. **デザインレビュー** (`/plan-design-review`) — 5/10 → 8/10 に改善。9 件のデザイン上の決定を追加し、承認されたモックアップを 2 件生成
+3. **エンジニアリングレビュー** (`/plan-eng-review`) — 4 件の問題を発見。重大なギャップはゼロ。テスト計画を作成
+4. **Codex レビュー**(外部の視点) — 9 件の指摘。重大なギャップを 3 件検出(サーバーのバンドル、認証ファイルの場所、プロジェクトの紐付け)。すべて解決
 
-The Codex review caught 3 real architecture gaps that survived 3 prior reviews.
-Cross-model review works.
+Codex のレビューは、それ以前の 3 回のレビューを通過した、実際のアーキテクチャのギャップを 3 件捉えました。クロスモデルのレビューは機能します。

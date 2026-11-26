@@ -11,6 +11,7 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { expectMentions } from './helpers/prompt-structure';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const SCRIPT = path.join(ROOT, 'bin', 'gstack-update-check');
@@ -181,7 +182,7 @@ describe('equal VERSION, main moved past the checkout', () => {
     const skill = fs.readFileSync(path.join(ROOT, 'gstack-upgrade', 'SKILL.md'), 'utf8');
     const block = /```bash\n(GSTACK_STATE_ROOT=\$\(~\/\.claude\/skills\/gstack\/bin\/gstack-paths[^\n]*\n_SNOOZE_FILE=[\s\S]*?)```/.exec(skill)![1]!;
     expect(block).toContain('_REMOTE_VER="{new}"');
-    expect(skill).toContain('On a four-field line use the SHA (fourth field) as `{new}`');
+    expectMentions(skill, [['4 つのフィールド', '4 番目のフィールド', 'SHA', '`{new}`']], 'gstack-upgrade SKILL');
     const bin = path.join(fx.root, '.claude', 'skills', 'gstack', 'bin');
     fs.mkdirSync(bin, { recursive: true });
     fs.mkdirSync(path.join(path.dirname(bin), 'lib'), { recursive: true });

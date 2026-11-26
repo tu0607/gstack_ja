@@ -36,14 +36,14 @@ describe('section TemplateContext parity (skillName pinned to parent)', () => {
   test('adversarial section rendered the ADVERSARIAL_STEP resolver (proves ship ctx)', () => {
     const content = readSection('adversarial.md');
     // The codex filesystem-boundary line only appears when ADVERSARIAL_STEP resolves.
-    expectMentions(content, [['do not', 'execute', 'files']], 'content');
+    expectMentions(content, [['ファイル', '読んだり実行したりしない']], 'content');
     expect(content.length).toBeGreaterThan(500);
   });
 
   test('review-army section rendered CONFIDENCE_CALIBRATION + REVIEW_ARMY (gated resolvers)', () => {
     const content = readSection('review-army.md');
     expect(content).toContain('Confidence Calibration');
-    expect(content).toContain('confidence score');
+    expect(content).toContain('(confidence: N/10)');
   });
 
   test('tests section rendered TEST_BOOTSTRAP + TEST_FAILURE_TRIAGE', () => {

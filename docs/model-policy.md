@@ -1,22 +1,16 @@
-# Model policy
+# モデルポリシー
 
-Use a frontier model to challenge a plan, then a smart model to build it.
-These are curated recommendations, not a claim that one model wins every task.
-User choices take precedence, and a recommendation never switches the running
-session or edits the host's native configuration.
+フロンティアモデルで計画に異議を唱えさせ、スマートモデルで実装する。
+ここに挙げるのは厳選された推奨であり、どのタスクでも一つのモデルが常に勝つという主張ではありません。ユーザーの選択が優先されます。推奨によって実行中のセッションが切り替わることも、ホストのネイティブ設定が書き換えられることもありません。
 
-| Tier | Default job | Anthropic | OpenAI |
+| 階層 | 既定の役割 | Anthropic | OpenAI |
 | --- | --- | --- | --- |
-| `frontier` | Independent plan review | `claude-fable-5-1` | `gpt-6-astra` |
-| `smart` | Implementation recommendation | `claude-opus-5-5` | `gpt-6.1-sol` |
+| `frontier` | 独立した計画レビュー | `claude-fable-5-1` | `gpt-6-astra` |
+| `smart` | 実装の推奨 | `claude-opus-5-5` | `gpt-6.1-sol` |
 
-## Inspect and change your policy
+## ポリシーの確認と変更
 
-This quickstart assumes gstack is installed. It uses no network, credentials or
-paid model calls. Run it from the project's repository root in Bash, Git Bash or MSYS:
-automated outside reviews use that directory. Inspection from a subdirectory
-reflects that subdirectory's native settings and may differ. If your install is vendored
-or elsewhere, set `GSTACK_ROOT` to that installed gstack runtime instead.
+このクイックスタートは gstack がインストールされていることを前提としています。ネットワーク、認証情報、有料のモデル呼び出しは使いません。プロジェクトのリポジトリのルートで、Bash、Git Bash、または MSYS から実行してください。自動化された外部レビューはこのディレクトリを使います。サブディレクトリから確認すると、そのサブディレクトリのネイティブ設定が表示されるため、結果が異なる場合があります。インストール先がベンダリングされている場合や別の場所にある場合は、代わりに `GSTACK_ROOT` をインストールされた gstack のランタイムに設定してください。
 
 ```bash
 if [ -x "$HOME/.claude/skills/gstack/bin/gstack-models" ]; then
@@ -31,19 +25,16 @@ fi
 "$GSTACK_ROOT/bin/gstack-models" resolve --role plan-review --provider openai
 ```
 
-The output explains the selected model and which setting won. It also shows
-catalog verification metadata. Offline selection does **not** prove that a CLI
-is installed, that your account can use the model, or that a vendor's current
-catalog has been checked.
+出力には、選ばれたモデルの説明と、どの設定が優先されたかが表示されます。カタログの検証メタデータも表示されます。オフラインでの選択では、CLI がインストールされていること、アカウントがそのモデルを使えること、ベンダーの最新カタログが確認済みであることは **証明されません**。
 
-Choose the less expensive review tier, then inspect the effective result:
+より安価なレビュー階層を選び、その結果を確認します。
 
 ```bash
 "$GSTACK_ROOT/bin/gstack-config" set plan_review_tier smart
 "$GSTACK_ROOT/bin/gstack-models" resolve --role plan-review --provider openai
 ```
 
-Pin a provider's model within a tier, or reset a pin to the shipped default:
+階層の中でプロバイダーのモデルを固定する、または固定を既定のものに戻す場合:
 
 ```bash
 "$GSTACK_ROOT/bin/gstack-config" set model_frontier_openai gpt-6-astra
@@ -52,224 +43,106 @@ Pin a provider's model within a tier, or reset a pin to the shipped default:
 "$GSTACK_ROOT/bin/gstack-config" unset plan_review_tier
 ```
 
-To keep using native CLI model settings for plan reviews:
+計画レビューで CLI のネイティブなモデル設定を使い続ける場合:
 
 ```bash
 "$GSTACK_ROOT/bin/gstack-config" set plan_review_tier host
 ```
 
-Settings apply to the next invocation without rerendering skills. An invocation
-already being checked keeps its selected model through execution. Configuration
-uses the existing [gstack state root](state-root.md), not a new per-repository
-settings file. Invalid writes are rejected and leave the previous value intact;
-use `unset`, not an empty value, to restore a default.
+設定は、スキルを再レンダリングしなくても次回の呼び出しから反映されます。すでに確認中の呼び出しは、実行を通じて選ばれたモデルを維持します。設定は既存の [gstack の状態ルート](state-root.md) を使い、リポジトリごとの新しい設定ファイルは作られません。不正な書き込みは拒否され、以前の値はそのまま残ります。既定値に戻すには、空の値ではなく `unset` を使ってください。
 
-A malformed known setting (for example `plan_review_tier = smart`) stops
-selection rather than acting as an absent key. Correct or remove the named line
-in the reported config file; `unset` only removes correctly spelled `key:` records.
+既知の設定が不正な形式の場合(例: `plan_review_tier = smart`)、選択は停止します。キーが存在しないものとして扱われることはありません。報告された設定ファイルで、該当する行を修正または削除してください。`unset` が削除できるのは、正しく綴られた `key:` のレコードだけです。
 
-Codex plan-review readiness and dispatch share one deadline. Readiness is
-budgeted half the remaining time, with the existing termination grace. A slow
-preflight leaves less time for the review instead of extending the caller's
-limit. An expired deadline starts no new command and means missing review
-coverage, not a completed review.
+Codex の計画レビューの準備確認と実行は、一つの期限を共有します。準備確認には残り時間の半分が割り当てられ、既存の終了猶予もそこに含まれます。準備確認が遅れても、レビューに残された時間が減るだけで、呼び出し元の制限時間が延びることはありません。期限切れの場合は新しいコマンドを開始せず、レビューが完了したのではなく、レビューのカバレッジが欠けたものとして扱われます。
 
-## Settings and precedence
+## 設定と優先順位
 
-| Key | Default | Accepted value |
+| キー | 既定値 | 受け付ける値 |
 | --- | --- | --- |
 | `plan_review_tier` | `frontier` | `frontier`, `smart`, `host` |
 | `implementation_tier` | `smart` | `frontier`, `smart` |
-| `model_frontier_claude` | Catalog's Anthropic frontier model | Explicit Anthropic model identifier |
-| `model_frontier_openai` | Catalog's OpenAI frontier model | Explicit OpenAI model identifier |
-| `model_smart_claude` | Catalog's Anthropic smart model | Explicit Anthropic model identifier |
-| `model_smart_openai` | Catalog's OpenAI smart model | Explicit OpenAI model identifier |
+| `model_frontier_claude` | カタログの Anthropic フロンティアモデル | 明示的な Anthropic モデル識別子 |
+| `model_frontier_openai` | カタログの OpenAI フロンティアモデル | 明示的な OpenAI モデル識別子 |
+| `model_smart_claude` | カタログの Anthropic スマートモデル | 明示的な Anthropic モデル識別子 |
+| `model_smart_openai` | カタログの OpenAI スマートモデル | 明示的な OpenAI モデル識別子 |
 
-For plan reviews, a model named for that invocation wins over
-`GSTACK_CLAUDE_MODEL` or `GSTACK_CODEX_MODEL`. That environment override wins over
-the selected tier's configured model, which wins over the shipped catalog.
-Generic coding-model settings do not silently select a cheaper plan reviewer;
-choose `host` mode when that is the behavior you want.
+計画レビューでは、その呼び出しのために指定されたモデルが `GSTACK_CLAUDE_MODEL` や `GSTACK_CODEX_MODEL` より優先されます。その環境変数による上書きは、選択された階層に設定されたモデルより優先され、そのモデルはカタログの既定値より優先されます。汎用のコーディング用モデル設定が、黙って安価な計画レビュー担当を選ぶことはありません。その動作を望む場合は `host` モードを選んでください。
 
-In `host` mode, Codex keeps its existing native-config resolution, including
-`CODEX_HOME`, active profiles and the `exec` versus native `review` distinction.
-Claude can delegate model selection to its CLI without forcing `--model`; the
-inspector reports that delegation rather than inventing an exact model ID.
-Actual returned model usage remains separate from the requested model.
+`host` モードでは、Codex は既存のネイティブ設定の解決をそのまま使います。`CODEX_HOME`、有効なプロファイル、`exec` と本来の `review` の違いが含まれます。Claude は、`--model` を強制せずに CLI へモデル選択を委ねることができます。確認ツールは、正確なモデル ID を推測して表示するのではなく、この委任を報告します。実際に返されたモデルの使用状況は、要求したモデルとは別に扱われます。
 
-Implementation recommendations use a model explicitly requested for that job,
-then the configured implementation tier and its provider override, then the
-catalog. Outside-review environment overrides do not change implementation
-recommendations. Known Claude Code and Codex hosts recommend their own provider;
-an unknown or multi-provider host can show both choices.
+実装の推奨では、そのジョブのために明示的に要求されたモデルが使われ、次に設定された実装階層とそのプロバイダーの上書き、最後にカタログが使われます。外部レビューの環境変数による上書きは、実装の推奨には影響しません。既知の Claude Code や Codex のホストは、それぞれ自身のプロバイダーを推奨します。未知のホストや複数プロバイダーにまたがるホストでは、両方の選択肢が表示されることがあります。
 
-Custom endpoints and partner platforms need an explicitly compatible model or
-`host` mode. Gstack does not guess that public API IDs work with Bedrock, Vertex,
-Foundry or a custom Codex provider. A model identifier passing syntax validation
-is not proof of account availability. See [provider recovery](troubleshooting.md#model-policy-provider).
+カスタムエンドポイントやパートナープラットフォームでは、明示的に互換性のあるモデルか `host` モードが必要です。gstack は、公開 API の ID が Bedrock、Vertex、Foundry、カスタムの Codex プロバイダーで動くかどうかを推測しません。モデル識別子の構文検証に通ったとしても、アカウントで利用できることの証明にはなりません。詳しくは [プロバイダーの復旧](troubleshooting.md#model-policy-provider) を参照してください。
 
-Detection is conservative, not a replacement for the CLI's settings engine.
-Claude checks environment, user settings, project/shared/local settings, local
-settings at the repository and worktree's main checkout, and local managed files.
-Codex checks environment, user/active-profile settings and system configuration;
-project-local Codex config is not inspected.
-Any detected local custom-route signal requires an explicit model, even if
-native trust or precedence rules might suppress it. Server-managed or MDM
-policy and extra native CLI flags are not visible to this check; `--help` and
-JSON output list these limits. Use an explicit compatible model for those cases,
-or `host` mode for plan reviews. Implementation recommendations require an
-explicit implementation model rather than delegating to a hidden native choice.
+検出は控えめに行われ、CLI の設定エンジンの代わりにはなりません。Claude は、環境変数、ユーザー設定、プロジェクト/共有/ローカルの設定、リポジトリおよびワークツリーのメインチェックアウトにあるローカル設定、ローカルの管理ファイルを確認します。Codex は、環境変数、ユーザー/有効なプロファイルの設定、システム設定を確認します。プロジェクト内のローカル Codex 設定は確認されません。ローカルのカスタムルートを示す信号が検出された場合は、ネイティブの信頼ルールや優先順位によってその信号が無視されるとしても、明示的なモデル指定が必要になります。サーバー管理またはMDMのポリシーや、追加のネイティブ CLI フラグはこの確認からは見えません。それらの限界は `--help` と JSON 出力に記載されています。そのような場合は、互換性のある明示的なモデル、または計画レビューでは `host` モードを使ってください。実装の推奨では、隠れたネイティブの選択に任せるのではなく、明示的な実装モデルが必要です。
 
-## Reasoning effort
+<a id="reasoning-effort"></a>
+## 推論の努力レベル
 
-Codex calls carry a `model_reasoning_effort`. It follows the same shape as the
-model: a per-request flag on `/codex`, a per-run environment override, then a
-stored setting, then the default each gate ships with.
+Codex の呼び出しには `model_reasoning_effort` が付きます。これはモデルと同じ形の仕組みに従います。`/codex` の要求ごとのフラグ、実行ごとの環境変数による上書き、保存された設定、そして各ゲートに組み込まれた既定値の順に適用されます。
 
-| Order | Source | Set it with |
+| 順序 | 設定元 | 設定方法 |
 | --- | --- | --- |
-| 0 | `/codex ... --effort <level>` (this request only; `/codex` alone) | `/codex review --effort medium` |
-| 1 | `GSTACK_CODEX_EFFORT` (this shell, this run) | `export GSTACK_CODEX_EFFORT=max` |
-| 2 | `codex_effort` in config.yaml | `gstack-config set codex_effort low` (`unset` restores the defaults) |
-| 3 | the gate's default | nothing: `high` for reviews, plan reviews and `/codex` review and challenge; `medium` for `/codex` consult and design direction |
+| 0 | `/codex ... --effort <level>`(この要求のみ、`/codex` のみ) | `/codex review --effort medium` |
+| 1 | `GSTACK_CODEX_EFFORT`(このシェル、この実行のみ) | `export GSTACK_CODEX_EFFORT=max` |
+| 2 | config.yaml の `codex_effort` | `gstack-config set codex_effort low`(`unset` で既定値に戻る) |
+| 3 | ゲートの既定値 | 設定不要。レビュー、計画レビュー、`/codex` のレビューと挑戦では `high`、`/codex` の相談と設計方針では `medium` |
 
-Levels: `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, `ultra`. Support is
-model-dependent, so an unsupported level for your model fails at request time
-through the usual model error. An invalid value never reaches Codex:
-`gstack-config set` rejects it, and `gstack-codex-probe run-with-timeout --effort
-<default>` (which resolves the order above and appends the flag) stops the call
-before anything is sent, naming the source to fix. `gstack-codex-probe
-check-effort <default>` prints the same resolution without a call.
+レベルは `minimal`、`low`、`medium`、`high`、`xhigh`、`max`、`ultra` です。対応状況はモデルによって異なるため、モデルが対応していないレベルは要求時にモデルのエラーとして失敗します。不正な値が Codex に届くことはありません。`gstack-config set` が拒否します。また、`gstack-codex-probe run-with-timeout --effort <default>` は、上記の順序で解決してフラグを追加し、何も送信する前に呼び出しを止め、修正すべき設定元の名前を示します。`gstack-codex-probe check-effort <default>` は、呼び出しを行わずに同じ解決結果を表示します。
 
-For one request, `/codex review --effort medium` (or `--effort=<level>`; `--xhigh` is
-shorthand for `--effort xhigh`) outranks the other three, including an exported
-`GSTACK_CODEX_EFFORT`, and changes nothing that persists. The flag counts only
-directly after `/codex` or its mode word, among the leading flags (`-m`/`--model`,
-`--role`, in any order) and before the prompt text; a later `--effort` is part of the
-prompt, and `/codex` says so. A Consult follow-up resolves its effort afresh. `/codex` passes the level to the probe as `--request-effort`,
-so an unknown level stops before any Codex call, naming the flag.
+1回の要求に限り、`/codex review --effort medium`(または `--effort=<level>`。`--xhigh` は `--effort xhigh` の短縮形)は、他の三つ(環境変数 `GSTACK_CODEX_EFFORT` の書き出しを含む)より優先され、何も永続化しません。このフラグが効くのは、`/codex` またはそのモードの語の直後で、先頭のフラグ(`-m`/`--model`、`--role`、順不同)の中にあり、プロンプト本文より前にある場合に限られます。後ろに書かれた `--effort` はプロンプトの一部として扱われ、`/codex` がその旨を伝えます。Consult の追加質問では、努力レベルは改めて解決されます。`/codex` は、このレベルを `--request-effort` としてプローブに渡すため、未知のレベルは Codex を呼び出す前に、フラグ名を示して停止します。
 
-`/spec`'s quality gate keeps `medium` inside its 120-second budget whatever you
-set, because a higher effort would spend the time the gate is sized for.
-`gstack-models list` prints the effective effort and where it came from
-(`--json`: `codexEffort`). The Claude Code runner takes no effort setting.
+`/spec` の品質ゲートは、設定値にかかわらず `medium` を120秒の予算内に保ちます。それより高い努力レベルにすると、ゲートが想定している時間を超えてしまうためです。`gstack-models list` は、有効な努力レベルとその出所を表示します(`--json` では `codexEffort`)。Claude Code のランナーには努力レベルの設定がありません。
 
-## Which workflows use the tiers?
+## どのワークフローが階層を使うか
 
-The plan-review role applies to autoplan's CEO, design, DX and engineering
-outside voices; standalone CEO, engineering, developer-experience and design
-plan reviews; and the spec quality gate. Existing reasoning effort, access
-restrictions, timeouts, review gates and `codex_reviews` consent remain in force.
+計画レビューの役割は、autoplan の CEO、設計、DX、エンジニアリングの外部意見、単独で行う CEO、エンジニアリング、開発者体験、設計の計画レビュー、そして仕様の品質ゲートに適用されます。既存の推論努力レベル、アクセス制限、タイムアウト、レビューゲート、`codex_reviews` の同意は、そのまま有効です。
 
-The host selects the opposing provider independently from the tier. Claude Code
-uses the Codex wrapper; Codex uses the Claude Code wrapper. A model's name does
-not establish which harness is running.
+ホストは、階層とは独立して対立するプロバイダーを選びます。Claude Code は Codex のラッパーを使い、Codex は Claude Code のラッパーを使います。モデルの名前から、どのハーネスが動いているかは判断されません。
 
-Manual opposing-model wrappers can opt into `--role plan-review`. Ordinary
-code reviews, live design reviews, design consultation, office-hours second
-opinions and documentation reviews retain their existing model-selection
-behavior. Historical no-role defaults, eval actors/judges, cheap helper models
-and setup-time behavioral overlays do not follow this catalog.
+手動の対立モデル用ラッパーは、`--role plan-review` を指定して利用できます。通常のコードレビュー、ライブの設計レビュー、設計の相談、office-hours のセカンドオピニオン、ドキュメントレビューは、既存のモデル選択の動作を維持します。過去の役割指定なしの既定値、eval の実行者・判定者、安価な補助モデル、セットアップ時の振る舞いのオーバーレイは、このカタログには従いません。
 
-Before the first affected paid plan review after upgrade, gstack explains the
-independent frontier default and the winning source, with `smart` and `host`
-alternatives. Inspection does not mark that notice as seen. Disabled outside
-reviews stay disabled; an unavailable model is reported, never silently replaced.
+アップグレード後に初めて有料の計画レビューが行われる前に、gstack は独立したフロンティアの既定値と、その採用元を説明します。あわせて `smart` と `host` の代替案も示されます。確認だけでは、その通知は既読になりません。無効化された外部レビューは無効のままです。利用できないモデルは報告され、黙って別のモデルに置き換えられることはありません。
 
-## First completed outside review
+## 最初の外部レビューを完了する
 
-Policy setup and a completed review are different milestones. Install and
-authenticate the opposing CLI using the [host setup instructions](../README.md#install--about-30-seconds)
-before invoking a paid review. From Claude Code, use `/codex consult --role
-plan-review`. From Codex, use `/claude-code consult --role plan-review` (or its
-installed namespaced name). Ask it to challenge the plan and supply the full plan
-text. Consult is prompt-driven and works before there is a repository diff;
-Challenge mode is for reviewing code changes.
+ポリシーの設定と、レビューの完了は別の段階です。有料のレビューを呼び出す前に、[ホストのセットアップ手順](../README.md#install--about-30-seconds) に従って対立する CLI をインストールし、認証を済ませてください。Claude Code からは `/codex consult --role plan-review` を使います。Codex からは `/claude-code consult --role plan-review`(またはインストールされた名前空間付きの名前)を使います。計画に異議を唱えるよう依頼し、計画の全文を渡してください。Consult はプロンプト主導で、リポジトリの差分がなくても使えます。Challenge モードは、コードの変更をレビューするためのものです。
 
-Confirm the announced selection, the provider's actual result and the coverage
-status. A resolved model, a successful availability probe or a native fallback
-is not a completed outside review. An unusable explicit choice needs a repair
-at the source named in the error; changing a lower-priority tier cannot override
-an environment pin. See [selection recovery](troubleshooting.md#model-policy-selection).
+通知された選択、プロバイダーの実際の結果、カバレッジの状態を確認してください。解決されたモデル、利用可否のプローブが成功したこと、ネイティブへのフォールバックは、外部レビューが完了したことを意味しません。利用できない明示的な選択は、エラーに示された元の設定で修正する必要があります。下位の階層を変更しても、環境変数によるピン留めは上書きできません。詳しくは [選択の復旧](troubleshooting.md#model-policy-selection) を参照してください。
 
-## Machine-readable inspection
+## 機械可読な確認
 
-`gstack-models` with no arguments is `list`. Both `list` and `resolve` accept
-`--json`. Plan-review resolution requires `--provider anthropic|openai`;
-implementation resolution can omit the provider to return both recommendations.
+引数なしの `gstack-models` は `list` と同じです。`list` と `resolve` はどちらも `--json` を受け付けます。計画レビューの解決には `--provider anthropic|openai` が必要です。実装の解決では、プロバイダーを省略すると、両方の推奨が返されます。
 
 ```bash
 "$GSTACK_ROOT/bin/gstack-models" resolve --role plan-review --provider anthropic --json
 "$GSTACK_ROOT/bin/gstack-models" resolve --role implementation --json
 ```
 
-JSON output is one document with `schemaVersion: 1`, a `selections` array and
-structured errors on failure. Human diagnostics go to stderr. Exit `0` means
-valid resolution, including host delegation; `1` means configuration or
-selection failure; `2` means invalid usage. Neither inspection nor resolution
-writes notice markers, probes a model or fetches vendor sources.
+JSON 出力は `schemaVersion: 1` を持つ一つのドキュメントで、`selections` 配列と、失敗時の構造化されたエラーを含みます。人間向けの診断情報は stderr に出力されます。終了コード `0` は、ホストへの委任を含む有効な解決を意味します。`1` は設定または選択の失敗、`2` は不正な使い方を意味します。確認も解決も、通知マーカーを書き込まず、モデルのプローブやベンダーのソースの取得も行いません。
 
-## Keeping shipped recommendations current
+## 推奨の最新性を保つ
 
-The model-policy freshness workflow runs weekly and supports manual dispatch.
-It checks official Anthropic and OpenAI recommendation and deprecation sources,
-without provider credentials or paid model calls. Normal PR checks use offline
-fixtures; a vendor outage does not make unrelated PRs fail.
+モデルポリシーの鮮度確認ワークフローは毎週実行され、手動での起動にも対応しています。Anthropic と OpenAI の公式な推奨情報と廃止情報のソースを確認します。プロバイダーの認証情報や有料のモデル呼び出しは使いません。通常の PR チェックはオフラインのフィクスチャを使用するため、ベンダー側の障害があっても無関係な PR が失敗することはありません。
 
-In GitHub Actions, select **Model-policy freshness** to run it manually. From a
-gstack checkout, `bun scripts/model-policy-freshness.ts` performs the same public
-source check without changing an issue; unlike `gstack-models`, it uses the
-network. The workflow's guarded `--publish` path owns issue updates. Its JSON
-report and job summary retain the source evidence.
+GitHub Actions では、**Model-policy freshness** を選んで手動実行できます。gstack のチェックアウトから `bun scripts/model-policy-freshness.ts` を実行すると、同じ公開ソースの確認を行いますが、issue は変更されません。`gstack-models` と違い、こちらはネットワークを使います。ワークフローのガード付き `--publish` 経路だけが issue を更新します。JSON レポートとジョブのサマリーには、ソースの証拠が保存されます。
 
-The report's primary status distinguishes `current`, `update-candidate` and
-`unknown/source-unavailable`. Its separate `evidenceStatus` marks retained
-successful evidence `stale` after thirty days; a failed fetch remains unknown
-in the headline even when that retained evidence is stale.
-Newer or newly recommended models are candidates,
-not automatic replacements. A support promise such as “not sooner than” is not
-a scheduled retirement, and an incidental model mention is not a new default.
-This evidence covers public API recommendations, not partner-platform entitlement.
+レポートの主要なステータスは、`current`、`update-candidate`、`unknown/source-unavailable` を区別します。別の `evidenceStatus` は、保存されている成功した証拠が30日を過ぎると `stale` とマークします。取得に失敗した場合、保存された証拠が古くても、見出しでは unknown のままです。新しいモデル、または新たに推奨されたモデルは候補であり、自動的な置き換えにはなりません。「〜より早くはない」といったサポート上の約束は、予定された廃止ではありません。たまたま言及されただけのモデルは、新しい既定値ではありません。この証拠は公開 API の推奨を対象とするもので、パートナープラットフォームでの利用資格は対象外です。
 
-One Actions-bot-owned tracking issue preserves the successful check's catalog/source/
-parser identity and any unresolved lifecycle findings. Healthy state remains
-readable when the issue is closed. A failed or partial check cannot erase a known
-retirement, borrow a success from an older catalog, or pretend its evidence is
-fresh. A catalog rollback reopens historical findings for a model put back in
-use. Only current default-branch runs may update that issue; copied markers in
-user-owned issues are not trusted state.
+Actions の bot が管理する追跡 issue は一つだけで、成功したチェックのカタログ・ソース・パーサーの識別情報と、解決されていないライフサイクルの指摘を保持します。issue が閉じられていても、正常な状態は読み取れます。失敗または一部だけ成功したチェックが、既知の廃止を消したり、古いカタログの成功結果を借用したり、証拠が新しいかのように見せたりすることはできません。カタログをロールバックすると、再び使われるようになったモデルについて過去の指摘が再度開かれます。更新できるのは既定ブランチの現在の実行だけです。ユーザーが管理する issue にコピーされたマーカーは、信頼された状態として扱われません。
 
-A documented retain decision preserves the current default, but does not make a
-vendor mismatch `current`: the advisory issue stays open, or reopens, while that
-candidate remains. Record retain rationales in issue comments, which the workflow
-never edits, rather than racing a scheduled update to the issue body.
+既定の推奨を維持する「retain」の判断を文書化すると、現在の既定値は保たれます。ただし、ベンダーとの不一致があると、その状態は `current` にはなりません。候補が残っている限り、助言用の issue は開いたままか、再び開かれます。retain の理由は issue のコメントに記録してください。ワークフローはコメントを編集しません。issue の本文は、予定された更新と競合しないよう、そのまま残してください。
 
-Thirty-day staleness means an absence of trustworthy freshness evidence, not
-that a model was released thirty days ago. An unchanged recommendation does not
-require a date-only catalog commit or a monthly paid benchmark. The recorded
-next-check due date helps maintenance, but a workflow that never runs cannot
-alert on its own absence.
+30日間の鮮度の期限は、「信頼できる鮮度の証拠がない」ことを意味するもので、モデルが30日前に公開されたという意味ではありません。推奨に変更がなければ、日付だけのカタログ commit や毎月の有料ベンチマークは不要です。記録された次回確認期日は保守の助けになりますが、そもそも実行されないワークフローは、自分が動いていないことを警告できません。
 
-### Maintainer update checklist
+<a id="maintainer-update-checklist"></a>
+### 保守者向けの更新チェックリスト
 
-1. Check the latest freshness run and its due date. Resolve missing, corrupt or
-   source-unavailable evidence before declaring the catalog current.
-2. Verify the official recommendation and lifecycle evidence. Triage announced
-   retirement/removal within one working day, stale/unavailable evidence within
-   seven days and discretionary update candidates within thirty days.
-3. Open a catalog change with the source URLs, exact model IDs and qualification
-   evidence, or record why the current default should remain. Never edit users'
-   personal pins or silently substitute another provider.
-4. Confirm CLI model/profile support and tool/reasoning compatibility. Keep the
-   pinned test runtimes and benchmark rulers stable. A required CLI upgrade is a
-   separate reviewed change, not an automatic side effect of discovery.
-5. Predeclare any budgeted baseline/candidate comparison using existing eval
-   machinery, fixed prompts/panels and unchanged thresholds. Keep every attempt,
-   measure useful and unsupported findings, latency and available usage, and do
-   not treat vendor marketing or a creation timestamp as quality evidence.
-6. Pass the affected free checks and selected workflow evaluations, review the
-   change, and ship it through the normal release process. Only unpinned
-   role-bearing defaults follow the new shipped catalog.
+1. 最新の鮮度確認の実行と、その期日を確認します。カタログが最新だと判断する前に、欠落、破損、またはソースが取得できなかった証拠を解決します。
+2. ベンダーの公式な推奨とライフサイクルの証拠を確認します。発表された廃止・削除は1営業日以内、古い・取得できない証拠は7日以内、任意の更新候補は30日以内にトリアージします。
+3. ソースの URL、正確なモデル ID、適格性の証拠を添えてカタログの変更を開くか、現在の既定値を残す理由を記録します。ユーザー個人のピン留めは決して編集せず、黙って別のプロバイダーに置き換えることもしません。
+4. CLI のモデル/プロファイルの対応と、ツールおよび推論努力レベルの互換性を確認します。ピン留めされたテストのランタイムとベンチマークの基準は安定させておきます。CLI の必須アップグレードは、発見作業の自動的な副作用ではなく、別途レビューされる変更として扱います。
+5. ベースラインと候補の比較を行う場合は、既存の eval の仕組み、固定されたプロンプトやパネル、変更されない閾値を使い、事前に予算を宣言します。すべての試行、有用な指摘と未対応の指摘、レイテンシー、利用可能な使用量を記録します。ベンダーのマーケティングや作成日時を、品質の証拠として扱ってはいけません。
+6. 影響のある無料チェックと、選ばれたワークフローの評価を通し、変更をレビューして、通常のリリース手順で出荷します。ピン留めされていない、役割を持つ既定値だけが、新しい出荷カタログに従います。
 
-The workflow does not open an automatic model-upgrade PR, merge changes, switch
-active sessions, alter benchmark models or schedule paid evaluations.
+このワークフローは、モデルの自動アップグレード PR を開くことも、変更をマージすることも、アクティブなセッションを切り替えることも、ベンチマークのモデルを変更することも、有料の評価をスケジュールすることもありません。

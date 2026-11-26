@@ -21,7 +21,7 @@ import * as path from 'path';
 import type { TemplateContext } from '../scripts/resolvers/types';
 import { HOST_PATHS } from '../scripts/resolvers/types';
 import { generateAskUserFormat } from '../scripts/resolvers/preamble/generate-ask-user-format';
-import { expectMentions, expectTokens } from './helpers/prompt-structure';
+import { compact, expectMentions, expectTokens } from './helpers/prompt-structure';
 
 function makeCtx(): TemplateContext {
   return {
@@ -42,7 +42,7 @@ describe('generateAskUserFormat — v1.7.0.0 Pros/Cons format', () => {
 
   test('documents D-numbered header requirement', () => {
     expect(out).toContain('D<N>');
-    expect(out).toMatch(/first question in a skill invocation is `D1`/i);
+    expectMentions(out, [['最初の質問', '`D1`']], 'out');
   });
 
   test('documents ELI10 requirement', () => {
@@ -56,7 +56,7 @@ describe('generateAskUserFormat — v1.7.0.0 Pros/Cons format', () => {
 
   test('documents mandatory Recommendation line', () => {
     expect(out).toContain('Recommendation: <choice>');
-    expectMentions(out, [['recommendation', 'always', 'present']], 'out');
+    expectMentions(out, [['Recommendation', '常に必須']], 'out');
   });
 
   test('documents Pros / cons block header', () => {
@@ -65,13 +65,13 @@ describe('generateAskUserFormat — v1.7.0.0 Pros/Cons format', () => {
 
   test('documents ✅ pro markers with min count + min length rule', () => {
     expect(out).toContain('✅');
-    expect(out).toMatch(/(?:[Mm]inimum |≥)2 pros/);
-    expect(out).toMatch(/40 characters|≥40 chars/);
+    expect(out).toContain('≥2 個の pros');
+    expect(out).toContain('40 文字以上');
   });
 
   test('documents ❌ con markers with min count rule', () => {
     expect(out).toContain('❌');
-    expect(out).toMatch(/1 con per option|minimum.*1 con|Each real option: [^\n]*≥1 con/i);
+    expect(out).toContain('≥1 個の con');
   });
 
   test('documents hard-stop escape with exact phrase', () => {
@@ -80,13 +80,10 @@ describe('generateAskUserFormat — v1.7.0.0 Pros/Cons format', () => {
     expectMentions(out, [['no', 'hard-stop', 'choice']], 'out');
   });
 
-  test('documents neutral-posture escape preserving (recommended) label', () => {
-    // CT1 resolution: (recommended) label STAYS on default option to preserve
-    // AUTO_DECIDE contract. Neutrality expressed in prose only.
+  test('documents neutral-posture escape preserving', () => {
+    // CT1 resolution: (recommended) label STAYS on default option to preserve AUTO_DECIDE contract.
     expect(out).toMatch(/taste call/i);
-    // `s` flag makes . match newlines — the label + STAYS phrase spans a line break
-    expect(out).toMatch(/\(recommended\)[\s\S]*STAYS|STAYS[\s\S]*\(recommended\)/);
-    expect(out).toMatch(/AUTO_DECIDE/);
+    expectMentions(out, [['AUTO_DECIDE', '(recommended)', '残']], 'out');
   });
 
   test('documents Net line for closing synthesis', () => {
@@ -96,30 +93,28 @@ describe('generateAskUserFormat — v1.7.0.0 Pros/Cons format', () => {
 
   test('documents Completeness scoring rules (coverage vs kind)', () => {
     expect(out).toContain('Completeness');
-    expect(out).toMatch(/10 = complete/);
-    expectMentions(out, [['not', 'coverage', 'options']], 'out');
+    expect(out).toContain('10 = 完全');
+    expectMentions(out, [['種類で異なる', 'options differ in kind, not coverage']], 'out');
   });
 
   test('documents tool_use mandate (rule 11)', () => {
     expect(out).toMatch(/tool_use/);
-    // "not a question" spans a newline in the rendered text
-    expect(out).toMatch(/not a[\s\S]*question|not[\s\S]*interactive/i);
+    expectMentions(out, [['tool_use', '散文ではなく']], 'out');
   });
 
   test('includes self-check before emitting', () => {
-    expect(out).toContain('Self-check before emitting');
-    expect(out).toMatch(/D<N> header present/);
-    expect(out).toContain("`Net:` closes question text");
+    expect(out).toContain('### 出力前の自己チェック');
+    expectMentions(out, [['D<N>', 'ヘッダー']], 'out');
+    expect(out).toContain('`Net:` が質問文を締めている');
   });
 
   test('documents D-numbering as model-level not runtime state', () => {
-    // Codex finding #4 caveat: D-numbering is a prompt wish, not a system
-    // guarantee. TemplateContext has no counter. This check pins the caveat.
-    expect(out).toMatch(/model-level instruction|not a runtime counter|count your own/i);
+    // Codex finding #4 caveat: D-numbering is a prompt wish, not a system guarantee.
+    expectMentions(out, [['モデルレベルの指示', 'ランタイムのカウンターではありません']], 'out');
   });
 
   test('per-skill override guidance preserved', () => {
-    expect(out).toMatch(/Per-skill instructions may add/);
+    expectMentions(out, [['スキルごとの指示', '追加']], 'out');
   });
 });
 
@@ -132,8 +127,8 @@ describe('generateAskUserFormat — 5+ option split rule (slim inline + docs poi
   // reading the docs file for routine 5-option splits.
 
   test('forbids dropping options to fit the 4-option cap', () => {
-    expect(out).toMatch(/caps every call at \*\*4 options\*\*/);
-    expectMentions(out, [['never', 'drop', 'silently defer']], 'out');
+    expect(out).toContain('**4 個の選択肢**');
+    expectMentions(out, [['捨てたり', '黙って先送り', 'いけません']], 'out');
   });
 
   test('names the Include / Defer / Cut / Hold buckets', () => {
@@ -151,31 +146,32 @@ describe('generateAskUserFormat — 5+ option split rule (slim inline + docs poi
   test('AUTO_DECIDE is gated at runtime, not just collision-resistance', () => {
     expect(out).toContain('bin/gstack-question-preference');
     expect(out).toContain('*-split-*');
-    expect(out).toContain('never AUTO_DECIDE-eligible');
+    expectMentions(out, [['`*-split-*`', 'AUTO_DECIDE', '対象になることはありません']], 'out');
   });
 
   test('points to docs/askuserquestion-split.md for the full rule', () => {
     expect(out).toContain('docs/askuserquestion-split.md');
-    expect(out).toMatch(/Read on demand when N>4/);
+    expectMentions(out, [['N>4', 'オンデマンド']], 'out');
   });
 
-  test('dependency repair routes to one candidate without approving a package or a broken set', () => {
+  test('dependency repair routes to one candidate', () => {
     const source = fs.readFileSync(path.resolve(import.meta.dir, '../docs/askuserquestion-split.md'), 'utf8');
-    const repair = source.split('**Step 1 — validate dependencies and capacity.**')[1]?.split('**Step 2')[0] ?? '';
-    const text = repair.replace(/\s+/g, ' ');
-    expect(text).toContain('actual prior answers');
-    expectMentions(text, [['no', 'disposition', 'routing']], 'text');
+    const repair = source.split('**ステップ 1 — 依存関係と容量を検証する。**')[1]?.split('**ステップ 2')[0] ?? '';
+    const text = compact(repair);
+    expectMentions(text, [['実際の過去の回答']], 'text');
+    expectMentions(text, [['振り分け', 'どの処理も変わりません']], 'text');
     expectTokens(text, ['`D<N>.revise-<k>`', '**Include / Defer / Cut / Hold**'], 'text');
-    expectMentions(text, [['never', 'candidate', 'silently']], 'text');
-    expect(text).toContain('A Hold stops the chain');
-    expect(text).toContain('report the unresolved blocking conflict');
-    expectMentions(text, [['do not', 'incoherent', 'implement']], 'text');
+    expectMentions(text, [['他の候補', '黙って', 'いけません']], 'text');
+    expectMentions(text, [['Hold', 'チェーンを止めます']], 'text');
+    expectMentions(text, [['未解決のブロッキング競合', '報告']], 'text');
+    expectMentions(text, [['整合しない集合', '実装可能', 'いけません']], 'text');
     expect(text).not.toContain('accept the broken state');
   });
 
   test('regression: orphan "12." prefix removed from CJK rule', () => {
     expect(out).not.toContain('12. **Non-ASCII');
-    expect(out).toContain('**Non-ASCII characters');
+    expect(out).not.toContain('12. **非 ASCII');
+    expect(out).toContain('**非 ASCII 文字');
   });
 });
 
@@ -183,29 +179,28 @@ describe('generateAskUserFormat — runtime-failure prose fallback', () => {
   const out = generateAskUserFormat(makeCtx());
 
   test('documents the unavailable/failed subsection', () => {
-    expectMentions(out, [['askuserquestion', 'unavailable', 'fails']], 'out');
+    expectMentions(out, [['AskUserQuestion', '使えない', '失敗']], 'out');
   });
 
   test('carves out the auto-decide denial as NOT a failure', () => {
     expect(out).toContain('[plan-tune auto-decide]');
-    expect(out).toMatch(/NOT a failure/i);
-    // and explicitly: do not fall back to prose on an auto-decide denial
-    expect(out).toMatch(/Do NOT[\s\S]{0,40}fall back to prose|never prose/i);
+    expectMentions(out, [['自動決定による拒否', '失敗ではありません']], 'out');
+    expectMentions(out, [['再試行せず', '散文にフォールバックもしません']], 'out');
   });
 
   test('retries the errored call exactly once before degrading', () => {
-    expect(out).toMatch(/retry the SAME call \*\*once\*\*|retry the same call.*once/i);
-    // idempotency guard against double-prompting
-    expect(out).toMatch(/double-prompt|no answer could have surfaced/i);
+    const flat = compact(out).replace(/\*\*/g, '');
+    expectMentions(flat, [['同じ', '呼び出し', '1 回だけ', '再試行']], 'out');
+    expectMentions(flat, [['再試行すると二重に質問']], 'out');
   });
 
   test('branches on SESSION_KIND: spawned / headless / interactive', () => {
     expect(out).toContain('SESSION_KIND');
-    expect(out).toMatch(/`spawned`[\s\S]*auto-choose/);
+    expect(out).toMatch(/`spawned`[\s\S]*自動選択/);
     expect(out).toMatch(/`headless`[\s\S]*BLOCKED/);
-    expect(out).toMatch(/`interactive`[\s\S]*prose fallback/);
+    expect(out).toMatch(/`interactive`[\s\S]*散文フォールバック/);
     // empty/absent SESSION_KIND degrades to interactive
-    expect(out).toMatch(/empty\/absent[\s\S]{0,40}interactive/i);
+    expect(out).toMatch(/空または不在[\s\S]{0,40}interactive/);
   });
 
   // The mandatory triad the user explicitly required for the plain-text output.
@@ -214,72 +209,68 @@ describe('generateAskUserFormat — runtime-failure prose fallback', () => {
   });
 
   test('prose fallback mandates the triad: per-choice Completeness score', () => {
-    expect(out).toMatch(/Completeness scores per choice/i);
-    expect(out).toMatch(/Completeness: X\/10.*EACH choice|on EACH choice/i);
+    const flat = compact(out).replace(/\*\*/g, '');
+    expectMentions(flat, [['選択肢ごとの Completeness スコア', '各選択肢', '明示']], 'out');
   });
 
   test('prose fallback mandates the triad: recommendation + (recommended) marker', () => {
     expect(out).toMatch(/Recommendation: <choice> because/);
-    expect(out).toMatch(/\(recommended\)`? marker on that choice/);
+    expectMentions(out, [['`(recommended)`', 'マーカー', 'その選択肢']], 'out');
   });
 
-  test('prose fallback is one paragraph per choice, not a bare bullet list', () => {
-    expect(out).toMatch(/ONE paragraph per choice/i);
-    expect(out).toMatch(/never a bare bullet list/i);
+  test('prose fallback is one paragraph per choice', () => {
+    expectMentions(out, [['選択肢ごとに 1 段落'], ['箇条書きは不可']], 'out');
   });
 
   test('prose fallback tells the user to reply with a letter, then STOP', () => {
-    expect(out).toMatch(/reply with a letter/i);
-    expect(out).toMatch(/STOP and wait/i);
+    expectMentions(out, [['返信行', 'セレクター']], 'out');
+    expectMentions(out, [['STOP', '回答を待ちます']], 'out');
   });
 
-  test('prose questions carry their checked identity on the reply line only when tuning is enabled', () => {
-    const layout = out.slice(out.indexOf('Layout:'), out.indexOf('**Continuation'));
-    expect(layout).toContain('listing the offered selectors');
-    expect(layout).toContain('With `QUESTION_TUNING: true`');
+  test('prose questions carry their checked identity', () => {
+    const layout = out.slice(out.indexOf('レイアウト:'), out.indexOf('**継続'));
+    expect(layout).toContain('提示するセレクターを列挙した');
+    expect(layout).toContain('`QUESTION_TUNING: true` の場合は');
     expectTokens(layout, ['`<gstack-qid:{question_id}>`'], 'layout');
   });
 
   // OV2: the former "tool_use, not prose" assertions must carry the qualifier so the
   // fallback is not self-contradicting. Guards against the instruction collision
   // silently returning on a future edit.
-  test('OV2: the Format line qualifies "not prose" with the fallback exception', () => {
-    expect(out).toMatch(/must be sent as tool_use, not prose — unless the documented failure fallback/);
+  test('OV2: the Format line qualifies', () => {
+    expectMentions(out, [['tool_use', '散文ではなく'], ['ただし', '失敗時フォールバック', '散文フォールバックが正しい出力']], 'out');
   });
 
-  test('OV2: the self-check "not writing prose" line carries the Conductor + fallback qualifiers', () => {
-    // After the Conductor-default-prose change, the exception is two-pronged:
-    // CONDUCTOR_SESSION makes prose the default, OR the documented failure fallback.
-    expect(out).toMatch(/not writing prose — unless `CONDUCTOR_SESSION: true`[\s\S]*OR the documented failure fallback applies/);
+  test('OV2: the self-check "not writing prose" line', () => {
+    // The exception is two-pronged: CONDUCTOR_SESSION makes prose the default, OR the documented failure fallback.
+    const line = out.split('\n').find(l => l.includes('散文ではなくツールを呼んでいる')) ?? '';
+    expectMentions(line, [['ただし', '`CONDUCTOR_SESSION: true`', '失敗時フォールバック']], 'self-check line');
   });
 
   // #2733: proactive spawned rule — spawned outranks Conductor. Without it a
   // spawned session's AUQ handling exists only as a failure-reaction path, and
   // a spawned subagent inside a Conductor workspace prose-STOPs with no reader.
-  test('Spawned: proactive do-not-call rule present and ordered ABOVE the Conductor rule', () => {
-    const spawnedRule = out.indexOf('`SESSION_KIND: spawned` echoed');
-    const conductorRule = out.indexOf('`CONDUCTOR_SESSION: true` echoed');
+  test('Spawned: proactive do-not-call rule present', () => {
+    const spawnedRule = out.indexOf('`SESSION_KIND: spawned` がエコーされている');
+    const conductorRule = out.indexOf('`CONDUCTOR_SESSION: true` がエコーされている');
     expect(spawnedRule).toBeGreaterThan(0);
     expect(conductorRule).toBeGreaterThan(0);
     expect(spawnedRule, 'spawned rule must outrank (precede) the Conductor rule').toBeLessThan(conductorRule);
-    expect(out).toMatch(/never prose, never BLOCKED/);
-    expect(out).toMatch(/outranks the Conductor rule/);
+    expectMentions(out, [['散文にも', 'BLOCKED にもせず']], 'out');
+    expectMentions(out, [['Conductor ルール', '優先されます']], 'out');
   });
 
-  test('Spawned: destructive-gate carve-out present (conservative-continue, never prose-STOP)', () => {
-    expectMentions(out, [['never', 'irreversible', 'conservative']], 'out');
+  test('Spawned: destructive-gate carve-out present', () => {
+    expectMentions(out, [['不可逆', '決して自動選択せず', '保守的']], 'out');
   });
 
   test('Spawned: self-check carries the never-reach-this-checklist clause', () => {
-    expect(out).toMatch(/in `SESSION_KIND: spawned`[\s\S]{0,120}you should never reach this checklist/);
-    expect(out).toMatch(/the echoed STATUS line only/);
+    expectMentions(out, [['`SESSION_KIND: spawned`', 'このチェックリストに到達しないはず']], 'out');
+    expect(out).toContain('エコーされた STATUS 行のみ');
   });
 
-  test('Spawned: anti-injection — text-sourced spawned claims can never trigger the rule', () => {
-    // Echo-only trigger is the strongest form of the anti-injection contract:
-    // no TEXT from anywhere (dispatch prompt included) can flip the session
-    // to auto-choose; only the preamble's own tool-result STATUS line can.
-    expectMentions(out, [['tool output', 'never', 'trigger']], 'out');
+  test('Spawned: anti-injection', () => {
+    expectMentions(out, [['ツール出力', 'spawned の主張', '決してトリガーになりません']], 'out');
   });
 
   // Periodic-lane regression (v1.76 → v1.78): v1.76's "(or your dispatch
@@ -292,20 +283,15 @@ describe('generateAskUserFormat — runtime-failure prose fallback', () => {
   // machine-verifiable STATUS echo ONLY; the dispatch-declaration channel
   // lives exclusively at failure time (the AUQ hooks' spawned escape), which
   // never enters an interactive session's eager reasoning.
-  test('Spawned: trigger is the STATUS echo only — no prose channel in the eager path', () => {
+  test('Spawned: trigger is the STATUS echo only', () => {
     expect(out).not.toContain('marks this session as spawned');
     expect(out).not.toContain('or your dispatch prompt');
-    expect(out).toMatch(/The ONLY trigger is the preamble's own `SESSION_KIND: spawned` STATUS echo/);
-    expectMentions(out, [['spawned claims', 'dispatch prompt', 'tool output', 'never', 'trigger']], 'out');
+    expectMentions(out, [['トリガーになるのは', '`SESSION_KIND: spawned`', 'STATUS エコー']], 'out');
+    expectMentions(out, [['ディスパッチプロンプト', 'ツール出力', 'spawned の主張', '決してトリガーになりません']], 'out');
   });
 
-  test('Spawned: absence-safe interactive default (no behavioral language)', () => {
-    expectMentions(out, [['no', 'interactive', 'automated']], 'out');
-    // Every behavioral tail tried skewed question counts somewhere —
-    // "when unsure, ask" overshot the 4-7 review band (8); "HOW MANY
-    // questions" undershot (1); "never adds, removes, or batches" broke the
-    // paired-finding control (5 > 4). The rule classifies; it says nothing
-    // about asking behavior.
+  test('Spawned: absence-safe interactive default', () => {
+    expectMentions(out, [['エコーがなければ', '自動化されて見えても', '対話型です']], 'out');
     expect(out).not.toMatch(/When unsure, ask/);
     expect(out).not.toMatch(/HOW MANY/);
     expect(out).not.toMatch(/adds, removes, or batches/);
@@ -316,14 +302,15 @@ describe('generateAskUserFormat — runtime-failure prose fallback', () => {
   // failure fallback). Guards the Tool-resolution rule + self-check wording.
   test('Conductor: do-not-call rule present in Tool resolution', () => {
     expect(out).toMatch(/CONDUCTOR_SESSION: true/);
-    expectMentions(out, [['do not', 'askuserquestion']], 'out');
+    expectMentions(out, [['AskUserQuestion', '呼びません']], 'out');
     expect(out).toMatch(/gstack-question-log/);
   });
 
   test('Conductor: one-way prose rule + continuation protocol present', () => {
-    expect(out).toMatch(/one-way\b[\s\S]*typed confirmation/i);
-    expect(out).toMatch(/never proceed on a vague/i);
-    expect(out).toMatch(/Continuation — mapping a typed reply/);
+    const flat = compact(out).replace(/\*\*/g, '');
+    expectMentions(flat, [['一方通行'], ['明示的な入力による確認']], 'out');
+    expectMentions(flat, [['曖昧', '決して進めず']], 'out');
+    expect(flat).toContain('継続 — 入力された返信をブリーフに対応づける');
   });
 });
 

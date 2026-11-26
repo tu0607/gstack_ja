@@ -1,31 +1,31 @@
 ---
 name: gstack-openclaw-retro
-description: "Weekly engineering retrospective. Analyzes commit history, work patterns, and code quality metrics with persistent history and trend tracking. Team-aware with per-person contributions, praise, and growth areas. Use when asked for weekly retro, what shipped this week, or engineering retrospective."
+description: "週次のエンジニアリング振り返り。コミット履歴、作業パターン、コード品質の指標を、履歴と傾向の追跡つきで分析します。チーム対応で、担当者ごとの貢献、称賛、成長の余地を示します。週次の振り返り、今週何を出荷したか、エンジニアリングの振り返りを求められたときに使用します。"
 ---
 
-# Weekly Engineering Retrospective
+# 週次エンジニアリング振り返り
 
-Generates a comprehensive engineering retrospective analyzing commit history, work patterns, and code quality metrics. Team-aware: identifies the user running the command, then analyzes every contributor with per-person praise and growth opportunities.
+コミット履歴、作業パターン、コード品質の指標を分析する、包括的なエンジニアリング振り返りを生成します。チーム対応で、コマンドを実行しているユーザーを特定したうえで、すべてのコントリビューターを分析し、一人ひとりについて称賛と成長の機会を示します。
 
-## Arguments
+## 引数
 
-- Default: last 7 days
-- `24h`: last 24 hours
-- `14d`: last 14 days
-- `30d`: last 30 days
-- `compare`: compare current window vs prior same-length window
+- デフォルト: 直近 7 日間
+- `24h`: 直近 24 時間
+- `14d`: 直近 14 日間
+- `30d`: 直近 30 日間
+- `compare`: 現在の期間と、同じ長さの直前の期間を比較
 
-## Instructions
+## 手順
 
-Parse the argument to determine the time window. Default to 7 days. All times should be reported in the user's **local timezone**.
+引数を解析して期間を決めます。デフォルトは 7 日です。すべての時刻は、ユーザーの **ローカルタイムゾーン** で報告してください。
 
-**Midnight-aligned windows:** For day units, compute an absolute start date at local midnight. For example, if today is 2026-03-18 and the window is 7 days, the start date is 2026-03-11. Use `--since="2026-03-11T00:00:00"` for git log queries. For hour units, use `--since="N hours ago"`.
+**深夜零時に揃えた期間:** 日単位の場合は、ローカルの深夜零時を基準にした絶対的な開始日を計算します。たとえば今日が 2026-03-18 で期間が 7 日なら、開始日は 2026-03-11 です。git log のクエリには `--since="2026-03-11T00:00:00"` を使います。時間単位の場合は `--since="N hours ago"` を使います。
 
 ---
 
-### Step 1: Gather Raw Data
+### ステップ 1: 生データの収集
 
-First, fetch origin and identify the current user:
+まず origin を fetch し、現在のユーザーを特定します。
 
 ```bash
 git fetch origin main --quiet
@@ -33,9 +33,9 @@ git config user.name
 git config user.email
 ```
 
-The name returned by `git config user.name` is **"you"** ... the person reading this retro. All other authors are teammates.
+`git config user.name` が返す名前が **「あなた」** です。つまり、この振り返りを読んでいる人のことです。それ以外の作成者はすべてチームメンバーです。
 
-Run ALL of these git commands (they are independent):
+以下の git コマンドはすべて実行してください(互いに独立しています)。
 
 ```bash
 # All commits with timestamps, subject, hash, author, files changed
@@ -68,24 +68,24 @@ git log origin/main --since="<window>" --format="" --name-only | grep -E '\.(tes
 
 ---
 
-### Step 2: Compute Metrics
+### ステップ 2: 指標の計算
 
-Calculate and present these metrics in a summary:
+次の指標を計算し、サマリーとして提示します。
 
-- **Commits to main:** N
-- **Contributors:** N
-- **PRs merged:** N
-- **Total insertions:** N
-- **Total deletions:** N
-- **Net LOC added:** N
-- **Test LOC (insertions):** N
-- **Test LOC ratio:** N%
-- **Version range:** vX.Y.Z → vX.Y.Z
-- **Active days:** N
-- **Detected sessions:** N
-- **Avg LOC/session-hour:** N
+- **main へのコミット数:** N
+- **コントリビューター数:** N
+- **マージされた PR 数:** N
+- **追加行数(合計):** N
+- **削除行数(合計):** N
+- **純増の LOC:** N
+- **テストの LOC(追加行):** N
+- **テスト LOC の比率:** N%
+- **バージョンの範囲:** vX.Y.Z → vX.Y.Z
+- **活動日数:** N
+- **検出されたセッション数:** N
+- **セッション時間あたりの平均 LOC:** N
 
-Then show a **per-author leaderboard** immediately below:
+そのすぐ下に、**作成者ごとのリーダーボード** を表示します。
 
 ```
 Contributor         Commits   +/-          Top area
@@ -94,13 +94,13 @@ alice                    12   +800/-150    app/services/
 bob                       3   +120/-40     tests/
 ```
 
-Sort by commits descending. The current user always appears first, labeled "You (name)".
+コミット数の降順で並べます。現在のユーザーは常に先頭に、「You (name)」というラベルで表示します。
 
 ---
 
-### Step 3: Commit Time Distribution
+### ステップ 3: コミットの時間帯分布
 
-Show hourly histogram in local time:
+ローカル時間で時間帯別のヒストグラムを表示します。
 
 ```
 Hour  Commits  ████████████████
@@ -109,33 +109,33 @@ Hour  Commits  ████████████████
  ...
 ```
 
-Identify:
-- Peak hours
-- Dead zones
-- Bimodal pattern (morning/evening) vs continuous
-- Late-night coding clusters (after 10pm)
+次の点を特定します。
+- ピークの時間帯
+- 活動の空白帯
+- 二峰性のパターン(朝と夜)か、それとも連続しているか
+- 深夜のコーディングの集中(22 時以降)
 
 ---
 
-### Step 4: Work Session Detection
+### ステップ 4: 作業セッションの検出
 
-Detect sessions using **45-minute gap** threshold between consecutive commits.
+連続するコミット間の **45 分の間隔** をしきい値として、セッションを検出します。
 
-Classify sessions:
-- **Deep sessions** (50+ min)
-- **Medium sessions** (20-50 min)
-- **Micro sessions** (<20 min, single-commit)
+セッションを分類します。
+- **深いセッション**(50 分以上)
+- **中くらいのセッション**(20〜50 分)
+- **短いセッション**(20 分未満、コミット 1 件のみ)
 
-Calculate:
-- Total active coding time
-- Average session length
-- LOC per hour of active time
+次の値を計算します。
+- アクティブなコーディング時間の合計
+- セッションの平均時間
+- アクティブ時間 1 時間あたりの LOC
 
 ---
 
-### Step 5: Commit Type Breakdown
+### ステップ 5: コミット種別の内訳
 
-Categorize by conventional commit prefix (feat/fix/refactor/test/chore/docs). Show as percentage bar:
+従来型コミットの接頭辞(feat/fix/refactor/test/chore/docs)で分類します。割合の棒グラフで表示します。
 
 ```
 feat:     20  (40%)  ████████████████████
@@ -143,75 +143,75 @@ fix:      27  (54%)  ███████████████████�
 refactor:  2  ( 4%)  ██
 ```
 
-Flag if fix ratio exceeds 50% ... signals a "ship fast, fix fast" pattern that may indicate review gaps.
+fix の比率が 50% を超えたら指摘します。「早く出して、早く直す」パターンを示しており、レビューが不足している可能性があります。
 
 ---
 
-### Step 6: Hotspot Analysis
+### ステップ 6: ホットスポット分析
 
-Show top 10 most-changed files. Flag:
-- Files changed 5+ times (churn hotspots)
-- Test files vs production files in the hotspot list
-- VERSION/CHANGELOG frequency
-
----
-
-### Step 7: PR Size Distribution
-
-Estimate PR sizes and bucket them:
-- **Small** (<100 LOC)
-- **Medium** (100-500 LOC)
-- **Large** (500-1500 LOC)
-- **XL** (1500+ LOC)
+最も変更の多い上位 10 ファイルを表示します。次の点に印をつけます。
+- 5 回以上変更されたファイル(手戻りのホットスポット)
+- ホットスポットのリストに含まれる、テストファイルと本番ファイルの内訳
+- VERSION/CHANGELOG の変更頻度
 
 ---
 
-### Step 8: Focus Score + Ship of the Week
+### ステップ 7: PR サイズの分布
 
-**Focus score:** Percentage of commits touching the single most-changed top-level directory. Higher = deeper focused work. Lower = scattered context-switching.
-
-**Ship of the week:** The single highest-LOC PR in the window. Highlight PR number, LOC changed, and why it matters.
-
----
-
-### Step 9: Team Member Analysis
-
-For each contributor (including the current user), compute:
-
-1. **Commits and LOC** ... total commits, insertions, deletions, net LOC
-2. **Areas of focus** ... which directories/files they touched most (top 3)
-3. **Commit type mix** ... their personal feat/fix/refactor/test breakdown
-4. **Session patterns** ... when they code (peak hours), session count
-5. **Test discipline** ... their personal test LOC ratio
-6. **Biggest ship** ... their single highest-impact commit or PR
-
-**For the current user ("You"):** Deepest treatment. Include all session analysis, time patterns, focus score. Frame in first person.
-
-**For each teammate:** 2-3 sentences covering what they shipped and their pattern. Then:
-
-- **Praise** (1-2 specific things): Anchor in actual commits. Not "great work" ... say exactly what was good.
-- **Opportunity for growth** (1 specific thing): Frame as leveling-up, not criticism. Anchor in actual data.
-
-**If solo repo:** Skip team breakdown.
-
-**AI collaboration:** If commits have `Co-Authored-By` AI trailers, track "AI-assisted commits" as a separate metric.
+PR のサイズを見積もり、次のように分類します。
+- **小(Small)**(100 LOC 未満)
+- **中(Medium)**(100〜500 LOC)
+- **大(Large)**(500〜1500 LOC)
+- **XL**(1500 LOC 以上)
 
 ---
 
-### Step 10: Week-over-Week Trends (if window >= 14d)
+### ステップ 8: フォーカススコアと今週の出荷物
 
-Split into weekly buckets and show trends:
-- Commits per week (total and per-author)
-- LOC per week
-- Test ratio per week
-- Fix ratio per week
-- Session count per week
+**フォーカススコア:** 最も多く変更されたトップレベルのディレクトリ 1 つに触れているコミットの割合です。高いほど深く集中した作業であり、低いほど文脈が散らばっている(あちこちに手を出している)ことを示します。
+
+**今週の出荷物:** 期間内で最も LOC が多い PR 1 件です。PR 番号、変更された LOC、そしてなぜそれが重要かを強調します。
 
 ---
 
-### Step 11: Streak Tracking
+### ステップ 9: チームメンバーの分析
 
-Count consecutive days with at least 1 commit, going back from today:
+コントリビューターごと(現在のユーザーを含む)に次を計算します。
+
+1. **コミット数と LOC** ... コミット総数、追加行、削除行、純増の LOC
+2. **注力分野** ... 最も多く触れたディレクトリやファイル(上位 3 件)
+3. **コミット種別の構成** ... その人の feat/fix/refactor/test の内訳
+4. **セッションのパターン** ... いつコードを書くか(ピークの時間帯)、セッション数
+5. **テストの規律** ... その人の個人的なテスト LOC の比率
+6. **最大の出荷物** ... その人の、最も影響の大きいコミットまたは PR 1 件
+
+**現在のユーザー(「あなた」):** 最も深く扱います。セッションの分析、時間帯のパターン、フォーカススコアをすべて含めます。一人称で書いてください。
+
+**チームメンバーごと:** 2〜3 文で、何を出荷したか、どんなパターンかを書きます。そのうえで次を添えます。
+
+- **称賛**(具体的なもの 1〜2 点): 実際のコミットに根ざすこと。「素晴らしい仕事です」ではなく、何がどう良かったかを正確に書いてください。
+- **成長の機会**(具体的なもの 1 点): 批判ではなく、レベルアップとして伝えること。実際のデータに根ざすこと。
+
+**単独リポジトリの場合:** チームの内訳はスキップします。
+
+**AI との協働:** コミットに `Co-Authored-By` の AI トレーラーがある場合は、「AI 支援のコミット」を別の指標として追跡します。
+
+---
+
+### ステップ 10: 週ごとの推移(期間が 14 日以上の場合)
+
+週ごとのバケットに分け、推移を表示します。
+- 週ごとのコミット数(合計と作成者ごと)
+- 週ごとの LOC
+- 週ごとのテスト比率
+- 週ごとの fix の比率
+- 週ごとのセッション数
+
+---
+
+### ステップ 11: 連続記録(ストリーク)の追跡
+
+今日から遡って、少なくとも 1 件のコミットがある連続日数を数えます。
 
 ```bash
 # Team streak
@@ -221,17 +221,17 @@ git log origin/main --format="%ad" --date=format:"%Y-%m-%d" | sort -u
 git log origin/main --author="<user_name>" --format="%ad" --date=format:"%Y-%m-%d" | sort -u
 ```
 
-Display both:
-- "Team shipping streak: 47 consecutive days"
-- "Your shipping streak: 32 consecutive days"
+両方を表示します。
+- 「チームの出荷連続記録: 47 日連続」
+- 「あなたの出荷連続記録: 32 日連続」
 
 ---
 
-### Step 12: Load History & Compare
+### ステップ 12: 履歴の読み込みと比較
 
-Check for prior retro history in `memory/`:
+`memory/` で過去の振り返りの履歴を確認します。
 
-If prior retros exist, load the most recent one and calculate deltas:
+過去の振り返りが存在する場合は、最新のものを読み込み、差分を計算します。
 
 ```
                     Last        Now         Delta
@@ -241,59 +241,59 @@ LOC/hour:           200    →    350         ↑75%
 Fix ratio:          54%    →    30%         ↓24pp (improving)
 ```
 
-If no prior retros exist, note "First retro recorded, run again next week to see trends."
+過去の振り返りが存在しない場合は、「初めての振り返りを記録しました。来週もう一度実行すると、傾向が分かります。」と記載します。
 
 ---
 
-### Step 13: Save Retro History
+### ステップ 13: 振り返り履歴の保存
 
-Save a JSON snapshot to `memory/retro-YYYY-MM-DD.json` with metrics, authors, version range, streak, and tweetable summary.
-
----
-
-### Step 14: Write the Narrative
-
-**Format for Telegram** (bullets, bold, no markdown tables in the final output).
-
-Structure:
-
-**Tweetable summary** (first line):
-> Week of Mar 1: 47 commits (3 contributors), 3.2k LOC, 38% tests, 12 PRs, peak: 10pm | Streak: 47d
-
-Then sections:
-
-- **Summary** ... key metrics
-- **Trends vs Last Retro** ... deltas (skip if first retro)
-- **Time & Session Patterns** ... when the team codes, session lengths, deep vs micro
-- **Shipping Velocity** ... commit types, PR sizes, fix-chain detection
-- **Code Quality Signals** ... test ratio, hotspots, churn
-- **Focus & Highlights** ... focus score, ship of the week
-- **Your Week** ... personal deep-dive for the current user
-- **Team Breakdown** ... per-teammate analysis with praise + growth (skip if solo)
-- **Top 3 Team Wins** ... highest-impact things shipped
-- **3 Things to Improve** ... specific, actionable, anchored in commits
-- **3 Habits for Next Week** ... small, practical, realistic (<5 min to adopt)
+指標、作成者、バージョンの範囲、連続記録、ツイート向けの要約を含む JSON スナップショットを `memory/retro-YYYY-MM-DD.json` に保存します。
 
 ---
 
-## Compare Mode
+### ステップ 14: 本文の執筆
 
-When the user says "compare":
-- Run the retro for the current window
-- Run the retro for the prior same-length window
-- Present side-by-side metrics with arrows showing improvement/regression
-- Brief narrative on biggest changes
+**Telegram 向けの形式**(箇条書きと太字。最終出力では Markdown の表は使わない)。
+
+構成:
+
+**ツイート向けの要約**(最初の行):
+> 3 月 1 日の週: 47 コミット(3 名のコントリビューター)、3.2k LOC、テスト 38%、PR 12 件、ピーク: 22 時 | 連続記録: 47 日
+
+その後のセクション:
+
+- **サマリー** ... 主要な指標
+- **前回の振り返りとの比較** ... 差分(初めての振り返りの場合は省略)
+- **時間と作業セッションのパターン** ... チームがいつコードを書くか、セッションの長さ、深いセッションと短いセッション
+- **出荷のスピード** ... コミット種別、PR サイズ、fix の連鎖の検出
+- **コード品質のシグナル** ... テスト比率、ホットスポット、手戻り
+- **フォーカスとハイライト** ... フォーカススコア、今週の出荷物
+- **あなたの週** ... 現在のユーザー向けの個人的な深掘り
+- **チームの内訳** ... チームメンバーごとの分析と、称賛・成長の機会(単独の場合は省略)
+- **チームの成果トップ 3** ... 最も影響の大きかった出荷物
+- **改善すべき 3 点** ... 具体的で、実行可能で、コミットに根ざしたもの
+- **来週のための 3 つの習慣** ... 小さく、現実的で、取り入れるのに 5 分未満のもの
 
 ---
 
-## Important Rules
+## 比較モード
 
-- **All times in local timezone.** Never set `TZ`.
-- **Format for Telegram.** Use bullets and bold. Avoid markdown tables in the final output.
-- **Praise anchored in commits.** Never say "great work" without naming what was good.
-- **Growth areas anchored in data.** Never criticize without evidence.
-- **Save history.** Every retro saves to `memory/` for trend tracking.
-- **Completion status:**
-  - DONE ... retro generated, history saved
-  - DONE_WITH_CONCERNS ... generated but missing data (e.g., no prior retros for comparison)
-  - BLOCKED ... not in a git repo or no commits in window
+ユーザーが「compare」と言った場合:
+- 現在の期間で振り返りを実行する
+- 直前の同じ長さの期間で振り返りを実行する
+- 指標を並べて、改善か後退かを矢印で示す
+- 最も大きな変化について簡潔に説明する
+
+---
+
+## 重要なルール
+
+- **すべての時刻はローカルタイムゾーン。** `TZ` を決して設定しないこと。
+- **Telegram 向けに整形すること。** 箇条書きと太字を使い、最終出力では Markdown の表を避けること。
+- **称賛はコミットに根ざすこと。** 何が良かったかを名指しせずに「素晴らしい仕事です」と言わないこと。
+- **成長の機会はデータに根ざすこと。** 証拠なしに批判しないこと。
+- **履歴を保存すること。** すべての振り返りは傾向の追跡のために `memory/` に保存すること。
+- **完了ステータス:**
+  - DONE ... 振り返りを生成し、履歴を保存した
+  - DONE_WITH_CONCERNS ... 生成したが、データが不足している(例: 比較する過去の振り返りがない)
+  - BLOCKED ... git リポジトリではない、または期間内にコミットがない

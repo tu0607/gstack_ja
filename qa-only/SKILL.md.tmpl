@@ -3,11 +3,10 @@ name: qa-only
 preamble-tier: 4
 version: 1.0.0
 description: |
-  Report browser/API/CLI/job/worker/webhook bugs. Produces a
-  structured report with contract evidence or browser scores and repro steps — but never
-  fixes anything. Use when asked to "just report bugs", "qa report only", or
-  "test but don't fix". For the full test-fix-verify loop, use /qa instead.
-  Proactively suggest when the user wants a bug report without any code changes. (gstack)
+  ブラウザ/API/CLI/ジョブ/ワーカー/Webhook のバグを報告します。契約の根拠やブラウザのスコア、再現手順を含む
+  構造化されたレポートを作成しますが、何も修正しません。「バグだけ報告して」「qa report only」
+  「テストするが修正はしない」と依頼されたときに使用します。修正・検証までを行うフルのループには /qa を使ってください。
+  コードの変更なしでバグレポートが欲しいと分かったときには、積極的に提案してください。(gstack)
 voice-triggers:
   - "bug report"
   - "just check for bugs"
@@ -25,190 +24,138 @@ triggers:
 
 {{PREAMBLE}}
 
-# /qa-only: Report-Only QA Testing
+# /qa-only: 報告のみの QA テスト
 
-Explore the selected surfaces and report reproducible behavior with evidence.
-**NEVER fix anything or change product tests.** Write only reports, evidence and
-owned temporary fixtures; the Additional Rules below define these limits.
+選択された対象を調べ、再現可能な振る舞いを根拠とともに報告します。
+**何も修正せず、製品のテストも変更しないでください。** 書き込むのはレポート、根拠、所有する一時的なフィクスチャだけです。その制限は下の Additional Rules で定めています。
 
-In shared sections, **caller** means this /qa-only workflow. The user sets its
-permissions; an invoking workflow may restrict them further. **Owned** means created
-for this run or explicitly assigned to it, not merely writable. Neither term permits repairs.
+共通のセクションでは、**caller** はこの /qa-only のワークフローを指します。権限はユーザーが設定します。呼び出し元のワークフローは、さらに制限できる場合があります。**Owned** は、この実行のために作成された、またはこの実行に明示的に割り当てられたものを指します。書き込み可能というだけでは該当しません。どちらの用語も修復を許可するものではありません。
 
 {{SECTION_INDEX:qa-only}}
 
-Start at Request Parameters, then follow the sections below in order.
+Request Parameters から始め、以下のセクションを順番にたどってください。
 
-## Request Parameters
+## Request Parameters(リクエストのパラメーター)
 
-**Parse the user's request for these parameters:**
+**ユーザーのリクエストから、次のパラメーターを解析してください:**
 
-| Parameter | Default | Override example |
+| パラメーター | デフォルト | 上書きの例 |
 |-----------|---------|-----------------:|
-| Target | (infer from request/repository or ask) | Browser URL, API route, CLI command, job, worker or webhook |
-| Mode | full | `--quick`, `--regression <previous-report-or-baseline>` |
+| Target | (リクエストやリポジトリから推定するか、尋ねる) | ブラウザの URL、API のルート、CLI コマンド、ジョブ、ワーカー、Webhook |
+| Mode | full | `--quick`、`--regression <previous-report-or-baseline>` |
 | Output dir | `.gstack/qa-reports/` | `Output to /tmp/qa` |
-| Scope | Selected target (or diff-scoped) | `Focus on duplicate webhook delivery` |
+| Scope | 選択された対象(または差分のスコープ) | `Focus on duplicate webhook delivery` |
 
-Use an isolated synthetic identity for functional probes. For browser sessions,
-follow Browser Setup; never request credentials in chat.
+機能の確認には、分離された合成アイデンティティを使ってください。ブラウザのセッションでは、Browser Setup に従ってください。チャットで認証情報を要求しないでください。
 
-Parsing records the request; it does not start browser setup. If both `--quick` and
-`--regression` are supplied, ask the user to choose one mode before setup or probes.
+解析はリクエストを記録するだけで、ブラウザのセットアップは開始しません。`--quick` と `--regression` の両方が指定された場合は、セットアップや確認の前に、ユーザーに 1 つのモードを選んでもらってください。
 
-**On a feature branch without an explicit scope:** Use diff-aware testing of changed
-and adjacent behavior. Do not discover a browser merely because no URL was supplied.
+**明示的なスコープのない機能ブランチの場合:** 変更された箇所と隣接する振る舞いについて、差分を意識したテストを使ってください。URL が指定されていないというだけで、ブラウザを探さないでください。
 
-## Test Plan Context
+## Test Plan Context(テストプランの文脈)
 
-Look for a test plan in this conversation. If this session already knows the
-project's state directory, also Read its newest `*-test-plan-*.md` when permitted.
-Do not create state or run bookkeeping helpers just to find optional context.
-Prefer the plan covering more requested contracts; break ties by recency.
-If neither exists, use git diff analysis.
+この会話でテスト計画を探してください。このセッションがプロジェクトの状態ディレクトリをすでに把握している場合は、許可されていれば、その最新の `*-test-plan-*.md` も読んでください。任意の文脈を探すためだけに、状態の作成やヘルパーの記録処理を実行しないでください。
+要求された契約をより多くカバーしている計画を優先し、同点の場合は新しいものを選びます。
+どちらも存在しない場合は、git の差分分析を使ってください。
 
 {{LEARNINGS_SEARCH}}
 
-## Select Surfaces and Isolation
+## Select Surfaces and Isolation(対象の選択と隔離)
 
-Load the shared preparation gate now (the exploratory STOP just below): complete its scope and selected-method Reads,
-await their results, and select the surfaces. Defer charters, clocks and probes to
-Run the Selected Checks; its §1 then reuses the REPORT_DIR resolved under Prepare Report Artifacts.
+共有の準備ゲート(すぐ下の exploratory の STOP)をここで読み込んでください。そのスコープと選択された方法の Read を完了させ、結果を待ち、対象を選択します。チャーター、時計、プローブは、Run the Selected Checks まで延期します。その §1 は、Prepare Report Artifacts で解決された REPORT_DIR を再利用します。
 
 {{SECTION:exploratory}}
 
-Each surface's method defines Full, Quick and Regression. A mode flag applies to all
-selected surfaces unless the request names one surface; the others default to Full.
-For mixed Regression, the argument is the prior combined report. Resolve its functional
-replay evidence and browser baseline links first, then give each method its own baseline.
-A missing baseline blocks that surface's regression coverage, not independent checks.
-In mixed runs, use the user's surface order, defaulting to functional then browser.
-Each surface's clock starts with its probes; finish one surface before starting the
-next. A supplied absolute deadline is shared; switching surfaces does not extend it.
+各対象の方法が Full、Quick、Regression を定義します。モードのフラグは、リクエストが 1 つの対象を指定しない限り、選択されたすべての対象に適用されます。指定がない対象は Full になります。
+混合の Regression では、引数は以前の結合レポートです。まず、その機能のリプレイの根拠とブラウザのベースラインのリンクを解決し、その後、各方法に独自のベースラインを割り当ててください。ベースラインがない場合、その対象のリグレッションのカバレッジはブロックされますが、独立したチェックはブロックされません。
+混合の実行では、ユーザーの対象の順序を使い、デフォルトは機能、次にブラウザです。
+各対象の時計は、そのプローブとともに始まります。ある対象を完了してから、次を開始してください。指定された絶対期限は共有されます。対象を切り替えても、期限は延長されません。
 
-## Prepare Report Artifacts
+## Prepare Report Artifacts(レポートの成果物の準備)
 
-Resolve and preserve supplied prior report/baseline paths and their evidence links
-before writing. Select the requested output dir or `.gstack/qa-reports`; create it if absent.
-Use that directory as `REPORT_DIR` only when it is empty; otherwise choose a fresh owned run subdirectory.
-Use `run-YYYYMMDDTHHMMSSZ` in UTC, adding a suffix on collision.
-All local reports, baselines and evidence use this directory.
-Never overwrite artifacts from earlier runs. Preserve this run's baselines,
-screenshots and exploration notes when finalizing its report.
+書き込みの前に、指定された以前のレポート/ベースラインのパスと、その根拠のリンクを解決し、保持してください。要求された出力ディレクトリ、または `.gstack/qa-reports` を選び、存在しなければ作成します。
+そのディレクトリが空の場合にのみ、それを `REPORT_DIR` として使ってください。空でない場合は、新しく所有する実行用のサブディレクトリを選んでください。
+UTC の `run-YYYYMMDDTHHMMSSZ` を使い、衝突した場合はサフィックスを付けます。
+すべてのローカルのレポート、ベースライン、根拠は、このディレクトリを使います。
+以前の実行の成果物は決して上書きしないでください。レポートを確定させるときには、この実行のベースライン、スクリーンショット、探索メモを保持してください。
 
-A caller's fixed artifact paths and permissions take precedence. An existing empty
-directory already established as owned by the caller needs no new shell commands
-to revalidate it; use the caller's supported interface and fixed destinations.
-If safe preservation is impossible within those permissions, report an output blocker;
-do not expand write authority or silently redirect required artifacts.
+呼び出し元が指定した固定の成果物のパスと権限が優先されます。呼び出し元によって所有されていると確立された、既存の空のディレクトリは、再検証のための新しいシェルコマンドは不要です。呼び出し元がサポートするインターフェースと固定された保存先を使ってください。
+その権限の範囲内で安全な保存ができない場合は、出力のブロッカーとして報告してください。書き込み権限を広げたり、必要な成果物を黙ってリダイレクトしたりしないでください。
 
-For `{target}`, use the browser hostname, CLI executable basename, or named
-API service/job/worker/webhook. Replace characters other than letters, digits and
-hyphens with hyphens. For mixed targets, use
-`mixed-{project-label}`, sanitizing the repository name the same way; use `mixed-target`
-when no repository name is available. List the individual targets in the report.
+`{target}` には、ブラウザのホスト名、CLI の実行ファイルのベース名、または指定された API のサービス/ジョブ/ワーカー/Webhook の名前を使います。文字、数字、ハイフン以外の文字はハイフンに置き換えてください。混合の対象では、`mixed-{project-label}` を使い、リポジトリ名も同じ方法でサニタイズします。リポジトリ名が利用できない場合は `mixed-target` を使います。個々の対象はレポート内に一覧にしてください。
 
-Set `REPORT_FILE` to the caller's final report filename, otherwise
-`$REPORT_DIR/qa-report-{target}-{YYYY-MM-DD}.md`. Charters and final findings use this
-same file, not a sidecar.
+`REPORT_FILE` には、呼び出し元が指定した最終的なレポートのファイル名を設定します。指定がなければ `$REPORT_DIR/qa-report-{target}-{YYYY-MM-DD}.md` とします。チャーターと最終的な指摘は、サイドカーではなく同じファイルを使います。
 
-## Browser Setup (conditional)
+## Browser Setup(条件付き)
 
-**Browser surface only:** load its setup; functional-only runs skip this section.
+**ブラウザの対象のみ:** そのセットアップを読み込みます。機能のみの実行では、このセクションをスキップします。
 
 {{QA_RESOURCE:browser-setup}}
 
 ---
 
-## Run the Selected Checks
+## Run the Selected Checks(選択したチェックの実行)
 
-Use the shared section already loaded above; do not restart its preparation.
-With its required Reads complete and report ownership resolved, Write the charters
-into the owned report and wait for the successful
-Write result before starting any probe clock or baseline. Use `REPORT_FILE`. State each expected result,
-risk, entrypoint, isolation and exit condition before probing; never invent the plan later.
-A failed baseline contract stays failed. Before browser probes, source/diff reads only
-map changes to pages and flows; read `TODOS.md` if present to identify known bugs.
-During browser discovery, observe behavior without reading source to diagnose it.
+上で読み込んだ共有セクションを使ってください。準備を最初からやり直さないでください。
+必要な Read を完了させ、レポートの所有権を解決したら、チャーターを所有するレポートに Write し、プローブの時計やベースラインを開始する前に、Write が成功した結果を待ってください。`REPORT_FILE` を使ってください。プローブの前に、各期待結果、リスク、エントリポイント、分離、終了条件を述べてください。後になってから計画を作らないでください。
+失敗したベースラインの契約は、失敗のままにします。ブラウザのプローブの前に、ソース/差分の読み取りは、変更を画面やフローに対応づけるためだけに行ってください。既知のバグを特定するため、存在する場合は `TODOS.md` を読んでください。
+ブラウザでの発見の最中は、診断のためにソースを読まずに振る舞いを観察してください。
 
 ---
 
-## Output
+## Output(出力)
 
-### Assemble the report
+### レポートを組み立てる
 
-After probing stops, load the finalization procedure below. Order: exploratory §4 annotations and materialize, then this procedure, then the final report Write. Use retained evidence;
-this step does not authorize more probes or restart an expired clock.
-Do not preload reporting. To recover from an accidental early Read:
-If already read, issue another Read now and await its
-acknowledgement, even if the tool reports unchanged content.
-The no-repeat rule covers preparation Reads, not this finalization Read.
+プローブが止まった後、下の確定の手順を読み込みます。順序は、exploratory §4 の注釈と materialize、次にこの手順、その後、最終レポートの Write です。保持している根拠を使ってください。
+このステップでは、さらにプローブを行うことや、期限切れの時計を再開することは許可されません。
+reporting を先読みしないでください。誤って早く Read してしまった場合の回復手順:
+すでに読んでいる場合は、ツールが内容の変更がないと報告しても、今すぐもう一度 Read し、その確認を待ってください。
+繰り返し禁止のルールは、準備の Read に適用されるもので、この確定の Read には適用されません。
 
 {{SECTION:reporting}}
 
-Use templates from this host's installed QA directory. For mixed runs, use separate browser and functional sections in this same report.
-Keep common metadata once: date, branch/revision, caller/authority, mode, scope and timing/stop reason.
-Preserve the initial charters under **Charters** after that metadata, before findings.
+このホストにインストールされた QA ディレクトリのテンプレートを使ってください。混合の実行では、同じレポート内でブラウザと機能の別々のセクションを使ってください。
+共通のメタデータは 1 度だけ記載してください: 日付、ブランチ/リビジョン、呼び出し元/権限、モード、スコープ、タイミングと停止理由。
+最初のチャーターは、そのメタデータの後、指摘の前に **Charters** の下に残してください。
 
-- **Browser:** `templates/qa-report-template.md`: targets, URL, framework,
-  page/screenshot counts, findings, health/category scores and regression comparison.
-- **Functional:** `templates/functional-report-template.md`: native tools/runtime,
-  fixture ownership, contracts, findings, discoveries/proposed tests and cleanup.
+- **Browser:** `templates/qa-report-template.md`: 対象、URL、フレームワーク、ページとスクリーンショットの数、指摘、ヘルス/カテゴリのスコア、リグレッションの比較。
+- **Functional:** `templates/functional-report-template.md`: ネイティブのツール/ランタイム、フィクスチャの所有権、契約、指摘、発見と提案されたテスト、クリーンアップ。
 
-Each proposed test carries a value card; propose it only when it passes this bar:
+提案するテストごとに価値カードを付け、次の基準を満たす場合にのみ提案してください:
 
 {{TEST_VALUE_BAR:qa}}
 
-Nest remaining headings per surface, without duplicating the shared title or metadata.
-Preserve surface-specific scope, timing and coverage limits.
-Browser scores apply only to browser coverage; never combine them with functional
-outcomes. In each section link the current baseline or replay evidence and checkpoints;
-for functional regression the report plus replay evidence is the baseline. Regression
-also links the prior input baseline/report; missing required replay inputs block affected
-coverage. Prior baselines are not applicable to Full/Quick. Report-only
-repair/test fields contain proposals or not-run status, never claims of edits.
+残りの見出しは対象ごとにネストし、共有のタイトルとメタデータを重複させないでください。対象ごとのスコープ、タイミング、カバレッジの限界を保持してください。
+ブラウザのスコアはブラウザのカバレッジにのみ適用され、機能の結果と組み合わせないでください。各セクションでは、現在のベースラインまたはリプレイの根拠、チェックポイントをリンクしてください。機能のリグレッションでは、レポートとリプレイの根拠がベースラインになります。リグレッションは、以前の入力ベースライン/レポートもリンクします。必要なリプレイの入力が欠けている場合は、影響を受けるカバレッジをブロックします。Full/Quick では、以前のベースラインは該当しません。レポートのみの修復/テストの項目には、提案または未実行の状態のみを記載し、編集を行ったという主張は書かないでください。
 
-### Write the checked report
+### 検証済みのレポートを書く
 
-After the reporting procedure's consistency check, write `REPORT_FILE` and the
-project copy below. These are the default report destinations; a caller's narrower
-permissions or fixed paths override them. Do not create a forbidden second copy.
+報告手順の整合性チェックの後、`REPORT_FILE` と、下のプロジェクトのコピーを書き込みます。これらは既定の保存先です。呼び出し元がより狭い権限または固定のパスを指定している場合は、それが優先されます。禁止された 2 つ目のコピーは作らないでください。
 
-Use this session's existing project slug and state directory for the project copy.
-If unknown or not writable within the supplied permissions, report that copy as
-blocked; still write the permitted local report. Do not run state-setup helpers.
-Write identical content to `$GSTACK_STATE_ROOT/projects/{slug}/{user}-{branch}-test-outcome-{datetime}.md` (the state root this session resolved).
-Get `{user}`/`{branch}` from `git config user.name`/`git branch --show-current`
-(fallbacks: `unknown-user`/`detached`); sanitize like `{target}`. Use UTC `YYYYMMDDTHHMMSSZ`.
-If that destination exists, choose a fresh suffixed filename; never replace a prior report.
+プロジェクトのコピーには、このセッションの既存のプロジェクトのスラッグと状態ディレクトリを使ってください。不明な場合、または指定された権限の範囲内で書き込めない場合は、そのコピーをブロックされたものとして報告します。それでも、許可されたローカルのレポートは書き込んでください。状態のセットアップのヘルパーは実行しないでください。
+`$GSTACK_STATE_ROOT/projects/{slug}/{user}-{branch}-test-outcome-{datetime}.md`(このセッションが解決した状態のルート)に、同一の内容を書き込みます。
+`{user}`/`{branch}` は `git config user.name`/`git branch --show-current` から取得してください(フォールバック: `unknown-user`/`detached`)。`{target}` と同じ方法でサニタイズします。UTC の `YYYYMMDDTHHMMSSZ` を使ってください。
+その保存先が存在する場合は、新しいサフィックス付きのファイル名を選びます。以前のレポートを置き換えないでください。
 
-### Output Structure
+### 出力の構造
 
-`REPORT_DIR` stays the report root throughout the run. For browser-only and mixed
-runs, keep screenshots in `$REPORT_DIR/screenshots/` and the browser baseline in
-`$REPORT_DIR/baseline.json`.
-The shared loop's mixed-surface split applies only to clocks and checkpoints:
+`REPORT_DIR` は、実行を通してレポートのルートのままです。ブラウザのみの実行と混合の実行では、スクリーンショットを `$REPORT_DIR/screenshots/` に、ブラウザのベースラインを `$REPORT_DIR/baseline.json` に保存してください。
+共有ループの混合対象の分割は、時計とチェックポイントにのみ適用されます:
 
-| Run | Clock/checkpoint directory |
+| 実行 | 時計/チェックポイントのディレクトリ |
 |-----|----------------------------|
-| One surface (browser or functional) | `$REPORT_DIR` |
-| Mixed: browser probes | `$REPORT_DIR/browser` |
-| Mixed: functional probes | `$REPORT_DIR/functional` |
+| 対象は 1 つ(ブラウザまたは機能) | `$REPORT_DIR` |
+| 混合: ブラウザのプローブ | `$REPORT_DIR/browser` |
+| 混合: 機能のプローブ | `$REPORT_DIR/functional` |
 
-Each probe directory holds its own `exploration-NNN.json` sequence, `annotations.json`
-and materialize step, and, only when timed, `deadline.json`. Caller-fixed paths override this layout. Do not reassign
-`REPORT_DIR` to a surface directory or move the shared browser artifact paths.
+各プローブのディレクトリには、それぞれ独自の `exploration-NNN.json` の系列、`annotations.json`、materialize の手順、そして時間が計られた場合にのみ `deadline.json` を置きます。呼び出し元が固定したパスは、このレイアウトより優先されます。`REPORT_DIR` を対象のディレクトリに振り直したり、共有のブラウザ成果物のパスを移動したりしないでください。
 
-## Additional Rules (qa-only specific)
+## 追加ルール(qa-only 固有)
 
-1. **Never fix bugs or write product tests.** Find and document only. Necessary read-only
-    source discovery is allowed for functional targets, while browser discovery stays
-    black-box. Do not edit product code, tests, dependencies, config or tracked state
-    through any tool, including shell writes, renames, deletions and edit-then-restore.
-    Never commit, stash or bootstrap. Proposed regressions belong in report artifacts.
-2. **During preflight, check documented native commands and test infrastructure.** For browser targets, inspect documentation only for this framework check, before discovery. If absent,
-    report missing coverage and proposed cases without installing anything. An unavailable
-    command/service is not a product defect. Never invoke /qa or another skill from this report-only run.
-    When the browser app's repository is available and no framework is documented, say
-    "No test framework detected. Run `/qa` to bootstrap in a separate, user-authorized repair session."
-    Functional targets keep the gap without a new framework.
+1. **バグを修正したり、製品のテストを書いたりしないでください。** 見つけて文書化するだけです。機能の対象では、必要な読み取り専用のソース探索は許可されますが、ブラウザの発見はブラックボックスのままにしてください。シェルの書き込み、名前の変更、削除、編集して元に戻す操作を含め、いかなるツールでも製品のコード、テスト、依存関係、設定、追跡されている状態を編集しないでください。
+   コミット、スタッシュ、ブートストラップは決して行わないでください。提案された回帰は、レポートの成果物に含めてください。
+2. **事前確認の間に、文書化されたネイティブのコマンドとテストのインフラを確認してください。** ブラウザの対象では、発見の前に、このフレームワークの確認のためだけにドキュメントを確認してください。ドキュメントがない場合は、何もインストールせずに、欠けているカバレッジと提案されたケースを報告します。
+   利用できないコマンド/サービスは、製品の欠陥ではありません。このレポートのみの実行から、/qa や別のスキルを決して呼び出さないでください。
+   ブラウザのアプリのリポジトリが利用可能で、フレームワークがドキュメント化されていない場合は、次のように述べてください: 「テストフレームワークが検出されません。別途ユーザーが許可した修復セッションでブートストラップするには `/qa` を実行してください。」
+   機能の対象では、新しいフレームワークを導入せず、その欠落を記録するだけにしてください。

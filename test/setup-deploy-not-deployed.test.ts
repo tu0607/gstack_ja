@@ -13,22 +13,22 @@ function section(heading: string, next: string): string {
 }
 
 describe('setup-deploy handles a project with nothing live yet', () => {
-  const question = section('1. **How are deploys triggered?**', "2. **What's the production URL?**");
+  const question = section('1. **デプロイはどのようにトリガーされますか?**', '2. **本番 URL は何ですか?**');
 
   test('not deployed yet and never deploys are separate answers', () => {
-    expect(question).toContain('E) Nothing is deployed yet');
-    expect(question).toContain('F) This project never deploys (library, CLI, tool)');
+    expect(question).toContain('E) まだ何もデプロイされていない');
+    expect(question).toContain('F) このプロジェクトはデプロイしない');
   });
 
   test('nothing deployed yet stops before the URL question and writes nothing', () => {
-    const onE = question.slice(question.indexOf('On E,'));
-    expect(onE).toContain('stop here and write nothing');
-    expect(onE).toContain('no production URL and no deploy trigger to record');
-    expect(onE).toContain('re-run `/setup-deploy` after the first production deploy exists');
+    const onE = question.slice(question.indexOf('E の場合は'));
+    expect(onE).toContain('ここで停止し、何も書き込まないでください');
+    expect(onE).toContain('本番 URL も記録すべきデプロイトリガーもまだ存在しません');
+    expect(onE).toContain('`/setup-deploy` を再実行');
   });
 
   test('a project that never deploys still gets the none configuration', () => {
-    expect(question).toContain('On F, Step 4 writes the `none` configuration');
-    expect(SKILL).toContain('If the project does not deploy, set platform/URL/workflow/status/health/trigger to `none`');
+    expect(question).toContain('F の場合は、Step 4 で `none` の設定を書き込みます');
+    expect(SKILL).toContain('platform/URL/workflow/status/health/trigger を `none` に設定');
   });
 });

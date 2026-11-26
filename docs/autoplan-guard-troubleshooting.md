@@ -1,396 +1,254 @@
-# /autoplan publication guard: troubleshooting
+# /autoplan の公開ガード: トラブルシューティング
 
-`/autoplan` installs a `PreToolUse` hook (`autoplan/bin/phase-publication-hook`)
-at its phase boundaries. Before it lets a phase-entry `Read` or a reviewer
-`Agent` dispatch run, it reads this session's own Claude Code journal
-(`~/.claude/projects/<project>/<session>.jsonl`) and checks that the previous
-phase's report was published as parent assistant text.
+`/autoplan` は、フェーズの境界で `PreToolUse` フック(`autoplan/bin/phase-publication-hook`)をインストールします。フェーズ開始時の `Read` や、レビュアーの `Agent` 呼び出しを通す前に、このセッション自身の Claude Code ジャーナル(`~/.claude/projects/<project>/<session>.jsonl`)を読み、前のフェーズのレポートがアシスタントの本文テキストとして公開されているかを確認します。
 
-Every guard message names a **code**, the Claude Code version that wrote the
-journal, and a link to the section below for that code. Include the code and
-version when you report a problem. The guard's decision log (see
-[The decision log](#the-decision-log)) holds the same information.
+ガードのメッセージには必ず**コード**、ジャーナルを書いた Claude Code のバージョン、そして下のセクションへのリンクが含まれます。問題を報告するときは、コードとバージョンを添えてください。ガードの判定ログ(後述の [判定ログ](#the-decision-log) を参照)にも同じ情報があります。
 
-Each code has one of four dispositions:
+各コードには次の 4 つの処分のいずれかが割り当てられています。
 
-| Disposition | What it means | What you do |
+| 処分 | 意味 | 対処 |
 |-------------|---------------|-------------|
-| Unverified allow | Claude Code left this call uncheckable. The call runs, with a visible warning. | Nothing, unless it keeps happening (then report it). |
-| Fallback | Retrying cannot help. | Run the fallback below. |
-| Corrective | One named action must happen first. | Take that action. |
-| Transient | Something is still in progress. | Wait for the named thing, then continue. |
+| 未検証の許可 | Claude Code がこの呼び出しを検証できない状態にした。呼び出しは警告付きで実行される。 | 何もしない。ただし繰り返すようなら報告する。 |
+| フォールバック | 再試行しても解決しない。 | 下のフォールバックを実行する。 |
+| 是正 | まず名指しされた 1 つの操作を行う必要がある。 | その操作を行う。 |
+| 一時的 | まだ処理中。 | 名指しされたものを待ってから続行する。 |
 
-**The fallback** (printed in every fallback denial):
+**フォールバック**(フォールバックによる拒否のたびに表示される):
 
-1. Run the reviews by hand: `/plan-ceo-review`, then `/plan-devex-review`,
-   then `/plan-eng-review`.
-2. Or move to a fresh session and keep your work: `/context-save`, start a new
-   Claude Code session in the project (not `--resume`), `/context-restore`,
-   then `/autoplan <plan path>`.
+1. レビューを手動で実行する: `/plan-ceo-review`、次に `/plan-devex-review`、次に `/plan-eng-review`。
+2. または新しいセッションに移り、作業を引き継ぐ: `/context-save`、プロジェクトで新しい Claude Code セッションを開始(`--resume` は使わない)、`/context-restore`、その後 `/autoplan <plan path>`。
 
-There is no environment variable that turns the guard off.
+このガードを無効にする環境変数はありません。
 
-## How a phase transition is published
+## フェーズ移行がどう公開されるか
 
-Claude Code can write a tool call to the journal after the hook has already
-run, and text in the same assistant message as a tool call can be invisible
-to the hook. So the guard counts a phase report only when a later journaled
-record follows it: a tool result, or a record from another assistant message.
+Claude Code は、フックの実行後にツール呼び出しをジャーナルへ書き込むことがあります。また、ツール呼び出しと同じアシスタントメッセージ内のテキストは、フックからは見えないことがあります。そのためガードは、後続のジャーナル記録(ツールの結果、または別のアシスタントメッセージの記録)が続いたときにだけ、フェーズのレポートを公開済みとして数えます。
 
-The phase-close procedure therefore publishes each report in a message whose
-only tool call is the Bash no-op `true autoplan-published <phase>` (it prints
-nothing and needs no permission; Claude Code 2.1.292 asks for approval of a bare
-`:` command, so the no-op is `true`), and makes the next phase's `Read` or `Agent`
-call in a later message. Sessions that put the report and the next phase's
-call in one message get one [`publication_unflushed`](#publication-unflushed)
-denial naming that fix.
+そのため、フェーズを閉じる手順では、各レポートを、唯一のツール呼び出しが Bash の no-op `true autoplan-published <phase>` であるメッセージで公開します(何も出力せず、許可も不要です。Claude Code 2.1.292 では素の `:` コマンドに承認を求めるため、no-op には `true` を使います)。そして、次のフェーズの `Read` または `Agent` 呼び出しは、後続のメッセージで行います。レポートと次のフェーズの呼び出しを 1 つのメッセージに入れたセッションでは、[`publication_unflushed`](#publication-unflushed) による拒否が 1 回発生し、その修正方法が示されます。
 
-When Claude Code has not yet written the current call, the guard evaluates the
-call from the hook payload instead (Claude Code's own parsed input), placed
-after the last journaled record. The previous phase's report must still be in
-the journal.
+Claude Code がまだ現在の呼び出しをジャーナルに書いていない場合、ガードはジャーナルの代わりにフックの入力(Claude Code 自身が解析した入力)から呼び出しを評価します。その呼び出しは、ジャーナルの最後の記録の後に置かれます。前のフェーズのレポートはまだジャーナルに残っている必要があります。
 
-## Unverified allows
+## 未検証の許可
 
-These states are caused by Claude Code, not by the model. The guard lets the
-call run without a permission decision (Claude Code's own permission check
-still runs), prints a warning to you that names the code, and logs the allow
-with `disposition: "unverified"`. For that one call it does **not** check that
-the previous phase's report was published.
+これらの状態は、モデルではなく Claude Code が引き起こします。ガードは権限の判定なしに呼び出しを通します(Claude Code 自身の権限チェックは引き続き実行されます)。コードの名前を含む警告をユーザーに表示し、`disposition: "unverified"` でその許可を記録します。その 1 回の呼び出しについては、前のフェーズのレポートが公開されたかは**確認しません**。
 
-> [autoplan] phase publication was NOT verified for this session (journal_lag): ...
+> `[autoplan] phase publication was NOT verified for this session (journal_lag): ...`(意味: このセッションではフェーズの公開を検証できませんでした。原因コード journal_lag)
 
 <a id="unrecognized-shape"></a>
 ### `unrecognized_shape:<detail>`
 
-The journal root has a shape the guard does not know, usually because Claude
-Code changed its journal format. The guard reads the journal twice and allows
-only when both reads agree. `unrecognized_shape:cwd_spelling` means the
-journal's directory is the same folder as the project, spelled differently.
-`unrecognized_shape:compaction_unreachable` means records after a Claude Code
-compaction hang from a compact boundary whose logical parent loops back
-instead of reaching the session root, in a layout gstack does not read yet
-(Claude Code 2.1.300's preserved segment is read). Earlier gstack versions
-dropped those records and denied the next phase with `close_incomplete`.
-Please report the detail and version.
+ジャーナルのルートが、ガードの知らない形をしています。通常は Claude Code がジャーナルの形式を変えたためです。ガードはジャーナルを 2 回読み、2 回の結果が一致した場合にのみ許可します。`unrecognized_shape:cwd_spelling` は、ジャーナルのディレクトリがプロジェクトと同じフォルダだが綴りが異なることを意味します。`unrecognized_shape:compaction_unreachable` は、compact 境界の後のレコードが、論理的な親をたどってもセッションのルートに届かずループする状態から始まっていることを意味します。このレイアウトは gstack がまだ読めないものです(Claude Code 2.1.300 の保持されたセグメントは読めます)。gstack の以前のバージョンでは、こうしたレコードを捨てていたため、次のフェーズは `close_incomplete` で拒否されていました。詳細とバージョンを報告してください。
 
 <a id="journal-lag"></a>
 ### `journal_lag`
 
-Claude Code had not written the previous assistant message to the journal
-(a tool in an earlier message still has no result, or an ancestor record is
-missing) and did not catch up within 2 seconds.
+Claude Code が、前のアシスタントメッセージをまだジャーナルに書いていません(前のメッセージのツールに結果がまだない、または祖先のレコードが欠けている)。そして 2 秒以内に追いつきませんでした。
 
 <a id="rewritten"></a>
 ### `rewritten`
 
-The journal bytes the guard had already read changed during one hook call:
-a later read's sha256 of bytes [0, first size) differs from the first read's,
-or a record pass two reloads no longer parses to the record pass one indexed.
-Claude Code normally only appends, and appends never fail a read. Rewrites
-between hook calls are not detected (an accepted limit).
+ガードが既に読み込んだジャーナルのバイト列が、1 回のフック呼び出しの中で変わりました。具体的には、後から読んだ際のバイト [0, 最初のサイズ) の sha256 が最初の読み取りと異なるか、2 回目のレコード走査で再読み込みしたものが 1 回目で索引化したレコードに解析されなくなった場合です。Claude Code は通常は追記しかせず、追記で読み取りが失敗することはありません。フック呼び出しの間に起きた書き換えは検出されません(受け入れている制限です)。
 
 <a id="too-large"></a><a id="journal-too-large"></a>
 ### `too_large`
 
-A single journal record is over the 32 MiB record limit (`OWNED_RECORD_MAX_BYTES`).
-The guard reads long journals record by record, so a large journal alone
-never triggers this; one enormous record (for example a huge pasted file) does.
-A record still being written (no newline yet) is not read at all.
+1 件のジャーナルレコードが 32 MiB のレコード上限(`OWNED_RECORD_MAX_BYTES`)を超えています。ガードは長いジャーナルをレコード単位で読むため、ジャーナルが大きいだけではこの拒否は起きません。1 件の極端に大きなレコード(例: 巨大な貼り付けファイル)がある場合にのみ起きます。まだ書き込み中のレコード(改行がまだない)は、まったく読みません。
 
 <a id="unseen-version"></a>
 ### `unseen_version`
 
-A Claude Code release newer than the one gstack has checked passes the hook a
-reviewer dispatch without a key the journal has (a schema strip). The daily
-`autoplan-schema-canary` case catches these within a day of a release.
+ガードが確認済みの Claude Code より新しいリリースで、レビュアーの dispatch がジャーナルにあるキーを欠いた状態でフックに渡されました(スキーマの欠落)。毎日実行される `autoplan-schema-canary` のケースが、リリースから 1 日以内にこれを検出します。
 
-## Fallback denials
+## フォールバックによる拒否
 
 <a id="competing-root"></a>
 ### `competing_root`
-The journal has more than one conversation root, or two records share one UUID.
+ジャーナルに会話のルートが 2 つ以上ある、または 2 つのレコードが同じ UUID を共有しています。
 
 <a id="foreign-cwd"></a>
 ### `foreign_cwd`
-The journal's root was written in another project directory, after spelling
-and symlinks are taken into account. Linked git worktrees of the project are
-accepted.
+ジャーナルのルートが、綴りとシンボリックリンクを考慮した上で、別のプロジェクトディレクトリに書かれたものでした。プロジェクトのリンクされた git ワークツリーは許可されます。
 
 <a id="sidechain"></a>
 ### `sidechain`
-The first turn or its ancestry is a sidechain (subagent) record, not the parent session.
+最初のターン、またはその祖先が、親セッションではなくサイドチェーン(サブエージェント)のレコードです。
 
 <a id="agent"></a>
 ### `agent`
-The conversation ancestry passes through a subagent record.
+会話の祖先がサブエージェントのレコードを経由しています。
 
 <a id="cycle"></a>
 ### `cycle`
-The journal's parent links form a loop.
+ジャーナルの親リンクがループを作っています。
 
 <a id="identity"></a>
 ### `identity`
-The journal path, its directories or the file failed the identity checks: a
-symlink, a foreign session, the wrong directory layout, a different file, or a
-journal that shrank. A rerun hits the same check.
+ジャーナルのパス、そのディレクトリ、またはファイルが同一性チェックに失敗しました。シンボリックリンク、別セッションのファイル、誤ったディレクトリ構成、別のファイル、または縮小されたジャーナルのいずれかです。再実行しても同じチェックで失敗します。
 
 <a id="oversized-invocation"></a>
 ### `oversized_invocation`
-The current `/autoplan` invocation needs more journal records read in full
-than the 32 MiB retained-data bound (`OWNED_RETAINED_MAX_BYTES`). The guard
-indexes every record without its content and reloads in full only what it
-evaluates: snapshot init results, guarded and close-packet Reads, structured
-Bash results, error results, assistant text after the first close-packet Read
-and edits of the active plan. A rerun reads the same records; use the fallback.
+現在の `/autoplan` の呼び出しには、32 MiB の保持データ上限(`OWNED_RETAINED_MAX_BYTES`)を超える量のジャーナルレコードを、全文読み込みする必要があります。ガードは各レコードを内容なしで索引化し、評価対象だけを全文読み込みします。対象は、スナップショット init の結果、ガード対象と close packet の Read、構造化された Bash の結果、エラーの結果、最初の close packet Read の後にあるアシスタントのテキスト、そして有効な計画へのその他の編集です。再実行しても同じレコードを読むため、フォールバックを使ってください。
 
 <a id="malformed"></a>
 ### `malformed`
-A complete journal line is not valid JSON or UTF-8, or its records contradict
-each other.
+完全な 1 行のジャーナルが、有効な JSON または UTF-8 ではないか、レコード同士が矛盾しています。
 
 <a id="journal-missing"></a>
 ### `journal_missing`
-The session journal named by the hook does not exist after 2 seconds.
+フックが指定したセッションのジャーナルが、2 秒後にも存在しません。
 
 <a id="event-order"></a>
 ### `event_order`
-The journal's events could not be put in a consistent order for this session.
+ジャーナルのイベントを、このセッションの一貫した順序に並べられませんでした。
 
 <a id="tool-identity"></a>
 ### `tool_identity`
-Two journal records claim the same tool call identity.
+2 つのジャーナルレコードが、同じツール呼び出しの識別子を主張しています。
 
 <a id="current-mismatch"></a>
 ### `current_mismatch`
-The journal records the current call with a different tool or input than
-Claude Code passed to the hook. Only `run_in_background` (which Claude Code's
-fork-subagent schema drops) and the spelling of `file_path` may differ.
+ジャーナルに記録された現在の呼び出しのツールまたは入力が、Claude Code がフックに渡したものと異なります。異なってもよいのは `run_in_background`(Claude Code のフォークサブエージェントのスキーマが落とすもの)と `file_path` の綴りだけです。
 
 <a id="agent-key"></a>
 ### `agent_key`
-The reviewer dispatch carries a key outside `prompt`, `description`,
-`subagent_type` (`general-purpose` only) and `run_in_background`. A model
-override is not allowed for /autoplan reviewer dispatch. The log records the
-key names, never their values.
+レビュアーの dispatch が、`prompt`、`description`、`subagent_type`(`general-purpose` のみ)、`run_in_background` のいずれにもないキーを持っています。/autoplan のレビュアー dispatch では、モデルの上書きは許可されていません。ログに記録されるのはキー名だけで、値は記録されません。
 
 <a id="cross-phase-batch"></a>
 ### `cross_phase_batch`
-One assistant message enters two different phases. Calls that enter the same
-phase may share a message; another phase needs its own message after the
-previous report.
+1 つのアシスタントメッセージが、2 つの異なるフェーズに入っています。同じフェーズに入る呼び出しは同じメッセージに含めてもかまいませんが、別のフェーズは、前のレポートの後に独自のメッセージが必要です。
 
 <a id="init-mismatch"></a>
 ### `init_mismatch`
-Snapshot init returned paths that do not match the canonical form of its own
-command arguments, or its artifacts (restore point, active plan header) do not
-match this invocation. The guard canonicalizes the `<active>` and `<restore>`
-arguments the way `init` does (see
-[Symlinked plan directories](#symlinked-plan-directories)) before comparing, so
-a retargeted or forged init result is denied here. Zero results or duplicate
-results for one init use also deny as `init_mismatch`. Do not re-run the same
-call: run init with the paths the guard expects.
+スナップショット init が返したパスが、そのコマンド引数の正規形と一致しないか、その成果物(復元ポイント、有効な計画のヘッダー)が、この呼び出しと一致しません。ガードは、比較の前に `<active>` と `<restore>` の引数を init と同じ方法で正規化します(詳しくは [シンボリックリンクされた計画ディレクトリ](#symlinked-plan-directories) を参照)。そのため、差し替えられたり偽造されたりした init の結果は、ここで拒否されます。同じ init で結果がゼロ件または重複している場合も、`init_mismatch` で拒否されます。同じ呼び出しを再実行しないでください。ガードが想定するパスで init を実行してください。
 
 <a id="snapshot"></a>
 ### `snapshot`
-A phase snapshot, methodology or other immutable artifact is missing, aliased,
-writable or changed.
+フェーズのスナップショット、方法論、またはその他の不変の成果物が、欠けている、別名で参照されている、書き込み可能である、または変更されています。
 
 <a id="dispatch-prompt"></a>
 ### `dispatch_prompt`
-The reviewer prompt differs from the snapshot's exact `nativeDispatchPrompt`.
+レビュアーのプロンプトが、スナップショットの `nativeDispatchPrompt` と完全には一致しません。
 
 <a id="evidence"></a>
 ### `evidence`
-An artifact the guard needed could not be parsed.
+ガードが必要とした成果物を解析できませんでした。
 
 <a id="publication-repeat"></a>
 ### `publication_repeat`
-The report was published separately once in this invocation and still cannot
-be verified, so Claude Code is not writing it to the journal in time.
+レポートはこの呼び出しの中で 1 回別々に公開されましたが、それでも検証できません。そのため Claude Code が、間に合うようにジャーナルへ書き込んでいません。
 
-## Corrective denials
+## 是正のための拒否
 
 <a id="publication-missing"></a>
 ### `publication_missing`
-No filled report for the previous phase appears after its close packet Read.
-Publish it as your own assistant text in a message whose only tool call is
-`true autoplan-published <phase>`, then enter the next phase in a later message.
+close packet の Read の後に、前のフェーズの完成したレポートが現れません。その唯一のツール呼び出しが `true autoplan-published <phase>` であるメッセージで、アシスタント自身のテキストとして公開してください。次のフェーズには、後続のメッセージで入ってください。
 
 <a id="publication-unflushed"></a>
 ### `publication_unflushed`
-The report shares the current call's message, or nothing journaled follows it
-yet. Publish it in its own message with the no-op call, then enter the next
-phase in a later message. A second occurrence in one invocation becomes
-[`publication_repeat`](#publication-repeat).
+レポートが現在の呼び出しと同じメッセージに含まれているか、レポートの後にまだジャーナルに記録されたものがありません。レポートを no-op 呼び出しの入った独自のメッセージで公開し、次のフェーズには後続のメッセージで入ってください。1 回の呼び出しの中で 2 回目に起きると、[`publication_repeat`](#publication-repeat) になります。
 
 <a id="close-required"></a>
 ### `close_required`
-Finish the previous phase's close procedure and Read its close packet.
+前のフェーズのクローズ手順を完了し、その close packet を Read してください。
 
 <a id="close-incomplete"></a>
 ### `close_incomplete`
-Read every line of the current close packet.
+現在の close packet の全行を読んでください。
 
 <a id="close-stale"></a>
 ### `close_stale`
-The close packet or its checkpoint no longer matches the current phase input.
-Prepare a fresh packet and read it.
+close packet またはそのチェックポイントが、現在のフェーズの入力と一致しなくなりました。新しい packet を準備して読んでください。
 
 <a id="close-edits"></a>
 ### `close_edits`
-The plan changed after the close Read in a way the guard cannot reconstruct,
-or it fails its phase check. Repeat the close procedure.
+close の Read の後で計画が、ガードが再構成できない形で変更されたか、フェーズのチェックに失敗しています。クローズ手順をやり直してください。
 
 <a id="init-required"></a>
 ### `init_required`
-No successful snapshot init for this invocation. Run the existing init step.
+この呼び出しで、成功したスナップショット init がありません。既存の init ステップを実行してください。
 
 <a id="init-own"></a>
 ### `init_own`
-A new `/autoplan` turn needs its own init (it may answer `reused: true`).
+新しい `/autoplan` のターンには、独自の init が必要です(`reused: true` と応答される場合があります)。
 
 <a id="init-failed"></a>
 ### `init_failed`
-The most recent snapshot init call failed; re-run the same init command with
-the same three paths. An errored init is skipped, so a later successful init
-still binds. This denial applies when no init ever succeeded, or when an
-errored init follows a good one.
+直近のスナップショット init の呼び出しが失敗しました。同じ 3 つのパスで、同じ init コマンドを再実行してください。エラーになった init はスキップされるため、後で成功した init があれば、それが有効になります。この拒否は、成功した init が一度もない場合、またはエラーになった init が成功したものの後に続いた場合に適用されます。
 
 <a id="init-unbindable"></a>
 ### `init_unbindable`
-Init ran through a shell variable, substitution, chaining, a pipe or a
-redirect. Re-run it as one Bash call with literal absolute paths.
+init がシェル変数、置換、連結、パイプ、またはリダイレクトを経由して実行されました。リテラルの絶対パスを使い、単一の Bash 呼び出しとして再実行してください。
 
 <a id="phase-order"></a>
 ### `phase_order`
-Enter Phase 1 (CEO) before a later phase.
+後のフェーズより前に、フェーズ 1(CEO)に入ってください。
 
 <a id="hook-input"></a>
 ### `hook_input`
-The hook could not read its input. Restore the installation (`./setup`).
+フックが自身の入力を読めませんでした。インストールを復元してください(`./setup`)。
 
 <a id="installation"></a>
 ### `installation`
-The hook failed unexpectedly. Restore the installation (`./setup`).
+フックが予期せず失敗しました。インストールを復元してください(`./setup`)。
 
 <a id="foreign-install"></a>
 ### `foreign_install`
-The phase file belongs to another gstack installation than the hook. Restore
-this installation (`./setup`).
+フェーズファイルが、フックとは別の gstack インストールに属しています。このインストールを復元してください(`./setup`)。
 
-## Transient denials
+## 一時的な拒否
 
 <a id="entry-pending"></a>
 ### `entry_pending`
-A phase-entry call from an earlier message has no result yet. Wait for it.
+前のメッセージにあるフェーズ開始の呼び出しが、まだ結果を返していません。待ってください。
 
 <a id="mutation-pending"></a>
 ### `mutation_pending`
-An edit to the active plan after the close Read has no result yet. Wait for it.
+close の Read の後に行った、有効な計画への編集が、まだ結果を返していません。待ってください。
 
-## Removed codes
+## 削除されたコード
 
 <a id="changing"></a>
 ### `changing`
-Before the October 7, 2026 release, `changing` denied a call when Claude Code
-appended to the journal while the guard read it. The bounded reader reads the
-bytes present at open and ignores a trailing record still being written, so
-appends never fail a read; a changed prefix is [`rewritten`](#rewritten).
+2026 年 10 月 7 日のリリース以前は、ガードがジャーナルを読んでいる間に Claude Code がジャーナルへ追記すると、`changing` で呼び出しを拒否していました。現在の境界付きリーダーは、開いた時点に存在するバイトを読み、書き込み中の末尾のレコードは無視します。そのため追記で読み取りが失敗することはありません。先頭の内容が変わった場合は、[`rewritten`](#rewritten) になります。
 
 <a id="current-missing"></a><a id="pending-read"></a>
-Before the October 7, 2026 release, "Native parent evidence has not reached
-the journal yet" (no code) and "Current native phase-entry identity is
-required before entering a new phase" denied calls Claude Code had not yet
-journaled. The payload path replaced both.
+2026 年 10 月 7 日のリリース以前は、「ネイティブの親の証跡がまだジャーナルに届いていません」(コードなし)と「新しいフェーズに入る前に、現在のネイティブのフェーズ開始の識別子が必要です」が、Claude Code がまだジャーナルに書いていない呼び出しを拒否していました。ペイロードを使う経路が、この両方を置き換えました。
 
-## Claude Code settings
+## Claude Code の設定
 
-`CLAUDE_CODE_FORK_SUBAGENT=false` is no longer needed (keeping it is harmless).
-With the fork-subagent gate on, reviewer dispatches may run in the background:
-the dispatch returns a launch receipt and the review arrives later as a
-completion notice. Wait for that notice before closing the phase. A background
-reviewer keeps the invocation armed, so a typed message while it runs does not
-end `/autoplan`.
+`CLAUDE_CODE_FORK_SUBAGENT=false` は、もう必要ありません(残しても害はありません)。フォークサブエージェントのゲートが有効な状態では、レビュアーの dispatch はバックグラウンドで実行される場合があります。dispatch は起動の受領情報を返し、レビューは後で完了通知として届きます。フェーズを閉じる前に、その通知を待ってください。バックグラウンドのレビュアーが動いている間は、呼び出しが有効なままになるため、その間に入力したメッセージでは `/autoplan` は終了しません。
 
-### Permission cards after a background reviewer
+### バックグラウンドのレビュアーの後の権限カード
 
-A skill's `allowed-tools` applies only to the turn that invoked it, and a
-background reviewer's completion notice starts a new turn. From then on Claude
-Code's normal permission rules apply, so Reads outside the session's working
-directory can show a card, and in Manual mode so do Bash commands that are not
-read-only. Skill hooks stay registered for the whole session but do not run
-inside subagents.
+スキルの `allowed-tools` が適用されるのは、そのスキルを呼び出したターンだけです。バックグラウンドのレビュアーの完了通知は新しいターンを開始します。それ以降は Claude Code の通常の権限ルールが適用されるため、作業ディレクトリの外にある Read は権限カードを表示することがあります。手動モードでは、読み取り専用ではない Bash コマンドでも同様です。スキルのフックはセッション全体で登録されたままですが、サブエージェントの内部では実行されません。
 
-`/autoplan` therefore keeps its own files readable without a card:
+そのため `/autoplan` は、自身のファイルをカードなしで読めるように保っています。
 
-- The restore point and every phase artifact (methodology, reviewer input,
-  snapshots, close packet) live in the project's `.gstack/tmp/autoplan/`, which
-  Step 1 adds to `.git/info/exclude`. Claude Code reads files in the working
-  directory without a card, for `/autoplan` and for its reviewer subagents. A
-  `git clean -x` deletes them, restore point included.
-- The publication hook approves `/autoplan`'s own Reads outside the working
-  directory: this installation's `autoplan/sections/*.md`, and the immutable
-  artifacts in `<repo>/.gstack/tmp/autoplan/` when the session started in a
-  subdirectory of the repository. It approves nothing else, and never a call
-  the guard denies.
+- 復元ポイントと、すべてのフェーズの成果物(方法論、レビュアーの入力、スナップショット、close packet)は、プロジェクトの `.gstack/tmp/autoplan/` にあります。このディレクトリは、ステップ 1 で `.git/info/exclude` に追加されます。Claude Code は作業ディレクトリ内のファイルを、カードなしで読みます。これは `/autoplan` にも、そのレビュアーのサブエージェントにも当てはまります。`git clean -x` を実行すると、復元ポイントを含めてこれらが削除されます。
+- 公開フックは、`/autoplan` 自身の作業ディレクトリ外での Read を承認します。対象は、このインストールの `autoplan/sections/*.md` と、セッションがリポジトリのサブディレクトリで始まった場合の `<repo>/.gstack/tmp/autoplan/` にある不変の成果物です。それ以外は承認せず、ガードが拒否した呼び出しも決して承認しません。
 
-A session started in a repository subdirectory still shows a card when a
-reviewer reads its input: subagents run without the skill's hook. Start the
-session at the repository root, or answer the card with "Yes, allow reading
-from ... during this session". In Manual mode, `/autoplan`'s Bash commands
-after the first background reviewer also show cards; auto mode, the default
-starting mode on current Claude Code for supported models, sends them to its
-classifier instead.
+リポジトリのサブディレクトリで始まったセッションでは、レビュアーが入力を読むときに、依然としてカードが表示されます。サブエージェントはスキルのフックなしで動くためです。リポジトリのルートでセッションを開始するか、「Yes, allow reading from ... during this session」(この ... の読み取りをこのセッション中は許可する)でカードに答えてください。手動モードでは、最初のバックグラウンドのレビュアーの後にある `/autoplan` の Bash コマンドもカードを表示します。現在の Claude Code で対応モデルの既定の開始モードである自動モードでは、代わりにその分類器に送られます。
 
-## Supported journal roots
+## 対応するジャーナルのルート
 
-The guard accepts exactly one root per journal file:
+ガードは、ジャーナルファイルごとにちょうど 1 つのルートを受け入れます。
 
-- A user message with no parent (sessions without hooks).
-- An unbroken chain of message-less `SessionStart` hook attachments
-  (`hook_success`, `hook_additional_context`, ...) that starts at a null parent
-  and ends at the first user turn. Claude Code writes this when any
-  `SessionStart` hook is installed, including hooks that plugins add. It also
-  writes one after `/clear`.
-- A `compact_boundary` record whose logical parent is not in the file, but only
-  when it is the file's first record. Claude Code writes this when you resume a
-  compacted session with `--fork-session`.
+- 親のないユーザーメッセージ(フックのないセッション)。
+- メッセージのない `SessionStart` フックの添付(`hook_success`、`hook_additional_context` など)が、親が null のところから始まり、最初のユーザーターンで終わる、途切れのない連なり。Claude Code は、`SessionStart` フックが 1 つでもインストールされていると、プラグインが追加したフックを含めてこれを書きます。`/clear` の後にも書きます。
+- ファイル内に論理的な親がない `compact_boundary` レコード。ただし、それがファイルの最初のレコードである場合に限ります。Claude Code は、`--fork-session` を付けて compact 済みのセッションを再開したときに、これを書きます。
 
-`--continue`, `--resume` and `/compact` append to the same journal, and the
-guard follows them through their existing parent links. The real journals
-these rules were checked against came from Claude Code 2.1.284
-(`test/fixtures/claude-native-journal-roots-2.1.284.json`); the periodic
-`autoplan-journal-drift` canary re-checks the pinned Claude Code.
+`--continue`、`--resume`、`/compact` は同じジャーナルに追記し、ガードは既存の親リンクをたどってそれらに従います。これらのルールが検証された実際のジャーナルは、Claude Code 2.1.284 から得たものです(`test/fixtures/claude-native-journal-roots-2.1.284.json`)。定期的な `autoplan-journal-drift` のカナリアが、固定された Claude Code を再検証します。
 
-## The decision log
+<a id="the-decision-log"></a>
+## 判定ログ
 
-Every guarded decision appends one line to
-`<state root>/analytics/autoplan-guard.jsonl` (normally
-`~/.gstack/analytics/autoplan-guard.jsonl`): `schema`, time, `decision`
-(`allow` or `deny`), `disposition`, `code`, `path` (`journal`, `payload` or
-`none`) and the Claude Code version. It never holds content; an `agent_key`
-denial adds the key names, and an unrecognized shape adds record type names.
-The file keeps the newest 1,000 lines once it passes 256 KiB. A failure to
-write it never changes a decision.
+ガードの判定ごとに、`<state root>/analytics/autoplan-guard.jsonl`(通常は `~/.gstack/analytics/autoplan-guard.jsonl`)に 1 行追記されます。項目は、`schema`、時刻、`decision`(`allow` または `deny`)、`disposition`、`code`、`path`(`journal`、`payload`、`none` のいずれか)、Claude Code のバージョンです。内容は一切含みません。`agent_key` の拒否では、キー名が追加されます。認識されない形状では、レコードの種類名が追加されます。ファイルが 256 KiB を超えると、最新の 1,000 行を残します。ログの書き込みに失敗しても、判定は変わりません。
 
-## Windows paths
+## Windows のパス
 
-Claude Code and Git Bash can spell one path as `C:\x`, `c:\x`, `C:/x` or `/c/x`.
-The guard treats these as the same path. It does not resolve `.` or `..`, so a
-path containing them is still rejected.
+Claude Code と Git Bash は、同じパスを `C:\x`、`c:\x`、`C:/x`、`/c/x` のいずれでも表記できます。ガードはこれらを同じパスとして扱います。`.` や `..` は解決しないため、それらを含むパスは依然として拒否されます。
 
 <a id="symlinked-plan-directories"></a>
-## Symlinked plan directories (macOS /tmp, /var)
+## シンボリックリンクされた計画ディレクトリ(macOS の /tmp、/var)
 
-The guard compares plan paths canonically, not by argv spelling. On macOS
-`/tmp` and `/var` are symlinks to `/private/tmp` and `/private/var`, so a plan
-under `/tmp` or `/var/folders` is expected to appear as `/private/...` in the
-init JSON. That is by design: `init` reports canonical paths (the deepest
-existing ancestor is resolved with `realpath` and the missing segments are
-re-joined, `canonicalDestination` in `bin/gstack-autoplan-snapshot.ts`), and
-the guard canonicalizes the init command's `<active>` and `<restore>` the same
-way. Writes and Edits to the active plan are matched by canonical path too, so
-editing the plan through an alias spelling is recognized. Symlinked plan
-directories are allowed; only a result that differs from the canonical form of
-its own arguments is denied (`init_mismatch`).
+ガードは、計画のパスを引数の綴りではなく正規形で比較します。macOS では `/tmp` と `/var` が `/private/tmp` と `/private/var` へのシンボリックリンクです。そのため `/tmp` や `/var/folders` の下の計画は、init の JSON では `/private/...` として現れると想定されています。これは意図した動作です。`init` は正規のパスを報告します(最も深い既存の祖先を `realpath` で解決し、欠けているセグメントを再結合します。`bin/gstack-autoplan-snapshot.ts` の `canonicalDestination` を参照)。ガードも init コマンドの `<active>` と `<restore>` を同じ方法で正規化します。有効な計画への書き込みと編集も正規のパスで照合されるため、別名の綴りで計画を編集しても認識されます。計画ディレクトリのシンボリックリンクは許可されています。拒否されるのは、その引数自身の正規形と異なる結果だけです(`init_mismatch`)。

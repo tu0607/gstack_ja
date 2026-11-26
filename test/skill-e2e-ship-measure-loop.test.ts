@@ -56,7 +56,7 @@ describeIfSelected('/ship measure-then-fix loop on a seeded flaky eval', ['ship-
 
     const local = (text: string) => text.replaceAll('~/.claude/skills/gstack/', `${ROOT}/`);
     const tests = fs.readFileSync(path.join(ROOT, 'ship/sections/tests.md'), 'utf8');
-    fs.writeFileSync(path.join(root, 'ship-step6.md'), local(sliceBetween(tests, '## Step 6: Eval Suites', '\n---\n')));
+    fs.writeFileSync(path.join(root, 'ship-step6.md'), local(sliceBetween(tests, '## Step 6: Eval スイート', '\n---\n')));
     fs.writeFileSync(path.join(root, 'ship-measure.md'), local(fs.readFileSync(path.join(ROOT, 'ship/sections/measure.md'), 'utf8')));
     fs.writeFileSync(path.join(root, 'ship-state.md'), `# /ship state for feature/queue-title (Steps 1-5 complete)
 

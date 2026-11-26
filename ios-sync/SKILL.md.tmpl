@@ -3,16 +3,16 @@ name: ios-sync
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Regenerate the iOS debug bridge against the latest upstream gstack
-  templates. Updates StateServer.swift, DebugOverlay.swift, Package.swift,
-  and the typed @Observable state accessors. Use after you upgrade gstack
-  or add new ViewModels/properties that need accessor coverage.
-  Use when asked to "resync the iOS debug bridge", "regenerate iOS
-  accessors", or "update the gstack iOS instrumentation". (gstack)
+  最新の upstream gstack テンプレートに合わせて iOS のデバッグブリッジを再生成します。
+  StateServer.swift、DebugOverlay.swift、Package.swift、および型付きの @Observable 状態アクセサを更新します。
+  gstack をアップグレードした後、またはアクセサの対象にする必要のある新しい ViewModel やプロパティを
+  追加した後に使います。
+  「iOS のデバッグブリッジを再同期して」「iOS のアクセサを再生成して」「gstack の iOS 計測を更新して」
+  と依頼されたときに使います。(gstack)
 voice-triggers:
-  - "resync the iOS debug bridge"
-  - "regenerate iOS accessors"
-  - "update the gstack iOS instrumentation"
+  - "iOS のデバッグブリッジを再同期"
+  - "iOS のアクセサを再生成"
+  - "gstack の iOS 計測を更新"
 allowed-tools:
   - Bash
   - Read
@@ -29,33 +29,27 @@ triggers:
 
 {{PREAMBLE}}
 
-# Resync the iOS debug bridge
+# iOS デバッグブリッジを再同期する
 
-After `/ios-qa` is installed in an app, the user may:
+アプリに `/ios-qa` がインストールされた後、ユーザーは次のようなことをするかもしれません:
 
-1. Add new `@Observable` classes or properties that need accessor coverage.
-2. Upgrade gstack to a newer version with hardening fixes.
-3. Move the `// @Snapshotable` generator marker comment to a different field.
+1. アクセサの対象にする必要のある、新しい `@Observable` クラスやプロパティを追加する。
+2. 強化修正を含む新しいバージョンの gstack にアップグレードする。
+3. `// @Snapshotable` のジェネレーターマーカーコメントを別のフィールドに移動する。
 
-This skill regenerates the relevant artifacts in place.
+このスキルは、関連する成果物をその場で再生成します。
 
-**Templates live in upstream gstack.** The installed
-`gstack-ios-qa-regen` launcher resolves its own gstack root and copies only
-the supported bridge files from `ios-qa/templates/`.
+**テンプレートは upstream の gstack にあります。** インストール済みの `gstack-ios-qa-regen` ランチャーは、自身の gstack ルートを解決し、`ios-qa/templates/` からサポートされているブリッジのファイルだけをコピーします。
 
-## Phase 1: Detect installed version
+## フェーズ 1: インストール済みのバージョンを検出する
 
-1. Read `<app>/DebugBridgeGenerated/.gstack-version` (written by /ios-qa
-   during install). If missing, treat the install as "unknown old version".
-2. Read upstream version from `$GSTACK_ROOT/VERSION`.
-3. If versions match AND no new `@Observable` classes were added, exit
-   early with "already up to date".
+1. `<app>/DebugBridgeGenerated/.gstack-version` を読みます(インストール時に /ios-qa が書き出します)。ファイルがなければ、そのインストールは「不明な古いバージョン」として扱います。
+2. `$GSTACK_ROOT/VERSION` から upstream のバージョンを読みます。
+3. バージョンが一致し、かつ新しい `@Observable` クラスが追加されていなければ、「すでに最新です」と表示して早期に終了します。
 
-## Phase 2: Regenerate codegen output
+## フェーズ 2: コード生成の出力を再生成する
 
-Run the deterministic regenerator once. `--app-source` is the directory the
-accessor scanner should inspect; `--bridge-dir` is the local Swift package
-that the app links in Debug builds:
+決定的な再生成ツールを 1 回実行します。`--app-source` はアクセサのスキャナが調べるディレクトリで、`--bridge-dir` は Debug ビルドでアプリがリンクするローカルの Swift パッケージです:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-ios-qa-regen \
@@ -63,37 +57,28 @@ that the app links in Debug builds:
   --bridge-dir "$APP_SOURCE_DIR/DebugBridge"
 ```
 
-The command removes only the known obsolete generated files from the former
-flat `DebugBridgeGenerated/` layout before emitting the current accessor.
-Generation accepts file-scope observable classes and JSON-native scalar,
-array, String-keyed dictionary, and Optional field types. It rejects custom
-types, implicitly unwrapped Optionals, nested observable classes, and duplicate
-snapshot keys before writing a completion marker.
+このコマンドは、現在のアクセサを出力する前に、以前のフラットな `DebugBridgeGenerated/` の構成から、既知の古い生成ファイルだけを削除します。生成処理は、ファイルスコープの観測可能クラスと、JSON ネイティブのスカラー、配列、String をキーとする辞書、Optional のフィールド型を受け付けます。カスタム型、暗黙的にアンラップされる Optional、入れ子の観測可能クラス、重複するスナップショットのキーは拒否し、完了マーカーを書き出す前に停止します。
 
-The composite-hash cache key handles whether anything actually needs
-regenerating; if Swift version, generator git rev, lockfile, source content,
-and platform triple all match the cache, this is a ~50ms no-op.
+再生成が実際に必要かどうかは、コンポジットのハッシュによるキャッシュキーで判断されます。Swift のバージョン、ジェネレーターの git リビジョン、lockfile、ソースの内容、プラットフォームのトリプルがすべてキャッシュと一致すれば、約 50ms で何もせずに終わります。
 
-## Phase 3: Review the generated diff
+## フェーズ 3: 生成された差分をレビューする
 
-1. Review changes under `<app>/DebugBridge/` and
-   `<app>/DebugBridgeGenerated/StateAccessor.swift`.
-2. Confirm the command did not modify the app's handwritten Swift files.
-3. Keep app-specific wiring in the app target; canonical bridge package files
-   are regenerated from upstream and should not be hand-edited.
+1. `<app>/DebugBridge/` と `<app>/DebugBridgeGenerated/StateAccessor.swift` の下の変更をレビューします。
+2. コマンドがアプリの手書きの Swift ファイルを変更していないことを確認します。
+3. アプリ固有の配線はアプリのターゲットに残します。正規のブリッジパッケージのファイルは upstream から再生成されるものなので、手で編集しないでください。
 
-## Phase 4: Verify
+## フェーズ 4: 検証する
 
-1. `swift build` succeeds against the app's package.
-2. `xcodebuild -scheme <SchemeName>` succeeds.
-3. Re-launch the app on the device; daemon connects + rotates token.
-4. `GET /state/snapshot` returns the new accessor schema hash.
+1. アプリのパッケージに対して `swift build` が成功すること。
+2. `xcodebuild -scheme <SchemeName>` が成功すること。
+3. デバイス上でアプリを再起動し、デーモンが接続してトークンをローテーションすること。
+4. `GET /state/snapshot` が新しいアクセサのスキーマのハッシュを返すこと。
 
-## Failure modes
+## 失敗パターン
 
-| Symptom | Action |
+| 症状 | 対処 |
 |---|---|
-| Swift compile fails after regen | Revert via `git restore` + AskUserQuestion: surface the compile error |
-| Codegen reports an invalid marked declaration | Use a file-scope observable class and a writable instance `var` with an explicit JSON-native type, internal/public setter, and a key unique across models; otherwise remove the `// @Snapshotable` marker. |
-| Schema hash unchanged after adding new @Observable | No field has the standalone `// @Snapshotable` marker comment — codegen excludes unmarked state correctly. Add the comment immediately above each field that should be snapshotted. |
-| Scanner sees generated bridge sources | Pass the narrow app source directory; the regenerator automatically excludes `DebugBridgeGenerated` and `StateAccessor.swift`. |
+| 再生成後に Swift のコンパイルが失敗する | `git restore` で元に戻し、AskUserQuestion でコンパイルエラーをユーザーに提示する |
+| コード生成がマークされた宣言を無効と報告する | ファイルスコープの観測可能クラスと、明示的な JSON ネイティブ型を持つ書き込み可能なインスタンスの `var`、internal または public のセッター、モデルをまたいで一意なキーを使う。そうでなければ `// @Snapshotable` マーカーを削除する。 |
+| 新しい @Observable を追加してもスキーマのハッシュが変わらない | 単独の `// @Snapshotable` マーカーコメントを持つフィールドがない。コード生成は、マークされていない状態を正しく除外している。スナップショットしたい各フィールドの直前にコメントを追加する。 |
+| スキャナが生成されたブリッジのソースを見つける | 範囲を絞ったアプリのソースディレクトリを渡す。再生成ツールは `DebugBridgeGenerated` と `StateAccessor.swift` を自動的に除外する。 |

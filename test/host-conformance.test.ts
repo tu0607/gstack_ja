@@ -123,7 +123,7 @@ describe.skipIf(process.platform === 'win32')('host conformance kit', () => {
       // host's literal install path; that path must reach this install's bin/.
       const cso = ['cso', 'gstack-cso'].find(n => existsSync(join(dest, n, 'SKILL.md')));
       expect(cso, `${host} cso skill`).toBeDefined();
-      const launcher = readFileSync(join(dest, cso!, 'SKILL.md'), 'utf8').match(/Use `([^`]+)\/gstack-cso-launcher\[\.exe\]`/);
+      const launcher = readFileSync(join(dest, cso!, 'SKILL.md'), 'utf8').match(/`([^`]+)\/gstack-cso-launcher\[\.exe\]`/);
       expect(launcher, `${host} cso names its launcher`).not.toBeNull();
       expect(realpathSync(launcher![1].replace(/^~(?=\/)/, f.home)), `${host} cso launcher dir`).toBe(realpathSync(join(src, 'bin')));
       const rows = registryRows(f);

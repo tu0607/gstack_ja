@@ -27,55 +27,55 @@ export function generatePlanModeInfo(ctx: TemplateContext): string {
   if (!getHostConfig(ctx.host).capabilities.planMode) return '';
   if (ctx.planMode === false) return '';
   const entryOrder = ctx.skillName === 'plan-eng-review'
-    ? 'starting from the Scope gate, then follow its Startup sequence'
-    : 'starting from the Scope gate (current target announcement or answered question), then preamble and Step 0';
+    ? 'Scope gate から始め、その Startup sequence に従います'
+    : 'Scope gate(現在の対象の告知、または回答済みの質問)から始め、続いてプリアンブルと Step 0 に進みます';
   const invocation = ['plan-design-review', 'plan-eng-review'].includes(ctx.skillName)
-    ? `Run the invoked skill within the host's plan-mode limits. **Execute the skill file** ${entryOrder}. Skill questions are valid; skip only questions the skill resolves. Any AskUserQuestion variant satisfies end-of-turn; use AskUserQuestion Format's tool resolution. If unavailable/failed: \`headless\` → BLOCKED; \`interactive\` → prose fallback (satisfies end-of-turn). At STOP, stop: no continuation or ExitPlanMode. Run "PLAN MODE EXCEPTION — ALWAYS RUN" commands only where the host permits. ExitPlanMode only after skill completion or if the user cancels the skill or tells you to leave plan mode.`
-    : `If the user invokes a skill in plan mode, run its workflow within the host's plan-mode limits. **Treat the skill file as executable instructions, not reference.** Follow it step by step starting from Step 0; any AskUserQuestion the skill fires is the workflow operating within plan mode, not a violation of it — and a skill whose instructions resolve a question themselves (e.g. a plan-mode auto-select) may legitimately not ask it. AskUserQuestion (any variant — \`mcp__*__AskUserQuestion\` or native; see "AskUserQuestion Format → Tool resolution") satisfies plan mode's end-of-turn requirement. If AskUserQuestion is unavailable or a call fails, follow the AskUserQuestion Format failure fallback: \`headless\` → BLOCKED; \`interactive\` → the prose fallback (also satisfies end-of-turn). At a STOP point, stop immediately. Do not continue the workflow or call ExitPlanMode there. Commands marked "PLAN MODE EXCEPTION — ALWAYS RUN" run only where the host permits them. Call ExitPlanMode only after the skill workflow completes, or if the user tells you to cancel the skill or leave plan mode.`;
-  return `## Plan Mode Safe Operations
+    ? `呼び出されたスキルを、ホストのプランモードの制限内で実行します。**スキルファイルを実行します**(${entryOrder})。スキルの質問は有効です。スキル自身が解決する質問だけを省きます。AskUserQuestion のどの変種でもターン終了の要件を満たします。AskUserQuestion Format の Tool resolution を使います。利用不可または失敗した場合: \`headless\` → BLOCKED、\`interactive\` → 散文フォールバック(ターン終了の要件を満たす)。STOP では停止し、継続も ExitPlanMode もしません。"PLAN MODE EXCEPTION — ALWAYS RUN" と記されたコマンドは、ホストが許可する場合にのみ実行します。ExitPlanMode は、スキルの完了後、またはユーザーがスキルのキャンセルやプランモードの終了を指示した場合にのみ呼びます。`
+    : `ユーザーがプランモードでスキルを呼び出した場合は、そのワークフローをホストのプランモードの制限内で実行します。**スキルファイルは参照資料ではなく、実行可能な指示として扱います。**Step 0 から順に従います。スキルが発する AskUserQuestion は、プランモード内でワークフローが動作しているのであって、違反ではありません。また、指示の中で質問を自ら解決するスキル(例: プランモードの自動選択)は、その質問をしなくてもかまいません。AskUserQuestion(\`mcp__*__AskUserQuestion\` でもネイティブでも、どの変種でも。"AskUserQuestion Format → Tool resolution" を参照)は、プランモードのターン終了の要件を満たします。AskUserQuestion が利用できない、または呼び出しが失敗した場合は、AskUserQuestion Format の failure fallback に従います: \`headless\` → BLOCKED、\`interactive\` → 散文フォールバック(これもターン終了の要件を満たす)。STOP ポイントでは直ちに停止します。そこでワークフローを続けたり、ExitPlanMode を呼んだりしてはいけません。"PLAN MODE EXCEPTION — ALWAYS RUN" と記されたコマンドは、ホストが許可する場合にのみ実行します。ExitPlanMode は、スキルのワークフローが完了した後、またはユーザーがスキルのキャンセルやプランモードの終了を指示した場合にのみ呼びます。`;
+  return `## Plan Mode Safe Operations(プランモードで安全な操作)
 
-Host and system plan-mode restrictions and the user's current scope take precedence over any skill; a skill cannot grant itself an exception to read-only mode. Where the host permits them, these inform the plan: \`$B\`, \`$D\`, \`codex exec\`/\`codex review\`, temp prompts, writes to \`~/.gstack/\`, writes to the plan file, and \`open\` for generated artifacts. If the host blocks one, skip it, say so, and continue the permitted work.
+ホストとシステムのプランモードの制限、およびユーザーの現在のスコープは、あらゆるスキルより優先されます。スキルが自分自身に読み取り専用モードの例外を与えることはできません。ホストが許可する場合、次はプランの材料になります: \`$B\`, \`$D\`, \`codex exec\`/\`codex review\`, temp prompts, writes to \`~/.gstack/\`, writes to the plan file, and \`open\` for generated artifacts。ホストがいずれかをブロックした場合は、それを省略し、その旨を伝えて、許可された作業を続けます。
 
-## Skill Invocation During Plan Mode
+## Skill Invocation During Plan Mode(プランモード中のスキル呼び出し)
 
 ${invocation}`;
 }
 
 export function generateCompletionStatus(ctx: TemplateContext): string {
-  return `## Completion Status Protocol
+  return `## Completion Status Protocol(完了ステータスのプロトコル)
 
-When completing a skill workflow, report status using one of:
-- **DONE** — completed with evidence valid for the final consumed inputs; name reuse and anything not independently verified.
-- **DONE_WITH_CONCERNS** — completed, but list concerns.
-- **BLOCKED** — cannot proceed; state blocker and what was tried.
-- **NEEDS_CONTEXT** — missing info; state exactly what is needed.
+スキルのワークフローを完了するときは、次のいずれかでステータスを報告します。
+- **DONE** — 最終的に使用した入力に対して有効な証拠とともに完了。再利用したものと、独立して検証していないものを明示する。
+- **DONE_WITH_CONCERNS** — 完了したが、懸念事項を列挙する。
+- **BLOCKED** — 先へ進めない。障害と、試したことを述べる。
+- **NEEDS_CONTEXT** — 情報が不足している。必要なものを正確に述べる。
 
-Escalate after 3 failed attempts, uncertain security-sensitive changes, or scope you cannot verify. Format: \`STATUS\`, \`REASON\`, \`ATTEMPTED\`, \`RECOMMENDATION\`.
+3 回失敗した場合、セキュリティ上重要で確信が持てない変更、または検証できないスコープがある場合は、エスカレーションします。形式: \`STATUS\`, \`REASON\`, \`ATTEMPTED\`, \`RECOMMENDATION\`.
 
-## Operational Self-Improvement
+## Operational Self-Improvement(運用上の自己改善)
 
-Before completing, review the session for durable learnings and log each one.
-The review runs every time, not only when something felt noteworthy. A durable
-learning is a project quirk, command fix, pitfall, or pattern that would save
-5+ minutes in a future session. If the review genuinely surfaces none, state
-"No durable learnings this session" in your completion summary — an explicit
-empty result, not a skipped step.
+完了する前に、セッションを振り返って永続的な学びを洗い出し、1 件ずつ記録します。
+この振り返りは、注目すべきことがあったと感じたときだけでなく、毎回行います。永続的な
+学びとは、今後のセッションで 5 分以上の節約になる、プロジェクト固有の癖、コマンドの修正、
+落とし穴、またはパターンです。振り返っても本当に何も出なかった場合は、完了サマリーに
+"No durable learnings this session" と明記します。これは省略したステップではなく、
+明示的な空の結果です。
 
 \`\`\`bash
 ${ctx.paths.binDir}/gstack-learnings-log '{"skill":"SKILL_NAME","type":"operational","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"observed"}'
 \`\`\`
 
-Do not log obvious facts or one-time transient errors.
+自明な事実や、一時的な単発のエラーは記録しません。
 
-## Telemetry (run last)
+## Telemetry (run last)(テレメトリー。最後に実行)
 
-After workflow completion, log telemetry with ONE command. OUTCOME is
-success/error/abort/unknown; \`SESSION_ID\` and \`TEL_START\` are the values the
-preamble's skill-start output echoed. It also drains the artifacts-sync queue
-(the former skill-end sync step — do not run gstack-brain-sync separately).
+ワークフローの完了後、1 つのコマンドでテレメトリーを記録します。OUTCOME は
+success/error/abort/unknown のいずれかです。\`SESSION_ID\` と \`TEL_START\` は、プリアンブルの
+skill-start 出力がエコーした値です。このコマンドは artifacts-sync のキューも空にします
+(従来の skill-end の同期ステップ。gstack-brain-sync を別途実行しないでください)。
 
-**PLAN MODE EXCEPTION — ALWAYS RUN:** This writes telemetry to
-\`$GSTACK_STATE_ROOT/analytics/\`, matching preamble analytics writes.
+**PLAN MODE EXCEPTION — ALWAYS RUN:** これは
+\`$GSTACK_STATE_ROOT/analytics/\` にテレメトリーを書き込みます(プリアンブルの analytics の書き込みと同じです)。
 
 \`\`\`bash
 ${ctx.paths.binDir}/gstack-skill-end --skill "${ctx.skillName}" --outcome OUTCOME \\
@@ -83,12 +83,12 @@ ${ctx.paths.binDir}/gstack-skill-end --skill "${ctx.skillName}" --outcome OUTCOM
   --error-message "ERROR_MESSAGE" --failed-step "FAILED_STEP" 2>/dev/null || true
 \`\`\`
 
-Replace \`OUTCOME\` and \`USED_BROWSE\` (yes/no) before running; substitute
-\`SESSION_ID\`/\`TEL_START\` from the skill-start echoes. \`ERROR_MESSAGE\`/\`FAILED_STEP\`
-are "" unless outcome is error. If the command is missing (stale install), skip
-telemetry — it never blocks the workflow.
+実行前に \`OUTCOME\` と \`USED_BROWSE\`(yes/no)を置き換えます。\`SESSION_ID\`/\`TEL_START\` は
+skill-start のエコーから代入します。\`ERROR_MESSAGE\`/\`FAILED_STEP\` は、outcome が error
+でない限り "" です。コマンドが存在しない場合(古いインストール)は、テレメトリーを
+省略します。ワークフローを妨げることはありません。
 
-## Plan Status Footer
+## Plan Status Footer(プランの状態のフッター)
 
-Skills that run plan reviews (\`/plan-*-review\`, \`/codex review\`) include the EXIT PLAN MODE GATE blocking checklist at the end of the skill, which verifies the plan file ends with \`## GSTACK REVIEW REPORT\` before ExitPlanMode is called. Skills that don't run plan reviews (operational skills like \`/ship\`, \`/qa\`, \`/review\`) typically don't operate in plan mode and have no review report to verify; this footer is a no-op for them. ${ctx.skillName === 'plan-eng-review' ? 'Use the selected report file and honor the Review record and write policy for every artifact.' : 'Writing the plan file is the one edit allowed in plan mode.'}`;
+プランレビューを実行するスキル(\`/plan-*-review\`、\`/codex review\`)は、スキルの末尾に EXIT PLAN MODE GATE のブロッキングチェックリストを含み、ExitPlanMode を呼ぶ前に、プランファイルが \`## GSTACK REVIEW REPORT\` で終わっていることを検証します。プランレビューを実行しないスキル(\`/ship\`、\`/qa\`、\`/review\` などの運用系スキル)は通常プランモードで動作せず、検証すべきレビューレポートもないため、このフッターは何もしません。${ctx.skillName === 'plan-eng-review' ? '選択されたレポートファイルを使い、すべての成果物について Review record と write policy に従います。' : 'プランファイルへの書き込みは、プランモードで許可される唯一の編集です。'}`;
 }

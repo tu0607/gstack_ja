@@ -5,6 +5,7 @@ import { generateCodexPlanReview } from '../scripts/resolvers/outside-voice-step
 import { HOST_PATHS, type TemplateContext } from '../scripts/resolvers/types';
 import { ALL_HOST_CONFIGS } from '../hosts';
 import { RESULT_CODES } from '../lib/result-codes';
+import { expectMentions, expectTokens } from './helpers/prompt-structure';
 
 // #3182: Claude Code 2.1.277 removed TaskOutput. The plan-review native
 // fallback must bound its reviewer with primitives the host still has: a
@@ -17,7 +18,7 @@ const SKILLS = ['plan-ceo-review', 'plan-eng-review', 'plan-devex-review'] as co
 const flat = (text: string) => text.replace(/\s+/g, ' ');
 
 function bounded(content: string): string {
-  return content.match(/\*\*Bounded outside-voice wait[\s\S]*?(?=\*\*(?:Integrate reviewer findings|Cross-model tension):\*\*)/)?.[0] ?? '';
+  return content.match(/\*\*Bounded outside-voice wait[\s\S]*?(?=\*\*(?:Integrate reviewer findings|Cross-model tension)\([^)]*\):\*\*)/)?.[0] ?? '';
 }
 
 function renders(): Array<[string, string]> {
@@ -49,35 +50,31 @@ describe('native outside-voice fallback without TaskOutput (#3182)', () => {
       expect(timer, name).toBeGreaterThan(0);
       expect(dispatch, name).toBeGreaterThan(timer);
       expect(section.slice(timer, dispatch), name).toContain('`run_in_background: true`');
-      expect(flat(section), name).toContain('call TaskStop with the timer');
-      expect(flat(section), name).toContain('TaskStop with the same ID as the agent');
-      expect(flat(section), name).toContain('End your turn and wait for task notifications');
-      expect(flat(section), name).toContain('do not poll, sleep, Read either output file');
+      expectMentions(flat(section), [['タイマーの ID', 'TaskStop'], ['エージェントと同じ ID', 'TaskStop'], ['ターンを終了', '通知'],
+        ['ポーリング', 'sleep', 'Read', 'してはいけません']], name);
     }
   });
 
   test('only the matching completed notification that beats the timer counts', () => {
     for (const [name, section] of renders().map(([n, c]) => [n, bounded(c)] as const)) {
-      for (const guard of ['`<task-notification>`', 'arriving before the timer', '`<task-id>` must match the agent ID',
-        '`<status>` must be `completed`', 'is waiting on its own background work', 'turn limit', '[Subagent hand-back]',
-        'identifiable complete final reviewer report', 'Reject raw or in-progress transcripts',
-        'still give no late-result credit', 'cancellation is unconfirmed']) {
-        expect(flat(section), `${name}: ${guard}`).toContain(guard);
-      }
+      expectTokens(flat(section), ['`<task-notification>`', '`<task-id>`', '`<status>`', '`completed`',
+        'is waiting on its own background work', '[Subagent hand-back]'], name);
+      expectMentions(flat(section), [['タイマーより先', '<task-notification>'], ['ターン数の上限'], ['識別可能', '完全', 'レポート'],
+        ['生のトランスクリプト', '却下'], ['遅れた結果', 'クレジット'], ['キャンセル', '未確認']], name);
       // A foreground run returns a report the host never bounded: no credit.
-      expect(flat(section), name).toMatch(/Agent returns a report directly: no enforced deadline, so no credit/);
+      expectMentions(flat(section), [['Agent がレポートを直接返した', '期限', '強制', 'クレジットなし']], name);
     }
   });
 
   test('the unavailable line names its cause and fix, in the output and the persisted row', () => {
     for (const [name, content] of renders()) {
-      const unavailable = flat(content.slice(content.indexOf('**Unavailable path:**')));
+      const unavailable = flat(content.slice(content.indexOf('**利用不可のパス:**')));
       expect(unavailable, name).toContain('Outside voice unavailable: <cause>. Fix: <fix>.');
-      for (const cause of ['Plan agent type not offered', 'TaskStop not offered', 'background tasks unavailable',
-        'no complete report within five minutes']) expect(unavailable, `${name}: ${cause}`).toContain(cause);
+      expectMentions(unavailable, [['Plan', '提供されていない'], ['TaskStop', '提供されていない'], ['バックグラウンドタスク', '利用できない'],
+        ['5 分以内', 'レポート']], name);
       expect(unavailable, name).toContain('(OUTSIDE_VOICE_UNAVAILABLE)');
       expect(unavailable, name).toContain('`"unavailable_reason":"<cause>"`');
-      if (name.startsWith('claude:')) expect(unavailable, name).toContain('Claude Code 2.1.277+, background tasks on');
+      if (name.startsWith('claude:')) expectMentions(unavailable, [['Claude Code 2.1.277', 'バックグラウンドタスク']], name);
     }
     expect(RESULT_CODES.OUTSIDE_VOICE_UNAVAILABLE.anchor).toBe('outside-voice-unavailable');
   });

@@ -175,9 +175,9 @@ registration and generation conventions. Its only behavior is to print "hello".
         throw Error('Autoplan phase entry source boundary changed');
       return source.slice(a, b);
     };
-    const principles = excerpt(core, '## The 6 Decision Principles', '## Sequential Execution');
-    const preflight = excerpt(core, '## Phase 0.5: Outside reviewer preflight', '## Phase 1: CEO Review');
-    const dual = excerpt(phase, 'Step 0.5 (Dual Voices):', 'Sections 1-11 —');
+    const principles = excerpt(core, '## 6 つの判断原則', '## 逐次実行');
+    const preflight = excerpt(core, '## フェーズ 0.5: 外部レビュアーの事前確認', '## フェーズ 1: CEO レビュー');
+    const dual = excerpt(phase, '手順 0.5(二重の voice):', 'セクション 1〜11 —');
     entryPath = path.join(stateDir, 'ceo-dual-entry.md');
     fs.writeFileSync(entryPath, `# Standalone CEO dual-voice review
 

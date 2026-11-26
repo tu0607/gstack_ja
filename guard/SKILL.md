@@ -1,7 +1,7 @@
 ---
 name: guard
 version: 0.1.0
-description: "Full safety mode: destructive command warnings + directory-scoped edits. (gstack)"
+description: "完全な安全モード: 破壊的なコマンドの警告と、ディレクトリ単位の編集制限を組み合わせます。 (gstack)"
 triggers:
   - full safety mode
   - guard against mistakes
@@ -41,14 +41,13 @@ hooks:
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
 
-# /guard — Full Safety Mode
+# /guard — 完全な安全モード
 
-Activates both destructive command warnings and directory-scoped edit restrictions.
-This is the combination of `/careful` + `/freeze` in a single command.
+破壊的なコマンドの警告と、ディレクトリ単位の編集制限の両方を有効にします。
+これは `/careful` と `/freeze` を 1 つのコマンドにまとめたものです。
 
-**Dependency note:** This skill references hook scripts from the sibling `/careful`
-and `/freeze` skill directories. Both must be installed (they are installed together
-by the gstack setup script).
+**依存関係の注意:** このスキルは、兄弟にあたる `/careful` と `/freeze` のスキルディレクトリにあるフックスクリプトを参照します。
+両方がインストールされている必要があります(gstack のセットアップスクリプトによって一緒にインストールされます)。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -56,29 +55,30 @@ mkdir -p "$GSTACK_STATE_ROOT"/analytics
 echo '{"skill":"guard","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> "$GSTACK_STATE_ROOT"/analytics/skill-usage.jsonl 2>/dev/null || true
 ```
 
-## Setup
+## セットアップ
 
-Ask the user which directory to restrict edits to. Use AskUserQuestion:
+編集を制限するディレクトリをユーザーに尋ねます。AskUserQuestion を使います:
 
-- Question: "Guard mode: which directory should edits be restricted to? Destructive command warnings are always on. Files outside the chosen path will be blocked from editing."
-- Text input (not multiple choice) — the user types a path.
+- 質問: 「Guard mode: 編集を制限するディレクトリはどこにしますか? 破壊的なコマンドの警告は常に有効です。選んだパスの外にあるファイルは、編集がブロックされます。」
+- 選択肢ではなく、テキスト入力(ユーザーがパスを入力します)
 
-Once the user provides a directory path:
+ユーザーがディレクトリのパスを指定したら:
 
-Set the user-selected boundary with the shared writer, which resolves a physical absolute path and serializes replacement with investigation cleanup:
+共有の書き込みツールを使って、ユーザーが選んだ境界を設定します。このツールは物理的な絶対パスを解決し、置き換えと調査のクリーンアップを順番に実行します:
 ```bash
 bash "$HOME/.claude/skills/gstack/freeze/bin/freeze-state.sh" set "<user-provided-path>"
 ```
 
-On helper failure, do not claim the boundary is active. Preserve the state and report recovery; never bypass the shared writer with a direct write or deletion.
+ヘルパーが失敗した場合は、境界が有効になったと主張してはいけません。状態を保持し、回復の手順を報告します。
+直接の書き込みや削除で共有の書き込みツールを迂回してはいけません。
 
-Tell the user:
-- "**Guard mode active.** Two protections are now running:"
-- "1. **Destructive command guard** — rm -rf, DROP TABLE, force-push, etc. warn before executing (overridable); catastrophic shapes (recursive delete of / or ~, force-push to the default branch) are hard-denied"
-- "2. **Edit boundary** — file edits restricted to `<path>/`. Edits outside this directory are blocked."
-- "To remove the persistent edit boundary, run `/unfreeze`. Ending the session stops its hooks but does not delete that boundary."
+ユーザーに伝えます:
+- 「**Guard mode active.** 2 つの保護が動いています:」
+- 「1. **破壊的なコマンドのガード** — rm -rf、DROP TABLE、force-push などは、実行前に警告します(上書き可能)。壊滅的な形のもの(/ や ~ の再帰的な削除、デフォルトブランチへの force-push)は、無条件に拒否されます」
+- 「2. **編集の境界** — ファイルの編集は `<path>/` に制限されます。このディレクトリの外の編集はブロックされます。」
+- 「永続的な編集の境界を削除するには、`/unfreeze` を実行してください。セッションを終えるとフックは止まりますが、境界は削除されません。」
 
-## What's protected
+## 保護の対象
 
-See `/careful` for the full list of destructive command patterns and safe exceptions.
-See `/freeze` for how edit boundary enforcement works.
+破壊的なコマンドのパターンと安全な例外の全体一覧は、`/careful` を参照してください。
+編集の境界がどのように機能するかは、`/freeze` を参照してください。

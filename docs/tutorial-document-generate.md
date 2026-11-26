@@ -1,24 +1,24 @@
-# Tutorial: generate docs for a feature in 90 seconds
+# チュートリアル: 機能のドキュメントを 90 秒で生成する
 
-You'll run `/document-generate` against a project you already have, watch it write tutorial / how-to / reference / explanation docs in the right places, and end with a coverage map you can drop into a PR. By the end, you'll know the four moves: scope, archaeology, partition, write.
+すでにあるプロジェクトに対して `/document-generate` を実行し、チュートリアル / ハウツー / リファレンス / 解説のドキュメントが適切な場所に書かれていく様子を確認します。最後には、PR に貼り付けられるカバレッジマップができあがります。このチュートリアルを終える頃には、4 つの動き(scope、archaeology、partition、write)がわかるようになっています。
 
-## What you'll need
+## 必要なもの
 
-- gstack installed (`git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`)
-- Claude Code running in any project that has at least one piece of public surface (a CLI command, an exported function, a config option, a skill, an API endpoint)
-- About 90 seconds
+- gstack のインストール(`git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`)
+- 公開されているサーフェスを少なくとも 1 つ持つプロジェクト(CLI コマンド、エクスポートされた関数、設定オプション、スキル、API エンドポイントのいずれか)で動いている Claude Code
+- 約 90 秒
 
-You do not need a `docs/` directory in advance — the skill creates one if it's missing. You do not need to know Diataxis terminology — the skill labels the output for you.
+事前に `docs/` ディレクトリを用意する必要はありません。ない場合はスキルが作成します。Diátaxis の用語を知っている必要もありません。出力にはスキルがラベルを付けてくれます。
 
-## Step 1: Invoke the skill in any project
+## ステップ 1: 任意のプロジェクトでスキルを呼び出す
 
-Open Claude Code in the project you want to document. Type:
+ドキュメント化したいプロジェクトで Claude Code を開きます。次のように入力してください。
 
 ```
 /document-generate
 ```
 
-You'll see the skill ask one question about output target:
+出力先について、スキルが 1 つ質問してきます。
 
 ```
 A) Write documentation inline in existing files (README, ARCHITECTURE, etc.)
@@ -28,29 +28,29 @@ C) Both — inline summaries in existing files + deep docs in standalone files
 RECOMMENDATION: Choose C because it maximizes both discoverability and depth.
 ```
 
-Pick C. You'll get a README pointer plus a full set of standalone docs.
+C を選んでください。README へのポインタと、一式の独立したドキュメントが得られます。
 
-## Step 2: Watch the archaeology run
+## ステップ 2: アーカイオロジー(調査)の実行を見る
 
-The skill goes silent for ~30 seconds while it reads the codebase. This is intentional — the Step 1 "Codebase Archaeology" phase is the most important step in the workflow. The skill is reading:
+スキルは、コードベースを読んでいる約 30 秒の間、無言になります。これは意図的なものです。ステップ 1 の「Codebase Archaeology」フェーズは、このワークフローの中で最も重要なステップだからです。スキルは次のものを読んでいます。
 
-- The full repository structure
-- README, ARCHITECTURE, CONTRIBUTING, CLAUDE.md (the entry points)
-- The implementation files for whatever you're documenting (full file, not just signatures)
-- The tests (which reveal edge cases and intended behavior)
-- Inline comments tagged `// NOTE:`, `// DESIGN:`, `// WHY:`
+- リポジトリの構造全体
+- README、ARCHITECTURE、CONTRIBUTING、CLAUDE.md(エントリーポイント)
+- ドキュメント化対象の実装ファイル(シグネチャだけでなく、ファイル全体)
+- テスト(エッジケースや意図された動作がわかる)
+- `// NOTE:`、`// DESIGN:`、`// WHY:` のタグが付いたインラインコメント
 
-When it finishes, you'll see a line like:
+完了すると、次のような行が表示されます。
 
 ```
 Researched 47 files, identified 12 public surface items, 8 concepts, and 4 design decisions.
 ```
 
-That number tells you the skill actually read the code rather than guessing from filenames.
+この数字は、スキルがファイル名から推測したのではなく、実際にコードを読んだことを示しています。
 
-## Step 3: See the Diataxis partition plan
+## ステップ 3: Diátaxis の分割計画を確認する
 
-The skill prints a partition plan showing which quadrants it'll write for which entity:
+スキルは、どの対象に対してどの象限を書くかを示す分割計画を表示します。
 
 ```
 Documentation plan:
@@ -60,25 +60,25 @@ Documentation plan:
   Bayesian scheduler    ❌        ❌       ✅ new      ✅ new
 ```
 
-Not every entity needs all four quadrants. CLI flags get reference + how-to. Internal modules get reference + explanation. User-facing features get all four. The skill picks based on entity type.
+すべての対象に 4 つの象限が必要なわけではありません。CLI のフラグにはリファレンスとハウツーが付きます。内部モジュールにはリファレンスと解説が付きます。ユーザー向けの機能には 4 つすべてが付きます。スキルは対象の種類に基づいて選びます。
 
-If the plan has more than 5 documents, the skill asks you to confirm before proceeding. Otherwise it goes.
+計画に 5 件を超えるドキュメントが含まれる場合、スキルは進める前に確認を求めます。それ以外の場合は、そのまま進みます。
 
-## Step 4: Read the first doc that lands
+## ステップ 4: 最初に作られたドキュメントを読む
 
-Reference docs land first because they fix the vocabulary. You'll see lines like:
+リファレンスのドキュメントは語彙を決めるため、最初に作られます。次のような行が表示されます。
 
 ```
 GENERATED: docs/reference-widget-service.md
 ```
 
-Open that file. It has a strict structure: one-paragraph intro, complete API listing with types and defaults, 2-3 runnable examples, and a Related section linking to the how-to and tutorial that will land next.
+そのファイルを開いてください。厳密な構造になっています。1 段落の導入、型とデフォルト値を含む完全な API の一覧、実行可能な例が 2〜3 件、そして次に作られるハウツーとチュートリアルへのリンクを含む Related セクションです。
 
-This is what reference docs look like in Diataxis: factual, exhaustive, no narrative. If you find yourself wanting to explain *why* an option exists, that belongs in the explanation doc the skill will write next.
+これが Diátaxis におけるリファレンスの姿です。事実に基づいて網羅的で、物語はありません。あるオプションがなぜ存在するのかを説明したくなったら、それは次にスキルが書く解説のドキュメントに書くべき内容です。
 
-## Step 5: See the explanation, how-to, and tutorial appear
+## ステップ 5: 解説、ハウツー、チュートリアルが現れるのを見る
 
-In quick succession (each ~5-10 seconds), the skill writes the remaining quadrants:
+立て続けに(それぞれ 5〜10 秒ほどで)、スキルは残りの象限を書き出します。
 
 ```
 GENERATED: docs/explanation-widget-architecture.md
@@ -86,29 +86,29 @@ GENERATED: docs/howto-create-a-custom-widget.md
 GENERATED: docs/tutorial-build-your-first-widget.md
 ```
 
-Open each one. Notice they don't repeat each other:
+それぞれを開いてください。互いの内容を繰り返していないことに気づくはずです。
 
-- **Explanation** leads with the problem, then the approach, then trade-offs and alternatives considered
-- **How-to** has prerequisites, numbered steps with exact commands, a verification section, and a troubleshooting section
-- **Tutorial** gets you to a working result in under 3 steps, ends with "What you built"
+- **解説** は、問題から始まり、次にアプローチ、そして検討したトレードオフと代替案へと進みます
+- **ハウツー** には、前提条件、正確なコマンドを含む番号付きの手順、検証のセクション、トラブルシューティングのセクションがあります
+- **チュートリアル** は、3 ステップ未満で動く結果にたどり着き、「What you built」で締めくくられます
 
-The skill enforces these structures. If a how-to was missing a verification section, the Step 8 Quality Self-Review caught it before commit.
+スキルはこれらの構造を強制します。ハウツーに検証のセクションが欠けていた場合は、ステップ 8 の品質の自己レビューがコミット前にそれを検出します。
 
-## Step 6: Check cross-linking
+## ステップ 6: 相互リンクを確認する
 
-Every doc links to the others. Reference doc Related section: links to how-to and tutorial. How-to Related section: links to reference. Tutorial "What you built" section: links to reference for deeper exploration.
+すべてのドキュメントは、ほかのドキュメントにリンクしています。リファレンスの Related セクションはハウツーとチュートリアルへのリンクを含み、ハウツーの Related セクションはリファレンスへのリンクを含み、チュートリアルの「What you built」セクションは、より深く掘り下げるためにリファレンスへのリンクを含みます。
 
-Run a grep to verify no broken links:
+壊れたリンクがないかを grep で確認します。
 
 ```bash
 grep -rE '\]\([^)]*\.md\)' docs/ | head -10
 ```
 
-Every linked file should exist. The skill's Step 7 "Cross-Document Linking & Discoverability" checks this before commit.
+リンク先のファイルは、すべて存在するはずです。スキルのステップ 7「Cross-Document Linking & Discoverability」が、コミット前にこれを確認しています。
 
-## Step 7: See the coverage summary in the PR body
+## ステップ 7: PR の本文でカバレッジの概要を確認する
 
-If you're on a feature branch with an open PR, the skill updates the PR body with a `## Documentation Generated` table:
+オープンな PR がある機能ブランチにいる場合、スキルは PR の本文に `## Documentation Generated` の表を追加して更新します。
 
 ```
 ## Documentation Generated
@@ -121,22 +121,22 @@ If you're on a feature branch with an open PR, the skill updates the PR body wit
 | docs/howto-create-a-custom-widget.md | How-to | Creating and registering custom widgets |
 ```
 
-A reviewer opening the PR sees the table and knows immediately what kind of coverage shipped.
+PR を開いたレビュアーは、この表を見ることで、どの種類のカバレッジが含まれているかをすぐに把握できます。
 
-## What you built
+## 作ったもの
 
-You now have four documents that serve four different readers:
+4 つのドキュメントができました。それぞれ、異なる 4 種類の読者に向けたものです。
 
-- A newcomer to your project can read `tutorial-*.md` and get something working
-- An experienced user can read `howto-*.md` to accomplish a specific task
-- An API caller can read `reference-*.md` for exact signatures
-- A code reviewer can read `explanation-*.md` to understand the design
+- プロジェクトに初めて触れる人は `tutorial-*.md` を読めば、動くものを手に入れられます
+- 経験のあるユーザーは `howto-*.md` を読めば、特定のタスクを達成できます
+- API の利用者は `reference-*.md` を読めば、正確なシグネチャを確認できます
+- コードレビューをする人は `explanation-*.md` を読めば、設計を理解できます
 
-Each one is short enough to maintain. Each one has a single job. The PR body shows which quadrants were covered. If you run `/document-release` later, the Diataxis coverage map will report this entity as fully covered (4/4 quadrants).
+それぞれは、保守しやすい程度に短くまとまっています。それぞれが 1 つの役割だけを持ちます。PR の本文には、どの象限がカバーされたかが示されます。後で `/document-release` を実行すると、Diátaxis のカバレッジマップは、この対象が 4/4 の象限で完全にカバーされていると報告します。
 
-## What to do next
+## 次にやること
 
-- **If you have gaps** /document-release flagged but didn't fill: run `/document-generate` again, scoped to those entities specifically.
-- **If you want to understand why the four quadrants exist:** read [explanation-diataxis-in-gstack.md](./explanation-diataxis-in-gstack.md).
-- **If you want to document one specific feature before shipping** (not the whole project): read [howto-document-a-shipped-feature.md](./howto-document-a-shipped-feature.md).
-- **Reference for the skill itself:** [`document-generate/SKILL.md`](../document-generate/SKILL.md).
+- `/document-release` が指摘したまま埋めていないギャップがある場合: そのエンティティに限定して `/document-generate` を再度実行してください。
+- 4 つの象限が存在する理由を知りたい場合: [explanation-diataxis-in-gstack.md](./explanation-diataxis-in-gstack.md) を読んでください。
+- プロジェクト全体ではなく、出荷前に特定の機能だけをドキュメント化したい場合: [howto-document-a-shipped-feature.md](./howto-document-a-shipped-feature.md) を読んでください。
+- スキル自体のリファレンス: [`document-generate/SKILL.md`](../document-generate/SKILL.md)

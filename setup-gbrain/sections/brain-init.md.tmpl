@@ -1,9 +1,9 @@
-Path-specific. Run ONLY the sub-section below for the path picked in Step 2
-(or the Switch flow when Step 2 chose engine migration).
+経路ごとに異なります。Step 2 で選んだ経路のサブセクションのみを、以下から実行してください
+(Step 2 でエンジンの移行が選ばれた場合は Switch の手順)。
 
-### Path 1 (Supabase, existing URL)
+### Path 1(Supabase、既存の URL)
 
-Source the secret-read helper, collect URL with `read -s` + redacted preview:
+secret-read ヘルパーを読み込み、`read -s` と伏せ字のプレビューで URL を収集します:
 
 ```bash
 . ~/.claude/skills/gstack/bin/gstack-gbrain-lib.sh
@@ -11,71 +11,60 @@ read_secret_to_env GBRAIN_POOLER_URL "Paste Session Pooler URL: " \
   --echo-redacted 's#://[^@]*@#://***@#'
 ```
 
-Then validate structurally:
+次に、構造を検証します:
 
 ```bash
 printf '%s' "$GBRAIN_POOLER_URL" | ~/.claude/skills/gstack/bin/gstack-gbrain-supabase-verify -
 ```
 
-If the verify exit code is 3 (direct-connection URL), the verifier's own
-message explains the fix; surface it and re-prompt for a Session Pooler URL.
+検証の終了コードが 3(direct-connection の URL)の場合、検証ツール自身のメッセージが修正方法を説明しています。それを提示し、Session Pooler の URL を再度求めてください。
 
-On success, hand off to gbrain via env var (never argv):
+成功した場合は、環境変数経由で gbrain に引き渡します(argv には決して載せません):
 
 ```bash
 GBRAIN_DATABASE_URL="$GBRAIN_POOLER_URL" gbrain init --non-interactive --json
 ```
 
-Then `unset GBRAIN_POOLER_URL GBRAIN_DATABASE_URL` immediately. The URL is
-now persisted in `~/.gbrain/config.json` at mode 0600 by gbrain itself.
+その後すぐに `unset GBRAIN_POOLER_URL GBRAIN_DATABASE_URL` を実行します。URL はこの時点で、gbrain 自身によってモード 0600 で `~/.gbrain/config.json` に保存されています。
 
-### Path 2a (Supabase, auto-provision)
+### Path 2a(Supabase、自動プロビジョニング)
 
-Show this PAT scope disclosure verbatim BEFORE collecting the token:
+トークンを収集する前に、この PAT のスコープの開示をそのまま表示します:
 
-> *This Supabase Personal Access Token grants full read/write/delete access
-> to every project in your Supabase account, not just the `gbrain` one we're
-> about to create. Supabase doesn't currently support scoped tokens. We use
-> this PAT only to: create one project, poll it until healthy, read the
-> Session Pooler URL — then discard it from process memory. The token
-> remains valid on Supabase's side until you manually revoke it at
-> https://supabase.com/dashboard/account/tokens — we recommend revoking
-> immediately after setup completes.*
+> *この Supabase Personal Access Token は、これから作成する `gbrain` プロジェクトだけでなく、
+> Supabase アカウント内のすべてのプロジェクトに対する読み取り・書き込み・削除の
+> 全権限を与えます。Supabase は現在、スコープ付きトークンをサポートしていません。
+> gstack がこの PAT を使うのは、プロジェクトを 1 つ作成し、正常になるまでポーリングし、
+> Session Pooler URL を読み取るためだけです。その後、プロセスのメモリから破棄します。
+> トークンは、https://supabase.com/dashboard/account/tokens で手動で失効させるまで
+> Supabase 側で有効なままです。セットアップの完了後すぐに失効させることをおすすめします。*
 
-Then:
+その後:
 
 ```bash
 . ~/.claude/skills/gstack/bin/gstack-gbrain-lib.sh
 read_secret_to_env SUPABASE_ACCESS_TOKEN "Paste PAT: "
 ```
 
-Ask the tier question via AskUserQuestion: "Which Supabase tier?" Present
-Free (2-project limit, pauses after 7d inactivity) vs Pro ($25/mo, no
-pauses, recommended for real use). Explain that tier is **org-level** (per
-the Management API contract) — user picks their org based on its current
-tier. Pro may require them to upgrade the org first at supabase.com.
+AskUserQuestion で階層を尋ねます: "Which Supabase tier?"(どの Supabase の階層を使いますか?)Free(プロジェクト数の上限2、7日間操作がないと一時停止)と Pro($25/月、一時停止なし、実用には推奨)を提示します。階層は**組織レベル**であることを説明してください(Management API の仕様による)。ユーザーは現在の階層に基づいて組織を選びます。Pro を使うには、先に supabase.com で組織をアップグレードする必要がある場合があります。
 
-List orgs, pick one (AskUserQuestion if multiple):
+組織を一覧表示し、1つ選んでもらいます(複数ある場合は AskUserQuestion):
 
 ```bash
 orgs=$(~/.claude/skills/gstack/bin/gstack-gbrain-supabase-provision list-orgs --json)
 ```
 
-If the `.orgs` array is empty, surface: "Your Supabase account has no
-organizations. Create one at https://supabase.com/dashboard, then re-run
-`/setup-gbrain`." STOP.
+`.orgs` 配列が空の場合は、次のように提示します: "Your Supabase account has no organizations. Create one at https://supabase.com/dashboard, then re-run `/setup-gbrain`."(Supabase アカウントに組織がありません。https://supabase.com/dashboard で組織を作成してから、`/setup-gbrain` を再実行してください。)そして停止します。
 
-Ask the user for a region (default `us-east-1`; valid values are the 18
-enum values in the Supabase Management API — list a few common ones, let
-them pick "Other" for a full list).
+ユーザーにリージョンを尋ねます(既定は `us-east-1`。有効な値は Supabase Management API の18個の enum 値です。よく使われるものをいくつか挙げ、完全な一覧が必要な場合は「Other」を選んでもらってください)。
 
-Generate the DB password (never shown to the user):
+DB のパスワードを生成します(ユーザーには決して表示しません):
 
 ```bash
 export DB_PASS=$(openssl rand -base64 24)
 ```
 
-Set up a SIGINT trap so an interrupted provision can be resumed or deleted:
+中断されたプロビジョニングを再開または削除できるように、SIGINT のトラップを設定します:
 
 ```bash
 trap 'echo ""; echo "gstack-gbrain: interrupted. In-flight ref: $INFLIGHT_REF"; \
@@ -84,7 +73,7 @@ trap 'echo ""; echo "gstack-gbrain: interrupted. In-flight ref: $INFLIGHT_REF"; 
       unset SUPABASE_ACCESS_TOKEN DB_PASS; exit 130' INT TERM
 ```
 
-Create + wait + fetch:
+作成 + 待機 + 取得:
 
 ```bash
 result=$(~/.claude/skills/gstack/bin/gstack-gbrain-supabase-provision \
@@ -100,27 +89,21 @@ unset SUPABASE_ACCESS_TOKEN DB_PASS GBRAIN_DATABASE_URL INFLIGHT_REF
 trap - INT TERM
 ```
 
-After success, emit the PAT revocation reminder:
+成功後、PAT の失効に関するリマインダーを出力します:
 
-> "Setup complete. Revoke the PAT you pasted at
-> https://supabase.com/dashboard/account/tokens — we've already discarded
-> it from memory and don't need it again. The gbrain project will continue
-> working because it uses its own embedded database password."
+> "セットアップ完了。貼り付けた PAT を https://supabase.com/dashboard/account/tokens で失効させてください。メモリからはすでに破棄済みで、再び必要ありません。gbrain プロジェクトは独自の埋め込みデータベースのパスワードを使うため、引き続き動作します。"
 
-### Path 2b (Supabase, manual)
+### Path 2b(Supabase、手動)
 
-Walk the user through the supabase.com steps:
-1. Login at https://supabase.com/dashboard
-2. Click "New Project," name it `gbrain`, pick a region, and copy the
-   generated database password — the pooler URL in step 4 must carry it
-   (replace any `[YOUR-PASSWORD]` placeholder before pasting)
-3. Wait ~2 min for the project to initialize
-4. Settings → Database → Connection Pooler → Session → copy the URL (port
-   6543)
+ユーザーを supabase.com の手順に沿って案内します:
+1. https://supabase.com/dashboard にログインする
+2. "New Project" をクリックし、名前を `gbrain` にして、リージョンを選び、生成されたデータベースのパスワードをコピーする — 手順 4 のプーラー URL にはそれを含める必要があります(貼り付ける前に、`[YOUR-PASSWORD]` のプレースホルダをすべて置き換えてください)
+3. プロジェクトの初期化を約2分待つ
+4. Settings → Database → Connection Pooler → Session → URL(ポート 6543)をコピーする
 
-Then follow the same secret-read + verify + init flow as Path 1.
+その後は、Path 1 と同じ secret-read、検証、初期化の流れに従います。
 
-### Path 3 (PGLite local)
+### Path 3(PGLite ローカル)
 
 ```bash
 # gstack default: voyage-code-3 (1024d) when VOYAGE_API_KEY is set — code
@@ -135,27 +118,21 @@ fi
 gbrain init --pglite --json "$@"
 ```
 
-Done. No network, no secrets (beyond Voyage embedding API calls during sync, if
-`VOYAGE_API_KEY` is set — ~$0.18 per 1M tokens, pennies per repo).
+完了です。ネットワークも、シークレットも不要です(`VOYAGE_API_KEY` が設定されている場合は、同期中に Voyage の埋め込み API の呼び出しが発生します。100万トークンあたり約 $0.18 で、リポジトリごとにわずかな費用です)。
 
-### Path 4 (Remote gbrain MCP — HTTP transport with bearer token)
+### Path 4(リモート gbrain MCP — ベアラートークン付きの HTTP トランスポート)
 
-For users whose brain runs on another machine (Tailscale, ngrok, internal
-LAN, or a teammate's server). No local gbrain CLI install, no local DB.
-This skill registers the remote MCP and stops; ingestion + indexing happens
-on the brain host.
+ブレインが別のマシン(Tailscale、ngrok、社内 LAN、またはチームメイトのサーバー)で動いているユーザー向けです。ローカルの gbrain CLI のインストールも、ローカルの DB も不要です。このスキルはリモート MCP を登録して終了します。取り込みとインデックス作成はブレインのホストで行われます。
 
-**4a. Collect MCP URL.** Prompt the user:
+**4a. MCP の URL を収集する。** ユーザーに次のように求めます:
 
 ```
 Paste your gbrain MCP URL (e.g. https://wintermute.tail554574.ts.net:3131/mcp):
 ```
 
-Read with plain `read -r` (no secret hygiene needed — the URL alone isn't
-a credential). Validate it starts with `https://` (require TLS for any
-non-loopback host); refuse `http://` for non-localhost.
+素の `read -r` で読み込みます(URL だけでは認証情報にならないため、シークレットの扱いは不要です)。`https://` で始まることを検証します(ループバック以外のホストには TLS を必須とします)。localhost 以外への `http://` は拒否してください。
 
-**4b. Collect bearer token via the secret-read helper (never argv).**
+**4b. secret-read ヘルパーでベアラートークンを収集する(argv には決して載せない)。**
 
 ```bash
 . ~/.claude/skills/gstack/bin/gstack-gbrain-lib.sh
@@ -163,8 +140,7 @@ read_secret_to_env GBRAIN_MCP_TOKEN "Paste bearer token: " \
   --echo-redacted 's/.\{6\}$/***REDACTED***/'
 ```
 
-**4c. Verify via gstack-gbrain-mcp-verify.** Run the helper; capture the
-classified JSON output:
+**4c. gstack-gbrain-mcp-verify で検証する。** ヘルパーを実行し、分類された JSON 出力を取得します:
 
 ```bash
 verify_json=$(GBRAIN_MCP_TOKEN="$GBRAIN_MCP_TOKEN" \
@@ -172,41 +148,29 @@ verify_json=$(GBRAIN_MCP_TOKEN="$GBRAIN_MCP_TOKEN" \
 status=$(echo "$verify_json" | jq -r .status)
 ```
 
-If `status != "success"`, the helper has already classified the failure
-into NETWORK / AUTH / MALFORMED and emitted a one-line remediation hint.
-Surface the hint above the raw error from `error_text` and **STOP** with
-a clear "fix and re-run /setup-gbrain" message. Do NOT continue to Step 5a
-on a failed verify — partial registration would leave the user with a
-half-broken state.
+`status != "success"` の場合、ヘルパーはすでに失敗を NETWORK / AUTH / MALFORMED に分類し、1行の修正のヒントを出力しています。そのヒントを `error_text` の生のエラーの上に提示し、「修正して /setup-gbrain を再実行してください」という明確なメッセージとともに **STOP** してください。検証に失敗した場合は、Step 5a に進まないでください。登録が途中まで終わると、ユーザーは中途半端に壊れた状態になります。
 
-Capture two values from the verify output for downstream steps:
-- `SERVER_VERSION` (e.g., `0.27.1`) — written to the CLAUDE.md block in Step 8.
-- `URL_FORM_SUPPORTED` (`true|false`) — passed to `gstack-artifacts-init` in
-  Step 7 to control which form of the brain-admin hookup command is printed.
+後続のステップのために、検証出力から次の2つの値を取得します:
+- `SERVER_VERSION`(例: `0.27.1`) — Step 8 の CLAUDE.md のブロックに書き込まれます。
+- `URL_FORM_SUPPORTED`(`true|false`) — Step 7 で `gstack-artifacts-init` に渡され、ブレインの管理者向けの接続コマンドのどの形式を出力するかを制御します。
 
-**4d. (Path 4) Offer local PGLite for code search.** Ask:
+**4d.(Path 4)コード検索のためのローカル PGLite を提案する。** 次のように尋ねます:
 
-> D# — Want symbol-aware code search on this machine?
-> Project/branch/task: <one-sentence grounding using detected slug + branch>
-> ELI10: The remote brain at `<MCP_URL>` is great for cross-machine knowledge,
-> but symbol queries like `gbrain code-def` / `code-refs` / `code-callers` need
-> a local index of THIS machine's code. We can spin up a tiny isolated PGLite
-> database (~30 seconds, no accounts, ~120 MB disk) just for code, separate
-> from your remote brain. Transcripts and artifacts continue routing through
-> the artifacts repo to the remote brain — local PGLite stays code-only.
-> Stakes: without it, semantic code search in this repo's worktrees falls
-> back to Grep.
-> Recommendation: A — 30 seconds, no ongoing cost, unlocks the symbol tools.
-> Completeness: A=10/10 (full split-engine), B=7/10 (remote-only).
-> A) Yes, set up local PGLite for code (recommended)
->   ✅ Unlocks `gbrain code-def`, `code-refs`, `code-callers` per worktree
->   ✅ Independent engine — won't disturb remote brain or share transcripts
-> B) No, remote MCP only
->   ✅ Zero local state — only `~/.claude.json` MCP registration
->   ❌ Symbol code queries fall back to Grep in this repo's worktrees
-> Net: A = full split-engine; B = remote-only.
+> D# — このマシンで、シンボルを認識したコード検索を使いますか?
+> プロジェクト/ブランチ/タスク: <検出したスラッグとブランチを使った1文の前提>
+> ELI10(専門用語なしの説明): `<MCP_URL>` のリモートブレインはマシンをまたいだ知識に優れていますが、`gbrain code-def` / `code-refs` / `code-callers` のようなシンボルの問い合わせには、このマシンのコードのローカルインデックスが必要です。コード専用に、リモートブレインとは別の、小さく隔離された PGLite データベース(約30秒、アカウント不要、ディスク約 120 MB)を用意できます。トランスクリプトと artifacts は引き続き artifacts リポジトリ経由でリモートブレインに送られます。ローカルの PGLite はコードのみを保持します。
+> 影響: 用意しない場合、このリポジトリの worktree でのセマンティックなコード検索は Grep にフォールバックします。
+> 推奨: A — 30秒、継続的な費用なし、シンボルツールが使えるようになります。
+> 完全性: A=10/10(完全な分割エンジン)、B=7/10(リモートのみ)。
+> A) はい、コード用にローカル PGLite をセットアップする(推奨)
+>   ✅ worktree ごとに `gbrain code-def`、`code-refs`、`code-callers` が使えるようになる
+>   ✅ 独立したエンジン — リモートブレインを乱さず、トランスクリプトも共有しない
+> B) いいえ、リモート MCP のみ
+>   ✅ ローカルの状態はゼロ — `~/.claude.json` の MCP 登録のみ
+>   ❌ シンボルのコード問い合わせは、このリポジトリの worktree では Grep にフォールバックする
+> 結果: A = 完全な分割エンジン、B = リモートのみ。
 
-**If A (Yes)**: install + init local PGLite with rollback-safe semantics:
+**A(はい)の場合**: ロールバック可能な方式で、ローカル PGLite をインストールして初期化します:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-gbrain-install || exit $?
@@ -231,28 +195,16 @@ if ! gbrain init --pglite --json "$@"; then
 fi
 ```
 
-Then continue to Step 5a. The remote-http MCP registration in 5a runs
-unchanged; the local PGLite is independent of MCP registration (Claude Code talks
-to the remote brain via MCP for queries; `gbrain` CLI talks to local PGLite
-for code-def/refs/callers).
+その後、5a に進みます。5a のリモート HTTP MCP の登録はそのまま実行されます。ローカルの PGLite は MCP の登録とは独立しています(Claude Code は問い合わせのために MCP 経由でリモートブレインと通信し、`gbrain` CLI は code-def/refs/callers のためにローカルの PGLite と通信します)。
 
-**If B (No)**: skip the install + init. The local engine stays absent.
-`gbrain_local_status` will be `missing-config` (or `no-cli` if gbrain isn't
-installed). `/sync-gbrain` will SKIP the code stage cleanly.
+**B(いいえ)の場合**: インストールと初期化はスキップします。ローカルエンジンは存在しないままです。`gbrain_local_status` は `missing-config` になります(gbrain がインストールされていない場合は `no-cli`)。`/sync-gbrain` はコードのステージをきれいにスキップします。
 
-**4e. Skip Steps 3, 4 (other paths) and 5 (local doctor) when B was picked.**
-When A was picked, Step 3 already ran (via gstack-gbrain-install) and Step 4
-already ran (via `gbrain init --pglite`); jump straight to Step 5a. When B
-was picked, Steps 3/4/5 are no-ops; also skip Step 7.5 (transcript ingest)
-since memory-stage routes through the artifacts pipeline in remote-http mode.
+**4e. B を選んだ場合、他の経路の Step 3、Step 4 と、ローカル doctor の Step 5 をスキップします。**
+A を選んだ場合、Step 3 はすでに(gstack-gbrain-install 経由で)実行され、Step 4 もすでに(`gbrain init --pglite` 経由で)実行されているため、直接 Step 5a に進みます。B を選んだ場合、Step 3/4/5 は何もしません。また、リモート HTTP モードではメモリのステージが artifacts のパイプラインを経由するため、Step 7.5(トランスクリプトの取り込み)もスキップします。
 
-The bearer token (`GBRAIN_MCP_TOKEN`) stays in process env until Step 5a's
-`claude mcp add --header` consumes it; then `unset GBRAIN_MCP_TOKEN`
-immediately. Token security trade-off documented in
-`setup-gbrain/memory.md`: brief argv exposure during `claude mcp add`,
-resting state in `~/.claude.json` mode 0600.
+ベアラートークン(`GBRAIN_MCP_TOKEN`)は、Step 5a の `claude mcp add --header` が消費するまでプロセスの環境変数に残ります。その後すぐに `unset GBRAIN_MCP_TOKEN` を実行します。トークンのセキュリティ上のトレードオフは `setup-gbrain/memory.md` に記載されています。`claude mcp add` の実行中は argv に一時的に露出し、常駐状態は `~/.claude.json`(モード 0600)です。
 
-### Switch (from detect's existing-engine state)
+### Switch(detect の既存エンジンの状態から)
 
 ```bash
 # Going PGLite → Supabase, collect URL first (Path 1 flow), then:
@@ -261,7 +213,4 @@ timeout 180s gbrain migrate --to supabase --url "$URL" --json
 timeout 180s gbrain migrate --to pglite --json
 ```
 
-If `timeout` returns 124 (exit code for timeout): surface this message
-("Migration didn't complete in 3 minutes — another gstack session may be
-holding a lock on the source brain. Close other workspaces and re-run
-`/setup-gbrain --switch`. Your original brain is untouched."). STOP.
+`timeout` が 124(タイムアウトの終了コード)を返した場合は、次のメッセージを提示します("Migration didn't complete in 3 minutes — another gstack session may be holding a lock on the source brain. Close other workspaces and re-run `/setup-gbrain --switch`. Your original brain is untouched.")(移行が3分以内に完了しませんでした。別の gstack セッションが移行元のブレインのロックを保持している可能性があります。他のワークスペースを閉じてから `/setup-gbrain --switch` を再実行してください。元のブレインは変更されていません。)。そして STOP します。

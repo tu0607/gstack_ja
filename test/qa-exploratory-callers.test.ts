@@ -803,9 +803,9 @@ describe('generated actual parent paths', () => {
       const ctx = { skillName, tmplPath: `${skillName}/SKILL.md.tmpl`, host: 'claude' as const, paths: HOST_PATHS.claude };
       const parent = generateQAReview(ctx);
       const phases = [
-        skillName === 'review' ? '1. Set the charter and isolation' : '1. Load methods before any QA or explicit-verification probe',
-        skillName === 'review' ? '2. Check readiness and list required checks' : '2. List required checks',
-        '3. Run smoke and plan checks', '4. Check freshness before reporting',
+        skillName === 'review' ? '1. charter と隔離を設定します' : '1. QA や明示的な検証のプローブの前に、手法を読み込みます',
+        skillName === 'review' ? '2. 準備状況を確認し、必要なチェックを列挙します' : '2. 必要なチェックを列挙します',
+        '3. スモークとプランのチェックを実行します', '4. 報告の前に鮮度を確認します',
       ];
       const positions = phases.map(phase => parent.indexOf(phase));
       expect(positions.every(position => position >= 0)).toBe(true);
@@ -813,38 +813,38 @@ describe('generated actual parent paths', () => {
       const load = skillName === 'review' ? generateQAReviewPreflight(ctx) : parent.slice(positions[0], positions[1]);
       if (skillName === 'review') {
         const readiness = parent.slice(positions[1], positions[2]).replace(/\s+/g, ' ');
-        expect(readiness).toMatch(/Read QA's `sections\/browser-setup\.md` and follow its report-only rules/i);
-        expect(readiness).toMatch(/never install, import cookies or bootstrap tests/i);
+        expect(readiness).toMatch(/QA の `sections\/browser-setup\.md` を Read し、そのレポート専用のルールに従います/);
+        expect(readiness).toMatch(/インストール、Cookie のインポート、テストのブートストラップは行いません/);
         expect(load).not.toContain('sections/browser-setup.md');
       }
       expect(load).toContain('{{QA_RESOURCE:exploratory}}');
       expect(load).not.toContain('{{QA_RESOURCE:scope}}');
       expect(load).not.toContain('sections/system-functional.md');
       const resource = generateQAResource(ctx, ['exploratory']);
-      expect(resource).toContain(`installed /${skillName} SKILL.md's directory`);
+      expect(resource).toContain(`インストール済みの /${skillName} の SKILL.md があるディレクトリから`);
       expect(resource).toContain('`../qa/sections/exploratory.md`');
       const flat = parent.replace(/\s+/g, ' ');
-      expect(flat).toMatch(/repeat step 3 for affected checks/i);
+      expect(flat).toMatch(/影響を受けるチェックについてステップ 3 を繰り返します/);
     }
   });
 
   test('authored shared loop preserves complete safe observations and re-enters checkpoints after input changes', () => {
     const text = generateQAExploratory({ skillName: 'qa', tmplPath: 'qa/SKILL.md.tmpl', host: 'claude', paths: HOST_PATHS.claude }).replace(/\s+/g, ' ');
-    expect(text).toMatch(/observationCommand: last completed probe's full outer command/i);
-    expect(text).toMatch(/observed: its exact decoded child JSON/i);
-    expect(text).toMatch(/identity hash unchanged/i);
+    expect(text).toMatch(/observationCommand: 最後に完了したプローブの、ガードを含む完全な外側のコマンド/);
+    expect(text).toMatch(/observed: そのデコード済みの子 JSON そのまま/);
+    expect(text).toMatch(/ID のハッシュはすべてそのまま保持/);
     expect(text).not.toContain('nest unchanged child JSON');
   });
   test('the shared smoke has explicit limits without waiving required plan checks', () => {
     const raw = fs.readFileSync(path.join(import.meta.dir, '../qa/sections/exploratory.md'), 'utf8');
     const body = raw.replace(/\s+/g, ' ');
-    expect(body).toMatch(/stop after 5 minutes or 12 probes/i);
+    expect(body).toMatch(/5 分または 12 プローブのいずれか早い方で停止します/);
     const n = qaProbeNames(raw);
-    expect(body).toContain(`${n.guard} enforces the deadline`);
-    expect(body).toMatch(new RegExp(`never reset ${n.deadline}\\W+bypass ${n.guard}`, 'i'));
-    expect(body).toMatch(/plan checks and revalidation remain required beyond this smoke budget/i);
-    expect(body).toContain('leaves /review incomplete');
-    expect(body).toMatch(/\/ship blocked unless the user explicitly accepts that named risk/i);
+    expect(body).toContain(`${n.guard} が期限を強制します`);
+    expect(body).toMatch(new RegExp(`${n.deadline} をリセットしたり、${n.guard} を迂回したりしてはいけません`));
+    expect(body).toMatch(/明示的なプランのチェックと再検証は、このスモーク予算を超えても引き続き必要です/);
+    expect(body).toContain('必須の失敗があると /review は未完了のままで');
+    expect(body).toMatch(/\/ship は、ユーザーが名指しされたそのリスクを明示的に受け入れない限りブロックされます/);
   });
 
   test('excerpt extraction fails loudly instead of producing an empty passing fixture', () => {
@@ -887,10 +887,10 @@ describe('generated actual parent paths', () => {
       const excerpt = qaCallerInstructions(caller);
       if (caller === 'review') {
         expect(excerpt).toContain('### Step 4.7: Exploratory QA (before Fix-First)');
-        expect(excerpt).toContain('**Test stub override:**');
-        expect(excerpt.indexOf('### Step 4.7: Exploratory QA')).toBeLessThan(excerpt.indexOf('## Step 5: Fix-First Review'));
+        expect(excerpt).toContain('**テストスタブによる上書き:**');
+        expect(excerpt.indexOf('### Step 4.7: Exploratory QA')).toBeLessThan(excerpt.indexOf('## Step 5: Fix-First レビュー'));
         expect(excerpt.indexOf('/review/sections/adversarial.md')).toBeGreaterThan(excerpt.indexOf('### Step 4.7: Exploratory QA'));
-        expect(excerpt.indexOf('/review/sections/adversarial.md')).toBeLessThan(excerpt.indexOf('## Step 5: Fix-First Review'));
+        expect(excerpt.indexOf('/review/sections/adversarial.md')).toBeLessThan(excerpt.indexOf('## Step 5: Fix-First レビュー'));
       } else {
         expect(excerpt).toContain('/ship/sections/plan-completion.md');
         expect(excerpt).toContain('/ship/sections/review-army.md');

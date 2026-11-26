@@ -1,253 +1,157 @@
-# gstack — AI Engineering Workflow
+# gstack — AI エンジニアリングワークフロー
 
-gstack is a collection of SKILL.md files that give AI agents structured roles for
-software development. Each skill is a specialist: CEO reviewer, eng manager,
-designer, QA lead, release engineer, debugger, and more.
+gstack は、AI エージェントにソフトウェア開発のための構造化された役割を与える SKILL.md ファイルの集まりです。各スキルは専門家の役割を担います。CEO レビュアー、エンジニアリングマネージャー、デザイナー、QA リード、リリースエンジニア、デバッガーなど、さまざまな役割があります。
 
-## Available skills
+## 利用可能なスキル
 
-Skills live in `.agents/skills/` (or `~/.claude/skills/gstack/` on Claude Code).
-Invoke them by name (e.g., `/office-hours`).
+スキルは `.agents/skills/`(Claude Code では `~/.claude/skills/gstack/`)に置かれています。名前で呼び出します(例: `/office-hours`)。
 
-### Plan-mode reviews
+### プランモードのレビュー
 
-| Skill | What it does |
+| スキル | 内容 |
 |-------|-------------|
-| `/office-hours` | Start here. Reframes your product idea before you write code. |
-| `/plan-ceo-review` | CEO-level review: find the 10-star product in the request. |
-| `/plan-eng-review` | Lock architecture, data flow, edge cases, and tests. |
-| `/plan-design-review` | Rate each design dimension 0-10, explain what a 10 looks like. |
-| `/plan-devex-review` | DX-mode review: TTHW, magical moments, friction points, persona traces. |
-| `/plan-tune` | Self-tune AskUserQuestion sensitivity per question. |
-| `/autoplan` | One command runs CEO → design → DX → eng review (eng always last). |
-| `/design-consultation` | Build a complete design system from scratch. |
-| `/spec` | Turn vague intent into a precise, executable spec in five phases. Files a GitHub issue, optionally spawns a Claude Code agent in a fresh worktree, and lets `/ship` close the source issue on merge. |
+| `/office-hours` | まずはここから。コードを書く前に、プロダクトのアイデアを捉え直します。 |
+| `/plan-ceo-review` | CEO 視点のレビュー: 依頼の中から「10 つ星」のプロダクトを見つけ出します。 |
+| `/plan-eng-review` | アーキテクチャ、データフロー、エッジケース、テストを確定させます。 |
+| `/plan-design-review` | デザインの各観点を 0〜10 で評価し、10 点とはどういう状態かを説明します。 |
+| `/plan-devex-review` | DX 視点のレビュー: TTHW、心を動かす瞬間、摩擦の箇所、ペルソナごとの追跡。 |
+| `/plan-tune` | 質問ごとに AskUserQuestion の感度を自動調整します。 |
+| `/autoplan` | 1 つのコマンドで CEO → デザイン → DX → エンジニアリングのレビューを順に実行します(エンジニアリングは常に最後)。 |
+| `/design-consultation` | ゼロからデザインシステム一式を構築します。 |
+| `/spec` | 曖昧な意図を、5 つのフェーズを経て正確で実行可能な仕様にします。GitHub issue を作成し、必要に応じて新しいワークツリーで Claude Code のエージェントを起動します。`/ship` はマージ時に元の issue を閉じられます。 |
 
-### Implementation + review
+### 実装とレビュー
 
-| Skill | What it does |
+| スキル | 内容 |
 |-------|-------------|
-| `/review` | Pre-landing PR review. Finds bugs that pass CI but break in prod; lists every gate edit for gate integrity. |
-| `/deslop-shared-libs` | Find worthwhile shared-code extractions in recent work. Recommendations only. |
-| `/test-audit` | Sweep existing tests for low-value, implementation-coupled or duplicate tests. Report-only unless you approve a batch. |
-| `/codex` | Second opinion via OpenAI Codex. Review, challenge, or consult modes. Available outside the Codex harness. |
-| `/claude-code` | Second opinion via Claude Code. Review, challenge, or consult modes. Available outside the Claude Code harness. |
-| `/investigate` | Systematic root-cause debugging. No fixes without investigation. |
-| `/design-review` | Live-site visual audit + fix loop with atomic commits. |
-| `/design-shotgun` | Generate multiple AI design variants, comparison board, iterate. |
-| `/design-html` | Generate production-quality Pretext-native HTML/CSS. |
-| `/devex-review` | Live developer experience audit (TTHW measured against the real flow). |
-| `/qa` | Test browser, API, CLI, job, worker and webhook behavior; reproduce bugs, fix them and re-verify. |
-| `/qa-only` | The same surface-aware QA, reporting findings and proposed tests without changing product code or tests. |
-| `/scrape` | Pull data from a web page in your Aside browser, with your real logged-in state. Read-only. On the fallback browser a codified browser-skill answers a repeat intent in ~200ms. |
-| `/skillify` | Codify the most recent successful `/scrape` flow into a permanent browser-skill (fallback browser only). |
+| `/review` | マージ前の PR レビュー。CI を通過しても本番で壊れるバグを見つけます。ゲートの整合性のため、行ったゲートの編集をすべて一覧にします。 |
+| `/deslop-shared-libs` | 最近の作業の中から、共有コードとして切り出す価値のある箇所を見つけます。提案のみで、変更は行いません。 |
+| `/test-audit` | 既存のテストを精査し、価値の低いテスト、実装に強く結びついたテスト、重複したテストを見つけます。承認したバッチ以外は報告のみです。 |
+| `/codex` | OpenAI Codex によるセカンドオピニオン。レビュー、チャレンジ、相談の各モードがあります。Codex のハーネス以外でも利用できます。 |
+| `/claude-code` | Claude Code によるセカンドオピニオン。レビュー、チャレンジ、相談の各モードがあります。Claude Code のハーネス以外でも利用できます。 |
+| `/investigate` | 体系的な根本原因の調査。調査なしには修正しません。 |
+| `/design-review` | 公開中のサイトの見た目を監査し、アトミックなコミットで修正するループを回します。 |
+| `/design-shotgun` | 複数の AI デザインのバリエーションを生成し、比較ボードを作って反復します。 |
+| `/design-html` | Pretext ネイティブの、本番品質の HTML/CSS を生成します。 |
+| `/devex-review` | 実際のフローに基づき、開発者体験を実機で監査します(TTHW を実測します)。 |
+| `/qa` | ブラウザ、API、CLI、ジョブ、ワーカー、Webhook の振る舞いをテストします。バグを再現して修正し、再検証します。 |
+| `/qa-only` | `/qa` と同じ観点の QA です。プロダクトのコードやテストは変更せず、検出事項と提案するテストを報告します。 |
+| `/scrape` | Aside ブラウザ内で、ログイン済みの状態のまま Web ページからデータを取得します。読み取り専用です。フォールバックのブラウザでは、codify 済みのブラウザスキルにより、同じ依頼に約 200ms で応答します。 |
+| `/skillify` | 直近に成功した `/scrape` の流れを、恒久的なブラウザスキルとして codify します(フォールバックのブラウザのみ)。 |
 
-### Release + deploy
+### リリースとデプロイ
 
-| Skill | What it does |
+| スキル | 内容 |
 |-------|-------------|
-| `/ship` | Run tests, review, gate integrity, push, open PR. Workspace-aware version queue. |
-| `/land-and-deploy` | Merge the PR, wait for CI and deploy, verify production health. |
-| `/canary` | Post-deploy monitoring loop in your Aside browser (or gstack's own when Aside is absent). |
-| `/landing-report` | Read-only dashboard for the workspace-aware ship queue. |
-| `/document-release` | Audit relevant docs before final verification on every ship; also supports standalone documentation updates. |
-| `/document-generate` | Generate Diataxis docs (tutorial / how-to / reference / explanation) from code. |
-| `/setup-deploy` | One-time deploy config detection (Fly.io, Render, Vercel, etc.). |
-| `/gstack-upgrade` | Update gstack to the latest version. |
+| `/ship` | テストを実行し、レビューとゲートの整合性を確認し、push して PR を開きます。ワークスペースを意識したバージョンのキューを使います。 |
+| `/land-and-deploy` | PR をマージし、CI とデプロイの完了を待ち、本番環境の健全性を確認します。 |
+| `/canary` | Aside ブラウザ(Aside がない場合は gstack 独自のブラウザ)で行うデプロイ後の監視ループです。 |
+| `/landing-report` | ワークスペースを意識した出荷キューを表示する、読み取り専用のダッシュボードです。 |
+| `/document-release` | リリースのたびに、最終検証の前に関連ドキュメントを監査します。単独でのドキュメント更新にも対応します。 |
+| `/document-generate` | コードから Diátaxis 形式のドキュメント(チュートリアル / ハウツー / リファレンス / 解説)を生成します。 |
+| `/setup-deploy` | デプロイ設定を一度だけ検出します(Fly.io、Render、Vercel など)。 |
+| `/gstack-upgrade` | gstack を最新版に更新します。 |
 
-### Operational + memory
+### 運用とメモリ
 
-| Skill | What it does |
+| スキル | 内容 |
 |-------|-------------|
-| `/context-save` | Save working context (git state, decisions, remaining work). |
-| `/context-restore` | Resume from a saved context, even across Conductor workspaces. |
-| `/learn` | Manage what gstack learned across sessions. |
-| `/retro` | Weekly retro with per-person breakdowns and shipping streaks. |
-| `/health` | Code quality dashboard (type checker, linter, tests, dead code). |
-| `/benchmark` | Performance regression detection (page load, Core Web Vitals). |
-| `/benchmark-models` | Cross-model benchmark for skills (Claude, GPT, Gemini side-by-side). |
-| `/eval-plan` | Preregister a paid eval (bars, arms, decoys, stop rules), dry-run it for $0, pilot three priced items, then approve the spend. |
-| `/cso` | Supported security findings with explicit coverage. Static assessment remains available without catalog profiles. Contained runtime and scanner execution needs Docker and a matching qualified profile. The runtime catalog qualifies ten images: Node 24.4.0, Bun 1.3.10, Python 3.13.4 with uv 0.8.0, Rails on Ruby 3.4.4, and PostgreSQL 17.2, each for linux/amd64 and linux/arm64. The scanner catalog qualifies twelve: gitleaks, OSV-Scanner, Schemathesis, Semgrep, Trivy and zizmor on both platforms. Without Docker, or where no profile matches (native Windows Docker, for example), `/cso` runs static assessment only. Runtime-tested bundles authenticate separate external assertions. Project-test completion remains `self_reported` because target code controls the test process; `tested` is reserved for a future target-independent completion witness. |
-| `/setup-gbrain` | Set up gbrain for cross-machine session memory sync. |
-| `/sync-gbrain` | Keep gbrain current with this repo's code; refresh agent search guidance in CLAUDE.md. |
+| `/context-save` | 作業のコンテキスト(Git の状態、決定事項、残作業)を保存します。 |
+| `/context-restore` | 保存したコンテキストから再開します。Conductor のワークスペースをまたいでも使えます。 |
+| `/learn` | gstack がセッションをまたいで学習した内容を管理します。 |
+| `/retro` | 週次の振り返りです。担当者ごとの内訳と出荷の連続記録を示します。 |
+| `/health` | コード品質のダッシュボードです(型チェッカー、リンター、テスト、デッドコード)。 |
+| `/benchmark` | パフォーマンスの回帰を検出します(ページ読み込み、Core Web Vitals)。 |
+| `/benchmark-models` | スキルのモデル間ベンチマークです(Claude、GPT、Gemini を並べて比較)。 |
+| `/eval-plan` | 有料の評価を事前登録します(合格基準、比較群、デコイ、停止条件)。$0 でドライランを行い、3 件の有料項目をパイロットで試してから、支出を承認します。 |
+| `/cso` | 裏付けのあるセキュリティ所見を、明示的な網羅範囲とともに報告します。カタログのプロファイルがなくても静的評価は利用できます。隔離されたランタイムとスキャナーの実行には、Docker と対応する認定済みプロファイルが必要です。ランタイムのカタログは 10 のイメージを認定しています: Node 24.4.0、Bun 1.3.10、uv 0.8.0 付きの Python 3.13.4、Ruby 3.4.4 上の Rails、PostgreSQL 17.2。いずれも linux/amd64 と linux/arm64 向けです。スキャナーのカタログは 12 を認定しています: gitleaks、OSV-Scanner、Schemathesis、Semgrep、Trivy、zizmor で、両プラットフォームに対応します。Docker がない場合、または対応するプロファイルがない場合(たとえばネイティブ Windows の Docker など)、`/cso` は静的評価のみを行います。ランタイムテストを行ったバンドルは、別途外部のアサーションを認証します。プロジェクトのテストの完了は引き続き `self_reported` です。テスト対象のコードがテストプロセスを制御しているためです。`tested` は、将来ターゲットに依存しない完了の証拠のために予約されています。 |
+| `/setup-gbrain` | セッションメモリをマシン間で同期するための gbrain をセットアップします。 |
+| `/sync-gbrain` | gbrain をこのリポジトリのコードと最新の状態に保ち、CLAUDE.md のエージェント向け検索ガイダンスを更新します。 |
 
-### Browser + agent integration
+### ブラウザとエージェント連携
 
-Every browser skill drives the Aside AI browser first (macOS 15+, aside.com) —
-the user's real browser with their real sessions, through `aside repl` scripts;
-gstack never installs it. When Aside is not installed or not running (Linux,
-Windows, a closed Aside app) the same skills fall back automatically to gstack's
-own headless Chromium (`$B`), which is where the three skills under `/browse` apply.
+すべてのブラウザ系スキルは、まず Aside AI ブラウザ(macOS 15 以降、aside.com)を操作します。これはユーザー自身の実際のブラウザで、ログイン状態もそのまま使えます。操作は `aside repl` のスクリプトを通じて行われ、gstack が Aside をインストールすることはありません。Aside がインストールされていない、または起動していない場合(Linux、Windows、Aside が閉じている場合)、同じスキルは自動的に gstack 独自のヘッドレス Chromium(`$B`)にフォールバックします。このフォールバック側が、`/browse` 配下の 3 つのスキルの適用先です。
 
-| Skill | What it does |
+| スキル | 内容 |
 |-------|-------------|
-| `/browse` | Drive a browser: open a page, read it, click through a flow, screenshots, console errors. Aside first; gstack's own Chromium (~100ms/command) as the fallback. Every other browser skill stands on it. |
-| `/open-gstack-browser` | Launch the visible GStack Browser with sidebar + stealth — the headed face of the fallback engine. |
-| `/setup-browser-cookies` | Import cookies from your real browser into the fallback engine for authenticated testing. Unnecessary on Aside. |
-| `/pair-agent` | Pair a remote AI agent (OpenClaw, Codex, etc.) with gstack's own browser over a scoped tunnel. |
+| `/browse` | ブラウザを操作します。ページを開き、読み取り、一連の操作をクリックで進め、スクリーンショットを撮り、コンソールのエラーを確認します。Aside を優先し、Aside がなければ gstack 独自の Chromium(1 コマンドあたり約 100ms)を使います。他のブラウザ系スキルはすべてこれを土台にしています。 |
+| `/open-gstack-browser` | サイドバーとステルス機能付きで、目に見える GStack Browser を起動します。フォールバックエンジンの表示版です。 |
+| `/setup-browser-cookies` | 実際のブラウザから Cookie を取り込み、認証が必要なテストのためにフォールバックエンジンで使えるようにします。Aside では不要です。 |
+| `/pair-agent` | スコープ付きのトンネル経由で、リモートの AI エージェント(OpenClaw、Codex など)を gstack 独自のブラウザにペアリングします。 |
 
-### iOS QA — drive real iPhones over USB or Tailscale (v1.43.0.0+)
+### iOS QA — USB または Tailscale 経由で実機の iPhone を操作(v1.43.0.0 以降)
 
-| Skill | What it does |
+| スキル | 内容 |
 |-------|-------------|
-| `/ios-qa` | Live-device iOS QA via USB CoreDevice tunnel + embedded StateServer. Optionally exposes the device over Tailscale so remote agents can drive it. |
-| `/ios-fix` | Autonomous iOS bug fixer with regression snapshot capture. |
-| `/ios-design-review` | Designer's-eye QA on a real iPhone — 10-dimension Apple HIG rubric. |
-| `/ios-clean` | Convenience: strip DebugBridge + #if DEBUG wiring before a Release build. |
-| `/ios-sync` | Regenerate the iOS debug bridge against the latest upstream templates. |
+| `/ios-qa` | USB CoreDevice トンネルと埋め込みの StateServer を使い、実機で iOS の QA を行います。任意で Tailscale 経由でデバイスを公開し、リモートのエージェントが操作できるようにします。 |
+| `/ios-fix` | 回帰スナップショットを取得しながら、iOS のバグを自律的に修正します。 |
+| `/ios-design-review` | 実機の iPhone で、デザイナーの視点による QA を行います。Apple HIG の 10 観点のルーブリックを使います。 |
+| `/ios-clean` | 補助的なコマンドです。Release ビルドの前に、DebugBridge と `#if DEBUG` の組み込みを取り除きます。 |
+| `/ios-sync` | 最新のアップストリームのテンプレートに合わせて、iOS のデバッグブリッジを再生成します。 |
 
-Companion CLIs (run on the Mac that's plugged into the device):
+付属の CLI(iOS デバイスを接続した Mac 上で実行します):
 
-| Command | What it does |
+| コマンド | 内容 |
 |---------|-------------|
-| `gstack-ios-qa-daemon` | Mac-side broker. Loopback by default; `--tailnet` adds a Tailscale-facing listener with capability tiers and audit logging. |
-| `gstack-ios-qa-mint` | Owner-grant CLI for the tailnet allowlist (`grant`/`revoke`/`list`). |
-| `gstack-ios-qa-regen` | Regenerate the canonical local DebugBridge package and typed accessors (`--app-source` / `--bridge-dir`). |
+| `gstack-ios-qa-daemon` | Mac 側のブローカーです。既定ではループバックのみで待ち受けます。`--tailnet` を付けると、能力ティアと監査ログ付きで Tailscale 向けのリスナーも追加されます。 |
+| `gstack-ios-qa-mint` | Tailnet の許可リストを管理するオーナー用の権限付与 CLI です(`grant`、`revoke`、`list`)。 |
+| `gstack-ios-qa-regen` | 正規のローカル DebugBridge パッケージと型付きアクセサーを再生成します(`--app-source` / `--bridge-dir`)。 |
 
-End-to-end walkthrough: [docs/howto-ios-testing-with-gstack.md](docs/howto-ios-testing-with-gstack.md).
+エンドツーエンドの手順: [docs/howto-ios-testing-with-gstack.md](docs/howto-ios-testing-with-gstack.md)
 
-### Safety + scoping
+### 安全性と範囲の制限
 
-| Skill | What it does |
+| スキル | 内容 |
 |-------|-------------|
-| `/careful` | Warn before destructive commands (rm -rf, DROP TABLE, force-push). |
-| `/freeze` | Lock edits to one directory. Hard block, not just a warning. |
-| `/guard` | Activate both careful + freeze at once. |
-| `/unfreeze` | Remove directory edit restrictions. |
-| `/make-pdf` | Turn any markdown file into a publication-quality PDF. Renders through Aside, or gstack's own browser when Aside is absent. |
-| `/diagram` | English in, diagram out: mermaid source + editable .excalidraw + SVG/PNG, offline. Renders through Aside, or gstack's own browser when Aside is absent. |
+| `/careful` | 破壊的なコマンド(rm -rf、DROP TABLE、強制 push など)の前に警告します。 |
+| `/freeze` | 編集を 1 つのディレクトリに制限します。警告ではなく、確実にブロックします。 |
+| `/guard` | `/careful` と `/freeze` を同時に有効にします。 |
+| `/unfreeze` | ディレクトリの編集制限を解除します。 |
+| `/make-pdf` | 任意の Markdown ファイルを、印刷品質の PDF に変換します。Aside がある場合は Aside で描画し、ない場合は gstack 独自のブラウザで描画します。 |
+| `/diagram` | 英語を入力すると図が出力されます。Mermaid のソース、編集可能な .excalidraw、SVG/PNG を、オフラインで生成します。Aside で描画し、Aside がない場合は gstack 独自のブラウザで描画します。 |
 
-## Validation discipline
+<a id="validation-discipline"></a>
+## 検証の進め方
 
-When fixing failures or preparing `/ship`, follow this order:
+失敗を修正する場合や `/ship` を準備する場合は、次の順序で進めてください。
 
-1. List the known failing cases, their logs and source revision, the demonstrated
-   cause, and the smallest check that can prove each repair. Keep one current
-   list in `.context/`; update it instead of starting overlapping repair plans.
-   Reconcile the runner's failure total with named failures and unhandled or
-   module-load errors; the named-test footer alone is not the complete inventory.
-2. Resolve base-branch integration and assign one owner per shared file before
-   editing. Keep repairs within the observed failures and the user's scope.
-   Before a fixture writes through a link, resolve its target and verify it stays
-   inside that fixture's temporary root; live skill registrations can point back
-   into this checkout.
-   When upstream replaces a helper API, inventory every direct caller, mock
-   adapter, source snapshot, generated golden, and selection edge before choosing
-   focused checks. Verify extracted test adapters supply the current imports and
-   result schema; an adapter failure is not evidence that production failed.
-   Schedule independent checks independently. Gate a check only on inputs or
-   prerequisites it actually needs; an unrelated failure must not serialize the
-   whole validation plan. Keep source fixed while tests live-link its files.
-3. Diagnose before changing code. Distinguish a product defect, an invalid test
-   expectation, a detector/fixture defect, and a launch/environment failure.
-   Preserve the original failure. Do not call it pre-existing without evidence.
-   Verify pinned runtime tool schemas and defaults before treating omitted fields
-   as model noncompliance.
-   Check that a bounded evaluation’s fixture scope and automated answers support
-   its metric. Do not let the driver approve unrelated expansion, then blame the
-   skill for the extra work; preserve required findings and evidence limits.
-4. Reproduce with the smallest relevant test. For agent tests, reuse captured
-   public events in free regressions, including negative controls, before paying
-   for another agent run. Check behavior and acknowledgments; match exact prose
-   only when that prose is the contract. Do not lower thresholds, increase model
-   budgets, skip cases, or rejudge a failure to manufacture a pass. A
-   pre-registered fixed panel is not rejudging.
-   For policy or validation repairs, exercise the actual registered callback with
-   representative native input and assert that it uses the helper’s result.
-   When renderer or parser failures recur at the same boundary, verify the
-   supported input class against the pinned runtime. Keep adversarial controls;
-   do not add one spelling or glyph per paid failure.
-   For workflow clarity failures, read the complete evaluated excerpt and its
-   referenced source. Resolve all demonstrated ambiguities together: order,
-   definitions, ownership and approval. Consolidate dense instructions into
-   executable steps instead of appending more clauses. Review the resulting
-   workflow as a whole; prose snapshots alone do not prove it is clear.
-   For each gate, identify when its inputs exist and trace normal,
-   skipped/unavailable and late-change paths to catch circular prerequisites or
-   bypassed checks.
-5. Run required cheap CI checks, including credential scanning, before paid work.
-   Also run adjacent cheap checks: generated-content freshness, prompt-size/parity
-   limits, source assertions, fixture checks, and dependency selection as
-   applicable. A changed prompt must clear these before its eval.
-   For skill edits, include `bun test test/parity-suite.test.ts`: its historical
-   union-size cap is separate from the other prompt-size and context budgets.
-   When workflow wording changes, search the entire test tree for removed
-   clauses, including always-loaded prompt guards. Test fixtures containing
-   subprocess examples must pass `test/spawnsync-timeout-tripwire.test.ts`;
-   its scanner also checks quoted code.
-   Run its selected quality judge before long behavioral evaluations that read
-   the same changed prompt. If a repair supersedes an active run's inputs, cancel
-   that run, preserve completed outcomes, and label unfinished cases as cancelled.
-   Check each edit or setup command’s result before running dependent checks. A
-   failed edit is not a reason to test the unchanged input again.
-6. Declare a fixture actor’s supported interactions before the model starts.
-   Keep its answers and permission handling within that declared interface.
-   Bind artifact ownership to the same isolated state passed to the child;
-   ambient environment paths do not establish ownership. Check whole-file and
-   CI supervision against every case and configured retry, not just one attempt.
-   Preflight the actual launcher: required binaries, isolated state, display when
-   needed, explicit test tier, selection, and expected executed-case counts.
-   Match the runtime versions pinned by the workflow and its container image.
-   Keep socket-bearing temporary paths short after the runner adds its nested
-   directories; exercise that exact layout in the smoke check. Store long-lived
-   logs separately from socket directories.
-   Verify required tool execution with a no-cost smoke check under that launch
-   environment; versions and authentication alone do not prove it works. Set
-   private artifact modes explicitly and preserve normal fixture permissions.
-   Prove a diagnostic snapshot survives fixture cleanup in the final artifact
-   directory before paid work; native snapshots require EVALS_RUN_ID or GSTACK_EVAL_DIR.
-   Bind complete spool filenames and classify Bun's out-of-tier describe.skip
-   placeholders separately, with zero selected-case credit.
-   Put standalone Git fixtures outside another checkout; verify their resolved
-   project slug and state root before interpreting a failure.
-   Prove a seed commit succeeds there: repository-local author configuration
-   does not establish the identity available to a fresh fixture repository.
-   Reject missing explicit test files before invoking Bun; it can silently ignore
-   a nonexistent file selector and pass the remaining files.
-   Preserve exit status through logging. Use the documented detached runner and
-   eval lock. Review the final launcher after edits; preparation and `--list`
-   modes must not start monitors, retainers, or test processes. Verify this with
-   a before/after process check. During long runs, inspect the last public tool
-   result and pending permission state; diagnose a blocked actor before waiting
-   through its deadline. Preserve cancellation separately from a test verdict.
-   Skipped or unstarted cases
-   do not satisfy coverage; preserve every attempt. Paid evals never retry, with
-   one exception: the gate reruns a red rule, behavior or judge case verdict once
-   at the same head (Garry, 2026-10-19: "you can just run the failed test again
-   and note that it is flaky"); a pass is green with a flaky annotation and a
-   flake record, a second failure is a real red, and harness, INFRA, INCOMPLETE
-   or unattributed reds never rerun (`docs/TESTING_INTERNALS.md#flaky-reruns`). Each
-   case's kind (`E2E_KINDS`) fixes its trials before the run: `rule` one trial;
-   `behavior` a panel of 3 independent trials, PASS at >= 2 with no contract
-   violation; `judge` 3 samples on one output, each dimension gated on its
-   median (at least 2 of 3 samples) against the unchanged threshold. Never add trials, samples or dispatches after seeing a
-   result, never change a kind to change a verdict without pass-rate evidence,
-   and report every trial. Quarantine follows `CASE_QUARANTINE`'s entry and exit
-   rules only (`EVAL_POLICY`, `docs/TESTING_INTERNALS.md`). A census whose every
-   red is machine-classified INFRA or INCOMPLETE may be re-dispatched once as a
-   new run; report both runs.
-7. Prove all known repairs with focused tests, including affected paid cases.
-   Rerun a failed case only after a concrete repair or a demonstrated launch
-   correction. Run the remaining required selected evaluations on the integrated
-   code. Do not use the full free suite to discover predictable adjacent failures.
-   Reuse a passing check when its consumed inputs and relevant environment are
-   unchanged. For model judges, compare the expanded prompt, rubric, parameters
-   and dependencies; a different commit alone does not invalidate the result.
-   Do not resample an unchanged passing judge to simplify launcher configuration.
-   Preserve its original source and label the result as reused evidence.
-   Use actual prompt builders and compare complete bytes when proving model-input
-   identity; preserve literal text in excerpts and record the consumed inputs.
-8. Finish review fixes, generation, release metadata, and build before final
-   acceptance. Freeze the code, then run `bun run test` once at the end. During
-   repair, focused checks replace a full-suite run before every commit. If final
-   acceptance unexpectedly fails, retain the failure, diagnose it narrowly, and
-   report the changed validation plan before another full run; never retry it
-   blindly or claim a pass from an older revision.
-9. Publish only with passing required checks, unless the user explicitly grants
-   an exception for identified failures. Report revision, actual pass/fail/skip
-   counts, and incomplete coverage. A passing subset is not release acceptance.
+1. 既知の失敗ケース、そのログとソースのリビジョン、判明している原因、そしてそれぞれの修正を証明できる最小のチェックを一覧にします。現在の一覧は `.context/` に保管し、重複する修正計画を新たに作るのではなく、この一覧を更新してください。ランナーの失敗件数と、名前の付いた失敗、未処理のエラー、モジュール読み込み時のエラーを照合します。テストの最後に出る名前付きテストの集計だけでは、完全な一覧にはなりません。
+2. ベースブランチとの統合を解決し、編集の前に共有ファイルごとに担当を 1 人決めます。修正は、観測された失敗とユーザーの作業範囲の内側に収めてください。フィクスチャーがリンク越しに書き込む前に、リンク先を解決し、そのフィクスチャーの一時ルートの内側にあることを確認します。ライブのスキル登録が、このチェックアウトを指している場合があるためです。
+   上流がヘルパーの API を置き換えた場合は、直接の呼び出し元、モックのアダプター、ソースのスナップショット、生成されたゴールデン、選択の境界をすべて洗い出してから、集中的なチェックを選んでください。抽出したテストアダプターが現在のインポートと結果のスキーマを提供しているかを確認します。アダプターの失敗は、本番コードの失敗の証拠ではありません。
+   独立したチェックは、それぞれ独立して実行します。チェックは、実際に必要な入力や前提条件があるときだけ待たせてください。無関係な失敗によって検証計画全体が直列になってはいけません。テストがリポジトリのファイルをライブでリンクしている間は、ソースを固定しておきます。
+3. コードを変更する前に原因を診断します。プロダクトの欠陥、無効なテストの期待値、検出器やフィクスチャーの欠陥、そして起動や環境の失敗を区別してください。元の失敗は保存しておきます。証拠がなければ「既存の問題」と呼ばないでください。省略されたフィールドをモデルの不遵守と判断する前に、固定されたランタイムのツールのスキーマとデフォルト値を確認してください。
+   有界な評価については、フィクスチャーの範囲と自動の回答が、その指標を裏付けているかを確認します。ドライバーに無関係な拡張を承認させ、その余計な作業をスキルのせいにしないでください。必要な発見と証拠の限界は保持します。
+4. 最小の関連テストで再現します。エージェントのテストでは、有料の実行をもう一度行う前に、無料の回帰テストで取得済みの公開イベントを再利用します。ネガティブコントロールも含めてです。振る舞いと承認応答を確認します。文言そのものが契約である場合にだけ、正確な文章を照合してください。しきい値を下げたり、モデルの予算を増やしたり、ケースをスキップしたり、失敗を再判定して合格を作り出したりしてはいけません。事前に登録された固定のパネルで再評価することは、再判定にはあたりません。
+   ポリシーや検証の修正では、登録された実際のコールバックを、代表的なネイティブの入力で実行し、そのヘルパーの結果を使っていることをアサートします。
+   同じ境界でレンダラーやパーサーの失敗が繰り返し起きる場合は、対応している入力の種類を、固定されたランタイムに照らして確認します。敵対的なコントロールは残しておき、有料の失敗が起きるたびに綴りや字形を 1 つずつ追加するようなことはしないでください。
+   ワークフローの明確さに関する失敗では、評価された抜粋とそれが参照するソースを、すべて読んでください。明らかになった曖昧さは、順序、定義、担当、承認をまとめて解決します。条項を追加するのではなく、密度の高い指示を実行可能な手順に整理します。ワークフロー全体をまとめてレビューしてください。文章のスナップショットだけでは、明確であることは証明できません。
+   各ゲートについて、その入力がいつ存在するかを特定し、通常の経路、スキップや利用不可の経路、途中で変更された場合の経路をたどります。循環する前提条件や、回避されたチェックがないかを確認します。
+5. 有料の作業の前に、資格情報のスキャンを含め、必要な安価な CI チェックを実行します。
+   隣接する安価なチェックも実行します。生成コンテンツの鮮度、プロンプトのサイズやパリティの制限、ソースのアサーション、フィクスチャーのチェック、依存関係の選択など、該当するものすべてです。変更されたプロンプトは、評価を行う前にこれらを通過させてください。
+   スキルを編集した場合は、`bun test test/parity-suite.test.ts` を含めてください。その過去の統合サイズの上限は、他のプロンプトのサイズや文脈の予算とは別のものです。
+   ワークフローの文言を変えた場合は、テストツリー全体で、削除された節を検索してください。常に読み込まれるプロンプトのガードも含めます。サブプロセスの例を含むテストのフィクスチャーは、`test/spawnsync-timeout-tripwire.test.ts` を通過する必要があります。そのスキャナーは引用されたコードも確認します。
+   同じ変更されたプロンプトを読む長時間の振る舞い評価の前に、選択されたクオリティジャッジを実行してください。修正によって実行中の入力が置き換わる場合は、その実行をキャンセルし、完了した結果は保持し、未完了のケースはキャンセル済みとしてラベルを付けます。
+   依存する検証を実行する前に、各編集やセットアップコマンドの結果を確認してください。編集が失敗した場合、変更されていない入力を再度テストする理由にはなりません。
+6. モデルが動き出す前に、フィクスチャーのアクターがサポートする操作を宣言します。その回答と権限の扱いは、宣言したインターフェースの範囲内に収めてください。
+   成果物の所有権は、子プロセスに渡されるのと同じ隔離された状態に結び付けます。環境に存在する任意のパスは、所有権の根拠になりません。全体のファイルと CI の監視は、1 回の試行だけでなく、すべてのケースと設定された再試行に対して確認します。
+   実際のランチャーを事前確認します。必要なバイナリ、隔離された状態、必要な場合のディスプレイ、明示的なテストのティア、選択、そして予定どおりに実行されたケース数を確認してください。
+   ワークフローとそのコンテナイメージが固定しているランタイムのバージョンに合わせます。ランナーがネストしたディレクトリを追加したあとでも、ソケットを含む一時パスは短く保ち、スモークチェックでその正確なレイアウトを試してください。長期保存するログは、ソケットのディレクトリとは別に保管します。
+   無料のスモークチェックで、必要なツールが実際に動作することを、その起動環境のもとで検証します。バージョンや認証の確認だけでは、動作は証明されません。プライベートな成果物のモードは明示的に設定し、フィクスチャーの通常の権限は維持します。
+   有料の作業の前に、診断用のスナップショットがフィクスチャーの後片付けを経ても、最終的な成果物のディレクトリに残ることを証明します。ネイティブのスナップショットには EVALS_RUN_ID または GSTACK_EVAL_DIR が必要です。
+   完全なスプールのファイル名を固定します。Bun の、ティア外の describe.skip のプレースホルダーは別に分類し、選択されたケースとしてのクレジットは 0 とします。
+   スタンドアロンの Git フィクスチャーは、別のチェックアウトの外に置きます。失敗を解釈する前に、解決されたプロジェクトのスラッグと状態ルートを確認します。
+   そこでシードコミットが成功することを証明します。リポジトリごとのローカルな author 設定は、新しいフィクスチャーのリポジトリで利用できる ID を保証しません。
+   Bun を呼び出す前に、存在しない明示的なテストファイルを拒否します。Bun は存在しないファイルのセレクターを黙って無視し、残りのファイルを通過させてしまうことがあります。
+   ログ出力を通じて終了ステータスを保持します。文書化された、切り離して実行するランナーと評価のロックを使います。編集後に最終的なランチャーを確認してください。準備モードや `--list` モードでは、モニター、リテーナー、テストのプロセスを起動してはいけません。起動前後のプロセスのチェックで検証します。長時間の実行中は、最後に公開されたツールの結果と、保留中の権限の状態を確認します。停止しているアクターは、期限まで待つ前に診断します。キャンセルはテストの判定とは別に扱います。
+   スキップされた、または開始されなかったケースは、カバレッジとして数えません。すべての試行を保持します。有料の評価は再試行しません。例外は 1 つだけです。ゲートは、同じ HEAD で赤になったルール、振る舞い、またはジャッジのケースの判定を 1 回だけ再実行します(Garry, 2026-10-19: "you can just run the failed test again and note that it is flaky")。合格すれば、フレーキーの注記とフレーキーの記録を付けて緑とみなします。2 回目も失敗すれば本当の赤です。ハーネス、INFRA、INCOMPLETE、または帰属不明の赤は、決して再実行しません(`docs/TESTING_INTERNALS.md#flaky-reruns`)。各ケースの種類(`E2E_KINDS`)は、実行前に試行回数を決めます。`rule` は 1 回の試行、`behavior` は独立した 3 回の試行からなるパネルで、2 回以上合格し、契約違反がない場合に PASS です。`judge` は 1 つの出力に対して 3 回サンプリングし、各次元を、変更されていないしきい値に対して中央値(3 回中少なくとも 2 回)で判定します。結果を見た後に試行、サンプル、または発行を追加してはいけません。合格率の根拠なしに種類を変えて判定を変えてはいけません。すべての試行を報告します。隔離は `CASE_QUARANTINE` のエントリーと終了のルール(`EVAL_POLICY`、`docs/TESTING_INTERNALS.md`)だけに従います。すべての赤が機械的に INFRA または INCOMPLETE と分類された試行は、新しい実行として 1 回だけ再発行できます。両方の実行を報告してください。
+7. 影響を受ける有料ケースを含め、既知の修正をすべて集中的なテストで証明します。失敗したケースは、具体的な修正や実証された起動の補正を行ってから、初めて再実行します。統合されたコードに対して、残りの必要な選択された評価を実行します。予測できる隣接の失敗を見つけるために、無料のテストスイート全体を使ってはいけません。
+   消費される入力と関連する環境が変わっていなければ、合格したチェックを再利用します。モデルのジャッジについては、展開されたプロンプト、ルーブリック、パラメーター、依存関係を比較します。コミットが違うだけでは、結果は無効になりません。
+   変更のない合格したジャッジを、ランチャーの設定を単純にするために再サンプリングしてはいけません。元のソースを保存し、結果は再利用された証拠としてラベルを付けます。
+   モデルへの入力が同一であることを証明する際は、実際のプロンプトビルダーを使い、バイト列を完全に比較します。抜粋ではリテラルのテキストを保存し、消費された入力を記録します。
+8. 最終的な受け入れの前に、レビューの修正、生成、リリースメタデータ、ビルドを完了させます。コードを凍結してから、最後に `bun run test` を一度実行します。修正の途中では、コミットごとに無料のスイート全体を実行する代わりに、集中的なチェックを使います。最終的な受け入れが予期せず失敗した場合は、失敗の記録を残し、狭い範囲で原因を診断し、変更した検証計画を報告してから、もう一度フルの実行をします。盲目的に再試行したり、古いリビジョンによる合格を主張したりしてはいけません。
+9. 必要なチェックがすべて合格した場合にのみ公開します。ユーザーが特定された失敗について明示的に例外を認めた場合は、この限りではありません。リビジョン、実際の合格・不合格・スキップの件数、そして不完全なカバレッジを報告してください。一部だけ合格しても、リリースの受け入れにはなりません。
 
-## Build commands
+## ビルドコマンド
 
 ```bash
 bun install              # install dependencies
@@ -264,43 +168,27 @@ bun run gen:skill-docs   # regenerate SKILL.md files from templates
 bun run skill:check      # health dashboard for all skills
 ```
 
-Every other test and eval command (Ubicloud, the Windows subset, one paid tier
-or case, branch validation in CI, pass rates, plan previews), with its cost and
-prerequisites, is in [Which command do I run?](CONTRIBUTING.md#which-command-do-i-run).
-Agents poll `eval:bg:*` logs for the `### gstack-detach EXIT=<code> ###` sentinel
-([CLAUDE.md](CLAUDE.md#running-evals-as-an-agent-always-detach-sigterm-proof)).
+その他のテストと評価のコマンド(Ubicloud、Windows のサブセット、有料ティアや個別のケース、CI でのブランチ検証、合格率、計画のプレビューなど)は、それぞれの費用と前提条件とともに [Which command do I run?](CONTRIBUTING.md#which-command-do-i-run) にまとめています。エージェントは、`eval:bg:*` のログをポーリングして `### gstack-detach EXIT=<code> ###` の終了マーカーを確認します([CLAUDE.md](CLAUDE.md#running-evals-as-an-agent-always-detach-sigterm-proof))。
 
-## Platform support
+## プラットフォームのサポート
 
-- **macOS** + **Linux**: full test suite supported.
-- **Windows**: the curated Windows-safe subset runs in the `windows-free-tests`
-  CI workflow across six `windows-latest` jobs, packed by Windows-measured
-  durations. Setup script (`./setup`) requires Git Bash or
-  MSYS today; native PowerShell support is a future expansion. The `bin/gstack-paths`
-  helper resolves state roots through `CLAUDE_PLUGIN_DATA` / `GSTACK_HOME` so plugin
-  installs work on every platform.
-- **CSO native helper**: `/cso` additionally needs Bun's four
-  `--no-compile-autoload-*` flags and a native toolchain (static-capable C on
-  Linux, Xcode command-line tools on macOS, or VS 2022 C++ Build Tools on
-  Windows). Setup installs everything else and leaves `/cso` explicitly
-  unavailable when that optional toolchain is absent.
-- **Browser and renderer**: the browser skills, `/make-pdf`, and `/diagram` drive
-  the Aside browser first, which is macOS 15+ only. On Linux and Windows (or a
-  Mac with Aside closed) the readiness check says so once and the same skills use
-  gstack's own bundled browser, built by `./setup`.
+- **macOS** と **Linux**: テストスイート全体をサポートします。
+- **Windows**: 厳選された Windows で安全なサブセットが、`windows-free-tests` の CI ワークフロー内で、6 つの `windows-latest` ジョブにより実行されます。ジョブは Windows で計測された所要時間に基づいて割り振られます。セットアップスクリプト(`./setup`)は現状、Git Bash または MSYS を必要とします。ネイティブの PowerShell への対応は今後の拡張予定です。`bin/gstack-paths` ヘルパーは、`CLAUDE_PLUGIN_DATA` と `GSTACK_HOME` を通じて状態ルートを解決するため、プラグインのインストールがすべてのプラットフォームで動作します。
+- **CSO のネイティブヘルパー**: `/cso` には、Bun の 4 つの `--no-compile-autoload-*` フラグと、ネイティブのツールチェーンも必要です(Linux では静的リンク可能な C、macOS では Xcode のコマンドラインツール、Windows では VS 2022 の C++ Build Tools)。セットアップではそれ以外をすべてインストールします。このオプションのツールチェーンがない場合、`/cso` は明示的に利用不可のままになります。
+- **ブラウザとレンダラー**: ブラウザ系スキル、`/make-pdf`、`/diagram` は、まず Aside ブラウザを操作します。Aside は macOS 15 以降のみ対応です。Linux と Windows(あるいは Aside が閉じている Mac)では、準備状況のチェックが一度だけその旨を伝えます。その後、同じスキルは `./setup` によってビルドされる gstack 独自のブラウザを使います。
 
-## Key conventions
+## 主要な規約
 
-- SKILL.md files are **generated** from `.tmpl` templates. Edit the template, not the output.
-- Run `bun run gen:skill-docs --host codex` to regenerate Codex-specific output.
-- Browser steps in skills are `aside repl` scripts per `scripts/resolvers/aside.ts` (Aside first), each with a `$B` equivalent for the fallback engine — `$B <command>` is the browse binary and is a legitimate tool when the Aside probe does not print `READY`. Local HTML renders through `bin/gstack-render.ts`, which picks the same way.
-- Safety skills (careful, freeze, guard) use inline advisory prose — always confirm before destructive operations.
-- State paths resolve through one chain owned by `lib/state-root.ts` and its sourced bash twin `bin/gstack-state-root.sh` (`GSTACK_STATE_ROOT` → `GSTACK_HOME` → `GSTACK_STATE_DIR` → gstack's `CLAUDE_PLUGIN_DATA` → `~/.gstack`; see docs/state-root.md). Skill prose uses `GSTACK_STATE_ROOT=$(bin/gstack-paths --get GSTACK_STATE_ROOT)` with its `${GSTACK_STATE_ROOT:?…}` guard (worktree-isolated Claude Code sessions refuse eval); `test/state-root-ratchet.test.ts` rejects hand-rolled chains.
-- Browse daemon HTTP routes are entries in `browse/src/routes/table.ts` (its header shows how to add one); never dispatch on `url.pathname` in `server.ts`.
-- Both test lanes run shards through `scripts/lib/shard-engine.ts`; the free and paid runners hold lane policy only. PTY harness code lives in `test/helpers/pty/*` behind the `claude-pty-runner.ts` barrel.
-- Outside-voice failure prose (auth, timeout, empty, fallback) comes only from `outsideVoiceFailurePolicy()` in `scripts/resolvers/outside-voice.ts`.
-- Every env-var-host fence starts with the shared prelude from `scripts/resolvers/runtime-root.ts` (inserted by its post-render pass); never resolve gstack's root by hand in a template.
-- Every Codex run's verdict goes through `lib/outside-review-result.ts`; its reason codes live in `lib/gate-outcomes.ts`, each with a `docs/troubleshooting.md` anchor.
-- `test/module-size-ratchet.test.ts` keeps refactored owner modules at or under 800 lines (150 per function) and residual files from growing.
-- The `claude` CLI binary resolves via `lib/claude-bin.ts` (re-exported from `browse/src/claude-bin.ts` for browse internals; `Bun.which()` + `GSTACK_CLAUDE_BIN` override). Set `GSTACK_CLAUDE_BIN=wsl` plus `GSTACK_CLAUDE_BIN_ARGS='["claude"]'` to run Claude through WSL on Windows.
-- Every Bun gstack starts ignores the working directory's `.env` files and `bunfig.toml`: bun shebangs are `#!/usr/bin/env -S bun --no-env-file --config=/dev/null`, shell and skill callers pass `bun --no-env-file --config=/dev/null`, TypeScript spawns use `bunIsolationArgs()` from `lib/bun-isolation.ts`, and `bun build --compile` adds `--no-compile-autoload-dotenv --no-compile-autoload-bunfig`. `test/bun-entry-isolation.test.ts` enforces all four.
+- SKILL.md ファイルは `.tmpl` テンプレートから**生成**されます。出力ではなくテンプレートを編集してください。
+- Codex 向けの出力を再生成するには `bun run gen:skill-docs --host codex` を実行します。
+- スキル内のブラウザ操作は、`scripts/resolvers/aside.ts` に従った `aside repl` スクリプトです(Aside が優先されます)。各スクリプトには、フォールバックエンドの `$B` による同等の操作が対応しています。Aside のプローブが `READY` を出力しない場合は、`$B <command>` が正当なツールになります(`$B` はブラウズのバイナリです)。ローカルの HTML は `bin/gstack-render.ts` を通じて描画され、同じ方法で描画先を選びます。
+- 安全系のスキル(careful、freeze、guard)は、インラインの注意書きで動作します。破壊的な操作の前には、必ず確認してください。
+- 状態のパスは、`lib/state-root.ts` とそれに対応するシェル版 `bin/gstack-state-root.sh` が担う 1 本の解決チェーンで決まります(`GSTACK_STATE_ROOT` → `GSTACK_HOME` → `GSTACK_STATE_DIR` → gstack の `CLAUDE_PLUGIN_DATA` → `~/.gstack`。docs/state-root.md を参照)。スキルの文章では `GSTACK_STATE_ROOT=$(bin/gstack-paths --get GSTACK_STATE_ROOT)` と、その `${GSTACK_STATE_ROOT:?…}` のガードを使います(ワークツリーで隔離された Claude Code のセッションでは、評価の実行を拒否します)。`test/state-root-ratchet.test.ts` は、手書きの解決チェーンを拒否します。
+- ブラウザデーモンの HTTP ルートは `browse/src/routes/table.ts` の項目です(ファイル冒頭に追加方法が書かれています)。`server.ts` で `url.pathname` によって分岐してはいけません。
+- 両方のテストレーンは、`scripts/lib/shard-engine.ts` を通じてシャードを実行します。無料と有料のランナーがもつのはレーンのポリシーだけです。PTY ハーネスのコードは、`claude-pty-runner.ts` のバレルの背後にある `test/helpers/pty/*` に置かれています。
+- 外部レビュー(outside voice)が失敗したときの文言(認証、タイムアウト、空、フォールバック)は、`scripts/resolvers/outside-voice.ts` の `outsideVoiceFailurePolicy()` からのみ生成されます。
+- 環境変数でホストを決める fence はすべて、`scripts/resolvers/runtime-root.ts` の共通のプレリュードで始まります(レンダリング後の処理で挿入されます)。テンプレート内で gstack のルートを手で解決してはいけません。
+- Codex の実行結果の判定はすべて `lib/outside-review-result.ts` を通ります。その理由コードは `lib/gate-outcomes.ts` にあり、それぞれ `docs/troubleshooting.md` のアンカーを持ちます。
+- `test/module-size-ratchet.test.ts` は、リファクタリングされたオーナーのモジュールを 800 行以下(関数ごとに 150 行以下)に保ち、残りのファイルが大きくなることを防ぎます。
+- `claude` CLI のバイナリは `lib/claude-bin.ts` を通じて解決されます(ブラウズの内部からは `browse/src/claude-bin.ts` で再エクスポートされます)。`Bun.which()` と `GSTACK_CLAUDE_BIN` による上書きを使います。Windows で WSL を通じて Claude を実行するには、`GSTACK_CLAUDE_BIN=wsl` と `GSTACK_CLAUDE_BIN_ARGS='["claude"]'` を設定します。
+- gstack が起動するすべての Bun は、作業ディレクトリの `.env` ファイルと `bunfig.toml` を無視します。bun のシェバンは `#!/usr/bin/env -S bun --no-env-file --config=/dev/null` です。シェルやスキルからの呼び出しでは `bun --no-env-file --config=/dev/null` を渡します。TypeScript から起動する場合は `lib/bun-isolation.ts` の `bunIsolationArgs()` を使います。`bun build --compile` には `--no-compile-autoload-dotenv --no-compile-autoload-bunfig` を追加します。`test/bun-entry-isolation.test.ts` がこの 4 点を強制します。

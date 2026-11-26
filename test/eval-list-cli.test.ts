@@ -77,7 +77,7 @@ function runEvalList(...args: string[]): { stdout: string; stderr: string; statu
 
 describe('eval:list CLI', () => {
   test('labels validated manual acceptance as unscored and rejects malformed pass claims', () => {
-    const manual = manualReviewFixture();
+    const manual = manualReviewFixture(undefined, { synthetic: true });
     const dir = path.join(tmpHome, '.gstack-dev', 'evals');
     const body = (entry: typeof manual, timestamp: string) => ({
       schema_version: 2, version: '1.90.0', branch: 'main', git_sha: 'fixture', timestamp,

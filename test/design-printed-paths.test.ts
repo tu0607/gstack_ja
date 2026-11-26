@@ -128,8 +128,8 @@ describe('design generating flows', () => {
       expect(board).toBeGreaterThan(accounting);
       expect(consumer).toBeGreaterThan(accounting);
       const span = text.slice(accounting, Math.min(board, consumer));
-      expect(span).toMatch(/stop/i);
-      expect(span).toMatch(/nothing was saved|saves nothing|zero/i);
+      expect(span).toMatch(/停止|止め|止まっ|STOP/i);
+      expect(span).toMatch(/何も保存され|0 件|ゼロ|nothing was saved|zero/i);
     });
   }
 
@@ -161,6 +161,6 @@ describe('design generating flows', () => {
     expect(prompt).toContain('mktemp -d "${TMPDIR:-/tmp}/');
     expect(prompt).toMatch(/gstack-design-claim "<saved path>"/);
     expect(prompt).not.toMatch(/\/tmp\/variant-/);
-    expect(prompt).toMatch(/every published path/);
+    expect(prompt).toMatch(/公開されたすべてのパス/);
   });
 });

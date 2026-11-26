@@ -46,11 +46,11 @@ const MANDATORY: Array<{ name: string; re: RegExp }> = [
   { name: 'Net: synthesis line', re: /Net\s*:/i },
   { name: 'Completeness coverage rule', re: /Completeness\s*:/i },
   { name: 'kind-vs-coverage rule', re: /options differ in kind/i },
-  { name: 'Self-check checklist', re: /Self-check before emitting/i },
+  { name: 'Self-check checklist', re: /Self-check before emitting|出力前の自己チェック/i },
   // The runtime-failure fallback must be ALWAYS-LOADED too: when an AUQ call errors
   // mid-skill, the model needs the prose-fallback rule in context that instant, not
   // stranded in an on-demand section. Same guarantee as the format spec above.
-  { name: 'AUQ-failure fallback subsection', re: /When AskUserQuestion is unavailable or a call fails/i },
+  { name: 'AUQ-failure fallback subsection', re: /When AskUserQuestion is unavailable or a call fails|AskUserQuestion が使えない場合、または呼び出しが失敗した場合/i },
   { name: 'fallback SESSION_KIND branch', re: /SESSION_KIND/ },
 ];
 
@@ -58,16 +58,16 @@ const MANDATORY: Array<{ name: string; re: RegExp }> = [
  * these into a section (they fire only once the section is loaded), but they
  * must never be DROPPED. Asserted against the skeleton+sections union. */
 const PER_SKILL_RULES: Record<string, RegExp[]> = {
-  'plan-ceo-review': [/One decision unit = one AskUserQuestion call/i],
-  'plan-eng-review': [/one\s+question object for one choice/i, /independently selectable changes separate IDs/i],
-  'plan-design-review': [/One issue = one AskUserQuestion call/i],
+  'plan-ceo-review': [/One decision unit = one AskUserQuestion call|判断単位\s*=\s*AskUserQuestion\s*の一回の呼び出し/i],
+  'plan-eng-review': [/one\s+question object for one choice|一つの選択に対して質問オブジェクトを一つ/i, /independently selectable changes separate IDs|独立して選択できる変更には、別々の ID/i],
+  'plan-design-review': [/One issue = one AskUserQuestion call|指摘1件\s*=\s*AskUserQuestion 1回/i],
   'plan-devex-review': [
-    /One new or reopened decision = one AskUserQuestion call/i,
-    /Never combine independent decisions, including in separate question tabs/i,
+    /One new or reopened decision = one AskUserQuestion call|判断1件\s*=\s*AskUserQuestion の呼び出し1回/i,
+    /Never combine independent decisions, including in separate question tabs|独立した判断をまとめないでください。質問タブを分けた場合も同じ/i,
   ],
   // /codex emits its recommendation as prose; the instruction must stay in the
   // always-loaded skeleton because codex has no on-demand section.
-  codex: [/Synthesis recommendation/i, /Recommendation\s*:\s*<action>\s*because/i],
+  codex: [/Synthesis recommendation|総合的な推奨/i, /Recommendation\s*:\s*<action>\s*because/i],
 };
 
 /** Discover every repo-root skill dir that ships a generated SKILL.md. */

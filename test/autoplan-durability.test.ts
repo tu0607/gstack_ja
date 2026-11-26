@@ -13,6 +13,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { capyDriveFolder } from '../lib/autoplan-checkpoint';
 import { COORDINATOR_CONTRACT } from '../lib/coordinator-contract';
+import { expectMentions } from './helpers/prompt-structure';
 import { ROOT } from './helpers/autoplan-run-fixture';
 import { capyRunner, readRunJson, writePlan } from './helpers/autoplan-capy';
 
@@ -119,8 +120,11 @@ describe('capyDriveFolder', () => {
 
 describe('the WIP-push rule', () => {
   test('the coordinator contract and the /ship handoff carry it', () => {
-    expect(COORDINATOR_CONTRACT).toContain('A lane pushes a WIP commit to its branch after each step and gates a pushed SHA.');
-    expect(fs.readFileSync(path.join(ROOT, 'autoplan', 'DRIVER.md'), 'utf8')).toContain('A lane pushes a WIP commit to its branch after each step and gates a pushed SHA.');
-    expect(fs.readFileSync(path.join(ROOT, 'ship', 'sections', 'handoff.md'), 'utf8')).toMatch(/### Multi-lane runs\n\nLanes push a WIP commit after each step and gate a pushed SHA\./);
+    expect(COORDINATOR_CONTRACT).toMatch(/WIP コミット.*push.*SHA.*ゲート/);
+    expect(fs.readFileSync(path.join(ROOT, 'autoplan', 'DRIVER.md'), 'utf8')).toMatch(/WIP コミット.*push.*SHA.*ゲート/);
+    const handoff = fs.readFileSync(path.join(ROOT, 'ship', 'sections', 'handoff.md'), 'utf8');
+    const lanes = handoff.split('### 複数レーンの実行')[1];
+    expect(lanes).toBeDefined();
+    expectMentions(lanes!.split('\n###')[0]!, [['WIP', 'push', 'SHA']], 'ship handoff multi-lane section');
   });
 });

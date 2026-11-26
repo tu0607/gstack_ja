@@ -1,30 +1,26 @@
-## Step 2B: Challenge (Adversarial) Mode
+## ステップ 2B: チャレンジ(敵対的)モード
 
-Codex tries to break your code — finding edge cases, race conditions, security holes,
-and failure modes that a normal review would miss.
+Codex があなたのコードを壊そうとします。通常のレビューでは見落としがちな、エッジケース、競合状態、セキュリティの穴、障害のパターンを見つけ出します。
 
-1. Construct the adversarial prompt. **Always prepend the filesystem boundary instruction**
-from the skill's Filesystem Boundary section (always-loaded skeleton). If the user provided a focus area
-(e.g., `/codex challenge security`), include it after the boundary:
+1. 敵対的なプロンプトを組み立てます。**必ず、スキルのファイルシステムの境界に関する指示を先頭に付けます**(常時読み込まれるスケルトンにあるファイルシステムの境界のセクションから)。ユーザーが重点領域を指定している場合(例: `/codex challenge security`)は、境界の指示の後にそれを含めます:
 
-Default prompt (no focus):
-"IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. Do not invoke any installed skill (Codex home skills/, .agents/); answer directly. Do NOT modify agents/openai.yaml. Stay focused on repository code only.
+既定のプロンプト(重点領域なし):
+"重要: ~/.claude/、~/.agents/、.claude/skills/、agents/ の下にあるファイルを読んだり実行したりしないでください。これらは別の AI システム向けの Claude Code のスキル定義です。インストール済みのスキル(Codex のホームの skills/、.agents/)を呼び出さず、直接答えてください。agents/openai.yaml を変更しないでください。リポジトリのコードだけに集中してください。
 
-Review the changes on this branch against the base branch. Run `git diff origin/<base>` to see the diff. Your job is to find ways this code will fail in production. Think like an attacker and a chaos engineer. Find edge cases, race conditions, security holes, resource leaks, failure modes, and silent data corruption paths. Be adversarial. Be thorough. No compliments — just the problems."
+このブランチの変更を、ベースブランチと比較してレビューしてください。差分を見るには `git diff origin/<base>` を実行してください。あなたの仕事は、このコードが本番環境でどのように失敗するかを見つけることです。攻撃者やカオスエンジニアリングの視点で考えてください。エッジケース、競合状態、セキュリティの穴、リソースリーク、障害のパターン、静かなデータ破損の経路を見つけてください。敵対的に、徹底的に。お世辞は不要です。問題点だけを挙げてください。"
 
-With focus (e.g., "security"):
-"IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. Do not invoke any installed skill (Codex home skills/, .agents/); answer directly. Do NOT modify agents/openai.yaml. Stay focused on repository code only.
+重点領域あり(例: "security"):
+"重要: ~/.claude/、~/.agents/、.claude/skills/、agents/ の下にあるファイルを読んだり実行したりしないでください。これらは別の AI システム向けの Claude Code のスキル定義です。インストール済みのスキル(Codex のホームの skills/、.agents/)を呼び出さず、直接答えてください。agents/openai.yaml を変更しないでください。リポジトリのコードだけに集中してください。
 
-Review the changes on this branch against the base branch. Run `git diff origin/<base>` to see the diff. Focus specifically on SECURITY. Your job is to find every way an attacker could exploit this code. Think about injection vectors, auth bypasses, privilege escalation, data exposure, and timing attacks. Be adversarial."
+このブランチの変更を、ベースブランチと比較してレビューしてください。差分を見るには `git diff origin/<base>` を実行してください。特にセキュリティに焦点を当ててください。攻撃者がこのコードを悪用しうるあらゆる方法を見つけるのがあなたの仕事です。インジェクションの経路、認証のバイパス、権限の昇格、データの露出、タイミング攻撃について考えてください。敵対的に考えてください。"
 
-2. Create the prompt file and write the full prompt from step 1 into it. Codex reads it on stdin.
+2. プロンプトファイルを作成し、ステップ 1 の完全なプロンプトを書き込みます。Codex はそれを標準入力から読みます。
 
 {{FREE_TEXT_FILE:PROMPT_FILE=codex-prompt}}
 
-3. Run codex exec with **JSONL output** to capture reasoning traces and tool calls.
-Substitute the printed name for `<prompt-file-name>` (letters, digits, `.`, `_` and `-` only).
-Use `timeout: 600000` on the Bash call (the tool's maximum) — the gate sits ABOVE the
-540s wrapper so the wrapper fires first, ends Codex, and prints its explicit stall message:
+3. **JSONL の出力**を使って codex exec を実行し、推論の過程と、ツールの呼び出しを取得します。
+表示された名前を `<prompt-file-name>` の代わりに使います(英字、数字、`.`、`_`、`-` のみ)。
+Bash の呼び出しには `timeout: 600000` を使います(ツールの最大値)。ゲートは 540 秒のラッパーより上にあるため、ラッパーが先に発動し、Codex を終了させて、明示的な停止のメッセージを出力します:
 
 
 ```bash
@@ -102,14 +98,11 @@ bun --no-env-file --config=/dev/null ~/.claude/skills/gstack/lib/outside-review-
 rm -f "$TMPRESP" "$TMPRESP.events" "$PROMPT_FILE"
 ```
 
-`VERDICT: unavailable` means the challenge did not run (its line names why, such as a
-sandbox that could not start): say so and present no findings from it. Otherwise
-present the output below.
+`VERDICT: unavailable` は、チャレンジが実行されなかったことを意味します(その行に、サンドボックスが起動できなかったなどの理由が示されています)。その旨を伝え、そこからの指摘は一切提示しないでください。それ以外の場合は、下の出力を提示します。
 
-This parses codex's JSONL events to extract reasoning traces, tool calls, and the final
-response. The `[codex thinking]` lines show what codex reasoned through before its answer.
+これは codex の JSONL のイベントを解析して、推論の過程、ツールの呼び出し、最終的な応答を取り出します。`[codex thinking]` の行は、回答の前に codex がどのように推論したかを示します。
 
-4. Present the full streamed output:
+4. ストリーミングされた出力の全文を提示します:
 
 ```
 CODEX SAYS (adversarial challenge):
@@ -119,18 +112,16 @@ CODEX SAYS (adversarial challenge):
 Tokens: N | Est. cost: ~$X.XX
 ```
 
-4a. **Synthesis recommendation (REQUIRED).** After presenting the full
-adversarial output, emit ONE recommendation line summarizing what the user
-should do, in this format:
+4a. **総合的な推奨(必須)。** 敵対的な出力の全文を提示した後、ユーザーが何をすべきかを要約した推奨の行を 1 つ、次の形式で出します:
 
 ```
 Recommendation: <action> because <one-line reason that names the most exploitable finding>
 ```
 
-Examples (the strongest reasons compare blast radius across findings or fix-vs-ship):
-- `Recommendation: Fix the unbounded retry loop Codex flagged at queue.ts:78 because it DoSes the worker pool under sustained 429s, which is higher-blast-radius than the timing leak Codex also flagged that only touches a debug endpoint.`
-- `Recommendation: Ship as-is because Codex's strongest finding is a theoretical race in cleanup that requires conditions we can't trigger in production, weaker than the runtime regressions a fix-now would risk.`
+例(最も強い理由は、指摘どうしの影響範囲を比べるか、修正してから出荷かを比べたものです):
+- `Recommendation: queue.ts:78 で Codex が指摘した無制限のリトライループを修正する because 429 が続くとワーカープールが DoS 状態になり、デバッグ用エンドポイントにしか影響しないタイミングリークより影響範囲が大きい`
+- `Recommendation: このまま出荷する because Codex の最も強い指摘は、本番では再現できない条件を要するクリーンアップ内の理論上の競合であり、今すぐ直すことで生じる実行時のリグレッションのリスクより弱い`
 
-The reason must point to a specific finding and compare against alternatives (other findings, fix-vs-ship). Generic reasons like "because it's safer" fail the format. **Never silently skip the line.**
+理由は、具体的な指摘を指し、代替案(他の指摘、修正してから出荷か)と比較しなければなりません。「より安全だから」のような一般的な理由は、この形式を満たしません。**この行を黙って省略しないでください。**
 
 ---

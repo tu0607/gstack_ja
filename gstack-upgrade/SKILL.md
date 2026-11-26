@@ -1,7 +1,7 @@
 ---
 name: gstack-upgrade
 version: 1.1.0
-description: Upgrade gstack to the latest version.
+description: gstack を最新バージョンにアップグレードします。
 triggers:
   - upgrade gstack
   - update gstack version
@@ -17,15 +17,15 @@ allowed-tools:
 
 # /gstack-upgrade
 
-Upgrade gstack to the latest version and show what's new.
+gstack を最新バージョンにアップグレードし、新しい内容を表示します。
 
-## Inline upgrade flow
+## インラインのアップグレードの流れ
 
-This section is referenced by all skill preambles when they detect `UPGRADE_AVAILABLE`.
+このセクションは、すべてのスキルの preamble が `UPGRADE_AVAILABLE` を検出したときに参照されます。
 
-### Step 1: Ask the user (or auto-upgrade)
+### Step 1: ユーザーに確認する(または自動でアップグレードする)
 
-First, check if auto-upgrade is enabled:
+まず、自動アップグレードが有効かを確認します:
 ```bash
 _AUTO=""
 [ "${GSTACK_AUTO_UPGRADE:-}" = "1" ] && _AUTO="true"
@@ -33,22 +33,25 @@ _AUTO=""
 echo "AUTO_UPGRADE=$_AUTO"
 ```
 
-**If `AUTO_UPGRADE=true` or `AUTO_UPGRADE=1`:** Skip AskUserQuestion. Log "Auto-upgrading gstack v{old} → v{new}..." and proceed directly to Step 2. On setup failure, follow Step 4's install-specific recovery: vendored installs restore their backup; git installs stop with the pre-upgrade commit recorded, without a destructive reset. Never claim restoration unless it actually succeeded.
+**`AUTO_UPGRADE=true` または `AUTO_UPGRADE=1` の場合:** AskUserQuestion はスキップします。「gstack v{old} → v{new} を自動でアップグレード中...」と記録し、直接 Step 2 に進みます。
+セットアップが失敗した場合は、Step 4 のインストール形式ごとの回復手順に従います。ベンダリングされたインストールはバックアップを復元します。git のインストールは、
+アップグレード前のコミットを記録したうえで停止し、破壊的なリセットは行いません。復元されたと実際に確認できた場合にのみ、復元されたと主張します。
 
-**Otherwise**, use AskUserQuestion:
-- Question: "gstack **v{new}** is available (you're on v{old}). Upgrade now?"
-  Four fields (`UPGRADE_AVAILABLE <old> <old>+<n> <sha>`, main moved): ask "gstack main is **{n} commit(s)** past v{old} (at {sha}). Upgrade now?"
-- Options: ["Yes, upgrade now", "Always keep me up to date", "Not now", "Never ask again"]
+**それ以外の場合**は、AskUserQuestion を使います:
+- 質問: 「gstack **v{new}** が利用可能です(現在は v{old})。今すぐアップグレードしますか?」
+  4 つのフィールドの場合(`UPGRADE_AVAILABLE <old> <old>+<n> <sha>`、main が進んでいる): 「gstack の main は v{old} より **{n} コミット**先にあります(sha は {sha})。今すぐアップグレードしますか?」
+- 選択肢: ["Yes, upgrade now", "Always keep me up to date", "Not now", "Never ask again"]
 
-**If "Yes, upgrade now":** Proceed to Step 2.
+**「Yes, upgrade now」の場合:** Step 2 に進みます。
 
-**If "Always keep me up to date":**
+**「Always keep me up to date」の場合:**
 ```bash
 ~/.claude/skills/gstack/bin/gstack-config set auto_upgrade true
 ```
-Tell user: "Auto-upgrade enabled. Future updates will install automatically." Then proceed to Step 2.
+ユーザーに伝えます:「自動アップグレードを有効にしました。今後のアップデートは自動でインストールされます。」そのうえで Step 2 に進みます。
 
-**If "Not now":** Write snooze state with escalating backoff (first snooze = 24h, second = 48h, third+ = 1 week), then continue with the current skill. Do not mention the upgrade again.
+**「Not now」の場合:** 段階的に長くなるスヌーズの状態を書き込みます(1 回目は 24 時間、2 回目は 48 時間、3 回目以降は 1 週間)。その後、現在のスキルを続けます。
+アップグレードについて再度触れてはいけません。
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
 _SNOOZE_FILE="$GSTACK_STATE_ROOT/update-snoozed"
@@ -65,18 +68,18 @@ _NEW_LEVEL=$((_CUR_LEVEL + 1))
 [ "$_NEW_LEVEL" -gt 3 ] && _NEW_LEVEL=3
 echo "$_REMOTE_VER $_NEW_LEVEL $(date +%s)" > "$_SNOOZE_FILE"
 ```
-Note: `{new}` is the remote version from the `UPGRADE_AVAILABLE` output — substitute it from the update check result. On a four-field line use the SHA (fourth field) as `{new}`, so the snooze ends when main moves.
+補足: `{new}` は `UPGRADE_AVAILABLE` の出力にあるリモートのバージョンです。更新チェックの結果から置き換えてください。4 つのフィールドの行の場合は、4 番目のフィールドの SHA を `{new}` として使います。そうすると、main が動いたときにスヌーズが終わります。
 
-Tell user the snooze duration: "Next reminder in 24h" (or 48h or 1 week, depending on level). Tip: "Set `auto_upgrade: true` in `~/.gstack/config.yaml` for automatic upgrades."
+ユーザーにスヌーズの期間を伝えます:「次の通知は 24 時間後です」(レベルに応じて 48 時間や 1 週間)。ヒント:「自動アップグレードには、`~/.gstack/config.yaml` で `auto_upgrade: true` を設定してください。」
 
-**If "Never ask again":**
+**「Never ask again」の場合:**
 ```bash
 ~/.claude/skills/gstack/bin/gstack-config set update_check false
 ```
-Tell user: "Update checks disabled. Run `~/.claude/skills/gstack/bin/gstack-config set update_check true` to re-enable."
-Continue with the current skill.
+ユーザーに伝えます:「更新チェックを無効にしました。再度有効にするには `~/.claude/skills/gstack/bin/gstack-config set update_check true` を実行してください。」
+現在のスキルを続けます。
 
-### Step 2: Detect install type
+### Step 2: インストールの形式を検出する
 
 ```bash
 if [ -d "$HOME/.claude/skills/gstack/.git" ]; then
@@ -109,28 +112,30 @@ INSTALL_DIR=$(cd -- "$INSTALL_DIR" && pwd -P) || { echo "ERROR: cannot enter the
 echo "Install type: $INSTALL_TYPE at $INSTALL_DIR"
 ```
 
-The install type and the absolute directory printed above are used in all subsequent steps.
-Carry `INSTALL_TYPE`, `INSTALL_DIR`, `OLD_VERSION`, and later `NEW_VERSION` forward explicitly: tool calls may run in fresh shells, so start each later block by assigning them from the captured output (for example `INSTALL_DIR=/abs/path/printed/above`). Do not rely on a prior call's working directory or shell variables. Every block that changes files first checks `INSTALL_DIR` and stops before any git command when it is unset, empty, missing, unreadable, or not gstack's own checkout.
+上で出力されたインストールの形式と絶対ディレクトリは、以降のすべてのステップで使います。
+`INSTALL_TYPE`、`INSTALL_DIR`、`OLD_VERSION`、後で得る `NEW_VERSION` は、明示的に引き継いでください。ツールの呼び出しは新しいシェルで実行されることがあるため、
+後続の各ブロックは、取得した出力から値を代入して始めます(例: `INSTALL_DIR=/abs/path/printed/above`)。前の呼び出しの作業ディレクトリやシェル変数に頼ってはいけません。
+ファイルを変更するすべてのブロックは、最初に `INSTALL_DIR` を確認します。未設定、空、存在しない、読めない、または gstack 自身のチェックアウトではない場合は、
+git のコマンドを実行する前に停止します。
 
-### Step 3: Save old version
+### Step 3: 古いバージョンを保存する
 
-Use the install directory from Step 2's output below:
+Step 2 の出力にあるインストールディレクトリを使います:
 
 ```bash
 OLD_VERSION=$(cat "${INSTALL_DIR:?INSTALL_DIR is not set: re-run Step 2 and substitute the printed path}/VERSION" 2>/dev/null || echo "unknown")
 echo "OLD_VERSION=$OLD_VERSION"
 ```
 
-### Step 4: Upgrade
+### Step 4: アップグレード
 
-Use the install type and directory detected in Step 2:
+Step 2 で検出したインストールの形式とディレクトリを使います:
 
-**For git installs** (global-git, local-git):
+**git のインストールの場合**(global-git、local-git):
 
-Fast-forward first, through `bin/gstack-ff-update`, the same code the
-session-update auto-upgrade uses: local edits that merge cleanly ride over the
-update, and an edit that conflicts (or a staged change, or an unmerged file)
-is saved in a rescue ref instead of being left as conflict markers:
+まず fast-forward します。`bin/gstack-ff-update` を通すので、セッション中の自動アップグレードと同じコードを使います。
+きれいにマージできるローカルの編集は、更新の上に乗ります。競合する編集(またはステージ済みの変更、未マージのファイル)は、
+コンフリクトマーカーとして残される代わりに、rescue ref に保存されます:
 ```bash
 cd -- "${INSTALL_DIR:?INSTALL_DIR is not set: re-run Step 2 and substitute the printed path}" || exit 1
 { [ -f VERSION ] && [ -f setup ] && [ -f bin/gstack-config ] && _p=$(git rev-parse --show-prefix 2>/dev/null) && [ -z "$_p" ] && [ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" = true ]; } || { echo "ERROR: $INSTALL_DIR is not a gstack checkout; nothing was changed. Re-run Step 2." >&2; exit 1; }
@@ -149,43 +154,34 @@ case "$FF_RC" in
 esac
 ```
 
-Setup's `--refresh-registered` refreshes every install this checkout
-registered (each host, global and this project's), prints the source first,
-and ends with an `Upgrade summary` of one row per install. Relay those rows
-as printed. A `failed` row means that host kept its previous install; give
-its retry command and never say every host was refreshed. A `skipped` row
-belongs to another checkout or project; pass on its command, do not run it.
+setup の `--refresh-registered` は、このチェックアウトが登録したすべてのインストール(各ホスト、グローバルとこのプロジェクトのもの)を更新します。
+ソースを先に表示し、インストールごとに 1 行の `Upgrade summary` で終わります。各行は表示されたとおりに伝えます。`failed` の行は、そのホストが以前のインストールを保持したことを意味します。
+その再試行コマンドを伝えます。全ホストが更新されたとは決して言わないでください。`skipped` の行は、別のチェックアウトまたはプロジェクトに属します。そのコマンドは伝えるだけで、実行はしません。
 
-If the output ends with `FF_OK`, the upgrade is done — skip the fallback
-below entirely. When the line before it reads
-`rescued <old> <new> refs/gstack/rescue/<oid> unmerged=<0|1>`, tell the user
-their conflicting local edits were saved there and relay the `Inspect`,
-`Export` and `Delete` commands the script printed (export into a scratch
-checkout with `git apply -3`, never `stash apply` in the install;
-`unmerged=1` means the rescue needs manual resolution).
-On `FF_STOPPED`, STOP and relay the reason: nothing was changed.
-`ff-busy` means another gstack update is running (retry in a minute);
-`autostash-unrecoverable` names what is in the way (an untracked file the
-release adds, or another git command); `index-unreadable` means the checkout's
-index is damaged.
-On `BUN_TOO_OLD`, STOP: tell the user to run `bun upgrade`, then /gstack-upgrade again.
-On `BUN_VERSION_UNREADABLE`, STOP: `bun --version` did not print a version gstack can read, so `bun upgrade` may not run either; tell the user to reinstall Bun from https://bun.sh (`curl -fsSL https://bun.sh/install | bash` in Git Bash or a macOS/Linux terminal), check that `bun --version` prints a version such as 1.4.2, then run /gstack-upgrade again (docs/troubleshooting.md#bun-version-unreadable).
-On `SETUP_FAILED`, STOP; keep user changes and report the recovery commit. There is no `.bak` on the git path. Do not enter the divergence fallback merely because setup failed. Enter it only on `FF_REFUSED` (local commits or a diverged history); network/auth failures stop for repair, not reset.
+出力が `FF_OK` で終わっていれば、アップグレードは完了です。下のフォールバックは完全にスキップします。
+その直前の行が `rescued <old> <new> refs/gstack/rescue/<oid> unmerged=<0|1>` の場合は、競合したローカルの編集がそこに保存されたことをユーザーに伝えます。
+スクリプトが表示した `Inspect`、`Export`、`Delete` のコマンドを伝えます(スクラッチのチェックアウトに `git apply -3` でエクスポートします。インストールの中で `stash apply` を使ってはいけません。
+`unmerged=1` は、rescue を手作業で解決する必要があることを意味します)。
+`FF_STOPPED` の場合は、停止して理由を伝えます。何も変更されていません。
+`ff-busy` は、別の gstack の更新が実行中であることを意味します(1 分後に再試行)。
+`autostash-unrecoverable` は、邪魔になっているもの(リリースが追加する未追跡ファイル、または別の git コマンド)を示します。
+`index-unreadable` は、チェックアウトのインデックスが壊れていることを意味します。
+`BUN_TOO_OLD` の場合は停止します。ユーザーに `bun upgrade` を実行してから、/gstack-upgrade をもう一度実行するよう伝えます。
+`BUN_VERSION_UNREADABLE` の場合は停止します。`bun --version` が gstack が読めるバージョンを出力しなかったため、`bun upgrade` も実行できないかもしれません。
+ユーザーに、https://bun.sh から Bun を再インストールするよう伝えます(Git Bash または macOS/Linux のターミナルで `curl -fsSL https://bun.sh/install | bash`)。
+`bun --version` が 1.4.2 のようなバージョンを出力することを確認してから、/gstack-upgrade をもう一度実行するよう伝えます(docs/troubleshooting.md#bun-version-unreadable)。
+`SETUP_FAILED` の場合は停止します。ユーザーの変更は保持し、復旧用のコミットを報告します。git の経路には `.bak` はありません。setup が失敗したからといって、
+divergence のフォールバックに入ってはいけません。入るのは `FF_REFUSED` の場合だけです(ローカルのコミットや分岐した履歴)。ネットワークや認証の失敗は、リセットではなく修復のために停止します。
 
-**Fallback (ff-only refused — local commits or divergence).** `git reset
---hard` DESTROYS things: a clean tree with unpushed local commits still loses
-those commits. Gate it:
+**フォールバック(ff-only が拒否された場合 — ローカルのコミットまたは分岐)。** `git reset
+--hard` は物を破壊します。きれいなツリーでも、push されていないローカルのコミットは失われます。ゲートをかけます:
 
-1. Run `git status --porcelain` and `git rev-list origin/main..HEAD --oneline`
-   in `$INSTALL_DIR`.
-2. If BOTH are empty, the reset is provably safe — run the fallback block
-   below without asking.
-3. Otherwise ask via AskUserQuestion (one-way door — destructive), listing
-   exactly what will be discarded: each dirty file and each unpushed commit
-   by hash + subject. Options: **A)** Discard them and upgrade (reset) —
-   requires the explicit letter; **B)** Abort the upgrade so the user can
-   rescue their work first (recommended when local commits exist). Never
-   proceed on a vague reply.
+1. `$INSTALL_DIR` で `git status --porcelain` と `git rev-list origin/main..HEAD --oneline` を実行します。
+2. 両方が空なら、リセットは明らかに安全です。確認せずに、下のフォールバックのブロックを実行します。
+3. そうでなければ AskUserQuestion で確認します(取り消しのできない破壊的な操作)。破棄される内容を正確に列挙します。
+   変更されたファイルごと、push されていないコミットごとに、ハッシュと件名を示します。選択肢は次のとおりです: **A)** 破棄してアップグレードする(リセット) — 選択肢の文字を明示的に入力することが必要です。
+   **B)** アップグレードを中止して、ユーザーが先に作業を救出できるようにする(ローカルのコミットがある場合に推奨)。
+   曖昧な返答では決して進めません。
 
 ```bash
 cd -- "${INSTALL_DIR:?INSTALL_DIR is not set: re-run Step 2 and substitute the printed path}" || exit 1
@@ -196,9 +192,9 @@ STASH_OUTPUT=$(git stash 2>&1)
 git reset --hard origin/main
 ./setup --refresh-registered
 ```
-If `$STASH_OUTPUT` contains "Saved working directory", warn the user: "Note: local changes were stashed (any modified generated SKILL.md/sections files were discarded first — they regenerate on setup). Run `git stash pop` in the skill directory to restore your own changes."
+`$STASH_OUTPUT` に「Saved working directory」が含まれる場合は、ユーザーに警告します:「注意: ローカルの変更はスタッシュされました(生成された SKILL.md やセクションファイルへの変更は、先に破棄されています。セットアップで再生成されます)。自分の変更を復元するには、スキルのディレクトリで `git stash pop` を実行してください。」
 
-**For vendored installs** (vendored, vendored-global):
+**ベンダリングされたインストールの場合**(vendored、vendored-global):
 ```bash
 (cd -- "${INSTALL_DIR:?INSTALL_DIR is not set: re-run Step 2 and substitute the printed path}" && [ -f VERSION ] && [ -f setup ] && [ -f bin/gstack-config ]) || { echo "ERROR: INSTALL_DIR=${INSTALL_DIR:-} is not a gstack install; nothing was changed. Re-run Step 2." >&2; exit 1; }
 # A stale .bak from a previously crashed upgrade would make the mv below NEST
@@ -227,9 +223,9 @@ else
 fi
 ```
 
-### Step 4.5: Handle local vendored copy
+### Step 4.5: ローカルのベンダリングされたコピーを処理する
 
-Use the install directory from Step 2. Check if there's also a local vendored copy, and whether team mode is active:
+Step 2 のインストールディレクトリを使います。同じ場所にローカルのベンダリングされたコピーがあるか、チームモードが有効かを確認します:
 
 ```bash
 _RESOLVED_PRIMARY=$(cd -- "${INSTALL_DIR:?INSTALL_DIR is not set: re-run Step 2 and substitute the printed path}" && pwd -P) || exit 1
@@ -246,7 +242,7 @@ echo "LOCAL_GSTACK=$LOCAL_GSTACK"
 echo "TEAM_MODE=$_TEAM_MODE"
 ```
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is `true`:** Remove the vendored copy. Team mode uses the global install as the single source of truth.
+**`LOCAL_GSTACK` が空でなく、かつ `TEAM_MODE` が `true` の場合:** ベンダリングされたコピーを削除します。チームモードではグローバルインストールを唯一の情報源として使います。
 
 ```bash
 (cd -- "${LOCAL_GSTACK:?LOCAL_GSTACK is not set: re-run the detection block above and substitute the printed path}" && [ -f VERSION ] && [ -f setup ] && [ -f bin/gstack-config ]) || { echo "ERROR: LOCAL_GSTACK=${LOCAL_GSTACK:-} is not a gstack copy; nothing was changed." >&2; exit 1; }
@@ -258,9 +254,9 @@ if ! grep -qF '.claude/skills/gstack/' .gitignore 2>/dev/null; then
 fi
 rm -rf "$LOCAL_GSTACK"
 ```
-Tell user: "Removed vendored copy at `$LOCAL_GSTACK` (team mode active — global install is the source of truth). Commit the `.gitignore` change when ready."
+ユーザーに伝えます:「`$LOCAL_GSTACK` にあったベンダリングされたコピーを削除しました(チームモードが有効です。グローバルインストールが唯一の情報源です)。準備ができたら `.gitignore` の変更をコミットしてください。」
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is NOT `true`:** Update it by copying from the freshly-upgraded primary install (same approach as README vendored install):
+**`LOCAL_GSTACK` が空でなく、かつ `TEAM_MODE` が `true` ではない場合:** 新しくアップグレードされたプライマリのインストールからコピーして更新します(README のベンダリングされたインストールと同じ方法です):
 ```bash
 (cd -- "${INSTALL_DIR:?INSTALL_DIR is not set: re-run Step 2 and substitute the printed path}" && [ -f VERSION ] && [ -f setup ] && [ -f bin/gstack-config ]) || { echo "ERROR: INSTALL_DIR=${INSTALL_DIR:-} is not a gstack install; nothing was changed." >&2; exit 1; }
 (cd -- "${LOCAL_GSTACK:?LOCAL_GSTACK is not set: re-run the detection block above and substitute the printed path}" && [ -f VERSION ] && [ -f setup ] && [ -f bin/gstack-config ]) || { echo "ERROR: LOCAL_GSTACK=${LOCAL_GSTACK:-} is not a gstack copy; nothing was changed." >&2; exit 1; }
@@ -276,13 +272,13 @@ else
   exit 1
 fi
 ```
-Only on `LOCAL_SYNC_OK`, tell user: "Also updated vendored copy at `$LOCAL_GSTACK` — commit `.claude/skills/gstack/` when you're ready." Otherwise stop and report the recovery outcome; do not continue migrations or announce success.
+`LOCAL_SYNC_OK` が出た場合にのみ、ユーザーに伝えます:「`$LOCAL_GSTACK` にあるベンダリングされたコピーも更新しました。準備ができたら `.claude/skills/gstack/` をコミットしてください。」
+それ以外の場合は停止し、回復の結果を報告します。マイグレーションを続けたり、成功を宣言したりしてはいけません。
 
-### Step 4.75: Run version migrations
+### Step 4.75: バージョン間のマイグレーションを実行する
 
-After `./setup` completes, run any migration scripts for versions between the old
-and new version. Migrations handle state fixes that `./setup` alone can't cover
-(stale config, orphaned files, directory structure changes).
+`./setup` が完了した後、古いバージョンと新しいバージョンの間にあるマイグレーションスクリプトを実行します。
+マイグレーションは、`./setup` だけではカバーできない状態の修正(古い設定、孤立したファイル、ディレクトリ構造の変更)を扱います。
 
 ```bash
 MIGRATIONS_DIR="${INSTALL_DIR:?INSTALL_DIR is not set: re-run Step 2 and substitute the printed path}/gstack-upgrade/migrations"
@@ -304,16 +300,14 @@ if [ -d "$MIGRATIONS_DIR" ]; then
 fi
 ```
 
-Migrations are idempotent bash scripts in `gstack-upgrade/migrations/`. Each is named
-`v{VERSION}.sh` and runs only when upgrading from an older version. See CONTRIBUTING.md
-for how to add new migrations.
+マイグレーションは、`gstack-upgrade/migrations/` にある冪等な bash スクリプトです。各ファイルは `v{VERSION}.sh` という名前で、古いバージョンからアップグレードする場合にのみ実行されます。
+新しいマイグレーションの追加方法は CONTRIBUTING.md を参照してください。
 
-### Step 4.8: Stop any stale daemon (unconditional)
+### Step 4.8: 古いデーモンを停止する(無条件)
 
-A browse daemon started before the upgrade keeps serving the OLD binary's code
-until it is stopped — it survives `git reset --hard` and `./setup` because the
-running process holds the old executable. Always run this step, using
-the install directory detected in Step 2.
+アップグレード前に起動した browse デーモンは、停止されるまで古いバイナリのコードを提供し続けます。
+実行中のプロセスが古い実行ファイルを保持しているため、`git reset --hard` や `./setup` の後も残ります。
+このステップは必ず実行し、Step 2 で検出したインストールディレクトリを使います。
 
 ```bash
 INSTALL_DIR_PLACEHOLDER="<install dir from Step 2>"
@@ -338,21 +332,13 @@ else
 fi
 ```
 
-Replace `<install dir from Step 2>` with the actual install directory before
-running. Interpret the `DAEMON_CHECK` result:
+実行する前に、`<install dir from Step 2>` を実際のインストールディレクトリに置き換えます。`DAEMON_CHECK` の結果は次のように解釈します:
 
-1. **`stale-responsive` + `DAEMON_STOPPED=yes`:** Tell the user "Stopped the
-   old browse daemon (binary {OLD_HASH} → {NEW_HASH}). The next browse command
-   starts a fresh daemon on the new binary."
-2. **`stale-busy`:** The daemon runs the old binary but is mid-work — DEFER to
-   it, never kill a busy daemon during upgrade. Tell the user: "A browse daemon
-   is still running the pre-upgrade binary ({OLD_HASH} → {NEW_HASH}) but is
-   busy right now. When it finishes, stop it with `browse stop` — or force it
-   immediately with `browse --force-restart stop` (loses that session's
-   tabs/cookies/logins)."
-3. **`none` / `dead` / `current`:** Nothing to do — say nothing.
+1. **`stale-responsive` かつ `DAEMON_STOPPED=yes`:** ユーザーに伝えます:「古い browse デーモンを停止しました(バイナリ {OLD_HASH} → {NEW_HASH})。次の browse コマンドで、新しいバイナリを使ったデーモンが起動します。」
+2. **`stale-busy`:** デーモンは古いバイナリを実行していますが、作業の途中です。作業を優先して待ち、アップグレード中に作業中のデーモンを決して止めてはいけません。ユーザーに伝えます:「アップグレード前のバイナリ({OLD_HASH} → {NEW_HASH})を実行している browse デーモンがまだ動いていますが、現在作業中です。作業が終わったら `browse stop` で停止してください。または `browse --force-restart stop` で直ちに強制的に再起動できます(そのセッションのタブ、Cookie、ログインは失われます)。」
+3. **`none` / `dead` / `current`:** 何もする必要はありません。何も言わないでください。
 
-### Step 5: Write marker + clear cache
+### Step 5: マーカーの書き込みとキャッシュの削除
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -362,13 +348,13 @@ rm -f "$GSTACK_STATE_ROOT"/last-update-check
 rm -f "$GSTACK_STATE_ROOT"/update-snoozed
 ```
 
-### Step 6: Show What's New
+### Step 6: 新しい内容を表示する
 
-Read `$INSTALL_DIR/CHANGELOG.md`. Find all version entries between the old version and the new version. Summarize as 5-7 bullets grouped by theme. Don't overwhelm — focus on user-facing changes. Skip internal refactors unless they're significant.
+`$INSTALL_DIR/CHANGELOG.md` を読みます。古いバージョンと新しいバージョンの間にあるすべてのバージョンのエントリを探します。テーマごとに分けて、5〜7 個の箇条書きにまとめます。詰め込みすぎないこと。利用者に見える変更に絞ります。重要でない内部のリファクタリングは省きます。
 
-Four fields: summarize `git -C "$INSTALL_DIR" log --oneline <PRE_UPGRADE_COMMIT>..HEAD` (≤7 bullets) as "gstack v{old}, main at {sha}".
+4 つのフィールドの場合: `git -C "$INSTALL_DIR" log --oneline <PRE_UPGRADE_COMMIT>..HEAD` を要約し(7 個以内の箇条書き)、「gstack v{old}、main は {sha} にあります」として示します。
 
-Format:
+形式:
 ```
 gstack v{new} — upgraded from v{old}!
 
@@ -380,44 +366,44 @@ What's new:
 Happy shipping!
 ```
 
-### Step 7: Continue
+### Step 7: 続行する
 
-After showing What's New, continue with whatever skill the user originally invoked. The upgrade is done — no further action needed.
+What's New を表示した後、ユーザーが最初に呼び出したスキルを続けます。アップグレードは完了しています。これ以上の操作は不要です。
 
 ---
 
-## Standalone usage
+## 単独での使い方
 
-When invoked directly as `/gstack-upgrade` (not from a preamble):
+`/gstack-upgrade` を直接呼び出した場合(preamble からではない場合):
 
-1. Force a fresh update check (bypass cache):
+1. 新しく更新を確認します(キャッシュを無視):
 ```bash
 ~/.claude/skills/gstack/bin/gstack-update-check --force 2>/dev/null || \
 .claude/skills/gstack/bin/gstack-update-check --force 2>/dev/null || true
 ```
-Use the output to determine if an upgrade is available.
+出力を使って、アップグレードが利用可能かを判断します。
 
-2. If `UPGRADE_AVAILABLE` (three or four fields): follow Steps 2-6 above.
+2. `UPGRADE_AVAILABLE`(3 つまたは 4 つのフィールド)の場合: 上の Step 2〜6 に従います。
 
-   If `CHECK_FAILED ...`: the remote version could not be read, so the update
-   status is unknown. Show the line (it names the URL that failed) and tell the
-   user the check failed; never report "already on the latest version". Stop.
+   `CHECK_FAILED ...` の場合: リモートのバージョンを読めなかったため、更新の状態は不明です。その行を表示します(失敗した URL が示されています)。チェックが失敗したとユーザーに伝えます。
+   「すでに最新バージョンです」と報告してはいけません。停止します。
 
-3. If no output (primary is up to date): check for a stale local vendored copy.
+3. 出力がない場合(プライマリは最新): 古いローカルのベンダリングされたコピーがないかを確認します。
 
-Run the Step 2 bash block above to detect the primary install type and directory (`INSTALL_TYPE` and `INSTALL_DIR`). Then run the Step 4.5 detection bash block above to check for a local vendored copy (`LOCAL_GSTACK`) and team mode status (`TEAM_MODE`).
+上の Step 2 の bash ブロックを実行して、プライマリのインストールの形式とディレクトリ(`INSTALL_TYPE` と `INSTALL_DIR`)を検出します。そのうえで、上の Step 4.5 の検出ブロックを実行して、
+ローカルのベンダリングされたコピー(`LOCAL_GSTACK`)とチームモードの状態(`TEAM_MODE`)を確認します。
 
-**If `LOCAL_GSTACK` is empty** (no local vendored copy): tell the user "You're already on the latest version (v{version})."
+**`LOCAL_GSTACK` が空の場合**(ローカルのベンダリングされたコピーがない): ユーザーに伝えます:「すでに最新バージョン(v{version})です。」
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is `true`:** Remove the vendored copy using the Step 4.5 team-mode removal bash block above. Tell user: "Global v{version} is up to date. Removed stale vendored copy (team mode active). Commit the `.gitignore` change when ready."
+**`LOCAL_GSTACK` が空でなく、かつ `TEAM_MODE` が `true` の場合:** 上の Step 4.5 のチームモードの削除ブロックを使って、ベンダリングされたコピーを削除します。ユーザーに伝えます:「グローバルの v{version} は最新です。古いベンダリングされたコピーを削除しました(チームモードが有効です)。準備ができたら `.gitignore` の変更をコミットしてください。」
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is NOT `true`**, compare versions:
+**`LOCAL_GSTACK` が空でなく、かつ `TEAM_MODE` が `true` ではない場合**は、バージョンを比較します:
 ```bash
 PRIMARY_VER=$(cat "${INSTALL_DIR:?INSTALL_DIR is not set: re-run Step 2 and substitute the printed path}/VERSION" 2>/dev/null || echo "unknown")
 LOCAL_VER=$(cat "${LOCAL_GSTACK:?LOCAL_GSTACK is not set: re-run the Step 4.5 detection block}/VERSION" 2>/dev/null || echo "unknown")
 echo "PRIMARY=$PRIMARY_VER LOCAL=$LOCAL_VER"
 ```
 
-**If versions differ:** follow the Step 4.5 sync bash block above to update the local copy from the primary. Tell user: "Global v{PRIMARY_VER} is up to date. Updated local vendored copy from v{LOCAL_VER} → v{PRIMARY_VER}. Commit `.claude/skills/gstack/` when you're ready."
+**バージョンが異なる場合:** 上の Step 4.5 の同期ブロックに従い、プライマリからローカルのコピーを更新します。ユーザーに伝えます:「グローバルの v{PRIMARY_VER} は最新です。ローカルのベンダリングされたコピーを v{LOCAL_VER} → v{PRIMARY_VER} に更新しました。準備ができたら `.claude/skills/gstack/` をコミットしてください。」
 
-**If versions match:** tell the user "You're on the latest version (v{PRIMARY_VER}). Global and local vendored copy are both up to date."
+**バージョンが一致する場合:** ユーザーに伝えます:「最新バージョン(v{PRIMARY_VER})です。グローバルとローカルのベンダリングされたコピーは、どちらも最新です。」

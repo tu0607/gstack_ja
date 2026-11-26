@@ -63,7 +63,7 @@ echo "browse: $1 ok"
     fs.writeFileSync(path.join(bin, 'ngrok'), '#!/usr/bin/env bash\n[ "$1 $2" = "config check" ] && { echo "Valid configuration file at ~/.config/ngrok/ngrok.yml"; exit 0; }\nexit 0\n', { mode: 0o755 });
 
     const skill = fs.readFileSync(path.join(ROOT, 'pair-agent', 'SKILL.md'), 'utf8');
-    const section = sliceBetween(skill, '### If different machine (option B):', '**If ngrok is installed but NOT authed:**')
+    const section = sliceBetween(skill, '### 別のマシンの場合(選択肢 B):', '**ngrok はインストールされているが、認証されていない場合:**')
       .replaceAll('~/.claude/skills/gstack/bin/', './bin/');
     fs.writeFileSync(path.join(dir, 'pair-agent-remote.md'), applyArm(section, safetyRule('pair-agent-full-block'), arm));
 

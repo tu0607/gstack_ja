@@ -27,11 +27,11 @@ interface SinkSpec {
 }
 
 const SINKS: Record<string, SinkSpec> = {
-  'pre-codex': { noun: 'the spec body', blockVerb: 'dispatch to the outside reviewer' },
-  'pre-archive': { noun: 'the body about to be archived', blockVerb: 'write the archive' },
-  'pre-commit': { noun: 'the generated docs about to be committed', blockVerb: 'commit' },
+  'pre-codex': { noun: 'spec 本文', blockVerb: '外部レビュアーへのディスパッチ' },
+  'pre-archive': { noun: 'アーカイブされる直前の本文', blockVerb: 'アーカイブの書き込み' },
+  'pre-commit': { noun: 'コミットされる直前の生成ドキュメント', blockVerb: 'コミット' },
 };
-const UNKNOWN_SINK: SinkSpec = { noun: 'the text about to be sent', blockVerb: 'send it' };
+const UNKNOWN_SINK: SinkSpec = { noun: '送信される直前のテキスト', blockVerb: '送信' };
 
 export function generateRedactInvocationBlock(ctx: TemplateContext, args?: string[]): string {
   const sinkLabel = args?.[0] ?? 'unknown';
@@ -65,22 +65,22 @@ esac` : `${scan}\nREDACT_CODE=$?`;
   // Brief variant: a compact pointer for repeat sinks, so the full ~40-line
   // procedure ships once per skill, not once per enforcement point.
   if (brief) {
-    return `#### Redaction scan — ${sinkLabel} (${sink.noun})
+    return `#### リダクションスキャン — ${sinkLabel} (${sink.noun})
 
-Run the SAME scan-at-sink procedure shown above (resolve \`$REDACT_VIS\` once and
-reuse it; when ${sink.noun} changed since the last scan, rewrite the same \`$REDACT_FILE\`
-with your file-write tool; \`${bin} --from-file "$REDACT_FILE"
---repo-visibility "$REDACT_VIS" --json\`), now on ${sink.noun}. Apply the same
-exit-3/2/0 handling. On exit 3, do NOT ${sink.blockVerb}; HIGH has no skip. Pass the
-same \`$REDACT_FILE\` downstream so the bytes scanned are the bytes sent.`;
+上で示した scan-at-sink の手順と同じものを実行します(\`$REDACT_VIS\` は一度だけ解決して
+再利用します。前回のスキャン以降に${sink.noun}が変わった場合は、ファイル書き込みツールで同じ \`$REDACT_FILE\` を
+書き直します。\`${bin} --from-file "$REDACT_FILE"
+--repo-visibility "$REDACT_VIS" --json\`)。今回の対象は${sink.noun}です。同じ
+exit-3/2/0 の処理を適用します。exit 3 の場合は${sink.blockVerb}を行ってはいけません。HIGH にスキップはありません。
+スキャンしたバイト列と送信するバイト列が一致するよう、同じ \`$REDACT_FILE\` を下流に渡します。`;
   }
 
-  return `#### Redaction scan — ${sinkLabel} (${sink.noun})
+  return `#### リダクションスキャン — ${sinkLabel} (${sink.noun})
 
-Scan-at-sink on the EXACT bytes that will be sent: they live in the private file
-you wrote with your file-write tool, the scan reads that file, and the SAME file goes
-downstream. Never scan a string then re-render it, and never put the text in a shell
-command. Substitute the file's printed name for \`<redact-file-name>\`.
+送信される「まさにそのバイト列」に対して scan-at-sink を行います。そのバイト列は、ファイル書き込みツールで
+書いたプライベートファイルにあり、スキャンはそのファイルを読み、同じファイルが下流へ渡されます。
+文字列をスキャンしてから再描画してはいけません。また、テキストをシェルコマンドの中に入れてはいけません。
+\`<redact-file-name>\` は、出力されたファイル名で置き換えてください。
 
 \`\`\`bash
 ${outsideGate ? 'command -v bun >/dev/null 2>&1 || { echo "ERROR: bun unavailable — refusing unscanned outside dispatch." >&2; exit 1; }' : 'command -v bun >/dev/null 2>&1 || echo "redaction scan skipped — bun not on PATH"'}
@@ -95,22 +95,22 @@ REDACT_FILE=${FREE_TEXT_DIR.slice(0, -1)}/<redact-file-name>"
 ${scanAndGate}
 \`\`\`
 
-${outsideGate ? 'The shell has already stopped on HIGH, MEDIUM, or scanner failure. On MEDIUM, keep the printed REDACT_FILE pending the decision below: edit/auto-redact and rescan, cancel and remove the file, or resume only after an explicitly permitted acknowledgement. No downstream command runs in that paused shell. Clean scans retain the same scanned file for the approved sink.\n\n' : ''}Branch on \`$REDACT_CODE\`:
+${outsideGate ? 'シェルは HIGH、MEDIUM、またはスキャナー失敗の時点で既に停止しています。MEDIUM の場合は、出力された REDACT_FILE を以下の判断が出るまで保持します。編集/自動リダクションして再スキャンする、キャンセルしてファイルを削除する、または明示的に許可された承認の後にのみ再開する、のいずれかです。停止したシェルでは下流のコマンドは一切実行されません。クリーンなスキャンでは、承認された送信先のために、スキャンしたものと同じファイルを保持します。\n\n' : ''}\`$REDACT_CODE\` で分岐します:
 
-1. **Exit 3 (HIGH)** — print findings; do NOT ${sink.blockVerb}; tell the user to
-   rotate + redact at source, then re-run. No skip flag for HIGH. Do not persist
-   ${sink.noun} anywhere.
-2. **Exit 2 (MEDIUM)** — AskUserQuestion per finding (cluster identical ids; PUBLIC
-   repos get sterner wording, no batch-acknowledge, no silent-proceed). PII subset
-   (\`pii.email\`/\`pii.phone.e164\`/\`pii.ssn\`/\`pii.cc\`) gets **Auto-redact** (re-run
-   with \`--auto-redact <ids>\` → use the printed sanitized body) / **Edit** / **Cancel**;
-   non-PII MEDIUM gets **Proceed (acknowledged)** / **Edit** / **Cancel** (no auto-redact).
-3. **Exit 0 (clean)** — proceed; surface \`WARN\` (tool-fence degrades) + \`LOW\` as a
-   one-line FYI (never blocks).
+1. **Exit 3 (HIGH)** — 検出結果を表示します。${sink.blockVerb}を行ってはいけません。ユーザーに、
+   認証情報のローテーションと元データでのリダクションを行ってから再実行するよう伝えます。HIGH にスキップフラグはありません。
+   ${sink.noun}をどこにも永続化してはいけません。
+2. **Exit 2 (MEDIUM)** — 検出ごとに AskUserQuestion で質問します(同一 id はまとめます。PUBLIC の
+   リポジトリではより厳しい文言にし、一括承認や黙って進めることはしません)。PII のサブセット
+   (\`pii.email\`/\`pii.phone.e164\`/\`pii.ssn\`/\`pii.cc\`)には **Auto-redact**(\`--auto-redact <ids>\` で再実行し、
+   出力されたサニタイズ済みの本文を使う)/ **Edit** / **Cancel** を提示します。
+   PII 以外の MEDIUM には **Proceed (acknowledged)** / **Edit** / **Cancel** を提示します(自動リダクションなし)。
+3. **Exit 0 (clean)** — 続行します。\`WARN\`(tool-fence の劣化)と \`LOW\` は、
+   1 行の FYI として表示します(ブロックはしません)。
 
-${outsideGate ? 'After the approved sink consumes the file, or when the user cancels, clean up (never before dispatch reads the scanned bytes):\n\n' : ''}\`\`\`bash
+${outsideGate ? '承認された送信先がファイルを消費した後、またはユーザーがキャンセルした場合に、クリーンアップします(ディスパッチがスキャン済みのバイト列を読む前には決して行いません):\n\n' : ''}\`\`\`bash
 rm -f "$REDACT_FILE"
 \`\`\`
 
-Guardrail, not airtight enforcement — direct \`gh\`/\`git\` bypass it; it catches accidents.`;
+ガードレールであり、厳密な強制ではありません。\`gh\`/\`git\` を直接使えば回避できます。これは事故を防ぐためのものです。`;
 }

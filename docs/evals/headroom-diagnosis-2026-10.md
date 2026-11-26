@@ -1,134 +1,73 @@
-# Headroom diagnosis, October 2026 (A1-A3)
+# ヘッドルームの診断、2026 年 10 月(A1-A3)
 
-Per-phase timings for the cases the reliability plan named as slow, measured from
-stored CI artifacts of census 37198445662 (head `fd6854b`) and, for the one red,
-37176837432. Native captures carry message timestamps; PTY cases carry the
-assistant-message timestamps their observation files keep. Durations in the
-trial history (`wave-trials`) for multi-test files are the JUnit **sum** of tests
-that run concurrently, not wall time or session time, so they overstate headroom
-for `plan-mode-no-op` and `plan-ceo-mode-routing`.
+信頼性計画で遅いと名指しされたケースについて、フェーズごとの所要時間を計測しました。対象は、棚卸し 37198445662(head `fd6854b`)の保存済み CI アーティファクトで、赤になった一件については 37176837432 を使っています。ネイティブのキャプチャはメッセージのタイムスタンプを持ち、PTY のケースは観測ファイルが保持するアシスタントメッセージのタイムスタンプを持ちます。試行履歴(`wave-trials`)にある、複数テストのファイルの所要時間は、並行して走るテストの JUnit の **合計** であり、壁時計の時間やセッションの時間ではありません。そのため、`plan-mode-no-op` と `plan-ceo-mode-routing` のヘッドルームは過大に見えます。
 
-## A1. ship-docsync-completion and -store (session budget 585 s)
+## A1. ship-docsync-completion と -store(セッション予算 585 秒)
 
-History: completion 349-517 s, store 377-466 s across the eight wave censuses.
+履歴: 8 回の wave 棚卸しを通して、completion は 349〜517 秒、store は 377〜466 秒。
 
 | Phase (37198445662) | completion | store |
 |---|---|---|
-| Prepare: read phase, skills, Git state, fixture files; snapshot | 85 s (two thinking gaps of 9 s and 26 s) | 99 s (33 s thinking) |
+| Prepare: read phase, skills, Git state, fixture files; snapshot | 85 s(思考の間が 9 秒と 26 秒の二回) | 99 s(思考 33 秒) |
 | Compose child prompt (9.5 KB / 7.1 KB `Agent` input) | 43 s | 32 s |
 | Child (`document-release`, foreground) | 122 s | 118 s |
-| Validate (compare, Git reads, small file reads) | 3 s tool time, 38 s thinking | 3 s tool time, 13 s thinking |
-| Write records after the child | 45 s (section copy, report, result JSON with typed hashes) | 78 s (child output copy, section, record, report) |
+| Validate (compare, Git reads, small file reads) | ツール時間 3 s、思考 38 s | ツール時間 3 s、思考 13 s |
+| Write records after the child | 45 s(セクションのコピー、報告、typed hash を含む結果 JSON) | 78 s(子の出力のコピー、セクション、記録、報告) |
 | Publish stand-in, verify, final message | 32 s | 25 s |
 
-Tool time in the parent is about 1 s per session. Reading release-file contents
-does not dominate (10 small files, ~1 s), so the parent keeps its reads and the
-child result contract stays unchanged. The parent's own model time dominates
-(~270 s of ~390 s). Two parts are cuttable without weakening the gate:
+親でのツール時間はセッションあたり約 1 秒です。リリースファイルの内容の読み取りは支配的ではない(小さなファイル 10 個で約 1 秒)ため、親は読み取りを維持し、子の結果の契約も変えません。親自身のモデルの時間が支配的です(約 390 秒のうち約 270 秒)。ゲートを弱めずに削れる部分は二つあります。
 
-- **Records after the child** (product): the parent retyped hash maps and child
-  output into several files. The gate now records post-child hashes by rerunning
-  the `gstack-docs-candidate snapshot` command (`--out <audit-id>-post.json`),
-  Step 16 runs `compare` on it, and each record is saved once and cited by path.
-- **Child prompt copy** (fixture only): ~70% of the child prompt is the fixture's
-  observation interface, which the fixture tells the parent to copy into child
-  prompts (`docsNativeInterface`, "include this interface in child prompts").
-  Writing that interface to a fixture file the child reads would save ~30-40 s per
-  session; it touches the shared detector/actor module, so it is a lane D request.
+- **子の後の記録**(プロダクト): 親は hash のマップと子の出力を、複数のファイルに打ち直していました。現在のゲートは、`gstack-docs-candidate snapshot` コマンド(`--out <audit-id>-post.json`)を再実行して、子の後の hash を記録します。Step 16 はそれに対して `compare` を実行し、各記録は一度だけ保存されて、パスで引用されます。
+- **子のプロンプトのコピー**(フィクスチャのみ): 子のプロンプトの約 70% は、フィクスチャの observation インターフェースです。フィクスチャは親に、このインターフェースを子のプロンプトにコピーするよう指示しています(`docsNativeInterface`、「include this interface in child prompts」)。このインターフェースを、子が読むフィクスチャのファイルに書き出せば、セッションごとに約 30〜40 秒を節約できます。ただし、共有の検出器/アクターのモジュールに触れるため、レーン D への依頼になります。
 
-## A2. plan-mode-no-op and plan-ceo-mode-routing
+## A2. plan-mode-no-op と plan-ceo-mode-routing
 
-**plan-mode-no-op is not a headroom problem.** Its six PTY sessions start
-concurrently; 37198445662's file wall is 263 s (slice entry 271.6 s) while the
-JUnit sum is 518 s. The slowest session is 159 s of its 300 s observation budget
-(53%). It runs in gate slice 4, not the 711 s critical-path slice 11.
+**plan-mode-no-op はヘッドルームの問題ではありません。** その六つの PTY セッションは並行して始まります。37198445662 でのファイル全体の壁時計時間は 263 秒(スライスの開始は 271.6 秒)で、JUnit の合計は 518 秒です。最も遅いセッションは、その 300 秒の観測予算のうち 159 秒(53%)です。これは、臨界パスである 711 秒のスライス 11 ではなく、gate スライス 4 で実行されます。
 
-**plan-ceo-mode-routing** runs two concurrent sessions (wall 378 s, sum 687 s).
-The slowest session (HOLD SCOPE) is 378 s of 600 s (63%). The tight budget is the
-test's 240 s post-selection window:
+**plan-ceo-mode-routing** は二つの並行セッションを走らせます(壁時計 378 秒、合計 687 秒)。最も遅いセッション(HOLD SCOPE)は、600 秒のうち 378 秒(63%)です。窮屈な予算は、テストの 240 秒の選択後の窓です。
 
-| HOLD SCOPE session (37198445662) | elapsed |
+| HOLD SCOPE セッション (37198445662) | 経過時間 |
 |---|---|
-| Preamble | 17 s |
-| Pre-review audit batch | 46 s |
-| Setup questions and answers | 45 s |
-| Learnings search, Step 0 analysis written to the plan | 50 s |
-| Mode question rendered and answered | 20 s |
-| Handoff helper, plan write, two section reads, Codex probe, then posture chat | 114 s |
-| HOLD continuation question and posture assessment | 76 s |
+| プリアンブル | 17 s |
+| レビュー前の監査バッチ | 46 s |
+| セットアップの質問と回答 | 45 s |
+| 学習内容の検索。ステップ 0 の分析をプランに書き込み | 50 s |
+| モードの質問を表示して回答 | 20 s |
+| 引き継ぎヘルパー、プランの書き込み、セクション読み込み 2 回、Codex のプローブ、その後の姿勢確認チャット | 114 s |
+| HOLD の継続確認の質問と姿勢の評価 | 76 s |
 
-In the red (37176837432) the session skipped the handoff helper and paraphrased
-the mode ("holding scope"), then spent ~60 s per decision on the ledger
-save/read-back/ask cycle until the 240 s window closed. The skill now sends the
-handoff line before any other tool call, plan write or section load, and never
-skips the helper. The remaining time is model latency of the decision procedure
-(about 60 s per question: comparison grid, save, Read-back, ask); cutting that
-would weaken the question-persistence gate, so it stays a named item.
+赤になった回(37176837432)では、セッションは handoff ヘルパーを飛ばし、モードを言い換えました(「holding scope」)。その後、240 秒の窓が閉じるまで、決定ごとに約 60 秒を、台帳の保存・読み戻し・質問のサイクルに費やしました。スキルは今では、ほかのツール呼び出し、計画の書き込み、セクションの読み込みより前に handoff の行を送り、ヘルパーを決して飛ばさないようになっています。残りの時間は、決定手順のモデルの待ち時間(質問一つあたり約 60 秒。比較グリッド、保存、読み戻し、質問)です。これを削ると質問の永続化ゲートが弱まるため、名前付きの課題として残します。
 
-## A3. Census critical path
+## A3. 棚卸しの臨界パス
 
-Gate slice 11 (711 s, the census critical path) holds 17 short files. Their
-recorded estimates (`scripts/paid-test-durations.json`, recorded 2026-09-29)
-total 1078 s; they ran 1353 s. Four files ran about twice their estimate in
-every wave census:
+gate のスライス 11(711 秒。棚卸しの臨界パス)には、短いファイルが 17 個入っています。それらの記録された見積もり(`scripts/paid-test-durations.json`、2026-09-29 記録)は合計 1078 秒ですが、実際には 1353 秒かかりました。四つのファイルは、wave の棚卸しのたびに見積もりの約 2 倍かかっていました。
 
-| File | estimate | wave census range |
+| ファイル | 見積もり | 棚卸しでの範囲 |
 |---|---|---|
 | `skill-e2e-plan.test.ts#plan-review-report` | 76 s | 168-273 s |
 | `skill-e2e-plan-ceo-plan-mode.test.ts` | 37 s | 85-120 s |
 | `skill-e2e-deploy.test.ts#benchmark-workflow` | 62 s | 59-121 s |
 | `skill-e2e-safety-codex-consult.test.ts` | 83 s | 111-212 s |
 
-None is near its own budget (plan-review-report peaks at 46% of 600 s). The fix
-is a refreshed duration seed so the planner packs slice 11 within the 540 s slice
-budget (lane F / integrator). review-army-perf and plan-design-review-plan-mode
-need no work.
+どれも、それぞれの予算には近づいていません(plan-review-report のピークは 600 秒の 46%)。対策は、所要時間の種データを更新することです。これにより、プランナーはスライス 11 を 540 秒のスライス予算内に収められます(レーン F / インテグレーター)。review-army-perf と plan-design-review-plan-mode は手を入れる必要はありません。
 
-## plan-eng-multi-finding-batching: 975 s in census 37228573062 (GSTA-23 branch)
+## plan-eng-multi-finding-batching: 棚卸し 37228573062 で 975 秒(GSTA-23 ブランチ)
 
-The red trial ran 975 s of its 1,500 s armed session (65%), against 313-409 s
-in the nine earlier censuses (37162480720 … 37198445662). The wall is a
-consequence of the detector miss, not slower work: the runner stops
-collecting once the counter credits FLOOR = 3 review questions (normally
-by D3, about 5-7 minutes). The counter credited none, because the report
-declared its target mid-line ("… by the user. Review target (fixed):
-`PLAN.md` …"), so collection ran on through D10 and the completed report.
-With the target-field fix the same capture is credited at D5 (521 s).
-Replay: `bun test test/detector-corpus-plan-eng-multi-finding-batching.test.ts`.
-No budget or kind change.
+赤になった試行は、1,500 秒の予算のうち 975 秒(65%)を使いました。それに対して、先行する 9 回の棚卸し(37162480720 … 37198445662)では 313〜409 秒でした。これは作業が遅くなったのではなく、検出器の取りこぼしの結果です。カウンターが FLOOR = 3 のレビュー質問を計上すると、ランナーは収集を止めます(通常は D3 あたり、約 5〜7 分)。報告が途中の行で対象を宣言したため(「… by the user. Review target (fixed): `PLAN.md` …」)、カウンターは何も計上しませんでした。そのため収集は D10 と完成した報告まで続きました。対象フィールドを修正すると、同じキャプチャは D5(521 秒)で計上されます。リプレイ: `bun test test/detector-corpus-plan-eng-multi-finding-batching.test.ts`。予算と種類は変更していません。
 
-## review-army-simplification: 159 s of 180 s in the Oct 12 census (#3153)
+## review-army-simplification: 10 月の棚卸し(#3153)で 180 秒の予算のうち 159 秒
 
-The pass-rate gate pooled 159 s of the 180 s session budget (88.1%, over the
-85% cap); census 38212265208's own panel ran 142, 91 and 146 s. Phases from the
-three transcripts (paid slices 25-27):
+合格率ゲートは、180 秒のセッション予算のうち 159 秒をプールしました(88.1%。85% の上限を超過)。棚卸し 38212265208 自身のパネルでは、142、91、146 秒でした。三つのトランスクリプトからのフェーズ(paid slices 25-27):
 
-| Phase (38212265208) | t1 | t2 | t3 |
+| フェーズ (38212265208) | t1 | t2 | t3 |
 |---|---|---|---|
-| Read the extracted review-SKILL.md, checklist, specialist; search for a "## Step 4.5" heading the carved fixture no longer has | 17 s | 15 s | 36 s |
-| Scope and stats commands, analysis, and reconciling the prompt's "over 100 lines" with the 68-line diff | 64 s | 29 s | 13 s, then a subagent (29 s) and re-verification (21 s) |
-| Compose the unbounded report | 45 s | 33 s | 31 s |
-| Final message (each restates the findings and the premise mismatch) | 11 s | 8 s | 11 s |
+| 抽出された review-SKILL.md、チェックリスト、specialist を読み、切り出したフィクスチャにもうない "## Step 4.5" の見出しを検索 | 17 s | 15 s | 36 s |
+| スコープと統計のコマンド、分析、プロンプトの「100 行を超える」という記述と 68 行の差分の突き合わせ | 64 s | 29 s | 13 s、その後サブエージェント(29 s)と再検証(21 s) |
+| 行数制限のない報告を作成 | 45 s | 33 s | 31 s |
+| 最終メッセージ(それぞれ指摘と前提の不一致を繰り返す) | 11 s | 8 s | 11 s |
 
-The fixture, not the skill, carried the extra work. The case now uses the
-staging its siblings use (`stageReviewArmySession`: recorded scope, stats,
-learnings and diff; only `review-army.md` and `simplification.md` staged),
-selects the specialist with the real `/review --simplification` force flag,
-applies the checklist in-session and bounds the report to 30 lines. Budget and
-assertions are unchanged. Free check: the simplification scenarios in
-`test/review-army-budget.test.ts`.
+余分な作業を負っていたのはスキルではなく、フィクスチャでした。このケースは、兄弟のケースと同じステージング(`stageReviewArmySession`: 記録されたスコープ、統計、学習内容、差分。ステージされるのは `review-army.md` と `simplification.md` だけ)を使うようになりました。また、実際の `/review --simplification` の強制フラグで専門家を選び、チェックリストをセッション内で適用し、報告を 30 行に制限しています。予算と検証内容は変えていません。無料のチェック: `test/review-army-budget.test.ts` の simplification のシナリオ。
 
-## ship-exploratory-late-input: a probe batched with its Reads (#3153)
+## ship-exploratory-late-input: プローブが Read と一緒にバッチされた(#3153)
 
-Not a headroom case; recorded here because the cause is also fixture work.
-Census 38212265208 failed it with "probe preceded resource read". Capture 001
-went out in the same provider response as the Reads of the caller's Step 8 and
-Step 9 sections, before any QA section was read (the Oct 7 capture `mtb1007a`
-batched it with the exploratory Read). /ship's prose never names the QA capture
-helper; the fixture prompt supplies it, and the fixture's scheduling contract
-(added 2026-10-06) invited batching "Reads and read-only discovery" without
-listing Read results among the dependencies a probe must wait for. The case
-passed on Oct 3 and Oct 5, before that contract. The contract now classifies
-captures, guard starts and runs as probes, never discovery; the ordering rule
-itself stays in /ship's Step 9 STOP, which the case still has to follow unaided.
-Free check: the census 38212265208 replay in `test/qa-exploratory-callers.test.ts`.
+ヘッドルームのケースではありません。原因がフィクスチャの作業でもあるため、ここに記録します。棚卸し 38212265208 は「probe preceded resource read」で失敗しました。キャプチャ 001 は、呼び出し元の Step 8 と Step 9 のセクションの Read と同じプロバイダーの応答で送られ、QA のセクションが読まれる前に出ていました(10 月 7 日のキャプチャ `mtb1007a` も、探索的な Read と一緒にバッチしていました)。/ship の文章は QA のキャプチャ・ヘルパーの名前を挙げていません。フィクスチャのプロンプトがそれを与えています。そして、フィクスチャのスケジューリング契約(2026-10-06 追加)は、「Reads and read-only discovery」をまとめて実行することを勧めていましたが、プローブが待つべき依存関係に Read の結果が含まれることを明記していませんでした。このケースは、その契約より前の 10 月 3 日と 10 月 5 日には合格していました。契約は今では、キャプチャ、ガードの開始、実行をプローブとして分類し、探索(discovery)とはしません。順序のルールそのものは /ship の Step 9 STOP にあり、このケースは今も、それに手助けなしで従う必要があります。無料のチェック: `test/qa-exploratory-callers.test.ts` の棚卸し 38212265208 のリプレイ。

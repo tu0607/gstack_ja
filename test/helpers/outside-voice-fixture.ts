@@ -5,16 +5,26 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { extractSkillSections } from './skill-fixture';
 
+/** English heading first; the Japanese fork renders the same step under a translated heading. */
+function extractEither(source: string, names: string[]): string {
+  let lastError: unknown;
+  for (const name of names) {
+    try { return extractSkillSections(source, [name]); } catch (error) { lastError = error; }
+  }
+  throw lastError;
+}
+
 export function installOutsideReviewFixture(rendered: string, host: 'claude' | 'codex', repo: string, runtimeRoot: string): string {
   const source = host === 'claude' ? join(rendered, 'review') : join(rendered, '.agents', 'skills', 'gstack-review');
   const name = host === 'claude' ? 'review' : 'gstack-review';
   const destination = join(repo, host === 'claude' ? '.claude' : '.agents', 'skills', name);
   mkdirSync(destination, { recursive: true });
-  const head = extractSkillSections(source, ['Step 0: Detect platform and base branch', 'Step 3: Get the diff']);
+  const head = extractEither(source, ['Step 0: Detect platform and base branch', 'Step 0: プラットフォームとベースブランチを検出する'])
+    + '\n' + extractEither(source, ['Step 3: Get the diff', 'Step 3: 差分の取得']).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
   const sectionPath = join(source, 'sections', 'adversarial.md');
   const section = existsSync(sectionPath) ? readFileSync(sectionPath, 'utf8')
-    : extractSkillSections(source, ['Step 4.8: Adversarial review (always-on)']).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
-  if (!section.includes('Adversarial review (always-on)')) throw new Error(`Missing adversarial workflow: ${source}`);
+    : extractEither(source, ['Step 4.8: Adversarial review (always-on)', 'Step 4.8: 敵対的レビュー(常時実行)']).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
+  if (!section.includes('Adversarial review (always-on)') && !section.includes('敵対的レビュー(常時実行)')) throw new Error(`Missing adversarial workflow: ${source}`);
   // Runtime paths are the only fixture substitution. Provider selection,
   // caller controls, prompt, probes, and execution code stay generated verbatim.
   const content = (head + '\n' + section)

@@ -31,10 +31,10 @@ for (const id of ids) test.each(['complete section', 'additional trailing policy
         calls.push(options);
         const actual = fs.readFileSync(path.join(options.workingDirectory, 'BROWSER-SETUP.md'), 'utf8');
         expect(actual).toBe(section);
-        expect(actual.indexOf('## Browser access decision')).toBeLessThan(actual.indexOf('## BROWSER SETUP'));
-        expect(actual).toContain('Unknown caller: use report-only authority');
+        expect(actual.indexOf('## ブラウザへのアクセスの判断')).toBeLessThan(actual.indexOf('## BROWSER SETUP'));
+        expect(actual).toContain('不明な呼び出し元の場合は、報告のみの権限を使ってください');
         expect(actual).toContain('## Browser fallback');
-        expect(actual).toContain('Invocation does not authorize external mutations');
+        expect(actual).toContain('呼び出しは「見る」ことへの同意であり、「操作する」ことへの同意ではない');
         expect(options.testName).toBe(id);
         expect(options.prompt).toContain('read BROWSER-SETUP.md in this directory and follow it exactly');
         throw stopped;

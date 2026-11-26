@@ -1,10 +1,10 @@
-# TODOS.md Format Reference
+# TODOS.md フォーマットリファレンス
 
-Shared reference for the canonical TODOS.md format. Referenced by `/ship` (Step 14) and `/plan-ceo-review` (TODOS.md updates section) to ensure consistent TODO item structure.
+TODOS.md の正規フォーマットに関する共通リファレンスです。`/ship`(Step 14)と `/plan-ceo-review`(TODOS.md の更新セクション)が参照し、TODO 項目の構造を統一します。
 
 ---
 
-## File Structure
+## ファイル構成
 
 ```markdown
 # TODOS
@@ -16,13 +16,13 @@ Shared reference for the canonical TODOS.md format. Referenced by `/ship` (Step 
 <finished items with completion annotation>
 ```
 
-**Sections:** Organize by skill or component (`## Browse`, `## Ship`, `## Review`, `## QA`, `## Retro`, `## Infrastructure`). Within each section, sort items by priority (P0 at top).
+**セクション:** スキルやコンポーネントごとに分けます(`## Browse`、`## Ship`、`## Review`、`## QA`、`## Retro`、`## Infrastructure`)。各セクション内では、優先度順(P0 が一番上)に並べます。
 
 ---
 
-## TODO Item Format
+## TODO 項目の形式
 
-Each item is an H3 under its section:
+各項目は、そのセクションの下の H3 です。
 
 ```markdown
 ### <Title>
@@ -38,24 +38,24 @@ Each item is an H3 under its section:
 **Depends on:** <prerequisites, or "None">
 ```
 
-**Required fields:** What, Why, Context, Effort, Priority
-**Optional fields:** Depends on, Blocked by
+**必須フィールド:** What、Why、Context、Effort、Priority
+**任意フィールド:** Depends on、Blocked by
 
 ---
 
-## Priority Definitions
+## 優先度の定義
 
-- **P0** — Blocking: must be done before next release
-- **P1** — Critical: should be done this cycle
-- **P2** — Important: do when P0/P1 are clear
-- **P3** — Nice-to-have: revisit after adoption/usage data
-- **P4** — Someday: good idea, no urgency
+- **P0** — ブロッカー: 次のリリース前に必ず完了すること
+- **P1** — 重要: 今のサイクル中に完了すべきこと
+- **P2** — 重要度は中: P0/P1 が片付いたら取り組むこと
+- **P3** — あると良い: 採用や利用データが出てから見直すこと
+- **P4** — いつか: 良いアイデアだが、緊急性はない
 
 ---
 
-## Completed Item Format
+## 完了項目の形式
 
-When an item is completed, move it to the `## Completed` section preserving its original content and appending:
+項目が完了したら、元の内容をそのまま残したうえで、次を追記して `## Completed` セクションに移します。
 
 ```markdown
 **Completed:** vX.Y.Z (YYYY-MM-DD)

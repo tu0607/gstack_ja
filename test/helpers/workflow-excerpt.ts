@@ -6,13 +6,13 @@ const ROOT = path.resolve(import.meta.dir, '..', '..');
 // Include the scope/Aside prerequisites used by Step 0, through report outputs.
 export const ENG_REVIEW_EXCERPT = {
   skillPath: 'plan-eng-review/SKILL.md',
-  startMarker: '## Scope gate',
-  endMarker: '## Section self-check (before you finish)',
+  startMarker: '## スコープゲート',
+  endMarker: '## セクションの自己チェック',
 } as const;
 
 // The question-procedure heading in the plan-review sections, with or without
 // its older "CRITICAL RULE — " prefix.
-export const ASK_QUESTIONS_HEADING = /^## [^\n]*How to ask questions[^\n]*$/m;
+export const ASK_QUESTIONS_HEADING = /^## (?:[^\n]*How to ask questions|質問の仕方)[^\n]*$/m;
 
 export function markerIndex(text: string, marker: string | RegExp, from: number): number {
   if (typeof marker === 'string') return text.indexOf(marker, from);
@@ -22,7 +22,7 @@ export function markerIndex(text: string, marker: string | RegExp, from: number)
 
 // Same generated two-line pointer consumed by setup-gbrain-fixture.ts.
 const STOP_POINTER =
-  /^> \*\*STOP\.\*\* Before [^\n]*sections\/([a-z0-9-]+\.md)[^\n]*\n> in full\.[^\n]*/gm;
+  /^> \*\*STOP\.\*\* [^\n]*sections\/([a-z0-9-]+\.md)[^\n]*\n> 記憶から作業しないこと[^\n]*/gm;
 
 /** Expand on-demand sections where the agent reads them, then take the requested excerpt. */
 export function readWorkflowExcerpt(skillPath: string, startMarker: string, endMarker: string | RegExp | null): string {

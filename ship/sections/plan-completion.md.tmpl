@@ -1,23 +1,19 @@
-## Step 8: Plan Completion Audit
+## Step 8: 計画の完了監査
 
-Complete this section in order:
-1. Dispatch the audit, validate its result and resolve its Gate Logic.
-2. Collect the plan's executable checks in Step 8.1; do not run them yet.
-3. Run Step 8.2 Scope Drift.
-4. Run Prior Learnings, including its setting question when offered, then proceed to Step 9 for review and QA.
+このセクションは、次の順序で完了させます:
+1. 監査を dispatch し、その結果を検証し、そのゲートロジックを解決する。
+2. Step 8.1 で計画の実行可能なチェックを収集する。まだ実行しない。
+3. Step 8.2 のスコープ・ドリフトを実行する。
+4. 過去の学習内容を実行する。提示された場合は、その設定の質問も含めます。その後、レビューと QA のために Step 9 に進みます。
 
-**Dispatch this step as a subagent** using Agent, `subagent_type: "general-purpose"`
-and `run_in_background: false`. Use Step 7's shared foreground-dispatch rule.
-The child reads the plan and every referenced
-code file; the parent validates its report and applies the gates below.
+**このステップはサブエージェントとして dispatch してください。** Agent を使い、`subagent_type: "general-purpose"` と `run_in_background: false` を指定します。Step 7 の共通のフォアグラウンド dispatch ルールを使います。
+子プロセスは計画と、参照されているすべてのコードファイルを読みます。親はその報告を検証し、以下のゲートを適用します。
 
-**Before dispatch, the parent binds the plan:**
+**dispatch の前に、親が計画を紐付けます:**
 
 {{PLAN_COMPLETION_GATE_SHIP:discovery}}
 
-**Subagent prompt:** Substitute `<base>` and supply the bound plan's absolute path
-or complete text, including user-approved scope changes. When discovery printed the
-not-run line, skip dispatch. The child does not inherit the parent's conversation.
+**サブエージェントのプロンプト:** `<base>` を置き換え、紐付けた計画の絶対パス、またはユーザーが承認したスコープ変更を含む完全なテキストを与えます。discovery が未実行の行を出力した場合は、dispatch をスキップします。子プロセスは親の会話を引き継ぎません。
 
 ````text
 You are running a ship-workflow plan completion audit. The base branch is `<base>`. Use `git diff origin/<base>` and inspect untracked files from `git status` to see the full proposed change. Do not commit or push. Report only: classify every item, but do not execute Gate Logic, ask the user, or advance the workflow. The parent applies those gates to your report.
@@ -29,30 +25,16 @@ After your analysis, output a single JSON object with exactly these seven fields
 Counts map one-to-one to the classifications above and sum to total_items. No plan or no actionable items means all counts are zero with the skip reason in summary. Do not classify work as deferred; only the parent can record a user-approved deferral.
 ````
 
-**Parent processing:**
+**親による処理:**
 
-1. Check the task's terminal status. Without successful completion and valid LAST-line
-   JSON, use the audit-failure fallback below. Require exactly the seven declared
-   fields: nonnegative integer counts whose classification sum equals `total_items`,
-   and a string `summary`. Missing,
-   extra or invalid fields fail. Valid no-plan/no-actionable reports retain zero counts
-   and their summary.
-2. Store counts for Step 20 and `summary` for Step 19's `## Plan Completion`.
-3. Run the parent-computed Acceptance edits check below on the bound plan; it adds
-   `ACCEPTANCE_EDITED` beside the child's classes and never changes the child's
-   seven fields.
-4. Apply Gate Logic below before continuing. Carry approved deferrals, with item text
-   and plan path, to Step 14; keep them separate from dropped scope. The gate supplies
-   the required PR notes and per-item manual verification evidence.
+1. タスクの終了ステータスを確認します。成功して完了し、最後の行の JSON が有効でなければ、下の監査失敗のフォールバックを使います。宣言された 7 つのフィールドがちょうど揃っていることを要求します。非負の整数の件数で、その分類の合計が `total_items` と等しいこと、そして文字列の `summary` です。欠けているフィールド、余分なフィールド、無効なフィールドがあれば失敗です。計画がない、または実行可能な項目がない有効な報告は、件数をゼロのまま、その summary を保持します。
+2. 件数を Step 20 のために、`summary` を Step 19 の `## Plan Completion` のために保存します。
+3. 紐付けた計画に対して、親が計算する Acceptance の編集チェックを下のとおり実行します。これは子プロセスの分類と並べて `ACCEPTANCE_EDITED` を追加します。子プロセスの 7 つのフィールドは決して変えません。
+4. 続行する前に、下のゲートロジックを適用します。承認された保留は、項目の文と計画のパスとともに Step 14 に持ち越します。落とされたスコープとは分けて保持してください。ゲートは、必要な PR のメモと、項目ごとの手動検証の証拠を提供します。
 
 {{PLAN_COMPLETION_GATE_SHIP:acceptance}}
 
-**Audit-failure fallback:** On failure, invalid JSON or no final output after ~10
-minutes, stop any live child and confirm it stopped before an inline audit with the same
-extraction/classification logic; never race a late result. If that also fails,
-AskUserQuestion: A) Skip audit and ship, recording the reason in the PR body and
-Step 20 metrics; B) Stop and fix the audit (recommended/default). Never fail open
-silently: a skipped audit would let unverified plan items ship as done.
+**監査失敗のフォールバック:** 失敗、無効な JSON、または約 10 分経っても最終出力がない場合は、稼働中の子プロセスを停止し、停止したことを確認してから、同じ抽出と分類のロジックでインラインの監査を行います。遅れて届いた結果と競合させてはいけません。それも失敗した場合は、AskUserQuestion: A) 監査をスキップして ship する。理由は PR 本文と Step 20 のメトリクスに記録する。B) 停止して監査を修正する(推奨/既定)。失敗を黙って見過ごしてはいけません。監査をスキップすると、検証されていない計画の項目が完了として出荷されてしまうためです。
 
 ---
 

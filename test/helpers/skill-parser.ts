@@ -199,7 +199,7 @@ export function extractWeightsFromTable(content: string): Map<string, number> {
   const weights = new Map<string, number>();
 
   // Find the ### Weights section
-  const weightsIdx = content.indexOf('### Weights');
+  const weightsIdx = content.indexOf('### 重み') >= 0 ? content.indexOf('### 重み') : content.indexOf('### Weights');
   if (weightsIdx === -1) return weights;
 
   // Find the table within that section (stop at next heading or end)

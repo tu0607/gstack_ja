@@ -1,47 +1,47 @@
 <!-- AUTO-GENERATED from changelog.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Step 13: CHANGELOG (auto-generate)
+## Step 13: CHANGELOG(自動生成)
 
-1. Read `CHANGELOG.md` header to know the format.
+1. `CHANGELOG.md` のヘッダーを読み、形式を把握します。
 
-2. **First, enumerate every commit on the branch:**
+2. **まず、ブランチ上のすべてのコミットを列挙します:**
    ```bash
    git log origin/<base>..HEAD --oneline
    ```
-   Copy the full list. Count the commits. You will use this as a checklist.
+   一覧全体をコピーし、コミット数を数えます。これをチェックリストとして使います。
 
-3. **Read the full diff** to understand what each commit actually changed:
+3. **diff 全体を読み**、各コミットが実際に何を変更したのかを理解します:
    ```bash
    git diff origin/<base>
    ```
 
-4. **Group commits by theme** before writing anything. Common themes:
-   - New features / capabilities
-   - Performance improvements
-   - Bug fixes
-   - Dead code removal / cleanup
-   - Infrastructure / tooling / tests
-   - Refactoring
+4. 何かを書く前に、**コミットをテーマごとにグループ化します**。一般的なテーマ:
+   - 新機能 / 新しい能力
+   - パフォーマンスの改善
+   - バグ修正
+   - デッドコードの削除 / クリーンアップ
+   - インフラ / ツール / テスト
+   - リファクタリング
 
-5. **Write the CHANGELOG entry** covering ALL groups:
-   - If existing CHANGELOG entries on the branch already cover some commits, replace them with one unified entry for the new version
-   - Categorize changes into applicable sections:
-     - `### Added` — new features
-     - `### Changed` — changes to existing functionality
-     - `### Fixed` — bug fixes
-     - `### Removed` — removed features
-   - Write concise, descriptive bullet points
-   - Insert after the observed file header, before the first release entry, dated today
-   - Format: `## [X.Y.Z.W] - YYYY-MM-DD`
-   - **Voice:** Lead with what the user can now **do** that they couldn't before. Use plain language, not implementation details. Never mention TODOS.md, internal tracking, or contributor-facing details.
+5. **すべてのグループを網羅する CHANGELOG エントリを書きます:**
+   - ブランチ上の既存の CHANGELOG エントリが一部のコミットをすでにカバーしている場合は、それらを新バージョン用の 1 つの統合されたエントリに置き換えます
+   - 変更を、該当するセクションに分類します:
+     - `### Added` — 新機能
+     - `### Changed` — 既存機能の変更
+     - `### Fixed` — バグ修正
+     - `### Removed` — 削除された機能
+   - 簡潔で説明的な箇条書きにします
+   - 確認したファイルヘッダーの後、最初のリリースエントリの前に、今日の日付で挿入する
+   - 形式: `## [X.Y.Z.W] - YYYY-MM-DD`
+   - **語り口:** ユーザーが今までできなかったことが、今は何が **できる** ようになったのかから書き始めます。実装の詳細ではなく、平易な言葉を使います。TODOS.md、内部の追跡、コントリビューター向けの詳細には決して触れません。
 
-6. **Cross-check:** Compare your CHANGELOG entry against the commit list from step 2.
-   Every user-facing change in that list must be represented; add any that is missing.
-   Commits with no user-facing effect (merges, version bumps, fixes to work introduced
-   earlier on this branch) need no bullet. The entry must reflect every user-facing theme.
+6. **クロスチェック:** CHANGELOG エントリを、手順 2 のコミット一覧と照合します。
+   その一覧にあるユーザー向けの変更はすべて反映されていなければなりません。欠けているものは追加します。
+   ユーザーに影響のないコミット(マージ、バージョンアップ、このブランチで先に導入した作業の修正)には
+   箇条書きは不要です。エントリは、ユーザー向けのすべてのテーマを反映していなければなりません。
 
-**Do NOT ask the user to describe changes.** Infer from the diff and commit history.
+**ユーザーに変更内容の説明を求めてはいけません。** diff とコミット履歴から推測します。
 
-**NO_VERSION (Step 12):** skip this step; write no CHANGELOG entry or version header.
+**NO_VERSION (Step 12):** このステップはスキップします。CHANGELOG のエントリもバージョンの見出しも書きません。
 
 ---

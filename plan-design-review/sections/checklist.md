@@ -1,27 +1,24 @@
 <!-- AUTO-GENERATED from checklist.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-## Checklist (runner profile)
+## チェックリスト(ランナーのプロファイル)
 
-Design phase steps and required outputs for `bin/gstack-autoplan` (unattended or
-`light` runs); interactive runs read `sections/review-sections.md` in full.
+`bin/gstack-autoplan` の(無人または `light` の実行における)デザインの段階のステップと必須の出力です。対話形式の実行では、`sections/review-sections.md` を全体として読んでください。
 
-### Steps
-1. Scope is agreed and DESIGN.md (when present) is read; carry prior decisions.
-2. Run Passes 1–7 in order, never condensed: information architecture,
-   interaction states, journey and emotional arc, AI slop risk, design system
-   alignment, responsive and accessibility, unresolved design decisions.
-3. Post-pass: update generated mockups when any exist.
-4. One decision cycle per unresolved finding; then the required outputs below.
+### ステップ
+1. スコープが合意され、DESIGN.md(存在する場合)が読まれている。以前の判断を引き継ぐ。
+2. パス1〜7を順番に実行する。省略しないこと: 情報アーキテクチャ、インタラクションの状態、ジャーニーと感情の流れ、AIスロップのリスク、デザインシステムとの整合性、レスポンシブとアクセシビリティ、未解決のデザインの判断。
+3. 後処理: 生成済みのモックアップがあれば更新する。
+4. 未解決の指摘ごとに、1回の判断サイクルを行い、その後に下の必須の出力を作成する。
 
-### Required outputs → producing section
+### 必須の出力 → 作成するセクション
 
-| Output | Produced by | Scope |
+| 出力 | 生成元 | スコープ |
 |---|---|---|
-| NOT in scope | "NOT in scope" section | ui |
-| What already exists | "What already exists" section | ui |
-| TODOS.md updates | TODOS.md updates | ui |
-| Completion Summary (lowest pass score) | Completion Summary | ui |
-| Unresolved Decisions | Unresolved Decisions | ui |
-| Approved Mockups | Approved Mockups | ui |
-| Review log row | Review Log | ui |
-| Next-skill handoff | Next Steps — Review Chaining | ui |
+| 「スコープ外」 | 「スコープ外」セクション | ui |
+| 「既存のもの」 | 「既存のもの」セクション | ui |
+| TODOS.md の更新 | TODOS.md の更新 | ui |
+| 完了サマリー(最も低いパスのスコア) | 完了サマリー | ui |
+| 未解決の決定事項 | 未解決の決定事項 | ui |
+| 承認済みのモックアップ | 承認済みモックアップ | ui |
+| レビューログの行 | レビューログ | ui |
+| 次のスキルへの引き継ぎ | 次のステップ — レビューの連鎖 | ui |

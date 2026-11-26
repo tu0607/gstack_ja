@@ -23,14 +23,16 @@ import type { Host, ResolverFn, TemplateContext } from './types';
 
 const ROOT = path.resolve(import.meta.dir, '..', '..');
 
-export const QA_ASSET_BLOCKER = 'If missing or unreadable, report a QA setup blocker and its affected probes as blocked; continue other safe probes (independent functional/static checks). Missing/unreadable assets block required QA.';
+export const QA_ASSET_BLOCKER = '見つからない、または読み取れない場合は、QA のセットアップブロッカーを報告し、影響を受けるプローブを blocked として扱います。ほかの安全なプローブ(独立した機能/静的チェック)は続行します。見つからない/読み取れないアセットは、必須の QA をブロックします。';
 
 /** Skills carved on every host: QA (portable assets) and those whose external
  * render would exceed SKILL_BYTE_CEILING inlined (C4, #2777). */
 const CARVED_ON_EVERY_HOST = ['qa', 'qa-only', 'ship', 'plan-ceo-review', 'office-hours'];
 
-/** Hosts read at most this many UTF-8 bytes of one SKILL.md (~40K tokens). */
-export const SKILL_BYTE_CEILING = 160_000;
+/** Hosts read at most this many UTF-8 bytes of one SKILL.md (~40K tokens).
+ * 日本語版は UTF-8 で 1 文字 3 バイトになるため、英語版の 160_000 から引き上げている
+ * (トークン数はほぼ同等)。 */
+export const SKILL_BYTE_CEILING = 260_000;
 
 export function usesLazySections(host: Host, skill: string): boolean {
   return host === 'claude' || CARVED_ON_EVERY_HOST.includes(skill);
@@ -111,14 +113,14 @@ export const SECTION: ResolverFn = (ctx: TemplateContext, args?: string[]): stri
   if (usesLazySections(ctx.host, ctx.skillName)) {
     if (ctx.skillName === 'qa' || ctx.skillName === 'qa-only') {
       return [
-        `> **STOP.** Before ${entry.trigger}, Read ${sectionPath(ctx, ctx.skillName, id)} in full and follow it.`,
-        '> Use this host\'s installed path, never the product working directory or another host\'s assets.',
+        `> **STOP.** ${entry.trigger}の前に、Read ${sectionPath(ctx, ctx.skillName, id)} を全文読み、その指示に従ってください。`,
+        '> このホストのインストール済みパスを使い、プロダクトの作業ディレクトリや別ホストのアセットは決して使わないでください。',
         `> ${QA_ASSET_BLOCKER}`,
       ].join('\n');
     }
     return [
-      `> **STOP.** Before ${entry.trigger}, Read ${sectionPath(ctx, ctx.skillName, id)} and execute it`,
-      `> in full. Do not work from memory — that section is the source of truth for this step.`,
+      `> **STOP.** ${entry.trigger}の前に、Read ${sectionPath(ctx, ctx.skillName, id)} を全文読んで実行してください。`,
+      `> 記憶から作業しないこと。このステップの正はそのセクションです。`,
     ].join('\n');
   }
 
@@ -137,25 +139,25 @@ export const SECTION_INDEX: ResolverFn = (ctx: TemplateContext, args?: string[])
   if (!usesLazySections(ctx.host, skill)) return '';
   const manifest = loadManifest(skill);
   const lines: string[] = [
-    '## Section index — Read each section when its situation applies',
+    '## Section index — 状況に当てはまるセクションを読む',
     '',
     ...(skill === 'qa' || skill === 'qa-only'
-      ? ['Read sections in full when directed; do not work from memory.']
-      : ['This skill is a decision-tree skeleton. The steps below point to on-demand',
-        'sections. Read a section in full before doing its step; do not work from memory.']),
+      ? ['指示されたときはセクションを全文 Read し、記憶に頼って進めないでください。']
+      : ['このスキルは判断ツリーの骨格です。以下のステップは、必要なときに読むセクションを',
+        '指しています。ステップを実行する前にセクションを全文 Read し、記憶に頼って進めないでください。']),
     '',
-    '| When | Read this section |',
+    '| 状況 | 読むセクション |',
     '|------|-------------------|',
   ];
   for (const s of manifest.sections) {
     if (s.runner_only) continue;
     const reference = skill === 'qa' || skill === 'qa-only' ? sectionPath(ctx, skill, s.id) : `\`sections/${s.file}\``;
     if (skill === 'review' && s.id === 'review-army') {
-      lines.push(`| Select surfaces and read QA methods | Inline in [Step 4](#step-4-critical-pass-core-review); setup and probes run in Step 4.7 |`);
+      lines.push(`| サーフェスの選択と QA 手法の読み込み | [Step 4](#step-4-critical-pass-core-review) にインライン。セットアップとプローブは Step 4.7 で実行 |`);
     }
     lines.push(`| ${s.trigger} | ${reference} |`);
     if (skill === 'ship' && s.id === 'review-army') {
-      lines.push(`| exploratory QA before Fix-First (Step 9.2.1) | Use the QA Read directive in ${reference} |`);
+      lines.push(`| Fix-First の前の探索的 QA (Step 9.2.1) | ${reference} の QA Read 指示を使う |`);
     }
   }
   return lines.join('\n');

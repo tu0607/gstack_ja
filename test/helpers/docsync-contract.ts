@@ -56,15 +56,17 @@ export function vetDocsCompletion(result: DocsCompletion, evidence: {
 }
 
 export function extractDocsDispatch(section: string): string {
-  const begin = section.indexOf('**Subagent prompt:**');
-  const end = section.indexOf('**Parent processing:**');
+  const open = ['**Subagent prompt:**', '**サブエージェントのプロンプト:**'].find(marker => section.includes(marker)) ?? '';
+  const close = ['**Parent processing:**', '**親による処理:**'].find(marker => section.includes(marker)) ?? '';
+  const begin = open ? section.indexOf(open) : -1;
+  const end = close ? section.indexOf(close) : -1;
   if (begin < 0 || end <= begin) throw new Error('documentation dispatch markers moved');
-  return section.slice(begin + '**Subagent prompt:**'.length, end)
+  return section.slice(begin + open.length, end)
     .split('\n').map(line => line.replace(/^> ?/, '')).join('\n').trim();
 }
 
 export function docsDispatchIndex(calls: Array<{ tool: string; input: unknown }>): number {
   return calls.findIndex(call => ['Agent', 'Task'].includes(call.tool) &&
     /document-release\/SKILL\.md|executing the \/document-release workflow/i.test(JSON.stringify(call.input)) &&
-    !/Parent processing:|## Step 19: Create PR\/MR/.test(JSON.stringify(call.input)));
+    !/Parent processing:|親による処理:|## Step 19: Create PR\/MR/.test(JSON.stringify(call.input)));
 }

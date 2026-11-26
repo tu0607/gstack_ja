@@ -80,9 +80,9 @@ ${config}
 ${readiness}
 \`\`\`
 
-${ctx.skillName === 'ship' && opts.disabledBehavior === 'opt-in' ? `Ship attempts this optional design check when frontend review applies and \`codex_reviews\` allows it.
-Unset means the default, enabled; the first send prints a one-time notice.
-\`CODEX_MODE\` names the provider here, **${v.label}**.` : `The historical \`CODEX_MODE\` variable describes **${v.label}** availability here.`}${opts.disabledBehavior === 'opt-in' ? " `CODEX_MODE: disabled` or a send's `consent_missing` line: `codex_reviews` is off or unreadable; do not ask; record `outside_status: disabled`." : ''} ${opts.role ? 'The invocation checks auth and the [policy](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md) plan-review model.' : 'Authentication and configured model validity are checked by the actual invocation, without overriding either.'} Missing/broken CLI: install or repair ${v.label}; authentication failure: run \`${v.id === 'codex' ? 'codex login' : 'claude auth login'}\`. ${opts.disabledBehavior === 'skip-all' ? "Disabled ends this entire extra review step (so does a send's `consent_missing` line), including the native fallback; record outside_status: disabled and continue after the section. Disabled is not an unavailable provider and never triggers a replacement reviewer." : opts.disabledBehavior === 'codex-only' ? "Disabled skips only the outside CLI (so does a send's `consent_missing` line); retain the native pass." : ctx.skillName === 'ship' ? '' : 'Otherwise honor this caller’s opt-in/skip choice.'} ${opts.disabledBehavior === 'skip-all' ? 'Provider failure is missing outside coverage; follow the caller’s existing fallback only when reviews are enabled.' : opts.disabledBehavior === 'codex-only' ? 'Non-ready means missing outside coverage. Keep the required native pass without duplicating it.' : 'Any non-ready outcome is missing outside coverage; follow the caller’s existing fallback.'} Never substitute another external provider.`;
+${ctx.skillName === 'ship' && opts.disabledBehavior === 'opt-in' ? `Ship は、フロントエンドレビューが該当し、\`codex_reviews\` が許可している場合に、このオプションのデザインチェックを試みます。
+未設定は既定値(有効)を意味し、最初の送信時に一度だけ通知が表示されます。
+ここでの \`CODEX_MODE\` は、プロバイダー **${v.label}** を指します。` : `従来からの \`CODEX_MODE\` 変数は、ここでは **${v.label}** の利用可否を表します。`}${opts.disabledBehavior === 'opt-in' ? " `CODEX_MODE: disabled` または送信時の `consent_missing` 行: `codex_reviews` がオフ、または読み取れません。尋ねずに、`outside_status: disabled` を記録します。" : ''} ${opts.role ? '呼び出し時に、認証と[ポリシー](https://github.com/garrytan/gstack/blob/main/docs/model-policy.md)で定められたプランレビュー用モデルが確認されます。' : '認証と設定されたモデルの有効性は、実際の呼び出し時に確認されます。どちらも上書きしません。'} CLI がない、または壊れている場合: ${v.label} をインストールまたは修復してください。認証に失敗した場合: 次を実行してください: \`${v.id === 'codex' ? 'codex login' : 'claude auth login'}\`. ${opts.disabledBehavior === 'skip-all' ? "disabled の場合は、この追加レビューのステップ全体を終了します(送信時の `consent_missing` 行も同様)。ネイティブのフォールバックも含みます。outside_status: disabled を記録し、このセクションの後から続行してください。disabled は利用不可のプロバイダーではなく、代替レビュアーを起動することはありません。" : opts.disabledBehavior === 'codex-only' ? "disabled の場合は、外部 CLI だけをスキップします(送信時の `consent_missing` 行も同様)。ネイティブのパスは維持します。" : ctx.skillName === 'ship' ? '' : 'それ以外の場合は、この呼び出し元のオプトイン/スキップの選択に従います。'} ${opts.disabledBehavior === 'skip-all' ? 'プロバイダーの失敗は外部カバレッジの欠落です。レビューが有効な場合にのみ、呼び出し元の既存のフォールバックに従います。' : opts.disabledBehavior === 'codex-only' ? 'ready でない場合は、外部カバレッジの欠落を意味します。必須のネイティブパスは、重複させずに維持します。' : 'ready でない結果はすべて外部カバレッジの欠落です。呼び出し元の既存のフォールバックに従います。'} 別の外部プロバイダーで代用してはいけません。`;
 }
 
 export interface OutsideCommandOptions {
@@ -171,24 +171,24 @@ export function outsideVoiceInvocation(ctx: TemplateContext, requested: OutsideC
   const planRecommendation = ['plan-ceo-review', 'plan-eng-review'].includes(ctx.skillName)
     && (opts.gate ?? 'review') === 'review';
   const completion = opts.gate === 'spec'
-    ? 'Request exactly SCORE: N (integer 0-10) and AMBIGUITIES: ... (or NONE), as two distinct nonempty lines.'
+    ? 'SCORE: N(0〜10 の整数)と AMBIGUITIES: ...(または NONE)を、空でない 2 つの別々の行として、正確にその形式で要求してください。'
     : opts.gate === 'structured'
-      ? 'Request severity-tagged findings or an explicit NO_FINDINGS conclusion.'
+      ? '重大度タグ付きの指摘事項、または明示的な NO_FINDINGS の結論を要求してください。'
       : opts.purpose === 'design-direction'
-        ? 'Request a complete design proposal ending with Recommendation: <direction> because <product-specific reason>.'
-        : 'Request a severity (Critical, High, Medium or Low) per finding and a final Recommendation: <action> because <specific reason> line, including an explicit no-findings rationale.';
+        ? 'Recommendation: <direction> because <product-specific reason> で終わる完全なデザイン提案を要求してください。'
+        : '指摘事項ごとの重大度(Critical、High、Medium、Low のいずれか)と、最後の Recommendation: <action> because <specific reason> の行を要求してください。指摘なしの場合も、その明確な根拠を含めます。';
   const preparation = nativeStructured
-    ? 'Run Codex’s built-in structured review with the selected base. It supplies its own prompt and accepts no custom prompt file with --base. Require severity-tagged findings (including native P1:/P2: labels) or an explicit no-findings conclusion; arbitrary prose or a refusal is missing coverage.'
+    ? '選択したベースを指定して、Codex 組み込みの構造化レビューを実行します。独自のプロンプトを使用し、--base と併用するカスタムプロンプトファイルは受け付けません。重大度タグ付きの指摘事項(ネイティブの P1:/P2: ラベルを含む)、または明示的な指摘なしの結論を必須とします。任意の散文や拒否はカバレッジの欠落です。'
     : `${['plan-ceo-review', 'plan-eng-review'].includes(ctx.skillName)
-      ? 'Create a private prompt file: run `umask 077; mktemp "${TMPDIR:-/tmp}/gstack-plan-prompt.XXXXXXXX"` in Bash and keep the returned path. Use Write to put the **complete prompt and context**, including actual plan/spec/source, in that file'
-      : 'Write the **complete prompt and context**, including actual plan/spec/source, to a private file'}${outsideVoiceFor(ctx).id === 'claude-code' ? ' (Claude Code has no tools, git or path access)' : ''}. Substitute its shell-quoted path for \`<prepared-prompt-file>\`; never interpolate user text into shell source. ${completion}`;
+      ? 'プライベートなプロンプトファイルを作成します。Bash で `umask 077; mktemp "${TMPDIR:-/tmp}/gstack-plan-prompt.XXXXXXXX"` を実行し、返されたパスを保持します。Write を使い、実際のプラン/spec/ソースを含む **完全なプロンプトとコンテキスト** をそのファイルに書き込みます'
+      : '実際のプラン/spec/ソースを含む **完全なプロンプトとコンテキスト** を、プライベートなファイルに書き込みます'}${outsideVoiceFor(ctx).id === 'claude-code' ? '(Claude Code にはツール、git、パスへのアクセスがありません)' : ''}。そのファイルのシェルクォート済みパスを \`<prepared-prompt-file>\` に代入します。ユーザーのテキストをシェルのソースに埋め込んではいけません。${completion}`;
   return `${preparation}
 
 \`\`\`bash
 ${outsideVoiceCommand(ctx, opts)}
 \`\`\`
 
-Use Bash \`timeout: ${gateMs}\`; show the full response in a \`tool-output\` fence. Require successful execution and valid markers. Refusal, empty/malformed output, missing ${planRecommendation ? 'Recommendation: <action> because <reason>' : opts.purpose === 'design-direction' ? 'Recommendation' : 'score/severity/completion'} markers, timeout or CLI failure means \`outside_status: unavailable\`. P0/P1 findings block like native ones; \`OUTSIDE_STATUS: unverified\` is missing coverage. ${opts.purpose === 'design-direction' ? 'Continue completed proposals; native completion does not count as outside coverage.' : opts.nativeAlreadyRequired ? 'Retain the required native pass without duplicating it; it cannot complete outside coverage.' : "Use the caller's fallback; missing coverage is never clean/PASS."} ${nativeStructured ? 'Scratch cleanup is automatic.' : 'After either outcome, delete only your private prompt; scratch cleanup is automatic.'}`;
+Bash の \`timeout: ${gateMs}\` を使い、完全なレスポンスを \`tool-output\` フェンスで表示します。実行が成功し、マーカーが有効であることを必須とします。拒否、空または不正な出力、${planRecommendation ? 'Recommendation: <action> because <reason>' : opts.purpose === 'design-direction' ? 'Recommendation' : 'score/severity/completion'} マーカーの欠落、タイムアウト、CLI の失敗は \`outside_status: unavailable\` を意味します。P0/P1 の指摘事項は、ネイティブのものと同様にブロックします。\`OUTSIDE_STATUS: unverified\` はカバレッジの欠落です。${opts.purpose === 'design-direction' ? '完了した提案は続行します。ネイティブでの完了は、外部カバレッジとは見なされません。' : opts.nativeAlreadyRequired ? '必須のネイティブパスは重複させずに維持します。それによって外部カバレッジが完了することはありません。' : "呼び出し元のフォールバックを使います。カバレッジの欠落は、決してクリーン/PASS にはなりません。"} ${nativeStructured ? '一時領域のクリーンアップは自動です。' : 'どちらの結果でも、自分で作成したプライベートなプロンプトだけを削除します。一時領域のクリーンアップは自動です。'}`;
 }
 
 /**
@@ -218,23 +218,23 @@ export function outsideVoiceFailurePolicy(ctx: TemplateContext, opts: OutsideVoi
   const v = outsideVoiceFor(ctx);
   const tick = opts.escape === 1 ? '\\`' : '`';
   const login = v.id === 'codex' ? 'codex login' : 'claude auth login';
-  const fallback = opts.fallback === 'native' ? ` Fall back to the ${v.nativeLabel} subagent below.` : '';
+  const fallback = opts.fallback === 'native' ? ` 以下の ${v.nativeLabel} サブエージェントにフォールバックします。` : '';
   const timeout = opts.onTimeout === 'missing-coverage'
-    ? `"${v.label} timed out after ${opts.timeoutMinutes} minutes and was terminated; this pass produced NO findings." A timed-out pass is MISSING COVERAGE, not a clean bill — say so explicitly rather than continuing as if ${v.label} had reviewed.`
-    : `"${v.label} timed out after ${opts.timeoutMinutes} minutes."`;
+    ? `"${v.label} が ${opts.timeoutMinutes} 分でタイムアウトし、終了されました。このパスでは指摘事項は一切得られていません。" タイムアウトしたパスは MISSING COVERAGE であり、問題なしではありません。${v.label} がレビューしたかのように続行せず、その旨を明示してください。`
+    : `"${v.label} が ${opts.timeoutMinutes} 分でタイムアウトしました。"`;
   return [
-    `- **Auth failure:** If stderr contains "auth", "login", "unauthorized", or "API key": "${v.label} authentication failed. Run ${tick}${login}${tick} to authenticate."${fallback}`,
-    `- **Timeout:** ${timeout}${fallback}`,
-    `- **Empty response:** "${v.label} returned no response.${opts.stderrOnEmpty ? ' Stderr: <paste relevant error>.' : ''}"${fallback}`,
+    `- **認証失敗:** stderr に "auth"、"login"、"unauthorized"、"API key" のいずれかが含まれる場合: "${v.label} の認証に失敗しました。認証するには ${tick}${login}${tick} を実行してください。"${fallback}`,
+    `- **タイムアウト:** ${timeout}${fallback}`,
+    `- **空のレスポンス:** "${v.label} からレスポンスがありませんでした。${opts.stderrOnEmpty ? ' Stderr: <paste relevant error>.' : ''}"${fallback}`,
   ].join('\n');
 }
 
 export function outsideVoiceProvenance(ctx: TemplateContext, phase: string): string {
   const v = outsideVoiceFor(ctx);
-  return `Retain the historical review-log skill ID; add \`"host":"${ctx.host}","outside_provider":"${v.id}","outside_status":"completed|unavailable|disabled|skipped","phase":"${phase}"\`. Record differing attempt outcomes separately. \`source:"${v.id}"\` requires completed CLI output; native uses \`source:"in-host"\` (historical \`source:"claude"\`: native Claude). Availability/native fallback is not outside completion. Preserve all reported modelUsage; unknown model identity stays unknown.${v.id === 'codex' ? ' Under `GSTACK_CODEX_NO_SANDBOX=1` add `"codex_sandbox":"danger-full-access"`.' : ''}`;
+  return `従来のレビューログのスキル ID は保持し、次を追加します: \`"host":"${ctx.host}","outside_provider":"${v.id}","outside_status":"completed|unavailable|disabled|skipped","phase":"${phase}"\`。試行ごとに結果が異なる場合は、別々に記録します。\`source:"${v.id}"\` は CLI の出力が完了していることを必要とします。ネイティブは \`source:"in-host"\` を使います(従来の \`source:"claude"\` はネイティブの Claude を指します)。利用可否の確認やネイティブのフォールバックは、外部レビューの完了ではありません。報告されたすべての modelUsage を保持し、不明なモデルは不明のままにします。${v.id === 'codex' ? ' `GSTACK_CODEX_NO_SANDBOX=1` の場合は、`"codex_sandbox":"danger-full-access"` を追加します。' : ''}`;
 }
 
 export function generateOutsideVoiceRouting(ctx: TemplateContext): string {
   const v = outsideVoiceFor(ctx);
-  return `Generic “second opinion”, “outside review”, or “cross-model review” requests use \`/${v.skillName}\` (namespaced: \`/gstack-${v.skillName}\`). This selection follows the **${ctx.host} harness**, independently of model configuration. Explicit provider requests take precedence: Codex means \`/codex\`; Claude Code means \`/claude-code\`. Never silently substitute another provider. If that provider is the current harness, report that no outside invocation ran and suggest the other wrapper only as a separate user choice. Wrapper availability: Claude Code installs only /codex; Codex installs only /claude-code; other harnesses install both. Repair stale installations with \`setup --host ${ctx.host}\`. There is no /claude compatibility alias.`;
+  return `一般的な「セカンドオピニオン」「外部レビュー」「クロスモデルレビュー」の依頼には \`/${v.skillName}\`(名前空間付き: \`/gstack-${v.skillName}\`)を使います。この選択は、モデル設定とは無関係に **${ctx.host} ハーネス** に従います。プロバイダーが明示された依頼が優先されます。Codex は \`/codex\`、Claude Code は \`/claude-code\` を意味します。別のプロバイダーで黙って代用してはいけません。そのプロバイダーが現在のハーネスである場合は、外部の呼び出しを行わなかったことを報告し、もう一方のラッパーは、ユーザーが別途選ぶ選択肢としてのみ提案します。ラッパーの提供状況: Claude Code では /codex のみ、Codex では /claude-code のみ、それ以外のハーネスでは両方がインストールされます。古いインストールは \`setup --host ${ctx.host}\` で修復してください。/claude という互換エイリアスはありません。`;
 }

@@ -3,20 +3,19 @@ name: ios-qa
 preamble-tier: 3
 version: 1.0.0
 description: |
-  Live-device iOS QA for SwiftUI apps. Connects to a real iPhone or iPad via
-  USB CoreDevice IPv6 tunnel, reads Swift source to understand every screen, then
-  runs a vision-driven agent loop: screenshot → analyze → decide → act →
-  verify → repeat. All interaction happens via HTTP to an embedded
-  StateServer in the app under test. Optionally exposes the device over
-  Tailscale so remote agents (OpenClaw, Codex, any HTTP-capable agent) can
-  run iOS QA from anywhere without touching the hardware.
-  Use when asked to "ios qa", "test my iPhone app", "test my iPad app",
-  "find bugs on the device", or "qa the iOS app". (gstack)
+  SwiftUI アプリ向けの実機 iOS QA です。USB CoreDevice の IPv6 トンネル経由で実機の iPhone または iPad に接続し、
+  Swift のソースを読んで各画面を把握した上で、ビジョン駆動のエージェントループを実行します:
+  スクリーンショット → 分析 → 判断 → 操作 → 検証 → 繰り返し。すべての操作は、テスト対象アプリに組み込まれた
+  StateServer への HTTP で行われます。任意で Tailscale 経由にデバイスを公開でき、リモートのエージェント
+  (OpenClaw、Codex、HTTP に対応した任意のエージェント)が、ハードウェアに触れることなくどこからでも
+  iOS QA を実行できます。
+  「ios qa」「iPhone アプリをテストして」「iPad アプリをテストして」「デバイス上のバグを探して」
+  「iOS アプリを QA して」と依頼されたときに使います。(gstack)
 voice-triggers:
-  - "iOS quality check"
-  - "test the iPhone app"
-  - "test the iPad app"
-  - "run iOS QA"
+  - "iOS の品質チェック"
+  - "iPhone アプリをテスト"
+  - "iPad アプリをテスト"
+  - "iOS QA を実行"
 allowed-tools:
   - Bash
   - Read
@@ -36,13 +35,11 @@ triggers:
 
 {{PREAMBLE}}
 
-# Live-device iOS QA
+# 実機 iOS QA
 
-This skill drives a real iPhone or iPad via USB. The agent reads your Swift source,
-generates typed state accessors, deploys a debug bridge, and runs a closed
-find→fix→verify loop. No simulator, no XCTest, no WebDriverAgent.
+このスキルは、USB で接続された実機の iPhone または iPad を操作します。エージェントは Swift のソースを読み、型付きの状態アクセサを生成し、デバッグブリッジをデプロイして、閉じた「発見 → 修正 → 検証」のループを実行します。シミュレータ、XCTest、WebDriverAgent は使いません。
 
-## Architecture
+## アーキテクチャ
 
 ```
        ┌──────────────────────┐   USB CoreDevice (IPv6)   ┌──────────────────┐
@@ -62,37 +59,22 @@ find→fix→verify loop. No simulator, no XCTest, no WebDriverAgent.
        └──────────────────────┘
 ```
 
-The iOS app's `StateServer` binds loopback only (`::1` + `127.0.0.1`). Tailnet
-ingress is exclusively the Mac daemon's job. The daemon validates Tailscale
-identities via the local `tailscaled` socket and mints short-lived session
-tokens (default 1h) for remote agents.
+iOS アプリの `StateServer` は loopback のみにバインドします(`::1` + `127.0.0.1`)。tailnet からの受け口は、排他的に Mac 上のデーモンが担当します。デーモンはローカルの `tailscaled` ソケット経由で Tailscale の ID を検証し、リモートのエージェント向けに短命のセッショントークン(デフォルトは 1 時間)を発行します。
 
-## Prerequisites
+## 前提条件
 
-- macOS (the daemon uses `devicectl` from Xcode).
-- iPhone or iPad connected via USB, paired and trusted. With more than one
-  connected, pick one before starting the daemon:
-  `export GSTACK_IOS_TARGET_UDID=<udid>` (`xcrun devicectl list devices` shows
-  UDIDs). Otherwise the daemon refuses to guess, lists each device with its
-  UDID, and prints that export line.
-- Xcode + Swift toolchain installed (`swift --version` reports >= 5.9).
-- App source available on disk, with at least one `@Observable` class.
-- For remote-control mode: Tailscale installed and the user logged in.
+- macOS(デーモンは Xcode の `devicectl` を使います)。
+- USB で接続され、ペアリングと信頼が済んだ iPhone または iPad。複数台が接続されている場合は、デーモンを起動する前に 1 台を選んでください:
+  `export GSTACK_IOS_TARGET_UDID=<udid>`(UDID は `xcrun devicectl list devices` で確認できます)。指定がない場合、デーモンは推測せず、各デバイスを UDID とともに一覧表示し、その export 行を出力して停止します。
+- Xcode と Swift ツールチェーンがインストールされていること(`swift --version` が 5.9 以上を報告すること)。
+- アプリのソースがディスク上にあり、少なくとも 1 つの `@Observable` クラスがあること。
+- リモート操作モードの場合: Tailscale がインストールされ、ユーザーがログインしていること。
 
-## Phase 0: Session warm-start (optional)
+## フェーズ 0: セッションのウォームスタート(任意)
 
-After each successful bootstrap the daemon writes the rotated StateServer
-bearer to `$GSTACK_STATE_ROOT/ios-qa-session.json` (mode 0600), bound to the
-device UDID, bundle ID and StateServer port. A restarted daemon resumes that
-bearer on its first device request, so the app keeps its QA state instead of
-being relaunched. It bootstraps normally instead when the app was relaunched
-(the app rejects the bearer), another device or app answers, devicectl reports
-no tunnel address for the bound UDID, or other users can read the file.
+各ブートストラップが成功すると、デーモンはローテーション後の StateServer のベアラートークンを `$GSTACK_STATE_ROOT/ios-qa-session.json`(モード 0600)に書き出します。このトークンはデバイスの UDID、バンドル ID、StateServer のポートに紐づけられます。再起動されたデーモンは、最初のデバイスリクエストでそのベアラートークンを再利用するため、アプリは QA の状態を保ったままになり、再起動されません。次の場合は、代わりに通常どおりブートストラップします: アプリが再起動された(アプリがベアラートークンを拒否する)場合、別のデバイスまたはアプリが応答する場合、devicectl が紐づけられた UDID のトンネルアドレスを報告しない場合、またはほかのユーザーがそのファイルを読める場合です。
 
-If the file exists and the daemon answers, the bridge is already installed:
-skip Phase 1-2 and jump to Phase 3. `--cold` deletes the file so the next
-daemon start runs a full bootstrap (the app relaunches once); a daemon that is
-already running keeps its in-memory session.
+ファイルが存在し、デーモンが応答する場合、ブリッジはすでにインストールされています。フェーズ 1〜2 をスキップして、フェーズ 3 に進みます。`--cold` はファイルを削除するので、次のデーモン起動時に完全なブートストラップが実行されます(アプリは一度再起動されます)。すでに実行中のデーモンは、メモリ上のセッションを維持します。
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -105,64 +87,31 @@ elif [ -f "$SESSION" ] && curl -sf "http://127.0.0.1:$PORT/healthz" > /dev/null;
 fi
 ```
 
-## Phase 1: Read source, plan codegen
+## フェーズ 1: ソースを読み、コード生成を計画する
 
-1. Before changing the app or replacing an installed build, verify that the
-   bridge is compatible with the project:
-   - The generator currently supports file-scope `@Observable` classes only;
-     `ObservableObject`, `@StateObject`, and other observation models do not
-     produce accessors.
-   - The documented dependency wiring assumes a SwiftPM app manifest. For an
-     `.xcodeproj` or `.xcworkspace`, do not invent package or target wiring.
-   If either requirement is unmet, stop the bridge bootstrap without modifying
-   the app. Preserve any installed production or TestFlight build. Prefer an
-   existing real-device XCUITest harness; when a separate QA build is needed,
-   use an isolated bundle identifier and non-production entitlements so it can
-   coexist with the production app. Report fixture-driven state, provider UI,
-   and actual external-provider success as distinct evidence tiers.
-2. Walk the app source (passed as `--source <dir>`) and identify all `@Observable`
-   classes. Note any property immediately preceded by the generator marker
-   comment `// @Snapshotable` — those are the snapshot-eligible fields. The
-   marker is a comment so it composes with the `@Observable` macro. Each
-   marked field must belong to a file-scope observable class and be a writable
-   instance `var` with an explicit type and an internal or public setter.
-   Snapshot types are JSON-native scalars (`String`, `Bool`, integer widths,
-   `Float`, `Double`, `CGFloat`), arrays, String-keyed dictionaries, and their
-   Optional compositions. Keys must be unique across observable classes.
-   Codegen stops with a source diagnostic instead of emitting a broken or
-   lossy harness when any of these constraints is violated.
-3. Show the user the accessor list and ask whether to install the DebugBridge
-   SPM dependency into their `Package.swift` (one AskUserQuestion).
+1. アプリを変更する前、またはインストール済みのビルドを置き換える前に、ブリッジがプロジェクトと互換であることを確認します:
+   - ジェネレーターが現在サポートしているのは、ファイルスコープの `@Observable` クラスのみです。`ObservableObject`、`@StateObject`、その他の観測モデルではアクセサは生成されません。
+   - 文書化された依存関係の配線は、SwiftPM のアプリマニフェストを前提としています。`.xcodeproj` や `.xcworkspace` の場合、パッケージやターゲットの配線を勝手に作らないでください。
+   どちらかの要件を満たさない場合は、アプリを変更せずにブリッジのブートストラップを中止します。インストール済みの本番版または TestFlight 版のビルドは保持してください。既存の実機 XCUITest ハーネスがあればそれを優先します。別の QA ビルドが必要な場合は、独立したバンドル識別子と本番ではない entitlement を使い、本番アプリと共存できるようにします。フィクスチャ駆動の状態、プロバイダの UI、実際の外部プロバイダの成功は、別々の証拠の段階として報告してください。
+2. アプリのソース(`--source <dir>` で渡されたもの)を歩いて、すべての `@Observable` クラスを特定します。直前にジェネレーターのマーカーコメント `// @Snapshotable` が付いたプロパティを記録します。それらがスナップショット対象のフィールドです。マーカーはコメントなので、`@Observable` マクロと組み合わせられます。マークされた各フィールドは、ファイルスコープの観測可能クラスに属し、明示的な型を持つ書き込み可能なインスタンスの `var` で、internal または public のセッターを持つ必要があります。スナップショットの型は、JSON ネイティブなスカラー(`String`、`Bool`、整数型、`Float`、`Double`、`CGFloat`)、配列、String をキーとする辞書、およびそれらの Optional の組み合わせです。キーは観測可能クラスをまたいで一意でなければなりません。これらの制約のいずれかに違反した場合、コード生成は壊れた、または情報が欠落したハーネスを出力する代わりに、ソースの診断を出して停止します。
+3. アクセサの一覧をユーザーに示し、DebugBridge の SPM 依存関係を `Package.swift` に追加してよいか尋ねます(AskUserQuestion を 1 回)。
 
-## Phase 2: Bootstrap the device bridge
+## フェーズ 2: デバイスブリッジのブートストラップ
 
-1. Generate the canonical local bridge package, typed accessors, and installed
-   version marker with one deterministic command:
+1. 正規のローカルブリッジパッケージ、型付きアクセサ、インストール済みバージョンのマーカーを、1 つの決定的なコマンドで生成します:
    ```bash
    ~/.claude/skills/gstack/bin/gstack-ios-qa-regen \
      --app-source "<source-dir>" \
      --bridge-dir "<source-dir>/DebugBridge"
    ```
-   The regenerator also removes the explicit obsolete flat-file set created by
-   older ios-sync versions, preventing a stale second harness from remaining
-   in the app target.
-   Source control: `DebugBridge/` is generated; never hand-edit it. Commit it
-   when teammates or CI build the Debug configuration without gstack (re-run
-   the regenerator after a gstack upgrade); otherwise add `DebugBridge/` to
-   `.gitignore` and have each developer run the regenerator. Tell the user
-   which one you picked.
-2. Add the generated `DebugBridge` local SPM dependency to the app's
-   `Package.swift`. The package
-   ships three Debug-config-only library products:
-   - `DebugBridgeCore` (Swift, cross-platform) — StateServer + bridge protocols.
-   - `DebugBridgeTouch` (Objective-C, iOS-only) — KIF-derived in-process touch
-     synthesis with iOS 18+ `_UIHitTestContext` SwiftUI hit-testing.
-   - `DebugBridgeUI` (Swift, iOS-only) — Screenshot / Elements / Mutation
-     bridge implementations.
-   The app target depends on `DebugBridgeUI` with `.when(configuration: .debug)`
-   (transitively pulls in Core + Touch). Release builds refuse to link these
-   targets.
-3. Wire the bridges from the `@main` App init, gated on `#if DEBUG`:
+   再生成ツールは、古い ios-sync のバージョンが作成した明示的な旧フラットファイルの一式も削除します。これにより、古い 2 つ目のハーネスがアプリのターゲットに残ることを防ぎます。
+   ソース管理について: `DebugBridge/` は生成されるものなので、手で編集しないでください。チームメイトや CI が gstack なしで Debug 構成をビルドする場合はコミットします(gstack をアップグレードした後は再生成ツールを再実行してください)。そうでなければ `DebugBridge/` を `.gitignore` に追加し、各開発者が再生成ツールを実行するようにします。どちらを選んだかをユーザーに伝えてください。
+2. 生成された `DebugBridge` のローカル SPM 依存関係を、アプリの `Package.swift` に追加します。このパッケージは、Debug 構成専用のライブラリプロダクトを 3 つ提供します:
+   - `DebugBridgeCore`(Swift、クロスプラットフォーム)— StateServer とブリッジのプロトコル。
+   - `DebugBridgeTouch`(Objective-C、iOS 専用)— KIF 由来のプロセス内タッチ合成。iOS 18 以降の SwiftUI のヒットテスト用 `_UIHitTestContext` を使います。
+   - `DebugBridgeUI`(Swift、iOS 専用)— スクリーンショット、要素、変更のブリッジの実装。
+   アプリのターゲットは `.when(configuration: .debug)` 付きで `DebugBridgeUI` に依存します(Core と Touch は推移的に取り込まれます)。Release ビルドはこれらのターゲットのリンクを拒否します。
+3. `@main` の App の init から、`#if DEBUG` でゲートしてブリッジを配線します:
    ```swift
    #if DEBUG
    import DebugBridgeCore
@@ -178,124 +127,76 @@ fi
    )
    #endif
    ```
-4. Build + deploy to the device with `xcodebuild -scheme <SchemeName>
-   -destination 'platform=iOS,id=<UDID>' build install`.
-5. Launch via `devicectl device process launch --device <UDID> <bundle-id>`.
-   On launch the StateServer writes a one-use boot token to a 0600 file in the
-   app's `tmp/`; the daemon copies it out with `devicectl`. The token is never
-   printed to `os_log`. If the app cannot write that file, it logs `NOT READY`
-   and the daemon reports `boot_token_unavailable` with the cause.
-6. Spawn the Mac-side daemon (on-demand) — `gstack-ios-qa-daemon`. Daemon
-   acquires an exclusive flock on `~/.gstack/ios-qa-daemon.pid`. If another
-   daemon is alive, the second invocation discovers its port and connects.
-7. Daemon immediately calls `POST /auth/rotate` on the iOS StateServer with a
-   fresh in-memory-only token. Rotation deletes the boot-token file, so a copy
-   taken after this point is a dead credential.
-   If a fresh daemon finds the app running after another daemon consumed that
-   one-use token, it verifies the bundle owner, relaunches the target once,
-   waits for the new token, verifies ownership again, and then rotates.
+4. `xcodebuild -scheme <SchemeName>
+   -destination 'platform=iOS,id=<UDID>' build install` でビルドし、デバイスにデプロイします。
+5. `devicectl device process launch --device <UDID> <bundle-id>` で起動します。起動時に StateServer は、ワンタイムのブートトークンを、アプリの `tmp/` にある 0600 のファイルに書き出します。デーモンは `devicectl` でそれをコピーします。トークンが `os_log` に出力されることはありません。アプリがそのファイルに書き込めない場合は `NOT READY` をログに出し、デーモンは原因とともに `boot_token_unavailable` を報告します。
+6. Mac 側のデーモン(オンデマンド)`gstack-ios-qa-daemon` を起動します。デーモンは `~/.gstack/ios-qa-daemon.pid` に排他的な flock を取得します。ほかのデーモンが動いている場合、2 回目の起動はそのポートを見つけて接続します。
+7. デーモンは直ちに、メモリ上にのみ存在する新しいトークンを使って、iOS の StateServer に対して `POST /auth/rotate` を呼びます。ローテーションによりブートトークンのファイルは削除されるので、この時点より後にコピーされたものは無効な認証情報になります。
+   新しいデーモンが、別のデーモンがワンタイムトークンを使い切った後にアプリが実行中であるのを見つけた場合、バンドルの所有者を検証し、対象を一度だけ再起動し、新しいトークンを待ち、所有者を再度検証してから、ローテーションを行います。
 
-## Phase 3: Vision-driven agent loop
+## フェーズ 3: ビジョン駆動のエージェントループ
 
-Each iteration:
+各イテレーションでは:
 
-1. `GET /screenshot` (via daemon) → save PNG.
-2. `GET /elements` → accessibility tree.
-3. `GET /state/snapshot` (only `// @Snapshotable` fields) → current state.
-4. Decide next action based on what's on the screen vs the test goal.
-5. `POST /session/acquire` to grab the device lock.
-6. Execute `POST /tap`, `/swipe`, `/type`, or `POST /state/<key>` write.
-7. Re-screenshot; compare; record finding if buggy.
-8. `POST /session/release` once the iteration is done.
+1. `GET /screenshot`(デーモン経由)→ PNG を保存します。
+2. `GET /elements` → アクセシビリティツリーを取得します。
+3. `GET /state/snapshot`(`// @Snapshotable` のフィールドのみ)→ 現在の状態を取得します。
+4. 画面に表示されている内容とテストの目標を比べて、次の操作を決めます。
+5. `POST /session/acquire` でデバイスのロックを取得します。
+6. `POST /tap`、`/swipe`、`/type`、または `POST /state/<key>` の書き込みを実行します。
+7. 再度スクリーンショットを撮って比較します。バグがあれば指摘事項として記録します。
+8. イテレーションが終わったら `POST /session/release` を呼びます。
 
-Each authenticated mutating request through the tailnet listener (if remote
-mode is active) writes an audit row to
-`~/.gstack/security/ios-qa-audit.jsonl`.
+tailnet の受け口(リモートモードが有効な場合)を通じて認証された変更リクエストはすべて、`~/.gstack/security/ios-qa-audit.jsonl` に監査の行を書き込みます。
 
-## Modes
+## モード
 
-**Local-USB mode (default).** Daemon binds loopback only; no Tailscale
-required. The spawning skill gets full-surface access. Best for solo
-development.
+**ローカル USB モード(デフォルト)。** デーモンは loopback のみにバインドします。Tailscale は不要です。呼び出し元のスキルは、すべての機能にアクセスできます。個人での開発に最適です。
 
-**Tailnet mode (`--tailnet`).** Daemon additionally binds the Tailscale
-interface (never `0.0.0.0`). Requires `tailscaled` to be running locally and
-the daemon to be able to read `/var/run/tailscale.sock`. Fails closed if the
-socket is missing, permission-denied, or returns an unparseable WhoIs
-response. Remote agents hit `POST /auth/mint` over tailnet, daemon
-canonicalizes identity via WhoIs, checks the allowlist file, mints a
-session token. See `ios-qa/docs/tailscale-acl-example.md`.
+**tailnet モード(`--tailnet`)。** デーモンは、さらに Tailscale のインターフェースにもバインドします(`0.0.0.0` には決してバインドしません)。ローカルで `tailscaled` が動いていて、デーモンが `/var/run/tailscale.sock` を読める必要があります。ソケットがない、権限が拒否される、または解析できない WhoIs の応答が返る場合は、フェイルクローズドで停止します。リモートのエージェントは、tailnet 経由で `POST /auth/mint` を呼びます。デーモンは WhoIs で ID を正規化し、許可リストのファイルを確認して、セッショントークンを発行します。`ios-qa/docs/tailscale-acl-example.md` を参照してください。
 
-**Capability tiers (tailnet mode).** Minted tokens default to `interact`
-(taps, swipes, types). Higher tiers require explicit owner mint:
+**能力の階層(tailnet モード)。** 発行されるトークンのデフォルトは `interact`(タップ、スワイプ、入力)です。より高い階層には、オーナーによる明示的な発行が必要です:
 
-- **observe:** `/screenshot`, `/elements`, `GET /state/*`, `/healthz`,
-  `/session/heartbeat`.
-- **interact:** observe + `/tap`, `/swipe`, `/type`.
-- **mutate:** interact + `POST /state/<key>`.
-- **restore:** mutate + `POST /state/restore`.
+- **observe:** `/screenshot`、`/elements`、`GET /state/*`、`/healthz`、`/session/heartbeat`。
+- **interact:** observe + `/tap`、`/swipe`、`/type`。
+- **mutate:** interact + `POST /state/<key>`。
+- **restore:** mutate + `POST /state/restore`。
 
-Owner mints via `gstack-ios-qa-mint --remote <identity> --capability <tier>`
-on the Mac. Self-service mint over tailnet only succeeds for already-allowlisted
-identities.
+オーナーは Mac 上で `gstack-ios-qa-mint --remote <identity> --capability <tier>` を使って発行します。tailnet 経由のセルフサービスの発行は、すでに許可リストに入っている ID に対してのみ成功します。
 
-**Recording mode (`--recording`).** DebugOverlay renders a small diagonal
-"AGENT DEMO" watermark in a corner so screencasts are unambiguous about the
-device being agent-driven.
+**記録モード(`--recording`)。** DebugOverlay は、角に小さな斜めの「AGENT DEMO」の透かしを描画します。これにより、画面収録がエージェントによって操作されていることを明確に示せます。
 
-## Demo mode
+## デモモード
 
-If the user says "demo", "demo mode", "show me", or "I want to see it
-working", run in **DEMO MODE**. This changes how the agent interacts with
-the app:
+ユーザーが「demo」「demo mode」「show me」「I want to see it working」と言った場合は、**DEMO MODE** で実行します。これにより、エージェントのアプリとのやり取りの仕方が変わります:
 
-**DEMO MODE OVERRIDES ALL OTHER RULES.** When demo mode is active, the
-agent MUST drive every action through visible UI (`/tap`, `/swipe`, `/type`)
-and NEVER use `POST /state/*` writes to skip steps. Viewers see the agent
-type every key, tap every button. The on-device DebugOverlay attribution
-chip shows "Driven by Claude Code (demo)" or the remote agent identity.
+**DEMO MODE はほかのすべてのルールより優先されます。** デモモードが有効な間、エージェントは、すべての操作を目に見える UI(`/tap`、`/swipe`、`/type`)を通して行わなければならず、手順を飛ばすために `POST /state/*` の書き込みを決して使ってはいけません。視聴者は、エージェントがすべてのキーを入力し、すべてのボタンをタップするのを見ることになります。デバイス上の DebugOverlay の帰属チップには、「Driven by Claude Code (demo)」またはリモートのエージェントの ID が表示されます。
 
-In demo mode, the screencap rate is bumped to 4fps so the recording feels
-live.
+デモモードでは、録画が生き生きと見えるように、スクリーンキャプチャのレートを 4fps に上げます。
 
-## Failure modes + recovery
+## 失敗パターンと復旧
 
-| Symptom | Likely cause | Action |
+| 症状 | 考えられる原因 | 対処 |
 |---|---|---|
-| `curl: connection refused` to daemon | daemon crashed | Re-run `/ios-qa`; spawn-race lock will fail closed |
-| `403 identity_not_allowed` from `/auth/mint` | identity missing from allowlist | Run `gstack-ios-qa-mint --remote <identity>` on the Mac |
-| `409 schema_mismatch` on `/state/restore` | snapshot from older app build | Discard the snapshot; re-capture |
-| `503 device_disconnected` / `504 upstream_timeout` from proxy | USB route dropped, app stopped, or app relaunched | Daemon probes the running app with its session bearer and keeps the session (no relaunch, app state intact). It bootstraps only when the app rejected the bearer (401), is not running, or a different device is now selected. A lost `/tap`/`/swipe`/`/type` response is never replayed: check the screen before retrying. If it persists, reconnect/unlock the device |
-| `multiple_devices` at bootstrap | iPhone and iPad (or two devices) connected, no target set | Run the printed `export GSTACK_IOS_TARGET_UDID=<udid>`, then restart the daemon |
-| `boot_token_unavailable ... could not write` | app's `tmp/` not writable | Fix the app container, relaunch the app |
-| App relaunched after the daemon restarted | a new daemon has no session bearer and the one-use boot token is gone | Expected: the first bootstrap relaunches the app once; keep one daemon alive for a session |
-| `429 rate_limited` from `/auth/mint` | >10 mints/min from one identity | Wait 60s; check audit log for anomalies |
-| `413 body_too_large` on `/state/restore` | snapshot >1MB | Increase `--max-body` or trim snapshot |
+| デーモンへの `curl: connection refused` | デーモンがクラッシュした | `/ios-qa` を再実行する。起動競合のロックはフェイルクローズドになる |
+| `/auth/mint` からの `403 identity_not_allowed` | ID が許可リストにない | Mac で `gstack-ios-qa-mint --remote <identity>` を実行する |
+| `/state/restore` での `409 schema_mismatch` | 古いアプリのビルドのスナップショット | スナップショットを破棄し、取り直す |
+| プロキシからの `503 device_disconnected` / `504 upstream_timeout` | USB の経路が切れた、アプリが停止した、またはアプリが再起動された | デーモンは、セッションのベアラートークンで実行中のアプリを確認し、セッションを維持します(再起動せず、アプリの状態もそのまま)。ブートストラップするのは、アプリがトークンを拒否した(401)場合、アプリが実行されていない場合、または別のデバイスが選択された場合のみです。失われた `/tap`・`/swipe`・`/type` の応答は決して再送されません。再試行の前に画面を確認してください。解消しない場合は、デバイスを再接続またはロック解除してください |
+| ブートストラップ時の `multiple_devices` | iPhone と iPad(または 2 台のデバイス)が接続され、対象が未設定 | 表示された `export GSTACK_IOS_TARGET_UDID=<udid>` を実行し、デーモンを再起動する |
+| `boot_token_unavailable ... could not write` | アプリの `tmp/` が書き込み不可 | アプリのコンテナを修正し、アプリを再起動する |
+| デーモン再起動後にアプリが再起動された | 新しいデーモンはセッションのベアラートークンを持たず、ワンタイムのブートトークンも失われている | 想定どおり: 最初のブートストラップでアプリは一度再起動される。セッション中は 1 つのデーモンを動かし続ける |
+| `/auth/mint` からの `429 rate_limited` | 1 つの ID から 1 分に 10 回を超える発行 | 60 秒待つ。監査ログに異常がないか確認する |
+| `/state/restore` での `413 body_too_large` | スナップショットが 1MB を超える | `--max-body` を増やすか、スナップショットを削る |
 
-## Known limits
+## 既知の制限
 
-Device-verified by users, not fixable in the bridge today. Plan around them:
+ユーザーが実機で確認したもので、現時点ではブリッジでは修正できません。これらを前提に計画してください:
 
-- **SwiftUI gestures on iOS 26.** In-process synthesized touches report success
-  but never reach a SwiftUI `DragGesture` (for example a `Canvas` driven by
-  drag input), even with phase-separated touches (seen on iOS 26.5). Buttons and
-  UIKit controls still respond. For gesture-driven views, have the app expose
-  its input handlers to the bridge under `#if DEBUG` and drive them through a
-  state write, or cover the flow with an XCUITest harness.
-- **`/swipe` scrolls only.** It moves the nearest enclosing `UIScrollView` and
-  returns `false` when there is none; it is not a drag. Custom pan or drag
-  views need the input-routing approach above.
-- **`/elements` on iOS 26.** The in-process SwiftUI accessibility tree is often
-  not materialized: an iPhone 12 Pro on iOS 26.3.1 returned only the three
-  hosting views, with no identifiers or labels. Locate controls from the
-  screenshot and tap by coordinate.
-- **iPad windows.** iPad sessions work like iPhone sessions, but the overlay
-  and window selection have not been verified with Stage Manager or multiple
-  scenes; report what you see.
+- **iOS 26 の SwiftUI のジェスチャー。** プロセス内で合成されたタッチは成功を報告しますが、フェーズを分けたタッチでも(iOS 26.5 で確認)、SwiftUI の `DragGesture`(例えばドラッグ入力で動かす `Canvas`)には届きません。ボタンや UIKit のコントロールは引き続き反応します。ジェスチャー駆動のビューについては、アプリが `#if DEBUG` の下で入力ハンドラをブリッジに公開し、状態の書き込みを通じて駆動させるか、XCUITest のハーネスでそのフローをカバーしてください。
+- **`/swipe` はスクロールのみ。** 最も近い囲みの `UIScrollView` を動かし、なければ `false` を返します。ドラッグではありません。カスタムのパンやドラッグのビューには、上記の入力ルーティングの方法が必要です。
+- **iOS 26 の `/elements`。** プロセス内の SwiftUI のアクセシビリティツリーは、多くの場合実体化されません。iOS 26.3.1 の iPhone 12 Pro では、3 つのホスティングビューしか返されず、識別子もラベルもありませんでした。スクリーンショットからコントロールを見つけ、座標でタップしてください。
+- **iPad のウィンドウ。** iPad のセッションは iPhone のセッションと同様に動作しますが、Stage Manager や複数のシーンでのオーバーレイとウィンドウの選択は検証されていません。見えたものをそのまま報告してください。
 
-## Cleanup
+## クリーンアップ
 
-Use `/ios-clean` to remove the DebugBridge SPM dependency and all `#if DEBUG`
-wiring before a Release build. This is a convenience flow; the structural
-Release-build guard (Package.swift `.when(configuration: .debug)` + CI
-`swift build -c release` check) is the safety-critical path.
+Release ビルドの前に `/ios-clean` を使うと、DebugBridge の SPM 依存関係と、すべての `#if DEBUG` の配線を削除できます。これは利便性のためのフローです。安全上重要な経路は、構造的な Release ビルドのガード(Package.swift の `.when(configuration: .debug)` と、CI の `swift build -c release` チェック)です。

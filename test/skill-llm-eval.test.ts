@@ -53,7 +53,7 @@ const evalCollector = createEvalCollector('llm-judge');
 function readBrowseCommandSection(): string {
   const p = path.join(ROOT, 'browse', 'sections', 'command-list.md');
   const content = fs.readFileSync(p, 'utf-8');
-  if (!content.includes('## Snapshot Flags') || !content.includes('## Full Command List')) {
+  if (!content.includes('## スナップショットフラグ') || !content.includes('## コマンドの全一覧')) {
     throw new Error(
       `${p} is missing the expected headers — regenerate with: bun run gen:skill-docs`,
     );
@@ -98,7 +98,7 @@ describeIfSelected('LLM-as-judge quality evals', [
     // generated section file; one judge grades the union. Scores are also
     // compared with test/fixtures/eval-baselines.json and the difference is
     // recorded (UPDATE_BASELINES=1 rewrites it); only the floors gate.
-    const section = sliceBrowseSection('## Snapshot Flags');
+    const section = sliceBrowseSection('## スナップショットフラグ');
 
     const samples = await judgePanel(() => judge('browse skill reference (flags + commands)', section));
     const { median: scores, mean } = judgePanelSummary(samples, JUDGE_SCORE_DIMENSIONS);
@@ -201,7 +201,7 @@ describeIfSelected('QA skill quality evals', ['qa/SKILL.md workflow', 'qa/SKILL.
   testIfSelected('qa/SKILL.md workflow', async () => {
     const t0 = Date.now();
     const section = readWorkflowJudgeInput({ root: ROOT, skillPath: 'qa/SKILL.md',
-      startMarker: '# /qa: Test', endMarker: null,
+      startMarker: '# /qa: テスト', endMarker: null,
       // qa-patterns.md loads both browser assets; judges penalized their absence.
       references: ['qa/templates/functional-report-template.md', 'qa/templates/qa-report-template.md', 'qa/references/issue-taxonomy.md'] }).text;
 
@@ -260,7 +260,7 @@ describeIfSelected('QA skill quality evals', ['qa/SKILL.md workflow', 'qa/SKILL.
     // run to the end of qa-patterns.md, so rule 12 "Never refuse to use the
     // browser" now actually reaches the judge.)
     const diffAwareSection = sliceQaPatterns('### Diff-aware', '### Full');
-    const rulesSection = sliceQaPatterns('## Important Rules');
+    const rulesSection = sliceQaPatterns('## 重要なルール');
 
     const samples = await judgePanel(() => callJudge<{ would_browse: boolean; fallback_behavior: string; confidence: number; reasoning: string }>(buildQaAntiRefusalJudgePrompt(diffAwareSection, rulesSection), undefined, { jsonSchema: QA_ANTI_REFUSAL_JUDGE_SCHEMA }));
     const result = { would_browse: judgePanelMajority(samples, 'would_browse'), ...judgePanelMedian(samples, ['confidence'] as const) };
@@ -501,7 +501,7 @@ describeIfSelected('Ship & Release skill evals', ['ship/SKILL.md workflow', 'doc
       // The contract now precedes platform detection; keep the complete workflow.
       skillPath: 'ship/SKILL.md',
       startMarker: '# Ship:',
-      endMarker: '## Important Rules',
+      endMarker: '## 重要なルール',
       references: QA_DISCOVERY_REFERENCES,
       judgeContext: 'a ship/release workflow document',
       judgeGoal: 'how to create a PR: merge base, test, review and explore changed behavior, handle required blocked checks, bump metadata, finish and vet every-ship documentation, then verify stable inputs, push and create/update the PR with visible QA and docs outcomes',
@@ -515,7 +515,7 @@ describeIfSelected('Ship & Release skill evals', ['ship/SKILL.md workflow', 'doc
       suite: 'Ship & Release skill evals',
       skillPath: 'document-release/SKILL.md',
       startMarker: '# Document Release:',
-      endMarker: '## Important Rules',
+      endMarker: '## 重要なルール',
       judgeContext: 'a release documentation audit workflow',
       judgeGoal: 'how to audit relevant nested docs and authored sources; in ship-owned mode complete a bounded docs-only audit and return a typed result without Git/metadata authority, while standalone mode retains its approval and publication protections',
     });
@@ -532,7 +532,7 @@ describeIfSelected('Plan Review skill evals', [
       schemaTransport: true,
       suite: 'Plan Review skill evals',
       skillPath: 'plan-ceo-review/SKILL.md',
-      startMarker: '## Step 0: Nuclear Scope Challenge',
+      startMarker: '## ステップ 0: スコープへの大胆な挑戦',
       endMarker: '## Review Sections',
       judgeContext: 'a CEO/founder plan review framework with 4 scope modes',
       judgeGoal: 'how to conduct a CEO-perspective plan review: challenge scope, select a mode (Expansion, Selective Expansion, Hold Scope, Reduction), then review sections interactively',
@@ -545,7 +545,7 @@ describeIfSelected('Plan Review skill evals', [
       schemaTransport: true,
       suite: 'Plan Review skill evals',
       skillPath: ENG_REVIEW_EXCERPT.skillPath,
-      startMarker: '# Plan Review Mode',
+      startMarker: '# プランレビューモード',
       endMarker: null,
       judgeContext: 'an engineering plan review framework with 4 review sections',
       judgeGoal: 'how to review a plan for architecture quality, code quality, test coverage, and performance — walking through each section interactively with AskUserQuestion',
@@ -574,8 +574,8 @@ describeIfSelected('Design skill evals', ['design-review/SKILL.md fix loop', 'de
       schemaTransport: true,
       suite: 'Design skill evals',
       skillPath: 'design-review/SKILL.md',
-      startMarker: '## Phase 7:',
-      endMarker: '## Additional Rules',
+      startMarker: '## フェーズ 7:',
+      endMarker: '## 追加のルール',
       judgeContext: 'a design audit triage and fix loop workflow',
       judgeGoal: 'how to triage design issues by severity, fix them atomically in source code, commit each fix, and re-verify with before/after screenshots',
     });
@@ -606,8 +606,8 @@ describeIfSelected('Deploy skill evals', [
       schemaTransport: true,
       suite: 'Deploy skill evals',
       skillPath: 'land-and-deploy/SKILL.md',
-      startMarker: '## Step 1: Pre-flight',
-      endMarker: '## Important Rules',
+      startMarker: '## Step 1: 事前確認',
+      endMarker: '## 重要なルール',
       judgeContext: 'a merge-deploy-verify workflow for landing PRs to production',
       judgeGoal: 'how to merge a PR via GitHub CLI, wait for CI and deploy workflows (with platform-specific strategies for Fly.io/Render/Vercel/Netlify), run canary health checks on production, and offer revert if something breaks — with timing data logged for retrospectives',
     });
@@ -619,8 +619,8 @@ describeIfSelected('Deploy skill evals', [
       schemaTransport: true,
       suite: 'Deploy skill evals',
       skillPath: 'canary/SKILL.md',
-      startMarker: '### Phase 2: Baseline Capture',
-      endMarker: '## Important Rules',
+      startMarker: '### フェーズ 2: ベースラインの取得',
+      endMarker: '## 重要なルール',
       judgeContext: 'a post-deploy canary monitoring workflow driving a real browser (Aside first, the gstack headless browser as fallback)',
       judgeGoal: 'how to capture baseline screenshots and metrics before deploy, run a continuous monitoring loop checking each page every 60 seconds for console errors and performance regressions, fire alerts with evidence (screenshots), and produce a health report with per-page status and verdict',
     });
@@ -632,8 +632,8 @@ describeIfSelected('Deploy skill evals', [
       schemaTransport: true,
       suite: 'Deploy skill evals',
       skillPath: 'benchmark/SKILL.md',
-      startMarker: '### Phase 3: Performance Data Collection',
-      endMarker: '## Important Rules',
+      startMarker: '### フェーズ 3: パフォーマンスデータの収集',
+      endMarker: '## 重要なルール',
       judgeContext: 'a performance regression detection workflow using browser-based Web Vitals measurement (Aside first, the gstack headless browser as fallback)',
       judgeGoal: 'how to collect real performance metrics (TTFB, FCP, LCP, bundle sizes, request counts) via performance.getEntries(), compare against baselines with regression thresholds, produce a performance report with delta analysis, and track trends over time',
     });
@@ -645,8 +645,8 @@ describeIfSelected('Deploy skill evals', [
       schemaTransport: true,
       suite: 'Deploy skill evals',
       skillPath: 'setup-deploy/SKILL.md',
-      startMarker: '### Step 2: Detect platform',
-      endMarker: '## Important Rules',
+      startMarker: '### Step 2: プラットフォームを検出する',
+      endMarker: '## 重要なルール',
       judgeContext: 'a deployment configuration setup workflow that detects deploy platforms and writes config to CLAUDE.md',
       judgeGoal: 'how to detect deploy platforms (Fly.io, Render, Vercel, Netlify, Heroku, GitHub Actions, custom), gather platform-specific configuration (URLs, status commands, health checks, custom hooks), and persist everything to CLAUDE.md for future automated use',
     });
@@ -663,7 +663,7 @@ describeIfSelected('Other skill evals', [
       testName: 'review/SKILL.md workflow',
       suite: 'Other skill evals',
       skillPath: 'review/SKILL.md',
-      startMarker: '## Step 0: Detect platform and base branch',
+      startMarker: '## Step 0: プラットフォームとベースブランチを検出する',
       endMarker: null,
       references: [...QA_DISCOVERY_REFERENCES, 'review/checklist.md', 'review/specialists/testing.md'],
       judgeContext: 'a pre-landing review with bounded exploratory QA',
@@ -683,8 +683,8 @@ describeIfSelected('Other skill evals', [
       schemaTransport: true,
       suite: 'Other skill evals',
       skillPath: 'sync-gbrain/SKILL.md',
-      startMarker: '## Step 4: Refresh',
-      endMarker: '## Concurrency note',
+      startMarker: '## ステップ 4:',
+      endMarker: '## 同時実行に関する注記',
       judgeContext: 'a source-scoped gbrain readiness and guidance workflow',
       judgeGoal: 'how to verify the pinned worktree source using only bounded reads, preserve guidance when the read is unknown, and report the verdict without creating or deleting pages',
     });
@@ -696,7 +696,7 @@ describeIfSelected('Other skill evals', [
       schemaTransport: true,
       suite: 'Other skill evals',
       skillPath: 'retro/SKILL.md',
-      startMarker: '## Instructions',
+      startMarker: '## 手順',
       endMarker: '## Tone',
       judgeContext: 'an engineering retrospective data gathering and analysis workflow',
       judgeGoal: 'how to gather git metrics (commit history, test counts, work patterns), analyze them, produce a structured retro report with praise, growth areas, and trend tracking',
@@ -723,8 +723,8 @@ describeIfSelected('Other skill evals', [
       schemaTransport: true,
       suite: 'Other skill evals',
       skillPath: 'gstack-upgrade/SKILL.md',
-      startMarker: '## Inline upgrade flow',
-      endMarker: '## Standalone usage',
+      startMarker: '## インラインのアップグレードの流れ',
+      endMarker: '## 単独での使い方',
       judgeContext: 'a version upgrade detection and execution workflow',
       judgeGoal: 'how to detect install type, compare versions, back up current install, upgrade via git or fresh clone, run setup, and show what changed',
     });
@@ -788,7 +788,7 @@ describeIfSelected('Cookie setup workflow quality', ['setup-browser-cookies/SKIL
       testName: 'setup-browser-cookies/SKILL.md workflow',
       suite: 'Cookie setup workflow quality',
       skillPath: 'setup-browser-cookies/SKILL.md',
-      startMarker: '# Setup Browser Cookies',
+      startMarker: '# ブラウザ Cookie のセットアップ',
       endMarker: null,
       ...COOKIE_WORKFLOW_JUDGE,
       readInput: () => buildCookieWorkflowJudgeInput(ROOT),

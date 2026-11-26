@@ -3,11 +3,11 @@ name: ship
 preamble-tier: 4
 version: 1.0.0
 description: |
-  Ship workflow: detect + merge base branch, run tests, review diff, bump VERSION,
-  update CHANGELOG, commit, push, create PR. Use when asked to "ship", "deploy",
-  "push to main", "create a PR", "merge and push", or "get it deployed".
-  Proactively invoke this skill (do NOT push/PR directly) when the user says code
-  is ready, asks about deploying, wants to push code up, or asks to create a PR. (gstack)
+  Shipワークフロー: ベースブランチの検出とマージ、テストの実行、差分のレビュー、VERSION の更新、
+  CHANGELOG の更新、コミット、プッシュ、PR の作成。「ship」「deploy」「push to main」
+  「create a PR」「merge and push」「get it deployed」と求められたときに使います。
+  コードの準備ができたと伝えられたとき、デプロイについて尋ねられたとき、コードを上げたいと言われたとき、
+  PR の作成を求められたときは、このスキルを積極的に起動してください(直接 push/PR しないこと)。(gstack)
 allowed-tools:
   - Bash
   - Read
@@ -30,64 +30,54 @@ triggers:
 
 {{THIRD_PARTY_ACTIONS}}
 
-# Ship: Fully Automated Ship Workflow
+# Ship: 完全自動化された Ship ワークフロー
 
-STOP blocks advancement until the stated repair/resume route clears; without one, end this attempt.
-Answer each AskUserQuestion before continuing.
-Routine authorization never waives those gates or their required user decisions.
+STOP は、示された修復/再開ルートが解消されるまで次の段階への進行を止めます。該当ルートがなければ、この試行を終了します。
+各 AskUserQuestion には回答してから先に進んでください。
+通常の承認があっても、これらのゲートや必要なユーザーの判断は免除されません。
 
-**Routine work needs no confirmation:** include uncommitted changes, choose MICRO/PATCH
-under Step 12, draft CHANGELOG and commits, mark completed TODOs and auto-fix findings.
-When Step 7 coverage meets its target, report remaining gaps and verify generated
-tests without asking again. Step 15 commits those tests.
+**定型作業は確認不要:** 未コミットの変更を含めること、Step 12 で MICRO/PATCH を選ぶこと、
+CHANGELOG とコミットの下書き、完了した TODO の印付け、指摘事項の自動修正は、いずれも確認なしで行います。
+Step 7 のカバレッジが目標に達したら、残ったギャップを報告し、生成されたテストを再度確認せずに検証してください。Step 15 でそれらのテストをコミットします。
 
-**Route:** integrate (1–3) → test and review (4–11.5) → prepare the release
-(12–15) → verify frozen content (16) → push and publish (17–21).
-Every new invocation repeats Steps 1–16, including both reviews and the docs audit.
-Steps 12, 17 and 19 prevent duplicate bumps, pushes and PRs, never verification.
+**ルート:** 統合 (1–3) → テストとレビュー (4–11.5) → リリース準備 (12–15) → 凍結内容の検証 (16) → push と公開 (17–21)。
+新しい起動のたびに Step 1–16 を、両方のレビューとドキュメント監査を含めて繰り返します。
+Step 12、17、19 は、バージョンの重複更新、push、PR の重複作成を防ぐためのものであり、検証を省略するものではありません。
 
-### Keep state between steps
+### ステップ間の状態の保持
 
-Keep one private Markdown **invocation record** outside the product tree and save
-its absolute path, with these headings so a paused run can resume:
-- **Release:** versions, `BUMP_LEVEL`, reviewed tree and attempt counts.
-- **Decisions:** each approval's finding, files and authorized action. Reuse it only
-  for that same scope; a repair never resets or expands approvals.
-- **Reviews:** handles, original start tokens, terminal states, outputs and queued fixes.
-- **Checks:** command/label, result/counts, timestamp, log and consumed inputs.
-- **Documentation:** candidate/id, attempts used, accepted hashes or named blocked exception.
-- **Next steps:** one ordered work list, with the current step marked.
+製品ツリーの外に、非公開の Markdown **実行記録 (invocation record)** を 1 つ作り、その絶対パスを保存してください。
+一時停止した実行を再開できるよう、次の見出しを付けておきます:
+- **Release:** バージョン、`BUMP_LEVEL`、レビュー済みツリー、試行回数。
+- **Decisions:** 各承認の指摘内容、ファイル、許可された操作。同じスコープの場合のみ再利用します。修復によって承認が再設定されたり拡張されたりすることはありません。
+- **Reviews:** ハンドル、元の開始トークン、終了状態、出力、キューに入った修正。
+- **Checks:** コマンド/ラベル、結果/件数、タイムスタンプ、ログ、消費した入力。
+- **Documentation:** 候補/ID、使用した試行回数、承認済みハッシュ、または名指しでブロックされた例外。
+- **Next steps:** 順序付きの作業リスト 1 つ。現在のステップに印を付けます。
 
-A **receipt** is saved evidence of a check's command, result and consumed content.
-A review's **start token** is the opaque value returned by `gstack-review-log --start`
-before it reads the diff. Keep `REVIEW_START` for Step 9, a separate `PASS_START` for
-each Step 11 attempt, and `DESIGN_START` for design. Finish each pass with its original
-token; `--finish` stamps the binding fields automatically. Never borrow or replace a token.
-`gstack-wtree` prints a Git tree hash covering tracked and non-ignored untracked files,
-not a commit ID. Use `git diff <old-tree> <new-tree>` to compare these snapshots.
+**レシート (receipt)** は、チェックのコマンド、結果、消費したコンテンツを記録した証拠です。
+レビューの **開始トークン (start token)** は、差分を読む前に `gstack-review-log --start` が返す不透明な値です。
+Step 9 用に `REVIEW_START`、Step 11 の各試行用に個別の `PASS_START`、デザイン用に `DESIGN_START` を保持してください。
+各パスは元のトークンで終了します。`--finish` が拘束フィールドを自動で記録します。トークンを借用したり置き換えたりしないでください。
+`gstack-wtree` は、コミット ID ではなく、追跡対象と無視されていない未追跡ファイルを対象とした Git ツリーハッシュを出力します。
+これらのスナップショットを比較するには `git diff <old-tree> <new-tree>` を使ってください。
 
-### Ship control flow
+### Ship の制御フロー
 
-You, the **parent** running /ship, own advancement; children return evidence, not
-permission to proceed. Follow the saved work list:
+あなたは `/ship` を実行する **親** として、進行を管理します。子の出力は証拠であり、進行の許可ではありません。保存された作業リストに従ってください:
 
-1. Start with Steps 1–21 in order, including 6.5, 11.5 and 14.5. Advance only after
-   the current item's gates clear.
-2. Expand a repair into individual steps and insert them before the still-pending
-   work. This replaces the current item, whose result stays in the record.
-   Add its destination only if not already the next pending step.
-3. For another repair, repeat rule 2 without discarding pending work.
-   The saved list outranks ordinary next-step sentences inside a repair.
-   A range never adds unlisted steps.
+1. Step 1–21 を順番に開始します。6.5、11.5、14.5 も含みます。現在の項目のゲートが解消された後にのみ進みます。
+2. 修復は個々のステップに展開し、まだ保留中の作業の前に挿入します。これにより現在の項目が置き換わり、その結果は記録に残ります。
+   移行先が次の保留ステップでない場合にのみ、それを追加します。
+3. 別の修復が発生した場合は、保留中の作業を破棄せずに規則 2 を繰り返します。
+   保存された作業リストは、修復内にある通常の「次のステップ」の記述より優先されます。
+   範囲指定で、リストにないステップが追加されることはありません。
 
-**Example:** Step 11 fixes insert `9 → 10 → 11` before 11.5. A further Step 9 fix
-affecting 6–8 makes the list `5 → 6 → 7 → 8 → 9 → 10 → 11 → 11.5`.
-The unchanged release steps follow. STOP and AskUserQuestion gates still apply during repairs.
+**例:** Step 11 の修正は、11.5 の前に `9 → 10 → 11` を挿入します。その後 Step 9 の修正が 6–8 に影響する場合、リストは `5 → 6 → 7 → 8 → 9 → 10 → 11 → 11.5` になります。
+変更のないリリースのステップは、その後に続きます。修復中も STOP と AskUserQuestion のゲートは有効です。
 
-Keep the same attempt counts throughout the invocation. A range ending at Step 14
-does not enter Step 14.5. A range including Step 14.5 enters its existing audit
-decision, not an unconditional new launch; its initial-plus-ONE limit never resets.
-Permitted repairs continue in this invocation without restarting /ship.
+同じ試行回数を実行全体で維持してください。Step 14 で終わる範囲は Step 14.5 に入りません。Step 14.5 を含む範囲は、既存の監査判断に入ります。無条件に新たに起動することはありません。その初回+1 回の上限はリセットされません。
+許可された修復は、/ship を再起動せず、この実行の中で継続します。
 
 ---
 
@@ -97,101 +87,94 @@ Permitted repairs continue in this invocation without restarting /ship.
 
 {{BASE_BRANCH_DETECT}}
 
-`<base>` means the detected branch name for fetch/helper arguments;
-`origin/<base>` is its remote-tracking ref for comparisons. Step 1 fetches it.
+`<base>` は fetch/ヘルパーの引数に使うための、検出されたブランチ名を意味します。
+`origin/<base>` は比較に使うリモート追跡 refです。Step 1 でこれを fetch します。
 
 {{GBRAIN_CONTEXT_LOAD}}
 
-## Step 0.9: Apple target detection
+## Step 0.9: Apple ターゲットの検出
 
-If the ask is App Store/TestFlight distribution, look for an `.xcodeproj`,
-`.xcworkspace`, or Swift app product. Read `Package.swift` and its entrypoint to
-distinguish an app from a library/CLI. If unclear, AskUserQuestion to identify
-the target and wait before choosing a release path.
-For a confirmed app, **STOP and Read
-`~/.claude/skills/gstack/ship/sections/apple-release.md` FIRST**. Store distribution proceeds
-through that adapter from the current branch, including a clean base branch.
-The branch gate and repository-landing pipeline below apply ONLY to
-repository-landing asks, including on Apple repos.
+依頼が App Store/TestFlight への配布である場合は、`.xcodeproj`、`.xcworkspace`、または Swift のアプリ製品を探します。`Package.swift` とそのエントリポイントを読み、アプリとライブラリ/CLI を区別します。判断できない場合は、AskUserQuestion でターゲットを特定し、リリース経路を選ぶ前に回答を待ちます。
+対象が確定したアプリの場合は、**STOP して、まず `~/.claude/skills/gstack/ship/sections/apple-release.md` を読んでください**。App Store への配布は、現在のブランチ(クリーンなベースブランチを含む)から、そのアダプタを通して進めます。
+ブランチゲートと、以下のリポジトリへの取り込みパイプラインは、リポジトリへの取り込みに関する依頼にのみ適用されます。Apple リポジトリの場合も同様です。
 
-## Step 1: Pre-flight
+## Step 1: 事前確認
 
-1. Save the current branch as `<branch-name>`. If on the base branch or the repo's default branch, **abort**: "You're on the base branch. Ship from a feature branch."
+1. 現在のブランチを `<branch-name>` として保存します。ベースブランチまたはリポジトリのデフォルトブランチにいる場合は、**中止**します: 「You're on the base branch. Ship from a feature branch.」
+   (ベースブランチにいます。機能ブランチから Ship してください。)
 
-2. Run `git status` (never `-uall`). Uncommitted changes are always included; do not ask.
+2. `git status` を実行します(`-uall` は使わないこと)。未コミットの変更は常に含めます。確認はしないでください。
 
-3. Run `git fetch origin <base>` before inspecting the diff. If fetch fails, STOP:
-   report the error and restore access first. Then inspect
-   `git diff origin/<base> --stat`, untracked files from status, and
-   `git log origin/<base>..HEAD --oneline`.
+3. 差分を確認する前に `git fetch origin <base>` を実行します。fetch が失敗した場合は STOP し、
+   エラーを報告して、まずアクセスを復旧してください。その後、
+   `git diff origin/<base> --stat`、status の未追跡ファイル、
+   `git log origin/<base>..HEAD --oneline` を確認します。
 
-4. Display historical readiness using the dashboard below, then finish Step 1.
-   Prior CLEAR reviews or dashboard skips never replace Step 9's gates.
+4. 下のダッシュボードを使って、過去の準備状況を表示し、Step 1 を完了します。
+   過去の CLEAR レビューやダッシュボードのスキップは、Step 9 のゲートの代わりにはなりません。
 
 {{REVIEW_DASHBOARD}}
 
-An outside review with status `unverified` or `unavailable` is missing coverage, never a pass.
+ステータスが `unverified` または `unavailable` の外部レビューは、カバレッジ不足として扱い、合格とはみなしません。
 
-For diffs >200 lines (`git diff origin/<base> --stat | tail -1`), recommend
-`/plan-eng-review` or `/autoplan`.
+差分が 200 行を超える場合(`git diff origin/<base> --stat | tail -1` で確認)は、`/plan-eng-review` または `/autoplan` を推奨します。
 
-For Design Review: run `source <(~/.claude/skills/gstack/bin/gstack-diff-scope <base> 2>/dev/null)`. If `SCOPE_FRONTEND=true` and no design review exists, mention: "Design Review not run — Step 9 includes the lite check; consider /design-review for a full visual audit."
+デザインレビューについては、`source <(~/.claude/skills/gstack/bin/gstack-diff-scope <base> 2>/dev/null)` を実行します。`SCOPE_FRONTEND=true` で、デザインレビューがまだない場合は、次のように伝えてください: 「Design Review not run — Step 9 includes the lite check; consider /design-review for a full visual audit.」
+(デザインレビューは未実施です。Step 9 には簡易チェックが含まれます。完全なビジュアル監査には /design-review を検討してください。)
 
-Continue to Step 2 without asking; Step 9 applies the review gates.
+質問せずに Step 2 に進みます。レビューのゲートは Step 9 で適用されます。
 
 ---
 
-## Step 2: Distribution Pipeline Check
+## Step 2: 配布パイプラインの確認
 
-Check distribution for new standalone artifacts (CLI binaries, packages, tools),
-not web services already deployed.
+新規の独立した成果物(CLI バイナリ、パッケージ、ツール)について、配布経路を確認します。
+すでにデプロイ済みの Web サービスは対象外です。
 
-1. List candidate distribution paths:
+1. 配布の候補経路を一覧化します:
    ```bash
    git diff origin/<base> --diff-filter=A --name-only | grep -E '(^|/)(cmd/[^/]+/main\.go|bin/[^/]+|Cargo\.toml|setup\.py|package\.json)$' | head -5
    ```
-   Include matching untracked files from Step 1's status. Read each match:
-   a new `package.json` or `Cargo.toml` alone is not a publishable artifact;
-   also check existing manifests for newly declared binaries or package
-   exports. Gate only when a new distributable is present.
+   Step 1 の status から、一致する未追跡ファイルも含めます。一致したファイルはそれぞれ読みます。
+   新規の `package.json` や `Cargo.toml` だけでは、公開可能な成果物とはみなしません。
+   既存のマニフェストについても、新たに宣言されたバイナリやパッケージのエクスポートがないか確認します。新しい配布対象が存在する場合にのみゲートをかけます。
 
-2. If new artifact detected, check for a release workflow:
+2. 新しい成果物が検出された場合は、リリースワークフローがあるか確認します:
    ```bash
    ls .github/workflows/ 2>/dev/null | grep -iE 'release|publish|dist'
    grep -qE 'release|publish|deploy' .gitlab-ci.yml 2>/dev/null && echo "GITLAB_CI_RELEASE"
    ```
 
-3. **New artifact without a pipeline:** AskUserQuestion: "Users cannot download this
-   artifact after merge without a release pipeline."
-   - A) Add the platform's release workflow now
-   - B) Defer with a P1 distribution TODO in Step 14
-   - C) Not needed: internal/web-only, covered by existing deployment
+3. **パイプラインのない新規成果物:** AskUserQuestion: 「リリースパイプラインがないと、
+   マージ後にユーザーはこの成果物をダウンロードできません。」
+   - A) 今すぐプラットフォームのリリースワークフローを追加する
+   - B) Step 14 で P1 の配布 TODO として保留する
+   - C) 不要: 社内向け/Web 専用で、既存のデプロイでカバーされている
 
-4. **If A:** Add packaging/publish configuration using repository CI conventions.
-   Ask for unknown targets, registries or access first; never invent credentials.
-   Recheck against the artifact and include the workflow in tests and review.
-   Do not publish a release during `/ship`.
-5. Otherwise continue without a pipeline.
+4. **A の場合:** リポジトリの CI の慣習に従って、パッケージング/公開の設定を追加します。
+   不明なターゲット、レジストリ、アクセス権は先に確認してください。認証情報を勝手に作ってはいけません。
+   成果物に対して再確認し、ワークフローをテストとレビューに含めます。
+   `/ship` の実行中にリリースを公開しないでください。
+5. それ以外の場合は、パイプラインなしで続行します。
 
 ---
 
-## Step 3: Merge the base branch (BEFORE tests)
+## Step 3: ベースブランチのマージ(テストの前に)
 
-Merge the base ref fetched in Step 1 so tests and reviews cover the integrated code:
+Step 1 で fetch したベースの ref をマージし、テストとレビューが統合後のコードを対象にするようにします:
 
 ```bash
 git merge origin/<base> --no-edit
 ```
 
-**Merge conflicts:** Auto-resolve simple ones (VERSION, schema.rb, CHANGELOG ordering). For complex or ambiguous conflicts, **STOP**, show the conflicting choices, use AskUserQuestion for the resolution, and wait for the answer before editing or continuing.
+**マージコンフリクト:** 単純なもの(VERSION、schema.rb、CHANGELOG の順序)は自動解決します。複雑または曖昧なコンフリクトの場合は、**STOP** して、競合する選択肢を示し、AskUserQuestion で解決方法を尋ね、回答があるまで編集や続行を待ちます。
 
-**If already up to date:** Continue silently.
+**すでに最新の場合:** 何も言わずに続行します。
 
-**Ship policy:** `~/.claude/skills/gstack/bin/gstack-ship-policy show-effective --base <base>`
-(docs/ship-policy.md); its `ship:` lines bind Steps 12, 16 and history.
+**Ship ポリシー:** `~/.claude/skills/gstack/bin/gstack-ship-policy show-effective --base <base>`
+(docs/ship-policy.md)。その `ship:` の行は Step 12、16 および履歴を拘束します。
 
-If integration changes the artifact or distribution configuration inspected in Step 2,
-repeat Step 2 (decisions included) on the merged content, then Step 4.
+統合によって Step 2 で確認した成果物や配布設定が変わった場合は、マージ後の内容に対して Step 2 を(判断を含めて)繰り返し、その後 Step 4 に進みます。
 
 ---
 
@@ -209,155 +192,116 @@ repeat Step 2 (decisions included) on the merged content, then Step 4.
 
 {{SECTION:adversarial}}
 
-## Step 11.5: Bind the reviews
+## Step 11.5: レビューの紐付け
 
-1. **Select the two reviews.** Run `~/.claude/skills/gstack/bin/gstack-review-read`.
-   Select this invocation's final Step 9.4 record (`skill:"review"`, `via:"ship"`)
-   and Step 11 native record (`skill:"adversarial-review"`). Match each to its saved
-   handle, original token and source; reject outside-provider or older records.
-2. **Compare their content.** Require the native record's `review_binding.state`
-   to be `verified`. All three snapshots must match: its `wtree`, Step 9.4's
-   `review_binding.start_wtree` and `review_binding.end_wtree`. A mismatch or missing
-   record/field blocks release preparation: report **Review records missing or mismatched**
-   and insert `9 → 10 → 11 → 11.5` before Step 12. Bind the new records at 11.5.
-   Never attach new tokens to old work.
-3. **Preserve any QA exception.** A named probe-risk exception may leave Step 9.4's
-   root `wtree` absent; item 2 still compares its start/end snapshots. Matching content
-   does not mean failed or unrun probes passed. Keep Step 9.4's incomplete flags
-   and the user's exception.
-4. **Save the evidence.** Save both records and matching **reviewed tree** for
-   Step 16. Continue to Step 12.
+1. **2 つのレビューを選びます。** `~/.claude/skills/gstack/bin/gstack-review-read` を実行します。
+   この実行の最終的な Step 9.4 の記録(`skill:"review"`、`via:"ship"`)と、Step 11 のネイティブ記録(`skill:"adversarial-review"`)を選択します。
+   それぞれを、保存したハンドル、元のトークン、ソースと照合します。外部プロバイダーのもの、または古い記録は拒否します。
+2. **内容を比較します。** ネイティブ記録の `review_binding.state` が `verified` であることを確認します。3 つのスナップショットがすべて一致する必要があります:
+   その `wtree`、Step 9.4 の `review_binding.start_wtree`、`review_binding.end_wtree`。不一致、または記録やフィールドの欠落があると、リリース準備がブロックされます。その場合は **Review records missing or mismatched**(レビュー記録が欠落または不一致)と報告し、
+   Step 12 の前に `9 → 10 → 11 → 11.5` を挿入します。11.5 で新しい記録を紐付けます。
+   古い作業に新しいトークンを付けてはいけません。
+3. **QA の例外を保持します。** 名指しされたプローブのリスク例外では、Step 9.4 のルートの `wtree` が存在しないことがあります。それでも項目 2 では、開始/終了のスナップショットを比較します。内容が一致しても、失敗した、または実行されていないプローブが合格したことにはなりません。
+   Step 9.4 の未完了フラグと、ユーザーの例外は保持してください。
+4. **証拠を保存します。** 両方の記録と、一致した **レビュー済みツリー** を Step 16 のために保存します。Step 12 に進みます。
 
-## Step 12: Version bump (auto-decide)
+## Step 12: バージョンの更新(自動判断)
 
-Item 3 needs `BUMP_LEVEL`: reuse this invocation's saved level. Otherwise FRESH
-chooses it in item 2 and ALREADY_BUMPED derives it in item 1.
+項目 3 には `BUMP_LEVEL` が必要です。この実行で保存されたレベルを再利用します。なければ、FRESH は項目 2 で選択し、ALREADY_BUMPED は項目 1 から導出します。
 
-`ship: queue_mode stamp-at-merge` replaces items 1–4.
+`ship: queue_mode stamp-at-merge` は、項目 1–4 の代わりになります。
 
-1. **Classify state** — pure reader, never writes:
+1. **状態の分類** — 読み取り専用で、決して書き込みません:
    ```bash
    bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-version-bump classify --base <base>
    ```
-   Save the JSON `baseVersion` as `BASE_VERSION`, then read `state` and dispatch:
-   - **FRESH** → use the recorded level or choose it in item 2, then check the queue and write.
-   - **ALREADY_BUMPED** → keep `NEW_VERSION=currentVersion`. If `BUMP_LEVEL` is missing,
-     use the first changed component from `baseVersion` to `currentVersion`
-     (major/minor/patch/micro; an absent fourth component is zero). Continue at item 3,
-     not another automatic bump.
-   - **DRIFT_STALE_PKG** → run `gstack-version-bump repair`, then reclassify.
-     Success follows ALREADY_BUMPED, including its queue check; failure stops.
-     Repair alone never re-bumps.
-   - **DRIFT_UNEXPECTED** → STOP: package.json disagrees with VERSION while VERSION
-     matches base. Reconcile the manual edit, then reclassify.
-   - **NO_VERSION** → print `notice` verbatim and ship without a version change: skip
-     the rest of Step 12 and Step 13's CHANGELOG entry, never create VERSION, use an
-     unprefixed title in Step 18 and log `"version":null` in Step 20.
-   - **Exit 2** → STOP and show stderr: a configured version file is missing, empty,
-     unreadable or malformed. Fix it or its pin, then reclassify. Never substitute `0.0.0.0`.
+   JSON の `baseVersion` を `BASE_VERSION` として保存し、`state` を読んで振り分けます:
+   - **FRESH** → 記録されたレベルを使うか、項目 2 で選択します。その後、キューを確認して書き込みます。
+   - **ALREADY_BUMPED** → `NEW_VERSION=currentVersion` を保持します。`BUMP_LEVEL` がない場合は、`baseVersion` から `currentVersion` までで最初に変わったコンポーネント(major/minor/patch/micro。4 番目のコンポーネントがない場合はゼロ)を使います。自動の再更新ではなく、項目 3 から続行します。
+   - **DRIFT_STALE_PKG** → `gstack-version-bump repair` を実行してから再分類します。
+     成功した場合は ALREADY_BUMPED に従い、そのキュー確認も含みます。失敗した場合は停止します。
+     修復だけでは、決して再更新しません。
+   - **DRIFT_UNEXPECTED** → STOP: package.json が VERSION と一致しないのに、VERSION はベースと一致しています。手動編集を調整してから再分類します。
+   - **NO_VERSION** → `notice` をそのまま表示し、バージョンを変更せずに出荷します。Step 12 の残りと、Step 13 の CHANGELOG のエントリをスキップします。VERSION は作成せず、Step 18 では接頭辞のないタイトルを使い、Step 20 では `"version":null` を記録します。
+   - **終了コード 2** → STOP して stderr を表示します。設定されたバージョンファイルが存在しない、空である、読めない、または不正な形式です。修正するか、そのピン留めを直してから再分類します。`0.0.0.0` で代用してはいけません。
 
-2. **Decide the bump level** from the diff (agent judgment):
-   - **MICRO**: <50 lines, trivial tweaks/config. **PATCH**: 50+ lines, no feature signal.
-   - **MINOR**: ask for any feature signal (new route/page, migration, module) or 500+ lines.
-     **MAJOR**: ask for milestones or breaking changes (`ship: bump patch` never asks).
-     AskUserQuestion: recommended level with rationale, smaller level, or cancel.
-     Wait; cancel stops before release writes or push and preserves existing work.
-   Save lowercase `BUMP_LEVEL`. A claimed version may move the next available number
-   forward, but cannot change the chosen MICRO/PATCH/MINOR/MAJOR level.
+2. **差分からバージョンレベルを決めます**(エージェントの判断):
+   - **MICRO**: 50 行未満で、些細な調整や設定の変更。**PATCH**: 50 行以上で、機能の兆候がないもの。
+   - **MINOR**: 機能の兆候(新しいルートやページ、マイグレーション、モジュール)がある場合、または 500 行以上の場合は確認します。
+     **MAJOR**: マイルストーンや破壊的変更の場合は確認します(`ship: bump patch` の場合は決して確認しません)。
+     AskUserQuestion: 推奨レベルと理由、より小さいレベル、またはキャンセル。
+     回答を待ちます。キャンセルの場合は、リリースへの書き込みや push の前に停止し、既存の作業を保持します。
+   小文字の `BUMP_LEVEL` を保存します。請求済みのバージョンは次に利用可能な番号へ進めることがありますが、選んだ MICRO/PATCH/MINOR/MAJOR のレベルは変えられません。
 
-3. **Queue-aware pick** (workspace-aware ship):
+3. **キューを考慮した選択**(ワークスペースを意識した Ship):
    ```bash
    QUEUE_JSON=$(bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-next-version --base <base> --bump "$BUMP_LEVEL" --current-version "$BASE_VERSION" 2>/dev/null || echo '{"offline":true}')
    CANDIDATE_VERSION=$(echo "$QUEUE_JSON" | jq -r '.version // empty')
    ```
-   **Qualify first:** require successful utility output and a nonempty valid version.
-   `offline:false` qualifies; `offline:true` qualifies only with `fallback:"git"`.
-   Offline output without that fallback, failure, malformed output or an empty version
-   is unusable, even when it contains a version-looking string.
+   **最初に適格性を確認します:** ユーティリティの出力が成功しており、空でない有効なバージョンであることを確認します。
+   `offline:false` は適格です。`offline:true` は `fallback:"git"` がある場合にのみ適格です。
+   その fallback がないオフライン出力、失敗、不正な形式の出力、空のバージョンは使えません。バージョンらしい文字列を含んでいても同様です。
 
-   - **Usable candidate:** print warnings and claimed queue. FRESH sets `NEW_VERSION=CANDIDATE_VERSION`.
-     ALREADY_BUMPED compares it with `currentVersion`: if different, ask to rebump
-     (refresh CHANGELOG/PR title) or keep current (CI rejects a collision).
-     Only approval changes the existing version. Check JSON `active_siblings` by
-     `branch` and `version`; a sibling holding `>= NEW_VERSION` requires a choice:
-     advance past it, or stop this attempt and sync.
-   - **No usable candidate:** print queue-unverified. FRESH uses local `BUMP_LEVEL`
-     arithmetic; ALREADY_BUMPED keeps `currentVersion`. Never use an empty candidate.
+   - **利用可能な候補あり:** 警告と請求済みのキューを表示します。FRESH は `NEW_VERSION=CANDIDATE_VERSION` を設定します。
+     ALREADY_BUMPED は `currentVersion` と比較します。異なる場合は、再更新を求めるか(CHANGELOG/PR タイトルを更新)、現在のバージョンを維持するかを選びます(CI は衝突を拒否します)。
+     承認された場合にのみ既存のバージョンを変更します。JSON の `active_siblings` を `branch` と `version` で確認します。`>= NEW_VERSION` を持つ兄弟がある場合は、選択が必要です: それを超えて進めるか、この試行を停止して同期します。
+   - **利用可能な候補なし:** `queue-unverified`(キューは未確認)と表示します。FRESH はローカルの `BUMP_LEVEL` の計算を使います。ALREADY_BUMPED は `currentVersion` を維持します。空の候補は決して使わないでください。
 
-4. **Write the bump** (FRESH, or an approved rebump):
+4. **バージョンの書き込み**(FRESH、または承認された再更新):
    ```bash
    bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-version-bump write --version "$NEW_VERSION" --regen-digest
    ```
-   The CLI validates `MAJOR.MINOR.PATCH.MICRO` (or pinned 3-digit semver), writes
-   VERSION, the manifest (`--package-json-path` → `.gstack/package-json-path` →
-   `./package.json`) and existing npm lockfiles, never creating one, with the 3-digit
-   translation (`1.67.0.0` → `1.67.0`); VERSION is authoritative. Exit 3 is a half-write:
-   reclassify and `repair` DRIFT_STALE_PKG.
+   CLI は `MAJOR.MINOR.PATCH.MICRO`(または 3 桁の固定 semver)を検証し、VERSION、マニフェスト(`--package-json-path` → `.gstack/package-json-path` → `./package.json`)、既存の npm ロックファイルを書き込みます。新規作成はしません。3 桁への変換を行います(`1.67.0.0` → `1.67.0`)。VERSION が正です。終了コード 3 は書き込みの半端な失敗です。再分類し、DRIFT_STALE_PKG を `repair` してください。
 
-   `--regen-digest` runs repo code (`scripts/gen-agents-digest.ts`) with Step 5's privileges
-   only when it and committed `agents-digest/gstack-AGENTS.md` exist; if `agentsDigest` is
-   false, run `bun --no-env-file --config=/dev/null scripts/gen-agents-digest.ts` and stage the digest with the bump. Before
-   push, verify the committed digest matches generation for the selected VERSION.
+   `--regen-digest` は、Step 5 の権限で、リポジトリのコード(`scripts/gen-agents-digest.ts`)を実行します。ただし、それと、コミット済みの `agents-digest/gstack-AGENTS.md` が存在する場合に限ります。`agentsDigest` が false の場合は、`bun --no-env-file --config=/dev/null scripts/gen-agents-digest.ts` を実行し、バージョン更新と一緒にダイジェストをステージしてください。push の前に、コミット済みのダイジェストが、選択された VERSION の生成結果と一致することを確認します。
 
-5. **Record the release decision after a version was written**, including
-   an approved ALREADY_BUMPED rebump. Skip unchanged versions and manifest-only repairs.
+5. **バージョンを書いた後にリリースの判断を記録します**。承認された ALREADY_BUMPED の再更新を含みます。変更のないバージョンはスキップし、マニフェストだけの修復も対象外です。
    ```bash
    ~/.claude/skills/gstack/bin/gstack-decision-log '{"decision":"Ship NEW_VERSION (BUMP_LEVEL)","rationale":"WHY","scope":"repo","source":"skill","confidence":9}' 2>/dev/null || true
    ```
-   Substitute `NEW_VERSION`, `BUMP_LEVEL` and a one-line `WHY` (scope or breaking-change signal); best-effort.
+   `NEW_VERSION`、`BUMP_LEVEL` を置き換え、`WHY` には 1 行の理由(スコープや破壊的変更のシグナル)を書きます。ベストエフォートで行います。
 
 {{SECTION:changelog}}
 
-## Step 14: TODOS.md (auto-update)
+## Step 14: TODOS.md(自動更新)
 
-Read `~/.claude/skills/gstack/review/TODOS-format.md`.
+`~/.claude/skills/gstack/review/TODOS-format.md` を読みます。
 
-**1. Open or create:** Read root `TODOS.md`. An explicit "add TODO" choice authorizes
-creation with `# TODOS` and `## Completed`. Otherwise, if missing, ask: A) Create
-a component/priority-organized TODOS.md, B) Skip. Skip goes to item 5.
+**1. 開く、または作成する:** ルートの `TODOS.md` を読みます。明示的な「add TODO」の選択により、`# TODOS` と `## Completed` を使った作成が承認されます。それ以外で、ファイルがない場合は確認します: A) コンポーネント/優先度で整理された TODOS.md を作成する、B) スキップする。スキップの場合は項目 5 に進みます。
 
-**2. Organization:** Use component headings, `**Priority:**` P0–P4 and `## Completed`
-at the bottom. If disorganized, ask: A) Reorganize preserving all content
-(recommended), B) Leave as-is.
+**2. 整理:** コンポーネントの見出し、`**Priority:**` の P0–P4、末尾の `## Completed` を使います。整理されていない場合は確認します: A) すべての内容を保持したまま再編成する(推奨)、B) そのままにする。
 
-**3. Add approved deferrals:**
-- Step 2: add the approved distribution follow-up as P1 with the missing pipeline and affected artifact.
-- Step 8: add each approved P1 plan deferral with `Deferred from plan: {plan file path}` and the missing work.
-- Step 5: retain P0 test-failure entries already written; deduplicate by failure and source, adding missing approved entries with error output and branch.
-Never turn dropped scope into TODOs or invent unapproved follow-ups. Reuse matching entries instead of duplicating them.
+**3. 承認された保留を追加する:**
+- Step 2: 承認された配布の後続作業を、不足しているパイプラインと影響を受ける成果物とともに P1 として追加します。
+- Step 8: 承認された各 P1 の計画上の保留を、`Deferred from plan: {plan file path}` と不足している作業とともに追加します。
+- Step 5: すでに書かれた P0 のテスト失敗のエントリは保持します。失敗内容とソースで重複を除き、不足している承認済みのエントリはエラー出力とブランチとともに追加します。
+   スコープから落ちたものを TODO にしたり、承認されていない後続作業を作ったりしてはいけません。一致するエントリがあれば、重複させず再利用します。
 
-**4. Detect completed TODOs:** Compare titles, files and behavior with
-`git diff origin/<base>`, untracked files and `git log origin/<base>..HEAD --oneline`.
-Move proven completions to `## Completed` with `**Completed:** vX.Y.Z (YYYY-MM-DD)`;
-leave uncertain items open.
+**4. 完了した TODO の検出:** タイトル、ファイル、動作を、`git diff origin/<base>`、未追跡ファイル、`git log origin/<base>..HEAD --oneline` と比較します。
+   完了が確認できたものは `**Completed:** vX.Y.Z (YYYY-MM-DD)` を付けて `## Completed` に移します。確信が持てない項目は未完了のままにします。
 
-**5. Save the summary:** Report additions, deferrals, completions, remaining count and
-creation/reorganization. If creation was declined or a write failed, warn and carry
-unsaved follow-ups in Step 19's PR summary; never claim they were saved. TODO
-write failures are non-blocking.
+**5. 概要を保存する:** 追加、保留、完了、残りの件数、作成/再編成の有無を報告します。作成が断られた場合、または書き込みに失敗した場合は、警告を出し、保存されていない後続作業を Step 19 の PR 概要に持ち越します。保存されたと主張してはいけません。TODO の書き込み失敗はブロックしません。
 
 ---
 
-## Step 14.5: Documentation audit (every ship)
+## Step 14.5: ドキュメント監査(毎回の Ship)
 
-**Doc-sync invariant:** Every ship dispatches the /document-release subagent before final
-commit/verification/publication, including reruns, already-pushed branches, existing PRs and docs-only changes.
-No edits means an executed audit, not a skip; report the section's verified outcome.
+**ドキュメント同期の不変条件:** すべての Ship では、最終コミット/検証/公開の前に /document-release サブエージェントを必ず起動します。これには再実行、push 済みブランチ、既存の PR、ドキュメントのみの変更も含みます。
+編集がないことは、監査を実行した結果であり、スキップではありません。このセクションの検証済みの結果を報告してください。
 
 {{SECTION:documentation}}
 
-## Step 15: Commit (bisectable chunks)
+## Step 15: コミット(二分探索しやすい単位)
 
-Make bisectable commits; if already committed, continue to Step 16. Never create an empty commit.
+二分探索しやすいコミットを作成します。すでにコミット済みの場合は Step 16 に進みます。空のコミットは決して作らないでください。
 
-1. Group changes with their tests, config/routes, views and Step 14.5 docs;
-   migrations may stand alone. Under 50 lines across fewer than 4 files may be one commit.
-2. Order dependencies first: infrastructure → models/services → controllers/views.
-   Each commit works alone (no broken imports or missing code).
-   Group VERSION + CHANGELOG + TODOS.md after the feature commits.
-3. Use `<type>: <summary>` (feat/fix/chore/refactor/docs) and a brief body; fixing a
-   user-named issue adds a `Fixes: #<n>` trailer. Only the final
-   VERSION/CHANGELOG commit gets the release version and co-author trailer. No Git tag:
+1. 変更を、そのテスト、設定/ルート、ビュー、Step 14.5 のドキュメントとともにグループ化します。
+   マイグレーションは単独でも構いません。50 行未満かつ 4 ファイル未満の場合は、1 つのコミットにしても構いません。
+2. 依存関係の順に並べます: インフラ → モデル/サービス → コントローラー/ビュー。
+   各コミットは単独で動く必要があります(壊れた import や欠けたコードがないこと)。
+   VERSION + CHANGELOG + TODOS.md は、機能のコミットの後にまとめます。
+3. `<type>: <summary>`(feat/fix/chore/refactor/docs)と短い本文を使います。ユーザーが名指しした問題を修正する場合は、`Fixes: #<n>` のトレーラーを追加します。
+   リリースバージョンと共著者のトレーラーが付くのは、最後の VERSION/CHANGELOG のコミットだけです。Git タグは付けません:
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -370,139 +314,100 @@ EOF
 
 ---
 
-## Step 16: Verification Gate
+## Step 16: 検証ゲート
 
-**IRON LAW: NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.**
+**鉄則: 新鮮な検証の証拠なしに完了を主張しないこと。**
 
-Run stages 1–5 in order; recovery notes below name where to resume. Content
-changes during or after verification restart at stage 1 and complete all five
-stages before Step 17. Content-preserving commits keep evidence valid.
+段階 1–5 を順番に実行します。再開の注意点は以下に示すとおりです。検証中または検証後にコンテンツが変わった場合は、段階 1 からやり直し、Step 17 に進む前に 5 段階をすべて完了させます。内容を保持するコミットであれば、証拠は有効なままです。
 
-### 1. Finish writers and prepare outputs
+### 1. 書き込みを終えて、出力を準備する
 
-Inspect writer handles, including the docs child. Confirm terminal completion or
-termination before another writer runs; timeout or cancellation acknowledgment
-alone means STOP until confirmed.
+書き込みハンドルを確認します。ドキュメントの子プロセスも含みます。別の書き込みを実行する前に、終了が完了したこと、または終了したことを確認してください。タイムアウトやキャンセルの確認だけでは不十分で、確認されるまで STOP です。
 
-Find declared generation/build commands in project instructions, manifests, build
-files and CI. Run them and save results. If none exists, record not applicable and
-the inspected sources. A missing prerequisite or failed build stops shipping:
-report **Build failed or prerequisite missing**, with the command, error and needed
-repair. Never invent a substitute command.
-**If blocked:** Repair it, then repeat stage 1. After it passes, continue
-to stage 2; treat any content repair as a behavioral change there.
+プロジェクトの指示、マニフェスト、ビルドファイル、CI から、宣言されたビルド/生成コマンドを探します。それらを実行し、結果を保存します。存在しない場合は、not applicable(該当なし)と、確認したソースを記録します。前提条件が欠けている、またはビルドが失敗した場合は、Ship を止めます。報告内容は **Build failed or prerequisite missing**(ビルド失敗または前提条件の欠落)で、コマンド、エラー、必要な修復を含めます。代わりのコマンドを勝手に作ってはいけません。
+**ブロックされた場合:** 修復し、段階 1 を繰り返します。合格したら段階 2 に進みます。段階 2 で内容を修復する場合は、それを動作の変更として扱ってください。
 
-### 2. Choose the change route
+### 2. 変更ルートを選ぶ
 
-Capture the current tree with `~/.claude/skills/gstack/bin/gstack-wtree`. Inspect
-`git diff <reviewed-tree> <current-tree>` against the snapshot saved before Step 12.
-Missing snapshots block this comparison, regardless of HEAD equality.
+`~/.claude/skills/gstack/bin/gstack-wtree` で現在のツリーを取得します。`git diff <reviewed-tree> <current-tree>` を、Step 12 の前に保存したスナップショットと比較して確認します。
+スナップショットが欠けている場合は、HEAD が等しいかどうかに関係なく、この比較はブロックされます。
 
-Classify the comparison in this order:
+比較を次の順に分類します:
 
-1. **Behavior, tests or build inputs changed:** Prompts/templates count as behavior.
-   Insert `5–11.5 → 12–14 → 16` before the pending Step 17, then stop this step.
-   This repair excludes Step 14.5 because the rebuild can change generated docs.
-   Step 16 restarts at stage 1: rebuild and compare again before stage 3 decides
-   documentation freshness. Further repairs use the same work list.
-2. **Only authored docs or release metadata changed:** Keep Step 8's original child
-   report and counts. Recheck affected plan items using their recorded verification
-   and append current evidence to the invocation record. If a classification is no
-   longer supported, run Step 8's audit and decision gates only, then return to
-   Step 16 stage 1. Never edit the child's counts yourself.
-3. **No changes, or the docs-only checks still support the plan:** Continue to stage 3
-   without a new code review.
+1. **動作、テスト、またはビルドの入力が変わった:** プロンプトやテンプレートも動作とみなします。
+   保留中の Step 17 の前に `5–11.5 → 12–14 → 16` を挿入し、このステップを止めます。
+   この修復では Step 14.5 を除外します。再ビルドによって生成されるドキュメントが変わる可能性があるためです。
+   Step 16 は段階 1 から再開します。再ビルドして再比較し、その後に段階 3 でドキュメントの鮮度を判断します。以降の修復も同じ作業リストを使います。
+2. **作成者によるドキュメントやリリースのメタデータのみが変わった:** Step 8 の元の子の報告と件数を保持します。影響を受ける計画項目を、記録された検証を使って再確認し、現在の証拠を実行記録に追加します。分類がもう支持されない場合は、Step 8 の監査と判断のゲートだけを実行し、その後 Step 16 の段階 1 に戻ります。子の件数を自分で編集してはいけません。
+3. **変更がない、またはドキュメントのみのチェックが計画をまだ支持している:** 新しいコードレビューなしで、段階 3 に進みます。
 
-### 3. Resolve documentation freshness
+### 3. ドキュメントの鮮度を解決する
 
-Compare the base and hashes of the selected release paths, generated
-outputs and docs/templates with Step 14.5's saved values. A prior invocation's
-audit or risk decision never qualifies.
+選択したリリースパス、生成された出力、docs/テンプレートのベースとハッシュを、Step 14.5 で保存された値と比較します。以前の実行の監査や、リスクに関する判断は、これを満たす根拠にはなりません。
 
-| Outcome | Action |
+| 結果 | 対応 |
 |---|---|
-| This invocation's accepted audit matches all inputs | Continue to stage 4. |
-| User-accepted named documentation risk covers the same approved scope and exact content, and unwaivable gates clear | Continue to stage 4; retain `Documentation: blocked`, its reason and incomplete scope. |
-| Missing, stale or blocked | Use recovery below. Never silently refresh hashes. |
+| この実行で受け入れられた監査が、すべての入力と一致する | 段階 4 に進む。 |
+| ユーザーが受け入れた、名指しのドキュメントリスクが、同じ承認済みスコープと正確に同じ内容を対象とし、免除できないゲートが解消されている | 段階 4 に進む。`Documentation: blocked`、その理由、不完全なスコープを保持する。 |
+| 欠落、古い、またはブロックされている | 下の復旧手順を使う。ハッシュを黙って更新することは決してしない。 |
 
-Report changed inputs, blockers and attempts used:
+変更された入力、ブロッカー、使用した試行回数を報告します:
 
-- **An attempt remains, with changed inputs or an available repair:** insert
-  `14.5 → 15 → 16` before Step 17. Use Blocked recovery with the existing count.
-  Validate the outcome before Step 15, then restart Step 16 stage 1.
-- **Otherwise:** STOP unless the user accepts
-  the specific named documentation risk and all unwaivable gates clear, under
-  Step 14.5's Blocked recovery rules. Unchanged approved content goes to stage 4;
-  repaired content goes to stage 1.
+- **試行回数が残っており、入力が変更されているか、利用可能な修復がある:** Step 17 の前に
+  `14.5 → 15 → 16` を挿入します。既存の回数で Blocked の復旧手順を使います。
+  Step 15 の前に結果を検証し、その後、段階 1 から Step 16 をやり直します。
+- **それ以外の場合:** Step 14.5 の Blocked 復旧ルールに従い、ユーザーが特定の名指しのドキュメントリスクを受け入れ、免除できないすべてのゲートが解消されない限り STOP します。変更のない承認済みの内容は段階 4 に進みます。修復された内容は段階 1 に進みます。
 
-Never run a third audit. Child return is not acceptance.
+3 回目の監査は決して実行しないでください。子プロセスが戻ってきたことは、受け入れを意味しません。
 
-### 4. Verify the frozen candidate
+### 4. 凍結された候補を検証する
 
-Freeze inputs through verification and push. Run declared docs/link/generated-file
-checks; report any that are unavailable.
+検証と push まで、入力を凍結します。宣言されたドキュメント/リンク/生成ファイルのチェックを実行し、利用できないものがあれば報告します。
 
-**Reuse a check when its inputs match.** Compare hashes or complete bytes of its
-saved and current consumed files, fixtures, dependencies and execution parameters.
-Changed or unknown dependencies require a rerun. For model judges, compare the complete
-expanded request, rubric, parameters and builder/runtime dependencies. Cite the original
-command, result/counts, timestamp and log, never resample. Mandatory reviews still run.
+**入力が一致するときはチェックを再利用します。** 保存された現在の消費ファイル、フィクスチャ、依存関係、実行パラメータのハッシュまたはバイト列全体を比較します。
+変更されたか不明な依存関係がある場合は、再実行が必要です。モデルのジャッジについては、展開後のリクエスト全体、ルーブリック、パラメータ、ビルダー/ランタイムの依存関係を比較します。元のコマンド、結果/件数、タイムスタンプ、ログを引用し、再サンプリングはしません。必須のレビューは引き続き実行します。
 
-**Check each test lane's receipt as well.** Use its actual Step 5 label/command:
-`--label <lane> --expect-cmd '<exact Step 5 command>'`. Inspect changes since the run;
-`--allow-paths` exempts only release metadata. A `package.json` version-only edit
-can qualify; scripts, dependencies and runtime configuration require live tests.
-Uncertain edits cannot be exempted. Docs, TODO edits, new/generated tests and fixes
-make evidence STALE even without a new code review. Use this example only once
-every allowed edit is release metadata:
+**各テストレーンのレシートも確認します。** 実際の Step 5 のラベル/コマンドを使います:
+`--label <lane> --expect-cmd '<exact Step 5 command>'`。実行以降の変更を確認します。`--allow-paths` が免除するのはリリースのメタデータだけです。`package.json` のバージョンだけの編集は対象になり得ます。スクリプト、依存関係、ランタイムの設定は、実際のテストが必要です。
+不確かな編集は免除できません。ドキュメント、TODO の編集、新規/生成されたテスト、修正があると、新しいコードレビューがなくても証拠は STALE になります。この例は、許可された編集がすべてリリースのメタデータである場合にのみ使ってください:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-evidence check --label tests --expect-cmd '<tests>' --label vitest --expect-cmd '<vitest>' --max-age 24 --allow-paths CHANGELOG.md,VERSION,package.json,agents-digest/gstack-AGENTS.md
 ```
 
-| Receipt result | Next action |
+| レシートの結果 | 次の対応 |
 |---|---|
-| FRESH (exit 0) | Cite the label, exit, timestamp, log and `tests_ran`. |
-| STALE/MISSING: changed content, command or age, or no proven run | Run `~/.claude/skills/gstack/bin/gstack-evidence run --label <lane> -- '<command>'`, read the result and recheck once. Handle failures as described below. |
-| ZERO-RUN: the receipt's `tests_ran` is 0 | STALE-equivalent: the lane proved nothing. Use Step 5's ZERO-RUN triage (a failed lane), never FRESH, even with exit 0. |
-| `tests_ran: unknown` | Non-blocking: keep the exit-0 verdict, cite the lane as `count unavailable`. Never record it as ZERO-RUN or as a counted pass. |
-| Only receipt storage/readback failed | Independently prove unchanged final content, the same command and valid age from the successful run's evidence. Cite its exact command, exit, timestamp and log as **ledger unavailable**, never FRESH. Without that proof, use STALE/MISSING. |
+| FRESH (終了コード 0) | ラベル、終了コード、タイムスタンプ、ログ、`tests_ran` を引用する。 |
+| STALE/MISSING: 内容、コマンド、経過時間が変わった、または実行が証明されていない | `~/.claude/skills/gstack/bin/gstack-evidence run --label <lane> -- '<command>'` を実行し、結果を読んで一度再確認する。失敗は下記のとおり処理する。 |
+| ZERO-RUN: レシートの `tests_ran` が 0 | STALE 相当です。そのレーンは何も証明していません。Step 5 の ZERO-RUN のトリアージ(失敗したレーン)を使い、終了コードが 0 でも FRESH にはしないでください。 |
+| `tests_ran: unknown` | 非ブロッキング: 終了コード 0 の判定は維持し、そのレーンを `count unavailable` として引用する。ZERO-RUN や、件数を数えた合格として記録してはいけません。 |
+| レシートの保存/読み戻しだけが失敗した | 成功した実行の証拠から、変更のない最終内容、同じコマンド、有効な経過時間を独立して証明する。その正確なコマンド、終了コード、タイムスタンプ、ログを **ledger unavailable**(台帳は利用不可)として引用し、FRESH とは決して書かない。その証明がなければ STALE/MISSING を使う。 |
 
-No test lanes: require Step 5's explicit untested-scope approval for final content,
-or run Steps 5–15, including the no-tests decision, then return to Step 16 stage 1.
-Report the gap, never FRESH; builds must pass.
+テストレーンがない場合: 最終内容について、Step 5 の明示的な「テスト対象外」の承認を得るか、テストなしの判断を含む Step 5–15 を実行して、その後段階 1 の Step 16 に戻ります。
+ギャップを報告し、FRESH とはしないこと。ビルドは合格している必要があります。
 
-**New, changed or unwaived test failure:** STOP publication. Run Steps 5–15,
-starting with Step 5's triage, then return to Step 16 stage 1. This recovery also
-applies if a failure appears while reporting in stage 5. Reentry to Step 14.5
-keeps its existing audit count; it does not authorize a third attempt.
+**新規、変更された、または免除されていないテストの失敗:** 公開を停止します。Step 5 のトリアージから始めて Step 5–15 を実行し、その後 Step 16 の段階 1 に戻ります。この復旧は、段階 5 で報告中に失敗が現れた場合にも適用されます。Step 14.5 への再入場では、既存の監査回数を維持します。3 回目の試行は許可されません。
 
-### 5. Report, then push
+### 5. 報告してから push する
 
-Commit only approved, verified release changes left uncommitted after Step 15,
-including generated outputs; use its grouping rules; never create an empty commit.
-Preserve unrelated user files.
+Step 15 の後に未コミットのまま残っている、承認済みかつ検証済みのリリース変更だけをコミットします。生成された出力も含みます。そのグループ化ルールに従い、空のコミットは決して作らないでください。
+無関係なユーザーのファイルは保持します。
 
-Paste build/docs/test results. Reuse waivers only for the same verified
-pre-existing failures and approved scope; cite the actual approval and failing
-counts, never FRESH or all-green. A new, changed or unwaived test failure uses
-stage 4's recovery before publication.
+ビルド/docs/テストの結果を貼り付けます。免除は、同じ検証済みの既存の失敗と承認済みのスコープに対してのみ再利用します。実際の承認と失敗した件数を引用し、FRESH やすべて緑とは決して書かないでください。新規、変更された、または免除されていないテストの失敗は、公開の前に段階 4 の復旧を使います。
 
-Then the honesty inventory, two lines, from Step 9's latest `Gate edits:` line and
-its records:
-- For each gate finding: `gate`, path, disposition (`kept`/`restored`/`open`),
-  `reason` and logger-stamped `actor`. If there are none, the coverage line
-  (`none detected (...)`, `partial (...)` or `UNAVAILABLE — ...`).
-- Each test lane's `tests_ran` (N, ZERO-RUN or `count unavailable`).
-Write this report in the auditor's posture: this session's own gate edits are
-evidence for the reader to examine, not positions to defend; a kept gate
-states its reason and nothing more. Otherwise continue to Step 17.
+次に、Step 9 の最新の `Gate edits:` の行とその記録から、誠実性の棚卸しを 2 行で行います:
+- 各ゲートの指摘事項について: `gate`、パス、処理(`kept`/`restored`/`open`)、
+  `reason`、およびロガーが記録した `actor`。指摘がない場合は、カバレッジの行
+  (`none detected (...)`、`partial (...)`、または `UNAVAILABLE — ...`)を示します。
+- 各テストレーンの `tests_ran`(N、ZERO-RUN、または `count unavailable`)。
+この報告は監査人の姿勢で書いてください。このセッション自身のゲートの編集は、読み手が検証すべき証拠であり、守るべき立場ではありません。維持されたゲートは、その理由だけを述べ、それ以上は書かないこと。
+それ以外の場合は、Step 17 に進みます。
 
 ---
 
-## Step 17: Push
+## Step 17: Push(プッシュ)
 
-**Credential pre-push guard — run before the push:**
+**認証情報の push 前ガード — push の前に実行します:**
 
 ```bash
 _REDACT_PREPUSH=$(~/.claude/skills/gstack/bin/gstack-config get redact_prepush_hook 2>/dev/null || echo "false")
@@ -532,55 +437,41 @@ echo "HOOKS_IN_GIT_DIR: $_HOOKS_IN_GIT_DIR"
 echo "PREPUSH_PROMPTED: $_PREPUSH_PROMPTED"
 ```
 
-Branch on the echoed values:
+出力された値に応じて分岐します:
 
-1. **`REDACT_PREPUSH: true`** — the block installs or refreshes managed
-   hooks, preserving `pre-push.local` and complete stdin. On installer
-   failure, STOP before pushing. `HOOKS_IN_GIT_DIR: no`: do not install;
-   request manual integration. `HOOK_STATE: unmanaged`: ask consent only
-   for a regular, non-symlink hook in the default directory without
-   `pre-push.local`; otherwise request manual integration. Dangling
-   symlinks are unmanaged. Never overwrite either policy.
-2. **`REDACT_PREPUSH` not true AND `PREPUSH_PROMPTED: no`** — one-time
-   offer (once ever, machine-wide). AskUserQuestion:
+1. **`REDACT_PREPUSH: true`** — このブロックは、管理対象のフックをインストールまたは更新し、`pre-push.local` と完全な標準入力を保持します。インストーラーが失敗した場合は、push の前に STOP します。`HOOKS_IN_GIT_DIR: no` の場合は、インストールせず、手動での統合を依頼します。`HOOK_STATE: unmanaged` の場合は、`pre-push.local` がなく、デフォルトのディレクトリにある通常の非シンボリックリンクのフックに限り同意を求めます。それ以外は、手動での統合を依頼します。
+   リンク切れのシンボリックリンクは unmanaged です。どちらのポリシーも上書きしないでください。
+2. **`REDACT_PREPUSH` が true ではなく、かつ `PREPUSH_PROMPTED: no`** — 一度だけの案内です(マシン全体で一生に一度)。AskUserQuestion:
 
-   > gstack can install a per-repo git pre-push hook that blocks pushes
-   > containing credentials (API keys, tokens, private keys). It's a
-   > guardrail, not enforcement — `GSTACK_REDACT_PREPUSH=skip` bypasses it.
-   > Install it for repos you ship from?
+   > gstack は、認証情報(API キー、トークン、秘密鍵)を含む push をブロックする、リポジトリごとの git pre-push フックをインストールできます。これは強制力のあるものではなく、ガードレールです。`GSTACK_REDACT_PREPUSH=skip` で回避できます。Ship するリポジトリにインストールしますか?
 
-   Options:
-   - A) Yes — install the credential guard (recommended)
-   - B) No — never ask again
+   選択肢:
+   - A) はい — 認証情報ガードをインストールする(推奨)
+   - B) いいえ — 今後は二度と尋ねない
 
-   If A: run `~/.claude/skills/gstack/bin/gstack-config set redact_prepush_hook true`
-   then re-run the block and apply the same directory and unmanaged-hook rules above.
-   If B: run `~/.claude/skills/gstack/bin/gstack-config set redact_prepush_hook false`.
-   ALWAYS after either answer (never after a failed question; it must re-offer
-   next time):
+   A の場合: `~/.claude/skills/gstack/bin/gstack-config set redact_prepush_hook true` を実行し、
+   そのうえで上のブロックを再実行し、同じディレクトリと unmanaged フックのルールを適用します。
+   B の場合: `~/.claude/skills/gstack/bin/gstack-config set redact_prepush_hook false` を実行します。
+   どちらの回答の後でも、必ず実行します(質問が失敗した後には実行しない。次回も再度案内する必要があるため):
    ```bash
    GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
    touch "$GSTACK_STATE_ROOT/.redact-prepush-prompted"
    ```
-3. **Declined earlier** — continue without comment.
+3. **以前に断られた** — コメントせずに続行します。
 
-**Open gate findings against an existing ready PR/MR:** when Step 9 left a gate
-finding `open`, look up an open PR/MR for `<branch-name>` before pushing
-(`gh pr list --head <branch-name> --state open --json number,isDraft`; GitLab
-`glab mr list --source-branch <branch-name> --output json`, reading `draft`). A lookup
-failure STOPs here. If one exists and is not a draft:
+**既存の準備完了 PR/MR に対して open のゲート指摘がある場合:** Step 9 で指摘事項が `open` のまま残っている場合は、push の前に `<branch-name>` の open な PR/MR を検索します
+(`gh pr list --head <branch-name> --state open --json number,isDraft`。GitLab では
+`glab mr list --source-branch <branch-name> --output json` を使い、`draft` を読みます)。検索が失敗した場合は、ここで STOP します。存在し、かつドラフトでない場合:
 
-1. The preamble echoed `SESSION_KIND: spawned` or `headless`: **STOP before pushing.**
-   Report the open gate findings (`gate`, path) and the PR/MR; no push, no
-   publication claim. A later human dispositions them.
-2. Otherwise AskUserQuestion once: A) Resolve the open items now — insert `9 → 10 →
-   11 → 11.5 → 12 → 13 → 14 → 14.5 → 15 → 16` before Step 17; B) Publish ready with
-   the `Gate edits: N open` banner. Record B in the invocation record as a
-   human-authorised publication; Step 19 reads it. Never convert a ready PR to a draft.
+1. プリアンブルが `SESSION_KIND: spawned` または `headless` を出力している: **push の前に STOP します。**
+   open のゲート指摘(`gate`、パス)と PR/MR を報告します。push も公開の主張もしません。後で人間が処理します。
+2. それ以外の場合は、AskUserQuestion を一度だけ行います: A) 今ある open な項目を解決する — Step 17 の前に `9 → 10 →
+   11 → 11.5 → 12 → 13 → 14 → 14.5 → 15 → 16` を挿入する。B) `Gate edits: N open` のバナーを付けて準備完了として公開する。
+   B は、人間が承認した公開として実行記録に記録します。Step 19 がこれを読みます。準備完了の PR をドラフトに変えることは決してしないでください。
 
-A new PR or an existing draft needs no question: Step 19 creates or keeps the draft.
+新規の PR や既存のドラフトについては、質問は不要です。Step 19 がドラフトを作成するか、維持します。
 
-**Idempotency check:** Check if the branch is already pushed and up to date.
+**冪等性の確認:** ブランチがすでに push 済みで、最新かどうかを確認します。
 
 ```bash
 LOCAL=$(git rev-parse HEAD) || exit 1
@@ -594,67 +485,65 @@ echo "LOCAL: $LOCAL  REMOTE: $REMOTE"
 [ "$LOCAL" = "$REMOTE" ] && echo "ALREADY_PUSHED" || echo "PUSH_NEEDED"
 ```
 
-`ALREADY_PUSHED`: skip the push, continue to Step 18. Otherwise push with upstream tracking:
+`ALREADY_PUSHED` の場合は push をスキップし、Step 18 に進みます。それ以外の場合は、upstream を追跡しながら push します:
 
 ```bash
 git push -u origin <branch-name>
 ```
 
-**If the push fails, STOP.** No Step 19 or publication claim. Report the error:
-- **Non-fast-forward push:** fetch and inspect the remote, then merge under Step 3's
-  conflict rules. Run Steps 5–16 before returning to Step 17. Never rewrite history.
-- **Authentication, hook or network failure:** repair the cause, then repeat Step 16
-  even with unchanged content before returning to Step 17. Never bypass failed guards.
-Never force-push. Only a successful push or verified `ALREADY_PUSHED` proceeds.
+**push が失敗した場合は、STOP します。** Step 19 も公開の主張もありません。エラーを報告します:
+- **Non-fast-forward の push:** fetch してリモートを確認し、Step 3 のコンフリクトルールに従ってマージします。Step 17 に戻る前に Step 5–16 を実行します。履歴は決して書き換えないでください。
+- **認証、フック、またはネットワークの失敗:** 原因を修復し、内容に変更がなくても、Step 17 に戻る前に Step 16 を繰り返します。失敗したガードは決して回避しないでください。
+force push は決してしないでください。成功した push か、検証済みの `ALREADY_PUSHED` の場合にのみ進みます。
 
-Continue to Step 18. No documentation writer runs after push.
+Step 18 に進みます。push の後にドキュメントの作成者は実行しません。
 
 ---
 
-## Step 18: Prepare publication metadata
+## Step 18: 公開用メタデータの準備
 
-First look up open PRs/MRs for `<branch-name>` on the detected platform:
+まず、検出したプラットフォームで `<branch-name>` の open な PR/MR を検索します:
 
 - GitHub: `gh pr list --head <branch-name> --state open --json number,title,url`
-- GitLab: `glab mr list --source-branch <branch-name> --output json` (defaults to open).
+- GitLab: `glab mr list --source-branch <branch-name> --output json`(デフォルトで open)。
 
-An empty array means new; one match supplies the existing title/identity.
-Lookup failure or ambiguous matches **STOP** for resolution, never mean no PR.
-Save the result for Step 19's recheck.
+空の配列は新規を意味します。1 件ある場合は、既存のタイトルと識別情報を提供します。
+検索の失敗または曖昧な一致の場合は、解決のために **STOP** します。PR がないという意味にはしないでください。
+結果は Step 19 の再確認のために保存します。
 
-The pr-body section prepares the title from that result, then publishes;
-`--no-pr` or an automation lane takes the handoff section.
+pr-body のセクションは、その結果からタイトルを準備してから公開します。
+`--no-pr` または自動化レーンの場合は、handoff のセクションを使います。
 
 {{SECTION:pr-body}}
 
 {{SECTION:handoff}}
 
-## Step 20: Persist ship metrics
+## Step 20: Ship のメトリクスを保存する
 
-Log metrics for `/retro` through `gstack-review-log`; it handles project/branch paths,
-JSON validation, storage and sync and takes **no path argument**.
+`/retro` 用のメトリクスを `gstack-review-log` で記録します。これがプロジェクトとブランチのパス、
+JSON の検証、保存と同期を処理し、**パスの引数は取りません**。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"ship","timestamp":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","coverage_pct":COVERAGE_PCT,"coverage_schema":2,"coverage_pct_value":COVERAGE_PCT_VALUE,"weak_gaps":WEAK_GAPS,"tests_extended":TESTS_EXTENDED,"tests_rejected":TESTS_REJECTED,"regression_proof":REGRESSION_PROOF,"plan_items_total":PLAN_TOTAL,"plan_items_done":PLAN_DONE,"verification_result":"VERIFY_RESULT","version":"VERSION","branch":"'"$(git rev-parse --abbrev-ref HEAD)"'"}'
 ```
 
-Substitute from earlier steps:
-- **COVERAGE_PCT**: Step 7 diagram's integer percentage; encode null/undetermined as -1
-- **COVERAGE_PCT_VALUE**: Step 7's `coverage_pct_value` (the gate's X) as an integer, or `null` when missing or ignored
-- **WEAK_GAPS**, **TESTS_EXTENDED**, **TESTS_REJECTED**: counts of Step 7's `weak_gaps`, `tests_extended` and `tests_rejected` (0 when the key is missing or ignored)
-- **REGRESSION_PROOF**: `{"red_at_head":N,"base_green":N,"base_unavailable":N}` from Step 7, or `null` when missing
-- **PLAN_TOTAL**: total plan items extracted in Step 8 (0 if no plan file)
-- **PLAN_DONE**: count of DONE + CHANGED items from Step 8 (0 if no plan file)
-- **VERIFY_RESULT**: "pass", "fail", or "skipped", set after Step 9 executes Step 8.1's verification list
-- **VERSION**: `NEW_VERSION` from Step 12; `null` (unquoted) under NO_VERSION
+前のステップの値に置き換えます:
+- **COVERAGE_PCT**: Step 7 の図にある整数のパーセンテージ。null/未確定は -1 でエンコードします。
+- **COVERAGE_PCT_VALUE**: Step 7 の `coverage_pct_value`(ゲートの X)を整数で。欠落または無視された場合は `null`。
+- **WEAK_GAPS**、**TESTS_EXTENDED**、**TESTS_REJECTED**: Step 7 の `weak_gaps`、`tests_extended`、`tests_rejected` の件数(キーが欠落または無視された場合は 0)。
+- **REGRESSION_PROOF**: Step 7 の `{"red_at_head":N,"base_green":N,"base_unavailable":N}`。欠落の場合は `null`。
+- **PLAN_TOTAL**: Step 8 で抽出された計画項目の合計(計画ファイルがなければ 0)。
+- **PLAN_DONE**: Step 8 の DONE + CHANGED の項目の件数(計画ファイルがなければ 0)。
+- **VERIFY_RESULT**: Step 9 が Step 8.1 の検証リストを実行した後に設定される "pass"、"fail"、または "skipped"。
+- **VERSION**: Step 12 の `NEW_VERSION`。NO_VERSION の場合は、引用符なしの `null`。
 
-The shell supplies the branch. Run it without confirmation.
+ブランチはシェルが指定します。確認なしで実行してください。
 
 ---
 
-## Step 21: Plan-tune discoverability nudge (first-successful-ship only)
+## Step 21: Plan-tune の発見しやすさの案内(初めて成功した Ship のみ)
 
-After a successful ship, show the non-blocking /plan-tune nudge once per machine:
+Ship が成功した後、マシンごとに一度だけ、ブロッキングしない /plan-tune の案内を表示します:
 
 ```bash
 GSTACK_STATE_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get GSTACK_STATE_ROOT); : "${GSTACK_STATE_ROOT:?gstack-paths failed; reinstall with ./setup or /gstack-upgrade}"
@@ -669,25 +558,21 @@ if [ ! -f "$_NUDGE_MARKER" ] && [ "$_QT" = "false" ]; then
 fi
 ```
 
-The marker or enabled question_tuning suppresses it; remove the marker to re-enable.
+マーカーまたは有効化された question_tuning があれば、案内は表示されません。再び有効にするにはマーカーを削除してください。
 
 ---
 
-## Section self-check (before you finish)
+## セクションの自己チェック(終了前に)
 
-List the applicable Section index entries and confirm each Read. If you worked from
-memory, STOP, Read the section and redo that step. Use `gstack-version-bump`; never
-hand-roll VERSION/package.json writes.
+該当するセクションのインデックスの項目を列挙し、それぞれを読んだことを確認します。記憶だけで作業した場合は、STOP して、そのセクションを読み、そのステップをやり直してください。`gstack-version-bump` を使います。VERSION/package.json を手で書き換えることは決してしないでください。
 
 ---
 
-## Important Rules
+## 重要なルール
 
-Follow the numbered gates and their explicit exceptions.
+番号付きのゲートと、その明示的な例外に従ってください。
 
-- **Never force push.** Use regular `git push` only.
-- **An early Greptile PR stays up.** A stop after Step 6.5 opened it leaves the draft
-  open with one comment saying why (greptile-early section); never close it.
-- **Use the configured version file's format** (4-digit for VERSION); under NO_VERSION,
-  never invent one.
-- **Step 7 generates coverage tests.** They must pass before committing. Never commit failing tests.
+- **force push は決してしない。** 通常の `git push` のみを使います。
+- **初期の Greptile PR は残す。** Step 6.5 で開かれた後に停止した場合は、ドラフトを開いたままにし、理由を書いたコメントを 1 つ残します(greptile-early セクション)。決して閉じないこと。
+- **設定されたバージョンファイルの形式を使う**(VERSION は 4 桁)。NO_VERSION の場合は、決してバージョンを作り出さないこと。
+- **Step 7 はカバレッジのテストを生成する。** コミットの前に合格している必要があります。失敗するテストは決してコミットしないこと。

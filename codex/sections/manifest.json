@@ -8,19 +8,19 @@
       "id": "review-mode",
       "file": "review-mode.md",
       "title": "Review mode (Step 2A): scoped codex review with pass/fail gate",
-      "trigger": "running Review mode (Step 2A) — the Step 1 dispatch chose review (`/codex review`, or the user picked \"Review the diff\")"
+      "trigger": "Review モード(Step 2A)の実行(Step 1 のディスパッチが review を選んだ場合: `/codex review`、またはユーザーが \"Review the diff\" を選んだ場合)"
     },
     {
       "id": "challenge-mode",
       "file": "challenge-mode.md",
       "title": "Challenge mode (Step 2B): adversarial try-to-break-it pass",
-      "trigger": "running Challenge mode (Step 2B) — the Step 1 dispatch chose adversarial challenge (`/codex challenge`, or the user picked \"Challenge the diff\")"
+      "trigger": "Challenge モード(Step 2B)の実行(Step 1 のディスパッチが adversarial challenge を選んだ場合: `/codex challenge`、またはユーザーが \"Challenge the diff\" を選んだ場合)"
     },
     {
       "id": "consult-mode",
       "file": "consult-mode.md",
       "title": "Consult mode (Step 2C): free-form/plan consult with session continuity",
-      "trigger": "running Consult mode (Step 2C) — the Step 1 dispatch chose consult (a free-form question, a plan review, or a session follow-up)"
+      "trigger": "Consult モード(Step 2C)の実行(Step 1 のディスパッチが consult を選んだ場合: 自由形式の質問、プランのレビュー、またはセッションの続き)"
     }
   ]
 }

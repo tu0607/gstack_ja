@@ -579,20 +579,23 @@ const fs = fs_design_scope_entry_aq;
 const path = path_design_scope_entry_aq;
 const failedScopes = failedScopes_design_scope_entry_aq;
 const template = fs.readFileSync(path.join(import.meta.dir, '../plan-design-review/SKILL.md.tmpl'), 'utf8');
-const scope = template.slice(template.indexOf('## Scope gate'), template.indexOf('## Design Philosophy'));
+const scope = template.slice(template.indexOf('## スコープゲート'), template.indexOf('## デザインの理念'));
+// English form: what the native-call helper recognises. Japanese form: what the Design template tells the model to send.
 const announcement = 'Scope gate: plan mode — auto-selected B (reviewing <target>).';
+const announcementJa = 'スコープゲート: プランモード — Bを自動選択(<対象>をレビュー)';
+const replyMarker = 'A、B、C のいずれかで回答してください';
 
 test('Design resolves scope before either executable bootstrap placeholder', () => {
-  const gate = template.indexOf('## Scope gate');
+  const gate = template.indexOf('## スコープゲート');
   expect(gate).toBeGreaterThan(0);
   for (const token of ['{{PREAMBLE}}', '{{BASE_BRANCH_DETECT}}']) {
     expect(template.split(token)).toHaveLength(2);
-    expect(template.indexOf(announcement)).toBeLessThan(template.indexOf(token));
-    expect(template.indexOf('Reply with A, B, or C')).toBeGreaterThan(gate);
-    expect(template.indexOf('Reply with A, B, or C')).toBeLessThan(template.indexOf(token));
+    expect(template.indexOf(announcementJa)).toBeLessThan(template.indexOf(token));
+    expect(template.indexOf(replyMarker)).toBeGreaterThan(gate);
+    expect(template.indexOf(replyMarker)).toBeLessThan(template.indexOf(token));
   }
   expect(template.indexOf('{{PREAMBLE}}')).toBeLessThan(template.indexOf('{{BASE_BRANCH_DETECT}}'));
-  expect(template.indexOf('{{BASE_BRANCH_DETECT}}')).toBeLessThan(template.indexOf('## Design Philosophy'));
+  expect(template.indexOf('{{BASE_BRANCH_DETECT}}')).toBeLessThan(template.indexOf('## デザインの理念'));
 });
 
 test('every host expands its real bootstrap after the mandatory entry gate', () => {
@@ -602,29 +605,29 @@ test('every host expands its real bootstrap after the mandatory entry gate', () 
     const preamble = generatePreamble(ctx);
     const brain = host.suppressedResolvers?.includes('BASE_BRANCH_DETECT') ? '' : generateBaseBranchDetect(ctx);
     const expanded = template.replace('{{PREAMBLE}}', preamble).replace('{{BASE_BRANCH_DETECT}}', brain);
-    expect(expanded.indexOf(announcement)).toBeLessThan(expanded.indexOf('## Preamble (after scope gate)'));
-    expect(expanded.indexOf('Reply with A, B, or C')).toBeGreaterThan(-1);
-    expect(expanded.indexOf('Reply with A, B, or C')).toBeLessThan(expanded.indexOf('```bash'));
+    expect(expanded.indexOf(announcementJa)).toBeLessThan(expanded.indexOf('## Preamble (after scope gate)'));
+    expect(expanded.indexOf(replyMarker)).toBeGreaterThan(-1);
+    expect(expanded.indexOf(replyMarker)).toBeLessThan(expanded.indexOf('```bash'));
     expect(expanded.indexOf('```bash')).toBeLessThan(expanded.indexOf('gstack-skill-start', expanded.indexOf('```bash')));
-    if (brain) expect(expanded.indexOf(announcement)).toBeLessThan(expanded.indexOf(brain));
+    if (brain) expect(expanded.indexOf(announcementJa)).toBeLessThan(expanded.indexOf(brain));
   }
 });
 
 test('entry binds a current target and delays bootstrap until scope resolves', () => {
-  expectMentions(scope, [['before', 'resolve', 'after']], 'scope');
-  expect(scope).toContain('including preamble and base-branch detection.');
-  expectMentions(scope, [['wait', 'askuserquestion', 'first']], 'scope');
-  expectMentions(scope, [['before', 'auto-selection', 'plan-mode']], 'scope');
+  expectMentions(scope, [['読み込まれた後', 'このゲートを解決してください']], 'scope');
+  expect(scope).toContain('プリアンブルやベースブランチの検出を含む');
+  expectMentions(scope, [['最初に AskUserQuestion を呼び出して回答を待って']], 'scope');
+  expectMentions(scope, [['レビュー用のツールより前に', '自動選択を告知']], 'scope');
   // Order after resolution: preamble, base branch, audit, Step 0, then Step 0.5 mockups.
-  const order = scope.slice(scope.indexOf('After resolution:')).split('\n')[0]!;
-  const steps = ['preamble', 'base branch', 'audit', 'Step 0', 'mockups'].map(step => order.indexOf(step));
+  const order = scope.slice(scope.indexOf('解決後の順序:')).split('\n')[0]!;
+  const steps = ['プリアンブル', 'ベースブランチ', '監査', 'ステップ0', 'ステップ0.5'].map(step => order.indexOf(step));
   expect(steps.every((offset, i) => offset >= 0 && (i === 0 || offset > steps[i - 1]!))).toBe(true);
 });
 
 test('the unique draft is a valid current target without rewriting earlier paid observations', () => {
-  expect(scope).toContain(announcement);
-  expect(scope).toContain('Name the selected plan by its title or path; use "this draft" only for an untitled pasted plan.');
-  expectMentions(scope, [['does not', 'acknowledgment/wait', 'followed']], 'scope');
+  expect(scope).toContain(announcementJa);
+  expectMentions(scope, [['選択された計画は', 'タイトルまたはパス'], ['「この草稿」', '無題で貼り付けられた計画に限って']], 'scope');
+  expectMentions(scope, [['草稿', '確認や待機', '続く場合']], 'scope');
   expect(scope).not.toContain('After this skill finishes loading');
   for (const row of failedScopes) {
     expect(row.observed.scopeGateAutoSelectObserved).toBe(false);
@@ -635,14 +638,14 @@ test('the unique draft is a valid current target without rewriting earlier paid 
 });
 
 test('existing plan selection exceptions and the unseeded stop remain explicit', () => {
-  expectMentions(scope, [['does not', 'plan-shaped', 'documents']], 'scope');
-  expectMentions(scope, [['ask', 'host-referenced', 'candidates']], 'scope');
-  expectMentions(scope, [['no', 'indicated', 'exists']], 'scope');
-  expect(scope).toContain('First tool call = AskUserQuestion (tool_use). Confirm what to review.');
+  expectMentions(scope, [['プランらしい文章', '信号にはなりません']], 'scope');
+  expectMentions(scope, [['ホストが参照しているプランファイル', '優先']], 'scope');
+  expectMentions(scope, [['プランが存在しない場合', '質問']], 'scope');
+  expect(scope).toContain('最初のツール呼び出しは AskUserQuestion(tool_use)です。レビューする対象を確認してください。');
   expectTokens(scope, ['`--disallowedTools`'], 'scope');
-  expect(scope).toContain('A) The current branch diff — the work in progress on this branch.\nB) A plan or design doc I\'ll paste or point you to.\nC) A specific page, file, or path.');
-  expect(scope).toContain('Reply with A, B, or C');
-  expectMentions(scope, [['stop', 'answer', 'after']], 'scope');
+  expect(scope).toContain('A) 現在のブランチの差分 — このブランチで進行中の作業です。\nB) 貼り付けるか、場所を指定するプランまたは設計ドキュメント。\nC) 特定のページ、ファイル、またはパス。');
+  expect(scope).toContain(replyMarker);
+  expectMentions(scope, [['停止して回答を待ち']], 'scope');
 });
 });
 
@@ -852,29 +855,32 @@ const path = path_design_scope_entry_aq;
 const observedFailures = observedFailures_plan_scope_recovery_av;
 const skills = ['plan-eng-review', 'plan-design-review'] as const;
 const read = (skill: string) => fs.readFileSync(path.join(import.meta.dir, '..', skill, 'SKILL.md.tmpl'), 'utf8');
-const recovery = (text: string) => text.split('\n').find(line => line.startsWith('> Before ') && line.includes('publicly identified'))!;
+// The Japanese templates word the public-identification check differently per skill; both are the one blockquote that mentions the announcement.
+const recovery = (text: string) => text.split('\n').find(line => line.startsWith('> ') && /スコープ/.test(line) && /公に明示|公開的に特定/.test(line))!;
 
 test('the review handoff repairs a missing public declaration without claiming timely compliance', () => {
   for (const skill of skills) {
     const text = read(skill), check = recovery(text);
+    const eng = skill === 'plan-eng-review';
     expect(check).toBeDefined();
-    expect(check).toContain('require resolved scope');
-    expectMentions(check, [['before', 'auto-selection', 'identified']], 'check');
-    expect(check).toContain('If missing, send "Scope gate: plan mode — auto-selected B (reviewing <target>)." now');
-    expectMentions(check, [['do not', 'announcement', 'earlier']], 'check');
-    const start = skill === 'plan-eng-review' ? '### Step 0: Scope Challenge' : '## PRE-REVIEW SYSTEM AUDIT';
+    expectMentions(check, eng ? [['スコープが解決されている必要があります']] : [['スコープを確定させてください']], 'check');
+    expectMentions(check, [['自動選択', '前に', eng ? '明示' : '特定']], 'check');
+    expect(check).toContain('「スコープゲート: プランモード — Bを自動選択(<対象>をレビュー)」');
+    expectMentions(check, [['今すぐ', '送']], 'check');
+    expectMentions(check, eng ? [['以前の告知', 'しないでください']] : [['以前に告知したと主張しないでください']], 'check');
+    const start = eng ? '### Step 0: Scope Challenge' : '## 事前のシステム監査';
     expect(text.indexOf(check)).toBeGreaterThan(text.indexOf('{{PREAMBLE}}'));
     expect(text.indexOf(check)).toBeGreaterThan(text.indexOf(start));
-    const reviewStart = text.indexOf(skill === 'plan-eng-review' ? '{{SECTION:review-sections}}' : 'Before reviewing the plan, gather context');
+    const reviewStart = text.indexOf(eng ? '{{SECTION:review-sections}}' : 'レビューの前に、文脈を集めてください');
     expect(reviewStart).toBeGreaterThanOrEqual(0);
     expect(text.indexOf(check)).toBeLessThan(reviewStart);
-    if (skill === 'plan-eng-review') {
+    if (eng) {
       const section = fs.readFileSync(path.join(import.meta.dir, '..', skill, 'sections/review-sections.md.tmpl'), 'utf8');
-      expect(section).toContain('### A. Assess the target');
-      expectMentions(section, [['before', 'complexity', 'complete']], 'section');
-      expect(section.indexOf('### A. Assess the target')).toBeLessThan(section.indexOf('### B. Resolve complexity selectors'));
-      expect(section.indexOf('### B. Resolve complexity selectors')).toBeLessThan(section.indexOf('### C. Resolve findings'));
-      expectMentions(text.slice(text.indexOf(check), reviewStart), [['before', 'challenge', 'mandatory']], 'section');
+      expect(section).toContain('### A. ターゲットを評価する');
+      expectMentions(section, [['複雑さ', '前に', '完了']], 'section');
+      expect(section.indexOf('### A. ターゲットを評価する')).toBeLessThan(section.indexOf('### B. 複雑さのセレクターを解決する'));
+      expect(section.indexOf('### B. 複雑さのセレクターを解決する')).toBeLessThan(section.indexOf('### C. 指摘を解決する'));
+      expectMentions(text.slice(text.indexOf(check), reviewStart), [['Scope Challenge', '前に', '必ず']], 'section');
     }
   }
 });
@@ -882,28 +888,31 @@ test('the review handoff repairs a missing public declaration without claiming t
 test('unseeded, explicit-target and early announcement rules remain authoritative on every host', () => {
   for (const skill of skills) {
     const template = read(skill);
-    const gate = template.slice(template.indexOf('## Scope gate'), template.indexOf('{{PREAMBLE}}'));
-    const entry = skill === 'plan-eng-review'
-      ? 'Before discovery tools or preamble, check provided messages, listed tools and explicit host metadata for a target'
-      : 'After this skill loads, resolve this gate before any tool';
-    const announce = skill === 'plan-eng-review'
-      ? 'Announce an auto-selected plan in one line so the user can interrupt'
-      : 'Announce plan-mode auto-selection before review tools';
+    const eng = skill === 'plan-eng-review';
+    const gate = template.slice(template.indexOf('## スコープゲート'), template.indexOf('{{PREAMBLE}}'));
+    const entry = eng
+      ? '検出ツールやプリアンブルを実行する前に、提供されたメッセージ、利用可能なツール、ホストが明示するメタデータからターゲットを確認してください'
+      : 'プリアンブルやベースブランチの検出を含むどのツールよりも先に、このゲートを解決してください';
+    const announce = eng
+      ? '自動選択したプランは 1 行で伝え、ユーザーが中断できるようにしてください'
+      : 'レビュー用のツールより前に、プランモードによる自動選択を告知してください';
+    const noException = eng ? '上記の例外が適用されなかった場合:' : '上記の例外が適用されない場合:';
+    const waitMarker = eng ? '回答があるまで STOP して待ちます' : '停止して回答を待ち';
     expect(gate).toContain(entry);
     expect(gate).toContain(announce);
-    expectMentions(gate, [['ask', 'host-referenced', 'candidates']], 'gate');
-    expectMentions(gate, [['no', 'indicated', 'exists']], 'gate');
-    expect(gate).toContain('When no exception above applied:');
-    expect(gate).toContain(skill === 'plan-eng-review'
-      ? 'First tool call = AskUserQuestion (tool_use). Send this exact menu and wait'
-      : 'First tool call = AskUserQuestion (tool_use). Confirm what to review.');
-    expectMentions(gate, [['stop', 'answer', 'wait']], 'gate');
+    expectMentions(gate, [['ホストが参照しているプランファイル', '優先']], 'gate');
+    expectMentions(gate, [['プランが存在しない場合', '質問']], 'gate');
+    expect(gate).toContain(noException);
+    expect(gate).toContain(eng
+      ? '最初のツール呼び出しは AskUserQuestion(tool_use)とします。この正確なメニューを送信し、回答を待ちます'
+      : '最初のツール呼び出しは AskUserQuestion(tool_use)です。レビューする対象を確認してください。');
+    expect(gate).toContain(waitMarker);
     for (const host of ALL_HOST_CONFIGS) {
       const ctx: TemplateContext = {skillName: skill, tmplPath: `${skill}/SKILL.md.tmpl`, host: host.name,
         paths: HOST_PATHS[host.name]!, preambleTier: 3, interactive: true};
       const expanded = template.replace('{{PREAMBLE}}', generatePreamble(ctx));
       expect(expanded.indexOf(announce)).toBeLessThan(expanded.indexOf('```bash'));
-      const wait = expanded.search(/stop and wait for the answer/i);
+      const wait = expanded.indexOf(waitMarker);
       expect(wait).toBeGreaterThan(-1);
       expect(wait).toBeLessThan(expanded.indexOf('```bash'));
       expect(expanded.indexOf(recovery(template))).toBeGreaterThan(expanded.indexOf('```bash'));

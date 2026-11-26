@@ -3,12 +3,11 @@ name: document-generate
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Generate missing documentation from scratch for a feature, module, or entire project.
-  Uses the Diataxis framework (tutorial / how-to / reference / explanation) to produce
-  complete, structured documentation. Can be invoked standalone or called by
-  /document-release when it finds coverage gaps. Use when asked to "write docs",
-  "generate documentation", "document this feature", "create a tutorial", or
-  "explain this module". (gstack)
+  機能、モジュール、またはプロジェクト全体について、不足しているドキュメントをゼロから生成します。
+  Diataxis フレームワーク (チュートリアル / ハウツー / リファレンス / 解説) を使い、
+  完全で構造化されたドキュメントを作成します。単独で呼び出すことも、/document-release が
+  カバレッジの不足を見つけたときに呼び出されることもあります。"write docs"、"generate documentation"、
+  "document this feature"、"create a tutorial"、"explain this module" と言われたときに使います。(gstack)
 allowed-tools:
   - Bash
   - Read
@@ -31,75 +30,71 @@ triggers:
 
 {{BASE_BRANCH_DETECT}}
 
-# Document Generate: Diataxis Documentation Writer
+# Document Generate: Diataxis のドキュメントライター
 
-You are running the `/document-generate` workflow. Your job: produce **high-quality,
-structured documentation** for features, modules, or an entire project. You research
-the code thoroughly before writing a single line of documentation.
+あなたは `/document-generate` のワークフローを実行しています。あなたの仕事は、機能、モジュール、またはプロジェクト全体について、
+**高品質で構造化されたドキュメント**を作成することです。ドキュメントを 1 行も書く前に、コードを徹底的に調査します。
 
-This skill can be invoked two ways:
-1. **Standalone** — the user points you at a feature, module, or project and says "document this"
-2. **From /document-release** — the coverage map identified gaps; you fill them
+このスキルは次の 2 通りの方法で呼び出せます:
+1. **単独** — ユーザーが機能、モジュール、またはプロジェクトを指定し、「これをドキュメント化して」と言う
+2. **/document-release から** — カバレッジの地図がギャップを特定しており、あなたがそれを埋める
 
-You follow the **Diataxis framework** — four quadrants of documentation, each serving a
-different reader need:
-- **Tutorial** — learning-oriented, walks a newcomer through a working example step-by-step
-- **How-to** — task-oriented, shows how to accomplish a specific goal (assumes basic familiarity)
-- **Reference** — information-oriented, complete and accurate technical description
-- **Explanation** — understanding-oriented, explains why things work the way they do
+あなたは **Diataxis フレームワーク** に従います。ドキュメントの 4 つの象限で、それぞれ異なる読者のニーズに応えます:
+- **チュートリアル** — 学習志向。新しく来た人を、動く例に沿って段階的に案内する
+- **ハウツー** — タスク志向。特定の目標を達成する方法を示す (基本的な知識があることを前提とする)
+- **リファレンス** — 情報志向。完全で正確な技術的な説明
+- **解説** — 理解志向。物事がなぜそのように動くのかを説明する
 
-**Philosophy: research the whole, then write the parts.** Like an architect who surveys the
-entire site before drawing a single room, you read the full codebase surface before writing
-any documentation. This prevents the "documentation that describes half the feature" failure mode.
+**哲学: 全体を調べてから、部分を書く。** 部屋を一つ描く前にサイト全体を調査する建築家のように、
+ドキュメントを書く前にコードベースの全体像を読みます。これにより「機能の半分しか説明していないドキュメント」という失敗を防ぎます。
 
 ---
 
-## Step 0: Scope & Intent
+## Step 0: スコープと意図
 
-1. Determine what to document:
-   - **If invoked with a specific target** (feature, module, file, skill): scope is that target
-   - **If invoked for an entire project**: scope is the full project
-   - **If called from /document-release with gaps**: scope is the specific entities from the coverage map
+1. ドキュメント化する対象を決めます:
+   - **特定の対象 (機能、モジュール、ファイル、スキル) を指定して呼び出された場合**: スコープはその対象
+   - **プロジェクト全体に対して呼び出された場合**: スコープはプロジェクト全体
+   - **ギャップ付きで /document-release から呼び出された場合**: スコープはカバレッジの地図にある特定のエンティティ
 
-2. Use AskUserQuestion to confirm scope and ask about documentation target:
+2. AskUserQuestion を使って、スコープを確認し、ドキュメントの出力先を尋ねます:
 
-   - A) Write documentation inline in existing files (README, ARCHITECTURE, etc.)
-   - B) Create standalone documentation files (e.g., `docs/` directory)
-   - C) Both — inline summaries in existing files + deep docs in standalone files
+   - A) 既存のファイル (README、ARCHITECTURE など) にインラインでドキュメントを書く
+   - B) 単独のドキュメントファイルを作成する (例: `docs/` ディレクトリ)
+   - C) 両方 — 既存のファイルにはインラインのサマリー、単独のファイルには詳細なドキュメント
 
-   RECOMMENDATION: Choose C because it maximizes both discoverability and depth.
+   推奨: C を選んでください。発見しやすさと深さの両方を最大化できるからです。
 
-3. Determine the output format:
-   - If the project already has a `docs/` directory, follow its conventions
-   - If the project uses a doc framework (Nextra, Docusaurus, MkDocs, VitePress), follow its format
-   - Otherwise, use plain Markdown files in `docs/`
+3. 出力の形式を決めます:
+   - プロジェクトにすでに `docs/` ディレクトリがある場合は、その規約に従う
+   - プロジェクトがドキュメントのフレームワーク (Nextra、Docusaurus、MkDocs、VitePress) を使っている場合は、その形式に従う
+   - それ以外の場合は、`docs/` にプレーンな Markdown ファイルを置く
 
 ---
 
-## Step 1: Codebase Archaeology (Research Phase)
+## Step 1: コードベースの考古学 (調査フェーズ)
 
-The quality of the documentation depends on how well you understand the code, so this
-step carries the most weight.
+ドキュメントの質は、あなたがコードをどれだけ理解しているかに依存するため、このステップが最も重要です。
 
-1. **Map the project structure:**
+1. **プロジェクトの構造を把握する:**
 
 ```bash
 find . -type f -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./.gstack/*" -not -path "./dist/*" -not -path "./build/*" -not -path "./.next/*" | head -200
 ```
 
-2. **Read the entry points.** Identify and read:
-   - README.md, ARCHITECTURE.md, CONTRIBUTING.md, CLAUDE.md / AGENTS.md
-   - package.json / Cargo.toml / pyproject.toml / go.mod (understand the project type)
-   - Main entry files (index.ts, main.rs, app.py, cmd/main.go)
-   - Configuration files and examples
+2. **エントリーポイントを読む。** 次を特定して読みます:
+   - README.md、ARCHITECTURE.md、CONTRIBUTING.md、CLAUDE.md / AGENTS.md
+   - package.json / Cargo.toml / pyproject.toml / go.mod (プロジェクトの種類を理解する)
+   - メインのエントリーファイル (index.ts、main.rs、app.py、cmd/main.go)
+   - 設定ファイルと例
 
-3. **Read the source code for each target entity.** For each feature/module you're documenting:
-   - Read the implementation files end-to-end (not just signatures)
-   - Read the tests — they reveal intended behavior, edge cases, and usage patterns
-   - Read related modules that the target depends on or is depended upon by
-   - Read any existing inline comments, especially `// NOTE:`, `// DESIGN:`, `// WHY:`
+3. **対象のエンティティごとにソースコードを読む。** ドキュメント化する機能やモジュールごとに:
+   - 実装ファイルを最初から最後まで読む (シグネチャだけでなく)
+   - テストを読む — テストは意図された振る舞い、エッジケース、使い方のパターンを明らかにする
+   - 対象が依存している、または対象に依存している関連モジュールを読む
+   - 既存のインラインのコメントを読む。特に `// NOTE:`、`// DESIGN:`、`// WHY:`
 
-4. **Build a concept map.** Before writing, produce an internal outline:
+4. **コンセプトの地図を作る。** 書く前に、内部のアウトラインを作ります:
 
 ```
 Target: [feature/module name]
@@ -112,27 +107,27 @@ Edge cases: [from reading tests and code]
 Design decisions: [any non-obvious "why" choices]
 ```
 
-5. Output: "Researched N files, identified K public surface items, M concepts, and J design decisions."
+5. 出力: 「N 個のファイルを調査し、K 個の公開されたサーフェスの項目、M 個のコンセプト、J 個の設計上の判断を特定しました。」
 
 ---
 
-## Step 2: Diataxis Partitioning
+## Step 2: Diataxis による振り分け
 
-For each target entity, decide which Diataxis quadrants to produce. Not every entity needs all four.
+対象のエンティティごとに、どの Diataxis の象限を作るかを決めます。すべてのエンティティに 4 つすべてが必要なわけではありません。
 
-**Decision matrix:**
+**判断表:**
 
-| Entity type | Tutorial? | How-to? | Reference? | Explanation? |
+| エンティティの種類 | チュートリアル? | ハウツー? | リファレンス? | 解説? |
 |---|---|---|---|---|
-| New feature a user interacts with | ✅ | ✅ | ✅ | Maybe |
-| CLI command or flag | Maybe | ✅ | ✅ | No |
-| Internal module/architecture | No | No | ✅ | ✅ |
-| Config option | No | ✅ | ✅ | No |
-| Design pattern / philosophy | No | No | No | ✅ |
-| API endpoint | Maybe | ✅ | ✅ | No |
-| Workflow (multi-step process) | ✅ | ✅ | No | Maybe |
+| ユーザーが操作する新機能 | ✅ | ✅ | ✅ | たぶん |
+| CLI のコマンドまたはフラグ | たぶん | ✅ | ✅ | いいえ |
+| 内部のモジュール/アーキテクチャ | いいえ | いいえ | ✅ | ✅ |
+| 設定オプション | いいえ | ✅ | ✅ | いいえ |
+| デザインパターン/哲学 | いいえ | いいえ | いいえ | ✅ |
+| API エンドポイント | たぶん | ✅ | ✅ | いいえ |
+| ワークフロー (複数ステップのプロセス) | ✅ | ✅ | いいえ | たぶん |
 
-Output the partition plan:
+振り分けの計画を出力します:
 
 ```
 Documentation plan:
@@ -142,17 +137,17 @@ Documentation plan:
   Bayesian scheduler    ❌        ❌       ✅ new      ✅ new
 ```
 
-If the plan has more than 5 documents to create, use AskUserQuestion to confirm before proceeding.
-For smaller scopes, proceed directly.
+計画で作成するドキュメントが 5 件を超える場合は、進む前に AskUserQuestion で確認します。
+スコープが小さい場合は、そのまま進みます。
 
 ---
 
-## Step 3: Write Reference Documentation First
+## Step 3: 最初にリファレンスのドキュメントを書く
 
-Reference docs are the foundation. They are factual, complete, and derived directly from code.
-Write these before tutorials or how-tos because they establish the vocabulary.
+リファレンスのドキュメントは土台です。事実に基づいて完全で、コードから直接導かれます。
+用語を確立するため、チュートリアルやハウツーより先に書いてください。
 
-**Reference doc template:**
+**リファレンスのドキュメントのテンプレート:**
 
 ```markdown
 # [Entity Name]
@@ -179,20 +174,19 @@ would actually compile/run.]
 [Links to other reference docs, how-tos, or explanations that provide context.]
 ```
 
-**Rules for reference docs:**
-- Accuracy over elegance. Every claim must be traceable to code.
-- Include types, defaults, and constraints. "Accepts a string" is insufficient — "Accepts a
-  string (max 256 chars, must match `^[a-z-]+$`)" is reference-grade.
-- Show real examples that would actually work if copy-pasted.
-- Do not explain *why* — that belongs in explanation docs.
+**リファレンスのドキュメントのルール:**
+- 優雅さより正確さ。すべての主張はコードまでたどれること。
+- 型、デフォルト値、制約を含める。「文字列を受け付ける」では不十分です — 「文字列を受け付ける (最大 256 文字、`^[a-z-]+$` に一致する必要がある)」がリファレンスの水準です。
+- そのままコピー&ペーストして実際に動く、本物の例を示す。
+- *なぜ* を説明しないこと — それは解説のドキュメントの役割です。
 
 ---
 
-## Step 4: Write Explanation Documentation
+## Step 4: 解説のドキュメントを書く
 
-Explanation docs answer "why does this work this way?" They are the design rationale.
+解説のドキュメントは「なぜこれはこのように動くのか?」に答えます。設計の根拠です。
 
-**Explanation doc template:**
+**解説のドキュメントのテンプレート:**
 
 ```markdown
 # [Concept / Design Decision]
@@ -220,20 +214,19 @@ architectural concepts.]
 rejected and why.]
 ```
 
-**Rules for explanation docs:**
-- Lead with the problem, not the solution.
-- Use ASCII diagrams for architecture. They're grep-able, diff-friendly, and render everywhere.
-- Name trade-offs explicitly. "We chose X over Y because Z" is the gold standard.
-- Do not repeat reference material — link to it.
+**解説のドキュメントのルール:**
+- 解決策ではなく、問題から始める。
+- アーキテクチャには ASCII の図を使う。grep しやすく、diff にも向いており、どこでも表示できるからです。
+- トレードオフを明示する。「Z という理由で Y ではなく X を選んだ」が理想です。
+- リファレンスの内容を繰り返さない — そちらへリンクする。
 
 ---
 
-## Step 5: Write How-To Guides
+## Step 5: ハウツーのガイドを書く
 
-How-tos are task-oriented. They assume the reader knows the basics and wants to accomplish
-something specific.
+ハウツーはタスク志向です。読者が基本を知っていて、何か特定のことを達成したいと想定します。
 
-**How-to doc template:**
+**ハウツーのドキュメントのテンプレート:**
 
 ```markdown
 # How to [accomplish specific task]
@@ -266,20 +259,20 @@ config state.]
 [Common failure modes and their fixes. Pull from tests and error handling code.]
 ```
 
-**Rules for how-to docs:**
-- Title starts with "How to" — no exceptions. This is the reader's entry point.
-- Every step must be actionable. No "consider whether..." — instead "Run X" or "Add Y to Z".
-- Include verification. The reader should never wonder "did it work?"
-- Troubleshooting section is mandatory if the task can fail.
+**ハウツーのドキュメントのルール:**
+- タイトルは必ず "How to" で始める — 例外はありません。これは読者の入口です。
+- すべての手順は実行可能でなければならない。「...かどうか検討する」は禁止 — 代わりに「X を実行する」または「Y を Z に追加する」と書く。
+- 検証を含める。読者が「うまくいったのか?」と考える必要があってはいけません。
+- タスクが失敗しうる場合は、トラブルシューティングのセクションが必須です。
 
 ---
 
-## Step 6: Write Tutorials
+## Step 6: チュートリアルを書く
 
-Tutorials are learning-oriented. They take a newcomer from zero to a working example.
-These are the hardest to write well and the most valuable.
+チュートリアルは学習志向です。新しく来た人をゼロから動く例まで導きます。
+うまく書くのが最も難しく、最も価値があります。
 
-**Tutorial doc template:**
+**チュートリアルのドキュメントのテンプレート:**
 
 ```markdown
 # [Tutorial title — describes what you'll build/learn]
@@ -318,71 +311,67 @@ something happen within the first 3 steps.]
 for deeper exploration. Suggest next steps.]
 ```
 
-**Rules for tutorials:**
-- **Time to first result < 3 steps.** If the reader hasn't seen something work by step 3,
-  the tutorial is too slow.
-- Every step must produce a visible change or output. No "now configure X" without showing
-  what changes.
-- Use the exact commands the reader will type. No "run the appropriate command" abstractions.
-- Error paths: if a step commonly fails, show the error and the fix inline.
-- End with "What you built" — connect the tutorial back to the real use case.
+**チュートリアルのルール:**
+- **最初の結果までは 3 ステップ以内。** 3 ステップ目までに読者が何かが動くのを見ていなければ、チュートリアルは遅すぎます。
+- すべての手順は、目に見える変化または出力を生まなければならない。何が変わるかを示さずに「now configure X」と書いてはいけません。
+- 読者が実際に入力する正確なコマンドを使う。「適切なコマンドを実行する」といった抽象化は使わないこと。
+- エラーのパス: ある手順がよく失敗する場合は、エラーと修正方法をその場に示す。
+- 「What you built」で締めくくる — チュートリアルを実際のユースケースに結びつけてください。
 
 ---
 
-## Step 7: Cross-Document Linking & Discoverability
+## Step 7: ドキュメント間のリンクと発見しやすさ
 
-After writing all documents:
+すべてのドキュメントを書いた後:
 
-1. **Add cross-links between quadrants.** Every reference doc should link to its how-to.
-   Every how-to should link to its reference. Tutorials should link to both.
+1. **象限間の相互リンクを追加する。** すべてのリファレンスのドキュメントは、対応するハウツーにリンクすること。
+   すべてのハウツーは、対応するリファレンスにリンクすること。チュートリアルは両方にリンクすること。
 
-2. **Update entry-point files.** Add references to new docs in:
-   - README.md — add to documentation section or table of contents
-   - CLAUDE.md / AGENTS.md — add to project structure if relevant
-   - Any existing docs index or sidebar config
+2. **エントリーポイントのファイルを更新する。** 新しいドキュメントへの参照を次に追加します:
+   - README.md — ドキュメントのセクションまたは目次に追加する
+   - CLAUDE.md / AGENTS.md — 関連する場合はプロジェクトの構造に追加する
+   - 既存のドキュメントの索引やサイドバーの設定
 
-3. **Verify discoverability.** Every new document must be reachable within 2 clicks from
-   README.md. If a docs framework is in use, add to the sidebar/nav config.
+3. **発見しやすさを検証する。** 新しいすべてのドキュメントは、README.md から 2 クリック以内に到達できなければなりません。ドキュメントのフレームワークを使っている場合は、サイドバー/ナビゲーションの設定に追加してください。
 
-4. **Check for broken links.** Grep for any `](` references that point to files that don't exist.
-
----
-
-## Step 8: Quality Self-Review
-
-Before committing, review each document against these criteria:
-
-**Accuracy gate:**
-- [ ] Every code example compiles / runs / passes if copy-pasted
-- [ ] Every API description matches the actual code signature
-- [ ] Every command shown produces the output described
-- [ ] No stale references to renamed/removed entities
-
-**Completeness gate:**
-- [ ] Reference docs cover 100% of public surface
-- [ ] How-tos cover the top 3 tasks a user would attempt
-- [ ] Tutorials get to a working result in ≤3 steps
-- [ ] Explanation docs name trade-offs, not just choices
-
-**Voice gate:**
-- [ ] Written for a smart person who hasn't seen the code
-- [ ] No jargon without brief inline gloss on first use
-- [ ] Active voice, concrete nouns, short sentences
-- [ ] "You can now..." not "The system provides..."
-
-Fix any failures before proceeding.
+4. **壊れたリンクを確認する。** 存在しないファイルを指す `](` の参照を grep で探す。
 
 ---
 
-## Step 9: Commit & Output
+## Step 8: 品質の自己レビュー
 
-1. Stage new documentation files by name (never `git add -A` or `git add .`).
+コミットする前に、各ドキュメントを次の基準でレビューします:
 
-**Redaction scan before commit.** Generated docs frequently contain example
-credentials; scan the staged doc content and block on a HIGH credential (a
-live-format secret in committed docs is a leak). The per-span placeholder
-filter passes obvious docs examples (e.g. `AKIAIOSFODNN7EXAMPLE`); a
-live-format secret blocks wherever it appears, fenced or not:
+**正確性のゲート:**
+- [ ] すべてのコード例を、そのままコピー&ペーストしたときにコンパイル/実行/パスすること
+- [ ] すべての API の説明が、実際のコードのシグネチャと一致すること
+- [ ] 示したすべてのコマンドが、説明どおりの出力を生むこと
+- [ ] 名前の変更や削除されたエンティティへの古い参照がないこと
+
+**完全性のゲート:**
+- [ ] リファレンスのドキュメントが、公開されたサーフェスの 100% をカバーすること
+- [ ] ハウツーが、ユーザーが試しそうな上位 3 つのタスクをカバーすること
+- [ ] チュートリアルが 3 ステップ以内で動く結果に到達すること
+- [ ] 解説のドキュメントが、選択だけでなくトレードオフを明示すること
+
+**文体のゲート:**
+- [ ] コードを見たことのない賢い人に向けて書かれていること
+- [ ] 専門用語は、初めて使うときに簡単なインラインの注釈がついていること
+- [ ] 能動態、具体的な名詞、短い文であること
+- [ ] "The system provides..." ではなく "You can now..." と書くこと
+
+進む前に、失敗したものはすべて修正してください。
+
+---
+
+## Step 9: コミットと出力
+
+1. 新しいドキュメントのファイルを名前を指定してステージングします (`git add -A` や `git add .` は決して使わないこと)。
+
+**コミット前の編集スキャン。** 生成されたドキュメントには、サンプルの認証情報が含まれていることがよくあります。ステージングされたドキュメントの内容をスキャンし、
+HIGH の認証情報 (コミットされたドキュメント内の、実際の形式の秘密情報は漏えいです) があればブロックしてください。
+スパンごとのプレースホルダーのフィルターは、明らかなドキュメントの例 (例: `AKIAIOSFODNN7EXAMPLE`) を通します。
+実際の形式の秘密情報は、囲みの中であってもなくても、どこに現れてもブロックされます:
 
 ```bash
 REDACT_VIS=$(~/.claude/skills/gstack/bin/gstack-config get redact_repo_visibility 2>/dev/null)
@@ -392,7 +381,7 @@ git diff --cached --no-color | grep '^+' | sed 's/^+//' | \
 # exit 3 (HIGH) → unstage the offending doc, remove the secret, re-stage. Do NOT commit.
 ```
 
-2. Create a commit:
+2. コミットを作成します:
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -407,14 +396,14 @@ EOF
 )"
 ```
 
-3. Push to the current branch:
+3. 現在のブランチにプッシュします:
 
 ```bash
 git push
 ```
 
-4. **If a PR exists**, update the PR body with a `## Documentation Generated` section listing
-   every new file with its Diataxis quadrant and a one-line description:
+4. **PR が存在する場合**は、PR の本文に `## Documentation Generated` のセクションを追加し、
+   新しいファイルごとに Diataxis の象限と 1 行の説明を一覧にします:
 
 ```
 ## Documentation Generated
@@ -427,7 +416,7 @@ git push
 | docs/howto-custom-widgets.md | How-to | Creating and registering custom widgets |
 ```
 
-5. Output a structured summary:
+5. 構造化されたサマリーを出力します:
 
 ```
 Documentation generated:
@@ -443,18 +432,12 @@ Documentation generated:
 
 ---
 
-## Important Rules
+## 重要なルール
 
-- **Research before writing.** Step 1 is not optional. Read the code, read the tests, read the
-  existing docs. Insufficient research produces surface-level documentation.
-- **Accuracy is non-negotiable.** Every code example must work. Every API description must match
-  the actual code. If you're unsure about a detail, read the source again — do not guess.
-- **Diataxis quadrants serve different readers.** Do not mix tutorial content into reference docs
-  or reference content into how-tos. Each quadrant has a specific reader in a specific mode.
-- **Time to first result in tutorials.** If a reader can't see something working by step 3,
-  restructure the tutorial.
-- **Cross-link everything.** Isolated docs are undiscoverable docs.
-- **Voice: friendly, concrete, user-forward.** Write like you're explaining to a smart person
-  who hasn't seen the code. Never corporate, never academic.
-- **Completeness over minimalism.** AI makes comprehensive documentation cheap. Don't write
-  "minimal viable docs" — write complete docs. Boil the ocean.
+- **書く前に調べる。** ステップ 1 は任意ではありません。コードを読み、テストを読み、既存のドキュメントを読んでください。調査が不十分だと、表面的なドキュメントになります。
+- **正確さは譲れない。** すべてのコード例は動かなければなりません。すべての API の説明は、実際のコードと一致しなければなりません。詳細に確信が持てない場合は、ソースをもう一度読んでください — 推測してはいけません。
+- **Diataxis の象限はそれぞれ異なる読者に仕える。** チュートリアルの内容をリファレンスのドキュメントに混ぜたり、リファレンスの内容をハウツーに混ぜたりしないこと。各象限には、特定のモードにある特定の読者がいます。
+- **チュートリアルでは最初の結果までの時間。** 読者が 3 ステップ目までに何かが動くのを見られないなら、チュートリアルを組み直してください。
+- **すべてを相互にリンクする。** 孤立したドキュメントは、発見されないドキュメントです。
+- **文体: 親しみやすく、具体的で、読者を前面に出す。** コードを見たことのない賢い人に説明するように書いてください。企業的にも、学術的にもしないこと。
+- **ミニマルさより完全さ。** AI のおかげで、包括的なドキュメントは安く作れます。「最低限使えるドキュメント」を書いてはいけません — 完全なドキュメントを書いてください。海をも煮よ。

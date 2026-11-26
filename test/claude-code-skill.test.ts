@@ -59,7 +59,7 @@ console.log(JSON.stringify({result:process.env.FAKE_TEXT || '[P1] Review found a
   if (generated.status !== 0) throw new Error(generated.stderr);
   const content = fs.readFileSync(path.join(RENDER, '.agents/skills/gstack-claude-code/SKILL.md'), 'utf8');
   for (const mode of ['review','challenge','consult'] as const) {
-    const heading = `## ${mode[0].toUpperCase() + mode.slice(1)} mode`;
+    const heading = `## ${{review:'レビュー', challenge:'チャレンジ', consult:'相談'}[mode]}モード`;
     const start = content.indexOf(heading);
     const end = content.indexOf('\n## ', start + heading.length);
     if (start === -1) throw new Error(`Missing generated ${mode} section`);

@@ -5,10 +5,11 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {getQuestion} from '../scripts/question-registry';
 import {CARVE_GUARDS} from './helpers/carve-guards';
+import {expectMentions} from './helpers/prompt-structure';
 const root=path.resolve(import.meta.dir,'..');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'gstack-ceo-mode-preference-'));
 function section(s:string){
- const match=s.match(/^### 0[A-Z]\. Mode Selection\n([\s\S]*?)(?=^### |$(?![\s\S]))/m);
+ const match=s.match(/^### 0[A-Z]\. (?:Mode Selection|モード選択)\n([\s\S]*?)(?=^### |$(?![\s\S]))/m);
  if(!match)throw new Error('CEO Mode Selection section missing');
  return match[1]!;
 }
@@ -28,7 +29,7 @@ function modeId(document:string){
  expect(ids).toHaveLength(1);return ids[0]!;
 }
 function tuning(document:string){
- return document.split('## Question Tuning (skip entirely if')[1]!.split('\n## ')[0]!;
+ return document.split('## Question Tuning(`QUESTION_TUNING: false`')[1]!.split('\n## ')[0]!;
 }
 function renderedCheck(host:string,id:string){
  // The mode id is registered, so the rendered check carries no summary file
@@ -36,7 +37,7 @@ function renderedCheck(host:string,id:string){
  const match=tuning(rendered.get(host)!).match(/`(([^`]+)\/gstack-question-preference --check "<id>")`/)!;
  expect(match).not.toBeNull();
  expect(match[2]).toBe(host==='claude'?'~/.claude/skills/gstack/bin':'$GSTACK_BIN');
- expect(tuning(rendered.get(host)!)).toContain('append `--summary-file .gstack/tmp/qt.txt`');
+ expectMentions(tuning(rendered.get(host)!),[['`--summary-file .gstack/tmp/qt.txt`','付けます']],'tuning');
  const quote=(value:string)=>"'"+value.replace(/'/g,"'\\''")+"'";
  // Run the rendered command, substituting its documented fields and mapping
  // the host's installed executable location to this isolated checkout.
@@ -55,31 +56,29 @@ test('source and both isolated host renders bind the shared check, marker and lo
  for(const document of [source,...rendered.values()]){
   const id=modeId(document),s=section(document);
   expect(getQuestion(id)).toMatchObject({id:'plan-ceo-review-mode',skill:'plan-ceo-review',category:'routing',door_type:'two-way'});
-  const routing=s.slice(s.indexOf('3. Resolve that recommendation'),s.indexOf('4. **Mode handoff:**')).replace(/\s+/g,' ');
-  expect(routing).toContain('check `question_id=plan-ceo-review-mode` through the preamble');
-  expect(routing).toContain('A check that exits 0 with `AUTO_DECIDE` selects the recommendation');
-  expect(routing).toContain('go to the automatic handoff in step 4');
-  expect(routing).toContain('When tuning is false, omit the lookup');
-  const handoff=s.split('**Mode handoff:**')[1]!;
+  const routing=s.slice(s.indexOf('3. その推奨を解決します'),s.indexOf('4. **モードの引き継ぎ:**'));
+  expectMentions(routing,[['`question_id=plan-ceo-review-mode`','確認'],['`AUTO_DECIDE`','推奨','選び'],['手順 4','自動的な引き継ぎ'],['調整が false','省き']],'routing');
+  const handoff=s.split('**モードの引き継ぎ:**')[1]!;
   expect(handoff).toContain('`'+id+': AUTO_DECIDE`');
   expect(handoff).toContain('Auto-decided review mode → <selected mode> (your preference)');
-  const asked=routing.split('Without that successful check,')[1]!;
-  expect(asked).toContain('offer all four modes in one AskUserQuestion');
-  expect(asked).toContain('**STOP for the answer**');
-  expect(asked).toContain('When `QUESTION_TUNING: true`');
+  const asked=routing.split('確認が成功しない場合は、')[1]!;
+  expectMentions(asked,[['4 つのモードすべて','AskUserQuestion']],'asked');
+  expect(asked).toContain('**回答を待って停止**');
+  expect(asked).toContain('`QUESTION_TUNING: true`');
   expect(asked).toContain('`<gstack-qid:'+id+'>`');
-  const logging=handoff.split('Record mode provenance after the handoff')[1]!.split('If 0D')[0]!.replace(/\s+/g,' ');
-  expect(logging).toContain('no question log because none was asked');
-  expect(logging).toContain('`'+id+'`, `auto_decided: true`');
-  expect(logging).toContain('`auto_decided: false`, including the question ID only when `QUESTION_TUNING: true`');
-  expect(s.indexOf('3. Resolve that recommendation')).toBeGreaterThanOrEqual(0);
-  expect(s.indexOf('4. **Mode handoff:**')).toBeGreaterThan(s.indexOf('3. Resolve that recommendation'));
-  expect(handoff).toContain('After selection');
-  expect(handoff).toMatch(/before other tools or further questions, run `[^`]*\/bin\/gstack-ceo-mode-handoff /);
-  expect(handoff).toContain('Then send brief chat beginning with that line');
-  expect(s.slice(0,s.indexOf('4. **Mode handoff:**'))).not.toMatch(/\blog (?:with|that ID)\b/);
-  expect(handoff.indexOf('Record mode provenance after the handoff')).toBeGreaterThan(handoff.indexOf('- Other selections:'));
-  expect(handoff.indexOf("Follow the selected mode's route:")).toBeGreaterThan(handoff.indexOf('Record mode provenance after the handoff'));
+  const logging=handoff.split('引き継ぎの後に、モードの出所を記録してください')[1]!.split('0D でアプローチ')[0]!.replace(/\s+/g,' ');
+  expectMentions(logging,[['質問をしていない','質問ログはありません']],'logging');
+  expect(logging).toContain('`'+id+'`');
+  expect(logging).toContain('`auto_decided: true`');
+  expectMentions(logging,[['`auto_decided: false`','記録'],['質問の ID','`QUESTION_TUNING: true`']],'logging');
+  expect(s.indexOf('3. その推奨を解決します')).toBeGreaterThanOrEqual(0);
+  expect(s.indexOf('4. **モードの引き継ぎ:**')).toBeGreaterThan(s.indexOf('3. その推奨を解決します'));
+  expectMentions(handoff,[['選択の後','他のツール','前に']],'handoff');
+  expect(handoff).toMatch(/`[^`]*\/bin\/gstack-ceo-mode-handoff /);
+  expectMentions(handoff,[['その行で始まる','チャット']],'handoff');
+  expect(s.slice(0,s.indexOf('4. **モードの引き継ぎ:**'))).not.toMatch(/\blog (?:with|that ID)\b/);
+  expect(handoff.indexOf('引き継ぎの後に、モードの出所を記録してください')).toBeGreaterThan(handoff.indexOf('- その他の選択:'));
+  expect(handoff.indexOf('選択されたモードのルートに従ってください')).toBeGreaterThan(handoff.indexOf('引き継ぎの後に、モードの出所を記録してください'));
   expect(s).not.toContain('plan-ceo-review-mode-selection');
  }
  for(const document of rendered.values()){
@@ -105,29 +104,18 @@ test('absent, always-ask and foreign preferences do not authorize either host to
 test('only an explicit user selection or enabled successful mode check bypasses asking',()=>{
  for(const document of rendered.values()){
   const s=section(document),q=tuning(document);
-  expect(s).toContain('An explicit choice skips steps 2–3');
-  const routing=s.slice(s.indexOf('3. Resolve that recommendation'),s.indexOf('4. **Mode handoff:**')).replace(/\s+/g,' ');
-  expect(routing).toContain('When `QUESTION_TUNING: true`, first check `question_id=plan-ceo-review-mode` through the preamble');
-  expect(routing).toContain('When tuning is false, omit the lookup');
-  expect(routing).toContain('A check that exits 0 with `AUTO_DECIDE` selects the recommendation');
-  expect(s).toContain('**STOP for the answer**');
-  expect(document).toContain('Question Tuning (skip entirely if `QUESTION_TUNING: false`)');
-  expect(q).toContain('`AUTO_DECIDE` means choose the recommended option');
+  expectMentions(s,[['明示的に選んだ場合','手順 2〜3','飛ばします']],'s');
+  const routing=s.slice(s.indexOf('3. その推奨を解決します'),s.indexOf('4. **モードの引き継ぎ:**'));
+  expectMentions(routing,[['`QUESTION_TUNING: true`','`question_id=plan-ceo-review-mode`','確認'],['調整が false','省き'],['`AUTO_DECIDE`','推奨','選び']],'routing');
+  expect(s).toContain('**回答を待って停止**');
+  expect(document).toContain('## Question Tuning(`QUESTION_TUNING: false` の場合は丸ごとスキップ)');
+  expectMentions(q,[['`AUTO_DECIDE`','推奨オプション','選ぶ'],['`ASK_NORMALLY`','質問']],'q');
   expect(q).toContain('Auto-decided [summary] → [option] (your preference). Change with /plan-tune.');
-  expect(q).toContain('`ASK_NORMALLY` means ask.');
-  expect(s).toContain('Selecting a mode does not approve changes');
-  expect(document.replace(/\s+/g,' ')).toContain('With no required choice, or after those choices settle, go to 0E');
-  expect(s.replace(/\s+/g,' ')).toContain('Preserve 0D approvals and ask about each proposed addition or cut');
-  expect(s).toContain('offer all four modes in one AskUserQuestion');
-  expect(s).toContain("using step 2's recommendation");
-  expect(s).toContain('For >15 planned changed files, recommend SCOPE REDUCTION');
-  expect(document).toContain('more than 8 files or more than 2 new classes/services');
-  expect(s.replace(/\s+/g,' ')).toContain('ask about each proposed addition or cut, including those prompted by file-count thresholds');
-  expect(s.replace(/\s+/g,' ')).toContain('Count distinct planned file additions, edits and deletions');
-  expect(s.replace(/\s+/g,' ')).toContain('mark estimated counts as estimates');
-  expect(s).toContain('These modes differ in kind, not coverage; do NOT score completeness');
-  expect(document).toContain('Note: options differ in kind, not coverage — no completeness score.');
- }
+  expectMentions(s,[['モードを選んでも','変更','承認されません']],'s');
+  expectMentions(document,[['必要な選択がない場合','0E','進んでください']],'document');
+  expectMentions(s,[['0D','承認','維持'],['提案された追加や削除','尋ねて'],['4 つのモードすべて','AskUserQuestion'],['手順 2 の推奨'],['15 を超える','SCOPE REDUCTION','推奨'],['ファイル数のしきい値','尋ねて'],['新規ファイル、編集、削除','数えて'],['推定した数','推定値'],['カバレッジ','種類'],['完全性のスコアは付けないでください']],'s');
+  expectMentions(document,[['8 ファイルを超える','新しいクラスやサービス','2 つを超える'],['注記','カバレッジ','種類']],'document');
+}
 });
 test('rendered mode contract stays within the existing canonical skeleton cap',()=>{
  // --out-dir changes section-link roots only. Undo that output-location

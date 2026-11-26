@@ -1,25 +1,13 @@
-## Race recipe
+## Race の手順
 
-A race is two actors touching shared state with an ordering nobody enforces.
-Make it deterministic before fixing it.
+Race とは、2 つのアクターが、誰も強制していない順序で共有状態に触れることです。修正する前に、必ず決定的に再現させてください。
 
-1. **Timing probes.** Log a monotonic timestamp (`performance.now()`) and the
-   actor id at every read and write of the shared state (file, row, map, lock).
-   A race shows as interleaved writes or a read between another actor's
-   check and its write. Keep the probe output as evidence.
-2. **Forced interleaving.** Inject an `await` or sleep at the suspected point
-   in one actor (behind a test-only hook or env var) so the other actor runs in
-   the window. The bug must now appear every time; if it does not, the window is
-   elsewhere.
-3. **Concurrent-writer template.** Drive N writers at once and assert the
-   invariant, not the absence of an error:
+1. **タイミングのプローブ。** 共有状態(ファイル、行、マップ、ロック)のすべての読み書きで、単調増加のタイムスタンプ(`performance.now()`)とアクター ID をログに残します。Race は、書き込みがインターリーブされる、または別のアクターのチェックと書き込みの間に読み取りが入る形で現れます。プローブの出力は証拠として保存してください。
+2. **強制的なインターリーブ。** 疑わしい箇所の一方のアクターに `await` または sleep を注入し(テスト専用のフックや環境変数の背後で)、もう一方のアクターがその時間窓の中で実行されるようにします。これでバグが毎回再現するはずです。再現しなければ、時間窓は別の場所にあります。
+3. **並行ライターのテンプレート。** N 個のライターを同時に動かし、エラーがないことではなく、不変条件をアサートします:
    ```ts
    const results = await Promise.allSettled(Array.from({ length: N }, (_, i) => writer(i)));
    // exactly one winner | all N applied | file or row intact | lock released and owner recorded
    ```
-   Run with N ≥ 8 under the forced interleaving; the template becomes the
-   regression test with the interleaving still injected.
-4. **Fix shape.** An atomic primitive: create with `wx`, compare-and-swap,
-   `UPDATE … WHERE old_value = ?`, a lock with an owner token and a stale-owner
-   rule. A check-then-act with a smaller window is not a fix. Rerun step 3
-   after the change and paste both outputs.
+   強制的なインターリーブの下で N ≥ 8 で実行します。このテンプレートは、インターリーブを注入したままの回帰テストになります。
+4. **修正の形。** アトミックなプリミティブを使います。`wx` での作成、compare-and-swap、`UPDATE … WHERE old_value = ?`、オーナートークンと古いオーナーのルールを持つロックなどです。チェックしてから動作させる方式で時間窓を狭くしても、修正にはなりません。変更後にステップ 3 を再実行し、両方の出力を貼り付けてください。

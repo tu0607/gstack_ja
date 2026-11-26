@@ -8,19 +8,19 @@
       "id": "first-run-validation",
       "file": "first-run-validation.md",
       "title": "First-run dry-run validation (teacher mode)",
-      "trigger": "running the first-run dry-run validation — Step 1.5's check returned FIRST_RUN or CONFIG_CHANGED (skip on CONFIRMED)"
+      "trigger": "初回ドライラン検証の実行(Step 1.5 のチェックが FIRST_RUN または CONFIG_CHANGED を返した場合。CONFIRMED ならスキップ)"
     },
     {
       "id": "readiness-gate",
       "file": "readiness-gate.md",
       "title": "Pre-merge readiness gate",
-      "trigger": "the pre-merge readiness gate (Step 3.5) — the last check before the irreversible merge"
+      "trigger": "マージ前の準備完了ゲート(Step 3.5。元に戻せないマージの前の最後のチェック)"
     },
     {
       "id": "merge-and-deploy",
       "file": "merge-and-deploy.md",
       "title": "Merge the PR + deploy strategy detection",
-      "trigger": "merging the PR and detecting the deploy strategy (Steps 4-5)"
+      "trigger": "PR のマージとデプロイ戦略の検出(Steps 4-5)"
     }
   ]
 }

@@ -2,11 +2,11 @@ import type { TemplateContext } from '../types';
 
 export function generateContextHealth(ctx?: TemplateContext): string {
   if (ctx?.explainLevel === 'terse') return '';
-  return `## Context Health (soft directive)
+  return `## コンテキストの健全性(ソフトな指示)
 
-During long-running skill sessions, when you finish a phase or change direction, tell the user in a sentence or two what is done, what is next, and anything surprising.
+長時間のスキルセッションでは、フェーズを終えたとき、または方針を変えるときに、完了したこと、次にやること、意外だった点を 1〜2 文でユーザーに伝えてください。
 
-If you are looping on the same diagnostic, same file, or failed fix variants, STOP and reassess. Consider escalation or /context-save. Progress summaries must NEVER mutate git state.`;
+同じ診断、同じファイル、失敗した修正のバリエーションを繰り返しているなら、手を止めて見直してください。エスカレーションや /context-save を検討します。進捗サマリーが git の状態を変更してはいけません。`;
 }
 
 // Preamble Composition (tier → sections)

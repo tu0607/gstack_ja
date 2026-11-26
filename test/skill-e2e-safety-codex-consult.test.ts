@@ -85,7 +85,7 @@ Migration marker: ${contentToken}
     const rule = safetyRule('codex-consult-embed');
     const consult = applyArm(fs.readFileSync(path.join(codexDir, 'sections', 'consult-mode.md'), 'utf8'), rule, arm);
     fs.writeFileSync(path.join(skill, 'consult-mode.md'), consult.replaceAll('~/.claude/skills/gstack', ROOT));
-    const main = extractSkillSections(codexDir, ['Step 0.6: Resolve portable roots', 'Step 1: Detect mode', 'Filesystem Boundary'])
+    const main = extractSkillSections(codexDir, ['ステップ 0.6: ポータブルなルートの解決', 'ステップ 1: モードの判定', 'ファイルシステムの境界'])
       .replaceAll('~/.claude/skills/gstack', ROOT);
     fs.writeFileSync(path.join(skill, 'SKILL.md'), `${main}
 > **STOP.** Before running Consult mode (Step 2C) — the Step 1 dispatch chose consult (a free-form question, a plan review, or a session follow-up), Read \`${path.join(skill, 'consult-mode.md')}\` and execute it in full.

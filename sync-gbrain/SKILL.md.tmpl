@@ -3,12 +3,7 @@ name: sync-gbrain
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Keep gbrain current with this repo's code and refresh agent search
-  guidance in CLAUDE.md. Wraps the gstack-gbrain-sync orchestrator with
-  state probing, native code-surface registration, capability checks,
-  and a verdict block. Re-runnable, idempotent. Use when: "sync gbrain",
-  "refresh gbrain", "re-index this repo", "gbrain search isn't finding
-  things". (gstack)
+  gbrain を本リポジトリのコードに合わせて最新の状態に保ち、CLAUDE.md 内のエージェント向け検索ガイダンスを更新します。gstack-gbrain-sync オーケストレーターをラップし、状態の確認、ネイティブなコードサーフェスの登録、機能チェック、判定ブロックの出力を行います。何度実行しても結果が変わらず(再実行可能・冪等)、次のような場合に使用します: "sync gbrain"、"refresh gbrain"、"re-index this repo"、"gbrain search isn't finding things"。(gstack)
 triggers:
   - sync gbrain
   - refresh gbrain
@@ -26,69 +21,46 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-# /sync-gbrain — Keep gbrain current and teach the agent to use it
+# /sync-gbrain — gbrain を最新に保ち、エージェントに使い方を教える
 
-You are running the canonical "keep this brain up to date" verb. /setup-gbrain
-installs gbrain once; /sync-gbrain runs every time the user wants the brain
-refreshed against this repo's current state, and refreshes the agent-side
-guidance in CLAUDE.md so the coding agent knows when to prefer `gbrain`
-search over Grep.
+あなたは「このブレインを最新の状態に保つ」ための正式な操作を実行しています。/setup-gbrain は gbrain を一度インストールします。/sync-gbrain は、ユーザーがこのリポジトリの現在の状態に合わせてブレインを更新したいときに毎回実行します。また、コーディングエージェントがいつ Grep よりも `gbrain` 検索を優先すべきかを判断できるように、CLAUDE.md 内のエージェント向けガイダンスも更新します。
 
-**Architecture:** This skill uses gbrain v0.20.0+'s
-**native code surfaces** (`gbrain sources add`, `gbrain sync --strategy code`,
-`gbrain reindex-code`, `gbrain code-def/code-refs/code-callers/code-callees`).
-It does NOT use `gbrain import` (that path is for markdown directories).
-It does NOT touch `~/.gstack/` indexing (the existing `gstack-gbrain-source-wireup`
-owns that — never double-store).
+**アーキテクチャ:** 本スキルは gbrain v0.20.0 以降の**ネイティブなコードサーフェス**(`gbrain sources add`、`gbrain sync --strategy code`、`gbrain reindex-code`、`gbrain code-def/code-refs/code-callers/code-callees`)を使用します。`gbrain import` は使用しません(そのパスはマークダウンディレクトリ用です)。`~/.gstack/` のインデックス作成にも触れません(既存の `gstack-gbrain-source-wireup` が担当しており、二重に保存しないためです)。
 
-## User-invocable
+## ユーザーが呼び出す場合
 
-When the user types `/sync-gbrain`, run this skill. Argument modes (parsed by
-the skill itself, not a dispatcher binary):
+ユーザーが `/sync-gbrain` と入力したら、本スキルを実行します。引数モードは(ディスパッチャーのバイナリではなく)スキル自身が解釈します:
 
-- `/sync-gbrain` — incremental sync (default; mtime fast-path; ~50ms steady-state)
-- `/sync-gbrain --full` — full code reindex via `gbrain reindex-code` (~25-35 min on a big repo). Auto-builds the call graph (`gbrain dream --phase resolve_symbol_edges`) **only when it was never built**.
-- `/sync-gbrain --dream` — build this source's call graph (`gbrain code-callers`/`code-callees`) via `gbrain dream --source <id> --phase resolve_symbol_edges`; ~minutes; runs lock-free after the sync stages. Always forces, even if already built. Runs only that phase, never gbrain's full maintenance cycle (about 35 minutes with LLM phases); if the installed gbrain cannot scope the phase, the dream row says so and nothing runs. Only produces a graph on a code-aware schema pack; otherwise the run reports a WARN explaining why the graph is still empty.
-- `/sync-gbrain --no-dream` — skip the dream cycle that `--full` would otherwise auto-run.
-- `/sync-gbrain --code-only` — only run the code stage; skip memory + brain-sync
-- `/sync-gbrain --dry-run` — preview what would sync; no writes anywhere
-- `/sync-gbrain --no-memory` / `--no-brain-sync` — selectively skip stages
-- `/sync-gbrain --sources <types|all>` — memory types to ingest (env `GSTACK_MEMORY_INGEST_SOURCES`); by default, types a federated gstack source already indexes are skipped, and transcripts are skipped unless `transcript_ingest_mode` is `recent` or `all` (a list naming `transcript` overrides that for one run)
-- `/sync-gbrain --quiet` — suppress per-stage output
-- `/sync-gbrain --refresh-cache` — force-rebuild brain-aware planning cache. Skips code + memory stages; routes to `gstack-brain-cache refresh --project <slug>`.
-- `/sync-gbrain --audit` — emit summary of gstack-owned pages per project + sensitive-content audit. Read-only.
+- `/sync-gbrain` — 増分同期(デフォルト。mtime による高速パス。定常状態で約 50ms)
+- `/sync-gbrain --full` — `gbrain reindex-code` によるコードの完全再インデックス(大規模リポジトリで約 25〜35 分)。コールグラフ(`gbrain dream --phase resolve_symbol_edges`)が**一度も構築されていない場合に限り**自動で構築します。
+- `/sync-gbrain --dream` — `gbrain dream --source <id> --phase resolve_symbol_edges` により、このソースのコールグラフ(`gbrain code-callers`/`code-callees`)を構築します。数分程度かかり、同期ステージの後にロックなしで実行されます。構築済みかどうかに関係なく、常に強制実行されます。このフェーズだけを実行し、gbrain の完全なメンテナンスサイクル(LLM フェーズを含め約 35 分)は実行しません。インストールされている gbrain がフェーズの範囲指定に対応していない場合は、dream の行にその旨が表示され、何も実行されません。コード対応のスキーマパックでのみグラフが生成されます。それ以外の場合、実行結果は WARN としてグラフが空のままである理由を報告します。
+- `/sync-gbrain --no-dream` — `--full` が通常自動実行する dream サイクルをスキップします。
+- `/sync-gbrain --code-only` — コードステージのみ実行し、メモリおよび brain-sync はスキップします。
+- `/sync-gbrain --dry-run` — 同期される内容をプレビューします。どこにも書き込みません。
+- `/sync-gbrain --no-memory` / `--no-brain-sync` — 指定したステージを個別にスキップします。
+- `/sync-gbrain --sources <types|all>` — 取り込むメモリの種類(環境変数 `GSTACK_MEMORY_INGEST_SOURCES`)。デフォルトでは、フェデレーション済みの gstack ソースが既にインデックスしている種類はスキップされ、`transcript_ingest_mode` が `recent` または `all` でない限りトランスクリプトもスキップされます(`transcript` を含むリストを指定すると、その実行に限りこの設定より優先されます)。
+- `/sync-gbrain --quiet` — ステージごとの出力を抑制します。
+- `/sync-gbrain --refresh-cache` — ブレイン対応の計画キャッシュを強制的に再構築します。コードおよびメモリのステージはスキップされ、`gstack-brain-cache refresh --project <slug>` が実行されます。
+- `/sync-gbrain --audit` — プロジェクトごとの gstack 所有ページの概要と、機密コンテンツの監査結果を出力します。読み取り専用です。
 
-Pass-through args go straight to the orchestrator at
-`{{BIN_DIR}}/gstack-gbrain-sync.ts`.
+引数は、そのままオーケストレーター `{{BIN_DIR}}/gstack-gbrain-sync.ts` に渡されます。
 
-**`--refresh-cache` short-circuit:** when this flag is present, the skill
-runs ONLY the cache refresh (`gstack-brain-cache refresh --project <slug>`
-for the current worktree's slug, plus a cross-project refresh of
-user-profile if `gstack/user-profile/<user-slug>` exists). Code +
-memory + brain-sync stages are skipped. Useful when the user knows the
-brain has new info gstack should pick up before the next planning skill.
+**`--refresh-cache` の短絡処理:** このフラグがある場合、スキルはキャッシュの再構築(現在のワークツリーのスラッグに対する `gstack-brain-cache refresh --project <slug>`、および `gstack/user-profile/<user-slug>` が存在すれば user-profile のプロジェクト横断的な再構築)だけを実行します。コード、メモリ、brain-sync の各ステージはスキップされます。ブレインに新しい情報があり、次の計画系スキルの前に gstack に読み込ませたいときに便利です。
 
-**`--audit` short-circuit:** when this flag is present, the skill runs
-`gstack-brain-cache list --project <slug> --json`, summarizes by page
-type, then scans for any cached salience entries that ended up outside
-the SALIENCE_DEFAULT_ALLOWLIST (leak check). Read-only; no
-modifications to brain or cache.
+**`--audit` の短絡処理:** このフラグがある場合、スキルは `gstack-brain-cache list --project <slug> --json` を実行してページの種類ごとに概要をまとめ、その後 SALIENCE_DEFAULT_ALLOWLIST の範囲外に出てしまったキャッシュ済みの salience エントリがないかをスキャンします(漏えいチェック)。読み取り専用で、ブレインやキャッシュは変更しません。
 
 ---
 
-## Step 1: State probe
+## Step 1: 状態の確認
 
-Before doing anything, check that /setup-gbrain has been run on this machine.
+何かを実行する前に、このマシンで /setup-gbrain が実行済みかを確認します。
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-gbrain-detect 2>/dev/null
 ```
 
-**Brain trust policy gate:**
-If `gbrain_mcp_mode == "remote-http"` from the detect output AND the per-
-endpoint policy is `unset`, the policy question MUST fire here before
-the orchestrator runs. Local engines auto-set to `personal` silently per
-the per-transport default table.
+**ブレインの信頼ポリシーのゲート:**
+detect の出力で `gbrain_mcp_mode == "remote-http"` であり、かつエンドポイントごとのポリシーが `unset` の場合は、オーケストレーターを実行する前に必ずポリシーの質問を行います。ローカルエンジンは、トランスポートごとの既定値表に従って `personal` に自動設定され、質問は表示されません。
 
 ```bash
 _HASH=$(~/.claude/skills/gstack/bin/gstack-config endpoint-hash 2>/dev/null)
@@ -96,81 +68,38 @@ _POLICY=$(~/.claude/skills/gstack/bin/gstack-config get brain_trust_policy@$_HAS
 echo "BRAIN_TRUST_POLICY[$_HASH]: $_POLICY"
 ```
 
-If `_POLICY == "unset"` AND `_HASH != "local"`, AskUserQuestion per the
-Step 9.5 wording in `/setup-gbrain` (personal vs shared, with persistence
-to `brain_trust_policy@<hash>` and conditional `artifacts_sync_mode=full`
-flip for personal). Then continue.
+`_POLICY == "unset"` かつ `_HASH != "local"` の場合は、`/setup-gbrain` のステップ 9.5 の文言(personal か shared か、`brain_trust_policy@<hash>` への保存、personal の場合は条件付きで `artifacts_sync_mode=full` に切り替え)で AskUserQuestion を行います。その後に続行します。
 
-If `_POLICY == "unset"` AND `_HASH == "local"`, auto-set personal:
+`_POLICY == "unset"` かつ `_HASH == "local"` の場合は、personal を自動設定します:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-config set brain_trust_policy@$_HASH personal
 ```
 
-**Split-engine model.** Code stage runs locally against the
-per-machine gbrain engine (PGLite or whatever `gbrain config` points to),
-with each worktree of a repo registered as its own source. **Memory stage
-also runs locally** in local-stdio MCP mode — `gstack-memory-ingest` shells
-out to `gbrain import` against the same local engine. In remote-http MCP
-mode (Path 4), the memory stage instead persists staged markdown to
-`~/.gstack/transcripts/<run-id>/` and the artifacts pipeline pushes it to
-the brain admin's pull job. Brain-sync (the `gstack-brain-sync`
-push to git) is the one stage that never touches local engine and runs
-regardless of mode.
+**分割エンジンモデル。** コードステージは、マシンごとの gbrain エンジン(PGLite、または `gbrain config` が指すもの)に対してローカルで実行されます。リポジトリの各ワークツリーは、それぞれ独立したソースとして登録されます。**メモリステージもローカルで実行されます**(ローカル stdio の MCP モードでは)。`gstack-memory-ingest` が同じローカルエンジンに対して `gbrain import` を呼び出すためです。remote-http の MCP モード(Path 4)では、メモリステージは代わりにステージング済みのマークダウンを `~/.gstack/transcripts/<run-id>/` に保存し、アーティファクトパイプラインがそれをブレイン管理者のプルジョブへ送信します。brain-sync(`gstack-brain-sync` による git への push)だけはローカルエンジンに触れず、どのモードでも必ず実行されます。
 
-Practically: local PGLite stays code-only on remote-http machines; the
-remote brain holds everything else. Local-stdio machines mix code +
-transcripts in one local engine.
+実際には、remote-http 環境のマシンではローカルの PGLite はコード専用のままで、それ以外はリモートのブレインが保持します。local-stdio のマシンでは、コードとトランスクリプトを 1 つのローカルエンジンで扱います。
 
-Also check the per-repo trust policy. If `gstack-gbrain-repo-policy get` for
-this repo returns `deny`, STOP:
+また、リポジトリごとの信頼ポリシーも確認します。このリポジトリに対する `gstack-gbrain-repo-policy get` が `deny` を返した場合は、処理を停止します:
 
-> "This repo's gbrain trust policy is `deny`. Run `/setup-gbrain --repo` to
-> change it before syncing."
+> 「このリポジトリの gbrain 信頼ポリシーは `deny` です。同期の前に `/setup-gbrain --repo` で変更してください。」
 
 ---
 
-## Step 1.5: Local engine pre-flight
+## Step 1.5: ローカルエンジンの事前チェック
 
-Read `gbrain_local_status` from the Step 1 detect output. Branch as follows
-BEFORE invoking the orchestrator:
+ステップ 1 の detect 出力から `gbrain_local_status` を読み取ります。オーケストレーターを呼び出す**前に**、以下のように分岐します:
 
-- **`ok`**: proceed to Step 2 normally.
-- **`timeout`**: proceed to Step 2 — the engine is most likely healthy but
-  slow (cold pooler connection). Tell the user in one line: "Engine
-  probe timed out (>15s) — proceeding; raise `GSTACK_GBRAIN_PROBE_TIMEOUT_MS`
-  if your pooler is slow." Do NOT treat this as a broken config.
-- **`thin-client`**: proceed to Step 2 — this machine is a thin client of a
-  remote-HTTP MCP brain: no local engine BY DESIGN, so the code,
-  memory, and dream stages will SKIP with a thin-client reason (code indexing
-  runs on the brain server; memory syncs via the remote brain's artifacts
-  pull). Only the brain-sync push runs locally. Tell the user in one line:
-  "Thin client of a remote brain — local stages skip by design; brain queries
-  work via remote MCP (reachability is verified at use time, not probed
-  here)." Do NOT route this into the broken-config remediation.
-- **`engine-locked`**: STOP. "The local PGLite database is busy, usually
-  because `gbrain serve` from a live Claude session owns it. Stop that process
-  or run `/sync-gbrain` outside the live session, then retry. This identifies
-  the conflict but does not remove PGLite's single-process limit."
-- **`no-cli`**: STOP. "Local gbrain CLI not installed. Run `/setup-gbrain`
-  first."
-- **`missing-config`** AND `gbrain_mcp_mode == "remote-http"`: tell the user
-  "Your brain queries (the `mcp__gbrain__*` tools) work via remote MCP, but
-  symbol code search needs a local PGLite. Run `/setup-gbrain` and pick
-  'Yes' at the local code-search prompt (Path 4, step 4d), or run
-  `gbrain init --pglite --json --embedding-model voyage:voyage-code-3 --embedding-dimensions 1024`
-  directly (drop the voyage flags if `VOYAGE_API_KEY` isn't set). Continuing
-  without code stage."
-  Then proceed to Step 2 — the orchestrator's `runCodeImport()` and
-  `runMemoryIngest()` will return SKIP; only `runBrainSyncPush()`
-  will run. Do NOT abort.
-- **`missing-config`** AND `gbrain_mcp_mode != "remote-http"`: STOP. "Local
-  gbrain CLI is installed but no engine config. Run `/setup-gbrain` first."
-- **`db-unreachable`**: STOP. Print `gbrain_local_status_detail` from the
-  detect JSON verbatim (for example "database host unreachable (ENOTFOUND
-  db.example.com); your gbrain config is unchanged. Fix: check network or
-  VPN, then re-run /sync-gbrain."). Never suggest moving the config aside.
-- **`broken-config`** OR **`broken-db`**: STOP with a clear message:
+- **`ok`**: ステップ 2 へ通常どおり進みます。
+- **`timeout`**: ステップ 2 へ進みます。エンジンはおそらく正常ですが、応答が遅い状態です(プーラーの接続が冷えている)。ユーザーに 1 行で伝えます: 「エンジンのプローブがタイムアウトしました(15 秒超)。続行します。プーラーが遅い場合は `GSTACK_GBRAIN_PROBE_TIMEOUT_MS` を大きくしてください。」これは設定の破損として扱わないでください。
+- **`thin-client`**: ステップ 2 へ進みます。このマシンはリモート HTTP の MCP ブレインのシンクライアントです。設計上ローカルエンジンはありません。コード、メモリ、dream の各ステージは、シンクライアントである理由を付けてスキップされます(コードのインデックス作成はブレインサーバーで行われ、メモリはリモートブレインのアーティファクトのプルで同期されます)。ローカルで実行されるのは brain-sync の push のみです。ユーザーに 1 行で伝えます: 「リモートブレインのシンクライアントです。ローカルステージは設計によりスキップされます。ブレインへの問い合わせはリモート MCP 経由で動作します(到達性は使用時に確認され、ここではプローブしません)。」これを設定破損向けの修復手順に流さないでください。
+- **`engine-locked`**: 停止します。「ローカルの PGLite データベースが使用中です。通常は、ライブの Claude セッションが `gbrain serve` を保持しているためです。そのプロセスを停止するか、ライブセッションの外で `/sync-gbrain` を実行してから再試行してください。これは競合の原因を特定するだけで、PGLite の単一プロセス制限を取り除くものではありません。」
+- **`no-cli`**: 停止します。「ローカルの gbrain CLI がインストールされていません。先に `/setup-gbrain` を実行してください。」
+- **`missing-config`** かつ `gbrain_mcp_mode == "remote-http"`: ユーザーに伝えます。「ブレインへの問い合わせ(`mcp__gbrain__*` ツール)はリモート MCP 経由で動作しますが、シンボルのコード検索にはローカルの PGLite が必要です。`/setup-gbrain` を実行し、ローカルのコード検索の質問(Path 4 のステップ 4d)で「Yes」を選ぶか、次のコマンドを直接実行してください: `gbrain init --pglite --json --embedding-model voyage:voyage-code-3 --embedding-dimensions 1024`(`VOYAGE_API_KEY` が設定されていない場合は voyage 用のフラグを外してください)。コードステージなしで続行します。」
+  その後ステップ 2 へ進みます。オーケストレーターの `runCodeImport()` と `runMemoryIngest()` は SKIP を返し、`runBrainSyncPush()` のみが実行されます。中止しないでください。
+- **`missing-config`** かつ `gbrain_mcp_mode != "remote-http"`: 停止します。「ローカルの gbrain CLI はインストールされていますが、エンジンの設定がありません。先に `/setup-gbrain` を実行してください。」
+- **`db-unreachable`**: 停止します。detect の JSON にある `gbrain_local_status_detail` をそのまま出力してください(例: 「database host unreachable (ENOTFOUND db.example.com); your gbrain config is unchanged. Fix: check network or VPN, then re-run /sync-gbrain.」)。設定ファイルを脇にずらすことは決して提案しないでください。
+- **`broken-config`** または **`broken-db`**: 明確なメッセージを出して停止します:
   ```
   Local gbrain config at ~/.gbrain/config.json points at an unreachable
   engine (status: {gbrain_local_status}). Two options:
@@ -181,25 +110,15 @@ BEFORE invoking the orchestrator:
           --embedding-dimensions 1024   (drop voyage flags if VOYAGE_API_KEY unset)
   Re-run /sync-gbrain after.
   ```
-  Do NOT continue — the orchestrator would skip code+memory and only run
-  brain-sync, which is a degraded state the user should fix explicitly.
+  続行しないでください。オーケストレーターはコードとメモリをスキップし brain-sync のみを実行しますが、それはユーザーが明示的に修正すべき劣化状態です。
 
-This pre-flight short-circuits the orchestrator before it spends ~80ms
-probing the engine again. The orchestrator independently runs the same
-classifier for defense-in-depth, but Step 1.5's STOP is where the user
-gets the actionable remediation message.
+この事前チェックにより、オーケストレーターが約 80ms かけて再度エンジンをプローブする手間が省けます。オーケストレーターも防御的に同じ分類器を独立して実行しますが、ユーザーが実行可能な修復メッセージを受け取るのはステップ 1.5 での停止時です。
 
 ---
 
-## Step 1.6: Transcript consent
+## Step 1.6: トランスクリプトの同意
 
-Claude Code and Codex session transcripts are ingested only when
-`transcript_ingest_mode` is `recent` (last 90 days), `all` (all history) or
-`new@<UTC time>` (only sessions that start after it), optionally narrowed to
-the repos in `transcript_repos` (the value then ends in `+repos`).
-Skip this step for `--code-only`, `--no-memory`, `--dry-run`,
-`--refresh-cache` and `--audit`. Otherwise check whether the user chose;
-`has` tells an absent key from the `off` default that `get` prints:
+Claude Code と Codex のセッショントランスクリプトは、`transcript_ingest_mode` が `recent`(直近 90 日)、`all`(全履歴)、または `new@<UTC 時刻>`(その時刻以降に開始されたセッションのみ)の場合にのみ取り込まれます。必要に応じて `transcript_repos` に指定されたリポジトリに絞り込むこともできます(その場合の値は `+repos` で終わります)。`--code-only`、`--no-memory`、`--dry-run`、`--refresh-cache`、`--audit` の場合はこのステップをスキップします。それ以外の場合は、ユーザーが選択済みかどうかを確認します。`has` は、`get` が出力する `off` の既定値と、キーが存在しないことを区別するために使います:
 
 ```bash
 _TIM=$(~/.claude/skills/gstack/bin/gstack-config get transcript_ingest_mode 2>/dev/null || true)
@@ -215,38 +134,21 @@ else
 fi
 ```
 
-A stored value (`recent`, `all`, `off`, `new@<time>`, any with `+repos`):
-continue to Step 2 without asking. On `ask`, with
-`SESSION_KIND: spawned` or `headless`, do not ask and store nothing: the sync
-skips transcripts and prints how to choose. In an interactive session, ask
-once. Count first (`--sources transcript` counts sessions that are not
-consented yet):
+保存済みの値(`recent`、`all`、`off`、`new@<time>`、`+repos` 付きのいずれか)がある場合は、質問せずにステップ 2 へ進みます。`ask` の場合で、`SESSION_KIND: spawned` または `headless` のときは、質問せず何も保存しません。このときの同期はトランスクリプトをスキップし、選び方を表示します。対話セッションの場合は一度だけ質問します。まず件数を数えます(`--sources transcript` は、まだ同意していないセッションを数えます):
 
 ```bash
 bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-memory-ingest.ts --probe --sources transcript
 bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-memory-ingest.ts --probe --sources transcript --all-history
 ```
 
-If both report `Total files in window: 0`, ask yes/no: "Ingest coding-agent
-sessions as they appear?" Yes means `recent`, No stores `off`. Otherwise
-AskUserQuestion: name both sources (Claude Code and Codex sessions from every
-project on this machine that repo policy allows), the counts from the two
-probes, and the destination: the local brain (`gbrain_engine` from Step 1:
-PGLite or Supabase) or, in remote-http mode, the artifacts repo the remote
-brain pulls from. Say that a full sync of a large history can take a while
-and skills stay usable meanwhile. Options:
+両方が `Total files in window: 0` を報告した場合は、はい／いいえで尋ねます: 「コーディングエージェントのセッションを、作成され次第取り込みますか?」はいなら `recent`、いいえなら `off` を保存します。それ以外の場合は AskUserQuestion で次を提示します。ソースとして Claude Code と Codex の両方のセッションを挙げ(リポジトリポリシーが許可する、このマシン上のすべてのプロジェクトが対象であること)、2 つのプローブの件数、そして保存先(ステップ 1 の `gbrain_engine`、すなわち PGLite または Supabase のローカルブレイン。remote-http モードでは、リモートブレインがプルするアーティファクトリポジトリ)を伝えます。大量の履歴の同期には時間がかかること、その間もスキルは使えることも伝えます。選択肢:
 
-- A) Yes, last 90 days (`recent`)
-- B) Yes, all history (`all`)
-- C) Yes, only new sessions starting now (`new`)
-- E) No, never ingest transcripts (`off`)
+- A) はい、直近 90 日(`recent`)
+- B) はい、全履歴(`all`)
+- C) はい、今から開始するセッションのみ(`new`)
+- E) いいえ、トランスクリプトは一切取り込まない(`off`)
 
-On any yes (the yes/no form included), ask a second, separate question:
-"Which repos' sessions?" A) every project repo your repo policy allows, or
-B) only this repo (offer B only when `git remote get-url origin` succeeds).
-Store nothing until both answers are known; a cancel in between stores
-nothing. Then store the scope, then the value (never the letter; `new`
-stores `new@` plus the current UTC time), and continue to Step 2:
+いずれかに「はい」と答えた場合(はい／いいえの形式でも同様)は、別の質問をします: 「どのリポジトリのセッションですか?」 A) リポジトリポリシーが許可するすべてのプロジェクトのリポジトリ、または B) このリポジトリのみ(`git remote get-url origin` が成功する場合のみ B を提示)。両方の答えが揃うまでは何も保存しません。その途中でキャンセルされた場合も何も保存しません。その後、範囲を保存し、次に値を保存します(文字の選択肢ではなく値そのものを保存します。`new` の場合は `new@` に現在の UTC 時刻を付けて保存します)。そのうえでステップ 2 へ進みます:
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-config set transcript_repos "$(git remote get-url origin)"  # only this repo
@@ -254,37 +156,27 @@ stores `new@` plus the current UTC time), and continue to Step 2:
 ~/.claude/skills/gstack/bin/gstack-config set transcript_ingest_mode <recent|all|off|new@$(date -u +%Y-%m-%dT%H:%M:%SZ)>
 ```
 
-The sync prints what it will ingest, in words; repeat that line to the user.
+同期では取り込まれる内容が言葉で表示されます。その行をユーザーにそのまま伝えてください。
 
-Other memory types sync whatever the answer. Details:
-`setup-gbrain/memory.md#transcripts`.
+他のメモリ種類は、回答に関わらず同期されます。詳細は `setup-gbrain/memory.md#transcripts` を参照してください。
 
 ---
 
-## Step 2: Run the orchestrator
+## Step 2: オーケストレーターの実行
 
-Pass the user's flags to the orchestrator as `<user-args>`, unchanged (empty for a
-plain run). Use them only when every word is one of `--incremental`, `--full`,
-`--dry-run`, `--quiet`, `--no-code`, `--no-memory`, `--no-brain-sync`,
-`--code-only`, `--dream`, `--no-dream`, `--allow-reclone`,
-`--prune-gone-worktrees`, or `--sources` followed by one comma-separated list of
-lowercase memory types (or `all`). Any other value is not used: do not run the
-command; tell the user which value was rejected.
+ユーザーのフラグを `<user-args>` としてオーケストレーターに渡します。変更は加えません(素の実行の場合は空です)。引数は、すべての単語が次のいずれかである場合にのみ使用します: `--incremental`、`--full`、`--dry-run`、`--quiet`、`--no-code`、`--no-memory`、`--no-brain-sync`、`--code-only`、`--dream`、`--no-dream`、`--allow-reclone`、`--prune-gone-worktrees`、または `--sources` の後に続く小文字のメモリ種類のカンマ区切りリスト(または `all`)。それ以外の値は使用しません。コマンドを実行せず、どの値が拒否されたかをユーザーに伝えてください。
 
 ```bash
 bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-gbrain-sync.ts <user-args>
 ```
 
-The orchestrator runs three stages: code → memory → brain-sync. Each stage failure is non-fatal; subsequent stages
-still run. State is persisted to `~/.gstack/.gbrain-sync-state.json` via
-tmp-file + atomic rename. Concurrent runs are blocked by a lock file at
-`~/.gstack/.sync-gbrain.lock` (5-min stale-takeover).
+オーケストレーターは 3 つのステージを順に実行します: コード → メモリ → brain-sync。各ステージの失敗は致命的ではなく、後続のステージも実行されます。状態は `~/.gstack/.gbrain-sync-state.json` に、一時ファイル経由のアトミックなリネームで保存されます。同時実行は `~/.gstack/.sync-gbrain.lock` のロックファイルで阻止されます(5 分経過したロックは乗っ取り可能)。
 
 ---
 
-## Step 3: Code-index health check
+## Step 3: コードインデックスの健全性チェック
 
-After the sync run, verify the cwd source registration and its page count:
+同期の実行後、カレントディレクトリのソース登録とそのページ数を確認します:
 
 ```bash
 SOURCE_JSON=$(bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-gbrain-read-capability.ts --source-only 2>/dev/null)
@@ -293,58 +185,33 @@ PAGES=$(printf '%s' "$SOURCE_JSON" | jq -er 'if .status=="source" and (.page_cou
 echo "cwd source: $SOURCE_ID, page_count: $PAGES"
 ```
 
-`--source-only` validates the pretty state schema, writer, successful code stage,
-real worktree path, `.gbrain-source` pin, and gbrain's registration path before
-returning its safe integer page count. It does not read any page. An empty source
-or page count is **unknown**, not zero: report WARN and do not offer a full
-reindex on that evidence. If `PAGES` is proven `0` AND the user did NOT
-pass `--no-code` AND mode was not `--full`, AskUserQuestion via the format in
-the preamble:
+`--source-only` は、状態ファイルのスキーマ(pretty 形式)、書き込み元、成功したコードステージ、実際のワークツリーのパス、`.gbrain-source` のピン、gbrain 側の登録パスを検証したうえで、安全な整数のページ数を返します。ページの内容は読みません。ソースが空であるか、ページ数が取得できない場合は**不明**であり、ゼロとはみなしません。その場合は WARN を報告し、その根拠で完全な再インデックスを提案しないでください。`PAGES` が確実に `0` であり、かつユーザーが `--no-code` を指定しておらず、モードも `--full` でない場合は、プリアンブルの形式に従って AskUserQuestion を行います:
 
-> D1 — This repo has 0 indexed pages in gbrain. Run a full code reindex now?
+> D1 — このリポジトリは gbrain に 0 件のページがインデックスされています。今すぐコードの完全再インデックスを実行しますか?
 >
-> ELI10: gbrain hasn't indexed this repo's code yet. The semantic search
-> tools (`gbrain search`, `code-def`, `code-refs`) will return nothing
-> until we run a full pass. Takes ~25-35 minutes on a big repo.
+> ELI10: gbrain はまだこのリポジトリのコードをインデックスしていません。完全な処理が一度終わるまで、セマンティック検索ツール(`gbrain search`、`code-def`、`code-refs`)は何も返しません。大規模リポジトリでは約 25〜35 分かかります。
 >
-> Recommendation: A — the brain is unusable for code search until indexed,
-> and Step 2 of this skill already verified gbrain is configured correctly.
+> 推奨: A — インデックスが作られるまでブレインはコード検索に使えず、このスキルのステップ 2 で gbrain が正しく設定されていることは既に確認済みです。
 >
-> Note: options differ in kind, not coverage — no completeness score.
+> 注: 選択肢は種類が異なるだけで、網羅性の違いではありません。完全性のスコアはありません。
 >
-> A) Run /sync-gbrain --full now (recommended)
-> B) Skip — I'll run it later
+> A) 今すぐ /sync-gbrain --full を実行する(推奨)
+> B) スキップ — あとで自分で実行します
 
-If A: re-invoke the orchestrator with `--full --code-only`.
-If B: continue to Step 4 with the empty-corpus state recorded.
+A の場合: `--full --code-only` を指定してオーケストレーターを再実行します。
+B の場合: 空のコーパスの状態を記録したうえで、ステップ 4 へ進みます。
 
 ---
 
-## Step 3.5: Call-graph health check (offer `--dream`)
+## Step 3.5: コールグラフの健全性チェック(`--dream` を提案)
 
-`gbrain code-callers` / `code-callees` (who-calls-this / what-this-calls) return
-`count: 0` until a `gbrain dream` cycle runs the `resolve_symbol_edges` phase for
-this source — not done by the code import in Step 2.
+`gbrain code-callers` / `code-callees`(誰がこれを呼んでいるか / これが何を呼んでいるか)は、このソースに対して `gbrain dream` サイクルが `resolve_symbol_edges` フェーズを実行するまで `count: 0` を返します。これはステップ 2 のコードのインポートでは行われません。
 
-**One hard prerequisite:** building a call graph requires this source's active
-**schema pack to extract code symbols** (the `extract_atoms` phase). On a pack
-that doesn't declare it (e.g. `gbrain-base` / `gbrain-base-v2`), a `dream` cycle
-completes but `resolve_symbol_edges` matches nothing — the graph stays empty no
-matter how many times you run it. So "build the call graph" is only meaningful on
-a code-aware pack. The `--dream` stage detects this and reports it honestly
-(a WARN row) rather than claiming a build that didn't happen. `code-def` /
-`code-refs` need the same symbol extraction; they are NOT free "direct lookups"
-on a non-code-aware pack.
+**必須の前提条件が 1 つあります:** コールグラフの構築には、このソースのアクティブな**スキーマパックがコードのシンボルを抽出できる**必要があります(`extract_atoms` フェーズ)。`gbrain-base` / `gbrain-base-v2` のように、それを宣言していないパックでは、`dream` サイクルは完了しても `resolve_symbol_edges` は何にも一致せず、実行回数に関係なくグラフは空のままです。したがって「コールグラフを構築する」ことに意味があるのは、コード対応のパックを使っている場合だけです。`--dream` ステージはこれを検出し、構築したかのように装うのではなく、正直に報告します(WARN の行)。`code-def` / `code-refs` も同じシンボル抽出を必要とするため、非対応のパックでは無料で使える直接検索ではありません。
 
-A source can also hold no code pages at all while reporting a healthy page count
-(a source added outside gstack syncs with gbrain's default markdown strategy).
-On gbrain 0.60 or later, `code-def` for a symbol that cannot exist answers
-`.status`: `ready` (the source holds code), `out_of_scope` (it holds none, so
-`--dream` cannot help), or nothing usable on older gbrain or an error.
+ページ数が正常に見えても、コードのページがまったくないソースもあり得ます(gstack の外から追加されたソースは、gbrain の既定のマークダウン戦略で同期されます)。gbrain 0.60 以降では、存在し得ないシンボルに対する `code-def` は `.status` として次のいずれかを返します: `ready`(ソースにコードがある)、`out_of_scope`(コードがないため `--dream` では解決できない)、または古い gbrain やエラーの場合は使用可能な結果なし。
 
-Detect whether this source's call graph is built via doctor's `cycle_freshness`
-check, matching the cwd `SOURCE_ID` literally. `doctor --fast` skips the DB
-checks that carry it, so this reads `--scope=brain` (DB checks, no skill walk):
+このソースのコールグラフが構築済みかどうかは、doctor の `cycle_freshness` チェックで検出します。CWD の `SOURCE_ID` と完全一致で照合します。`doctor --fast` は、このチェックを含む DB チェックを省略するため、`--scope=brain`(DB チェックを実行し、スキルの走査は行わない)で読み取ります:
 
 ```bash
 SOURCE_JSON=$(bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-gbrain-read-capability.ts --source-only 2>/dev/null)
@@ -378,80 +245,45 @@ fi
 echo "code scope for $SOURCE_ID: $CODE_SCOPE"
 ```
 
-If `CODE_SCOPE == out_of_scope`, do not offer a build: report "this source holds
-no code pages (it syncs with gbrain's markdown strategy), so a call-graph build
-cannot help; re-sync it with `gbrain sync --strategy code --source <id>` to index
-its code" and continue to Step 4.
+`CODE_SCOPE == out_of_scope` の場合は、構築を提案しないでください。「このソースにはコードのページがありません(gbrain のマークダウン戦略で同期されています)。そのため、コールグラフの構築では解決できません。コードをインデックスするには `gbrain sync --strategy code --source <id>` で再同期してください」と報告し、ステップ 4 へ進みます。
 
-If `CYCLE == never` AND `CODE_SCOPE` is `ready` or `unknown` AND the user did NOT
-pass `--dream`/`--full` AND Step 3 `PAGES > 0`, AskUserQuestion via the format in
-the preamble:
+`CYCLE == never` かつ `CODE_SCOPE` が `ready` または `unknown` で、かつユーザーが `--dream`/`--full` を指定しておらず、ステップ 3 の `PAGES > 0` である場合は、プリアンブルの形式に従って AskUserQuestion を行います:
 
-> D2 — This repo's call graph isn't built. Build it now?
+> D2 — このリポジトリのコールグラフはまだ構築されていません。今すぐ構築しますか?
 >
-> ELI10: `gbrain code-callers`/`code-callees` (who calls this function / what it
-> calls) return nothing until the `resolve_symbol_edges` phase runs for this
-> source. `gbrain dream --source <this source> --phase resolve_symbol_edges`
-> runs only that phase (scoped to this worktree's code, takes a few minutes,
-> not the full ~35-minute maintenance cycle). It only produces a graph if this
-> source's schema pack extracts code symbols; if it doesn't, the run completes
-> but the graph stays empty and the dream row will say so.
+> ELI10: `gbrain code-callers`/`code-callees`(この関数を呼んでいるもの / この関数が呼んでいるもの)は、このソースに対して `resolve_symbol_edges` フェーズが実行されるまで何も返しません。`gbrain dream --source <このソース> --phase resolve_symbol_edges` は、そのフェーズだけを実行します(このワークツリーのコードに範囲を限定し、数分で完了します。約 35 分の完全なメンテナンスサイクルではありません)。このソースのスキーマパックがコードのシンボルを抽出する場合にのみグラフが生成されます。抽出しない場合は、実行は完了してもグラフは空のままで、dream の行にその旨が表示されます。
 >
-> Recommendation: A — call-graph queries return 0 until this runs, and the code
-> index is already populated. If A comes back as a WARN ("pack does not extract
-> code symbols"), the fix is a code-aware schema pack, not re-running dream.
+> 推奨: A — このフェーズが実行されるまでコールグラフへの問い合わせは 0 件を返し、コードのインデックスはすでに作成されています。A の結果が WARN(「パックがコードシンボルを抽出しない」)となった場合は、dream を再実行するのではなく、コード対応のスキーマパックに切り替える必要があります。
 >
-> Note: options differ in kind, not coverage — no completeness score.
+> 注: 選択肢は種類が異なるだけで、網羅性の違いではありません。完全性のスコアはありません。
 >
-> A) Run /sync-gbrain --dream now (recommended)
-> B) Skip — I'll run it later
+> A) 今すぐ /sync-gbrain --dream を実行する(推奨)
+> B) スキップ — あとで自分で実行します
 
-If A: re-invoke the orchestrator with `--dream --code-only` (skips memory +
-brain-sync; the dream stage still runs because it's gated on `--dream`). Then
-report the dream stage's ACTUAL row — `OK call graph built (N edges)` vs a
-`WARN` that names why the graph is still empty (non-code-aware pack, missing
-embedding key, or 0 edges matched). Do not claim success on a WARN.
-If B: continue to Step 4 with the call-graph-not-built state recorded for the
-verdict.
+A の場合: `--dream --code-only` を指定してオーケストレーターを再実行します(メモリと brain-sync はスキップされますが、dream ステージは `--dream` によって実行されます)。その後、dream ステージの**実際の**行を報告します。`OK call graph built (N edges)` の場合と、グラフがまだ空である理由を示す `WARN`(非対応のパック、埋め込みキーの欠落、または一致した 0 エッジ)の場合があります。WARN の場合に成功したと主張しないでください。
+B の場合: コールグラフ未構築の状態を記録したうえで、判定のためにステップ 4 へ進みます。
 
-If `CYCLE == completed` or `unknown`, do not prompt — but note `completed` means
-only that a cycle has run, not that edges exist (a non-code-aware pack reports
-`completed` with an empty graph). Step 5's verdict row surfaces the real state.
+`CYCLE == completed` または `unknown` の場合は、確認せずに進みます。ただし、`completed` は「サイクルが実行されたこと」しか意味しない点に注意してください。エッジが存在することを意味するわけではありません(非対応のパックでは、グラフが空のまま `completed` を報告します)。実際の状態は、ステップ 5 の判定の行に表示されます。
 
 ---
 
-## Step 4: Refresh `## GBrain Search Guidance` block in CLAUDE.md
+## Step 4: CLAUDE.md の `## GBrain Search Guidance` ブロックを更新する
 
-Capability check:
+機能チェック:
 
 ```bash
 bun --no-env-file --config=/dev/null run ~/.claude/skills/gstack/bin/gstack-gbrain-read-capability.ts <user-args>
 ```
 
-`<user-args>` are the same checked flags this /sync-gbrain invocation passed to
-Step 2, unchanged (empty for a plain run). The helper needs no other input: run it once
-and use its JSON result; do not inspect its source or the gbrain CLI first.
+`<user-args>` は、この /sync-gbrain の呼び出しでステップ 2 に渡されたチェック済みのフラグと同じものを、変更せずに使います(素の実行の場合は空です)。ヘルパーに必要な入力はこれだけです。一度だけ実行し、その JSON の結果を使ってください。先にソースや gbrain の CLI を調べる必要はありません。
 
-The helper reports JSON `status: ready` only after the successful code sync's
-source and real worktree match `.gbrain-source`, the source registration points
-to that worktree, and a bounded, source-scoped list/get returns the same page.
-It never creates or deletes a page. A `get` may update gbrain's internal
-retrieval metadata; the guarantee is no page or source mutation, not zero
-internal writes. `status: unknown` (including transient CLI errors, stale state,
-or an unverified response) is NOT evidence that the brain is unusable. A
-`status: skipped` result for `--no-code`, `--dry-run`, `--refresh-cache`, or
-`--audit` means no code-read probe was attempted. Do not run a write probe,
-switch to another source, or claim a successful read.
+ヘルパーは、成功したコード同期のソースと実際のワークツリーが `.gbrain-source` と一致し、ソースの登録がそのワークツリーを指し、かつソースに限定された有界な list/get が同じページを返した後にのみ、JSON で `status: ready` を報告します。ページの作成や削除は行いません。`get` は gbrain 内部の検索メタデータを更新する場合がありますが、保証されるのはページやソースを変更しないことであり、内部での書き込みがゼロであることではありません。`status: unknown`(一時的な CLI エラー、古い状態、または検証されていない応答を含む)は、ブレインが使えないという証拠ではありません。`status: skipped` は、`--no-code`、`--dry-run`、`--refresh-cache`、`--audit` のいずれかの場合に返され、コードの読み取りプローブが試みられていないことを意味します。書き込みプローブを実行したり、別のソースに切り替えたり、読み取りに成功したと主張したりしないでください。
 
-Then update CLAUDE.md based on the helper's status:
+そのうえで、ヘルパーの status に基づいて CLAUDE.md を更新します。
 
-**If `status=ready`** — write or update the block. Idempotent: find the
-HTML-comment-delimited block; replace its body if it exists; append at the
-end of CLAUDE.md if it doesn't. NEVER duplicate. Block is machine-AGNOSTIC
-(no engine, no page counts, no last-sync time — those are in the existing
-`## GBrain Configuration` block).
+**`status=ready` の場合** — ブロックを書き込むか更新します。冪等に行います。HTML コメントで区切られたブロックを探し、存在すれば本文を置き換え、存在しなければ CLAUDE.md の末尾に追加します。決して重複させないでください。ブロックの内容はマシンに依存しません(エンジン、ページ数、最終同期時刻は含みません。それらは既存の `## GBrain Configuration` ブロックにあります)。
 
-Verbatim block content (copy exactly):
+ブロックの内容(そのままコピーすること):
 
 ```markdown
 ## GBrain Search Guidance (configured by /sync-gbrain)
@@ -510,38 +342,21 @@ sync code walk for them requires an explicit `--allow-reclone` opt-in.
 <!-- gstack-gbrain-search-guidance:end -->
 ```
 
-Read CLAUDE.md once and compute its new content. The replacement target is
-the entire region from `<!-- gstack-gbrain-search-guidance:start -->` through
-`<!-- gstack-gbrain-search-guidance:end -->`. If those markers are missing,
-search for `## GBrain Search Guidance (configured by /sync-gbrain)` heading
-and replace from there to the next `## ` or EOF. If no heading exists, append
-the entire block at the end of CLAUDE.md.
+CLAUDE.md を読み込み、新しい内容を計算します。置き換え対象は `<!-- gstack-gbrain-search-guidance:start -->` から `<!-- gstack-gbrain-search-guidance:end -->` までの領域全体です。これらのマーカーがない場合は、`## GBrain Search Guidance (configured by /sync-gbrain)` という見出しを探し、そこから次の `## ` または EOF までを置き換えます。見出しもない場合は、ブロック全体を CLAUDE.md の末尾に追加します。
 
-**Atomic write (the only write path; do not Edit CLAUDE.md in place):** Write
-the complete new content to `CLAUDE.md.sync-gbrain.tmp` beside it, then `mv` it
-over CLAUDE.md, so a crash mid-write never leaves the file half-modified. Verify
-the block count in the same Bash call as the `mv`, then go to Step 5.
+**アトミックな書き込み(唯一の書き込み経路。CLAUDE.md を直接 Edit しないこと):** 新しい内容の全体を、隣接する `CLAUDE.md.sync-gbrain.tmp` に書き込み、その後 `mv` で CLAUDE.md の上に移動します。こうすると、書き込み途中でクラッシュしても、ファイルが半端に変更された状態にはなりません。同じ Bash 呼び出し内で、`mv` の直後にブロックの数を検証してから、ステップ 5 へ進みます。
 
-**If `status=unknown`** — preserve the existing guidance block, if any, and
-report the helper's reason as WARN with advice to retry `/sync-gbrain` or the
-read check when the transient failure clears. Do not install new guidance on
-an unknown result or remove the existing guidance merely because this read
-could not verify it. The `## GBrain Configuration` block stays in place.
+**`status=unknown` の場合** — 既存のガイダンスブロックがあればそれを保持し、ヘルパーの理由を WARN として報告します。一時的な失敗が解消されたら /sync-gbrain または読み取りチェックを再試行するよう助言してください。unknown の結果では新しいガイダンスをインストールしないでください。この読み取りで検証できなかったからといって、既存のガイダンスを削除しないでください。`## GBrain Configuration` ブロックはそのまま残します。
 
-**If `status=skipped`** — leave guidance unchanged. Report that code readiness
-was not probed in this mode, not that it passed or failed.
+**`status=skipped` の場合** — ガイダンスは変更しません。コードの準備状態はこのモードではプローブされなかったと報告し、合格または不合格とは報告しないでください。
 
-Do NOT crash if CLAUDE.md is missing or unwritable — log a warning and
-continue.
+CLAUDE.md が存在しない、または書き込めない場合でも**クラッシュしないでください**。警告を記録して続行します。
 
 ---
 
-## Step 5: Verdict block (idempotent doctor output)
+## Step 5: 判定ブロック(冪等なドクター出力)
 
-Print a status block matching `/setup-gbrain` Step 10 conventions. Each row
-is `[OK]/[FIX]/[WARN]/[ERR]`. Reuse `gbrain doctor --json --fast` for
-informational rows but DO NOT gate the guidance block on doctor (doctor
-fails for reasons unrelated to code search).
+`/setup-gbrain` のステップ 10 の慣例に合わせたステータスブロックを出力します。各行は `[OK]/[FIX]/[WARN]/[ERR]` のいずれかです。情報の行には `gbrain doctor --json --fast` を再利用しますが、ガイダンスブロックの可否を doctor の結果で制御しないでください(doctor はコード検索とは無関係な理由で失敗することがあります)。
 
 ```
 gbrain status: GREEN
@@ -560,56 +375,39 @@ gbrain status: GREEN
 Run `/sync-gbrain` again any time gbrain feels off; safe and idempotent.
 ```
 
-The **Call graph** row reports the most authoritative signal available:
+**Call graph** の行は、利用可能な最も信頼できるシグナルを報告します。
 
-1. **If a dream stage ran this invocation** (`--dream`, or `--full` auto-build),
-   mirror its row verbatim — it's the ground truth for this run:
+1. **このターンで dream ステージが実行された場合**(`--dream`、または `--full` による自動構築)は、その行をそのまま転記します。これがこの実行の正確な結果です。
    - `OK   <N> edges resolved (code-callers/callees live)`
    - `WARN dream ran but this source's schema pack does not extract code symbols
      — switch to a code-aware pack (\`gbrain schema use <pack>\`)`
    - `WARN dream ran but the embed phase failed (missing embedding key)`
    - `WARN dream ran but resolved 0 edges (no code symbols matched yet)`
-2. **Otherwise** fall back to the `CYCLE` value from Step 3.5, with honest wording
-   (a completed cycle proves a cycle ran, NOT that edges exist):
+2. **それ以外の場合**は、ステップ 3.5 の `CYCLE` の値にフォールバックします。サイクルが完了したことは、エッジが存在することを証明しない点を、正直な表現で示します(完了したサイクルは、サイクルが実行されたことを示すだけで、エッジの存在は示しません)。
    - `completed` → `OK   cycle complete — code-callers/callees live IF this source's pack extracts code symbols`
    - `never` → `WARN call graph not built — run /sync-gbrain --dream`
    - `unknown` → `WARN could not probe call graph (doctor unavailable) — run /sync-gbrain --dream if code-callers returns 0`
 
-Any `WARN` Call graph row flips the verdict to YELLOW.
+Call graph の行に `WARN` がある場合は、判定を YELLOW に切り替えます。
 
-If any row is YELLOW or RED, the verdict line says so and the failing rows
-surface a one-line next action. An unknown read gives `Capability ...... WARN
-source-scoped read unverified; guidance preserved — retry /sync-gbrain` and
-flips the verdict to YELLOW, not RED.
-For a skipped probe, show `Capability ...... WARN  code read not probed in
-this mode; guidance unchanged` and do not print a GREEN capability verdict.
-A `never`/`unknown` Call graph row flips the verdict to YELLOW.
+いずれかの行が YELLOW または RED の場合は、判定の行でその旨を示し、失敗した行には次の一手を 1 行で添えてください。未検証の読み取りの場合は `Capability ...... WARN source-scoped read unverified; guidance preserved — retry /sync-gbrain` と表示し、判定は RED ではなく YELLOW にします。
+プローブがスキップされた場合は、`Capability ...... WARN  code read not probed in this mode; guidance unchanged` と表示し、Capability について GREEN の判定は出力しないでください。
+`never`/`unknown` の Call graph の行は、判定を YELLOW に切り替えます。
 
 ---
 
-## Concurrency note
+## 同時実行に関する注記
 
-This skill is safe to run concurrently from multiple terminals on the same
-machine. The orchestrator acquires a lock at `~/.gstack/.sync-gbrain.lock` before
-any state-file or CLAUDE.md mutation and exits with code 2 if another sync is
-in flight. Stale locks (process died) auto-clear after 5 minutes.
+本スキルは、同じマシン上の複数のターミナルから同時に実行しても安全です。オーケストレーターは、状態ファイルや CLAUDE.md を変更する前に `~/.gstack/.sync-gbrain.lock` のロックを取得し、別の同期が進行中であれば終了コード 2 で終了します。古いロック(プロセスが異常終了した場合)は 5 分後に自動的に解除されます。
 
-## Cross-machine note
+## マシンをまたぐ場合の注記
 
-The `## GBrain Search Guidance` block is committed to the repo's CLAUDE.md
-and travels with `git push`/`git pull` — NOT through `~/.gstack/.brain-allowlist`
-(which is for `~/.gstack/` brain-sync only). On a different machine with a synced
-CLAUDE.md but no local gbrain, /sync-gbrain reports an unknown read and
-preserves the block rather than deleting committed instructions based on a
-transient or machine-local failure. Agents must not treat unknown as ready.
+`## GBrain Search Guidance` ブロックはリポジトリの CLAUDE.md にコミットされ、`git push`/`git pull` によって伝播します。`~/.gstack/.brain-allowlist`(`~/.gstack/` の brain-sync 専用)を経由するものではありません。ローカルの gbrain がない別のマシンで、CLAUDE.md が同期されている場合、/sync-gbrain は未検証の読み取りを報告し、一時的またはマシン固有の失敗に基づいてコミット済みの指示を削除せず、ブロックを保持します。エージェントは unknown を ready として扱ってはいけません。
 
-## Status reporting
+## ステータスの報告
 
-End with a Completion Status (per the preamble protocol):
-- **DONE** — all stages green, CLAUDE.md guidance block present, verdict GREEN.
-- **DONE_WITH_CONCERNS** — sync ran but at least one stage failed or capability
-  read was unverified. List which and preserve retry guidance.
-- **BLOCKED** — could not acquire lock, gbrain not on PATH, or per-repo policy
-  is deny. State the blocker.
-- **NEEDS_CONTEXT** — /setup-gbrain has not been run, or `gbrain doctor` shows
-  a state that requires user decision (e.g., engine migration).
+プリアンブルのプロトコルに従い、完了ステータスを最後に出力します:
+- **DONE** — すべてのステージが正常で、CLAUDE.md のガイダンスブロックが存在し、判定が GREEN。
+- **DONE_WITH_CONCERNS** — 同期は実行されたが、少なくとも 1 つのステージが失敗したか、機能の読み取りが未検証。どれが該当するかを列挙し、再試行の案内を残してください。
+- **BLOCKED** — ロックを取得できない、gbrain が PATH にない、またはリポジトリごとのポリシーが deny。ブロッカーを明示してください。
+- **NEEDS_CONTEXT** — /setup-gbrain が実行されていない、または `gbrain doctor` がユーザーの判断を必要とする状態(例: エンジンの移行)を示している。

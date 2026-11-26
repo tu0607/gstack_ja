@@ -79,12 +79,24 @@ export function approvedCookieWorkflowSource(source: string): string {
     .replace(/(--- BEGIN FILE "setup-browser-cookies\/SKILL\.md" \(lines )(\d+)-(\d+)(; entrypoint\) ---)/, (_, head, start, end, tail) => `${head}${APPROVED_ENTRYPOINT_START}-${APPROVED_ENTRYPOINT_START + Number(end) - Number(start) - removedEntrypointLines}${tail}`);
 }
 
-export function manualReviewFixture(root = resolve(import.meta.dir, '../..')): EvalTestEntry {
-  const approval = JSON.parse(readFileSync(resolve(root, COOKIE_MANUAL_REVIEW_FILE), 'utf8'));
-  const prompt = approvedCookieWorkflowSource(buildCookieWorkflowJudgeInput(root).prompt);
-  if (createHash('sha256').update(prompt).digest('hex') !== approval.prompt_sha256
-    || Buffer.byteLength(prompt) !== approval.prompt_bytes) {
-    throw new Error('Historical cookie approval fixture no longer reconstructs the exact approved prompt');
+/**
+ * `synthetic: true` is for tests that only need a well-formed manual-review entry (CLI rendering,
+ * summaries). It binds the approval to the current judged prompt instead of reconstructing the
+ * historical English prompt, which a translated checkout cannot reproduce. Off by default so the
+ * reconstruction guard in the manual-review tests keeps its meaning.
+ */
+export function manualReviewFixture(root = resolve(import.meta.dir, '../..'), opts: { synthetic?: boolean } = {}): EvalTestEntry {
+  let approval = JSON.parse(readFileSync(resolve(root, COOKIE_MANUAL_REVIEW_FILE), 'utf8'));
+  let prompt: string;
+  if (opts.synthetic) {
+    prompt = buildCookieWorkflowJudgeInput(root).prompt;
+    approval = { ...approval, prompt_sha256: createHash('sha256').update(prompt).digest('hex'), prompt_bytes: Buffer.byteLength(prompt) };
+  } else {
+    prompt = approvedCookieWorkflowSource(buildCookieWorkflowJudgeInput(root).prompt);
+    if (createHash('sha256').update(prompt).digest('hex') !== approval.prompt_sha256
+      || Buffer.byteLength(prompt) !== approval.prompt_bytes) {
+      throw new Error('Historical cookie approval fixture no longer reconstructs the exact approved prompt');
+    }
   }
   return {
     name: 'setup-browser-cookies/SKILL.md workflow', suite: 'Cookie setup workflow quality', tier: 'llm-judge',

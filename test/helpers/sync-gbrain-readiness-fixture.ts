@@ -25,8 +25,8 @@ export function createReadinessFixture(kind: 'ready' | 'unknown') {
   const guidance = '<!-- gstack-gbrain-search-guidance:start -->\nExisting search guidance\n<!-- gstack-gbrain-search-guidance:end -->';
   fs.writeFileSync(path.join(workDir, 'CLAUDE.md'), kind === 'unknown' ? `# Fixture\n${guidance}\n` : '# Fixture\n');
   const skill = fs.readFileSync(path.join(root, 'sync-gbrain/SKILL.md'), 'utf8');
-  const start = skill.indexOf('## Step 4: Refresh');
-  const end = skill.indexOf('## Concurrency note', start);
+  const start = skill.indexOf('## Step 4: CLAUDE.md の');
+  const end = skill.indexOf('## 同時実行に関する注記', start);
   if (start < 0 || end < 0) throw new Error('sync-gbrain Step 4/5 fixture anchors missing');
   fs.writeFileSync(path.join(workDir, 'readiness.md'), skill.slice(start, end)
     .replaceAll('~/.claude/skills/gstack/bin/gstack-gbrain-read-capability.ts', path.join(root, 'bin/gstack-gbrain-read-capability.ts')));

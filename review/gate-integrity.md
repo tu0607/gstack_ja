@@ -1,171 +1,76 @@
-# Gate Integrity catalog
+# ゲート整合性カタログ
 
-Adapted from the just-say-no-to-process-porn-and-ceremony skill's
-REWARD-HACKING-CATALOG; pattern names preserved because the names are the
-deterrent. Each entry names the pathology, gstack's countermeasure and where
-it lives. The ids are the `gate` values `/review` and `/ship` record on a
-finding; `gstack-gate-diff` emits the tagged ones in its read-level listing.
-Design and rationale: `docs/designs/HONEST_WORK_GATE_INTEGRITY.md`.
+just-say-no-to-process-porn-and-ceremony スキルの REWARD-HACKING-CATALOG を基にしています。パターン名は、名前そのものが抑止力になるため、そのまま残しています。各項目には、病理、gstack の対策、およびその配置場所を記載しています。ID は、`/review` と `/ship` が所見に記録する `gate` の値です。`gstack-gate-diff` は、タグ付きのものを読み取りレベルの一覧に出力します。設計と根拠: `docs/designs/HONEST_WORK_GATE_INTEGRITY.md`。
 
-Three levels, kept apart everywhere: **listed** (every hunk in a test, CI,
-runner/lint-config, snapshot or golden path; inventory, never a finding),
-**read** (listed hunks that carry a tag or remove lines; the agent reads each
-with one question: *does this relaxation silence the failure it was added
-for, or is it justified by a measurement or decision visible in this diff?*),
-**finding** (a read hunk that fails the question; one human decision per
-finding or coherent group). The control is the human disposition, not the
-detector: the tool inventories and tags, it never judges and never suppresses.
+3 つのレベルを、どこでも区別して扱います。**一覧(listed)**(テスト、CI、ランナー/リント設定、スナップショット、ゴールデンのパスにあるすべてのハンク。目録であり、所見にはならない)、**読み取り(read)**(タグが付いている、または行を削除している一覧のハンク。エージェントは一つの質問で各ハンクを読みます: *この緩和は、それが追加された目的の失敗を黙らせていないか。それとも、この差分の中で見える測定や判断によって正当化されているか。*)、**所見(finding)**(その質問に失敗する読み取りハンク。人間による判断は、所見またはグループごとに一つ)。統制は検出器ではなく、人間の判断です。ツールは一覧化とタグ付けをするだけで、判断も抑制もしません。
 
-## Tagged patterns (emitted by `gstack-gate-diff`)
+## タグ付きのパターン(`gstack-gate-diff` が出力)
 
-### RH-1 — Test removed or disabled
+### RH-1 — テストの削除または無効化
 
-The agent deletes, skips or focuses a test instead of fixing the code it
-guards: a removed `test(`/`it(`/`def test_`/`func Test`/`@Test`, an added
-`.skip`, `.only`, `xit`, `xdescribe`, `@pytest.mark.skip`, `#[ignore]`,
-`t.Skip(`, `@Disabled`, `@Ignore`, `XCTSkip` or `@tag :skip`. The failure the
-test encoded is now invisible and the suite reads green. Countermeasure:
-`gstack-gate-diff` tags the hunk (tags are factual: a test deleted alongside
-its deleted source is tagged and the agent's judgment, not the tool, makes it
-a non-finding); `/review` Gate Integrity reads it and routes a finding to the
-four-option ASK (`review-gate-disposition`); `/ship` core checklist item 2.5
-runs the same scan and the PR body's `Gate edits:` line carries the kept
-reason. The testing specialist's "never accept discarded valid red tests" rule
-stays as the large-diff read.
+エージェントが、テストが守っているコードを直す代わりに、テストを削除、スキップ、または焦点を絞る。削除された `test(`/`it(`/`def test_`/`func Test`/`@Test`、または追加された `.skip`、`.only`、`xit`、`xdescribe`、`@pytest.mark.skip`、`#[ignore]`、`t.Skip(`、`@Disabled`、`@Ignore`、`XCTSkip`、`@tag :skip`。テストがエンコードしていた失敗が見えなくなり、スイートは緑のままになる。対策: `gstack-gate-diff` がハンクにタグを付ける(タグは事実のみを示す。元のソースと一緒に削除されたテストもタグ付けされ、それが所見にならないかの判断はツールではなくエージェントが行う)。`/review` のゲート整合性がそれを読み、四つの選択肢の ASK(`review-gate-disposition`)に回す。`/ship` のコアチェックリストの 2.5 項が同じスキャンを実行し、PR 本文の `Gate edits:` の行が、維持された理由を記録する。テストのスペシャリストの「有効な赤いテストを捨ててはいけない」というルールは、大きな差分の読み取りとして残る。
 
-### RH-2 — Proof-class inflation
+### RH-2 — 証明クラスの水増し
 
-A mock, fixture, replay or static read is presented as the proof a claim
-requires: "verified against production" when a stub answered, "the route is
-reachable" from a grep. No tag can see it; it is a prose check. Countermeasure:
-the preamble's Claims Need Evidence kernel (name the evidence kind you have and
-never substitute one for a kind the question requires), `/review`'s
-Verification of claims, and the Gate Integrity category's instruction to read
-RH-2 from the diff without a tag. `/ship` Step 16's "no completion claims
-without fresh verification evidence" is the publication gate.
+モック、フィクスチャ、リプレイ、または静的な読み取りが、主張に必要な証明として提示される。「本番環境で検証済み」なのに実際にはスタブが応答していた場合、「ルートは到達可能」と grep だけで言う場合など。タグでは見えない。散文のチェックである。対策: プリアンブルの「Claims Need Evidence」の基本ルール(使った根拠の種類を明示し、主張に必要な種類を別のもので代用しない)、`/review` の「Verification of claims」、そしてゲート整合性カテゴリの、タグなしで差分から RH-2 を読むという指示。`/ship` Step 16 の「新しい検証証拠なしに完了を主張しない」が、公開のゲートになる。
 
-### RH-3 — Snapshot or golden regenerated without its owning test
+### RH-3 — 所有するテストなしで再生成されたスナップショットまたはゴールデンファイル
 
-A snapshot (`__snapshots__/<name>.snap`, `*.snap`) changes while its
-conventional owner (the `<name>` test file) has no hunk in the candidate, so
-the new output was accepted rather than tested. `*.golden`, `testdata/` and
-project `Snapshot paths:` are tagged `RH-3?` (owner unresolved): listed and
-read, never inferred. Countermeasure: the tag plus the Gate Integrity read; a
-snapshot updated alongside its source is inventory, never a finding. gstack's
-own SKILL.md goldens regenerate on every template edit by design, so RH-3 is
-never auto-blocked; the PR-body line makes a product snapshot regeneration
-visible to the human.
+スナップショット(`__snapshots__/<name>.snap`、`*.snap`)が変更されているが、その慣例的な所有者(`<name>` のテストファイル)が候補の中にハンクを持たない。つまり、新しい出力はテストされたのではなく、受け入れられた。`*.golden`、`testdata/`、およびプロジェクトの `Snapshot paths:` は `RH-3?`(所有者が未解決)とタグ付けされる。推測せず、一覧化して読むだけ。対策: タグとゲート整合性の読み取り。ソースと一緒に更新されたスナップショットは、目録であり所見にはならない。gstack 自身の SKILL.md のゴールデンは、設計上テンプレートの編集のたびに再生成されるため、RH-3 が自動でブロックされることはない。PR 本文の行によって、製品のスナップショットの再生成が人間から見えるようになる。
 
-### RH-4 — Placeholder committed
+### RH-4 — プレースホルダーのコミット
 
-`todo!()`, `unimplemented!()`, `raise NotImplementedError`, `throw new
-Error("not implemented")` or `pass  # TODO` lands in non-test code and the
-work is reported as done. Countermeasure: the tag admits the hunk through the
-content backstop even in product code; the plan-completion audit's
-`done/changed/partial` classification and `Linked to #N` never auto-close rule
-keep the obligation open.
+`todo!()`、`unimplemented!()`、`raise NotImplementedError`、`throw new Error("not implemented")`、または `pass  # TODO` が、テスト以外のコードに入り、作業が完了したと報告される。対策: タグは、製品コードの中でもコンテンツのバックストップを通してハンクを受け入れる。プラン完了の監査の `done/changed/partial` の分類と、`Linked to #N` は決して自動で閉じないというルールが、この義務を開いたままにする。
 
-### RH-5 — Tautological test
+### RH-5 — トートロジーのテスト
 
-A test that cannot fail: it asserts its own setup, mirrors the implementation
-line for line, or has no negative (nothing it rejects). Not a tag; read from
-the diff. Countermeasure: the test value card's `protects=` / `fails_when=`
-fields and the `no_claim=` sentence (what green does not prove), the
-`/ship` Step 7 authoring gate that rejects cards without them, and the Gate
-Integrity instruction to read RH-5 beside the tagged hunks.
+失敗しえないテスト: 自分のセットアップをアサートする、実装を一行ずつ写す、または否定のケース(拒否するもの)がない。タグではなく、差分から読む。対策: テストの価値カードの `protects=` / `fails_when=` のフィールドと、`no_claim=` の文(緑でも証明されないこと)、それらがないカードを拒否する `/ship` Step 7 の作成ゲート、そして RH-5 をタグ付きのハンクと並べて読むというゲート整合性の指示。
 
-### RH-10 — Spec editing as progress
+### RH-10 — 進捗としての仕様の編集
 
-Acceptance text in the plan or spec is rewritten so the delivered work matches
-it, then the item is reported complete against the new text. Countermeasure:
-`/ship`'s plan-completion audit diffs the plan's acceptance-bearing sections
-against their base-branch or first-commit baseline and reports an edited item
-as `ACCEPTANCE_EDITED`, never folded into `CHANGED`; the original obligation is
-still audited and the PR body names the scope change. Stated limit: an item
-rewritten in the commit that introduced the plan is invisible.
+計画や仕様の受け入れ基準の文を、提供された作業に合うように書き換え、その新しい文に対して項目が完了したと報告する。対策: `/ship` のプラン完了の監査が、計画の受け入れ基準を含むセクションを、ベースブランチまたは最初のコミットの基準と比べて差分を取り、編集された項目を `ACCEPTANCE_EDITED` と報告する。`CHANGED` にまとめることはない。元の義務も引き続き監査され、PR 本文はスコープの変更を明記する。明示された限界: 計画を導入したコミットの中で書き換えられた項目は見えない。
 
-### RH-12 — Environment sniffing in product code
+### RH-12 — 製品コードでの環境の判定
 
-Product code branches on `process.env.CI`, `NODE_ENV === 'test'`,
-`RAILS_ENV == 'test'`, `PYTEST_CURRENT_TEST` or `GITHUB_ACTIONS` so the code
-under test behaves differently from the code in production. Countermeasure:
-the tag outside test paths; the Gate Integrity read asks whether the branch
-exists to pass a check rather than to serve a user.
+製品コードが `process.env.CI`、`NODE_ENV === 'test'`、`RAILS_ENV == 'test'`、`PYTEST_CURRENT_TEST`、`GITHUB_ACTIONS` で分岐し、テスト中のコードが本番のコードと異なる動作をする。対策: テストのパスの外にあるタグ。ゲート整合性の読み取りは、その分岐がユーザーに仕えるためではなく、チェックを通すために存在しているかを問う。
 
-### RH-13 — Suppression pragma added
+### RH-13 — 抑制プラグマの追加
 
-`eslint-disable`, `@ts-ignore`, `@ts-expect-error`, `# type: ignore`,
-`# noqa`, `#[allow(`, `// nolint`, `rubocop:disable` or `@SuppressWarnings`
-silences the checker instead of satisfying it. Countermeasure: the tag admits
-the hunk from any path; the read asks whether the suppressed diagnostic was
-the failure the change was supposed to fix.
+`eslint-disable`、`@ts-ignore`、`@ts-expect-error`、`# type: ignore`、`# noqa`、`#[allow(`、`// nolint`、`rubocop:disable`、`@SuppressWarnings` が、チェッカーを満たすのではなく黙らせる。対策: タグは、どのパスからのハンクも受け入れる。読み取りは、抑制された診断こそ、この変更が直すべきだった失敗だったのかを問う。
 
-### RH-14 — Gate bypass
+### RH-14 — ゲートの回避
 
-A commit in range carries `[skip ci]`/`[ci skip]`, a workflow gains
-`continue-on-error: true` or `allow_failure: true`, or a script or hook adds
-`--no-verify`. Countermeasure: the tag; a removed workflow job is listed by the
-path floor and read (job-removal detection is not in v1). `/ship` never pushes
-with `--no-verify` and never force-pushes.
+範囲内のコミットに `[skip ci]`/`[ci skip]` が含まれる、ワークフローに `continue-on-error: true` や `allow_failure: true` が追加される、またはスクリプトやフックに `--no-verify` が追加される。対策: タグ。削除されたワークフローのジョブは、パスの下限によって一覧化され、読まれる(v1 ではジョブの削除の検出は行わない)。`/ship` は `--no-verify` を付けてプッシュすることも、強制プッシュすることもない。
 
-### RH-15 — Gate value relaxed
+### RH-15 — ゲートの値の緩和
 
-In a test, eval, CI or config file a numeric gate moves in the relaxing
-direction inside one hunk: timeout, retry, retries, tolerance, epsilon, delta,
-maxDiff or jitter **up**; threshold, min_score, minimum, coverage or required
-**down**; or an exact-count assertion loosened to a bound (`toBe(3)` →
-`toBeGreaterThan(0)`). Unpaired values are tagged `RH-15?` and read. The tool
-prints any citation it finds beside the hunk (commit text naming a
-`ship-measure` report, a `gstack-shortcut(dec-*)` marker) and never
-suppresses on it, because `ship-measure` reports are gitignored and commit
-text is forgeable. Countermeasure: `/review`'s former blanket "eval threshold
-changes" suppression is narrowed to code-quality comments only; the agent
-resolves the citation read-only and pre-fills the Keep — justified option
-marked verified or unverified; `ship/sections/measure.md`'s measure-then-fix
-loop ("never raise a budget, lower a threshold, add a retry or skip a case to
-get a pass") is the native repair path.
+テスト、eval、CI、または設定ファイルの中で、数値のゲートが一つのハンクの中で緩和する方向に動く。タイムアウト、リトライ、リトライ回数、許容値、イプシロン、デルタ、maxDiff、ジッターを**上げる**。閾値、min_score、最小値、カバレッジ、必須値を**下げる**。または、正確な件数のアサーションを境界値に緩める(`toBe(3)` → `toBeGreaterThan(0)`)。対になっていない値は `RH-15?` とタグ付けされ、読まれる。ツールは、ハンクの横にある引用(`ship-measure` のレポートに言及するコミットテキスト、`gstack-shortcut(dec-*)` マーカー)を表示するが、それに基づいて抑制することはない。`ship-measure` のレポートは gitignore されており、コミットのテキストは偽造できるためである。対策: `/review` の以前の「eval の閾値の変更」に対する一括の抑制は、コード品質のコメントだけに絞られる。エージェントは引用を読み取り専用で解決し、「Keep — justified」の選択肢を、verified または unverified とマークして事前に埋める。`ship/sections/measure.md` の、測定してから修正するループ(「合格させるために予算を上げたり、閾値を下げたり、リトライを追加したり、ケースをスキップしたりしない」)が、ネイティブの修復の経路である。
 
-### RH-16 — Exception swallowed
+### RH-16 — 握りつぶされた例外
 
-`catch {}`, `catch (e) {}`, `except: pass`, `rescue nil` or `_ = err` added
-in non-test code turns a failure into silence. Countermeasure: the tag lists it
-under the RH id; slop-scan's empty-catch rule keeps the fix suggestion. The
-preamble's stderr rule (never cite a command whose stderr was silenced) covers
-the evidence-command form.
+テスト以外のコードに追加された `catch {}`、`catch (e) {}`、`except: pass`、`rescue nil`、または `_ = err` が、失敗を沈黙に変える。対策: タグが RH の ID の下に列挙する。slop-scan の空の catch のルールが、修正の提案を保つ。プリアンブルの stderr のルール(stderr を黙らせたコマンドを根拠として引用しない)が、根拠となるコマンドの形式をカバーする。
 
-## Positive observables (zero-run green)
+## 肯定的な観察項目(ゼロ実行の緑)
 
-### PL-1 — Exit code is not evidence
+### PL-1 — 終了コードは証拠ではない
 
-A command's exit 0 is reported as success without any observable that the
-work happened: the suite that selected nothing, the build that compiled zero
-files. Countermeasure: the preamble's Claims Need Evidence kernel (a claimed
-execution names the command and its observed result; a checked null result is
-reported as a null, not a pass) and `/ship` Step 16's receipt check.
+コマンドの終了コード 0 が、作業が行われたことを示す観察項目がないまま成功として報告される。何もテストを選ばなかったスイート、ゼロファイルをコンパイルしたビルド。対策: プリアンブルの「Claims Need Evidence」の基本ルール(実行を主張するなら、コマンドと観察した結果を明示する。確認済みの否定結果は、合格ではなく否定結果として報告する)と、`/ship` Step 16 のレシートのチェック。
 
-### PL-2 — Zero-run green
+### PL-2 — ゼロ実行の緑
 
-A test lane exits 0 having run zero tests: bun `0 pass 0 fail`, jest "No tests
-found", pytest "no tests ran", rspec "0 examples", `go test` with only `[no
-test files]`, or an empty selection after a filter. Countermeasure: `/ship`
-Step 5 passes a lane on its runner summary line, not exit 0 alone, with three
-never-merged count states (`tests_ran: N` pass; `tests_ran: 0` ZERO-RUN,
-triaged as a failed lane; `tests_ran: unknown` keeps the exit-0 pass and prints
-`count unavailable` in the PR body); `gstack-evidence check` reports ZERO-RUN
-as STALE-equivalent; the PR body's `## Test Coverage` section prints each
-lane's `tests ran` count.
+テストのレーンが、テストを一つも実行せずに終了コード 0 で終わる。bun の `0 pass 0 fail`、jest の "No tests found"、pytest の "no tests ran"、rspec の "0 examples"、`[no test files]` だけの `go test`、またはフィルターの後の空の選択。対策: `/ship` Step 5 は、終了コード 0 だけでなく、ランナーの要約行でレーンを合格とする。件数の状態は、決して統合せず三つ(`tests_ran: N` は合格、`tests_ran: 0` は ZERO-RUN で失敗したレーンとしてトリアージ、`tests_ran: unknown` は終了コード 0 の合格を維持して PR 本文に `count unavailable` と表示する)。`gstack-evidence check` は ZERO-RUN を STALE 相当として報告する。PR 本文の `## Test Coverage` のセクションは、各レーンの `tests ran` の件数を表示する。
 
-## Where the controls live
+## 統制の配置場所
 
-| Surface | Control |
+| 対象 | 統制 |
 |---|---|
-| preamble | Claims Need Evidence kernel: execution, evidence kind, failure disclosure, null results, stderr rule |
-| `/review` Step 3.5 Diff scans | `GATE_SCAN_BLOCK` runs `gstack-gate-diff <base>`; UNAVAILABLE and partial are missing coverage, never `none detected` |
-| `/review` checklist, Pass 1 | Gate Integrity category: three levels, the one question, ASK never AUTO-FIX, groups one decision, citations never remove a finding |
-| `/review` Step 5c | `review-gate-disposition` (one-way): A) Restore the gate, B) Keep — justified, C) Keep — other reason, D) Leave open for a later human; D recommended for spawned/headless sessions |
-| `/review` Step 5.8 | findings carry `gate`, `gate_id`, `reason`, logger-stamped `actor`; actions `kept`/`restored`/`open`; `open` counts in `issues_found`; no hunk text stored |
-| `gstack-review-log` | stamps `actor` from `gstack-session-kind` and forces `action: "open"` for non-interactive kinds |
-| `/ship` core checklist 2.5, Steps 7 and 9.4 | the same block before the checklist read, again after the test-generation child returns, again after parent fixes |
-| `/ship` Step 5 and Step 16 | runner-summary pass, three `tests_ran` states, ZERO-RUN as a failed lane |
-| `/ship` Step 16 stage 5 | each gate finding's disposition, reason and actor, or the coverage line; the auditor's posture |
-| `/ship` Step 19 | `Gate edits:` line under Pre-Landing Review, per-lane `tests ran` under Test Coverage; draft while any finding is `open` |
+| プリアンブル | Claims Need Evidence の基本ルール: 実行、証拠の種類、失敗の開示、否定結果、stderr のルール |
+| `/review` Step 3.5 差分スキャン | `GATE_SCAN_BLOCK` が `gstack-gate-diff <base>` を実行。UNAVAILABLE と partial は欠けているカバレッジであり、`none detected` ではない |
+| `/review` チェックリスト、パス 1 | ゲート整合性カテゴリ: 三つのレベル、一つの質問、ASK であり AUTO-FIX ではない、グループは一つの判断、引用は所見を消さない |
+| `/review` Step 5c | `review-gate-disposition`(一方向): A) ゲートを復元、B) Keep — justified、C) Keep — other reason、D) 後で人間が対応するために未決のままにする。spawned/headless のセッションでは D を推奨 |
+| `/review` Step 5.8 | 所見は `gate`、`gate_id`、`reason`、ロガーが刻印する `actor` を持つ。アクションは `kept`/`restored`/`open`。`open` は `issues_found` に数える。ハンクのテキストは保存しない |
+| `gstack-review-log` | `gstack-session-kind` から `actor` を刻印し、非対話型のセッションではすべてのゲートの所見に `action: "open"` を強制する |
+| `/ship` コアチェックリスト 2.5、Step 7 と 9.4 | チェックリストを読む前に同じブロック、テスト生成の子プロセスが戻った後に再度、親が修正した後に再度 |
+| `/ship` Step 5 と Step 16 | ランナーの要約による合格、三つの `tests_ran` の状態、ZERO-RUN を失敗したレーンとして扱う |
+| `/ship` Step 16 ステージ 5 | 各ゲートの所見の処理、理由、actor、またはカバレッジの行。監査人の立場 |
+| `/ship` Step 19 | Pre-Landing Review の下の `Gate edits:` の行。Test Coverage の下のレーンごとの `tests ran`。いずれかの所見が `open` の間は下書き |

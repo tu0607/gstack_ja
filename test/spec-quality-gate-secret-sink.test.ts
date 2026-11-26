@@ -2,6 +2,7 @@
 import { beforeAll, afterAll, describe, test, expect } from 'bun:test';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, readdirSync, symlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { expectMentions } from './helpers/prompt-structure';
 import { delimiter, join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dir, '..');
@@ -50,7 +51,7 @@ exec '${realMktemp}' "$@"
   const draft = /^REDACT_FILE: (\S+) \(name: (\S+)\)$/m.exec(made.stdout.toString());
   if (made.exitCode !== 0 || !draft) throw new Error(`draft-file block failed: ${made.stderr.toString()}`);
   writeFileSync(draft[1], body + '\n');
-  const start = full.indexOf('#### Redaction scan — pre-codex');
+  const start = full.indexOf('#### リダクションスキャン — pre-codex');
   if (start < 0) throw new Error(`Missing pre-codex redaction in ${host} spec`);
   const match = full.slice(start).match(/```bash\n([\s\S]*?)\n```/);
   if (!match) throw new Error(`Missing executable scan fence in ${host} spec`);
@@ -122,12 +123,11 @@ for (const host of ['claude', 'codex'] as const) {
     });
     test('redaction remains ahead of outside preflight and --no-gate only skips scoring', () => {
       const text = content(host);
-      const scan = text.indexOf('#### Redaction scan — pre-codex');
+      const scan = text.indexOf('#### リダクションスキャン — pre-codex');
       const preflight = text.indexOf('_OUTSIDE_CFG=$(', scan);
       expect(scan).toBeGreaterThan(-1);
       expect(preflight).toBeGreaterThan(scan);
-      expect(text).toContain('`--no-gate` skips the outside score only; redaction always runs');
-      expect(text).toContain('On --no-gate record skipped after redaction succeeds.');
+      expectMentions(text, [['`--no-gate`', '外部のスコア'], ['マスキングは常に実行'], ['--no-gate', 'マスキングが成功した後', 'スキップ']]);
     });
   });
 }

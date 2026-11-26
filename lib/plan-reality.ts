@@ -45,93 +45,93 @@ export const REALITY_ROWS: readonly RealityRow[] = [
   {
     id: 'premise-table', title: 'Premise table', tier: 1, scope: 'always',
     check: '`premise | claim | file:line receipt | verdict` for every factual claim; no receipt means `unverified`, and `unverified=<n>` is scored in the Completion Summary.',
-    incident: 'A wave rested on "13 of 28 threads ran nothing" with no per-thread evidence; the first table found 1 FALSE and 3 UNVERIFIED claims in 27.',
+    incident: 'スレッドごとの証拠がないまま「28 本中 13 本のスレッドが何も実行しなかった」を前提にウェーブが進んだ。最初の表を作ると、27 件中 1 件が FALSE、3 件が UNVERIFIED だった。',
     metric: 'unverified',
   },
   {
     id: 'already-done', title: 'Already done', tier: 1, scope: 'always',
     check: '`git fetch origin <base>`, then `git log origin/<base> --since=<ask date> -- <named files>` and `--grep <symbols>`; report a hit before any task is written.',
-    incident: 'A fix was re-planned and rebuilt the day after main merged it; nobody read the base log.',
+    incident: 'main が修正をマージした翌日に、同じ修正が再計画され、作り直された。誰もベースのログを読んでいなかった。',
   },
   {
     id: 'surface-check', title: 'Surface check', tier: 1, scope: 'always',
     check: 'Every named CLI command, flag or HTTP route verified against the registry or `--help`; a miss is a finding.',
-    incident: 'The installer relied on `bun upgrade --version`; `bun upgrade --help` on the target listed only `--canary`.',
+    incident: 'インストーラーは `bun upgrade --version` に依存していたが、対象環境の `bun upgrade --help` には `--canary` しか載っていなかった。',
   },
   {
     id: 'binding-decisions', title: 'Binding decisions', tier: 1, scope: 'always',
     check: 'Read `gstack-decision-search --scope branch --recent 50` and the plan\'s `## Binding decisions`; they outrank project defaults and CLAUDE.md, and a reintroduced overruled default is a finding.',
-    incident: 'An owner decision taken mid-review was undone two phases later by the project default it had replaced.',
+    incident: 'レビューの途中で下されたオーナーの決定が、置き換えたはずのプロジェクトの既定値によって 2 フェーズ後に覆された。',
   },
   {
     id: 'numbers', title: 'Numbers', tier: 1, scope: 'always',
     check: 'Every number re-derived from raw data and tagged `[measured: <source>]` or `[estimated]`; a cited baseline is `[re-measure before gate]`.',
-    incident: 'An effort table with no basis was credited until a reviewer re-counted it; quoted parity ratios were off by two decimals.',
+    incident: '根拠のない工数表が、レビュアーが数え直すまで信用されていた。引用されたパリティ比は小数で 2 桁ずれていた。',
   },
   {
     id: 'deferred-asks', title: 'Deferred asks', tier: 1, scope: 'always',
     check: 'The linked issue\'s requests the plan leaves out, each with its reason, listed in the gate template.',
-    incident: 'An issue asked for six things; the plan shipped four and the owner found the other two after merge.',
+    incident: 'Issue は 6 項目を求めていたが、プランは 4 項目だけを出荷し、残る 2 項目はマージ後にオーナーが見つけた。',
   },
   {
     id: 'pr-count', title: 'PR count', tier: 1, scope: 'always',
     check: '`pr_count` from `.gstack/ship-policy.json` (default one PR per wave); a split shows the queue cost per extra PR and checks user-facing references across it.',
-    incident: 'A five-PR wave became seven in the Eng phase; the cost of each extra gate had never been stated.',
+    incident: '5 PR のウェーブが Eng フェーズで 7 PR に増えた。追加のゲートごとのコストは一度も示されていなかった。',
   },
   {
     id: 'prior-art', title: 'Prior art', tier: 2, scope: 'dependency',
     check: 'For a vendored or patched dependency or a known library behavior: search the upstream tracker and open PRs; record `adopt <link>` or `diverge because <reason>`.',
-    incident: 'A patched vendored hunk was dropped on upgrade because nobody had recorded why the fork diverged.',
+    incident: 'フォークがなぜ分岐したのかを誰も記録していなかったため、ベンダリングしたパッチ済みのハンクがアップグレード時に失われた。',
   },
   {
     id: 'transaction-semantics', title: 'Transaction semantics', tier: 2, scope: 'db',
     check: 'For a driver, pool or protocol change: the surrounding transaction on idle, pooled and reserved connections; crash robot rerun after the change.',
-    incident: 'A pool change ended transactions on idle connections; the crash robot was not rerun.',
+    incident: 'プールの変更でアイドル接続のトランザクションが終了した。クラッシュ検証のロボットは再実行されなかった。',
   },
   {
     id: 'contract-assumptions', title: 'Contract assumptions', tier: 2, scope: 'dependency',
     check: 'One row per default or flag assumed from another repo, rechecked against merged code before the next stage.',
-    incident: 'A sibling repo\'s default changed between planning and build; the plan still assumed the old flag.',
+    incident: '兄弟リポジトリの既定値が計画から構築までの間に変わったが、プランは古いフラグを前提にしたままだった。',
   },
   {
     id: 'falsification-box', title: 'Falsification box', tier: 2, scope: 'incident',
     check: 'Top hypothesis, the evidence that kills it, a time box, and the action in each branch.',
-    incident: 'An outage plan chased its first hypothesis for a day with nothing stated that would have killed it.',
+    incident: '障害対応のプランが、反証となる条件を何も定めないまま、最初の仮説を丸一日追い続けた。',
   },
   {
     id: 'stop-reasons', title: 'Stop reasons', tier: 2, scope: 'incident',
     check: 'Every new stop reason, hold code and progress line names the test that triggers it.',
-    incident: 'A hold code shipped with no test that could produce it; it first fired in production.',
+    incident: 'ホールドコードが、それを発生させうるテストなしで出荷され、初めて本番で発動した。',
   },
   {
     id: 'reporter-environment', title: 'Reporter environment', tier: 2, scope: 'incident',
     check: 'A repro that does not match the reporter\'s environment is `class not confirmed`, never `ruled out`.',
-    incident: 'A bug was "ruled out" on a different runtime than the reporter\'s; the reporter still had it.',
+    incident: '報告者とは別のランタイムでバグが「除外」されたが、報告者の環境では依然として再現した。',
   },
   {
     id: 'units', title: 'Units', tier: 2, scope: 'perf',
     check: 'A change to an input\'s units or accuracy lists every threshold that consumes it and shows the re-tune.',
-    incident: 'A timing input moved from ms to s; three downstream thresholds kept their numbers.',
+    incident: 'タイミングの入力が ms から s に変わったが、下流の 3 つのしきい値は数値のままだった。',
   },
   {
     id: 'perf-table', title: 'Perf table', tier: 2, scope: 'perf',
     check: 'Machine, engine, data size, N, p50/p95, statistics state, base and branch interleaved, pathological and steady-state cases, `reproduced on main?`.',
-    incident: 'A speedup came from one warm-cache run with no base comparison; main was as fast.',
+    incident: '高速化の根拠はウォームキャッシュでの 1 回の実行だけで、ベースとの比較がなかった。main も同じ速さだった。',
   },
   {
     id: 'recall', title: 'Recall', tier: 2, scope: 'search',
     check: 'A search or query-plan change reports recall against exact search across scope buckets.',
-    incident: 'A query-plan change sped up the hot path and dropped recall on the smallest bucket.',
+    incident: 'クエリプランの変更でホットパスは速くなったが、最小のバケットで再現率が下がった。',
   },
   {
     id: 'dependency-fallback', title: 'Dependency fallback', tier: 2, scope: 'dependency',
     check: 'What ships without each predecessor, and by when.',
-    incident: 'A stacked PR waited on a predecessor that never merged; nothing said what it could ship alone.',
+    incident: '積み上げた PR が、マージされない先行 PR を待ち続けた。単独で何を出荷できるかは、どこにも書かれていなかった。',
   },
   {
     id: 'obligation-tiers', title: 'Obligation tiers', tier: 2, scope: 'dependency',
     check: 'Must-ship, next PR, deferred, under a stated size budget; the ledger status column carries the tier.',
-    incident: 'A PR outgrew review because every accepted finding was treated as must-ship.',
+    incident: '受け入れた指摘がすべて出荷必須として扱われたため、PR がレビューの手に負えない大きさになった。',
   },
 ];
 
@@ -202,14 +202,14 @@ export interface RealityCheck {
  * A measured quantity: a number with a unit (s, ms, %, $, USD, tokens, ×, MB, GB) or a number shortly after
  * measured/costs/takes/took. Receipts, versions and ids are removed before matching, so they never count.
  */
-const MEASURED_RE = /\$\s?\d|\b\d[\d,]*(?:\.\d+)?\s?[kKM]?\s?(?:ms|s|%|USD|tokens?|MB|GB)(?![\w])|\b\d[\d,]*(?:\.\d+)?\s?[×x](?![\w])|\b(?:measured|costs?|takes|take|took)\b\W+(?:[A-Za-z]+\W+){0,3}?\$?\d/i;
+const MEASURED_RE = /\$\s?\d|\b\d[\d,]*(?:\.\d+)?\s?[kKM]?\s?(?:ms|s|秒|%|USD|tokens?|トークン|MB|GB)(?![\w])|\b\d[\d,]*(?:\.\d+)?\s?[×x](?![\w])|\b(?:measured|costs?|takes|take|took)\b\W+(?:[A-Za-z]+\W+){0,3}?\$?\d/i;
 const ITEM_REF_RE = /\b(?:items?|sections?)\s+\d+(?:\s*[–-]\s*\d+)?(?:\s*(?:,|and)\s*\d+(?:\s*[–-]\s*\d+)?)*|§\s?\d+(?:\.\d+)*/;
 const NOT_A_QUANTITY_RE = new RegExp(`${RECEIPT_RE.source}|${ITEM_REF_RE.source}|\\bv?\\d+(?:\\.\\d+){2,}\\b|#\\d+|\\b[A-Za-z]+\\d+[a-z]?\\b`, 'g');
 const EXEMPT_TAG_RE = /\[(?:estimated|re-measure before gate)\]/i;
 const SCRIPT_RE = /(?:^|[\s(`"'])(?:\.?[\w-]+\/)*[\w.-]+\.(?:ts|js|mjs|cjs|sh|py|rb|go)\b|(?:^|[\s(`"'])(?:bin|scripts)\/[\w.-]+/;
 const COMMAND_RE = /`(?!\s*\$?\d)[^`]*\s[^`]*`/;
 const RULE_CLAIM_RE = /\b(?:decision rule|rules? (?:was |were )?written first|pre-?registered rule)\b/i;
-const QUOTED_RULE_RE = /"[^"]{8,}"|\u201c[^\u201d]{8,}\u201d/;
+const QUOTED_RULE_RE = /"[^"]{8,}"|\u201c[^\u201d]{8,}\u201d|\u300c[^\u300d]{8,}\u300d/;
 const LINK_RE = /(?<![\w./-])\.?[A-Za-z~$][\w./~$@-]*:\d+/;
 
 /** Split on `;`, `, ` and sentence ends, never inside brackets, parentheses or backticks. */
@@ -221,15 +221,15 @@ export function splitClauses(text: string): string[] {
     if (c === '`') tick = !tick;
     else if (!tick && '([{'.includes(c)) depth++;
     else if (!tick && ')]}'.includes(c)) depth = Math.max(0, depth - 1);
-    else if (!tick && depth === 0 && (c === ';' || ((c === ',' || c === '.') && /\s/.test(text[i + 1] ?? '')))) {
-      out.push(text.slice(start, c === '.' ? i + 1 : i)); start = i + 1;
+    else if (!tick && depth === 0 && (c === ';' || c === '；' || c === '。' || ((c === ',' || c === '.') && /\s/.test(text[i + 1] ?? '')))) {
+      out.push(text.slice(start, c === '.' || c === '。' ? i + 1 : i)); start = i + 1;
     }
   }
   out.push(text.slice(start));
   return out.map(c => c.trim()).filter(Boolean);
 }
 
-const QUOTED_SPAN_RE = /"([^"]+)"|\u201c([^\u201d]+)\u201d/g;
+const QUOTED_SPAN_RE = /"([^"]+)"|\u201c([^\u201d]+)\u201d|\u300c([^\u300d]+)\u300d/g;
 const BACKTICK_SPAN_RE = /`[^`]*`/g;
 
 /**
@@ -237,7 +237,7 @@ const BACKTICK_SPAN_RE = /`[^`]*`/g;
  * reviewed plan, reviewer scope only), a span quoted verbatim from it is the plan's number, not the reviewer's claim.
  */
 export function unreceiptedNumbers(line: string, quotedFrom?: string): string[] {
-  const text = quotedFrom ? line.replace(QUOTED_SPAN_RE, (span, a, b) => (quotedFrom.includes((a ?? b) as string) ? '""' : span)) : line;
+  const text = quotedFrom ? line.replace(QUOTED_SPAN_RE, (span, a, b, c) => (quotedFrom.includes((a ?? b ?? c) as string) ? '""' : span)) : line;
   return splitClauses(text).filter(c => MEASURED_RE.test(c.replace(NOT_A_QUANTITY_RE, ' '))
     && !RECEIPT_RE.test(c) && !SCRIPT_RE.test(c) && !COMMAND_RE.test(c) && !EXEMPT_TAG_RE.test(c));
 }

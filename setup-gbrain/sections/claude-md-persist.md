@@ -1,8 +1,8 @@
 <!-- AUTO-GENERATED from claude-md-persist.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-Find-and-replace (or append) the section. Block format depends on mode:
+セクションを検索して置換する(または末尾に追記する)。ブロックの形式はモードによって異なります:
 
-### Path 4 (Remote MCP)
+### Path 4(リモート MCP)
 
 ```markdown
 ## GBrain Configuration (configured by /setup-gbrain)
@@ -17,11 +17,9 @@ Find-and-replace (or append) the section. Block format depends on mode:
 - Current repo policy: {read-write|read-only|deny|unset}
 ```
 
-The bearer token is **never** written to CLAUDE.md (CLAUDE.md is checked
-in to git in many projects). It lives only in `~/.claude.json` where
-`claude mcp add` placed it.
+ベアラートークンは **決して** CLAUDE.md に書き込まないでください(多くのプロジェクトでは CLAUDE.md が git にチェックインされます)。トークンは、`claude mcp add` が配置した `~/.claude.json` にのみ存在します。
 
-### Paths 1, 2a, 2b, 3 (Local stdio)
+### Paths 1、2a、2b、3(ローカル stdio)
 
 ```markdown
 ## GBrain Configuration (configured by /setup-gbrain)
@@ -34,7 +32,4 @@ in to git in many projects). It lives only in `~/.claude.json` where
 - Current repo policy: {read-write|read-only|deny|unset}
 ```
 
-Do not write a `## GBrain Search Guidance` block here. `/sync-gbrain` is its
-only writer: it writes the block after its read check confirms this repo's
-code index answers, and replaces any older block under the same heading.
-Step 10 offers to run `/sync-gbrain`.
+ここに `## GBrain Search Guidance` のブロックは書き込まないでください。書き込みを行うのは `/sync-gbrain` だけです。`/sync-gbrain` は、このリポジトリのコードインデックスが応答することを読み取りチェックで確認した後、そのブロックを書き込み、同じ見出しの古いブロックがあれば置き換えます。Step 10 で `/sync-gbrain` の実行を提案します。

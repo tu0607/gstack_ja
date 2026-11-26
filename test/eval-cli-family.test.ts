@@ -267,7 +267,7 @@ describe('eval:list CLI (scripts/eval-list.ts)', () => {
 
 describe('eval:compare CLI (scripts/eval-compare.ts)', () => {
   test('shows a manual transition without calling it a scored regression', () => {
-    const manual = manualReviewFixture();
+    const manual = manualReviewFixture(undefined, { synthetic: true });
     const prior = writeRun(evalDir, { tier: 'llm-judge', timestamp: '2026-01-01T01:00:00Z',
       tests: [{ name: manual.name, passed: true }] });
     const after = writeRun(evalDir, { tier: 'llm-judge', timestamp: '2026-01-02T01:00:00Z',
@@ -364,7 +364,7 @@ describe('eval:compare CLI (scripts/eval-compare.ts)', () => {
 
 describe('eval:summary CLI (scripts/eval-summary.ts)', () => {
   test('reports manual provenance without inventing a scored flake', () => {
-    const manual = manualReviewFixture();
+    const manual = manualReviewFixture(undefined, { synthetic: true });
     writeRun(evalDir, { tier: 'llm-judge', timestamp: '2026-01-01T01:00:00Z',
       tests: [{ name: manual.name, passed: true }] });
     const accepted = writeRun(evalDir, { tier: 'llm-judge', timestamp: '2026-01-02T01:00:00Z',
@@ -380,7 +380,7 @@ describe('eval:summary CLI (scripts/eval-summary.ts)', () => {
   });
 
   test('retried manual claims remain failed in summary history', () => {
-    const manual = manualReviewFixture();
+    const manual = manualReviewFixture(undefined, { synthetic: true });
     writeRun(evalDir, { tier: 'llm-judge', timestamp: '2026-01-01T01:00:00Z',
       tests: [{ name: manual.name, passed: true }] });
     const attempted = writeRun(evalDir, { tier: 'llm-judge', timestamp: '2026-01-02T01:00:00Z',

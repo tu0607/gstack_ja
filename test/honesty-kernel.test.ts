@@ -30,13 +30,13 @@ describe('Claims Need Evidence kernel', () => {
     expect(bullets).toHaveLength(5);
     expect(EVIDENCE_KERNEL_BULLETS).toHaveLength(5);
     expect(Buffer.byteLength(bullets.join('\n'), 'utf8')).toBeLessThanOrEqual(KERNEL_MAX_BYTES);
-    expectTokens(rendered, ['Reuse rules: Step 16', 'stderr', '"done, unverified"'], 'kernel');
+    expectTokens(rendered, ['再利用のルール: Step 16', 'stderr', '「done, unverified」'], 'kernel');
     expectMentions(rendered, [
-      ['limitation', 'verbatim error'],
-      ['execution', 'command', 'fingerprint'],
-      ['mock', 'live check'],
-      ['disclose', 'failure', 'conclusion'],
-      ['null result', 'success'],
+      ['制約', '原文どおりのエラー'],
+      ['実行', 'コマンド', 'フィンガープリント'],
+      ['モック', '実際の確認'],
+      ['開示', '失敗', '結論'],
+      ['null 結果', '成功'],
     ], 'kernel');
     expect(rendered).not.toContain('Claimed Limitations Need Evidence');
   });
@@ -57,7 +57,7 @@ describe('Claims Need Evidence kernel', () => {
   test('the DONE line binds evidence to the final consumed inputs and names reuse (every tier)', () => {
     const status = between(generateCompletionStatus(ctx(1)), '## Completion Status Protocol', '## Operational Self-Improvement');
     const done = status.split('\n').find(line => line.startsWith('- **DONE**'))!;
-    expectTokens(done, ['**DONE**', 'final consumed inputs', 'reuse'], 'DONE line');
+    expectTokens(done, ['**DONE**', '最終的に使用した入力', '再利用'], 'DONE line');
     expect(done).not.toBe('- **DONE** — completed with evidence.');
     for (const tier of [1, 2, 3, 4]) expect(generatePreamble(ctx(tier))).toContain(done);
   });
